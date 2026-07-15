@@ -1,0 +1,47 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   CARGOEXPRESS PH — Main Stylesheet
+   Modular CSS architecture — imports organized by layer
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ── 1. Design Tokens (no output, only CSS variables) ── */
+@import './tokens.css';
+
+/* ── 2. Base & Reset ── */
+@import './base.css';
+
+/* ── 3. Component Styles ── */
+@import './components.css';
+@import './data.css';
+@import './feedback.css';
+@import './loading-search.css';
+@import './tabs-steps.css';
+@import './charts.css';
+
+/* ── 4. Layouts ── */
+@import './layout-admin.css';
+@import './layout-customer.css';
+
+/* ── 5. Page-Specific Styles ── */
+@import './auth.css';
+@import './pages.css';
+@import './about-page.css';
+@import './tracking.css';
+@import './remaining.css';
+
+/* ── 6. Animations & Utilities ── */
+@import './animations-utils.css';
+
+/* ── 7. Responsive Overrides ── */
+@import './responsive.css';
+
+/* ── 8. Premium Product Refresh ── */
+@import './premium-refresh.css';
+
+/* Customer mobile app refresh */
+@import './customer-mobile-refresh.css';
+
+/* Admin mobile app refresh */
+@import './admin-modern-refresh.css';
+
+/* Final mobile viewport and tap-readability hardening */
+@import './viewport-hardening.css';

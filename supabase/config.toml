@@ -1,0 +1,5 @@
+[functions.paymongo-webhook]
+verify_jwt = false
+
+[functions.send-push]
+verify_jwt = true

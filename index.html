@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
+
+    <!-- ====== SEO & App Meta ====== -->
+    <title>CargoExpress PH — Cargo Delivery Booking &amp; Tracking</title>
+    <meta name="description" content="CargoExpress PH - Web-Based Cargo Delivery Booking and Tracking System. Track shipments, manage deliveries, and streamline your logistics operations across the Philippines." />
+    <meta name="keywords" content="cargo, delivery, booking, tracking, logistics, Philippines, shipping, freight, CargoExpress" />
+    <meta name="author" content="CargoExpress PH" />
+    <meta name="application-name" content="CargoExpress PH" />
+
+    <!-- ====== Theme & Colors ====== -->
+    <meta name="theme-color" content="#16A34A" />
+    <meta name="theme-color" content="#0F172A" media="(prefers-color-scheme: dark)" />
+    <meta name="msapplication-TileColor" content="#16A34A" />
+    <meta name="msapplication-navbutton-color" content="#16A34A" />
+    <meta name="color-scheme" content="dark light" />
+    <script>
+      (function () {
+        try {
+          var storedTheme = localStorage.getItem('cargoexpress_theme');
+          var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+          var theme = storedTheme === 'dark' || storedTheme === 'light'
+            ? storedTheme
+            : prefersDark ? 'dark' : 'light';
+
+          document.documentElement.setAttribute('data-theme', theme);
+          document.documentElement.style.colorScheme = theme;
+        } catch (error) {
+          document.documentElement.setAttribute('data-theme', 'light');
+          document.documentElement.style.colorScheme = 'light';
+        }
+      })();
+    </script>
+
+    <!-- ====== PWA Manifest ====== -->
+    <link rel="manifest" href="/manifest.json" crossorigin="use-credentials" />
+
+    <!-- ====== Favicon & Icons ====== -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/icons/icon-72.png" />
+    <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+    <link rel="apple-touch-icon" sizes="152x152" href="/icons/icon-152.png" />
+    <link rel="apple-touch-icon" sizes="192x192" href="/icons/icon-192.png" />
+    <link rel="apple-touch-icon" sizes="512x512" href="/icons/icon-512.png" />
+    <meta name="msapplication-TileImage" content="/icons/icon-144.png" />
+
+    <!-- ====== Apple PWA Meta ====== -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="CargoExpress PH" />
+    <meta name="mobile-web-app-capable" content="yes" />
+
+    <!-- ====== Microsoft PWA Meta ====== -->
+    <meta name="msapplication-starturl" content="/" />
+    <meta name="msapplication-tap-highlight" content="no" />
+
+    <!-- ====== Open Graph Meta ====== -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="CargoExpress PH — Cargo Delivery Booking & Tracking" />
+    <meta property="og:description" content="Web-Based Cargo Delivery Booking and Tracking System for the Philippines." />
+    <meta property="og:site_name" content="CargoExpress PH" />
+    <meta property="og:image" content="/icons/icon-512.png" />
+
+    <!-- ====== Preconnect for Performance ====== -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="dns-prefetch" href="https://fonts.googleapis.com" />
+    <link rel="dns-prefetch" href="https://fonts.gstatic.com" />
+    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap" rel="stylesheet" />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+
+    <!-- ====== Service Worker Registration ====== -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        const isDev = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+
+        window.addEventListener('load', async () => {
+          try {
+            const registration = await navigator.serviceWorker.register('/sw.js', {
+              scope: '/',
+            });
+
+            if (!isDev) {
+              // Check for updates periodically (every 60 minutes)
+              setInterval(() => {
+                registration.update();
+              }, 60 * 60 * 1000);
+
+              // Handle updates
+              registration.addEventListener('updatefound', () => {
+                const newWorker = registration.installing;
+
+                newWorker.addEventListener('statechange', () => {
+                  if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                    window.dispatchEvent(new CustomEvent('sw-update-available', {
+                      detail: { registration }
+                    }));
+                  }
+                });
+              });
+
+              navigator.serviceWorker.addEventListener('controllerchange', () => {
+                // New SW activated — page will use latest assets on next navigation
+              });
+            }
+          } catch (error) {
+            // SW registration failed — app continues working without offline support
+          }
+        });
+      }
+    </script>
+  </body>
+</html>

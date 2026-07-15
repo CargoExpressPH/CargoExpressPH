@@ -1,0 +1,313 @@
+/* Final mobile viewport and tap-readability hardening.
+   Keep 100vh rules in earlier files as fallbacks; override with dvh when supported. */
+
+@supports (height: 100dvh) {
+  .app-layout,
+  .main-content,
+  .customer-layout-v2,
+  .auth-page,
+  .login-split-page,
+  .trk-page,
+  .public-about-page,
+  .not-found-page,
+  .loading-screen {
+    min-height: 100dvh;
+  }
+
+  .sidebar {
+    height: 100dvh;
+  }
+
+  .app-layout .sidebar,
+  .app-layout .sidebar.collapsed {
+    height: calc(100dvh - 32px);
+  }
+
+  .support-chat-page {
+    height: calc(100dvh - 160px);
+  }
+
+  @media (max-width: 1024px) {
+    .app-layout .sidebar,
+    .app-layout .sidebar.collapsed {
+      height: calc(100dvh - 24px);
+    }
+  }
+}
+
+.notification-badge {
+  min-width: 18px;
+  height: 18px;
+  border-radius: 9px;
+  font-size: 0.6875rem;
+  letter-spacing: 0;
+}
+
+.notification-badge-sm {
+  top: -5px;
+  right: -8px;
+  min-width: 16px;
+  height: 16px;
+  border-radius: 8px;
+  font-size: 0.625rem;
+  letter-spacing: 0;
+}
+
+.customer-bottom-tab {
+  min-width: 60px;
+  font-size: 0.7rem;
+}
+
+.app-layout .topbar > .flex,
+.app-layout .topbar-title,
+.customer-navbar-logo {
+  display: inline-flex;
+  align-items: center;
+}
+
+.app-layout .topbar-title,
+.customer-navbar-logo {
+  line-height: 1;
+}
+
+.app-layout .topbar-title > span,
+.customer-navbar-brand {
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
+  min-width: 0;
+}
+
+.app-layout .topbar-logo-icon,
+.customer-navbar-logo > svg {
+  display: block;
+  flex-shrink: 0;
+  align-self: center;
+}
+
+.btn > svg,
+.tab > svg,
+.card-header h3 > svg,
+.admin-page-title > svg,
+.customer-section-title > svg,
+.customer-inline-action > svg,
+.alert-banner > svg,
+.profile-menu-item > svg,
+.customer-mobile-link > svg,
+.sidebar-link > svg,
+.customer-bottom-tab > svg,
+.responsive-filter-option > svg,
+.responsive-filter-trigger > svg,
+.custom-select-trigger > svg {
+  display: block;
+  flex-shrink: 0;
+  align-self: center;
+}
+
+.form-input-wrapper {
+  align-items: center;
+}
+
+.form-input-wrapper .form-input-icon {
+  display: block;
+  flex-shrink: 0;
+}
+
+.form-input-wrapper:has(textarea) .form-input-icon {
+  top: 24px;
+  transform: none;
+  margin-top: 0 !important;
+}
+
+.form-input-wrapper:has(textarea) .form-textarea.form-input-icon-left {
+  padding-left: 44px;
+}
+
+.tab,
+.card-header h3,
+.admin-page-title,
+.customer-section-title,
+.customer-inline-action,
+.alert-banner,
+.profile-menu-item,
+.customer-mobile-link,
+.sidebar-link {
+  align-items: center;
+}
+
+.tab {
+  display: inline-flex;
+  gap: 8px;
+  line-height: 1;
+}
+
+.app-layout .tabs:not(.responsive-filter-tabs) {
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.app-layout .tabs:not(.responsive-filter-tabs) .tab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.customer-layout-v2 .customer-home-snapshot {
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.customer-layout-v2 .customer-snapshot-pill {
+  display: grid;
+  align-content: center;
+  min-width: 0;
+}
+
+.customer-layout-v2 .customer-snapshot-value {
+  align-items: center;
+  gap: 5px;
+  line-height: 1;
+}
+
+.customer-layout-v2 .customer-snapshot-value svg {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+}
+
+.customer-layout-v2 .customer-snapshot-label {
+  line-height: 1.2;
+  overflow-wrap: normal;
+}
+
+.chat-fab-badge,
+.fp-tip-dot,
+.bar-chart-label,
+.topbar-command-kbd,
+.app-layout .topbar-command-kbd {
+  font-size: 0.6875rem;
+}
+
+@media (max-width: 640px) {
+  .app-layout .topbar {
+    gap: 8px;
+  }
+
+  .app-layout .topbar > .flex {
+    gap: 8px;
+  }
+
+  .app-layout .topbar-title {
+    flex: 1 1 auto;
+    max-width: none;
+    gap: 6px;
+    font-size: 0.92rem;
+  }
+
+  .app-layout .topbar-title > span {
+    display: inline-flex;
+    max-width: none;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .app-layout .topbar-logo-icon {
+    width: 20px;
+    height: 20px;
+  }
+
+  .app-layout .topbar-actions {
+    gap: 4px;
+  }
+
+  .app-layout .topbar-actions .btn-icon,
+  .app-layout .theme-toggle-btn {
+    min-width: 38px;
+    width: 38px;
+    min-height: 38px;
+    height: 38px;
+  }
+
+  .app-layout .grid-4:has(.stat-card) {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 12px;
+  }
+
+  .app-layout .grid-4:has(.stat-card) .stat-card {
+    min-height: 104px;
+    padding: 16px;
+    column-gap: 10px;
+  }
+
+  .app-layout .grid-4:has(.stat-card) .stat-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 14px;
+  }
+}
+
+@media (max-width: 380px) {
+  .app-layout .topbar {
+    gap: 6px;
+    padding-inline: 14px;
+  }
+
+  .app-layout .topbar > .flex {
+    gap: 6px;
+  }
+
+  .app-layout .topbar-title {
+    gap: 5px;
+    font-size: 0.84rem;
+  }
+
+  .app-layout .topbar-logo-icon {
+    width: 19px;
+    height: 19px;
+  }
+}
+
+@media (max-width: 340px) {
+  .app-layout .topbar-title .text-primary {
+    display: none;
+  }
+
+  .app-layout .topbar-title > span {
+    max-width: none;
+    overflow: visible;
+  }
+}
+
+@media (max-width: 360px) {
+  .customer-bottom-tab {
+    min-width: 52px;
+    padding-inline: 6px;
+    font-size: 0.6875rem;
+  }
+
+  .notification-badge-sm {
+    min-width: 15px;
+    height: 15px;
+    font-size: 0.6rem;
+  }
+
+  .customer-layout-v2 .customer-home-snapshot {
+    gap: 6px;
+  }
+
+  .customer-layout-v2 .customer-snapshot-pill {
+    min-height: 62px;
+    padding: 9px 7px;
+    border-radius: 18px;
+  }
+
+  .customer-layout-v2 .customer-snapshot-value {
+    font-size: 0.98rem;
+  }
+
+  .customer-layout-v2 .customer-snapshot-label {
+    font-size: 0.64rem;
+  }
+}
