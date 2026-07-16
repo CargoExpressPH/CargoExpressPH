@@ -426,7 +426,7 @@
   border: 1px solid color-mix(in srgb, var(--customer-green) 22%, transparent);
   border-radius: 28px !important;
   background:
-    linear-gradient(135deg, color-mix(in srgb, var(--customer-green-soft) 82%, #FFFFFF 18%), #FFFFFF 62%),
+    linear-gradient(135deg, color-mix(in srgb, var(--customer-green-soft) 82%, var(--customer-panel-solid) 18%), var(--customer-panel-solid) 62%),
     var(--customer-panel-solid) !important;
   color: var(--customer-ink) !important;
   box-shadow: var(--customer-shadow) !important;
