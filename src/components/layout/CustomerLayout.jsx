@@ -1,12 +1,13 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { Outlet, NavLink, useNavigate, Link, useLocation } from 'react-router-dom';
 import { Bell, User, Container, LogOut, MessageSquare, Package, MapPin, Plus, Home, ChevronRight, Settings } from 'lucide-react';
 import ThemeToggle from '../ui/ThemeToggle';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { getUnreadNotificationCount } from '../../lib/database';
-import { requestNotificationPermission, refreshFCMTokenIfNeeded } from '../../lib/firebase-messaging';
 import { useToast } from '../../hooks/useToast';
+import { usePushNotification } from '../../hooks/usePushNotification';
+import IosInstallBanner from '../ui/IosInstallBanner';
 import ErrorBoundary from '../ui/ErrorBoundary';
 import ConfirmModal from '../ui/ConfirmModal';
 import OnboardingModal from '../ui/OnboardingModal';
@@ -96,36 +97,35 @@ const CustomerLayout = () => {
     }
   }, [location.pathname, user]);
 
-  // ── Push Notification: FCM token registration & refresh ──────────────
+  // ── Push Notifications: unified Android (FCM) + iOS (Web Push) ────────
+  const handleForegroundPush = useCallback((msg) => {
+    toast.info(msg.body || msg.title);
+  }, [toast]);
+
+  const { enablePush } = usePushNotification(user?.id, handleForegroundPush);
+
   useEffect(() => {
     if (!user) return;
+    if (sessionStorage.getItem('push_asked')) return;
 
-    if (sessionStorage.getItem('fcm_asked')) {
-      // Already asked this session — just refresh the token if stale
-      refreshFCMTokenIfNeeded(user.id);
-      return;
-    }
-
-    // Delay the browser permission prompt so it doesn't block initial render
+    // Delay the permission prompt so it doesn't fire during initial render
     const timer = setTimeout(() => {
-      requestNotificationPermission(user.id).finally(() => {
-        sessionStorage.setItem('fcm_asked', '1');
+      enablePush().finally(() => {
+        sessionStorage.setItem('push_asked', '1');
       });
-    }, 3000);
+    }, 4000);
 
     return () => clearTimeout(timer);
-  }, [user]);
+  }, [user, enablePush]);
 
-  // ── Foreground push: show in-app toast instead of system notification ─
+  // Foreground push from SW message bus (sw.js PUSH_NOTIFICATION event)
   useEffect(() => {
     if (!('serviceWorker' in navigator)) return;
-
     const handler = (event) => {
       if (event.data?.type === 'PUSH_NOTIFICATION') {
         toast.info(event.data.body || event.data.title);
       }
     };
-
     navigator.serviceWorker.addEventListener('message', handler);
     return () => navigator.serviceWorker.removeEventListener('message', handler);
   }, [toast]);
@@ -154,6 +154,7 @@ const CustomerLayout = () => {
   return (
     <>
     <OnboardingModal />
+    <IosInstallBanner />
     <div className="customer-layout-v2">
       <a href="#customer-main-content" className="skip-link">Skip to main content</a>
       {/* ─── Top Navigation Bar ─── */}
