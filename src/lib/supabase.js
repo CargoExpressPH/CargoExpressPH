@@ -102,7 +102,7 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
         options.cache = 'no-store';
       }
       
-      return fetch(url, options);
+      return fetchWithRetry(url, options);
     }
   },
   realtime: {
