@@ -155,8 +155,8 @@
 [data-theme="dark"] {
   --bg-gradient: linear-gradient(135deg, #0A1628 0%, #111E33 100%);
   --primary: #22C55E;
-  --primary-dark: #4ADE80;
-  --primary-light: #16A34A;
+  --primary-dark: #16A34A;
+  --primary-light: #4ADE80;
   --primary-lighter: #14532D;
   --primary-bg: #052E16;
   --primary-glow: rgba(22, 163, 74, 0.25);

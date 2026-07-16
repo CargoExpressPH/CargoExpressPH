@@ -19,6 +19,13 @@ const fetchWithRetry = async (url, options = {}, retries = 3, backoff = 1000) =>
     throw new Error('Network offline');
   }
 
+  // Only idempotent GET requests should be retried.
+  // Non-idempotent writes (POST, PATCH, PUT, DELETE) must NEVER be retried
+  // automatically — a network failure after the server processes a write
+  // would cause duplicate bookings, duplicate payments, or corrupted balances.
+  const method = (options.method || 'GET').toUpperCase();
+  const isIdempotent = method === 'GET';
+
   const timeoutMs = 15000; // 15 seconds timeout
   try {
     const controller = new AbortController();
@@ -40,7 +47,8 @@ const fetchWithRetry = async (url, options = {}, retries = 3, backoff = 1000) =>
     }
     return response;
   } catch (error) {
-    if (retries > 0 && error.name !== 'AbortError') {
+    // Retry only for idempotent GETs with retries remaining (not user-aborted)
+    if (isIdempotent && retries > 0 && error.name !== 'AbortError') {
       // Retry with exponential backoff
       await new Promise(resolve => setTimeout(resolve, backoff));
       // Exponential backoff: 1s, 2s, 4s

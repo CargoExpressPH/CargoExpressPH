@@ -1,0 +1,16 @@
+{
+  "projectId": "prj_L8NtnQ2q5vy2gvLxxTmTkX8zo2zN",
+  "orgId": "team_Kaofly5geUA9b5r2ypls5ZPL",
+  "projectName": "cargoexpress-ph",
+  "settings": {
+    "createdAt": 1784073222606,
+    "framework": "vite",
+    "devCommand": null,
+    "installCommand": null,
+    "buildCommand": null,
+    "outputDirectory": null,
+    "rootDirectory": null,
+    "directoryListing": false,
+    "nodeVersion": "24.x"
+  }
+}

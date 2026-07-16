@@ -728,14 +728,32 @@ export const getUnreadNotificationCount = async (userId) => {
 };
 
 // ==================== CUSTOMERS (Admin) ====================
-export const getCustomers = async () => {
-  const { data, error } = await supabase
+/**
+ * Fetch paginated, server-side filtered customer profiles.
+ * @param {Object} options - { page, perPage, search }
+ * @returns {{ data: Array, count: number }}
+ */
+export const getCustomers = async (options = {}) => {
+  const { page = 1, perPage = 15, search = '' } = options;
+
+  let query = supabase
     .from('profiles')
-    .select('*')
+    .select('id, name, email, phone, address_province, created_at', { count: 'exact' })
     .eq('role', 'customer')
     .order('created_at', { ascending: false });
+
+  if (search && search.trim()) {
+    const term = search.trim();
+    query = query.or(`name.ilike.%${term}%,email.ilike.%${term}%,phone.ilike.%${term}%,address_province.ilike.%${term}%`);
+  }
+
+  const from = (page - 1) * perPage;
+  const to = from + perPage - 1;
+  query = query.range(from, to);
+
+  const { data, error, count } = await query;
   if (error) throw error;
-  return data;
+  return { data: data || [], count: count || 0 };
 };
 
 export const getCustomerById = async (customerId) => {

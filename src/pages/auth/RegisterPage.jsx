@@ -117,6 +117,10 @@ const RegisterPage = () => {
     if (passwordError) return showError(passwordError);
     if (!form.confirmPassword) return showError('Please confirm your password.');
     if (form.password !== form.confirmPassword) return showError('Passwords do not match.');
+    if (!form.address_province) return showError('Province is required.');
+    if (!form.address_city) return showError('City / Municipality is required.');
+    if (!form.address_barangay.trim()) return showError('Barangay is required.');
+    if (!form.address_street.trim()) return showError('Street is required.');
     if (!form.address_lot_block.trim()) return showError('Lot / Block / Purok is required.');
     if (!form.address_landmark.trim()) return showError('Landmark is required.');
     setError('');
