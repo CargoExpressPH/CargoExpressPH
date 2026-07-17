@@ -85,6 +85,48 @@ const CustomerLayout = () => {
     return () => { supabase.removeChannel(channel); };
   }, [user]);
 
+  // ── Keyboard visibility listener (Hides bottom nav when typing on mobile) ──
+  useEffect(() => {
+    const handleViewportChange = () => {
+      if (window.visualViewport) {
+        const isKeyboard = window.visualViewport.height < window.innerHeight - 120;
+        document.body.classList.toggle('keyboard-active', isKeyboard);
+      }
+    };
+
+    const handleFocusIn = (e) => {
+      const isInput = ['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target?.tagName);
+      if (isInput && e.target.type !== 'checkbox' && e.target.type !== 'radio') {
+        document.body.classList.add('keyboard-active');
+      }
+    };
+
+    const handleFocusOut = () => {
+      setTimeout(() => {
+        const activeElement = document.activeElement;
+        const isInputStillActive = activeElement && ['INPUT', 'TEXTAREA', 'SELECT'].includes(activeElement.tagName);
+        if (!isInputStillActive) {
+          document.body.classList.remove('keyboard-active');
+        }
+      }, 100);
+    };
+
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', handleViewportChange);
+    }
+    window.addEventListener('focusin', handleFocusIn);
+    window.addEventListener('focusout', handleFocusOut);
+
+    return () => {
+      if (window.visualViewport) {
+        window.visualViewport.removeEventListener('resize', handleViewportChange);
+      }
+      window.removeEventListener('focusin', handleFocusIn);
+      window.removeEventListener('focusout', handleFocusOut);
+      document.body.classList.remove('keyboard-active');
+    };
+  }, []);
+
   // Reset badge when user visits the notifications page
   useEffect(() => {
     if (location.pathname === '/customer/notifications') {
