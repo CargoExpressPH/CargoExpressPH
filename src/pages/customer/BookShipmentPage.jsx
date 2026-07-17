@@ -68,23 +68,39 @@ const BookShipmentPage = () => {
   const preRoute  = location.state?.preselectedRoute  || '';
   const preTripId = location.state?.preselectedTripId || '';
 
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState(() => {
+    try {
+      const savedStep = sessionStorage.getItem('booking_step');
+      return savedStep ? parseInt(savedStep, 10) : 1;
+    } catch {
+      return 1;
+    }
+  });
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [success, setSuccess] = useState(null);
   const [trips, setTrips] = useState([]);
   const [pricePerKilo, setPricePerKilo] = useState(70);
 
-  const [form, setForm] = useState({
-    route: preRoute, trip_id: preTripId,
-    sender_name: '', sender_phone: '', sender_facebook: '',
-    sender_lot_block: '', sender_street: '', sender_barangay: '',
-    sender_city: '', sender_province: '', sender_landmark: '',
-    receiver_name: '', receiver_phone: '', receiver_facebook: '',
-    receiver_lot_block: '', receiver_street: '', receiver_barangay: '',
-    receiver_city: '', receiver_province: '', receiver_landmark: '',
-    package_description: '', package_weight: '',
-    payer_type: 'sender', notes: '', sender_other_province: '',
+  const [form, setForm] = useState(() => {
+    const defaultForm = {
+      route: preRoute, trip_id: preTripId,
+      sender_name: '', sender_phone: '', sender_facebook: '',
+      sender_lot_block: '', sender_street: '', sender_barangay: '',
+      sender_city: '', sender_province: '', sender_landmark: '',
+      receiver_name: '', receiver_phone: '', receiver_facebook: '',
+      receiver_lot_block: '', receiver_street: '', receiver_barangay: '',
+      receiver_city: '', receiver_province: '', receiver_landmark: '',
+      package_description: '', package_weight: '',
+      payer_type: 'sender', notes: '', sender_other_province: '',
+    };
+    try {
+      const savedForm = sessionStorage.getItem('booking_form');
+      const parsed = savedForm ? JSON.parse(savedForm) : null;
+      return parsed ? { ...defaultForm, ...parsed, ...(preRoute ? { route: preRoute } : {}), ...(preTripId ? { trip_id: preTripId } : {}) } : defaultForm;
+    } catch {
+      return defaultForm;
+    }
   });
 
   const [useRegisteredSender, setUseRegisteredSender] = useState(false);
@@ -119,6 +135,18 @@ const BookShipmentPage = () => {
       getSettings().then(s => { if (s.price_per_kilo) setPricePerKilo(parseFloat(s.price_per_kilo)); }).catch(() => {}),
     ]).finally(() => setInitialLoading(false));
   }, []);
+
+  useEffect(() => {
+    try {
+      sessionStorage.setItem('booking_step', step.toString());
+    } catch {}
+  }, [step]);
+
+  useEffect(() => {
+    try {
+      sessionStorage.setItem('booking_form', JSON.stringify(form));
+    } catch {}
+  }, [form]);
 
   const selectedRoute = ROUTES.find(r => r.label === form.route);
   const filteredTrips = trips.filter(t => selectedRoute && t.origin === selectedRoute.origin && t.destination === selectedRoute.destination);
@@ -289,6 +317,10 @@ const BookShipmentPage = () => {
       }
       
       setSuccess(data);
+      try {
+        sessionStorage.removeItem('booking_form');
+        sessionStorage.removeItem('booking_step');
+      } catch {}
     } catch (err) {
       toast.error(err.message || 'An unexpected error occurred while saving the booking.');
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -305,9 +337,9 @@ const BookShipmentPage = () => {
     const errEl = (key) => fe(key) ? <div className="field-error-inline"><AlertTriangle size={12} />{fe(key)}</div> : null;
     return (
       <div className="grid grid-2 gap-16">
-        <div className="form-group" style={{ gridColumn: '1 / -1' }}><label className="form-label" htmlFor={id('name')}>Full Name *</label><input id={id('name')} className={`form-input ${fc('name')}`} value={form[`${prefix}_name`]} onChange={handleTextChange(`${prefix}_name`)} autoComplete={isSender ? 'name' : 'shipping name'} required />{errEl('name')}</div>
+        <div className="form-group" style={{ gridColumn: '1 / -1' }}><label className="form-label" htmlFor={id('name')}>Full Name *</label><input id={id('name')} className={`form-input ${fc('name')}`} value={form[`${prefix}_name`]} onChange={handleTextChange(`${prefix}_name`)} autoComplete={isSender ? 'name' : 'shipping name'} autoCapitalize="words" required />{errEl('name')}</div>
         <div className="form-group"><label className="form-label" htmlFor={id('phone')}>Mobile Number *</label><input id={id('phone')} className={`form-input ${fc('phone')}`} value={form[`${prefix}_phone`]} onChange={handlePhoneChange(`${prefix}_phone`)} inputMode="numeric" maxLength={11} placeholder="09xxxxxxxxx" autoComplete="tel" required />{errEl('phone')}</div>
-        <div className="form-group"><label className="form-label" htmlFor={id('facebook')}>Facebook Name *</label><input id={id('facebook')} className={`form-input ${fc('facebook')}`} value={form[`${prefix}_facebook`]} onChange={handleTextChange(`${prefix}_facebook`)} placeholder="Your name on Facebook" required />{errEl('facebook')}</div>
+        <div className="form-group"><label className="form-label" htmlFor={id('facebook')}>Facebook Name *</label><input id={id('facebook')} className={`form-input ${fc('facebook')}`} value={form[`${prefix}_facebook`]} onChange={handleTextChange(`${prefix}_facebook`)} placeholder="Your name on Facebook" autoCapitalize="words" required />{errEl('facebook')}</div>
         <div className="form-group"><label className="form-label" htmlFor={id('province')}>Province *</label>
           <CustomSelect id={id('province')} className={`form-select ${fc('province')}`} value={form[`${prefix}_province`]} onChange={e => { u(`${prefix}_province`, e.target.value); u(`${prefix}_city`, ''); }}>
             <option value="">Select Province</option>
@@ -315,11 +347,11 @@ const BookShipmentPage = () => {
           </CustomSelect>{errEl('province')}
         </div>
         {isSender && form[`${prefix}_province`] === 'Other Area' && (
-          <div className="form-group"><label className="form-label" htmlFor={id('other_province')}>Exact Province *</label><input id={id('other_province')} className={`form-input ${fc('other_province')}`} value={form[`${prefix}_other_province`] || ''} onChange={handleTextChange(`${prefix}_other_province`)} required />{errEl('other_province')}</div>
+          <div className="form-group"><label className="form-label" htmlFor={id('other_province')}>Exact Province *</label><input id={id('other_province')} className={`form-input ${fc('other_province')}`} value={form[`${prefix}_other_province`] || ''} onChange={handleTextChange(`${prefix}_other_province`)} autoCapitalize="words" required />{errEl('other_province')}</div>
         )}
         <div className="form-group"><label className="form-label" htmlFor={id('city')}>City / Municipality *</label>
           {isSender && form[`${prefix}_province`] === 'Other Area' ? (
-            <input id={id('city')} className={`form-input ${fc('city')}`} value={form[`${prefix}_city`] || ''} onChange={handleTextChange(`${prefix}_city`)} required />
+            <input id={id('city')} className={`form-input ${fc('city')}`} value={form[`${prefix}_city`] || ''} onChange={handleTextChange(`${prefix}_city`)} autoCapitalize="words" required />
           ) : (
             <CustomSelect id={id('city')} className={`form-select ${fc('city')}`} value={form[`${prefix}_city`]} onChange={e => u(`${prefix}_city`, e.target.value)} disabled={!form[`${prefix}_province`]}>
               <option value="">Select City</option>
@@ -328,10 +360,10 @@ const BookShipmentPage = () => {
           )}
           {errEl('city')}
         </div>
-        <div className="form-group"><label className="form-label" htmlFor={id('barangay')}>Barangay *</label><input id={id('barangay')} className={`form-input ${fc('barangay')}`} value={form[`${prefix}_barangay`]} onChange={handleTextChange(`${prefix}_barangay`)} autoComplete="address-level3" required />{errEl('barangay')}</div>
-        <div className="form-group"><label className="form-label" htmlFor={id('street')}>Street *</label><input id={id('street')} className={`form-input ${fc('street')}`} value={form[`${prefix}_street`]} onChange={handleTextChange(`${prefix}_street`)} autoComplete="address-line1" required />{errEl('street')}</div>
-        <div className="form-group"><label className="form-label" htmlFor={id('lot-block')}>Lot / Block / Purok *</label><input id={id('lot-block')} className={`form-input ${fc('lot_block')}`} value={form[`${prefix}_lot_block`]} onChange={handleTextChange(`${prefix}_lot_block`)} autoComplete="address-line2" required />{errEl('lot_block')}</div>
-        <div className="form-group"><label className="form-label" htmlFor={id('landmark')}>Landmark *</label><input id={id('landmark')} className={`form-input ${fc('landmark')}`} value={form[`${prefix}_landmark`]} onChange={handleTextChange(`${prefix}_landmark`)} placeholder="Near what building/place?" required />{errEl('landmark')}</div>
+        <div className="form-group"><label className="form-label" htmlFor={id('barangay')}>Barangay *</label><input id={id('barangay')} className={`form-input ${fc('barangay')}`} value={form[`${prefix}_barangay`]} onChange={handleTextChange(`${prefix}_barangay`)} autoComplete="address-level3" autoCapitalize="words" required />{errEl('barangay')}</div>
+        <div className="form-group"><label className="form-label" htmlFor={id('street')}>Street *</label><input id={id('street')} className={`form-input ${fc('street')}`} value={form[`${prefix}_street`]} onChange={handleTextChange(`${prefix}_street`)} autoComplete="address-line1" autoCapitalize="words" required />{errEl('street')}</div>
+        <div className="form-group"><label className="form-label" htmlFor={id('lot-block')}>Lot / Block / Purok *</label><input id={id('lot-block')} className={`form-input ${fc('lot_block')}`} value={form[`${prefix}_lot_block`]} onChange={handleTextChange(`${prefix}_lot_block`)} autoComplete="address-line2" autoCapitalize="words" required />{errEl('lot_block')}</div>
+        <div className="form-group"><label className="form-label" htmlFor={id('landmark')}>Landmark *</label><input id={id('landmark')} className={`form-input ${fc('landmark')}`} value={form[`${prefix}_landmark`]} onChange={handleTextChange(`${prefix}_landmark`)} placeholder="Near what building/place?" autoCapitalize="words" required />{errEl('landmark')}</div>
         {isSender && form[`${prefix}_province`] === 'Other Area' && (
           <div className="alert alert-warning mt-md" style={{ gridColumn: '1 / -1' }}>
             <AlertTriangle size={16} style={{display:'inline', marginRight: '8px', verticalAlign: 'middle'}}/>
@@ -528,7 +560,27 @@ const BookShipmentPage = () => {
             <button
               type="button"
               className="btn booking-success-btn-outline"
-              onClick={() => { setSuccess(null); setStep(1); setFieldErrors({}); setForm(prev => ({ ...prev, route: '', trip_id: '', sender_name: '', sender_phone: '', sender_facebook: '', sender_lot_block: '', sender_street: '', sender_barangay: '', sender_city: '', sender_province: '', sender_landmark: '', receiver_name: '', receiver_phone: '', receiver_facebook: '', receiver_lot_block: '', receiver_street: '', receiver_barangay: '', receiver_city: '', receiver_province: '', receiver_landmark: '', package_description: '', package_weight: '', payer_type: 'sender', notes: '' })); }}
+              onClick={() => {
+                try {
+                  sessionStorage.removeItem('booking_form');
+                  sessionStorage.removeItem('booking_step');
+                } catch {}
+                setSuccess(null);
+                setStep(1);
+                setFieldErrors({});
+                setForm(prev => ({
+                  ...prev,
+                  route: '', trip_id: '',
+                  sender_name: '', sender_phone: '', sender_facebook: '',
+                  sender_lot_block: '', sender_street: '', sender_barangay: '',
+                  sender_city: '', sender_province: '', sender_landmark: '',
+                  receiver_name: '', receiver_phone: '', receiver_facebook: '',
+                  receiver_lot_block: '', receiver_street: '', receiver_barangay: '',
+                  receiver_city: '', receiver_province: '', receiver_landmark: '',
+                  package_description: '', package_weight: '',
+                  payer_type: 'sender', notes: '', sender_other_province: '',
+                }));
+              }}
             >
               Book Another
             </button>
