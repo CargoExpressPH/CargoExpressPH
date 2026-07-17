@@ -772,7 +772,7 @@ const AboutPage = () => {
   };
 
   return (
-    <div style={{ background: 'var(--bg-gradient, var(--bg))', color: 'var(--text)', minHeight: '100vh', fontFamily: 'Inter, system-ui, sans-serif' }}>
+    <div className="public-about-page" style={{ background: 'var(--bg-gradient, var(--bg))', color: 'var(--text)', minHeight: '100vh', fontFamily: 'Inter, system-ui, sans-serif' }}>
 
       {/* â•â•â• Scroll Progress Bar â•â•â• */}
       <div className="about-scroll-progress" style={{ width: `${scrollProgress}%` }} />
