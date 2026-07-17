@@ -88,7 +88,7 @@ const CreateTripPage = () => {
         <div className="card stagger-item mb-16" style={{ animationDelay: '0ms' }}>
           <div className="card-body">
             <h3 className="fw-700 mb-16 flex items-center gap-8">
-              <Truck size={18} color="var(--primary)" aria-hidden="true" /> Route *
+              <Truck size={18} color="var(--primary)" aria-hidden="true" /> Route
             </h3>
             <div className="admin-route-options">
               {ROUTES.map(r => (
@@ -118,11 +118,11 @@ const CreateTripPage = () => {
         <div className="card stagger-item mb-16" style={{ animationDelay: '60ms' }}>
           <div className="card-body">
             <h3 className="fw-700 mb-16 flex items-center gap-8">
-              <Calendar size={18} color="var(--primary)" aria-hidden="true" /> Schedule *
+              <Calendar size={18} color="var(--primary)" aria-hidden="true" /> Schedule
             </h3>
             <div className="grid grid-2 gap-16">
               <div className="form-group">
-                <label className="form-label" htmlFor="trip-departure-date">Departure Date & Time *</label>
+                <label className="form-label" htmlFor="trip-departure-date">Departure Date & Time</label>
                 <input id="trip-departure-date" type="datetime-local" className="form-input" value={form.departure_date} onChange={e => u('departure_date', e.target.value)} required />
               </div>
               <div className="form-group">
@@ -137,16 +137,16 @@ const CreateTripPage = () => {
         <div className="card stagger-item mb-16" style={{ animationDelay: '120ms' }}>
           <div className="card-body">
             <h3 className="fw-700 mb-16 flex items-center gap-8">
-              <Package size={18} color="var(--primary)" aria-hidden="true" /> Capacity & Pricing *
+              <Package size={18} color="var(--primary)" aria-hidden="true" /> Capacity & Pricing
             </h3>
             <div className="grid grid-2 gap-16">
               <div className="form-group">
-                <label className="form-label" htmlFor="trip-capacity">Capacity (kg) *</label>
+                <label className="form-label" htmlFor="trip-capacity">Capacity (kg)</label>
                 <input id="trip-capacity" type="number" className="form-input" value={form.capacity} onChange={e => u('capacity', e.target.value)} placeholder="e.g. 1000" min="1" step="1" required aria-describedby="trip-capacity-helper" />
                 <p id="trip-capacity-helper" className="text-xs text-tertiary mt-4">Maximum total cargo weight for this trip.</p>
               </div>
               <div className="form-group">
-                <label className="form-label" htmlFor="trip-price-per-kg">Amount per Kilo (₱) *</label>
+                <label className="form-label" htmlFor="trip-price-per-kg">Amount per Kilo (₱)</label>
                 <div className="relative">
                   <DollarSign size={16} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)', pointerEvents: 'none' }} />
                   <input id="trip-price-per-kg" type="number" className="form-input" value={form.price_per_kg} onChange={e => u('price_per_kg', e.target.value)} placeholder="e.g. 70" min="0.01" step="0.01" style={{ paddingLeft: 34 }} required aria-describedby="trip-price-helper" />
