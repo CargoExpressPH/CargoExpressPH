@@ -324,10 +324,12 @@ export const updateOrder = async (orderId, updates) => {
     );
   }
 
-  // If actual_weight changed, recalculate shipping cost
-  if (updates.actual_weight !== undefined) {
+  // Recalculate shipping cost if actual_weight or trip_id changed
+  if (updates.actual_weight !== undefined || updates.trip_id !== undefined) {
     let trip = null;
     const tripId = updates.trip_id || currentOrder?.trip_id;
+    const weight = parseFloat(updates.actual_weight !== undefined ? updates.actual_weight : (currentOrder?.actual_weight ?? currentOrder?.package_weight ?? 0)) || 0;
+    
     if (tripId) {
       const { data: tripData } = await supabase
         .from('trips')
@@ -335,11 +337,11 @@ export const updateOrder = async (orderId, updates) => {
         .eq('id', tripId)
         .single();
       trip = tripData;
-      await assertTripCapacity(trip, updates.actual_weight, orderId);
+      if (updates.actual_weight !== undefined) {
+        await assertTripCapacity(trip, weight, orderId);
+      }
     }
     const pricePerKilo = trip ? await effectiveTripPrice(trip) : await getGlobalPricePerKilo();
-    
-    const weight = parseFloat(updates.actual_weight);
     updates.shipping_cost = weight * pricePerKilo;
   }
   
@@ -418,6 +420,7 @@ export const createTrip = async (tripData) => {
     .from('trips')
     .insert({
       ...tripData,
+      status: 'scheduled',
       trip_number: tripNumber,
       available_slots: tripData.capacity || 1000,
       created_by: user?.user?.id || null,
@@ -451,12 +454,38 @@ export const createTrip = async (tripData) => {
       }
 
       if (selectedIds.length > 0) {
-        const { data: updated } = await supabase
+        const { data: updated, error: updateErr } = await supabase
           .from('orders')
           .update({ trip_id: data.id, status: 'Assigned' })
           .in('id', selectedIds)
-          .select('id');
-        autoAssignedCount = updated?.length || 0;
+          .select('id, user_id, tracking_number');
+        
+        if (!updateErr && updated?.length) {
+          autoAssignedCount = updated.length;
+          
+          // Loop through auto-assigned orders to write activity logs and notifications
+          await Promise.all(updated.map(async (order) => {
+            try {
+              // Log the activity
+              logOrder('Order Assigned', order.id, order.tracking_number, {
+                previousValue: { status: 'Pending', trip_id: null },
+                newValue: { status: 'Assigned', trip_id: data.id },
+                details: `System auto-assigned to Trip ${tripNumber} during creation`
+              });
+
+              // Create notification
+              await createNotification(
+                order.user_id,
+                'Order Assigned',
+                `Your order ${order.tracking_number} has been assigned to Trip ${tripNumber}.`,
+                'order_update',
+                order.id
+              );
+            } catch (err) {
+              console.warn(`Failed to notify/log for auto-assigned order ${order.id}`, err);
+            }
+          }));
+        }
       }
     }
   }

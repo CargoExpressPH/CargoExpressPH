@@ -31,6 +31,19 @@ const CreateTripPage = () => {
     e.preventDefault();
     if (!form.origin || !form.destination) { toast.error('Please select a route.'); return; }
     if (!form.departure_date) { toast.error('Departure date is required.'); return; }
+    
+    // Validate departure date is in the future
+    if (new Date(form.departure_date) < new Date()) {
+      toast.error('Departure date cannot be in the past.');
+      return;
+    }
+    
+    // Validate arrival date is after departure date
+    if (form.arrival_date && new Date(form.arrival_date) <= new Date(form.departure_date)) {
+      toast.error('Estimated arrival date must be after departure date.');
+      return;
+    }
+
     if (!form.capacity || isNaN(Number(form.capacity)) || Number(form.capacity) <= 0) {
       toast.error('Capacity must be a positive number.'); return;
     }
@@ -41,6 +54,7 @@ const CreateTripPage = () => {
     try {
       const result = await createTrip({
         ...form,
+        arrival_date: form.arrival_date ? form.arrival_date : null,
         capacity:     Number(form.capacity),
         price_per_kg: Number(form.price_per_kg),
       });
