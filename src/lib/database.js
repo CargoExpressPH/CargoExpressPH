@@ -497,7 +497,7 @@ export const getTrips = async (statusFilter) => {
   let query = supabase
     .from('trips')
     .select('*')
-    .order('departure_date', { ascending: false });
+    .order('created_at', { ascending: false });
 
   if (statusFilter === 'active') {
     query = query.in('status', ['scheduled', 'in_progress']);
