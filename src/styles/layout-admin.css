@@ -292,3 +292,18 @@
   .topbar-title { display: flex !important; }
   .sidebar-collapse-btn { display: none !important; }
 }
+
+/* ── Activity Logs Page ───────────────────────────────────────────────── */
+.activity-logs-filters {
+  animation-delay: 0ms;
+}
+.activity-logs-filter-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px;
+}
+.activity-logs-table-card {
+  animation-delay: 60ms;
+  overflow: hidden;
+}
+

@@ -136,7 +136,7 @@ const ActivityLogsPage = () => {
         { label: 'Activity Logs' },
       ]} />
 
-      <div className="flex items-center justify-between mb-8" style={{ flexWrap: 'wrap', gap: 12 }}>
+      <div className="flex items-center justify-between mb-8 flex-wrap gap-12">
         <div>
           <h1 className="fw-800 text-2xl flex items-center gap-10">
             <ClipboardList size={26} color="var(--primary)" />
@@ -155,36 +155,35 @@ const ActivityLogsPage = () => {
       </div>
 
       {/* Filters */}
-      <div className="card mb-16 stagger-item" style={{ animationDelay: '0ms' }}>
+      <div className="card mb-16 stagger-item activity-logs-filters">
         <div className="card-body">
           <div className="flex items-center gap-8 mb-12">
             <Filter size={14} color="var(--text-secondary)" />
             <span className="text-xs text-secondary font-bold text-uppercase">Filters</span>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 12 }}>
-            <div className="form-group" style={{ margin: 0 }}>
+          <div className="activity-logs-filter-grid">
+            <div className="form-group m-0">
               <label className="form-label">Search</label>
-              <div style={{ position: 'relative' }}>
-                <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)', pointerEvents: 'none' }} />
+              <div className="form-input-wrapper">
+                <Search size={15} className="form-input-icon" />
                 <input
                   type="text"
-                  className="form-control"
+                  className="form-input form-input-icon-left"
                   placeholder="Action, admin, ref..."
                   value={searchInput}
                   onChange={e => setSearchInput(e.target.value)}
-                  style={{ paddingLeft: 30 }}
                 />
               </div>
             </div>
 
-            <div className="form-group" style={{ margin: 0 }}>
+            <div className="form-group m-0">
               <label className="form-label">Module</label>
               <CustomSelect className="form-control" value={module} onChange={e => setModule(e.target.value)}>
                 {MODULES.map(m => <option key={m} value={m === 'All' ? '' : m}>{m}</option>)}
               </CustomSelect>
             </div>
 
-            <div className="form-group" style={{ margin: 0 }}>
+            <div className="form-group m-0">
               <label className="form-label">Action</label>
               <input
                 type="text"
@@ -195,7 +194,7 @@ const ActivityLogsPage = () => {
               />
             </div>
 
-            <div className="form-group" style={{ margin: 0 }}>
+            <div className="form-group m-0">
               <label className="form-label">Admin</label>
               <CustomSelect className="form-control" value={adminId} onChange={e => setAdminId(e.target.value)}>
                 <option value="">All Admins</option>
@@ -203,17 +202,17 @@ const ActivityLogsPage = () => {
               </CustomSelect>
             </div>
 
-            <div className="form-group" style={{ margin: 0 }}>
+            <div className="form-group m-0">
               <label className="form-label">From Date</label>
               <input type="date" className="form-control" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
             </div>
 
-            <div className="form-group" style={{ margin: 0 }}>
+            <div className="form-group m-0">
               <label className="form-label">To Date</label>
               <input type="date" className="form-control" value={dateTo} onChange={e => setDateTo(e.target.value)} />
             </div>
 
-            <div className="form-group" style={{ margin: 0, display: 'flex', alignItems: 'flex-end' }}>
+            <div className="form-group m-0 flex items-end">
               <button className="btn btn-ghost btn-sm w-full" onClick={() => {
                 setSearchInput(''); setSearch(''); setModule(''); setActionFilter(''); setAdminId(''); setDateFrom(''); setDateTo('');
               }}>Clear Filters</button>
@@ -221,7 +220,6 @@ const ActivityLogsPage = () => {
           </div>
         </div>
       </div>
-
       {/* Results summary */}
       <div className="flex items-center justify-between mb-12 text-sm text-secondary">
         <span>{total.toLocaleString()} {total === 1 ? 'entry' : 'entries'} found</span>
@@ -231,7 +229,7 @@ const ActivityLogsPage = () => {
       </div>
 
       {/* Table */}
-      <div className="card stagger-item" style={{ animationDelay: '60ms', overflow: 'hidden' }}>
+      <div className="card stagger-item activity-logs-table-card">
         {loading ? (
           <div className="card-body"><SkeletonText lines={8} /></div>
         ) : logs.length === 0 ? (
@@ -244,51 +242,46 @@ const ActivityLogsPage = () => {
           <div className="table-container">
             <table className="data-table">
               <thead>
-                <tr style={{ borderBottom: '2px solid var(--border)', background: 'var(--bg)' }}>
+                <tr>
                   {['Date & Time', 'Admin', 'Module', 'Action', 'Reference', 'Details'].map(h => (
-                    <th key={h} style={{
-                      padding: '10px 16px', textAlign: 'left', fontSize: '0.72rem',
-                      fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em',
-                      whiteSpace: 'nowrap',
-                    }}>{h}</th>
+                    <th key={h}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {logs.map((log, i) => (
-                  <tr key={log.id} style={{
-                    borderBottom: '1px solid var(--border)',
-                    background: i % 2 === 0 ? 'transparent' : 'var(--bg)',
-                    transition: 'background 0.15s',
-                  }}>
-                    <td data-label="Date & Time" style={{ padding: '10px 16px', whiteSpace: 'nowrap', fontSize: '0.8rem' }}>
+                {logs.map((log) => (
+                  <tr key={log.id}>
+                    <td data-label="Date & Time">
                       <div className="flex items-center gap-6 text-secondary">
                         <Clock size={12} />
                         {formatDate(log.created_at)}
                       </div>
                     </td>
-                    <td data-label="Admin" style={{ padding: '10px 16px', fontSize: '0.82rem' }}>
+                    <td data-label="Admin">
                       <div className="flex items-center gap-6">
                         <User size={12} color="var(--text-tertiary)" />
                         <span className="font-bold">{log.admin_name}</span>
                       </div>
                     </td>
-                    <td data-label="Module" style={{ padding: '10px 16px' }}>
+                    <td data-label="Module">
                       <ModuleBadge module={log.module} />
                     </td>
-                    <td data-label="Action" style={{ padding: '10px 16px', fontSize: '0.82rem', fontWeight: 600 }}>
+                    <td data-label="Action" className="font-semibold">
                       {log.action}
                     </td>
-                    <td data-label="Reference" style={{ padding: '10px 16px', fontSize: '0.8rem' }}>
+                    <td data-label="Reference">
                       {log.record_ref ? (
                         <span style={{
-                          fontFamily: 'monospace', background: 'var(--bg)',
-                          padding: '2px 7px', borderRadius: 4, fontSize: '0.78rem',
+                          fontFamily: 'monospace',
+                          background: 'var(--bg-secondary)',
+                          padding: '2px 7px',
+                          borderRadius: 4,
+                          fontSize: '0.78rem',
                           border: '1px solid var(--border)',
                         }}>{log.record_ref}</span>
                       ) : '—'}
                     </td>
-                    <td data-label="Details" className="details-cell" style={{ padding: '10px 16px', fontSize: '0.79rem', color: 'var(--text-secondary)' }}>
+                    <td data-label="Details" className="details-cell">
                       <span style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                         {log.details || '—'}
                       </span>

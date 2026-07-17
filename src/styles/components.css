@@ -49,6 +49,19 @@
 .btn-warning { background: var(--warning); color: white; }
 .btn-warning:hover { background: var(--warning-dark); }
 
+.btn-alert-action {
+  background: var(--surface);
+  color: var(--success-dark);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+}
+.btn-alert-action:hover {
+  background: var(--bg-secondary);
+  border-color: var(--border-hover);
+  transform: translateY(-1px);
+}
+
+
 .btn-sm {
   min-height: 34px;
   padding: 8px 14px;

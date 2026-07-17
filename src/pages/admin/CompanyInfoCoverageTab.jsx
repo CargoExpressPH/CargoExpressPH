@@ -17,7 +17,7 @@ const SortableRegion = ({ region, handleEditRegion, setDeleteTarget, handleAddNe
     border: '1px solid var(--border-light)',
     borderRadius: 'var(--radius-md)',
     overflow: 'hidden',
-    backgroundColor: 'var(--bg-primary)',
+    backgroundColor: 'var(--surface)',
     zIndex: isDragging ? 10 : 1,
     position: 'relative'
   };
@@ -85,7 +85,7 @@ const SortableRegion = ({ region, handleEditRegion, setDeleteTarget, handleAddNe
               fontSize: '0.7rem',
               fontWeight: 500,
               color: 'var(--text-tertiary)',
-              background: 'var(--bg-tertiary, rgba(0,0,0,0.08))',
+              background: 'var(--bg-secondary)',
               borderRadius: '999px',
               padding: '1px 7px',
               lineHeight: '1.5'

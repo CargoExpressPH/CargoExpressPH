@@ -10,6 +10,7 @@ import PageTransition, { StaggerItem } from '../../components/ui/PageTransition'
 import ErrorBoundarySection from '../../components/ui/ErrorBoundarySection';
 import { Package, Truck, Users, Clock, ArrowRight, Gauge, PieChart } from 'lucide-react';
 import usePageTitle from '../../hooks/usePageTitle';
+import EmptyState from '../../components/ui/EmptyState';
 
 const DashboardPage = () => {
   usePageTitle('Dashboard');
@@ -190,7 +191,17 @@ const DashboardPage = () => {
                       <td data-label="Date" className="text-sm text-secondary">{new Date(o.created_at).toLocaleDateString()}</td>
                     </tr>
                   ))}
-                  {recent.length === 0 && <tr><td colSpan={4} className="text-center text-secondary" style={{ padding: 40 }}>No orders yet</td></tr>}
+                  {recent.length === 0 && (
+                    <tr>
+                      <td colSpan={4} style={{ padding: '24px 16px' }}>
+                        <EmptyState
+                          icon={Package}
+                          title="No orders yet"
+                          description="Incoming customer bookings will appear here."
+                        />
+                      </td>
+                    </tr>
+                  )}
                 </>
               )}
             </tbody>

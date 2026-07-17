@@ -348,8 +348,8 @@ const OrderDetailPage = () => {
             <p className="text-sm m-0" style={{ opacity: 0.9 }}>How was your experience? Your feedback helps us improve.</p>
           </div>
           <button 
-            className="btn" 
-            style={{ backgroundColor: 'white', color: 'var(--success)', whiteSpace: 'nowrap', flexShrink: 0 }}
+            className="btn btn-alert-action" 
+            style={{ whiteSpace: 'nowrap', flexShrink: 0 }}
             onClick={() => setShowFeedbackModal(true)}
           >
             Leave Feedback

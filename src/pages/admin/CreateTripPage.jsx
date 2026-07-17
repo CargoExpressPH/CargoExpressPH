@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createTrip } from '../../lib/database';
 import { ROUTES } from '../../constants/phLocations';
-import { ArrowLeft, Calendar, Loader, Truck, DollarSign, Package, FileText, Lightbulb } from 'lucide-react';
+import { ArrowLeft, Calendar, Loader, Truck, DollarSign, Package, FileText, Lightbulb, AlertTriangle } from 'lucide-react';
 import { useToast } from '../../hooks/useToast';
 import usePageTitle from '../../hooks/usePageTitle';
 import { logTrip } from '../../lib/activityLog';
@@ -12,6 +12,7 @@ const CreateTripPage = () => {
   const navigate = useNavigate();
   const toast = useToast();
   const [loading, setLoading] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState({});
   const [form, setForm] = useState({
     origin: '', destination: '',
     departure_date: '', arrival_date: '',
@@ -20,36 +21,52 @@ const CreateTripPage = () => {
     notes: '',
   });
 
-  const u = (k, v) => setForm(p => ({ ...p, [k]: v }));
+  const u = (k, v) => {
+    setForm(p => ({ ...p, [k]: v }));
+    if (fieldErrors[k]) setFieldErrors(p => { const n = { ...p }; delete n[k]; return n; });
+  };
 
   const handleRouteSelect = (route) => {
     u('origin', route.origin);
     u('destination', route.destination);
+    if (fieldErrors.route) setFieldErrors(p => { const n = { ...p }; delete n.route; return n; });
+  };
+
+  const validateForm = () => {
+    const errs = {};
+    if (!form.origin || !form.destination) {
+      errs.route = 'Route selection is required.';
+    }
+    if (!form.departure_date) {
+      errs.departure_date = 'Departure date is required.';
+    } else if (new Date(form.departure_date) < new Date()) {
+      errs.departure_date = 'Departure date cannot be in the past.';
+    }
+    if (form.arrival_date && form.departure_date && new Date(form.arrival_date) <= new Date(form.departure_date)) {
+      errs.arrival_date = 'Estimated arrival date must be after departure date.';
+    }
+    if (!form.capacity) {
+      errs.capacity = 'Capacity is required.';
+    } else if (isNaN(Number(form.capacity)) || Number(form.capacity) <= 0) {
+      errs.capacity = 'Capacity must be a positive number.';
+    }
+    if (!form.price_per_kg) {
+      errs.price_per_kg = 'Amount per kilo is required.';
+    } else if (isNaN(Number(form.price_per_kg)) || Number(form.price_per_kg) <= 0) {
+      errs.price_per_kg = 'Amount per kilo must be a positive number.';
+    }
+    return errs;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.origin || !form.destination) { toast.error('Please select a route.'); return; }
-    if (!form.departure_date) { toast.error('Departure date is required.'); return; }
-    
-    // Validate departure date is in the future
-    if (new Date(form.departure_date) < new Date()) {
-      toast.error('Departure date cannot be in the past.');
-      return;
-    }
-    
-    // Validate arrival date is after departure date
-    if (form.arrival_date && new Date(form.arrival_date) <= new Date(form.departure_date)) {
-      toast.error('Estimated arrival date must be after departure date.');
+    const errs = validateForm();
+    if (Object.keys(errs).length > 0) {
+      setFieldErrors(errs);
+      toast.error('Please fix the validation errors on the form.');
       return;
     }
 
-    if (!form.capacity || isNaN(Number(form.capacity)) || Number(form.capacity) <= 0) {
-      toast.error('Capacity must be a positive number.'); return;
-    }
-    if (!form.price_per_kg || isNaN(Number(form.price_per_kg)) || Number(form.price_per_kg) <= 0) {
-      toast.error('Amount per kilo must be a positive number.'); return;
-    }
     setLoading(true);
     try {
       const result = await createTrip({
@@ -111,6 +128,12 @@ const CreateTripPage = () => {
                 </button>
               ))}
             </div>
+            {fieldErrors.route && (
+              <div className="field-error-inline" style={{ marginTop: 12 }}>
+                <AlertTriangle size={12} />
+                {fieldErrors.route}
+              </div>
+            )}
           </div>
         </div>
 
@@ -123,11 +146,13 @@ const CreateTripPage = () => {
             <div className="grid grid-2 gap-16">
               <div className="form-group">
                 <label className="form-label" htmlFor="trip-departure-date">Departure Date & Time</label>
-                <input id="trip-departure-date" type="datetime-local" className="form-input" value={form.departure_date} onChange={e => u('departure_date', e.target.value)} required />
+                <input id="trip-departure-date" type="datetime-local" className={`form-input ${fieldErrors.departure_date ? 'field-invalid' : ''}`} value={form.departure_date} onChange={e => u('departure_date', e.target.value)} required />
+                {fieldErrors.departure_date && <div className="field-error-inline"><AlertTriangle size={12} />{fieldErrors.departure_date}</div>}
               </div>
               <div className="form-group">
                 <label className="form-label" htmlFor="trip-arrival-date">Estimated Arrival Date & Time</label>
-                <input id="trip-arrival-date" type="datetime-local" className="form-input" value={form.arrival_date} onChange={e => u('arrival_date', e.target.value)} />
+                <input id="trip-arrival-date" type="datetime-local" className={`form-input ${fieldErrors.arrival_date ? 'field-invalid' : ''}`} value={form.arrival_date} onChange={e => u('arrival_date', e.target.value)} />
+                {fieldErrors.arrival_date && <div className="field-error-inline"><AlertTriangle size={12} />{fieldErrors.arrival_date}</div>}
               </div>
             </div>
           </div>
@@ -142,15 +167,17 @@ const CreateTripPage = () => {
             <div className="grid grid-2 gap-16">
               <div className="form-group">
                 <label className="form-label" htmlFor="trip-capacity">Capacity (kg)</label>
-                <input id="trip-capacity" type="number" className="form-input" value={form.capacity} onChange={e => u('capacity', e.target.value)} placeholder="e.g. 1000" min="1" step="1" required aria-describedby="trip-capacity-helper" />
+                <input id="trip-capacity" type="number" className={`form-input ${fieldErrors.capacity ? 'field-invalid' : ''}`} value={form.capacity} onChange={e => u('capacity', e.target.value)} placeholder="e.g. 1000" min="1" step="1" required aria-describedby="trip-capacity-helper" />
+                {fieldErrors.capacity && <div className="field-error-inline"><AlertTriangle size={12} />{fieldErrors.capacity}</div>}
                 <p id="trip-capacity-helper" className="text-xs text-tertiary mt-4">Maximum total cargo weight for this trip.</p>
               </div>
               <div className="form-group">
                 <label className="form-label" htmlFor="trip-price-per-kg">Amount per Kilo (₱)</label>
                 <div className="relative">
                   <DollarSign size={16} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)', pointerEvents: 'none' }} />
-                  <input id="trip-price-per-kg" type="number" className="form-input" value={form.price_per_kg} onChange={e => u('price_per_kg', e.target.value)} placeholder="e.g. 70" min="0.01" step="0.01" style={{ paddingLeft: 34 }} required aria-describedby="trip-price-helper" />
+                  <input id="trip-price-per-kg" type="number" className={`form-input ${fieldErrors.price_per_kg ? 'field-invalid' : ''}`} value={form.price_per_kg} onChange={e => u('price_per_kg', e.target.value)} placeholder="e.g. 70" min="0.01" step="0.01" style={{ paddingLeft: 34 }} required aria-describedby="trip-price-helper" />
                 </div>
+                {fieldErrors.price_per_kg && <div className="field-error-inline"><AlertTriangle size={12} />{fieldErrors.price_per_kg}</div>}
                 <p id="trip-price-helper" className="text-xs text-tertiary mt-4">Cost per kilogram for bookings on this trip.</p>
               </div>
             </div>

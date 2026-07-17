@@ -1285,7 +1285,8 @@ input:checked + .toggle-slider:before {
   color: #FFFFFF;
 }
 
-.support-message-bubble.bot-bubble {
+.support-message-bubble.bot-bubble,
+.support-message-bubble.admin-bubble {
   border: 1px solid var(--customer-line);
   background: var(--customer-panel-solid);
   color: var(--customer-ink);

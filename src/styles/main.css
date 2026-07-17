@@ -16,6 +16,7 @@
 @import './loading-search.css';
 @import './tabs-steps.css';
 @import './charts.css';
+@import './validation.css';
 
 /* ── 4. Layouts ── */
 @import './layout-admin.css';

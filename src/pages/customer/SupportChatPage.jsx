@@ -48,12 +48,6 @@ const MessageBubble = ({ m, showResolutionPrompt, onVoteYes, onVoteNo, adminName
   const isMe    = m.sender_role === 'customer';
   const isBot   = m.sender_role === 'bot';
 
-  const bubbleStyle = isMe
-    ? { background: 'var(--primary)', color: 'white', borderRadius: '18px 18px 4px 18px' }
-    : isBot
-    ? { background: 'var(--bg-secondary)', color: 'var(--text)', borderRadius: '18px 18px 18px 4px', border: '1px solid var(--border-light)' }
-    : { background: 'var(--surface)', color: 'var(--text)', borderRadius: '18px 18px 18px 4px', border: '1px solid var(--border-light)' };
-
   const resolvedAdminName = m.profiles?.name || adminName || 'Support Agent';
 
   return (
@@ -67,7 +61,7 @@ const MessageBubble = ({ m, showResolutionPrompt, onVoteYes, onVoteNo, adminName
         {isBot && <div className="chat-sender-label bot-label">🤖 CargoExpress Assistant</div>}
         {m.sender_role === 'admin' && <div className="chat-sender-label admin-label">👤 {resolvedAdminName}</div>}
 
-        <div className="support-message-bubble" style={bubbleStyle}>
+        <div className={`support-message-bubble ${isMe ? 'user-bubble' : isBot ? 'bot-bubble' : 'admin-bubble'}`}>
           {m.message.split('\n').map((line, j, arr) => (
             <span key={j}>{line}{j < arr.length - 1 && <br />}</span>
           ))}

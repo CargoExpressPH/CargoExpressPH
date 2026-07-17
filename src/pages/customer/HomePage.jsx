@@ -160,7 +160,7 @@ const HomePage = () => {
           <h3 className="customer-section-title fw-700 mb-12 flex items-center gap-8">
             <Truck size={18} color="var(--primary)" /> Next Available Trip
           </h3>
-          <div className="customer-trip-card rounded-lg p-20 text-inverse" style={{
+          <div className="customer-trip-card rounded-lg p-20 text-white" style={{
             background: 'linear-gradient(135deg, var(--accent), #2D5A8A)',
             boxShadow: '0 8px 24px rgba(27,58,92,0.25)',
           }}>

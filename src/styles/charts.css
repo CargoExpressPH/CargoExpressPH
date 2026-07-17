@@ -436,30 +436,7 @@
 }
 
 
-/* ── Inline Validation ───────────────────────────────────────────────── */
 
-.field-error-inline {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  color: var(--error);
-  font-size: 0.78rem;
-  font-weight: 600;
-  margin-top: 4px;
-  animation: slideDown 0.2s ease;
-}
-
-.form-input.field-invalid,
-.form-select.field-invalid {
-  border-color: var(--error) !important;
-  box-shadow: 0 0 0 3px var(--error-glow) !important;
-}
-
-.form-input.field-valid,
-.form-select.field-valid {
-  border-color: var(--success) !important;
-  box-shadow: 0 0 0 3px var(--success-glow) !important;
-}
 
 
 /* ── Skeleton Charts ─────────────────────────────────────────────────── */
