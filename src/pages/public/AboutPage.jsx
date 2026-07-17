@@ -1340,6 +1340,11 @@ const AboutPage = () => {
                   </svg>
                 </a>
               )}
+              {info?.email && (
+                <a href={`mailto:${info.email}`} className="about-social-btn" title="Email">
+                  <Mail size={18} />
+                </a>
+              )}
             </div>
           </div>
 
