@@ -176,7 +176,7 @@
   background: var(--surface);
   color: var(--text-secondary);
   cursor: pointer;
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.25s ease, color 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
 }
 .admin-notif-bell:hover {
   background: var(--bg-secondary);
@@ -307,7 +307,7 @@
   background: transparent;
   color: var(--text-tertiary);
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: background-color 0.15s ease, color 0.15s ease;
 }
 .admin-notif-action-btn:hover {
   background: var(--bg-secondary);
@@ -444,7 +444,7 @@
   color: var(--text-tertiary);
   cursor: pointer;
   opacity: 0;
-  transition: all 0.15s ease;
+  transition: opacity 0.15s ease, background-color 0.15s ease, color 0.15s ease;
 }
 .admin-notif-item:hover .admin-notif-delete-btn {
   opacity: 1;

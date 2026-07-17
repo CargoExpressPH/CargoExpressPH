@@ -41,7 +41,8 @@
   right: 0;
   z-index: 1000;
   padding: 16px 5%;
-  transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: background-color 0.35s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.35s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: background-color, box-shadow;
 }
 .about-glass-nav.scrolled {
   background: var(--glass-bg);
@@ -75,7 +76,7 @@
   font-size: 0.8125rem;
   font-weight: 600;
   text-decoration: none;
-  transition: all 0.25s ease;
+  transition: background-color 0.25s ease, color 0.25s ease;
   cursor: pointer;
   background: transparent;
   border: none;
@@ -99,7 +100,7 @@
   text-decoration: none;
   font-weight: 600;
   font-size: 0.875rem;
-  transition: all 0.25s ease;
+  transition: transform 0.25s ease, background-color 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease, color 0.25s ease;
   border: none;
   cursor: pointer;
 }
@@ -197,7 +198,8 @@
   text-decoration: none;
   font-weight: 700;
   font-size: 1rem;
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.3s ease;
+  will-change: transform;
   box-shadow: 0 10px 30px rgba(var(--primary-rgb), 0.4);
   border: none;
   cursor: pointer;
@@ -219,7 +221,8 @@
   text-decoration: none;
   font-weight: 700;
   font-size: 1rem;
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+  will-change: transform;
   cursor: pointer;
 }
 .about-hero-cta-secondary:hover {
@@ -576,7 +579,7 @@
   font: inherit;
   padding: 24px 20px;
   border-radius: 24px;
-  transition: all 0.3s ease;
+  transition: transform 0.3s ease, background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
   cursor: pointer;
   background: var(--bg-secondary);
   border: 1px solid var(--border-light);
@@ -604,7 +607,7 @@
   font-weight: 600;
   color: var(--text-secondary);
   box-shadow: var(--shadow-xs);
-  transition: all 0.2s ease;
+  transition: color 0.2s ease, background-color 0.2s ease, border-color 0.2s ease;
 }
 .about-region-card.selected .about-muni-tag {
   border-color: rgba(var(--primary-rgb), 0.2);
@@ -731,7 +734,7 @@
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: transform 0.2s ease, background-color 0.2s ease;
   z-index: 10;
 }
 .about-lightbox-nav:hover { background: rgba(255,255,255,0.2); transform: translateY(-50%) scale(1.08); }
@@ -823,7 +826,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.25s ease, border-color 0.25s ease, color 0.25s ease, box-shadow 0.25s ease;
   user-select: none;
 }
 .about-filter-chip:hover {
@@ -911,7 +914,7 @@
   color: var(--text);
   font-size: 0.95rem;
   font-family: inherit;
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.3s ease, box-shadow 0.3s ease, background-color 0.3s ease;
   outline: none;
 }
 .about-premium-input:focus {
@@ -938,7 +941,8 @@
   align-items: center;
   justify-content: center;
   gap: 12px;
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.3s ease;
+  will-change: transform;
   margin-top: 8px;
 }
 .about-submit-btn:hover:not(:disabled) {
@@ -1020,7 +1024,7 @@
   align-items: center;
   justify-content: center;
   color: #fff;
-  transition: all 0.25s ease;
+  transition: transform 0.25s ease, background-color 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
   border: 1px solid rgba(255,255,255,0.08);
   text-decoration: none;
 }
