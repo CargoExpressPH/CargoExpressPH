@@ -44,11 +44,12 @@
 }
 
 .app-layout .sidebar {
-  top: 16px;
-  left: 16px;
-  height: calc(100vh - 32px);
-  border: 1px solid var(--admin-line);
-  border-radius: 28px;
+  top: 0;
+  left: 0;
+  height: 100vh;
+  border: none;
+  border-right: 1px solid var(--admin-line);
+  border-radius: 0;
   background:
     linear-gradient(180deg, color-mix(in srgb, var(--admin-panel-solid) 96%, var(--admin-green-soft) 4%), var(--admin-panel-solid));
   color: var(--admin-muted);
@@ -57,12 +58,12 @@
 }
 
 .app-layout .main-content {
-  margin-left: calc(var(--sidebar-width) + 20px);
+  margin-left: var(--sidebar-width);
 }
 
 .app-layout.sidebar-collapsed .main-content,
 .app-layout .sidebar.collapsed ~ .main-content {
-  margin-left: calc(var(--sidebar-collapsed-width) + 20px);
+  margin-left: var(--sidebar-collapsed-width);
 }
 
 .app-layout .sidebar-brand {
@@ -952,12 +953,13 @@
 @media (max-width: 1024px) {
   .app-layout .sidebar,
   .app-layout .sidebar.collapsed {
-    top: 12px;
-    left: 12px;
-    height: calc(100vh - 24px);
+    top: 0;
+    left: 0;
+    height: 100vh;
     width: min(86vw, 320px);
     max-width: 320px;
-    transform: translateX(calc(-100% - 24px));
+    border-radius: 0;
+    transform: translateX(-100%);
   }
 
   .app-layout .sidebar.open,
