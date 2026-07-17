@@ -71,7 +71,7 @@
   border-bottom-color: var(--admin-line);
 }
 
-.app-layout .sidebar-brand svg {
+.app-layout .sidebar-brand > svg {
   box-sizing: content-box;
   width: 22px;
   height: 22px;
@@ -557,6 +557,18 @@
   background: var(--admin-panel-solid);
   color: var(--admin-green-dark);
   box-shadow: var(--admin-shadow-soft);
+}
+
+.app-layout .sidebar-collapse-btn svg,
+.app-layout .sidebar-drawer-close-btn svg {
+  box-sizing: border-box;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border-radius: 0;
+  background: transparent !important;
+  box-shadow: none !important;
+  stroke: currentColor !important;
 }
 
 .app-layout .sidebar-collapse-btn {
