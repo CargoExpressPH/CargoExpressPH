@@ -20,7 +20,7 @@
 
   .app-layout .sidebar,
   .app-layout .sidebar.collapsed {
-    height: calc(100dvh - 32px);
+    height: 100dvh;
   }
 
   .support-chat-page {
@@ -30,7 +30,7 @@
   @media (max-width: 1024px) {
     .app-layout .sidebar,
     .app-layout .sidebar.collapsed {
-      height: calc(100dvh - 24px);
+      height: 100dvh;
     }
   }
 }
