@@ -403,20 +403,6 @@ const BookShipmentPage = () => {
           transition={{ duration: 1.6, ease: luxeEase }}
         />
 
-        {/* Rising lines */}
-        <div className="booking-success-lines" aria-hidden="true">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <motion.div
-              key={i}
-              className="booking-success-line"
-              style={{ left: `${15 + i * 14}%` }}
-              initial={{ scaleY: 0, opacity: 0 }}
-              animate={{ scaleY: 1, opacity: 1 }}
-              transition={{ duration: 1.2, delay: 0.2 + i * 0.08, ease: luxeEase }}
-            />
-          ))}
-        </div>
-
         <div className="booking-success-content" role="status" aria-live="polite">
           {/* Checkmark with rings */}
           <div className="booking-success-visual">

@@ -413,25 +413,7 @@ body {
   );
 }
 
-.booking-success-lines {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  overflow: hidden;
-}
 
-.booking-success-line {
-  position: absolute;
-  bottom: 0;
-  width: 1px;
-  height: 60vh;
-  background: linear-gradient(
-    to top,
-    color-mix(in srgb, var(--success) 40%, transparent),
-    transparent
-  );
-  transform-origin: bottom;
-}
 
 .booking-success-content {
   position: relative;
@@ -736,7 +718,6 @@ body {
 
 /* ── Reduced motion ── */
 @media (prefers-reduced-motion: reduce) {
-  .booking-success-line,
   .booking-success-check-circle,
   .booking-success-particle {
     animation: none !important;
