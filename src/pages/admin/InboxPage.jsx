@@ -302,18 +302,10 @@ const InboxPage = () => {
     const isCustomer = m.sender_role === 'customer';
 
     return (
-      <div key={m.id} className="flex mb-12" style={{ justifyContent: isAdmin ? 'flex-end' : 'flex-start' }}>
+      <div key={m.id} className={`inbox-message-row ${isAdmin ? 'is-admin' : 'is-other'}`}>
         {/* Avatar for non-admin messages */}
         {!isAdmin && (
-          <div
-            className="flex items-center justify-center flex-shrink-0 mr-8"
-            style={{
-              width: 28, height: 28, borderRadius: '50%',
-              background: isBot ? 'var(--bg-secondary)' : 'linear-gradient(135deg,var(--primary),var(--primary-light))',
-              border: '1px solid var(--border-light)',
-              alignSelf: 'flex-end', marginBottom: 18,
-            }}
-          >
+          <div className={`inbox-msg-avatar ${isBot ? 'is-bot' : 'is-customer'}`}>
             {isBot
               ? <Bot size={13} color="var(--text-secondary)" />
               : <User size={13} color="white" />
@@ -324,39 +316,22 @@ const InboxPage = () => {
         <div className="inbox-message-stack">
           {/* Sender label */}
           {isBot && (
-            <div style={{ fontSize: '0.6875rem', color: 'var(--text-tertiary)', marginBottom: 3, paddingLeft: 4 }}>
+            <div className="inbox-msg-sender-label">
               🤖 CargoExpress Assistant
             </div>
           )}
           {isCustomer && (
-            <div style={{ fontSize: '0.6875rem', color: 'var(--text-tertiary)', marginBottom: 3, paddingLeft: 4 }}>
+            <div className="inbox-msg-sender-label">
               👤 {activeConv?.profiles?.name || 'Customer'}
             </div>
           )}
 
-          <div className="text-sm" style={{
-            padding: '10px 14px',
-            borderRadius: isAdmin ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
-            background: isAdmin
-              ? 'var(--accent)'
-              : isBot
-              ? 'var(--bg-secondary)'
-              : 'var(--surface)',
-            color: isAdmin ? 'white' : 'var(--text)',
-            lineHeight: 1.5,
-            overflowWrap: 'break-word',
-            boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
-            border: isAdmin ? 'none' : '1px solid var(--border-light)',
-          }}>
+          <div className={`text-sm ${isAdmin ? 'inbox-msg-bubble-admin' : isBot ? 'inbox-msg-bubble-bot' : 'inbox-msg-bubble-customer'}`}>
             {m.message.split('\n').map((line, j) => (
               <span key={j}>{line}<br /></span>
             ))}
           </div>
-          <div className="chat-timestamp text-tertiary mt-4" style={{
-            fontSize: '0.6875rem',
-            textAlign: isAdmin ? 'right' : 'left',
-            padding: '0 4px',
-          }}>
+          <div className={`inbox-msg-timestamp ${isAdmin ? 'is-admin' : 'is-other'}`}>
             {formatTime(m.created_at)}
           </div>
         </div>
@@ -384,11 +359,11 @@ const InboxPage = () => {
 
         {/* ── Left Panel: Conversations List ─────────────────────────────── */}
         <div className="inbox-sidebar">
-          <div className="inbox-sidebar-header" style={{ display: 'flex', flexDirection: 'column', gap: '8px', borderBottom: '1px solid var(--border-light)', paddingBottom: '12px' }}>
+          <div className="inbox-sidebar-header">
             <h3 className="fw-700 text-base" style={{ margin: 0 }}>Conversations</h3>
             
             {/* Search Input Box */}
-            <div className="search-box" role="search" style={{ padding: '6px 10px', borderRadius: '6px', background: 'var(--bg-secondary)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div className="inbox-search-box" role="search">
               <Search size={14} className="text-secondary" aria-hidden="true" />
               <input
                 type="text"
@@ -396,31 +371,17 @@ const InboxPage = () => {
                 placeholder="Search customer name..."
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                style={{ background: 'transparent', border: 'none', width: '100%', outline: 'none', fontSize: '0.82rem', padding: 0 }}
               />
             </div>
 
             {/* Status Filter Tabs */}
-            <div style={{ display: 'flex', background: 'var(--bg-secondary)', padding: '3px', borderRadius: '6px', gap: '4px' }}>
+            <div className="inbox-filter-tabs">
               {['all', 'waiting', 'active', 'closed'].map(status => (
                 <button
                   key={status}
                   type="button"
                   onClick={() => setStatusFilter(status)}
-                  style={{
-                    flex: 1,
-                    fontSize: '0.72rem',
-                    padding: '4px 6px',
-                    borderRadius: '4px',
-                    border: 'none',
-                    fontWeight: 600,
-                    textTransform: 'capitalize',
-                    background: statusFilter === status ? 'var(--surface)' : 'transparent',
-                    color: statusFilter === status ? 'var(--primary)' : 'var(--text-secondary)',
-                    boxShadow: statusFilter === status ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-                    cursor: 'pointer',
-                    transition: 'all 0.15s ease'
-                  }}
+                  className={`inbox-filter-tab-btn ${statusFilter === status ? 'active' : ''}`}
                 >
                   {status === 'waiting' ? 'Waiting' : status}
                 </button>
@@ -464,7 +425,7 @@ const InboxPage = () => {
                     >
                       {isWaiting
                         ? <Clock size={18} color="white" />
-                        : <span style={{ color: activeConv?.id === conv.id ? 'white' : 'var(--text-secondary)', fontWeight: 700, fontSize: '0.875rem' }}>
+                        : <span className={`inbox-avatar-initials ${activeConv?.id === conv.id ? 'active' : ''}`}>
                             {getInitials(conv.profiles?.name)}
                           </span>
                       }
@@ -472,10 +433,10 @@ const InboxPage = () => {
 
                     {/* Info */}
                     <div className="inbox-conversation-info">
-                      <div className="inbox-conversation-name" style={{ opacity: isClosed ? 0.6 : 1 }}>
+                      <div className={`inbox-conversation-name ${isClosed ? 'is-closed' : ''}`}>
                         {conv.profiles?.name || 'Unknown Customer'}
                       </div>
-                      <div className="inbox-conversation-date" style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 2 }}>
+                      <div className="inbox-conversation-meta">
                         <ConvStatusBadge
                           status={conv.status}
                           assignedAdmin={conv.assigned_admin?.name}
@@ -494,7 +455,7 @@ const InboxPage = () => {
           {activeConv ? (
             <>
               {/* Chat Header */}
-              <div className="inbox-chat-header" style={{ justifyContent: 'space-between' }}>
+              <div className="inbox-chat-header">
                 <div className="flex items-center gap-12">
                   <button
                     type="button"
@@ -504,15 +465,14 @@ const InboxPage = () => {
                   >
                     <ArrowLeft size={18} />
                   </button>
-                  <div className="w-36 h-36 rounded-full flex items-center justify-center flex-shrink-0"
-                    style={{ background: 'linear-gradient(135deg,var(--primary),var(--primary-light))' }}>
+                  <div className="w-36 h-36 rounded-full flex items-center justify-center flex-shrink-0 inbox-header-avatar">
                     <User size={18} color="white" />
                   </div>
                   <div className="inbox-chat-user-meta">
-                    <div className="fw-700 text-accent" style={{ fontSize: '1.0625rem' }}>
+                    <div className="fw-700 text-accent inbox-chat-user-name">
                       {activeConv.profiles?.name || 'Customer'}
                     </div>
-                    <div className="text-secondary" style={{ fontSize: '0.8125rem', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    <div className="text-secondary inbox-chat-user-sub">
                       <span className="truncate">{activeConv.profiles?.email}</span>
                       <ConvStatusBadge
                         status={activeConv.status}
@@ -520,7 +480,7 @@ const InboxPage = () => {
                       />
                     </div>
                     {activeConv.assigned_admin?.name && (
-                      <div className="text-tertiary" style={{ fontSize: '0.75rem', marginTop: 2, display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <div className="text-tertiary inbox-chat-user-assigned">
                         <UserCheck size={11} />
                         Assigned to: {activeConv.assigned_admin.name}
                       </div>
@@ -571,10 +531,10 @@ const InboxPage = () => {
               </div>
 
               {/* Input Area */}
-              <div className="inbox-chat-input-area" style={{ alignItems: 'flex-end' }}>
+              <div className="inbox-chat-input-area">
                 <textarea
                   ref={textareaRef}
-                  className="form-input flex-1"
+                  className="form-input flex-1 inbox-textarea"
                   placeholder={activeConv.status === 'closed' ? 'Conversation resolved. Reopen to reply.' : 'Type a reply…'}
                   value={input}
                   onChange={e => {
@@ -596,23 +556,13 @@ const InboxPage = () => {
                       handleSend();
                     }
                   }}
-                  style={{
-                    minWidth: 0,
-                    resize: 'none',
-                    height: `${textareaHeight}px`,
-                    overflowY: 'auto',
-                    paddingTop: 10,
-                    paddingBottom: 10,
-                    borderRadius: 8,
-                    lineHeight: 1.4,
-                  }}
+                  style={{ height: `${textareaHeight}px` }}
                   disabled={sending || activeConv.status === 'closed'}
                 />
                 <button
-                  className="btn btn-primary"
+                  className="btn btn-primary inbox-send-btn"
                   onClick={handleSend}
                   disabled={!input.trim() || sending || activeConv.status === 'closed'}
-                  style={{ height: '42px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                 >
                   {sending ? <Loader size={18} className="animate-spin" /> : <><Send size={18} /> Reply</>}
                 </button>
