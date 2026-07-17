@@ -382,9 +382,29 @@
   min-width: 92px;
   min-height: 52px;
   border-radius: 18px !important;
-  background: #FFFFFF;
-  color: var(--customer-green-dark);
+  background: #FFFFFF !important;
+  color: #044E32 !important;
+  font-weight: 800 !important;
   box-shadow: 0 14px 26px rgba(0, 0, 0, 0.13);
+}
+
+.customer-home-hero .customer-track-form .btn:disabled {
+  background: rgba(255, 255, 255, 0.82) !important;
+  color: rgba(4, 78, 50, 0.65) !important;
+  opacity: 0.8 !important;
+  cursor: not-allowed;
+}
+
+[data-theme="dark"] .customer-home-hero .customer-track-form .btn {
+  background: #FFFFFF !important;
+  color: #044E32 !important;
+  font-weight: 800 !important;
+}
+
+[data-theme="dark"] .customer-home-hero .customer-track-form .btn:disabled {
+  background: rgba(255, 255, 255, 0.82) !important;
+  color: rgba(4, 78, 50, 0.65) !important;
+  opacity: 0.8 !important;
 }
 
 .customer-home-snapshot {
