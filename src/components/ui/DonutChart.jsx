@@ -16,6 +16,7 @@ const DonutChart = ({
   size = 180,
   thickness = 28,
   centerLabel,
+  centerSub,
   title,
   showLegend = true,
   animate = true,
