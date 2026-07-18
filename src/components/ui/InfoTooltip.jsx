@@ -26,7 +26,6 @@ const InfoTooltip = ({ text, size = 14 }) => {
         onFocus={() => setOpen(true)}
         onBlur={() => setOpen(false)}
         aria-label="More information"
-        title={text}
       >
         <Info size={size} />
       </button>
