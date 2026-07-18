@@ -95,17 +95,26 @@ const CustomerLayout = () => {
     };
 
     const handleFocusIn = (e) => {
-      const isInput = ['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target?.tagName);
-      if (isInput && e.target.type !== 'checkbox' && e.target.type !== 'radio') {
+      const target = e.target;
+      const isTextInput = target && (
+        target.tagName === 'TEXTAREA' ||
+        (target.tagName === 'INPUT' && ['text', 'search', 'password', 'email', 'tel', 'number', 'url', 'date', 'time', 'datetime-local'].includes(target.type))
+      );
+      if (isTextInput) {
         document.body.classList.add('keyboard-active');
+      } else {
+        document.body.classList.remove('keyboard-active');
       }
     };
 
     const handleFocusOut = () => {
       setTimeout(() => {
         const activeElement = document.activeElement;
-        const isInputStillActive = activeElement && ['INPUT', 'TEXTAREA', 'SELECT'].includes(activeElement.tagName);
-        if (!isInputStillActive) {
+        const isTextInputActive = activeElement && (
+          activeElement.tagName === 'TEXTAREA' ||
+          (activeElement.tagName === 'INPUT' && ['text', 'search', 'password', 'email', 'tel', 'number', 'url', 'date', 'time', 'datetime-local'].includes(activeElement.type))
+        );
+        if (!isTextInputActive) {
           document.body.classList.remove('keyboard-active');
         }
       }, 100);
