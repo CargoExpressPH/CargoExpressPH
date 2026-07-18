@@ -161,19 +161,12 @@ const HomePage = () => {
             <Truck size={18} color="var(--primary)" /> Next Available Trip
           </h3>
           <div className="customer-trip-card rounded-lg p-20 text-white" style={{
-            background: 'linear-gradient(135deg, var(--accent), #2D5A8A)',
-            boxShadow: '0 8px 24px rgba(27,58,92,0.25)',
+            background: 'linear-gradient(135deg, var(--accent), var(--accent-light))',
+            boxShadow: '0 8px 24px rgba(15,23,42,0.18)',
           }}>
             {/* Trip badge */}
             <div className="flex items-center justify-between mb-md">
-              <span className="text-xs fw-700" style={{
-                background: 'var(--primary-glow)', color: 'var(--primary-light)',
-                padding: '4px 10px',
-                borderRadius: 20, border: '1px solid rgba(22, 163, 74, 0.35)',
-                letterSpacing: '0.04em',
-              }}>
-                {activeTrip.status === 'in_progress' ? 'In Progress' : 'Scheduled'}
-              </span>
+              <StatusBadge status={activeTrip.status} />
               <span className="text-xs fw-600" style={{ opacity: 0.7 }}>
                 {activeTrip.trip_number}
               </span>

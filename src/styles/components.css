@@ -404,6 +404,20 @@ input[type="datetime-local"]:hover::-webkit-calendar-picker-indicator {
 }
 
 
+/* --- MODAL OVERLAY PRIMITIVE ------------------------------------------- */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: var(--backdrop-bg);
+  backdrop-filter: var(--backdrop-blur);
+  -webkit-backdrop-filter: var(--backdrop-blur);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
 /* --- THEME TOGGLE ------------------------------------------------------ */
 
 .theme-toggle-btn {

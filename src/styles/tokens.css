@@ -68,11 +68,13 @@
   --text-tertiary: #5B677A;
   --text-inverse: #FFFFFF;
 
-  /* -- Glass Effects -- */
+  /* -- Glass Effects & Backdrops -- */
   --glass-bg: rgba(255, 255, 255, 0.72);
   --glass-bg-heavy: rgba(255, 255, 255, 0.88);
   --glass-border: rgba(255, 255, 255, 0.25);
   --glass-blur: 20px;
+  --backdrop-bg: rgba(15, 23, 42, 0.65);
+  --backdrop-blur: blur(8px);
 
   /* -- Sidebar -- */
   --sidebar-bg: #FFFFFF;
@@ -213,9 +215,10 @@
   --text-tertiary: #9AA9BA;
   --text-inverse: #0F172A;
 
-  --glass-bg: rgba(21, 34, 56, 0.78);
-  --glass-bg-heavy: rgba(21, 34, 56, 0.92);
-  --glass-border: rgba(255, 255, 255, 0.06);
+  --glass-bg: rgba(10, 22, 40, 0.78);
+  --glass-bg-heavy: rgba(10, 22, 40, 0.92);
+  --glass-border: rgba(255, 255, 255, 0.1);
+  --backdrop-bg: rgba(2, 6, 23, 0.82);
   --glass-blur: 20px;
 
   --sidebar-bg: #060E1A;

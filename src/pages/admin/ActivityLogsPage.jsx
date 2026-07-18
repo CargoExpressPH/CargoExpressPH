@@ -3,6 +3,7 @@ import { getActivityLogs } from '../../lib/database';
 import { supabase } from '../../lib/supabase';
 import Breadcrumb from '../../components/ui/Breadcrumb';
 import { SkeletonText } from '../../components/ui/SkeletonLoader';
+import EmptyState from '../../components/ui/EmptyState';
 import CustomSelect from '../../components/ui/CustomSelect';
 import usePageTitle from '../../hooks/usePageTitle';
 import {
@@ -233,11 +234,11 @@ const ActivityLogsPage = () => {
         {loading ? (
           <div className="card-body"><SkeletonText lines={8} /></div>
         ) : logs.length === 0 ? (
-          <div className="card-body text-center" style={{ padding: '48px 24px' }}>
-            <ClipboardList size={40} style={{ opacity: 0.25, margin: '0 auto 12px' }} />
-            <p className="text-secondary">No activity logs found.</p>
-            <p className="text-xs text-tertiary mt-4">Actions performed by admins will appear here.</p>
-          </div>
+          <EmptyState
+            icon={ClipboardList}
+            title="No activity logs found"
+            description="Actions performed by admins will appear here as activity occurs."
+          />
         ) : (
           <div className="table-container">
             <table className="data-table">

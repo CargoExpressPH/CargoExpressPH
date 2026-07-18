@@ -14,12 +14,12 @@ import { useToast } from '../../hooks/useToast';
 
 // ── Icon map per notification type ─────────────────────────────────────────────
 const iconMap = {
-  order_update: { icon: Package, color: 'var(--primary)', bg: 'rgba(59,130,246,0.10)' },
-  trip_update:  { icon: Truck, color: 'var(--warning)', bg: 'rgba(245,158,11,0.10)' },
-  announcement: { icon: Megaphone, color: 'var(--accent)', bg: 'rgba(168,85,247,0.10)' },
-  inquiry:      { icon: Mail, color: '#06b6d4', bg: 'rgba(6,182,212,0.10)' },
-  chat_message: { icon: MessageSquare, color: '#10b981', bg: 'rgba(16,185,129,0.10)' },
-  feedback:     { icon: Star, color: '#f59e0b', bg: 'rgba(245,158,11,0.10)' },
+  order_update: { icon: Package, color: 'var(--primary)', bg: 'var(--primary-bg)' },
+  trip_update:  { icon: Truck, color: 'var(--warning)', bg: 'var(--warning-bg)' },
+  announcement: { icon: Megaphone, color: 'var(--accent)', bg: 'var(--bg-secondary)' },
+  inquiry:      { icon: Mail, color: 'var(--info)', bg: 'var(--info-bg)' },
+  chat_message: { icon: MessageSquare, color: 'var(--success)', bg: 'var(--success-bg)' },
+  feedback:     { icon: Star, color: 'var(--warning)', bg: 'var(--warning-bg)' },
   general:      { icon: Bell, color: 'var(--text-secondary)', bg: 'var(--bg-secondary)' },
 };
 
