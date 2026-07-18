@@ -235,8 +235,9 @@ const AdminLayout = () => {
               >
                 <Bell size={20} aria-hidden="true" />
                 {unreadCount > 0 && (
-                  <span className="admin-notif-badge">
+                  <span className="admin-notif-badge" aria-live="polite" aria-atomic="true">
                     {unreadCount > 99 ? '99+' : unreadCount}
+                    <span className="sr-only">unread notifications</span>
                   </span>
                 )}
                 {unreadCount > 0 && <span className="admin-notif-ring" />}

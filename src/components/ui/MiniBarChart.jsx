@@ -17,6 +17,7 @@ const MiniBarChart = ({
   color = 'var(--primary)',
   animate = true,
   showValues = false,
+  title,
 }) => {
   const [mounted, setMounted] = useState(!animate);
   const [hoveredIdx, setHoveredIdx] = useState(null);
@@ -42,6 +43,8 @@ const MiniBarChart = ({
   const barWidth = Math.min(40, Math.max(14, Math.floor(280 / bars.length)));
   const gap = Math.min(12, Math.max(4, Math.floor(120 / bars.length)));
 
+  const chartSummary = title || `Bar chart displaying ${bars.length} data bars`;
+
   return (
     <div className="bar-chart-wrap">
       <div className="bar-chart-container" style={{ height }}>
@@ -57,7 +60,7 @@ const MiniBarChart = ({
         </div>
 
         {/* Bars */}
-        <div className="bar-chart-bars" style={{ gap }} role="img" aria-label="Bar chart">
+        <div className="bar-chart-bars" style={{ gap }} role="img" aria-label={chartSummary}>
           {bars.map((bar, i) => {
             const pct = (bar.value / maxVal) * 100;
             const isHovered = hoveredIdx === i;

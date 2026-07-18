@@ -16,7 +16,7 @@ const DonutChart = ({
   size = 180,
   thickness = 28,
   centerLabel,
-  centerSub,
+  title,
   showLegend = true,
   animate = true,
 }) => {
@@ -55,6 +55,8 @@ const DonutChart = ({
       return { ...seg, pct, dashLength, dashOffset, index: i };
     });
 
+  const chartSummary = title || `Donut chart displaying ${segments.length} segments with total value of ${total.toLocaleString()}`;
+
   return (
     <div className="donut-chart-wrap">
       <div className="donut-chart-svg-wrap" style={{ width: size, height: size }}>
@@ -64,7 +66,7 @@ const DonutChart = ({
           viewBox={`0 0 ${size} ${size}`}
           className="donut-chart-svg"
           role="img"
-          aria-label="Donut chart"
+          aria-label={chartSummary}
         >
           {/* Background ring */}
           <circle

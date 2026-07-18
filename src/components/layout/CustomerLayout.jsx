@@ -337,7 +337,10 @@ const CustomerLayout = () => {
                   <div className="relative inline-flex">
                     <item.icon size={20} />
                     {item.hasBadge && unreadCount > 0 && (
-                      <span className="notification-badge-sm">{unreadCount > 9 ? '9+' : unreadCount}</span>
+                      <span className="notification-badge-sm" aria-live="polite" aria-atomic="true">
+                        {unreadCount > 9 ? '9+' : unreadCount}
+                        <span className="sr-only">unread notifications</span>
+                      </span>
                     )}
                   </div>
                   <span>{item.label}</span>
