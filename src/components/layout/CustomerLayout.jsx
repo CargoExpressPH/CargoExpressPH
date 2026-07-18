@@ -89,7 +89,12 @@ const CustomerLayout = () => {
   useEffect(() => {
     const handleViewportChange = () => {
       if (window.visualViewport) {
-        const isKeyboard = window.visualViewport.height < window.innerHeight - 120;
+        const activeElement = document.activeElement;
+        const isTextInputActive = activeElement && (
+          activeElement.tagName === 'TEXTAREA' ||
+          (activeElement.tagName === 'INPUT' && ['text', 'search', 'password', 'email', 'tel', 'number', 'url', 'date', 'time', 'datetime-local'].includes(activeElement.type))
+        );
+        const isKeyboard = isTextInputActive && (window.visualViewport.height < window.innerHeight - 120);
         document.body.classList.toggle('keyboard-active', isKeyboard);
       }
     };

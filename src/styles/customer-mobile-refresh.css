@@ -1614,7 +1614,7 @@ input:checked + .toggle-slider:before {
 
 /* ── Auto-hide customer bottom navigation when typing on mobile ── */
 body.keyboard-active .customer-bottom-nav,
-body:has(input:focus, textarea:focus) .customer-bottom-nav {
+body:has(input:is([type="text"], [type="search"], [type="password"], [type="email"], [type="tel"], [type="number"], [type="url"], [type="date"], [type="time"], [type="datetime-local"]):focus, textarea:focus) .customer-bottom-nav {
   transform: translateY(180%) !important;
   opacity: 0 !important;
   pointer-events: none !important;
