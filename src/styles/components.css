@@ -664,9 +664,9 @@ input[type="datetime-local"]:hover::-webkit-calendar-picker-indicator {
   top: calc(100% + 8px);
   left: -10px;
   transform: none;
-  background: #0f172a;
-  color: #ffffff !important;
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: var(--surface-raised);
+  color: var(--text) !important;
+  border: 1px solid var(--border);
   padding: 10px 14px;
   border-radius: 10px;
   font-size: 0.78125rem;
@@ -675,7 +675,7 @@ input[type="datetime-local"]:hover::-webkit-calendar-picker-indicator {
   white-space: normal;
   width: max-content;
   max-width: min(280px, calc(100vw - 56px));
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+  box-shadow: var(--shadow-lg);
   z-index: 9999;
   pointer-events: none;
   animation: fadeIn 0.15s ease-out;
@@ -689,19 +689,36 @@ input[type="datetime-local"]:hover::-webkit-calendar-picker-indicator {
   transform: none;
   border-width: 6px;
   border-style: solid;
-  border-color: transparent transparent #0f172a transparent;
+  border-color: transparent transparent var(--surface-raised) transparent;
+}
+
+/* Invisible full-screen backdrop for mobile tap-to-dismiss */
+.info-tooltip-backdrop {
+  display: none;
 }
 
 @media (max-width: 640px) {
   .info-tooltip-bubble {
-    left: -10px;
-    right: auto;
-    width: max-content;
-    max-width: calc(100vw - 56px);
+    position: fixed;
+    left: 16px;
+    right: 16px;
+    top: auto;
+    width: auto;
+    max-width: none;
+    z-index: 99999;
+    pointer-events: auto;
   }
   
   .info-tooltip-bubble::after {
-    left: 14px;
-    right: auto;
+    display: none;
+  }
+
+  .info-tooltip-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 99998;
+    background: transparent;
+    -webkit-tap-highlight-color: transparent;
   }
 }
