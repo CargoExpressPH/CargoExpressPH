@@ -354,6 +354,7 @@
 .h-20 { height: 20px; }
 .h-24 { height: 24px; }
 .h-32 { height: 32px; }
+.h-36 { height: 36px; }
 .h-40 { height: 40px; }
 .h-48 { height: 48px; }
 .h-full { height: 100%; }
@@ -386,5 +387,26 @@
 .text-lowercase { text-transform: lowercase; }
 .text-underline { text-decoration: underline; }
 .text-no-underline { text-decoration: none; }
+
+/* --- Layout helpers ---------------------------------------------------- */
+
+/* Centers content both axes — used in loading/empty state placeholders */
+.flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+/* Staggered list-item animation — used in conversation list */
+.stagger-item {
+  animation: slideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* When a stagger-item is also being dismissed/exiting, the exit animation
+   must win. Increase specificity so .notification-exit overrides .stagger-item. */
+.stagger-item.notification-exit {
+  animation: notificationSlideOut 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
 
 

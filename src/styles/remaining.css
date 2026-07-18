@@ -463,9 +463,50 @@
 .chat-sender-label.bot-label   { color: var(--primary); }
 .chat-sender-label.admin-label { color: var(--accent); }
 
-/* bot avatar accent color */
+/* --- HYBRID CHAT — Avatars --------------------------------------------- */
+
+.chat-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #FFFFFF;
+}
+
+.chat-avatar.bot-avatar {
+  background: linear-gradient(135deg, var(--primary), var(--primary-light, #4ade80));
+}
+
 .chat-avatar.admin-avatar {
   background: linear-gradient(135deg, var(--accent), var(--accent-light));
+}
+
+/* --- HYBRID CHAT — Send Button base ------------------------------------ */
+
+.chat-send-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border: none;
+  cursor: pointer;
+  transition: var(--transition-fast);
+  border-radius: 999px;
+  background: var(--primary);
+  color: #FFFFFF;
+}
+
+.chat-send-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.chat-send-btn:not(:disabled):hover {
+  filter: brightness(1.1);
+  transform: scale(1.05);
 }
 
 /* --- HYBRID CHAT — Typing dots ----------------------------------------- */

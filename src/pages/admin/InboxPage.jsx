@@ -359,8 +359,8 @@ const InboxPage = () => {
               )}
 
               <div className={`text-sm ${isAdmin ? 'inbox-msg-bubble-admin' : isBot ? 'inbox-msg-bubble-bot' : 'inbox-msg-bubble-customer'}`}>
-                {m.message.split('\n').map((line, j) => (
-                  <span key={j}>{line}<br /></span>
+                {m.message.split('\n').map((line, j, arr) => (
+                  <span key={j}>{line}{j < arr.length - 1 && <br />}</span>
                 ))}
               </div>
               <div className={`inbox-msg-timestamp ${isAdmin ? 'is-admin' : 'is-other'}`}>
