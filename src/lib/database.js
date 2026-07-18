@@ -1109,8 +1109,6 @@ export const getAdminConversations = async () => {
   if (error) throw error;
 
   // Deduplicate: keep only the earliest conversation per customer
-  // This prevents duplicate names in the admin inbox even if the DB
-  // still has leftover duplicates from before the unique constraint fix.
   const seen = new Map();
   for (const conv of data || []) {
     const custId = conv.profiles?.id;
@@ -1119,14 +1117,54 @@ export const getAdminConversations = async () => {
     }
   }
 
-  // Sort: 'waiting_admin' conversations float to the top, then reverse-chron
-  const all = Array.from(seen.values());
-  all.sort((a, b) => {
+  const convs = Array.from(seen.values());
+  const convIds = convs.map(c => c.id);
+
+  if (convIds.length > 0) {
+    // Batch query last messages and unread counts for all conversations
+    const [{ data: unreadData }, { data: lastMsgsData }] = await Promise.all([
+      supabase
+        .from('chat_messages')
+        .select('conversation_id')
+        .in('conversation_id', convIds)
+        .eq('sender_role', 'customer')
+        .eq('is_read', false),
+      supabase
+        .from('chat_messages')
+        .select('conversation_id, message, created_at, sender_role')
+        .in('conversation_id', convIds)
+        .order('created_at', { ascending: false })
+    ]);
+
+    const unreadMap = {};
+    (unreadData || []).forEach(m => {
+      unreadMap[m.conversation_id] = (unreadMap[m.conversation_id] || 0) + 1;
+    });
+
+    const lastMsgMap = {};
+    (lastMsgsData || []).forEach(m => {
+      if (!lastMsgMap[m.conversation_id]) {
+        lastMsgMap[m.conversation_id] = m;
+      }
+    });
+
+    convs.forEach(c => {
+      c.unread_count = unreadMap[c.id] || 0;
+      c.last_message = lastMsgMap[c.id] || null;
+    });
+  }
+
+  convs.sort((a, b) => {
     if (a.status === 'waiting_admin' && b.status !== 'waiting_admin') return -1;
     if (b.status === 'waiting_admin' && a.status !== 'waiting_admin') return 1;
-    return new Date(b.created_at) - new Date(a.created_at);
+    if ((a.unread_count > 0) && (b.unread_count === 0)) return -1;
+    if ((b.unread_count > 0) && (a.unread_count === 0)) return 1;
+    const timeA = a.last_message ? new Date(a.last_message.created_at) : new Date(a.created_at);
+    const timeB = b.last_message ? new Date(b.last_message.created_at) : new Date(b.created_at);
+    return timeB - timeA;
   });
-  return all;
+
+  return convs;
 };
 
 export const getMessages = async (conversationId) => {

@@ -301,48 +301,76 @@ const InboxPage = () => {
     }
   };
 
+  // ── Date formatting landmark helper ────────────────────────────────────────
+  const formatDateLabel = (dateStr) => {
+    if (!dateStr) return '';
+    const d = new Date(dateStr);
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    if (d.toDateString() === today.toDateString()) return 'Today';
+    if (d.toDateString() === yesterday.toDateString()) return 'Yesterday';
+    return d.toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' });
+  };
+
   // ── Message rendering ──────────────────────────────────────────────────────
-  const renderMessage = (m) => {
-    const isAdmin = m.sender_role === 'admin';
-    const isBot   = m.sender_role === 'bot';
-    const isCustomer = m.sender_role === 'customer';
+  const renderMessageStream = () => {
+    let lastDateLabel = null;
 
-    return (
-      <div key={m.id} className={`inbox-message-row ${isAdmin ? 'is-admin' : 'is-other'}`}>
-        {/* Avatar for non-admin messages */}
-        {!isAdmin && (
-          <div className={`inbox-msg-avatar ${isBot ? 'is-bot' : 'is-customer'}`}>
-            {isBot
-              ? <Bot size={13} color="var(--text-secondary)" />
-              : <User size={13} color="white" />
-            }
-          </div>
-        )}
+    return messages.map((m) => {
+      const isAdmin = m.sender_role === 'admin';
+      const isBot   = m.sender_role === 'bot';
+      const isCustomer = m.sender_role === 'customer';
+      const dateLabel = formatDateLabel(m.created_at);
 
-        <div className="inbox-message-stack">
-          {/* Sender label */}
-          {isBot && (
-            <div className="inbox-msg-sender-label">
-              🤖 CargoExpress Assistant
+      const showDateDivider = dateLabel && dateLabel !== lastDateLabel;
+      if (showDateDivider) {
+        lastDateLabel = dateLabel;
+      }
+
+      return (
+        <div key={m.id}>
+          {showDateDivider && (
+            <div className="inbox-date-divider">
+              <span className="inbox-date-divider-label">{dateLabel}</span>
             </div>
           )}
-          {isCustomer && (
-            <div className="inbox-msg-sender-label">
-              👤 {activeConv?.profiles?.name || 'Customer'}
-            </div>
-          )}
+          <div className={`inbox-message-row ${isAdmin ? 'is-admin' : 'is-other'}`}>
+            {!isAdmin && (
+              <div className={`inbox-msg-avatar ${isBot ? 'is-bot' : 'is-customer'}`}>
+                {isBot
+                  ? <Bot size={13} color="var(--text-secondary)" />
+                  : <User size={13} color="white" />
+                }
+              </div>
+            )}
 
-          <div className={`text-sm ${isAdmin ? 'inbox-msg-bubble-admin' : isBot ? 'inbox-msg-bubble-bot' : 'inbox-msg-bubble-customer'}`}>
-            {m.message.split('\n').map((line, j) => (
-              <span key={j}>{line}<br /></span>
-            ))}
-          </div>
-          <div className={`inbox-msg-timestamp ${isAdmin ? 'is-admin' : 'is-other'}`}>
-            {formatTime(m.created_at)}
+            <div className="inbox-message-stack">
+              {isBot && (
+                <div className="inbox-msg-sender-label">
+                  🤖 CargoExpress Assistant
+                </div>
+              )}
+              {isCustomer && (
+                <div className="inbox-msg-sender-label">
+                  👤 {activeConv?.profiles?.name || 'Customer'}
+                </div>
+              )}
+
+              <div className={`text-sm ${isAdmin ? 'inbox-msg-bubble-admin' : isBot ? 'inbox-msg-bubble-bot' : 'inbox-msg-bubble-customer'}`}>
+                {m.message.split('\n').map((line, j) => (
+                  <span key={j}>{line}<br /></span>
+                ))}
+              </div>
+              <div className={`inbox-msg-timestamp ${isAdmin ? 'is-admin' : 'is-other'}`}>
+                {formatTime(m.created_at)}
+              </div>
+            </div>
           </div>
         </div>
-      </div>
-    );
+      );
+    });
   };
 
   // ── Render ─────────────────────────────────────────────────────────────────
@@ -387,8 +415,7 @@ const InboxPage = () => {
                 <button
                   key={status}
                   type="button"
-                  role="tab"
-                  aria-selected={statusFilter === status}
+                  aria-pressed={statusFilter === status}
                   onClick={() => setStatusFilter(status)}
                   className={`inbox-filter-tab-btn ${statusFilter === status ? 'active' : ''}`}
                 >
@@ -417,9 +444,11 @@ const InboxPage = () => {
                 return (
                   <button
                     key={conv.id}
+                    type="button"
                     onClick={() => { setActiveConv(conv); activeConvRef.current = conv; }}
                     className={`inbox-conversation-item stagger-item ${activeConv?.id === conv.id ? 'active' : ''} ${isWaiting ? 'inbox-conv-waiting' : ''}`}
                     style={{ animationDelay: `${i * 40}ms` }}
+                    aria-label={`Conversation with ${conv.profiles?.name || 'Customer'}, status ${conv.status}${conv.unread_count > 0 ? `, ${conv.unread_count} unread` : ''}`}
                   >
                     {/* Avatar */}
                     <div
@@ -442,9 +471,22 @@ const InboxPage = () => {
 
                     {/* Info */}
                     <div className="inbox-conversation-info">
-                      <div className={`inbox-conversation-name ${isClosed ? 'is-closed' : ''}`}>
-                        {conv.profiles?.name || 'Unknown Customer'}
+                      <div className="flex items-center justify-between gap-4">
+                        <div className={`inbox-conversation-name ${isClosed ? 'is-closed' : ''}`}>
+                          {conv.profiles?.name || 'Unknown Customer'}
+                        </div>
+                        {conv.unread_count > 0 && (
+                          <span className="inbox-unread-dot" title={`${conv.unread_count} unread message`} />
+                        )}
                       </div>
+
+                      {conv.last_message?.message && (
+                        <div className="inbox-conv-preview">
+                          {conv.last_message.sender_role === 'admin' ? 'You: ' : conv.last_message.sender_role === 'bot' ? 'Bot: ' : ''}
+                          {conv.last_message.message}
+                        </div>
+                      )}
+
                       <div className="inbox-conversation-meta">
                         <ConvStatusBadge
                           status={conv.status}
@@ -506,8 +548,8 @@ const InboxPage = () => {
                           Assign to Me
                         </button>
                       )}
-                      <button type="button" className="btn btn-danger btn-sm" onClick={() => handleStatusChange('closed')}>
-                        Resolve
+                      <button type="button" className="btn btn-resolve-success btn-sm gap-4 flex items-center" onClick={() => handleStatusChange('closed')}>
+                        <CheckCircle size={14} /> Resolve
                       </button>
                     </>
                   )}
@@ -555,13 +597,19 @@ const InboxPage = () => {
                 ) : messages.length === 0 ? (
                   <div className="text-center text-sm text-secondary mt-20">No messages yet.</div>
                 ) : (
-                  messages.map(m => renderMessage(m))
+                  renderMessageStream()
                 )}
                 <div ref={messagesEndRef} />
               </div>
 
               {/* Input Area */}
-              <div className="inbox-chat-input-area">
+              <form
+                className="inbox-chat-input-area"
+                onSubmit={e => {
+                  e.preventDefault();
+                  handleSend();
+                }}
+              >
                 <textarea
                   ref={textareaRef}
                   className="form-input flex-1 inbox-textarea"
@@ -591,15 +639,14 @@ const InboxPage = () => {
                   disabled={sending || activeConv.status === 'closed' || !!errorChat}
                 />
                 <button
-                  type="button"
+                  type="submit"
                   className="btn btn-primary inbox-send-btn"
-                  onClick={handleSend}
                   aria-label="Send reply"
                   disabled={!input.trim() || sending || activeConv.status === 'closed' || !!errorChat}
                 >
                   {sending ? <Loader size={18} className="animate-spin" aria-hidden="true" /> : <><Send size={18} aria-hidden="true" /> Reply</>}
                 </button>
-              </div>
+              </form>
             </>
           ) : (
             <EmptyState

@@ -884,7 +884,8 @@
   box-shadow: var(--shadow-sm);
 }
 .inbox-sidebar {
-  width: 320px; border-right: 1px solid var(--border-light);
+  width: clamp(260px, 28%, 320px);
+  border-right: 1px solid var(--border-light);
   display: flex; flex-direction: column;
   min-height: 0;
 }
@@ -900,15 +901,23 @@
   flex: 1; overflow-y: auto;
 }
 .inbox-conversation-item {
+  width: 100%;
   display: flex; align-items: center; gap: 12px;
   padding: 14px 16px;
   border-bottom: 1px solid var(--border-light);
-  cursor: pointer; transition: var(--transition);
+  border-left: 3px solid transparent;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
-.inbox-conversation-item:hover { background: var(--bg); }
+.inbox-conversation-item:hover {
+  background: var(--bg);
+  transform: translateX(2px);
+}
 .inbox-conversation-item.active {
   background: var(--primary-bg);
-  border-left: 3px solid var(--primary);
+  border-left-color: var(--primary);
 }
 .inbox-conversation-avatar {
   width: 40px; height: 40px; border-radius: 50%;
@@ -916,14 +925,73 @@
   display: flex; align-items: center; justify-content: center;
   color: white; font-weight: 700; font-size: 0.875rem;
   flex-shrink: 0;
+  position: relative;
 }
 .inbox-conversation-info { flex: 1; min-width: 0; }
 .inbox-conversation-name {
   font-size: 0.875rem; font-weight: 600;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
+.inbox-conv-preview {
+  font-size: 0.78125rem;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-top: 2px;
+}
 .inbox-conversation-date {
   font-size: 0.75rem; color: var(--text-tertiary);
+}
+.inbox-unread-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--primary);
+  display: inline-block;
+  flex-shrink: 0;
+  box-shadow: 0 0 0 2px var(--surface);
+}
+
+/* --- INBOX — Date Landmarks & Action Buttons --------------------------- */
+
+.inbox-date-divider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 16px 0 8px;
+  position: relative;
+}
+.inbox-date-divider::before {
+  content: '';
+  position: absolute;
+  left: 0; right: 0; top: 50%;
+  height: 1px;
+  background: var(--border-light);
+  z-index: 1;
+}
+.inbox-date-divider-label {
+  position: relative;
+  z-index: 2;
+  background: var(--bg-secondary);
+  color: var(--text-tertiary);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  padding: 3px 12px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border-light);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.btn-resolve-success {
+  background: #10B981 !important;
+  color: white !important;
+  border: none !important;
+}
+.btn-resolve-success:hover {
+  background: #059669 !important;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.25) !important;
 }
 
 .inbox-chat-area {
