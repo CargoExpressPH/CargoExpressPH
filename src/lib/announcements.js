@@ -1,12 +1,12 @@
-import { Zap, Calendar, AlertTriangle, Bell, Megaphone } from 'lucide-react';
+import { Zap, Calendar, AlertTriangle, Bell, Megaphone, Sparkles } from 'lucide-react';
 
 export const ANNOUNCEMENT_CATEGORIES = [
-  { value: 'auto', label: '🤖 Auto-Detect (Smart Category)', emoji: '' },
-  { value: 'schedule', label: '🚢 Schedule Update', emoji: '🚢' },
-  { value: 'promo', label: '⚡ Special Promo', emoji: '⚡' },
-  { value: 'advisory', label: '⚠️ Safety Advisory', emoji: '⚠️' },
-  { value: 'service', label: '📞 Service Notice', emoji: '📞' },
-  { value: 'general', label: '📢 General Update', emoji: '📢' },
+  { value: 'auto', label: 'Auto-Detect (Smart Category)', icon: Sparkles, emoji: '' },
+  { value: 'schedule', label: 'Schedule Update', icon: Calendar, emoji: '🚢' },
+  { value: 'promo', label: 'Special Promo', icon: Zap, emoji: '⚡' },
+  { value: 'advisory', label: 'Safety Advisory', icon: AlertTriangle, emoji: '⚠️' },
+  { value: 'service', label: 'Service Notice', icon: Bell, emoji: '📞' },
+  { value: 'general', label: 'General Update', icon: Megaphone, emoji: '📢' },
 ];
 
 /**

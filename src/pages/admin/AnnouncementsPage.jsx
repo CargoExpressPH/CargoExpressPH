@@ -1,14 +1,116 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { getAnnouncements, createAnnouncement, deleteAnnouncement, withTimeout } from '../../lib/database';
 import ConfirmModal from '../../components/ui/ConfirmModal';
 import { logAnnouncement } from '../../lib/activityLog';
 import EmptyState from '../../components/ui/EmptyState';
 import { SkeletonCard } from '../../components/ui/SkeletonLoader';
-import { Plus, Trash2, Megaphone, Loader } from 'lucide-react';
+import { Plus, Trash2, Megaphone, Loader, ChevronDown, Check } from 'lucide-react';
 import { useToast } from '../../hooks/useToast';
 import usePageTitle from '../../hooks/usePageTitle';
 import InfoTooltip from '../../components/ui/InfoTooltip';
 import { ANNOUNCEMENT_CATEGORIES, getAnnouncementCategoryInfo } from '../../lib/announcements';
+
+const CategoryDropdown = ({ value, onChange }) => {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef(null);
+  const selected = ANNOUNCEMENT_CATEGORIES.find(c => c.value === value) || ANNOUNCEMENT_CATEGORIES[0];
+  const SelectedIcon = selected.icon;
+
+  useEffect(() => {
+    if (!open) return;
+    const handleOutsideClick = (e) => {
+      if (rootRef.current && !rootRef.current.contains(e.target)) {
+        setOpen(false);
+      }
+    };
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('pointerdown', handleOutsideClick);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('pointerdown', handleOutsideClick);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [open]);
+
+  return (
+    <div className="custom-category-select-wrap" ref={rootRef} style={{ position: 'relative' }}>
+      <button
+        type="button"
+        className="form-select flex items-center justify-between gap-10"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        onClick={() => setOpen(prev => !prev)}
+        style={{ textAlign: 'left', cursor: 'pointer', minHeight: 44 }}
+      >
+        <span className="flex items-center gap-8 fw-600">
+          {SelectedIcon && <SelectedIcon size={16} color="var(--primary)" />}
+          <span>{selected.label}</span>
+        </span>
+        <ChevronDown size={16} style={{ transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s ease', color: 'var(--text-tertiary)' }} />
+      </button>
+      {open && (
+        <div
+          className="custom-category-select-menu"
+          role="listbox"
+          style={{
+            position: 'absolute',
+            top: 'calc(100% + 6px)',
+            left: 0,
+            right: 0,
+            background: 'var(--surface-raised)',
+            border: '1px solid var(--border)',
+            borderRadius: 'var(--radius-md)',
+            boxShadow: 'var(--shadow-lg)',
+            zIndex: 9999,
+            padding: 6,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 2,
+            maxHeight: 280,
+            overflowY: 'auto',
+            animation: 'fadeIn 0.15s ease-out',
+          }}
+        >
+          {ANNOUNCEMENT_CATEGORIES.map(cat => {
+            const active = cat.value === value;
+            const Icon = cat.icon;
+            return (
+              <button
+                key={cat.value}
+                type="button"
+                role="option"
+                aria-selected={active}
+                className="flex items-center justify-between p-10 rounded-md"
+                style={{
+                  background: active ? 'color-mix(in srgb, var(--primary) 12%, transparent)' : 'transparent',
+                  color: active ? 'var(--primary)' : 'var(--text)',
+                  border: 'none',
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  fontSize: '0.875rem',
+                  fontWeight: active ? 700 : 500,
+                  transition: 'background 0.15s ease',
+                }}
+                onClick={() => {
+                  onChange(cat.value);
+                  setOpen(false);
+                }}
+              >
+                <span className="flex items-center gap-10">
+                  {Icon && <Icon size={16} color={active ? 'var(--primary)' : 'var(--text-secondary)'} />}
+                  <span>{cat.label}</span>
+                </span>
+                {active && <Check size={16} color="var(--primary)" />}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+};
 
 const AnnouncementsPage = () => {
   usePageTitle('Announcements');
@@ -95,22 +197,14 @@ const AnnouncementsPage = () => {
       {showForm && (
         <div className="card animate-scale-in mb-16"><div className="card-body">
           <div className="form-group mb-16">
-            <label className="form-label inline-flex items-center" htmlFor="announcement-category">
+            <label className="form-label inline-flex items-center">
               Category Tag *
               <InfoTooltip text="Choose an explicit category tag for this announcement, or select Auto-Detect for smart keyword matching." />
             </label>
-            <select
-              id="announcement-category"
-              className="form-select"
+            <CategoryDropdown
               value={form.category}
-              onChange={e => setForm(p => ({ ...p, category: e.target.value }))}
-            >
-              {ANNOUNCEMENT_CATEGORIES.map(cat => (
-                <option key={cat.value} value={cat.value}>
-                  {cat.label}
-                </option>
-              ))}
-            </select>
+              onChange={val => setForm(p => ({ ...p, category: val }))}
+            />
           </div>
           <div className="form-group">
             <label className="form-label inline-flex items-center" htmlFor="announcement-title">
