@@ -336,7 +336,7 @@ const HomePage = () => {
             <h3 className="customer-section-title fw-700">Announcements</h3>
             <span className="text-xs text-tertiary fw-600">{visibleAnnouncements.length} Latest</span>
           </div>
-          {visibleAnnouncements.slice(0, 3).map((a, index) => {
+          {visibleAnnouncements.slice(0, 5).map((a, index) => {
             const cat = getAnnouncementCategoryInfo(a);
             const CatIcon = cat.icon;
             return (
