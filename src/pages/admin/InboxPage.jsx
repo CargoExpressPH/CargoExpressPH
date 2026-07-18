@@ -67,6 +67,8 @@ const InboxPage = () => {
   const [loadingList, setLoadingList] = useState(true);
   const [errorList, setErrorList] = useState(null);
   const [loadingChat, setLoadingChat] = useState(false);
+  const [errorChat, setErrorChat] = useState(null);
+  const [chatReloadKey, setChatReloadKey] = useState(0);
   const [sending, setSending] = useState(false);
   const [textareaHeight, setTextareaHeight] = useState(TEXTAREA_BASE_HEIGHT);
 
@@ -162,6 +164,7 @@ const InboxPage = () => {
     let isMounted = true;
     const loadMsgs = async () => {
       setLoadingChat(true);
+      setErrorChat(null);
       try {
         const history = await getMessages(activeConv.id);
         if (isMounted) {
@@ -170,15 +173,18 @@ const InboxPage = () => {
           ));
         }
         markCustomerMessagesRead(activeConv.id).catch(() => {});
-      } catch {
-        // Message load failed — user sees empty state
+      } catch (err) {
+        if (isMounted) {
+          setMessages([]);
+          setErrorChat(err?.message || 'Failed to load messages.');
+        }
       } finally {
         if (isMounted) setLoadingChat(false);
       }
     };
     loadMsgs();
     return () => { isMounted = false; };
-  }, [activeConv?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [activeConv?.id, chatReloadKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Realtime messages for active conversation ──────────────────────────────
   useEffect(() => {
@@ -342,7 +348,8 @@ const InboxPage = () => {
   // ── Render ─────────────────────────────────────────────────────────────────
   const filteredConvs = conversations.filter(conv => {
     if (statusFilter === 'waiting' && conv.status !== 'waiting_admin') return false;
-    if (statusFilter === 'active' && conv.status !== 'active') return false;
+    // UI tab is "active"; DB status for live admin chats is "open"
+    if (statusFilter === 'active' && conv.status !== 'open') return false;
     if (statusFilter === 'closed' && conv.status !== 'closed') return false;
     if (searchQuery) {
       const name = conv.profiles?.name?.toLowerCase() || '';
@@ -375,11 +382,13 @@ const InboxPage = () => {
             </div>
 
             {/* Status Filter Tabs */}
-            <div className="inbox-filter-tabs">
+            <div className="inbox-filter-tabs" role="tablist" aria-label="Filter conversations">
               {['all', 'waiting', 'active', 'closed'].map(status => (
                 <button
                   key={status}
                   type="button"
+                  role="tab"
+                  aria-selected={statusFilter === status}
                   onClick={() => setStatusFilter(status)}
                   className={`inbox-filter-tab-btn ${statusFilter === status ? 'active' : ''}`}
                 >
@@ -388,7 +397,7 @@ const InboxPage = () => {
               ))}
             </div>
           </div>
-          <div className="flex-1" style={{ overflowY: 'auto' }}>
+          <div className="inbox-conversation-list">
             {loadingList ? (
               <div className="flex-center p-md"><Loader size={24} className="animate-spin text-secondary" /></div>
             ) : errorList ? (
@@ -489,21 +498,21 @@ const InboxPage = () => {
                 </div>
 
                 {/* Action buttons */}
-                <div className="flex gap-8 flex-shrink-0">
+                <div className="inbox-chat-header-actions">
                   {activeConv.status !== 'closed' && (
                     <>
                       {!activeConv.assigned_admin_id && (
-                        <button className="btn btn-outline btn-sm" onClick={() => handleStatusChange('assigned')}>
+                        <button type="button" className="btn btn-outline btn-sm" onClick={() => handleStatusChange('assigned')}>
                           Assign to Me
                         </button>
                       )}
-                      <button className="btn btn-danger btn-sm" onClick={() => handleStatusChange('closed')}>
+                      <button type="button" className="btn btn-danger btn-sm" onClick={() => handleStatusChange('closed')}>
                         Resolve
                       </button>
                     </>
                   )}
                   {activeConv.status === 'closed' && (
-                    <button className="btn btn-primary btn-sm" onClick={() => handleStatusChange('open')}>
+                    <button type="button" className="btn btn-primary btn-sm" onClick={() => handleStatusChange('open')}>
                       Reopen
                     </button>
                   )}
@@ -519,9 +528,30 @@ const InboxPage = () => {
               )}
 
               {/* Messages */}
-              <div className="inbox-chat-messages">
+              <div
+                className="inbox-chat-messages"
+                role="log"
+                aria-live="polite"
+                aria-relevant="additions"
+                aria-label="Conversation messages"
+              >
                 {loadingChat ? (
-                  <div className="flex-center h-full"><Loader size={24} className="animate-spin text-secondary" /></div>
+                  <div className="flex-center h-full" role="status" aria-busy="true">
+                    <Loader size={24} className="animate-spin text-secondary" aria-hidden="true" />
+                    <span className="sr-only">Loading messages</span>
+                  </div>
+                ) : errorChat ? (
+                  <div className="p-md text-center text-sm" style={{ color: 'var(--error)' }} role="alert">
+                    <p><strong>Error loading messages</strong></p>
+                    <p className="mt-4">{errorChat}</p>
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-sm mt-sm"
+                      onClick={() => setChatReloadKey(k => k + 1)}
+                    >
+                      Retry
+                    </button>
+                  </div>
                 ) : messages.length === 0 ? (
                   <div className="text-center text-sm text-secondary mt-20">No messages yet.</div>
                 ) : (
@@ -535,6 +565,7 @@ const InboxPage = () => {
                 <textarea
                   ref={textareaRef}
                   className="form-input flex-1 inbox-textarea"
+                  aria-label="Type a reply"
                   placeholder={activeConv.status === 'closed' ? 'Conversation resolved. Reopen to reply.' : 'Type a reply…'}
                   value={input}
                   onChange={e => {
@@ -557,14 +588,16 @@ const InboxPage = () => {
                     }
                   }}
                   style={{ height: `${textareaHeight}px` }}
-                  disabled={sending || activeConv.status === 'closed'}
+                  disabled={sending || activeConv.status === 'closed' || !!errorChat}
                 />
                 <button
+                  type="button"
                   className="btn btn-primary inbox-send-btn"
                   onClick={handleSend}
-                  disabled={!input.trim() || sending || activeConv.status === 'closed'}
+                  aria-label="Send reply"
+                  disabled={!input.trim() || sending || activeConv.status === 'closed' || !!errorChat}
                 >
-                  {sending ? <Loader size={18} className="animate-spin" /> : <><Send size={18} /> Reply</>}
+                  {sending ? <Loader size={18} className="animate-spin" aria-hidden="true" /> : <><Send size={18} aria-hidden="true" /> Reply</>}
                 </button>
               </div>
             </>

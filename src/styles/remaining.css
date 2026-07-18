@@ -867,7 +867,9 @@
 .admin-inbox-page {
   display: flex;
   flex-direction: column;
+  /* 100vh fallback first; 100dvh when supported (mobile browser chrome) */
   height: calc(100vh - 120px);
+  height: calc(100dvh - 120px);
   min-height: 560px;
 }
 
@@ -938,6 +940,13 @@
   justify-content: space-between;
   gap: 12px;
   min-width: 0;
+  flex-wrap: wrap;
+}
+.inbox-chat-header-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+  flex-wrap: wrap;
 }
 .inbox-chat-user-meta {
   flex: 1;
@@ -985,8 +994,11 @@
 
 @media (max-width: 768px) {
   .admin-inbox-page {
+    /* Prefer dynamic viewport so mobile URL bar does not clip the chat */
     height: calc(100vh - 96px);
-    min-height: 620px;
+    height: calc(100dvh - 96px);
+    /* Avoid forcing tall min-height on short phones (was 620px) */
+    min-height: 0;
   }
 
   .inbox-mobile-back-btn {
@@ -1035,6 +1047,11 @@
   .inbox-chat-header,
   .inbox-chat-input-area {
     padding: 12px 14px;
+  }
+
+  .inbox-chat-header-actions {
+    width: 100%;
+    justify-content: flex-end;
   }
 }
 
