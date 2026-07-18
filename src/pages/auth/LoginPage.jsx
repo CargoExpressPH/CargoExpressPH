@@ -158,7 +158,7 @@ const LoginPage = () => {
           localStorage.removeItem('remember_me');
           localStorage.removeItem('remembered_email');
         }
-        logAuth('Admin Logged In', { details: `Admin logged in with email: ${email.trim()}` });
+        logAuth('User Logged In', { details: `User logged in with email: ${email.trim()}` });
         navigate('/');
       } else {
         const nextError = getLoginErrorPlacement(result.error);

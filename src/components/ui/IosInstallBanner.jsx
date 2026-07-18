@@ -48,7 +48,7 @@ export default function IosInstallBanner() {
   }, []);
 
   const dismiss = () => {
-    try { localStorage.setItem(DISMISSED_KEY, String(Date.now())); } catch {}
+    try { localStorage.setItem(DISMISSED_KEY, String(Date.now())); } catch { /* localStorage may be blocked in private browsing */ }
     setVisible(false);
   };
 

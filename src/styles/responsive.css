@@ -98,6 +98,10 @@
 
 /* Page title + action buttons stacking */
 @media (max-width: 640px) {
+  .grid-2 {
+    grid-template-columns: 1fr;
+  }
+
   .page-title,
   .page-subtitle {
     word-break: break-word;

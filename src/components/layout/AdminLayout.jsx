@@ -33,7 +33,7 @@ const AdminLayout = () => {
   const toggleCollapse = useCallback(() => {
     setSidebarCollapsed(prev => {
       const next = !prev;
-      try { localStorage.setItem(COLLAPSE_KEY, next ? '1' : '0'); } catch {}
+      try { localStorage.setItem(COLLAPSE_KEY, next ? '1' : '0'); } catch { /* localStorage may be blocked in private mode */ }
       return next;
     });
   }, []);

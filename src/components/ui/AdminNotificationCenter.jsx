@@ -176,7 +176,7 @@ const AdminNotificationCenter = ({ isOpen, onClose, anchorRef }) => {
       try {
         await markNotificationRead(notif.id);
         setNotifications(prev => prev.map(n => n.id === notif.id ? { ...n, is_read: true } : n));
-      } catch {}
+      } catch { /* ignore notification read state failure silently */ }
     }
     onClose();
     navigate(getNotifRoute(notif));
@@ -187,7 +187,7 @@ const AdminNotificationCenter = ({ isOpen, onClose, anchorRef }) => {
     try {
       await deleteNotification(id);
       setNotifications(prev => prev.filter(n => n.id !== id));
-    } catch {}
+    } catch { /* ignore notification deletion failure silently */ }
   };
 
   if (!isOpen) return null;

@@ -103,7 +103,7 @@ const HomePage = () => {
               placeholder="Enter tracking number (CE-XXXXXXXX)"
               value={trackingSearch}
               onChange={e => setTrackingSearch(e.target.value)}
-              style={{ background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.2)', color: 'white' }}
+              className="hero-search-input"
             />
           </div>
           <button

@@ -87,7 +87,7 @@ export const ThemeProvider = ({ children }) => {
   const toggleTheme = useCallback(() => {
     setTheme(prev => {
       const next = prev === 'dark' ? 'light' : 'dark';
-      try { localStorage.setItem(STORAGE_KEY, next); } catch {}
+      try { localStorage.setItem(STORAGE_KEY, next); } catch { /* localStorage may be blocked in private mode */ }
       return next;
     });
   }, []);
@@ -95,7 +95,7 @@ export const ThemeProvider = ({ children }) => {
   const setThemeMode = useCallback((mode) => {
     if (mode !== 'dark' && mode !== 'light') return;
     setTheme(mode);
-    try { localStorage.setItem(STORAGE_KEY, mode); } catch {}
+    try { localStorage.setItem(STORAGE_KEY, mode); } catch { /* localStorage may be blocked in private mode */ }
   }, []);
 
   return (

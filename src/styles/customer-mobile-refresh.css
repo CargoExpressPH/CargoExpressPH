@@ -3,6 +3,16 @@
    Final customer-only layer inspired by modern logistics and service apps.
    ----------------------------------------------------------------------- */
 
+.hero-search-input {
+  background: rgba(255, 255, 255, 0.15) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  color: white !important;
+}
+
+.hero-search-input::placeholder {
+  color: rgba(255, 255, 255, 0.65) !important;
+}
+
 .customer-layout-v2 {
   --customer-green: #128A5A;
   --customer-green-dark: #0B5F3D;

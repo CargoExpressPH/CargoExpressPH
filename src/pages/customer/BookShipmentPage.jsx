@@ -23,7 +23,7 @@ function fallbackCopy(text) {
   el.focus();
   el.select();
   el.setSelectionRange(0, text.length);
-  try { document.execCommand('copy'); } catch {}
+  try { document.execCommand('copy'); } catch { /* fallback copy command failure silent */ }
   document.body.removeChild(el);
 }
 
@@ -139,13 +139,13 @@ const BookShipmentPage = () => {
   useEffect(() => {
     try {
       sessionStorage.setItem('booking_step', step.toString());
-    } catch {}
+    } catch { /* sessionStorage may be blocked in private mode */ }
   }, [step]);
 
   useEffect(() => {
     try {
       sessionStorage.setItem('booking_form', JSON.stringify(form));
-    } catch {}
+    } catch { /* sessionStorage may be blocked in private mode */ }
   }, [form]);
 
   const selectedRoute = ROUTES.find(r => r.label === form.route);
@@ -320,7 +320,7 @@ const BookShipmentPage = () => {
       try {
         sessionStorage.removeItem('booking_form');
         sessionStorage.removeItem('booking_step');
-      } catch {}
+      } catch { /* sessionStorage unavailable in private mode */ }
     } catch (err) {
       toast.error(err.message || 'An unexpected error occurred while saving the booking.');
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -550,7 +550,7 @@ const BookShipmentPage = () => {
                 try {
                   sessionStorage.removeItem('booking_form');
                   sessionStorage.removeItem('booking_step');
-                } catch {}
+                } catch { /* sessionStorage unavailable in private mode */ }
                 setSuccess(null);
                 setStep(1);
                 setFieldErrors({});

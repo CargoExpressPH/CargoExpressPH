@@ -37,13 +37,13 @@ const DashboardPage = () => {
         setStats(dashResult.value.stats);
         setRecent(dashResult.value.recentOrders || []);
       } else if (dashResult.status === 'rejected') {
-        console.error('Failed to load dashboard stats:', dashResult.reason);
+        if (import.meta.env.DEV) console.error('Failed to load dashboard stats:', dashResult.reason);
       }
       
       if (capResult.status === 'fulfilled' && capResult.value) {
         setCapacity(capResult.value);
       } else if (capResult.status === 'rejected') {
-        console.error('Failed to load van capacity:', capResult.reason);
+        if (import.meta.env.DEV) console.error('Failed to load van capacity:', capResult.reason);
       }
       
       if (dashResult.status === 'rejected' && capResult.status === 'rejected') {

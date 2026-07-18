@@ -91,7 +91,7 @@ const OrderDetailPage = () => {
       try {
         pmts = await getPaymentTransactions(id);
       } catch (err) {
-        console.warn('Failed to fetch payment history', err);
+        if (import.meta.env.DEV) console.warn('Failed to fetch payment history', err);
       }
       clearLoadTimeout();
       if (isMountedRef.current) {
