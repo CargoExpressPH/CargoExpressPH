@@ -10,9 +10,61 @@ import PageTransition, { StaggerItem } from '../../components/ui/PageTransition'
 import {
   Package, Search, Plus, ArrowRight,
   Container, MapPin, Calendar, Weight, ChevronRight,
-  Truck, CheckCircle,
+  Truck, CheckCircle, Zap, AlertTriangle, Bell, Megaphone, Clock,
 } from 'lucide-react';
 import usePageTitle from '../../hooks/usePageTitle';
+
+const getAnnouncementCategoryInfo = (announcement) => {
+  const text = `${announcement.title || ''} ${announcement.content || ''}`.toLowerCase();
+  
+  if (text.includes('schedule') || text.includes('vessel') || text.includes('cut-off') || text.includes('departure') || text.includes('sailing') || text.includes('port') || text.includes('🚢')) {
+    return {
+      label: 'Schedule Update',
+      icon: Calendar,
+      accentColor: 'var(--info)',
+      badgeBg: 'color-mix(in srgb, var(--info) 14%, transparent)',
+      badgeColor: 'var(--info)'
+    };
+  }
+  
+  if (text.includes('gcash') || text.includes('paymongo') || text.includes('promo') || text.includes('discount') || text.includes('free') || text.includes('off') || text.includes('payment') || text.includes('⚡')) {
+    return {
+      label: 'Special Promo',
+      icon: Zap,
+      accentColor: 'var(--success)',
+      badgeBg: 'color-mix(in srgb, var(--success) 14%, transparent)',
+      badgeColor: 'var(--success)'
+    };
+  }
+  
+  if (text.includes('weather') || text.includes('typhoon') || text.includes('advisory') || text.includes('delay') || text.includes('caution') || text.includes('protocol') || text.includes('swell') || text.includes('⚠️')) {
+    return {
+      label: 'Safety Advisory',
+      icon: AlertTriangle,
+      accentColor: 'var(--warning)',
+      badgeBg: 'color-mix(in srgb, var(--warning) 14%, transparent)',
+      badgeColor: 'var(--warning)'
+    };
+  }
+  
+  if (text.includes('support') || text.includes('chat') || text.includes('24/7') || text.includes('virtual') || text.includes('assistant') || text.includes('contact') || text.includes('line') || text.includes('📞') || text.includes('🔔')) {
+    return {
+      label: 'Service Notice',
+      icon: Bell,
+      accentColor: 'var(--chart-purple)',
+      badgeBg: 'color-mix(in srgb, var(--chart-purple) 14%, transparent)',
+      badgeColor: 'var(--chart-purple)'
+    };
+  }
+
+  return {
+    label: 'Announcement',
+    icon: Megaphone,
+    accentColor: 'var(--primary)',
+    badgeBg: 'color-mix(in srgb, var(--primary) 14%, transparent)',
+    badgeColor: 'var(--primary)'
+  };
+};
 
 const HomePage = () => {
   usePageTitle('Home');
@@ -279,21 +331,53 @@ const HomePage = () => {
 
       {/* ── Announcements ────────────────────────────────────────── */}
       {!loading && visibleAnnouncements.length > 0 && (
-        <StaggerItem delay={120}>
-          <h3 className="fw-700 mb-12">
-            Announcements
-          </h3>
-          {visibleAnnouncements.slice(0, 3).map((a, index) => (
-            <StaggerItem key={a.id} className="customer-announcement-card card mb-12" delay={(index + 4) * 60}>
-              <div className="card-body p-16">
-                <div className="fw-600 mb-4">{a.title}</div>
-                <div className="text-sm text-secondary">{a.content}</div>
-                <div className="text-xs text-tertiary mt-8">
-                  {new Date(a.created_at).toLocaleDateString()}
+        <StaggerItem delay={120} className="mb-lg">
+          <div className="flex items-center justify-between mb-md">
+            <h3 className="customer-section-title fw-700">Announcements</h3>
+            <span className="text-xs text-tertiary fw-600">{visibleAnnouncements.length} Latest</span>
+          </div>
+          {visibleAnnouncements.slice(0, 3).map((a, index) => {
+            const cat = getAnnouncementCategoryInfo(a);
+            const CatIcon = cat.icon;
+            return (
+              <StaggerItem key={a.id} className="mb-12" delay={(index + 4) * 60}>
+                <div
+                  className="card card-interactive customer-announcement-card"
+                  style={{
+                    borderLeft: `3.5px solid ${cat.accentColor}`,
+                    transition: 'transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease',
+                  }}
+                >
+                  <div className="card-body p-16">
+                    <div className="flex items-center justify-between gap-8 mb-8">
+                      <span
+                        className="inline-flex items-center gap-6 px-8 py-2 rounded-full fw-700 text-uppercase"
+                        style={{
+                          fontSize: '0.65rem',
+                          letterSpacing: '0.04em',
+                          background: cat.badgeBg,
+                          color: cat.badgeColor,
+                        }}
+                      >
+                        <CatIcon size={12} />
+                        {cat.label}
+                      </span>
+                      <span className="inline-flex items-center gap-4 text-xs text-tertiary">
+                        <Clock size={12} />
+                        {new Date(a.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                      </span>
+                    </div>
+                    <div className="fw-700 text-base mb-6" style={{ color: 'var(--text-primary)', lineHeight: 1.35 }}>
+                      {a.title}
+                    </div>
+                    <div className="text-sm text-secondary" style={{ lineHeight: 1.5 }}>
+                      {a.content}
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </StaggerItem>
-          ))}
+              </StaggerItem>
+            );
+          })}
         </StaggerItem>
       )}
 
