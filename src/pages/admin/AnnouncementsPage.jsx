@@ -8,6 +8,7 @@ import { Plus, Trash2, Megaphone, Loader } from 'lucide-react';
 import { useToast } from '../../hooks/useToast';
 import usePageTitle from '../../hooks/usePageTitle';
 import InfoTooltip from '../../components/ui/InfoTooltip';
+import { ANNOUNCEMENT_CATEGORIES, getAnnouncementCategoryInfo } from '../../lib/announcements';
 
 const AnnouncementsPage = () => {
   usePageTitle('Announcements');
@@ -16,7 +17,7 @@ const AnnouncementsPage = () => {
   const [error, setError] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({ title: '', content: '' });
+  const [form, setForm] = useState({ title: '', content: '', category: 'auto' });
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
   const toast = useToast();
@@ -36,18 +37,26 @@ const AnnouncementsPage = () => {
   };
 
   const handleCreate = async () => {
-    if (!form.title.trim() || !form.content.trim()) { toast.warning('Please fill in both title and content.'); return; }
-    if (form.title.trim().length > 100) { toast.warning('Title must be 100 characters or less.'); return; }
+    let finalTitle = form.title.trim();
+    if (!finalTitle || !form.content.trim()) { toast.warning('Please fill in both title and content.'); return; }
+    if (finalTitle.length > 100) { toast.warning('Title must be 100 characters or less.'); return; }
     if (form.content.trim().length > 1500) { toast.warning('Content must be 1500 characters or less.'); return; }
+
+    // Prepend designated emoji tag if explicit category selected and not already in title
+    const selectedCategory = ANNOUNCEMENT_CATEGORIES.find(c => c.value === form.category);
+    if (selectedCategory && selectedCategory.emoji && !finalTitle.includes(selectedCategory.emoji)) {
+      finalTitle = `${selectedCategory.emoji} ${finalTitle}`.slice(0, 100);
+    }
+
     setSaving(true);
     try {
       await withTimeout(createAnnouncement({
-        title: form.title.trim(),
+        title: finalTitle,
         content: form.content.trim(),
       }));
-      setForm({ title: '', content: '' });
+      setForm({ title: '', content: '', category: 'auto' });
       setShowForm(false);
-      logAnnouncement('Announcement Published', null, form.title.trim(), { details: `Published announcement: ${form.title.trim()}` });
+      logAnnouncement('Announcement Published', null, finalTitle, { details: `Published announcement: ${finalTitle}` });
       await load();
       toast.success('Announcement published!');
     } catch(e) {
@@ -85,10 +94,27 @@ const AnnouncementsPage = () => {
 
       {showForm && (
         <div className="card animate-scale-in mb-16"><div className="card-body">
+          <div className="form-group mb-16">
+            <label className="form-label inline-flex items-center" htmlFor="announcement-category">
+              Category Tag *
+              <InfoTooltip text="Choose an explicit category tag for this announcement, or select Auto-Detect for smart keyword matching." />
+            </label>
+            <select
+              id="announcement-category"
+              className="form-select"
+              value={form.category}
+              onChange={e => setForm(p => ({ ...p, category: e.target.value }))}
+            >
+              {ANNOUNCEMENT_CATEGORIES.map(cat => (
+                <option key={cat.value} value={cat.value}>
+                  {cat.label}
+                </option>
+              ))}
+            </select>
+          </div>
           <div className="form-group">
             <label className="form-label inline-flex items-center" htmlFor="announcement-title">
               Title * (Max 100 characters)
-              <InfoTooltip text="Including keywords like Schedule (🚢), Promo (⚡), Weather (⚠️), or Support (📞) in your title automatically assigns visual badges and icons on Customer Home!" />
             </label>
             <input id="announcement-title" className="form-input" value={form.title} onChange={e=>setForm(p=>({...p,title:e.target.value}))} maxLength={100} required />
           </div>
@@ -115,18 +141,36 @@ const AnnouncementsPage = () => {
       ) : items.length === 0 ? (
         <EmptyState icon={Megaphone} title="No announcements yet" description="Create your first announcement to keep customers informed." actionLabel="Create Announcement" onAction={() => setShowForm(true)} />
       ) : (
-        items.map((a, i) => (
-          <div key={a.id} className="card stagger-item mb-12" style={{animationDelay: `${i * 60}ms`}}>
-            <div className="card-body p-16">
-              <div className="admin-announcement-header">
-                <h3 className="admin-announcement-title fw-700">{a.title}</h3>
-                <button type="button" className="btn btn-ghost btn-icon admin-card-action" onClick={()=>setDeleteTarget(a)} aria-label={`Delete ${a.title}`}><Trash2 size={16}/></button>
+        items.map((a, i) => {
+          const cat = getAnnouncementCategoryInfo(a);
+          const CatIcon = cat.icon;
+          return (
+            <div key={a.id} className="card stagger-item mb-12" style={{animationDelay: `${i * 60}ms`}}>
+              <div className="card-body p-16">
+                <div className="admin-announcement-header">
+                  <div className="flex items-center gap-10 flex-wrap">
+                    <span
+                      className="inline-flex items-center gap-6 px-8 py-2 rounded-full fw-700 text-uppercase"
+                      style={{
+                        fontSize: '0.65rem',
+                        letterSpacing: '0.04em',
+                        background: cat.badgeBg,
+                        color: cat.badgeColor,
+                      }}
+                    >
+                      <CatIcon size={12} />
+                      {cat.label}
+                    </span>
+                    <h3 className="admin-announcement-title fw-700">{a.title}</h3>
+                  </div>
+                  <button type="button" className="btn btn-ghost btn-icon admin-card-action" onClick={()=>setDeleteTarget(a)} aria-label={`Delete ${a.title}`}><Trash2 size={16}/></button>
+                </div>
+                <p className="text-sm text-secondary mt-6">{a.content}</p>
+                <div className="text-xs text-tertiary mt-8">by {a.profiles?.name||'Admin'} • {new Date(a.created_at).toLocaleDateString()}</div>
               </div>
-              <p className="text-sm text-secondary">{a.content}</p>
-              <div className="text-xs text-tertiary mt-8">by {a.profiles?.name||'Admin'} • {new Date(a.created_at).toLocaleDateString()}</div>
             </div>
-          </div>
-        ))
+          );
+        })
       )}
 
       <ConfirmModal
