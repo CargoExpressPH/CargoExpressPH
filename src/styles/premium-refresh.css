@@ -167,7 +167,7 @@ body {
 
 .customer-bottom-tab.book-tab .book-tab-icon {
   background: var(--primary);
-  box-shadow: 0 10px 22px rgba(168, 70, 18, 0.32);
+  box-shadow: 0 10px 22px color-mix(in srgb, var(--primary) 32%, transparent);
 }
 
 .customer-bottom-tab.book-tab .book-tab-icon::before {
@@ -180,7 +180,7 @@ body {
 
 .hero {
   background:
-    linear-gradient(135deg, rgba(45, 90, 138, 0.92), rgba(168, 70, 18, 0.82)),
+    linear-gradient(135deg, rgba(15, 23, 42, 0.92), color-mix(in srgb, var(--primary) 88%, #0F172A)),
     var(--accent);
 }
 

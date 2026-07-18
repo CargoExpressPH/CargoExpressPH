@@ -227,7 +227,7 @@
   font-size: 0.8125rem;
   font-weight: 500;
   line-height: 1.35;
-  color: #334155; /* Slate 700 for high quality readability */
+  color: var(--text-secondary);
 }
 
 .toast-close {

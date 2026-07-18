@@ -61,7 +61,7 @@
 }
 .about-mission p {
   font-style: italic; font-size: 0.875rem;
-  color: #92400E; font-weight: 500;
+  color: var(--text); font-weight: 500;
 }
 
 
@@ -70,7 +70,7 @@
 .contact-card {
   display: flex; align-items: center; gap: 14px;
   padding: 14px 16px; border-radius: var(--radius-md);
-  border: 1.5px solid var(--border); background: white;
+  border: 1.5px solid var(--border); background: var(--surface);
   margin-bottom: 10px; text-decoration: none; color: var(--text);
   transition: var(--transition); cursor: pointer;
 }
