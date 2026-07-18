@@ -507,6 +507,11 @@ const SupportChatPage = () => {
           onKeyDown={e => {
             if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
           }}
+          onFocus={() => {
+            setTimeout(() => {
+              messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+            }, 150);
+          }}
           style={{
             borderRadius: 18,
             paddingLeft: 18, paddingRight: 18,

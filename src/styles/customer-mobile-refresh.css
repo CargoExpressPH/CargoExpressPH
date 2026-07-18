@@ -1620,3 +1620,17 @@ body:has(input:is([type="text"], [type="search"], [type="password"], [type="emai
   pointer-events: none !important;
   transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease !important;
 }
+
+/* Remove bottom nav padding reservation when keyboard is active so input field sits directly above software keyboard */
+body.keyboard-active .customer-main,
+body.keyboard-active .customer-main:has(.support-chat-page),
+body:has(textarea:focus) .customer-main:has(.support-chat-page) {
+  padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px)) !important;
+  scroll-padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px)) !important;
+}
+
+body.keyboard-active .support-chat-page,
+body:has(textarea:focus) .support-chat-page {
+  height: calc(100dvh - 76px) !important;
+  min-height: 280px !important;
+}
