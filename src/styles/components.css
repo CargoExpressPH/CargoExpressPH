@@ -630,3 +630,64 @@ input[type="datetime-local"]:hover::-webkit-calendar-picker-indicator {
     width: 100%;
   }
 }
+
+/* --- Interactive Info Tooltip -------------------------------------------- */
+.info-tooltip-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+.info-tooltip-icon-btn {
+  background: transparent;
+  border: none;
+  padding: 2px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  color: var(--info);
+  cursor: pointer;
+  transition: transform 0.15s ease, color 0.15s ease;
+}
+
+.info-tooltip-icon-btn:hover,
+.info-tooltip-icon-btn:focus-visible {
+  transform: scale(1.15);
+  color: var(--primary);
+}
+
+.info-tooltip-bubble {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--surface-raised, #0f172a);
+  color: var(--text-primary, #ffffff);
+  border: 1px solid var(--border);
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1.4;
+  white-space: normal;
+  width: max-content;
+  max-width: 270px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25);
+  z-index: 9999;
+  pointer-events: none;
+  animation: fadeIn 0.15s ease-out;
+}
+
+.info-tooltip-bubble::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border-width: 5px;
+  border-style: solid;
+  border-color: var(--surface-raised, #0f172a) transparent transparent transparent;
+}

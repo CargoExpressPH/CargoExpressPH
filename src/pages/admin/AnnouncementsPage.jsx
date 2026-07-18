@@ -4,9 +4,10 @@ import ConfirmModal from '../../components/ui/ConfirmModal';
 import { logAnnouncement } from '../../lib/activityLog';
 import EmptyState from '../../components/ui/EmptyState';
 import { SkeletonCard } from '../../components/ui/SkeletonLoader';
-import { Plus, Trash2, Megaphone, Loader, Info } from 'lucide-react';
+import { Plus, Trash2, Megaphone, Loader } from 'lucide-react';
 import { useToast } from '../../hooks/useToast';
 import usePageTitle from '../../hooks/usePageTitle';
+import InfoTooltip from '../../components/ui/InfoTooltip';
 
 const AnnouncementsPage = () => {
   usePageTitle('Announcements');
@@ -84,17 +85,11 @@ const AnnouncementsPage = () => {
 
       {showForm && (
         <div className="card animate-scale-in mb-16"><div className="card-body">
-          <div className="flex items-start gap-10 p-12 rounded-md mb-16" style={{ background: 'color-mix(in srgb, var(--info) 10%, transparent)', border: '1px solid color-mix(in srgb, var(--info) 25%, transparent)', color: 'var(--text-primary)', fontSize: '0.8125rem' }}>
-            <Info size={16} color="var(--info)" className="shrink-0 mt-2" />
-            <div>
-              <span className="fw-700 text-info">Smart Badge Auto-Detection:</span>
-              <span className="text-secondary ml-4">
-                Including keywords like <strong>Schedule</strong> (🚢), <strong>Promo</strong> (⚡), <strong>Weather/Advisory</strong> (⚠️), or <strong>Support</strong> (📞) in your title automatically assigns visual badges and icons on the Customer Home Screen!
-              </span>
-            </div>
-          </div>
           <div className="form-group">
-            <label className="form-label" htmlFor="announcement-title">Title * (Max 100 characters)</label>
+            <label className="form-label inline-flex items-center" htmlFor="announcement-title">
+              Title * (Max 100 characters)
+              <InfoTooltip text="Including keywords like Schedule (🚢), Promo (⚡), Weather (⚠️), or Support (📞) in your title automatically assigns visual badges and icons on Customer Home!" />
+            </label>
             <input id="announcement-title" className="form-input" value={form.title} onChange={e=>setForm(p=>({...p,title:e.target.value}))} maxLength={100} required />
           </div>
           <div className="form-group">
