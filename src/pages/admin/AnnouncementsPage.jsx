@@ -12,27 +12,58 @@ import { ANNOUNCEMENT_CATEGORIES, getAnnouncementCategoryInfo } from '../../lib/
 
 const CategoryDropdown = ({ value, onChange }) => {
   const [open, setOpen] = useState(false);
+  const [focusedIndex, setFocusedIndex] = useState(-1);
   const rootRef = useRef(null);
   const selected = ANNOUNCEMENT_CATEGORIES.find(c => c.value === value) || ANNOUNCEMENT_CATEGORIES[0];
   const SelectedIcon = selected.icon;
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      setFocusedIndex(-1);
+      return;
+    }
+    const selectedIdx = ANNOUNCEMENT_CATEGORIES.findIndex(c => c.value === value);
+    setFocusedIndex(selectedIdx >= 0 ? selectedIdx : 0);
+
     const handleOutsideClick = (e) => {
       if (rootRef.current && !rootRef.current.contains(e.target)) {
         setOpen(false);
       }
     };
-    const handleKeyDown = (e) => {
-      if (e.key === 'Escape') setOpen(false);
-    };
     document.addEventListener('pointerdown', handleOutsideClick);
-    document.addEventListener('keydown', handleKeyDown);
     return () => {
       document.removeEventListener('pointerdown', handleOutsideClick);
-      document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [open]);
+  }, [open, value]);
+
+  const handleKeyDown = (e) => {
+    if (!open) {
+      if (['ArrowDown', 'ArrowUp', 'Enter', ' '].includes(e.key)) {
+        e.preventDefault();
+        setOpen(true);
+      }
+      return;
+    }
+
+    if (e.key === 'Escape' || e.key === 'Tab') {
+      setOpen(false);
+      return;
+    }
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setFocusedIndex(prev => (prev + 1) % ANNOUNCEMENT_CATEGORIES.length);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setFocusedIndex(prev => (prev - 1 + ANNOUNCEMENT_CATEGORIES.length) % ANNOUNCEMENT_CATEGORIES.length);
+    } else if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      if (focusedIndex >= 0 && focusedIndex < ANNOUNCEMENT_CATEGORIES.length) {
+        onChange(ANNOUNCEMENT_CATEGORIES[focusedIndex].value);
+        setOpen(false);
+      }
+    }
+  };
 
   return (
     <div className="custom-category-select-wrap" ref={rootRef} style={{ position: 'relative' }}>
@@ -41,19 +72,22 @@ const CategoryDropdown = ({ value, onChange }) => {
         className="form-select flex items-center justify-between gap-10"
         aria-haspopup="listbox"
         aria-expanded={open}
+        aria-label="Select announcement category tag"
         onClick={() => setOpen(prev => !prev)}
-        style={{ textAlign: 'left', cursor: 'pointer', minHeight: 44 }}
+        onKeyDown={handleKeyDown}
+        style={{ textAlign: 'left', cursor: 'pointer', minHeight: 44, width: '100%' }}
       >
-        <span className="flex items-center gap-8 fw-600">
-          {SelectedIcon && <SelectedIcon size={16} color="var(--primary)" />}
-          <span>{selected.label}</span>
+        <span className="flex items-center gap-8 fw-600 truncate">
+          {SelectedIcon && <SelectedIcon size={16} color="var(--primary)" className="shrink-0" />}
+          <span className="truncate">{selected.label}</span>
         </span>
-        <ChevronDown size={16} style={{ transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s ease', color: 'var(--text-tertiary)' }} />
+        <ChevronDown size={16} className="shrink-0" style={{ transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s ease', color: 'var(--text-tertiary)' }} />
       </button>
       {open && (
         <div
           className="custom-category-select-menu"
           role="listbox"
+          tabIndex={-1}
           style={{
             position: 'absolute',
             top: 'calc(100% + 6px)',
@@ -68,13 +102,16 @@ const CategoryDropdown = ({ value, onChange }) => {
             display: 'flex',
             flexDirection: 'column',
             gap: 2,
-            maxHeight: 280,
+            maxHeight: 'min(280px, 50vh)',
             overflowY: 'auto',
+            WebkitOverflowScrolling: 'touch',
+            overscrollBehavior: 'contain',
             animation: 'fadeIn 0.15s ease-out',
           }}
         >
-          {ANNOUNCEMENT_CATEGORIES.map(cat => {
+          {ANNOUNCEMENT_CATEGORIES.map((cat, idx) => {
             const active = cat.value === value;
+            const focused = idx === focusedIndex;
             const Icon = cat.icon;
             return (
               <button
@@ -84,25 +121,33 @@ const CategoryDropdown = ({ value, onChange }) => {
                 aria-selected={active}
                 className="flex items-center justify-between p-10 rounded-md"
                 style={{
-                  background: active ? 'color-mix(in srgb, var(--primary) 12%, transparent)' : 'transparent',
+                  background: active
+                    ? 'color-mix(in srgb, var(--primary) 14%, transparent)'
+                    : focused
+                    ? 'var(--bg-secondary)'
+                    : 'transparent',
                   color: active ? 'var(--primary)' : 'var(--text)',
                   border: 'none',
                   textAlign: 'left',
                   cursor: 'pointer',
                   fontSize: '0.875rem',
                   fontWeight: active ? 700 : 500,
-                  transition: 'background 0.15s ease',
+                  minHeight: 44,
+                  padding: '10px 12px',
+                  transition: 'background 0.15s ease, color 0.15s ease',
+                  WebkitTapHighlightColor: 'transparent',
                 }}
+                onMouseEnter={() => setFocusedIndex(idx)}
                 onClick={() => {
                   onChange(cat.value);
                   setOpen(false);
                 }}
               >
-                <span className="flex items-center gap-10">
-                  {Icon && <Icon size={16} color={active ? 'var(--primary)' : 'var(--text-secondary)'} />}
-                  <span>{cat.label}</span>
+                <span className="flex items-center gap-10 truncate">
+                  {Icon && <Icon size={16} color={active ? 'var(--primary)' : 'var(--text-secondary)'} className="shrink-0" />}
+                  <span className="truncate">{cat.label}</span>
                 </span>
-                {active && <Check size={16} color="var(--primary)" />}
+                {active && <Check size={16} color="var(--primary)" className="shrink-0 ml-8" />}
               </button>
             );
           })}
@@ -195,7 +240,7 @@ const AnnouncementsPage = () => {
       </div>
 
       {showForm && (
-        <div className="card animate-scale-in mb-16"><div className="card-body">
+        <div className="card animate-scale-in mb-16" style={{ overflow: 'visible' }}><div className="card-body">
           <div className="form-group mb-16">
             <label className="form-label inline-flex items-center">
               Category Tag *
