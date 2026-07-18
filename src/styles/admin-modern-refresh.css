@@ -1196,3 +1196,67 @@
   gap: 4px;
   margin-top: 4px;
 }
+
+@media (max-width: 768px) {
+  .app-layout .admin-payment-table-wrap {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    overflow: visible;
+  }
+
+  .app-layout .admin-payment-table {
+    display: block;
+  }
+
+  .app-layout .admin-payment-table thead {
+    display: none !important;
+  }
+
+  .app-layout .admin-payment-table tbody {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .app-layout .admin-payment-table tbody tr {
+    display: flex;
+    flex-direction: column;
+    padding: 16px !important;
+    background: var(--admin-panel-solid);
+    border: 1px solid var(--admin-line);
+    border-radius: 14px;
+    box-shadow: var(--admin-shadow-soft);
+    gap: 8px;
+  }
+
+  .app-layout .admin-payment-table tbody tr:hover {
+    background: var(--admin-panel-solid);
+  }
+
+  .app-layout .admin-payment-table td {
+    display: flex !important;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 0 6px 0 !important;
+    border-bottom: 1px solid color-mix(in srgb, var(--admin-line) 40%, transparent) !important;
+    font-size: 0.8125rem;
+    text-align: right !important;
+  }
+
+  .app-layout .admin-payment-table td:last-child {
+    border-bottom: none !important;
+    padding-bottom: 0 !important;
+  }
+
+  .app-layout .admin-payment-table td[data-label]::before {
+    content: attr(data-label);
+    font-size: 0.6875rem;
+    font-weight: 850;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--admin-muted);
+    text-align: left;
+    min-width: 90px;
+  }
+}

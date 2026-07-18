@@ -708,19 +708,19 @@ const AdminOrderDetailPage = () => {
                   <tbody>
                     {paymentTransactions.map(tx => (
                       <tr key={tx.id}>
-                        <td>
+                        <td data-label="Date">
                           {tx.payment_date ? new Date(tx.payment_date).toLocaleDateString('en-PH') : new Date(tx.created_at).toLocaleDateString('en-PH')}
                           {!tx.payment_date && <span className="text-tertiary ml-4">{new Date(tx.created_at).toLocaleTimeString('en-PH', {hour: '2-digit', minute:'2-digit'})}</span>}
                         </td>
-                        <td>{tx.payment_type || 'Additional Payment'}</td>
-                        <td className="fw-600 text-success">₱{parseFloat(tx.amount).toFixed(2)}</td>
-                        <td className="text-capitalize">{tx.payment_method === 'gcash' ? 'GCash' : tx.payment_method}</td>
-                        <td className="payment-ref-cell">
+                        <td data-label="Type">{tx.payment_type || 'Additional Payment'}</td>
+                        <td data-label="Amount" className="fw-600 text-success">₱{parseFloat(tx.amount).toFixed(2)}</td>
+                        <td data-label="Method" className="text-capitalize">{tx.payment_method === 'gcash' ? 'GCash' : tx.payment_method}</td>
+                        <td data-label="Receipt/Ref" className="payment-ref-cell">
                           {tx.transaction_reference && <div className="text-xs">Ref: {tx.transaction_reference}</div>}
                           {tx.receipt_url && <a href={tx.receipt_url} target="_blank" rel="noreferrer" className="text-xs text-primary receipt-link"><Image size={12} /> View Receipt</a>}
                           {tx.notes && <div className="text-xs text-tertiary mt-4">{tx.notes}</div>}
                         </td>
-                        <td>{tx.admin_name || 'System'}</td>
+                        <td data-label="Admin">{tx.admin_name || 'System'}</td>
                       </tr>
                     ))}
                   </tbody>
