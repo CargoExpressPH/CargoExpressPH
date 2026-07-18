@@ -218,13 +218,7 @@ const AdminLayout = () => {
               style={{ fontSize: '0.8125rem' }}
             >
               <Search size={17} aria-hidden="true" />
-              <kbd className="topbar-command-kbd" style={{
-                fontSize: '0.625rem', fontWeight: 600,
-                background: 'var(--bg-secondary)',
-                padding: '1px 5px', borderRadius: 3,
-                border: '1px solid var(--border-light)',
-                fontFamily: 'inherit', color: 'var(--text-tertiary)',
-              }}>
+              <kbd className="topbar-command-kbd">
                 Ctrl K
               </kbd>
             </button>

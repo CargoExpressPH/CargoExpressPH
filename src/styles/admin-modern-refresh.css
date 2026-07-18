@@ -1260,3 +1260,14 @@
     min-width: 90px;
   }
 }
+
+.topbar-command-kbd {
+  font-size: 0.625rem;
+  font-weight: 600;
+  background: var(--bg-secondary);
+  padding: 1px 5px;
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--border-light);
+  font-family: inherit;
+  color: var(--text-tertiary);
+}
