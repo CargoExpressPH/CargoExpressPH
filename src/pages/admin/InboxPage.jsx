@@ -24,9 +24,9 @@ import { logChat } from '../../lib/activityLog';
 // 'open'          — admin is actively handling this conversation
 // 'closed'        — resolved (admin closed) OR bot handling (no active admin)
 const STATUS_BADGE = {
-  waiting_admin: { label: '⏳ Waiting', color: 'var(--warning)',      bg: 'var(--warning-bg)',    icon: Clock },
-  open:          { label: '💬 Active',  color: 'var(--success)',      bg: 'var(--success-bg)',    icon: MessageSquare },
-  closed:        { label: '✅ Closed',  color: 'var(--text-tertiary)', bg: 'var(--bg-secondary)', icon: CheckCircle },
+  waiting_admin: { emoji: '⏳', text: 'Waiting', color: 'var(--warning)',      bg: 'var(--warning-bg)',    icon: Clock },
+  open:          { emoji: '💬', text: 'Active',  color: 'var(--success)',      bg: 'var(--success-bg)',    icon: MessageSquare },
+  closed:        { emoji: '✅', text: 'Closed',  color: 'var(--text-tertiary)', bg: 'var(--bg-secondary)', icon: CheckCircle },
 };
 
 const ConvStatusBadge = ({ status, assignedAdmin }) => {
@@ -35,7 +35,7 @@ const ConvStatusBadge = ({ status, assignedAdmin }) => {
   return (
     <span className="inbox-status-badge" style={{ color: cfg.color, background: cfg.bg }}>
       <Icon size={10} />
-      {cfg.label}
+      <span aria-hidden="true">{cfg.emoji}</span> {cfg.text}
       {assignedAdmin && <span style={{ marginLeft: 4, opacity: 0.8 }}>· {assignedAdmin}</span>}
     </span>
   );

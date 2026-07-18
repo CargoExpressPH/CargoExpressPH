@@ -39,6 +39,7 @@ const ConfirmModal = ({
   icon,
 }) => {
   const modalRef = useRef(null);
+  const cancelRef = useRef(null);
 
   // Escape key handler — uses document-level listener so it works
   // regardless of focus state (the onKeyDown on div was unreliable)
@@ -53,10 +54,10 @@ const ConfirmModal = ({
     return () => document.removeEventListener('keydown', handleEscape);
   }, [isOpen, loading, onClose]);
 
-  // Auto-focus the modal for screen readers
+  // Auto-focus the Cancel button for screen readers (least-destructive action per WAI-ARIA APG)
   useEffect(() => {
-    if (isOpen && modalRef.current) {
-      modalRef.current.focus();
+    if (isOpen && cancelRef.current) {
+      cancelRef.current.focus();
     }
   }, [isOpen]);
 
@@ -110,6 +111,7 @@ const ConfirmModal = ({
               onClick={onClose}
               disabled={loading}
               type="button"
+              ref={cancelRef}
             >
               {cancelLabel}
             </button>

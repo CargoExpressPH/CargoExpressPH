@@ -252,7 +252,7 @@ const CustomerLayout = () => {
             >
               <Bell size={20} />
               {unreadCount > 0 && (
-                <span className="notification-badge">{unreadCount > 9 ? '9+' : unreadCount}</span>
+                <span className="notification-badge" aria-live="polite" aria-atomic="true">{unreadCount > 9 ? '9+' : unreadCount}</span>
               )}
             </Link>
 

@@ -94,14 +94,6 @@ const LoginPage = () => {
     clearLoginErrorTimer();
     setLoginError(message);
     setCredentialErrorActive(isCredentialError);
-
-    if (message) {
-      loginErrorTimerRef.current = setTimeout(() => {
-        setLoginError('');
-        setCredentialErrorActive(false);
-        loginErrorTimerRef.current = null;
-      }, 5000);
-    }
   };
 
   const clearLoginFieldError = (field) => {
@@ -190,7 +182,7 @@ const LoginPage = () => {
       {/* ════════════════════════════════════════════════════════════
           LEFT PANEL — Branding
       ════════════════════════════════════════════════════════════ */}
-      <div className="login-left-panel" aria-hidden="true">
+      <div className="login-left-panel">
         <div className="login-left-content">
           <div className="login-brand" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <Container size={28} color="var(--primary)" />
@@ -299,7 +291,7 @@ const LoginPage = () => {
             <div className="form-group">
               <div className="login-pw-header">
                 <label className="form-label" htmlFor="login-password">Password</label>
-                <Link to="/forgot-password" className="login-forgot-link" tabIndex={0}>
+                <Link to="/forgot-password" className="login-forgot-link">
                   Forgot password?
                 </Link>
               </div>

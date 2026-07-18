@@ -8,7 +8,7 @@ import { SkeletonStatCard, SkeletonTableRow, SkeletonDonut } from '../../compone
 import AnimatedCounter from '../../components/ui/AnimatedCounter';
 import PageTransition, { StaggerItem } from '../../components/ui/PageTransition';
 import ErrorBoundarySection from '../../components/ui/ErrorBoundarySection';
-import { Package, Truck, Users, Clock, ArrowRight, Gauge, PieChart } from 'lucide-react';
+import { Package, Truck, Users, Clock, ArrowRight, Gauge, PieChart, AlertTriangle } from 'lucide-react';
 import usePageTitle from '../../hooks/usePageTitle';
 import EmptyState from '../../components/ui/EmptyState';
 
@@ -19,10 +19,12 @@ const DashboardPage = () => {
   const [recent, setRecent] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [statsWarning, setStatsWarning] = useState(null);
 
   useEffect(() => { loadData(); }, []);
   const loadData = async () => {
     setError(null);
+    setStatsWarning(null);
     setLoading(true);
     try {
       const results = await Promise.allSettled([
@@ -48,6 +50,14 @@ const DashboardPage = () => {
       
       if (dashResult.status === 'rejected' && capResult.status === 'rejected') {
         throw new Error('All dashboard data queries failed to load.');
+      }
+
+      // Surface partial failures so admin knows data may be incomplete
+      const partialFailures = [];
+      if (dashResult.status === 'rejected') partialFailures.push('order statistics');
+      if (capResult.status === 'rejected') partialFailures.push('van capacity');
+      if (partialFailures.length > 0) {
+        setStatsWarning(`Failed to load ${partialFailures.join(' and ')}. Some data may be incomplete.`);
       }
     } catch (e) { 
       setError(e.message || 'Failed to load dashboard data.');
@@ -94,6 +104,13 @@ const DashboardPage = () => {
         </div>
       </div>
 
+      {statsWarning && (
+        <div className="card mb-16 flex items-center gap-12" role="alert" style={{ padding: '12px 16px', background: 'var(--warning-bg)', border: '1px solid var(--warning)', borderRadius: 'var(--radius-md)' }}>
+          <AlertTriangle size={18} style={{ color: 'var(--warning-dark)', flexShrink: 0 }} />
+          <span className="flex-1 text-sm" style={{ color: 'var(--warning-dark)' }}>{statsWarning}</span>
+          <button type="button" className="btn btn-outline text-xs" onClick={() => setStatsWarning(null)} style={{ padding: '4px 10px', minHeight: 'auto' }}>Dismiss</button>
+        </div>
+      )}
       {/* Stat Cards */}
       <ErrorBoundarySection message="Stats failed to load.">
         <div className="grid grid-4 mb-24">

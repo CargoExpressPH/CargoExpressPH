@@ -17,23 +17,28 @@ import usePageTitle from '../../hooks/usePageTitle';
 const getAnnouncementCategoryInfo = (announcement) => {
   const text = `${announcement.title || ''} ${announcement.content || ''}`.toLowerCase();
   
-  if (text.includes('schedule') || text.includes('vessel') || text.includes('cut-off') || text.includes('departure') || text.includes('sailing') || text.includes('port') || text.includes('🚢')) {
-    return {
-      label: 'Schedule Update',
-      icon: Calendar,
-      accentColor: 'var(--info)',
-      badgeBg: 'color-mix(in srgb, var(--info) 14%, transparent)',
-      badgeColor: 'var(--info)'
-    };
-  }
-  
-  if (text.includes('gcash') || text.includes('paymongo') || text.includes('promo') || text.includes('discount') || text.includes('free') || text.includes('off') || text.includes('payment') || text.includes('⚡')) {
+  // Word-boundary helper for short/ambiguous keywords to avoid false matches
+  // e.g. 'off' must not match 'office', 'offer', 'official'
+  const wordMatch = (word) => new RegExp(`\\b${word}\\b`, 'i').test(text);
+
+  // Promo checked first so "Schedule of payment discounts" matches Promo, not Schedule
+  if (text.includes('gcash') || text.includes('paymongo') || text.includes('promo') || text.includes('discount') || wordMatch('free') || wordMatch('off') || text.includes('payment') || text.includes('⚡')) {
     return {
       label: 'Special Promo',
       icon: Zap,
       accentColor: 'var(--success)',
       badgeBg: 'color-mix(in srgb, var(--success) 14%, transparent)',
       badgeColor: 'var(--success)'
+    };
+  }
+
+  if (text.includes('schedule') || text.includes('vessel') || text.includes('cut-off') || text.includes('departure') || text.includes('sailing') || wordMatch('port') || text.includes('🚢')) {
+    return {
+      label: 'Schedule Update',
+      icon: Calendar,
+      accentColor: 'var(--info)',
+      badgeBg: 'color-mix(in srgb, var(--info) 14%, transparent)',
+      badgeColor: 'var(--info)'
     };
   }
   
@@ -47,7 +52,7 @@ const getAnnouncementCategoryInfo = (announcement) => {
     };
   }
   
-  if (text.includes('support') || text.includes('chat') || text.includes('24/7') || text.includes('virtual') || text.includes('assistant') || text.includes('contact') || text.includes('line') || text.includes('📞') || text.includes('🔔')) {
+  if (text.includes('support') || text.includes('chat') || text.includes('24/7') || text.includes('virtual') || text.includes('assistant') || text.includes('contact') || wordMatch('line') || text.includes('📞') || text.includes('🔔')) {
     return {
       label: 'Service Notice',
       icon: Bell,
@@ -334,7 +339,7 @@ const HomePage = () => {
         <StaggerItem delay={120} className="mb-lg">
           <div className="flex items-center justify-between mb-md">
             <h3 className="customer-section-title fw-700">Announcements</h3>
-            <span className="text-xs text-tertiary fw-600">{visibleAnnouncements.length} Latest</span>
+            <span className="text-xs text-tertiary fw-600">{Math.min(visibleAnnouncements.length, 5)} Latest</span>
           </div>
           {visibleAnnouncements.slice(0, 5).map((a, index) => {
             const cat = getAnnouncementCategoryInfo(a);

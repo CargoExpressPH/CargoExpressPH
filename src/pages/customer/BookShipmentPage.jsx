@@ -111,8 +111,10 @@ const BookShipmentPage = () => {
   const isFormDirty = useCallback(() => {
     if (success) return false; // Don't block after successful submission
     // Check if any meaningful field has been filled
-    return !!(form.route || form.sender_name || form.receiver_name || form.package_weight);
-  }, [success, form.route, form.sender_name, form.receiver_name, form.package_weight]);
+    // Exclude route if it matches the preselected route (prefill should not trigger dirty)
+    const routeDirty = form.route && form.route !== preRoute;
+    return !!(routeDirty || form.sender_name || form.receiver_name || form.package_weight);
+  }, [success, form.route, form.sender_name, form.receiver_name, form.package_weight, preRoute]);
 
   const blocker = useBlocker(({ currentLocation, nextLocation }) => {
     return isFormDirty() && currentLocation.pathname !== nextLocation.pathname;

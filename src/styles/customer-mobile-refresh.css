@@ -14,12 +14,10 @@
 }
 
 .customer-layout-v2 {
-  --customer-green: #128A5A;
-  --customer-green-dark: #0B5F3D;
-  --customer-green-soft: #EAF8F0;
-  --customer-green-glow: rgba(18, 138, 90, 0.18);
   --customer-green: #16A34A;
+  --customer-green-dark: #0B5F3D;
   --customer-green-soft: #F0FDF4;
+  --customer-green-glow: rgba(18, 138, 90, 0.18);
   --customer-ink: #0B1220;
   --customer-muted: #5F6B7A;
   --customer-panel: rgba(255, 255, 255, 0.92);
@@ -37,10 +35,8 @@
 [data-theme="dark"] .customer-layout-v2 {
   --customer-green: #4ADE80;
   --customer-green-dark: #A7F3D0;
-  --customer-green-soft: rgba(74, 222, 128, 0.13);
-  --customer-green-glow: rgba(74, 222, 128, 0.22);
-  --customer-green: #4ADE80;
   --customer-green-soft: rgba(34, 197, 94, 0.12);
+  --customer-green-glow: rgba(74, 222, 128, 0.22);
   --customer-ink: #F8FAFC;
   --customer-muted: #B7C2D0;
   --customer-panel: rgba(19, 32, 51, 0.9);

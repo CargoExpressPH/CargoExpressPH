@@ -35,6 +35,7 @@ const ProfilePage = () => {
   const [orderStats, setOrderStats] = useState({ total: 0, active: 0, delivered: 0 });
   const [loading, setLoading] = useState(true);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [pushToggleKey, setPushToggleKey] = useState(0);
 
   useEffect(() => {
     if (user) {
@@ -221,7 +222,7 @@ const ProfilePage = () => {
               <span className="toggle-slider" />
             </label>
           </div>
-          <div className="profile-menu-item no-hover">
+          <div className="profile-menu-item no-hover" key={pushToggleKey}>
             <div className="profile-menu-icon-wrap accent">
               <Bell size={18} />
             </div>
@@ -254,6 +255,8 @@ const ProfilePage = () => {
                       // Disable: clear the current device token
                       const success = await disableNotificationsForDevice(user.id);
                       if (success) {
+                        localStorage.setItem('fcm_enabled', 'false');
+                        setPushToggleKey(k => k + 1);
                         toast.success('Push notifications disabled.');
                       } else {
                         toast.error('Failed to disable notifications.');
