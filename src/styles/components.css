@@ -662,7 +662,7 @@ input[type="datetime-local"]:hover::-webkit-calendar-picker-indicator {
 .info-tooltip-bubble {
   position: absolute;
   top: calc(100% + 8px);
-  left: 0;
+  left: -10px;
   transform: none;
   background: #0f172a;
   color: #ffffff !important;
@@ -673,8 +673,8 @@ input[type="datetime-local"]:hover::-webkit-calendar-picker-indicator {
   font-weight: 500;
   line-height: 1.45;
   white-space: normal;
-  width: 270px;
-  max-width: calc(100vw - 32px);
+  width: max-content;
+  max-width: min(280px, calc(100vw - 56px));
   box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
   z-index: 9999;
   pointer-events: none;
@@ -685,7 +685,7 @@ input[type="datetime-local"]:hover::-webkit-calendar-picker-indicator {
   content: '';
   position: absolute;
   bottom: 100%;
-  left: 12px;
+  left: 14px;
   transform: none;
   border-width: 6px;
   border-style: solid;
@@ -694,13 +694,14 @@ input[type="datetime-local"]:hover::-webkit-calendar-picker-indicator {
 
 @media (max-width: 640px) {
   .info-tooltip-bubble {
-    left: auto;
-    right: -12px;
-    width: min(270px, calc(100vw - 40px));
+    left: -10px;
+    right: auto;
+    width: max-content;
+    max-width: calc(100vw - 56px);
   }
   
   .info-tooltip-bubble::after {
-    left: auto;
-    right: 14px;
+    left: 14px;
+    right: auto;
   }
 }

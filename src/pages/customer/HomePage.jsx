@@ -344,7 +344,6 @@ const HomePage = () => {
                 <div
                   className="card card-interactive customer-announcement-card"
                   style={{
-                    borderLeft: `3.5px solid ${cat.accentColor}`,
                     transition: 'transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease',
                   }}
                 >

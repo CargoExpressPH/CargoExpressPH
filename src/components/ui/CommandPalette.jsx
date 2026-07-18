@@ -17,8 +17,7 @@ const COMMANDS = [
   { label: 'Inbox', to: '/admin/inbox', icon: MessageSquare, section: 'Management', keywords: 'messages chat support' },
   { label: 'Contact Inquiries', to: '/admin/contact-inquiries', icon: Mail, section: 'Management', keywords: 'messages inquiries contact' },
   { label: 'Customer Feedback', to: '/admin/feedback', icon: MessageSquare, section: 'Management', keywords: 'feedback testimonials reviews' },
-  { label: 'Activity Logs', to: '/admin/activity-logs', icon: ClipboardList, section: 'System', keywords: 'audit history logs' },
-  { label: 'Profile', to: '/admin/profile', icon: User, section: 'System', keywords: 'account admin user profile' },
+  { label: 'Activity Logs', to: '/admin/activity-logs', icon: ClipboardList, section: 'Management', keywords: 'audit history logs' },
   { label: 'Company Information', to: '/admin/company-info', icon: Building, section: 'System', keywords: 'profile config business coverage settings' },
 ];
 
