@@ -254,22 +254,30 @@ const HomePage = () => {
           </div>
           {activeOrders.slice(0, 3).map((order, index) => (
             <StaggerItem key={order.id} delay={(index + 2) * 60} className="mb-12">
-              <Link to={`/customer/orders/${order.id}`} className="customer-shipment-card card card-interactive block text-no-underline" style={{ color: 'inherit' }}>
+              <Link to={`/customer/orders/${order.id}`} className="customer-shipment-card customer-shipment-card-v2 card card-interactive block text-no-underline" style={{ color: 'inherit' }}>
                 <div className="card-body p-16">
                   <div className="customer-list-card-top">
-                    <span className="customer-list-card-title">{order.tracking_number}</span>
-                    <div className="flex items-center gap-8">
+                    <div className="flex flex-col min-width-0">
+                      <span className="customer-list-card-title">{order.tracking_number}</span>
+                      <span className="customer-list-card-booked-date">Booked: {fmtDate(order.created_at)}</span>
+                    </div>
+                    <div className="flex items-center gap-8 flex-shrink-0">
                       <StatusBadge status={order.status} />
                       <ChevronRight size={18} className="customer-card-chevron" />
                     </div>
                   </div>
-                  <div className="customer-list-card-route">
-                    <MapPin size={14} />
-                    <span>{order.origin || 'Not set'} to {order.destination || 'Not set'}</span>
+                  <div className="customer-list-card-route-visual">
+                    <span className="customer-route-node origin">{order.origin || 'Not set'}</span>
+                    <div className="customer-route-line-wrap" aria-hidden="true">
+                      <div className="customer-route-line">
+                        <div className="customer-route-arrow" />
+                      </div>
+                    </div>
+                    <span className="customer-route-node destination">{order.destination || 'Not set'}</span>
                   </div>
                   <div className="customer-list-card-footer">
                     <span>To: {order.receiver_name || 'Receiver'}</span>
-                    <span className="customer-list-card-price">PHP {parseFloat(order.shipping_cost || 0).toFixed(2)}</span>
+                    <span className="customer-list-card-price">₱{parseFloat(order.shipping_cost || 0).toFixed(2)}</span>
                   </div>
                 </div>
               </Link>

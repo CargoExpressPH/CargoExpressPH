@@ -1630,3 +1630,65 @@ body:has(textarea:focus) .support-chat-page {
   height: calc(100dvh - 76px) !important;
   min-height: 280px !important;
 }
+
+/* --- Premium Shipment List Cards ---------------------------------------- */
+.customer-shipment-card-v2 {
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease, border-color 0.2s ease !important;
+}
+
+.customer-shipment-card-v2:hover {
+  border-color: var(--customer-green) !important;
+  box-shadow: var(--shadow-md) !important;
+}
+
+.customer-list-card-booked-date {
+  font-size: 0.72rem;
+  color: var(--customer-muted);
+  font-weight: 500;
+  margin-top: 2px;
+}
+
+.customer-list-card-route-visual {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 12px 0;
+}
+
+.customer-route-node {
+  font-size: 0.88rem;
+  font-weight: 800;
+}
+
+.customer-route-node.origin {
+  color: var(--customer-ink);
+}
+
+.customer-route-node.destination {
+  color: var(--customer-muted);
+}
+
+.customer-route-line-wrap {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  position: relative;
+}
+
+.customer-route-line {
+  width: 100%;
+  height: 2px;
+  background: color-mix(in srgb, var(--customer-line) 80%, transparent);
+  position: relative;
+}
+
+.customer-route-arrow {
+  position: absolute;
+  right: -2px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--customer-green);
+}
