@@ -591,7 +591,7 @@ const BookShipmentPage = () => {
             <p className="text-sm text-secondary mb-20">You have unsaved changes in your booking form. If you leave now, all entered data will be lost.</p>
             <div className="flex gap-12 justify-center">
               <button type="button" className="btn btn-outline" onClick={() => blocker.reset()}>Stay</button>
-              <button type="button" className="btn btn-primary" style={{ background: 'var(--error)' }} onClick={() => blocker.proceed()}>Discard</button>
+              <button type="button" className="btn btn-primary" style={{ background: 'var(--error)' }} onClick={() => { sessionStorage.removeItem('booking_form'); sessionStorage.removeItem('booking_step'); blocker.proceed(); }}>Discard</button>
             </div>
           </div>
         </div>
