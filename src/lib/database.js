@@ -683,6 +683,16 @@ export const createAnnouncement = async (announcement) => {
           reference_id: data.id,
         }));
         await supabase.from('notifications').insert(notifications);
+
+        // Send push notifications via Edge Function in a single broadcast call
+        void supabase.functions.invoke('send-push', {
+          body: {
+            user_id: 'all_customers',
+            title: 'New Announcement',
+            body: announcement.title,
+            url: '/customer/notifications',
+          },
+        }).catch(() => {});
       }
     } catch (notifErr) {
       // Non-critical — log but do not surface to the user

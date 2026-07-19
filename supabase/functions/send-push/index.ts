@@ -293,25 +293,43 @@ serve(async (req) => {
     // Authorization: must be admin, sending to self, or sending to an admin
     const [{ data: requester, error: reqErr }, { data: targetUser }] = await Promise.all([
       supabase.from('profiles').select('role').eq('id', userData.user.id).single(),
-      supabase.from('profiles').select('role').eq('id', user_id).single(),
+      user_id === 'all_customers'
+        ? Promise.resolve({ data: null, error: null })
+        : supabase.from('profiles').select('role').eq('id', user_id).single(),
     ])
     const isTargetAdmin = targetUser?.role === 'admin'
     if (reqErr || (requester?.role !== 'admin' && userData.user.id !== user_id && !isTargetAdmin)) {
       return jsonResp({ error: 'Access denied' }, 403)
     }
 
-    // Fetch device tokens for the target user
-    const { data: devices, error: devErr } = await supabase
-      .from('user_device_tokens')
-      .select('id, token')
-      .eq('user_id', user_id)
+    // Fetch device tokens for the target user(s)
+    let devices: { id: string; token: string; user_id: string }[] = []
+    let devErr = null
+
+    if (user_id === 'all_customers') {
+      const { data, error } = await supabase
+        .from('user_device_tokens')
+        .select('id, token, user_id, profiles!inner(role)')
+        .eq('profiles.role', 'customer')
+      devices = data as any || []
+      devErr = error
+    } else {
+      const { data, error } = await supabase
+        .from('user_device_tokens')
+        .select('id, token, user_id')
+        .eq('user_id', user_id)
+      devices = data || []
+      devErr = error
+    }
 
     if (devErr || !devices || devices.length === 0) {
-      await supabase.from('notification_delivery_attempts').insert({
-        notification_id: notification_id || null,
-        user_id, status: 'skipped',
-        error_message: devErr?.message || 'No device tokens for user',
-      })
+      if (user_id !== 'all_customers') {
+        await supabase.from('notification_delivery_attempts').insert({
+          notification_id: notification_id || null,
+          user_id, status: 'skipped',
+          error_message: devErr?.message || 'No device tokens for user',
+        })
+      }
       return jsonResp({ error: 'No device tokens for user', skipped: true })
     }
 
@@ -331,10 +349,10 @@ serve(async (req) => {
     const vapidPrivateKey = Deno.env.get('VAPID_PRIVATE_KEY') ?? ''
     const vapidSubject    = Deno.env.get('VAPID_SUBJECT')     ?? 'mailto:admin@cargoexpress.ph'
 
-    const logDelivery = async (deviceTokenId: string, status: string, providerMessageId?: string, errorMessage?: string) => {
+    const logDelivery = async (targetUserId: string, deviceTokenId: string, status: string, providerMessageId?: string, errorMessage?: string) => {
       await supabase.from('notification_delivery_attempts').insert({
         notification_id: notification_id || null,
-        user_id, device_token_id: deviceTokenId, status,
+        user_id: targetUserId, device_token_id: deviceTokenId, status,
         provider_message_id: providerMessageId || null,
         error_message:       errorMessage      || null,
       })
@@ -348,7 +366,7 @@ serve(async (req) => {
       if (isWebPush) {
         // ── iOS / Safari Web Push path ────────────────────────────────────
         if (!vapidPublicKey || !vapidPrivateKey) {
-          await logDelivery(dev.id, 'skipped', undefined, 'VAPID keys not configured')
+          await logDelivery(dev.user_id, dev.id, 'skipped', undefined, 'VAPID keys not configured')
           results.push({ success: false, platform: 'webpush', error: 'VAPID keys not configured' })
           continue
         }
@@ -356,7 +374,7 @@ serve(async (req) => {
         try {
           subscriptionJson = JSON.parse(dev.token.slice('webpush:'.length))
         } catch {
-          await logDelivery(dev.id, 'failed', undefined, 'Invalid subscription JSON')
+          await logDelivery(dev.user_id, dev.id, 'failed', undefined, 'Invalid subscription JSON')
           results.push({ success: false, platform: 'webpush', error: 'Invalid subscription JSON' })
           continue
         }
@@ -366,19 +384,19 @@ serve(async (req) => {
           title, body || 'You have a new update', clickUrl,
         )
         if (res.stale) await supabase.from('user_device_tokens').delete().eq('token', dev.token)
-        await logDelivery(dev.id, res.ok ? 'sent' : 'failed', res.messageId, res.error)
+        await logDelivery(dev.user_id, dev.id, res.ok ? 'sent' : 'failed', res.messageId, res.error)
         results.push({ success: res.ok, platform: 'webpush', ...(res.error && { error: res.error }), ...(res.stale && { stale: true }) })
 
       } else {
         // ── FCM path (Android / Chrome / Desktop) ─────────────────────────
         if (!fcmAccessToken) {
-          await logDelivery(dev.id, 'skipped', undefined, 'FIREBASE_SERVICE_ACCOUNT_B64 not configured')
+          await logDelivery(dev.user_id, dev.id, 'skipped', undefined, 'FIREBASE_SERVICE_ACCOUNT_B64 not configured')
           results.push({ success: false, platform: 'fcm', error: 'Firebase not configured' })
           continue
         }
         const res = await sendFcm(dev.token, fcmProjectId, fcmAccessToken, title, body || 'You have a new update', clickUrl, webpushLink)
         if (res.stale) await supabase.from('user_device_tokens').delete().eq('token', dev.token)
-        await logDelivery(dev.id, res.ok ? 'sent' : 'failed', res.messageId, res.error)
+        await logDelivery(dev.user_id, dev.id, res.ok ? 'sent' : 'failed', res.messageId, res.error)
         results.push({ success: res.ok, platform: 'fcm', ...(res.messageId && { providerMessageId: res.messageId }), ...(res.error && { error: res.error }), ...(res.stale && { stale: true }) })
       }
     }
