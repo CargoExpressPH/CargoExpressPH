@@ -46,6 +46,7 @@
   border: none;
   border-right: 1px solid var(--admin-line);
   border-radius: 0;
+  background: var(--admin-panel-solid);
   background:
     linear-gradient(180deg, color-mix(in srgb, var(--admin-panel-solid) 96%, var(--admin-green-soft) 4%), var(--admin-panel-solid));
   color: var(--admin-muted);

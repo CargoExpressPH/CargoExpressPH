@@ -416,9 +416,13 @@ const AdminOrderDetailPage = () => {
             )}
         </div>
       </div>
-      <p className="text-secondary text-sm mb-20">
-        {order.origin} → {order.destination} • {order.profiles?.name}
-      </p>
+      <div className="flex items-center gap-8 text-sm mb-20 flex-wrap">
+        <span className="fw-800 text-secondary">{order.origin}</span>
+        <span className="fw-700" style={{ color: 'var(--primary)' }}>➔</span>
+        <span className="fw-800 text-secondary">{order.destination}</span>
+        <span className="text-secondary opacity-50">•</span>
+        <span className="text-secondary">{order.profiles?.name}</span>
+      </div>
 
       {/* Out of Coverage Review Action Bar */}
       {order.service_area_status === 'for_review' && (
@@ -539,9 +543,9 @@ const AdminOrderDetailPage = () => {
             )}
           </div>
           <div className="card-body">
-            <div className="text-sm mb-4">
+            <div className="text-sm mb-4 flex items-center gap-8 flex-wrap">
               <strong className="text-primary">{order.trips?.trip_number || 'Unknown Trip'}</strong>
-              <span className="text-secondary ml-8">({order.trips?.origin} → {order.trips?.destination})</span>
+              <span className="text-secondary">({order.trips?.origin} ➔ {order.trips?.destination})</span>
             </div>
             
             {tripHistory && tripHistory.length > 0 && (
@@ -584,7 +588,7 @@ const AdminOrderDetailPage = () => {
           {order.trip_id && order.trips && (
             <div className="trip-info-box mt-12 px-12 py-8">
               <Truck size={14} className="inline mr-6" />
-              Trip: <strong>{order.trips.trip_number}</strong> ({order.trips.origin} → {order.trips.destination})
+              Trip: <strong>{order.trips.trip_number}</strong> ({order.trips.origin} ➔ {order.trips.destination})
             </div>
           )}
         </div>

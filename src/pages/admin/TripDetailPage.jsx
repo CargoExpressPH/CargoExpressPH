@@ -135,7 +135,14 @@ const TripDetailPage = () => {
         { label: trip.trip_number },
       ]} />
       <div className="flex items-center justify-between mb-20">
-        <div><h1 className="fw-800">{trip.trip_number}</h1><p className="text-sm text-secondary">{trip.origin} → {trip.destination}</p></div>
+        <div>
+          <h1 className="fw-800">{trip.trip_number}</h1>
+          <div className="flex items-center gap-8 mt-4 text-sm">
+            <span className="fw-800 text-secondary">{trip.origin}</span>
+            <span className="fw-700" style={{ color: 'var(--primary)' }}>➔</span>
+            <span className="fw-800 text-secondary">{trip.destination}</span>
+          </div>
+        </div>
         <StatusBadge status={trip.status}/>
       </div>
 
