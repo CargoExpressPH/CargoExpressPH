@@ -199,8 +199,21 @@ const BookShipmentPage = () => {
   const showSenderCheckbox = selectedRoute && userProfileLocation === (selectedRoute.origin === 'Bohol' ? 'bohol' : 'manila');
   const showReceiverCheckbox = selectedRoute && userProfileLocation === (selectedRoute.destination === 'Bohol' ? 'bohol' : 'manila');
 
+  const clearPrefixFieldErrors = (prefix) => {
+    setFieldErrors(p => {
+      const next = { ...p };
+      Object.keys(next).forEach(key => {
+        if (key.startsWith(`${prefix}_`)) delete next[key];
+      });
+      return next;
+    });
+  };
+
   const handleUseRegisteredSenderChange = (checked) => {
     setUseRegisteredSender(checked);
+    // Bulk fill/clear bypasses `u()`, so clear sender field errors so red borders
+    // and inline messages don't stick after autofill from registered address.
+    clearPrefixFieldErrors('sender');
     if (checked && userProfile) {
       setForm(p => ({
         ...p,
@@ -221,6 +234,8 @@ const BookShipmentPage = () => {
 
   const handleUseRegisteredReceiverChange = (checked) => {
     setUseRegisteredReceiver(checked);
+    // Same as sender: registered-address autofill must clear leftover validation UI.
+    clearPrefixFieldErrors('receiver');
     if (checked && userProfile) {
       setForm(p => ({
         ...p,
