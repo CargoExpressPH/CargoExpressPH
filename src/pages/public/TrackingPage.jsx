@@ -3,7 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import {
   Container, Search, Loader, Package, MapPin, ArrowRight,
-  CheckCircle2, XCircle, Clock, Weight, User, DollarSign,
+  CheckCircle2, XCircle, Clock, Weight, User, Coins,
   RefreshCw, AlertTriangle, Truck, Calendar, Info,
 } from 'lucide-react';
 import { STATUS_TIMELINE, STATUS_COLORS } from '../../constants/status';
@@ -327,7 +327,7 @@ const TrackingPage = ({ embedded = false }) => {
               {order.shipping_cost && (
                 <div className="trk-info-tile">
                   <div className="trk-info-tile-icon">
-                    <DollarSign size={14} />
+                    <Coins size={14} />
                   </div>
                   <div>
                     <p className="trk-info-tile-label">Shipping Cost</p>

@@ -305,7 +305,11 @@ const OrderDetailPage = () => {
       <div className="customer-order-detail-header flex items-center justify-between animate-slide-up mb-20">
         <div>
           <h2 className="fw-800">{order.tracking_number}</h2>
-          <p className="text-sm text-secondary">{order.origin} → {order.destination}</p>
+          <div className="flex items-center gap-8 mt-4 text-sm">
+            <span className="fw-800" style={{ color: 'var(--text)' }}>{order.origin}</span>
+            <span className="fw-700" style={{ color: 'var(--primary)' }}>➔</span>
+            <span className="fw-800" style={{ color: 'var(--text-secondary)' }}>{order.destination}</span>
+          </div>
         </div>
         <StatusBadge status={order.status} />
       </div>
