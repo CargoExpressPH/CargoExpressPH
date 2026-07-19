@@ -11,6 +11,7 @@ import {
   Package, Search, Plus, ArrowRight,
   Container, MapPin, Calendar, Weight, ChevronRight,
   Truck, CheckCircle, Zap, AlertTriangle, Bell, Megaphone, Clock,
+  Sun, CloudSun, Moon,
 } from 'lucide-react';
 import usePageTitle from '../../hooks/usePageTitle';
 import { getAnnouncementCategoryInfo } from '../../lib/announcements';
@@ -57,11 +58,11 @@ const HomePage = () => {
   const deliveredOrders = orders.filter(o => o.status === 'Delivered');
   const visibleAnnouncements = announcements;
 
-  const greeting = () => {
+  const getGreetingData = () => {
     const h = new Date().getHours();
-    if (h < 12) return 'Good Morning';
-    if (h < 18) return 'Good Afternoon';
-    return 'Good Evening';
+    if (h < 12) return { text: 'Good Morning', icon: Sun };
+    if (h < 18) return { text: 'Good Afternoon', icon: CloudSun };
+    return { text: 'Good Evening', icon: Moon };
   };
 
   const fmtDate = (iso) => {
@@ -88,12 +89,18 @@ const HomePage = () => {
     ? Math.max(0, (activeTrip.capacity || 0) - (activeTrip.current_weight || 0))
     : 0;
 
+  const greetingInfo = getGreetingData();
+  const GreetingIcon = greetingInfo.icon;
+
   return (
     <PageTransition className="customer-home-page">
 
       {/* ── Hero ─────────────────────────────────────────────────── */}
       <div className="hero customer-home-hero animate-slide-up mb-lg">
-        <p className="text-sm mb-4">{greeting()},</p>
+        <span className="text-sm">
+          <GreetingIcon size={14} aria-hidden="true" />
+          {greetingInfo.text},
+        </span>
         <h2>{userProfile?.name || (user?.email?.split('@')[0]) || 'Welcome'}</h2>
         <p className="mt-8">Track and manage your shipments with ease.</p>
         <form onSubmit={handleTrack} className="customer-track-form flex gap-10 mt-20 relative">

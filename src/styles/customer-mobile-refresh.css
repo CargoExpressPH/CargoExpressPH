@@ -355,7 +355,6 @@
 }
 
 .customer-home-hero h2 {
-  max-width: 12ch;
   margin-bottom: 8px;
   font-size: clamp(2.1rem, 8vw, 3rem);
 }
@@ -371,6 +370,7 @@
   background: rgba(255, 255, 255, 0.14);
   color: rgba(255, 255, 255, 0.82);
   font-weight: 800;
+  gap: 6px;
 }
 
 .customer-home-hero .customer-track-form {
@@ -380,8 +380,27 @@
 .customer-home-hero .customer-track-form .search-box input {
   min-height: 52px;
   border-radius: 18px !important;
-  background: rgba(255, 255, 255, 0.16) !important;
-  border-color: rgba(255, 255, 255, 0.32) !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+  border: 1.5px solid rgba(255, 255, 255, 0.18) !important;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  color: #FFFFFF !important;
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.08) !important;
+  transition: all 0.2s ease !important;
+}
+
+.customer-home-hero .customer-track-form .search-box input:focus {
+  background: rgba(255, 255, 255, 0.14) !important;
+  border-color: rgba(255, 255, 255, 0.45) !important;
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.18) !important;
+}
+
+.customer-home-hero .customer-track-form .search-box input::placeholder {
+  color: rgba(255, 255, 255, 0.62) !important;
+}
+
+.customer-home-hero .customer-track-form .search-icon {
+  color: rgba(255, 255, 255, 0.72) !important;
 }
 
 .customer-home-hero .customer-track-form .btn {
