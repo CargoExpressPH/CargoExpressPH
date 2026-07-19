@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '../../hooks/useToast';
 import usePageTitle from '../../hooks/usePageTitle';
-import { motion, useScroll, useTransform, AnimatePresence } from 'framer-motion';
+import { motion, useScroll, useTransform, AnimatePresence, MotionConfig } from 'framer-motion';
 
 // â”€â”€â”€ Lightbox Component (with prev/next navigation) â”€â”€â”€
 const Lightbox = ({ images, currentIndex, onClose, onNavigate }) => {
@@ -772,6 +772,7 @@ const AboutPage = () => {
   };
 
   return (
+    <MotionConfig reducedMotion="user">
     <div className="public-about-page" style={{ background: 'var(--bg-gradient, var(--bg))', color: 'var(--text)', minHeight: '100vh', fontFamily: 'Inter, system-ui, sans-serif' }}>
 
       {/* â•â•â• Scroll Progress Bar â•â•â• */}
@@ -1405,6 +1406,7 @@ const AboutPage = () => {
         )}
       </AnimatePresence>
     </div>
+    </MotionConfig>
   );
 };
 

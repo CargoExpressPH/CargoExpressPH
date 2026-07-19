@@ -542,6 +542,7 @@ const CompanyInformationPage = () => {
                             <input
                               type="time"
                               className="form-input"
+                              aria-label={`${day} open time`}
                               style={{ width: 120, minHeight: 36, padding: '6px 10px' }}
                               value={hours.open || ''}
                               onChange={e => handleHoursChange(day, 'open', e.target.value)}
@@ -550,6 +551,7 @@ const CompanyInformationPage = () => {
                             <input
                               type="time"
                               className="form-input"
+                              aria-label={`${day} close time`}
                               style={{ width: 120, minHeight: 36, padding: '6px 10px' }}
                               value={hours.close || ''}
                               onChange={e => handleHoursChange(day, 'close', e.target.value)}
@@ -603,6 +605,7 @@ const CompanyInformationPage = () => {
                   <input
                     type="number"
                     className="form-input"
+                    aria-label={label}
                     min={0}
                     value={companyInfo[field] || 0}
                     onChange={e => handleInfoChange(field, parseInt(e.target.value) || 0)}

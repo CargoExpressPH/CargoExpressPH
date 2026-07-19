@@ -100,7 +100,7 @@
   min-height: 48px;
   border-radius: 18px;
   color: var(--admin-muted);
-  font-weight: 750;
+  font-weight: 700;
 }
 
 .app-layout .sidebar-link:hover {
@@ -540,7 +540,7 @@
 
 .app-layout .sidebar-user-name {
   color: var(--admin-ink);
-  font-weight: 850;
+  font-weight: 800;
 }
 
 .app-layout .sidebar-user-role {
@@ -640,7 +640,7 @@
 .app-layout .admin-page-title {
   color: var(--admin-ink);
   font-size: clamp(1.55rem, 3vw, 2.2rem);
-  font-weight: 950;
+  font-weight: 900;
   letter-spacing: 0;
 }
 
@@ -700,7 +700,7 @@
 
 .app-layout .stat-card .stat-value {
   color: var(--admin-ink);
-  font-weight: 950;
+  font-weight: 900;
 }
 
 .app-layout .stat-card .stat-label {
@@ -716,7 +716,7 @@
 .app-layout .btn {
   min-height: 46px;
   border-radius: 16px;
-  font-weight: 850;
+  font-weight: 800;
   letter-spacing: 0;
 }
 
@@ -761,7 +761,7 @@
 
 .app-layout .form-label {
   color: var(--admin-muted);
-  font-weight: 850;
+  font-weight: 800;
 }
 
 .app-layout .form-helper,
@@ -817,7 +817,7 @@
   border-radius: 999px;
   background: var(--admin-panel);
   color: var(--admin-muted);
-  font-weight: 850;
+  font-weight: 800;
   min-width: 0;
   width: 100%;
   white-space: normal;
@@ -881,7 +881,7 @@
 
 .app-layout .admin-list-card-title {
   color: var(--admin-ink);
-  font-weight: 950;
+  font-weight: 900;
 }
 
 .app-layout .admin-list-card-meta,
@@ -927,7 +927,7 @@
 
 .app-layout .profile-card-name {
   color: var(--admin-ink);
-  font-weight: 950;
+  font-weight: 900;
 }
 
 .app-layout .profile-card-email,
@@ -1249,7 +1249,7 @@
   .app-layout .admin-payment-table td[data-label]::before {
     content: attr(data-label);
     font-size: 0.6875rem;
-    font-weight: 850;
+    font-weight: 800;
     text-transform: uppercase;
     letter-spacing: 0.05em;
     color: var(--admin-muted);

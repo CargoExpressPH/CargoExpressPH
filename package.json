@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "test": "node scripts/smoke-check.mjs",
+    "test": "node scripts/smoke-check.mjs && node scripts/axe-lint.mjs",
     "check": "npm run test && npm run build",
     "build": "vite build",
     "preview": "vite preview"

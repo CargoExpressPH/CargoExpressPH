@@ -386,8 +386,9 @@ const PickupModal = ({ order, onClose, onSave, pricePerKilo = 70 }) => {
                 />
               </div>
               <div className="form-group mb-12">
-                <label className="form-label">Payment Date *</label>
+                <label className="form-label" htmlFor="pu-payment-date">Payment Date *</label>
                 <input
+                  id="pu-payment-date"
                   type="date"
                   className="form-input"
                   value={form.payment_date}
@@ -429,8 +430,9 @@ const PickupModal = ({ order, onClose, onSave, pricePerKilo = 70 }) => {
                 <AlertTriangle size={14} className="inline mr-6" /> Pay Later Details
               </div>
               <div className="form-group mb-0">
-                <label className="form-label"><Calendar size={14} className="inline mr-6" /> Promised Payment Date *</label>
+                <label className="form-label" htmlFor="pu-promised-date"><Calendar size={14} className="inline mr-6" /> Promised Payment Date *</label>
                 <input
+                  id="pu-promised-date"
                   type="date"
                   className="form-input"
                   value={form.promised_payment_date}

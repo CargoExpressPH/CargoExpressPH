@@ -111,8 +111,9 @@ const AdditionalPaymentModal = ({ order, remainingBalance, onClose, onSave }) =>
             </div>
 
             <div className="form-group">
-              <label className="form-label">Amount to Pay (₱) *</label>
+              <label className="form-label" htmlFor="ap-amount">Amount to Pay (₱) *</label>
               <input
+                id="ap-amount"
                 type="number"
                 className="form-input"
                 value={form.amount}
@@ -151,8 +152,9 @@ const AdditionalPaymentModal = ({ order, remainingBalance, onClose, onSave }) =>
                   />
                 </div>
                 <div className="form-group mb-12">
-                  <label className="form-label">Payment Date *</label>
+                  <label className="form-label" htmlFor="ap-payment-date">Payment Date *</label>
                   <input
+                    id="ap-payment-date"
                     type="date"
                     className="form-input"
                     value={form.payment_date}

@@ -202,8 +202,9 @@ const DeliveryModal = ({ order, onClose, onSave }) => {
                     />
                   </div>
                   <div className="form-group mb-12">
-                    <label className="form-label">Payment Date *</label>
+                    <label className="form-label" htmlFor="dl-payment-date">Payment Date *</label>
                     <input
+                      id="dl-payment-date"
                       type="date"
                       className="form-input"
                       value={form.payment_date}

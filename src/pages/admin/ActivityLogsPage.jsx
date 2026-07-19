@@ -204,13 +204,13 @@ const ActivityLogsPage = () => {
             </div>
 
             <div className="form-group m-0">
-              <label className="form-label">From Date</label>
-              <input type="date" className="form-control" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
+              <label className="form-label" htmlFor="log-date-from">From Date</label>
+              <input id="log-date-from" type="date" className="form-control" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
             </div>
 
             <div className="form-group m-0">
-              <label className="form-label">To Date</label>
-              <input type="date" className="form-control" value={dateTo} onChange={e => setDateTo(e.target.value)} />
+              <label className="form-label" htmlFor="log-date-to">To Date</label>
+              <input id="log-date-to" type="date" className="form-control" value={dateTo} onChange={e => setDateTo(e.target.value)} />
             </div>
 
             <div className="form-group m-0 flex items-end">
