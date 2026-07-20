@@ -1,6 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
+import { getActivityLogsByRecord } from '../../lib/database';
+import { deriveStatusTimestamps } from '../../utils/statusTimestamps';
 import {
   Container, Search, Loader, Package, MapPin, ArrowRight,
   CheckCircle2, XCircle, Clock, Weight, User, Coins,
@@ -87,6 +89,12 @@ const TrackingPage = ({ embedded = false }) => {
   const [loading, setLoading] = useState(false);
   const [error,   setError]   = useState('');
   const [searched, setSearched] = useState(false);
+  const [activityLogs, setActivityLogs] = useState([]);
+
+  const stepTimestamps = useMemo(
+    () => deriveStatusTimestamps(activityLogs, order?.created_at, order?.status),
+    [activityLogs, order?.created_at, order?.status]
+  );
 
   useEffect(() => {
     const q = searchParams.get('q');
@@ -98,7 +106,7 @@ const TrackingPage = ({ embedded = false }) => {
   }, []);
 
   const doSearch = async (tn) => {
-    setLoading(true); setError(''); setOrder(null); setSearched(true);
+    setLoading(true); setError(''); setOrder(null); setSearched(true); setActivityLogs([]);
     try {
       const { data, error: fetchError } = await supabase
         .rpc('track_order_public', { p_tracking_number: tn })
@@ -107,6 +115,14 @@ const TrackingPage = ({ embedded = false }) => {
         setError('No shipment found with this tracking number. Please double-check and try again.');
       } else {
         setOrder(data);
+        if (data?.id) {
+          try {
+            const logs = await getActivityLogsByRecord(data.id);
+            setActivityLogs(logs || []);
+          } catch {
+            // Non-admin public query fallback handled by deriveStatusTimestamps baseline
+          }
+        }
       }
     } catch {
       setError('Something went wrong. Please try again later.');
@@ -264,7 +280,7 @@ const TrackingPage = ({ embedded = false }) => {
           {/* ── Timeline ── */}
           <div className="trk-timeline-wrap">
             <p className="trk-section-label">Shipment Journey</p>
-            <TrackingTimeline currentStatus={order.status} />
+            <TrackingTimeline currentStatus={order.status} stepTimestamps={stepTimestamps} />
           </div>
 
           {/* ── Info grid ── */}

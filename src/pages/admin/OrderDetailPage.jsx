@@ -30,6 +30,54 @@ import {
 import { useToast } from '../../hooks/useToast';
 import usePageTitle from '../../hooks/usePageTitle';
 
+const safeFormatDate = (dateStr, options) => {
+  if (!dateStr) return '—';
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return '—';
+    return d.toLocaleDateString('en-US', options);
+  } catch {
+    try {
+      const d = new Date(dateStr);
+      return isNaN(d.getTime()) ? '—' : d.toLocaleDateString();
+    } catch {
+      return '—';
+    }
+  }
+};
+
+const safeFormatTime = (dateStr, options) => {
+  if (!dateStr) return '';
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return '';
+    return d.toLocaleTimeString('en-US', options);
+  } catch {
+    try {
+      const d = new Date(dateStr);
+      return isNaN(d.getTime()) ? '' : d.toLocaleTimeString();
+    } catch {
+      return '';
+    }
+  }
+};
+
+const safeFormatDateTime = (dateStr) => {
+  if (!dateStr) return '—';
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return '—';
+    return d.toLocaleString('en-US');
+  } catch {
+    try {
+      const d = new Date(dateStr);
+      return isNaN(d.getTime()) ? '—' : d.toLocaleString();
+    } catch {
+      return '—';
+    }
+  }
+};
+
 const AdminOrderDetailPage = () => {
   usePageTitle('Order Details');
   const { id } = useParams();
@@ -66,6 +114,12 @@ const AdminOrderDetailPage = () => {
     featured_image_type: 'pickup'
   });
   const [savingFeature, setSavingFeature] = useState(false);
+
+  // Per-step timestamps for tracking timeline
+  const stepTimestamps = useMemo(
+    () => deriveStatusTimestamps(activityHistory, order?.created_at, order?.status),
+    [activityHistory, order?.created_at, order?.status]
+  );
 
   useEffect(() => {
     let isMounted = true;
@@ -396,13 +450,7 @@ const AdminOrderDetailPage = () => {
   const showsWeightWarning = estimatedWeight > 0 && actualWeightVal > 0 &&
     (actualWeightVal > estimatedWeight * 2 || actualWeightVal < estimatedWeight * 0.25);
 
-  // Per-step timestamps for the tracking timeline, derived from the already-
-  // fetched activity logs (status-change entries carry created_at + new status).
-  // activity_logs is admin-only (RLS is_admin), so this is only computed here.
-  const stepTimestamps = useMemo(
-    () => deriveStatusTimestamps(activityHistory),
-    [activityHistory]
-  );
+
 
   return (
     <div className="page-transition">
@@ -567,7 +615,7 @@ const AdminOrderDetailPage = () => {
                         <strong>
                           {history.prev_trip?.trip_number || 'None'} → {history.new_trip?.trip_number || 'Unknown'}
                         </strong>
-                        <span className="text-xs text-secondary">{new Date(history.created_at).toLocaleString()}</span>
+                        <span className="text-xs text-secondary">{safeFormatDateTime(history.created_at)}</span>
                       </div>
                       <div className="text-secondary mb-4">Reason: {history.reason}</div>
                       <div className="text-xs text-tertiary">Changed by: {history.admin?.name || 'Admin'}</div>
@@ -690,7 +738,7 @@ const AdminOrderDetailPage = () => {
             {order.payment_method && <span className="badge badge-info text-capitalize">{order.payment_method === 'gcash' ? 'GCash' : order.payment_method === 'paylater' ? 'Pay Later' : 'Cash'}</span>}
             {order.payer_type && <span className="badge badge-info text-capitalize">Payer: {order.payer_type}</span>}
             {order.payment_status && <span className={`badge ${order.payment_status === 'paid' ? 'badge-success' : order.payment_status === 'partial' ? 'badge-warning' : 'badge-error'} text-capitalize`}>{order.payment_status}</span>}
-            {order.promised_payment_date && <span className="badge badge-warning">Due: {new Date(order.promised_payment_date).toLocaleDateString()}</span>}
+            {order.promised_payment_date && <span className="badge badge-warning">Due: {safeFormatDate(order.promised_payment_date)}</span>}
           </div>
 
 
@@ -722,11 +770,11 @@ const AdminOrderDetailPage = () => {
                     {paymentTransactions.map(tx => (
                       <tr key={tx.id}>
                         <td data-label="Date">
-                          {tx.payment_date ? new Date(tx.payment_date).toLocaleDateString('en-PH') : new Date(tx.created_at).toLocaleDateString('en-PH')}
-                          {!tx.payment_date && <span className="text-tertiary ml-4">{new Date(tx.created_at).toLocaleTimeString('en-PH', {hour: '2-digit', minute:'2-digit'})}</span>}
+                          {tx.payment_date ? safeFormatDate(tx.payment_date) : safeFormatDate(tx.created_at)}
+                          {!tx.payment_date && <span className="text-tertiary ml-4">{safeFormatTime(tx.created_at, {hour: '2-digit', minute:'2-digit'})}</span>}
                         </td>
                         <td data-label="Type">{tx.payment_type || 'Additional Payment'}</td>
-                        <td data-label="Amount" className="fw-600 text-success">₱{parseFloat(tx.amount).toFixed(2)}</td>
+                        <td data-label="Amount" className="fw-600 text-success">₱{parseFloat(tx.amount || 0).toFixed(2)}</td>
                         <td data-label="Method" className="text-capitalize">{tx.payment_method === 'gcash' ? 'GCash' : tx.payment_method}</td>
                         <td data-label="Receipt/Ref" className="payment-ref-cell">
                           {tx.transaction_reference && <div className="text-xs">Ref: {tx.transaction_reference}</div>}
@@ -754,8 +802,8 @@ const AdminOrderDetailPage = () => {
 
       {/* Timestamps */}
       <div className="flex justify-between mt-16 text-xs text-tertiary" style={{ padding: '0 4px' }}>
-        <span>Created: {new Date(order.created_at).toLocaleString()}</span>
-        <span>Updated: {new Date(order.updated_at).toLocaleString()}</span>
+        <span>Created: {safeFormatDateTime(order.created_at)}</span>
+        <span>Updated: {safeFormatDateTime(order.updated_at)}</span>
       </div>
 
       {/* Activity History */}
@@ -777,9 +825,9 @@ const AdminOrderDetailPage = () => {
                     boxShadow: '0 0 0 2px var(--primary)',
                   }} />
                   <div className="text-xs text-tertiary mb-2">
-                    {new Date(log.created_at).toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' })}
+                    {safeFormatTime(log.created_at, { hour: '2-digit', minute: '2-digit' })}
                     {' · '}
-                    {new Date(log.created_at).toLocaleDateString('en-PH', { month: 'short', day: 'numeric' })}
+                    {safeFormatDate(log.created_at, { month: 'short', day: 'numeric' })}
                   </div>
                   <div className="text-sm">
                     <strong>{log.admin_name}</strong>

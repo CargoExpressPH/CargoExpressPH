@@ -1,103 +1,157 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// deriveStatusTimestamps
-//
-// Maps a list of activity-log entries (as fetched by getActivityLogsByRecord)
-// to a { [status]: ISO-string } map — the timestamp at which each shipment
-// status was first reached.
-//
-// Used by the admin Order Detail page to show a real, per-step timestamp
-// under each node of the TrackingTimeline.
-//
-// Data source note:
-//   The `orders` table has no per-status timestamp columns, and activity_logs
-//   is admin-only (RLS `is_admin()`). So this derivation is only valid in
-//   contexts that can already read activity_logs (the admin order detail page,
-//   which loads activityHistory up-front). Customer and public pages cannot
-//   use this and must omit timestamps.
-//
-// Resolution order per log entry (most authoritative first):
-//   1. log.new_value.status  → direct "this status was set to X" (covers
-//      `Status Changed to X`, `Order Assigned`, `Order Cancelled`, trip
-//      cascade updates, and the historical auto-assign path in database.js)
-//   2. action-string fallback → for logs that set status implicitly without
-//      recording it in new_value:
-//        'Pickup Processed'        → 'Picked Up'
-//        'Delivery Proof Uploaded' → 'Delivered'
-//        'Assigned to Trip'        → 'Assigned'
-//        'Out-of-Coverage Request Approved' → 'Pending'
-//
-// Only the FIRST occurrence of each status is kept (earliest transition wins),
-// which matches user expectation: the timeline shows when the step was reached.
-// ─────────────────────────────────────────────────────────────────────────────
-
-import { ORDER_STATUS } from '../constants/status';
+import { ORDER_STATUS, STATUS_TIMELINE } from '../constants/status';
 
 // Action strings that imply a status change but don't carry new_value.status.
-// Keep this list in sync with the logOrder(...) call sites across the app.
+// Keep this list in sync with the logOrder(...) and logTrip(...) call sites across the app.
 const ACTION_STATUS_FALLBACK = {
-  'Pickup Processed': ORDER_STATUS.PICKED_UP,
-  'Delivery Proof Uploaded': ORDER_STATUS.DELIVERED,
-  'Assigned to Trip': ORDER_STATUS.ASSIGNED,
+  'Booking Created': ORDER_STATUS.PENDING_REVIEW,
+  'Out-of-Coverage Booking Submitted': ORDER_STATUS.PENDING_REVIEW,
+  'Order Created': ORDER_STATUS.PENDING_REVIEW,
   'Out-of-Coverage Request Approved': ORDER_STATUS.PENDING,
+  'Request Approved': ORDER_STATUS.PENDING,
+  'Assigned to Trip': ORDER_STATUS.ASSIGNED,
+  'Order Assigned': ORDER_STATUS.ASSIGNED,
+  'Trip Assigned': ORDER_STATUS.ASSIGNED,
+  'Trip Reassigned': ORDER_STATUS.ASSIGNED,
+  'Assigned': ORDER_STATUS.ASSIGNED,
+  'Pickup Processed': ORDER_STATUS.PICKED_UP,
+  'Picked Up': ORDER_STATUS.PICKED_UP,
+  'In Transit': ORDER_STATUS.IN_TRANSIT,
+  'Trip Started': ORDER_STATUS.IN_TRANSIT,
+  'Arrived at Hub': ORDER_STATUS.ARRIVED_HUB,
+  'Trip Arrived': ORDER_STATUS.ARRIVED_HUB,
+  'Out for Delivery': ORDER_STATUS.OUT_FOR_DELIVERY,
+  'Delivery Proof Uploaded': ORDER_STATUS.DELIVERED,
+  'Delivered': ORDER_STATUS.DELIVERED,
 };
+
+const VALID_STATUS_VALUES = new Set(Object.values(ORDER_STATUS));
 
 /**
  * Extract a status string from a single activity log entry.
  * @returns {string|null} a value from ORDER_STATUS, or null if not a status change.
  */
 const statusFromLog = (log) => {
+  if (!log || typeof log !== 'object') return null;
+
+  let nv = log.new_value;
+  if (typeof nv === 'string') {
+    try {
+      nv = JSON.parse(nv);
+    } catch {
+      // nv remains a raw string
+    }
+  }
+  
   // 1. Authoritative: explicit new_value.status
-  const nv = log?.new_value;
   if (nv && typeof nv === 'object' && typeof nv.status === 'string' && nv.status.trim()) {
-    return nv.status.trim();
+    const val = nv.status.trim();
+    if (VALID_STATUS_VALUES.has(val)) return val;
   }
+  if (typeof nv === 'string' && nv.trim() && VALID_STATUS_VALUES.has(nv.trim())) {
+    return nv.trim();
+  }
+  
   // 2. Fallback: known action strings
-  const action = log?.action;
-  if (action && Object.prototype.hasOwnProperty.call(ACTION_STATUS_FALLBACK, action)) {
-    return ACTION_STATUS_FALLBACK[action];
+  const action = log.action;
+  if (action && typeof action === 'string') {
+    const trimmedAction = action.trim();
+    if (Object.prototype.hasOwnProperty.call(ACTION_STATUS_FALLBACK, trimmedAction)) {
+      return ACTION_STATUS_FALLBACK[trimmedAction];
+    }
+    
+    // 3. `Status Changed to X` or `Status advanced from A to B`
+    if (trimmedAction.startsWith('Status Changed to ')) {
+      const target = trimmedAction.slice('Status Changed to '.length).trim();
+      if (VALID_STATUS_VALUES.has(target)) return target;
+    }
   }
-  // 3. `Status Changed to X` — defensive parse in case new_value was stripped
-  //    but the action still carries the target status.
-  if (typeof action === 'string' && action.startsWith('Status Changed to ')) {
-    const target = action.slice('Status Changed to '.length).trim();
-    if (target) return target;
+
+  // 4. Inspect details string for trip trigger fallbacks
+  const details = log.details;
+  if (details && typeof details === 'string') {
+    if (details.includes('Triggered by Trip Start')) return ORDER_STATUS.IN_TRANSIT;
+    if (details.includes('Triggered by Trip Arrival')) return ORDER_STATUS.ARRIVED_HUB;
+    if (details.includes('auto-assigned to Trip') || details.includes('assigned to Trip')) return ORDER_STATUS.ASSIGNED;
+    if (details.includes('Status advanced from')) {
+      const match = details.match(/to\s+["']?([^"']+)["']?$/i);
+      if (match && match[1] && VALID_STATUS_VALUES.has(match[1].trim())) {
+        return match[1].trim();
+      }
+    }
   }
+  
   return null;
 };
 
 /**
  * Build a { status: ISO-string } map from activity logs.
  *
- * @param {Array<{created_at?: string, new_value?: any, action?: string}>} logs
+ * @param {Array<{created_at?: string, new_value?: any, action?: string, details?: string}>} logs
  *   Activity log entries, in any order. `created_at` is an ISO timestamp.
+ * @param {string|null} orderCreatedAt
+ *   Fallback timestamp for initial PENDING_REVIEW & PENDING steps.
+ * @param {string|null} currentStatus
+ *   Current order status to backfill missing timestamps for completed steps.
  * @returns {Record<string, string>}
  *   Map of ORDER_STATUS value → ISO timestamp of when it was first reached.
- *   Empty object if logs is empty/invalid.
  */
-export const deriveStatusTimestamps = (logs) => {
-  if (!Array.isArray(logs) || logs.length === 0) return {};
-
-  // Sort ascending by created_at so "first occurrence" = earliest transition.
-  // Guard against malformed entries (missing/invalid created_at → sent to end).
-  const sorted = [...logs].sort((a, b) => {
-    const ta = a?.created_at ? Date.parse(a.created_at) : NaN;
-    const tb = b?.created_at ? Date.parse(b.created_at) : NaN;
-    if (isNaN(ta) && isNaN(tb)) return 0;
-    if (isNaN(ta)) return 1;
-    if (isNaN(tb)) return -1;
-    return ta - tb;
-  });
-
+export const deriveStatusTimestamps = (logs, orderCreatedAt = null, currentStatus = null) => {
   const map = {};
-  for (const log of sorted) {
-    const status = statusFromLog(log);
-    if (!status) continue;
-    // Earliest wins — once set, don't overwrite.
-    if (map[status]) continue;
-    const iso = log?.created_at;
-    if (!iso) continue;
-    map[status] = iso;
+
+  try {
+    // Baseline: Initialize initial creation statuses with order.created_at
+    if (orderCreatedAt) {
+      const iso = typeof orderCreatedAt === 'string' ? orderCreatedAt : String(orderCreatedAt);
+      map[ORDER_STATUS.PENDING_REVIEW] = iso;
+      map[ORDER_STATUS.PENDING] = iso;
+    }
+
+    if (Array.isArray(logs) && logs.length > 0) {
+      // Sort ascending by created_at so "first occurrence" = earliest transition.
+      const sorted = [...logs].filter(Boolean).sort((a, b) => {
+        const ta = a?.created_at ? Date.parse(a.created_at) : NaN;
+        const tb = b?.created_at ? Date.parse(b.created_at) : NaN;
+        if (isNaN(ta) && isNaN(tb)) return 0;
+        if (isNaN(ta)) return 1;
+        if (isNaN(tb)) return -1;
+        return ta - tb;
+      });
+
+      for (const log of sorted) {
+        const status = statusFromLog(log);
+        if (!status) continue;
+        const iso = log?.created_at;
+        if (!iso) continue;
+        const strIso = typeof iso === 'string' ? iso : String(iso);
+
+        // Explicit log entry overrides baseline orderCreatedAt
+        if (!map[status] || map[status] === orderCreatedAt) {
+          map[status] = strIso;
+        }
+      }
+    }
+
+    // Backfill missing timestamps for completed prior steps:
+    // If an order has reached a later status, any completed step lacking an explicit log
+    // inherits the timestamp of the preceding completed step.
+    if (currentStatus) {
+      const currentIdx = STATUS_TIMELINE.indexOf(currentStatus);
+      if (currentIdx > 0) {
+        let lastKnownTs = orderCreatedAt || map[STATUS_TIMELINE[0]];
+        for (let i = 0; i <= currentIdx; i++) {
+          const stepStatus = STATUS_TIMELINE[i];
+          if (map[stepStatus]) {
+            lastKnownTs = map[stepStatus];
+          } else if (lastKnownTs) {
+            map[stepStatus] = lastKnownTs;
+          }
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('[deriveStatusTimestamps] Failed to derive timestamps safely:', e);
   }
+
   return map;
 };
 

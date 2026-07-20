@@ -1,6 +1,7 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getOrderById, cancelOwnOrder, createNotification, getPaymentTransactions, submitFeedback, checkIfFeedbackExists } from '../../lib/database';
+import { getOrderById, cancelOwnOrder, createNotification, getPaymentTransactions, submitFeedback, checkIfFeedbackExists, getActivityLogsByRecord } from '../../lib/database';
+import { deriveStatusTimestamps } from '../../utils/statusTimestamps';
 import { resolvePhotoUrls } from '../../lib/storage';
 import { useAuth } from '../../contexts/AuthContext';
 import StatusBadge from '../../components/ui/StatusBadge';
@@ -45,6 +46,12 @@ const OrderDetailPage = () => {
   const [resolvedDeliveryPhotos, setResolvedDeliveryPhotos] = useState([]);
   const [deliveryPhotoLoadState, setDeliveryPhotoLoadState] = useState({});
   const [paymentTransactions, setPaymentTransactions] = useState([]);
+  const [activityLogs, setActivityLogs] = useState([]);
+
+  const stepTimestamps = useMemo(
+    () => deriveStatusTimestamps(activityLogs, order?.created_at, order?.status),
+    [activityLogs, order?.created_at, order?.status]
+  );
   
   // Feedback state
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
@@ -88,15 +95,22 @@ const OrderDetailPage = () => {
     try {
       const data = await getOrderById(id);
       let pmts = [];
+      let logs = [];
       try {
         pmts = await getPaymentTransactions(id);
       } catch (err) {
         if (import.meta.env.DEV) console.warn('Failed to fetch payment history', err);
       }
+      try {
+        logs = await getActivityLogsByRecord(id);
+      } catch (err) {
+        if (import.meta.env.DEV) console.warn('Failed to fetch activity logs for customer', err);
+      }
       clearLoadTimeout();
       if (isMountedRef.current) {
         setOrder(data);
         setPaymentTransactions(pmts);
+        setActivityLogs(logs || []);
         setLoading(false);
         
         // Check if we should show feedback modal
@@ -339,7 +353,7 @@ const OrderDetailPage = () => {
         <div className="customer-detail-card customer-tracking-card card stagger-item mb-16" style={{ animationDelay: '40ms' }}>
           <div className="card-body p-16">
             <h4 className="fw-700 mb-16">Tracking Timeline</h4>
-            <TrackingTimeline currentStatus={order.status} compact />
+            <TrackingTimeline currentStatus={order.status} compact stepTimestamps={stepTimestamps} />
           </div>
         </div>
       )}

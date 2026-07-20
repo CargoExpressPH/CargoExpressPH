@@ -23,27 +23,32 @@ const STEP_ICONS = {
  *   stepTimestamps  — OPTIONAL { [status]: ISO-string } map. When provided,
  *                     each step shows the date/time it was reached. When
  *                     omitted (public/customer pages), no timestamps render.
- *                     Currently only the admin order detail page passes this,
- *                     since activity_logs (the data source) is admin-only (RLS).
- *
- * Accessibility:
- *   Rendered as an ordered list (<ol>/<li>) with aria-current="step" on the
- *   active node so screen readers announce the progression.
  */
 const TrackingTimeline = ({ currentStatus, compact = false, stepTimestamps = null }) => {
   const currentIdx = STATUS_TIMELINE.indexOf(currentStatus);
   const isCancelled = currentStatus === 'Cancelled';
 
   // Format an ISO string into a compact "Jul 19 · 2:30 PM" label.
-  // Returns null for missing/invalid input so the caller can skip rendering.
+  // Returns null for missing/invalid input or locale formatting errors.
   const formatStepTime = (iso) => {
-    if (!iso) return null;
-    const ts = Date.parse(iso);
-    if (Number.isNaN(ts)) return null;
-    const d = new Date(ts);
-    const date = d.toLocaleDateString('en-PH', { month: 'short', day: 'numeric' });
-    const time = d.toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' });
-    return `${date} · ${time}`;
+    if (!iso || (typeof iso !== 'string' && typeof iso !== 'number')) return null;
+    try {
+      const ts = Date.parse(iso);
+      if (Number.isNaN(ts)) return null;
+      const d = new Date(ts);
+      if (Number.isNaN(d.getTime())) return null;
+
+      const date = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      const time = d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+      return `${date} · ${time}`;
+    } catch {
+      try {
+        const d = new Date(iso);
+        return d.toLocaleString();
+      } catch {
+        return null;
+      }
+    }
   };
 
   return (
@@ -53,11 +58,6 @@ const TrackingTimeline = ({ currentStatus, compact = false, stepTimestamps = nul
     >
       <div className="status-timeline-track">
         {STATUS_TIMELINE.map((status, index) => {
-          // Bug fix: previously `cancelled` was applied to EVERY step when the
-          // order was cancelled, recoloring already-completed steps red.
-          // Correct semantics: only mark steps that had genuinely been reached
-          // (index < currentIdx) as completed; cancelled state only recolors
-          // when there is no progress (currentIdx === -1).
           const isCompleted = !isCancelled && index < currentIdx;
           const isActive = !isCancelled && index === currentIdx;
           const StepIcon = STEP_ICONS[status] || Package;
@@ -68,7 +68,8 @@ const TrackingTimeline = ({ currentStatus, compact = false, stepTimestamps = nul
             isActive ? 'active' : '',
           ].filter(Boolean).join(' ');
 
-          const tsLabel = stepTimestamps ? formatStepTime(stepTimestamps[status]) : null;
+          const rawTs = stepTimestamps && typeof stepTimestamps === 'object' ? stepTimestamps[status] : null;
+          const tsLabel = rawTs ? formatStepTime(rawTs) : null;
 
           return (
             <li
@@ -91,7 +92,7 @@ const TrackingTimeline = ({ currentStatus, compact = false, stepTimestamps = nul
                   {status}
                 </div>
                 {tsLabel && (
-                  <time className="status-timeline-time" dateTime={stepTimestamps[status]}>
+                  <time className="status-timeline-time" dateTime={typeof rawTs === 'string' ? rawTs : undefined}>
                     {tsLabel}
                   </time>
                 )}
