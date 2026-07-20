@@ -114,15 +114,13 @@
   overflow-y: hidden;
   padding: 8px 2px 16px;
   scrollbar-width: thin;
-}
-.status-timeline-track {
-  display: flex;
-  min-width: 600px;
-  align-items: flex-start;
-  justify-content: space-between;
-  position: relative;
+  /* Rendered as <ol>/<li> for a11y semantics; suppress native list markers. */
+  list-style: none;
+  margin: 0;
 }
 .status-timeline-step {
+  /* <li> — suppress native marker; layout set on this same rule below */
+  list-style: none;
   --timeline-color: var(--text-tertiary);
   --timeline-line-color: var(--border);
   display: flex;
@@ -132,6 +130,13 @@
   position: relative;
   color: var(--timeline-color);
   min-width: 0;
+}
+.status-timeline-track {
+  display: flex;
+  min-width: 600px;
+  align-items: flex-start;
+  justify-content: space-between;
+  position: relative;
 }
 .status-timeline-step.completed {
   --timeline-color: var(--success);
@@ -186,15 +191,38 @@
 .status-timeline-step.cancelled.active .status-timeline-node {
   box-shadow: 0 4px 14px var(--error-glow), 0 0 0 4px var(--error-glow);
 }
+.status-timeline-text {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  min-width: 0;
+}
 .status-timeline-label {
   color: var(--timeline-color);
   font-weight: 500;
   font-size: 0.75rem;
   text-align: center;
   line-height: 1.2;
-  max-width: 80px;
+  max-width: 92px;
   min-width: 0;
   overflow-wrap: anywhere;
+}
+.status-timeline-time {
+  font-size: 0.65rem;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--text-tertiary);
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+.status-timeline-step.completed .status-timeline-time {
+  color: var(--success);
+  opacity: 0.85;
+}
+.status-timeline-step.active .status-timeline-time {
+  color: var(--primary);
+  opacity: 1;
 }
 .status-timeline-step.completed .status-timeline-label {
   font-weight: 600;

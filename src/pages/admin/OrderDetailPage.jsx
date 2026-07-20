@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getOrderById, updateOrder, createNotification, getTripReassignments, reassignTrip, getActivityLogsByRecord, getPaymentTransactions, recordPaymentTransaction, recordAdditionalPayment } from '../../lib/database';
 import { logOrder, logPayment } from '../../lib/activityLog';
+import { deriveStatusTimestamps } from '../../utils/statusTimestamps';
 import { resolvePhotoUrls, deletePhoto } from '../../lib/storage';
 import { supabase } from '../../lib/supabase';
 import StatusBadge from '../../components/ui/StatusBadge';
@@ -392,8 +393,16 @@ const AdminOrderDetailPage = () => {
 
   const estimatedWeight = parseFloat(order.package_weight) || 0;
   const actualWeightVal = parseFloat(order.actual_weight) || 0;
-  const showsWeightWarning = estimatedWeight > 0 && actualWeightVal > 0 && 
+  const showsWeightWarning = estimatedWeight > 0 && actualWeightVal > 0 &&
     (actualWeightVal > estimatedWeight * 2 || actualWeightVal < estimatedWeight * 0.25);
+
+  // Per-step timestamps for the tracking timeline, derived from the already-
+  // fetched activity logs (status-change entries carry created_at + new status).
+  // activity_logs is admin-only (RLS is_admin), so this is only computed here.
+  const stepTimestamps = useMemo(
+    () => deriveStatusTimestamps(activityHistory),
+    [activityHistory]
+  );
 
   return (
     <div className="page-transition">
@@ -511,7 +520,7 @@ const AdminOrderDetailPage = () => {
       <ErrorBoundarySection message="Tracking timeline failed to load.">
       <div className="card admin-section-card stagger-item mb-16" style={{ animationDelay: '120ms' }}>
         <div className="card-header"><h3>Status Timeline</h3></div>
-        <div className="card-body"><TrackingTimeline currentStatus={order.status} compact /></div>
+        <div className="card-body"><TrackingTimeline currentStatus={order.status} compact stepTimestamps={stepTimestamps} /></div>
       </div>
       </ErrorBoundarySection>
 

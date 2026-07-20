@@ -2735,15 +2735,24 @@
     margin: 0 12px 0 0;
   }
 
-  .status-timeline-label,
-  .status-timeline-step.active .status-timeline-label {
+  .status-timeline-text {
     flex: 1 1 auto;
     min-width: 0;
     max-width: none;
+    align-items: flex-start;
     text-align: left;
     padding-top: 5px;
     padding-right: 4px;
+  }
+
+  .status-timeline-label,
+  .status-timeline-step.active .status-timeline-label {
+    text-align: left;
     font-size: 0.8125rem;
+    white-space: normal;
+  }
+
+  .status-timeline-time {
     white-space: normal;
   }
 
