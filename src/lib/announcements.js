@@ -49,9 +49,9 @@ export const getAnnouncementCategoryInfo = (announcement) => {
     return {
       label: 'Service Notice',
       icon: Bell,
-      accentColor: 'var(--chart-purple)',
-      badgeBg: 'color-mix(in srgb, var(--chart-purple) 14%, transparent)',
-      badgeColor: 'var(--chart-purple)'
+      accentColor: 'var(--chart-1)',
+      badgeBg: 'color-mix(in srgb, var(--chart-1) 14%, transparent)',
+      badgeColor: 'var(--chart-1)'
     };
   }
   if (title.includes('📢') || text.includes('[general]')) {
@@ -101,9 +101,9 @@ export const getAnnouncementCategoryInfo = (announcement) => {
     return {
       label: 'Service Notice',
       icon: Bell,
-      accentColor: 'var(--chart-purple)',
-      badgeBg: 'color-mix(in srgb, var(--chart-purple) 14%, transparent)',
-      badgeColor: 'var(--chart-purple)'
+      accentColor: 'var(--chart-1)',
+      badgeBg: 'color-mix(in srgb, var(--chart-1) 14%, transparent)',
+      badgeColor: 'var(--chart-1)'
     };
   }
 

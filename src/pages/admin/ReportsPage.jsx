@@ -334,9 +334,9 @@ const ReportsPage = () => {
                             : st === 'Cancelled' ? 'var(--error)'
                             : st === 'Pending' ? 'var(--warning)'
                             : st === 'In Transit' ? 'var(--info)'
-                            : st === 'Out for Delivery' ? 'var(--chart-purple)'
-                            : st === 'Picked Up' || st === 'Arrived at Hub' ? 'var(--chart-teal)'
-                            : 'var(--chart-slate)',
+                            : st === 'Out for Delivery' ? 'var(--chart-1)'
+                            : st === 'Picked Up' || st === 'Arrived at Hub' ? 'var(--chart-4)'
+                            : 'var(--chart-3)',
                         }))
                       }
                     />
@@ -410,7 +410,7 @@ const ReportsPage = () => {
                         bars={data.routeBreakdown.slice(0, 8).map((r, i) => ({
                           label: r.route.length > 12 ? r.route.slice(0, 11) + '…' : r.route,
                           value: r.revenue,
-                          color: ['var(--primary)', 'var(--accent)', 'var(--info)', 'var(--success)', 'var(--warning)', 'var(--chart-purple)', 'var(--chart-pink)', 'var(--chart-slate)'][i % 8],
+                          color: ['var(--primary)', 'var(--accent)', 'var(--info)', 'var(--success)', 'var(--warning)', 'var(--chart-1)', 'var(--chart-2)', 'var(--chart-3)'][i % 8],
                         }))}
                       />
                     </div>

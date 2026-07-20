@@ -16,7 +16,7 @@ const MODULE_COLORS = {
   Orders:         { bg: 'var(--primary-glow)', color: 'var(--primary)', icon: Package },
   Trips:          { bg: 'var(--success-glow)', color: 'var(--success)', icon: Truck },
   Payments:       { bg: 'var(--warning-bg)', color: 'var(--warning)', icon: CreditCard },
-  Chat:           { bg: 'color-mix(in srgb, var(--chart-purple) 12%, transparent)', color: 'var(--chart-purple)', icon: MessageSquare },
+  Chat:           { bg: 'color-mix(in srgb, var(--chart-1) 12%, transparent)', color: 'var(--chart-1)', icon: MessageSquare },
   Authentication: { bg: 'var(--error-glow)', color: 'var(--error)', icon: Shield },
   System:         { bg: 'var(--border-light)', color: 'var(--text-secondary)', icon: Settings },
 };
