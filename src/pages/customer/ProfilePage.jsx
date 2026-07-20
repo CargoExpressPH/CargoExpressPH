@@ -72,6 +72,7 @@ const ProfilePage = () => {
   return (
     <>
       <div className="page-transition profile-page">
+        <h1 className="sr-only">My Profile</h1>
         {/* Profile Card */}
         <div className="profile-card-premium animate-slide-up">
           <div className="profile-card-banner" />

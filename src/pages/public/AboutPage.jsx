@@ -75,10 +75,10 @@ const Lightbox = ({ images, currentIndex, onClose, onNavigate }) => {
       />
       {(image.title || image.description) && (
         <div className="about-lightbox-info" onClick={(e) => e.stopPropagation()}>
-          {image.title && <div style={{ color: '#fff', fontWeight: 700, fontSize: '1.25rem', marginBottom: 4 }}>{image.title}</div>}
-          {image.description && <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.9rem' }}>{image.description}</div>}
+          {image.title && <div className="about-lightbox-info-title">{image.title}</div>}
+          {image.description && <div className="about-lightbox-info-desc">{image.description}</div>}
           {images.length > 1 && (
-            <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.75rem', marginTop: 8 }}>
+            <div className="about-lightbox-info-counter">
               {currentIndex + 1} / {images.length}
             </div>
           )}

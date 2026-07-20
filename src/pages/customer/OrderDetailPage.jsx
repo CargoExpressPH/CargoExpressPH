@@ -580,25 +580,11 @@ const OrderDetailPage = () => {
             aria-labelledby="feedback-modal-title"
             onClick={() => { if (!submittingFeedback) handleFeedbackSkip(); }}
             onKeyDown={(e) => { if (e.key === 'Escape' && !submittingFeedback) handleFeedbackSkip(); }}
-            style={{
-              position: 'fixed', inset: 0, zIndex: 9999,
-              background: 'rgba(0, 0, 0, 0.5)', backdropFilter: 'blur(4px)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              padding: 24
-            }}
-            className="animate-fade-in"
+            className="feedback-modal-overlay animate-fade-in"
           >
             <div
               onClick={e => e.stopPropagation()}
-              style={{
-                background: 'var(--surface)',
-                borderRadius: 24,
-                width: '100%', maxWidth: 400,
-                padding: 32,
-                boxShadow: '0 20px 40px rgba(0,0,0,0.2)',
-                position: 'relative'
-              }}
-              className="animate-scale-in"
+              className="feedback-modal-card animate-scale-in"
             >
               <h3 id="feedback-modal-title" className="fw-800 text-center mb-8">How was your delivery?</h3>
               <p className="text-secondary text-center text-sm mb-24">
@@ -612,14 +598,7 @@ const OrderDetailPage = () => {
                     type="button"
                     aria-label={`Rate ${star} star${star > 1 ? 's' : ''}`}
                     onClick={() => setFeedbackRating(star)}
-                    style={{
-                      background: 'none', border: 'none', padding: 4,
-                      minWidth: 44, minHeight: 44,
-                      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                      cursor: 'pointer', transition: 'transform 0.2s',
-                      color: star <= feedbackRating ? 'var(--warning)' : 'var(--border)'
-                    }}
-                    className="hover-lift"
+                    className={`feedback-star-btn hover-lift ${star <= feedbackRating ? 'active' : ''}`}
                   >
                     <svg width="36" height="36" viewBox="0 0 24 24" fill={star <= feedbackRating ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>

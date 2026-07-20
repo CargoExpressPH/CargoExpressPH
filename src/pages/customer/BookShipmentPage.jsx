@@ -8,6 +8,7 @@ import { ROUTES, PH_LOCATIONS, VALID_PROVINCES, detectPickupLocation, validateRo
 import { ArrowLeft, Loader, CheckCircle, Copy, Check, Package, MapPin, User, Truck, AlertTriangle, Info } from 'lucide-react';
 import { useToast } from '../../hooks/useToast';
 import CustomSelect from '../../components/ui/CustomSelect';
+import ConfirmModal from '../../components/ui/ConfirmModal';
 import { motion, useReducedMotion } from 'framer-motion';
 import usePageTitle from '../../hooks/usePageTitle';
 import { toTitleCase } from '../../utils/string';
@@ -598,19 +599,16 @@ const BookShipmentPage = () => {
   return (
     <div className="page-transition booking-page">
       {/* C-1 fix: Navigation blocker modal */}
-      {blocker.state === 'blocked' && (
-        <div className="modal-overlay" style={{ position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }}>
-          <div className="card" style={{ maxWidth: 400, width: '90%', padding: 24, textAlign: 'center' }}>
-            <AlertTriangle size={32} color="var(--warning)" style={{ marginBottom: 12 }} />
-            <h3 className="fw-700 mb-8">Discard unsaved booking?</h3>
-            <p className="text-sm text-secondary mb-20">You have unsaved changes in your booking form. If you leave now, all entered data will be lost.</p>
-            <div className="flex gap-12 justify-center">
-              <button type="button" className="btn btn-outline" onClick={() => blocker.reset()}>Stay</button>
-              <button type="button" className="btn btn-primary" style={{ background: 'var(--error)' }} onClick={() => { sessionStorage.removeItem('booking_form'); sessionStorage.removeItem('booking_step'); blocker.proceed(); }}>Discard</button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmModal
+        isOpen={blocker.state === 'blocked'}
+        onClose={() => blocker.reset()}
+        onConfirm={() => { sessionStorage.removeItem('booking_form'); sessionStorage.removeItem('booking_step'); blocker.proceed(); }}
+        title="Discard unsaved booking?"
+        message="You have unsaved changes in your booking form. If you leave now, all entered data will be lost."
+        confirmLabel="Discard"
+        cancelLabel="Stay"
+        variant="danger"
+      />
 
       <button type="button" onClick={() => step > 1 ? setStep(step - 1) : navigate(-1)} className="btn btn-ghost customer-back-action mb-16">
         <ArrowLeft size={18} /> {step > 1 ? 'Back' : 'Cancel'}

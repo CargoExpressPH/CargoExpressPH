@@ -101,7 +101,7 @@ const HomePage = () => {
           <GreetingIcon size={14} aria-hidden="true" />
           {greetingInfo.text},
         </span>
-        <h2>{userProfile?.name || (user?.email?.split('@')[0]) || 'Welcome'}</h2>
+        <h1>{userProfile?.name || (user?.email?.split('@')[0]) || 'Welcome'}</h1>
         <p className="mt-8">Track and manage your shipments with ease.</p>
         <form onSubmit={handleTrack} className="customer-track-form flex gap-10 mt-20 relative">
           <div className="search-box flex-1">

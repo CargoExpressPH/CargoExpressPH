@@ -348,12 +348,14 @@
 }
 
 .customer-home-hero p,
+.customer-home-hero h1,
 .customer-home-hero h2 {
   position: relative;
   z-index: 1;
-  color: #FFFFFF;
+  color: var(--text-on-dark);
 }
 
+.customer-home-hero h1,
 .customer-home-hero h2 {
   margin-bottom: 8px;
   font-size: clamp(2.1rem, 8vw, 3rem);
@@ -1134,8 +1136,9 @@
 .profile-quick-stats {
   gap: 10px;
   margin: 16px 0;
-  border: 0;
-  background: transparent;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
 }
 
 .profile-stat-item {

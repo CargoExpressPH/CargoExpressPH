@@ -7,6 +7,8 @@ const ThemeToggle = ({ size = 18, className = '' }) => {
   return (
     <button
       type="button"
+      role="switch"
+      aria-checked={theme === 'dark'}
       onClick={toggleTheme}
       className={`theme-toggle-btn ${className}`}
       aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}

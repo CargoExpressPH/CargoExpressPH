@@ -67,6 +67,7 @@
   --text-secondary: #475569;
   --text-tertiary: #4B5563;
   --text-inverse: #FFFFFF;
+  --text-on-dark: #FFFFFF;
 
   /* -- Glass Effects & Backdrops -- */
   --glass-bg: rgba(255, 255, 255, 0.72);
@@ -87,14 +88,14 @@
 
   /* -- Shadows � color-tinted for depth -- */
   --shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.04);
-  --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
-  --shadow-md: 0 4px 8px -1px rgba(15, 23, 42, 0.07), 0 2px 4px -2px rgba(15, 23, 42, 0.04);
-  --shadow-lg: 0 10px 25px -3px rgba(15, 23, 42, 0.1), 0 4px 10px -4px rgba(15, 23, 42, 0.04);
-  --shadow-xl: 0 20px 50px -12px rgba(15, 23, 42, 0.15);
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.05), 0 1px 1px rgba(15, 23, 42, 0.03);
+  --shadow-md: 0 8px 20px rgba(15, 23, 42, 0.08);
+  --shadow-lg: 0 16px 36px rgba(15, 23, 42, 0.10);
+  --shadow-xl: 0 24px 52px rgba(15, 23, 42, 0.14);
   --shadow-2xl: 0 25px 60px -12px rgba(15, 23, 42, 0.25);
   --shadow-glow: 0 0 40px rgba(22, 163, 74, 0.12);
-  --shadow-primary: 0 4px 14px rgba(22, 163, 74, 0.3);
-  --shadow-primary-lg: 0 8px 30px rgba(22, 163, 74, 0.35);
+  --shadow-primary: 0 8px 18px rgba(22, 163, 74, 0.22);
+  --shadow-primary-lg: 0 12px 26px rgba(22, 163, 74, 0.26);
 
   /* -- Radius -- */
   --radius-xs: 6px;
@@ -248,6 +249,7 @@
   --text-secondary: #C7D2E0;
   --text-tertiary: #9AA9BA;
   --text-inverse: #0F172A;
+  --text-on-dark: #FFFFFF;
 
   --glass-bg: rgba(10, 22, 40, 0.78);
   --glass-bg-heavy: rgba(10, 22, 40, 0.92);
