@@ -59,9 +59,10 @@
 .sidebar.collapsed .sidebar-nav { padding: 8px 6px; }
 .sidebar.collapsed .sidebar-link { justify-content: center; padding: 10px; }
 .sidebar.collapsed .sidebar-link.active::before { left: 0; }
-.sidebar.collapsed .sidebar-user-info { justify-content: center; padding: 0; }
 .sidebar.collapsed .sidebar-footer { padding: 16px 6px; }
-.sidebar.collapsed .sidebar-footer .sidebar-link { justify-content: center; }
+.sidebar.collapsed .sidebar-profile-btn { justify-content: center; padding: 8px; }
+.sidebar.collapsed .sidebar-profile-info,
+.sidebar.collapsed .sidebar-profile-chevron { display: none; }
 
 /* Sidebar link tooltip on collapsed hover */
 .sidebar.collapsed .sidebar-link { position: relative; }
@@ -218,16 +219,121 @@
 }
 
 .sidebar-footer {
-  padding: 16px 10px;
+  padding: 10px 10px;
   border-top: 1px solid var(--sidebar-border);
 }
 
-.sidebar-user-info {
-  display: flex; align-items: center; gap: 10px;
-  margin-bottom: 12px; padding: 0 14px;
+/* ── Profile Menu ──────────────────────────────────────────────────────── */
+.sidebar-profile-menu {
+  position: relative;
 }
+
+.sidebar-profile-btn {
+  display: flex; align-items: center; gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  border: none; background: transparent;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.18s ease;
+  color: var(--sidebar-text-hover);
+  text-align: left;
+}
+.sidebar-profile-btn:hover,
+.sidebar-profile-btn.active {
+  background: var(--sidebar-hover);
+}
+
+.sidebar-profile-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.sidebar-profile-chevron {
+  flex-shrink: 0;
+  color: var(--sidebar-text);
+  transition: transform 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.sidebar-profile-chevron.rotated {
+  transform: rotate(180deg);
+}
+
+/* ── Dropdown Panel ───────────────────────────────────────────────────── */
+.sidebar-profile-dropdown {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 0; right: 0;
+  background: var(--glass-bg-heavy, var(--surface-2));
+  border: 1px solid var(--border-light);
+  border-radius: 14px;
+  box-shadow:
+    0 -4px 24px rgba(0, 0, 0, 0.14),
+    0 2px 8px rgba(0, 0, 0, 0.08);
+  backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+  overflow: hidden;
+  animation: profileDropdownIn 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);
+  z-index: 100;
+}
+
+@keyframes profileDropdownIn {
+  from { opacity: 0; transform: translateY(8px) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.sidebar-profile-dropdown-header {
+  display: flex; align-items: center; gap: 10px;
+  padding: 14px 14px 12px;
+}
+
+.sidebar-profile-dropdown-avatar {
+  width: 38px; height: 38px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--primary), var(--primary-light));
+  display: flex; align-items: center; justify-content: center;
+  color: white; font-size: 0.9rem; font-weight: 700;
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(var(--primary-rgb, 99, 102, 241), 0.35);
+}
+
+.sidebar-profile-dropdown-name {
+  font-size: 0.8125rem; font-weight: 600;
+  color: var(--sidebar-text-hover);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.sidebar-profile-dropdown-role {
+  font-size: 0.6875rem; color: var(--sidebar-text);
+  margin-top: 1px;
+}
+
+.sidebar-profile-dropdown-divider {
+  height: 1px;
+  background: var(--sidebar-border);
+  margin: 0;
+}
+
+.sidebar-profile-dropdown-item {
+  display: flex; align-items: center; gap: 9px;
+  width: 100%;
+  padding: 10px 14px;
+  border: none; background: transparent;
+  font-size: 0.8125rem; font-weight: 500;
+  color: var(--sidebar-text-hover);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+  text-align: left;
+}
+.sidebar-profile-dropdown-item:hover {
+  background: var(--sidebar-hover);
+}
+.sidebar-profile-dropdown-item.danger {
+  color: var(--error, #ef4444);
+}
+.sidebar-profile-dropdown-item.danger:hover {
+  background: rgba(239, 68, 68, 0.08);
+}
+
+/* Avatar styles re-used in sidebar-profile-btn */
 .sidebar-user-avatar {
-  width: 34px; height: 34px; border-radius: 50%;
+  width: 32px; height: 32px; border-radius: 50%;
   background: linear-gradient(135deg, var(--primary), var(--primary-light));
   display: flex; align-items: center; justify-content: center;
   color: white; font-size: 0.8125rem; font-weight: 700;

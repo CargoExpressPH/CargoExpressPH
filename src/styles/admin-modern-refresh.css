@@ -131,13 +131,16 @@
   background: color-mix(in srgb, var(--admin-green-soft) 42%, transparent);
 }
 
-.app-layout .sidebar-user-info {
-  min-height: 54px;
-  margin-bottom: 10px;
-  padding: 8px 12px;
+.app-layout .sidebar-profile-btn {
+  min-height: 48px;
   border: 1px solid var(--admin-line);
-  border-radius: 18px;
+  border-radius: 12px;
   background: var(--admin-panel);
+}
+.app-layout .sidebar-profile-btn:hover,
+.app-layout .sidebar-profile-btn.active {
+  background: color-mix(in srgb, var(--admin-green-soft) 35%, var(--admin-panel));
+  border-color: var(--admin-green);
 }
 
 .app-layout .sidebar-user-avatar {

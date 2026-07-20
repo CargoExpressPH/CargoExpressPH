@@ -56,12 +56,13 @@
     justify-content: flex-start;
     padding: 10px 14px;
   }
-  .sidebar.collapsed .sidebar-user-info {
+  .sidebar.collapsed .sidebar-profile-btn {
     justify-content: flex-start;
-    padding: 0 14px;
+    padding: 8px 14px;
   }
+  .sidebar.collapsed .sidebar-profile-info,
+  .sidebar.collapsed .sidebar-profile-chevron { display: flex; }
   .sidebar.collapsed .sidebar-footer { padding: 16px 10px; }
-  .sidebar.collapsed .sidebar-footer .sidebar-link { justify-content: flex-start; }
   .sidebar.collapsed .sidebar-link::after { display: none; }
   .main-content,
   .app-layout.sidebar-collapsed .main-content,

@@ -1,11 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 import {
   LayoutDashboard, Package, Truck, Users, BarChart3,
   Megaphone, MessageSquare, LogOut, Container, FileText, Mail,
-  ChevronsLeft, ArrowLeft, ClipboardList, Building, User
+  ChevronsLeft, ArrowLeft, ClipboardList, Building, ChevronUp
 } from 'lucide-react';
 import ConfirmModal from '../ui/ConfirmModal';
 import { logAuth } from '../../lib/activityLog';
@@ -35,6 +35,8 @@ const Sidebar = ({ isOpen, onClose, isCollapsed, onToggleCollapse }) => {
   const { logout, userProfile } = useAuth();
   const navigate = useNavigate();
   const [badges, setBadges] = useState({ inbox: 0, inquiries: 0 });
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const profileMenuRef = useRef(null);
 
   useEffect(() => {
     if (userProfile?.role !== 'admin') return;
@@ -98,11 +100,28 @@ const Sidebar = ({ isOpen, onClose, isCollapsed, onToggleCollapse }) => {
 
   const handleLogout = async () => {
     setShowLogoutConfirm(false);
+    setProfileMenuOpen(false);
     logAuth('Admin Logged Out', { details: 'Admin session ended' });
     await new Promise(resolve => setTimeout(resolve, 300));
     await logout();
     navigate('/login');
   };
+
+  // Close profile menu when clicking outside
+  const handleProfileMenuClickOutside = useCallback((e) => {
+    if (profileMenuRef.current && !profileMenuRef.current.contains(e.target)) {
+      setProfileMenuOpen(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (profileMenuOpen) {
+      document.addEventListener('mousedown', handleProfileMenuClickOutside);
+    } else {
+      document.removeEventListener('mousedown', handleProfileMenuClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleProfileMenuClickOutside);
+  }, [profileMenuOpen, handleProfileMenuClickOutside]);
 
   const formatBadge = (count) => count > 99 ? '99+' : String(count);
 
@@ -174,19 +193,56 @@ const Sidebar = ({ isOpen, onClose, isCollapsed, onToggleCollapse }) => {
         </nav>
 
         <div className="sidebar-footer">
-          <div className="sidebar-user-info">
-            <div className="sidebar-user-avatar">
-              {(userProfile?.name || 'A')[0].toUpperCase()}
-            </div>
-            <div>
-              <div className="sidebar-user-name">{userProfile?.name || 'Admin'}</div>
-              <div className="sidebar-user-role">Administrator</div>
-            </div>
+          {/* Profile dropdown trigger */}
+          <div className="sidebar-profile-menu" ref={profileMenuRef}>
+            <button
+              type="button"
+              className={`sidebar-profile-btn${profileMenuOpen ? ' active' : ''}`}
+              onClick={() => setProfileMenuOpen(prev => !prev)}
+              data-tooltip="Account"
+              aria-label="Open account menu"
+              aria-haspopup="true"
+              aria-expanded={profileMenuOpen}
+            >
+              <div className="sidebar-user-avatar">
+                {(userProfile?.name || 'A')[0].toUpperCase()}
+              </div>
+              <div className="sidebar-profile-info">
+                <div className="sidebar-user-name">{userProfile?.name || 'Admin'}</div>
+                <div className="sidebar-user-role">Administrator</div>
+              </div>
+              <ChevronUp
+                size={14}
+                className={`sidebar-profile-chevron${profileMenuOpen ? ' rotated' : ''}`}
+                aria-hidden="true"
+              />
+            </button>
+
+            {/* Floating dropdown panel */}
+            {profileMenuOpen && (
+              <div className="sidebar-profile-dropdown" role="menu">
+                <div className="sidebar-profile-dropdown-header">
+                  <div className="sidebar-profile-dropdown-avatar">
+                    {(userProfile?.name || 'A')[0].toUpperCase()}
+                  </div>
+                  <div>
+                    <div className="sidebar-profile-dropdown-name">{userProfile?.name || 'Admin'}</div>
+                    <div className="sidebar-profile-dropdown-role">Administrator</div>
+                  </div>
+                </div>
+                <div className="sidebar-profile-dropdown-divider" />
+                <button
+                  type="button"
+                  className="sidebar-profile-dropdown-item danger"
+                  role="menuitem"
+                  onClick={() => { setProfileMenuOpen(false); setShowLogoutConfirm(true); }}
+                >
+                  <LogOut size={15} aria-hidden="true" />
+                  Sign Out
+                </button>
+              </div>
+            )}
           </div>
-          <button className="sidebar-link danger" type="button" onClick={() => setShowLogoutConfirm(true)} data-tooltip="Sign Out" aria-label="Sign Out">
-            <LogOut size={18} aria-hidden="true" />
-            <span className="sidebar-link-label">Sign Out</span>
-          </button>
         </div>
       </aside>
       <ConfirmModal
