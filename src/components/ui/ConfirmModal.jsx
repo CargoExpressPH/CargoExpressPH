@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { AlertTriangle, Info, CheckCircle, Loader } from 'lucide-react';
+import { AlertTriangle, Info, CheckCircle, Loader, LogOut } from 'lucide-react';
 import FocusTrap from './FocusTrap';
 
 /**
@@ -10,6 +10,8 @@ const variantIcons = {
   warning: AlertTriangle,
   info: Info,
   success: CheckCircle,
+  secondary: LogOut,
+  primary: LogOut,
 };
 
 /**

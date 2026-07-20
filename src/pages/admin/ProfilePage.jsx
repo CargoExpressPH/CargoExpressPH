@@ -54,9 +54,9 @@ const AdminProfilePage = () => {
       onClose={() => setShowLogoutConfirm(false)}
       onConfirm={handleLogout}
       title="Sign Out"
-      message="Are you sure you want to sign out?"
+      message="You are about to sign out of the administrator portal. You will need to sign back in to manage bookings, track trips, and update company settings."
       confirmLabel="Sign Out"
-      variant="warning"
+      variant="primary"
     />
     </>
   );

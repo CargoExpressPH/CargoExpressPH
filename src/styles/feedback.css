@@ -84,9 +84,11 @@
 .confirm-modal-icon.warning { background: var(--warning-bg); color: var(--warning); }
 .confirm-modal-icon.info { background: var(--info-bg); color: var(--info); }
 .confirm-modal-icon.success { background: var(--success-bg); color: var(--success); }
+.confirm-modal-icon.secondary { background: rgba(var(--accent-rgb), 0.12); color: var(--accent); }
+.confirm-modal-icon.primary { background: var(--primary-bg); color: var(--primary); }
 
 .confirm-modal h3 {
-  font-size: 1.125rem; font-weight: 700; margin-bottom: 8px;
+  color: var(--text); font-size: 1.125rem; font-weight: 700; margin-bottom: 8px;
 }
 .confirm-modal p {
   color: var(--text-secondary); font-size: 0.9375rem;
