@@ -369,6 +369,7 @@ const SupportChatPage = () => {
   if (error) {
     return (
       <div className="page-transition support-chat-page">
+        <h1 className="sr-only">Support Chat</h1>
         <div className="mb-16">
           <h2 className="fw-800 mb-4 flex items-center gap-8">
             <MessageSquare size={22} color="var(--primary)" />
@@ -399,6 +400,7 @@ const SupportChatPage = () => {
   return (
     <div className="support-chat-page page-transition">
       {/* Header */}
+      <h1 className="sr-only">Support Chat</h1>
       <div className="mb-16">
         <h2 className="fw-800 mb-4 flex items-center gap-8">
           <MessageSquare size={22} color="var(--primary)" />

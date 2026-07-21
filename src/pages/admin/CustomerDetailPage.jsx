@@ -56,6 +56,7 @@ const CustomerDetailPage = () => {
 
   return (
     <div className="page-transition">
+      <h1 className="sr-only">Customer Details</h1>
       <Breadcrumb items={[
         { label: 'Dashboard', to: '/admin' },
         { label: 'Customers', to: '/admin/customers' },

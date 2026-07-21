@@ -613,6 +613,7 @@ const BookShipmentPage = () => {
       <button type="button" onClick={() => step > 1 ? setStep(step - 1) : navigate(-1)} className="btn btn-ghost customer-back-action mb-16">
         <ArrowLeft size={18} /> {step > 1 ? 'Back' : 'Cancel'}
       </button>
+      <h1 className="sr-only">Book Shipment</h1>
       <h2 className="fw-800 mb-8">Book Shipment</h2>
 
       {/* Step Progress */}

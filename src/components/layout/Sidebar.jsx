@@ -181,7 +181,7 @@ const Sidebar = ({ isOpen, onClose, isCollapsed, onToggleCollapse }) => {
           </button>
         </div>
 
-        <nav className="sidebar-nav">
+        <nav className="sidebar-nav" aria-label="Admin navigation">
           <div className="sidebar-section-label">Main</div>
           {renderLinks(mainNav)}
 

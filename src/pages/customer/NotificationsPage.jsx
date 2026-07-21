@@ -7,6 +7,7 @@ import { AlertTriangle, Bell, Package, Truck, Megaphone, CheckCheck, Loader, Ref
 import { useToast } from '../../hooks/useToast';
 import EmptyState from '../../components/ui/EmptyState';
 import { SkeletonText } from '../../components/ui/SkeletonLoader';
+import FocusTrap from '../../components/ui/FocusTrap';
 import usePageTitle from '../../hooks/usePageTitle';
 
 const iconMap = { order_update: Package, trip_update: Truck, announcement: Megaphone, general: Bell };
@@ -151,7 +152,8 @@ const SwipeableNotificationCard = ({ notification, onRead, onDelete, onClick, in
 const ConfirmModal = ({ open, title, message, confirmLabel, onConfirm, onCancel, loading }) => {
   if (!open) return null;
   return (
-    <div className="notification-modal-overlay" onClick={onCancel}>
+    <FocusTrap active={open}>
+    <div className="notification-modal-overlay" onClick={onCancel} role="dialog" aria-modal="true" aria-labelledby="notif-confirm-title">
       <div className="notification-modal" onClick={e => e.stopPropagation()}>
         <button className="notification-modal-close" type="button" onClick={onCancel} aria-label="Close">
           <X size={18} />
@@ -159,7 +161,7 @@ const ConfirmModal = ({ open, title, message, confirmLabel, onConfirm, onCancel,
         <div className="notification-modal-icon">
           <Trash2 size={28} />
         </div>
-        <h3 className="notification-modal-title">{title}</h3>
+        <h3 id="notif-confirm-title" className="notification-modal-title">{title}</h3>
         <p className="notification-modal-message">{message}</p>
         <div className="notification-modal-actions">
           <button className="btn btn-ghost" type="button" onClick={onCancel} disabled={loading}>
@@ -172,6 +174,7 @@ const ConfirmModal = ({ open, title, message, confirmLabel, onConfirm, onCancel,
         </div>
       </div>
     </div>
+    </FocusTrap>
   );
 };
 

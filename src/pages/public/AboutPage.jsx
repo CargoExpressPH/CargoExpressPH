@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '../../hooks/useToast';
 import usePageTitle from '../../hooks/usePageTitle';
+import FocusTrap from '../../components/ui/FocusTrap';
 import { motion, useScroll, useTransform, AnimatePresence, MotionConfig } from 'framer-motion';
 
 // â”€â”€â”€ Lightbox Component (with prev/next navigation) â”€â”€â”€
@@ -42,49 +43,51 @@ const Lightbox = ({ images, currentIndex, onClose, onNavigate }) => {
   const hasNext = currentIndex < images.length - 1;
 
   return (
-    <div className="about-lightbox-overlay" onClick={onClose}>
-      <button className="about-lightbox-close" onClick={onClose} aria-label="Close lightbox">
-        <X size={24} />
-      </button>
-
-      {hasPrev && (
-        <button 
-          className="about-lightbox-nav prev" 
-          onClick={(e) => { e.stopPropagation(); onNavigate(-1); }}
-          aria-label="Previous image"
-        >
-          <ChevronLeft size={28} />
+    <FocusTrap active={currentIndex >= 0}>
+      <div className="about-lightbox-overlay" onClick={onClose} role="dialog" aria-modal="true" aria-label="Image gallery lightbox">
+        <button className="about-lightbox-close" onClick={onClose} aria-label="Close lightbox">
+          <X size={24} />
         </button>
-      )}
 
-      {hasNext && (
-        <button 
-          className="about-lightbox-nav next" 
-          onClick={(e) => { e.stopPropagation(); onNavigate(1); }}
-          aria-label="Next image"
-        >
-          <ChevronRight size={28} />
-        </button>
-      )}
+        {hasPrev && (
+          <button 
+            className="about-lightbox-nav prev" 
+            onClick={(e) => { e.stopPropagation(); onNavigate(-1); }}
+            aria-label="Previous image"
+          >
+            <ChevronLeft size={28} />
+          </button>
+        )}
 
-      <img 
-        src={image.image_url} 
-        alt={image.title || 'Delivery photo'} 
-        className="about-lightbox-img"
-        onClick={(e) => e.stopPropagation()}
-      />
-      {(image.title || image.description) && (
-        <div className="about-lightbox-info" onClick={(e) => e.stopPropagation()}>
-          {image.title && <div className="about-lightbox-info-title">{image.title}</div>}
-          {image.description && <div className="about-lightbox-info-desc">{image.description}</div>}
-          {images.length > 1 && (
-            <div className="about-lightbox-info-counter">
-              {currentIndex + 1} / {images.length}
-            </div>
-          )}
-        </div>
-      )}
-    </div>
+        {hasNext && (
+          <button 
+            className="about-lightbox-nav next" 
+            onClick={(e) => { e.stopPropagation(); onNavigate(1); }}
+            aria-label="Next image"
+          >
+            <ChevronRight size={28} />
+          </button>
+        )}
+
+        <img 
+          src={image.image_url} 
+          alt={image.title || 'Delivery photo'} 
+          className="about-lightbox-img"
+          onClick={(e) => e.stopPropagation()}
+        />
+        {(image.title || image.description) && (
+          <div className="about-lightbox-info" onClick={(e) => e.stopPropagation()}>
+            {image.title && <div className="about-lightbox-info-title">{image.title}</div>}
+            {image.description && <div className="about-lightbox-info-desc">{image.description}</div>}
+            {images.length > 1 && (
+              <div className="about-lightbox-info-counter">
+                {currentIndex + 1} / {images.length}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </FocusTrap>
   );
 };
 

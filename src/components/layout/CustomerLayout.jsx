@@ -226,7 +226,7 @@ const CustomerLayout = () => {
           </Link>
 
           {/* Center: Desktop Nav Links */}
-          <nav className="customer-navbar-links">
+          <nav className="customer-navbar-links" aria-label="Main navigation">
             {desktopNavItems.map(item => (
               <NavLink
                 key={item.to}
@@ -272,7 +272,7 @@ const CustomerLayout = () => {
               </button>
 
               {dropdownOpen && (
-                <div className="customer-dropdown">
+                <div className="customer-dropdown" role="menu">
                   <div className="customer-dropdown-header">
                     <div className="fw-600 text-sm">
                       {getDisplayName(userProfile, user?.email)}
@@ -286,6 +286,7 @@ const CustomerLayout = () => {
                       to="/customer/profile"
                       onClick={() => setDropdownOpen(false)}
                       className="customer-dropdown-item"
+                      role="menuitem"
                     >
                       <User size={16} /> My Profile
                       <ChevronRight size={14} className="ml-auto" style={{ opacity: 0.4 }} />
@@ -294,11 +295,12 @@ const CustomerLayout = () => {
                       to="/customer/personal-info"
                       onClick={() => setDropdownOpen(false)}
                       className="customer-dropdown-item"
+                      role="menuitem"
                     >
                       <Settings size={16} /> Account Settings
                       <ChevronRight size={14} className="ml-auto" style={{ opacity: 0.4 }} />
                     </Link>
-                    <button onClick={() => { setDropdownOpen(false); setShowLogoutConfirm(true); }} className="customer-dropdown-item danger">
+                    <button onClick={() => { setDropdownOpen(false); setShowLogoutConfirm(true); }} className="customer-dropdown-item danger" role="menuitem">
                       <LogOut size={16} /> Logout
                     </button>
                   </div>
