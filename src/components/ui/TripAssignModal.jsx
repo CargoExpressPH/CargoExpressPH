@@ -44,17 +44,27 @@ const TripAssignModal = ({ order, onClose, onAssign }) => {
     }
   };
 
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
   return (
     <FocusTrap active>
-    <div className="modal-overlay" onClick={onClose} role="dialog" aria-modal="true" aria-labelledby="trip-assign-title">
+    <div className="modal-overlay" onClick={onClose} role="dialog" aria-modal="true" aria-labelledby="trip-assign-title" aria-describedby="trip-assign-desc">
       <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 480 }}>
         <div className="modal-header">
-          <h3 id="trip-assign-title"><Truck size={18} className="inline mr-8" />Assign to Trip</h3>
-          <button className="btn-icon btn-ghost" onClick={onClose} aria-label="Close trip assignment"><X size={20} /></button>
+          <h3 id="trip-assign-title"><Truck size={18} className="inline mr-8" aria-hidden="true" />Assign to Trip</h3>
+          <button className="btn-icon btn-ghost" onClick={onClose} aria-label="Close trip assignment modal"><X size={20} aria-hidden="true" /></button>
         </div>
 
         <div className="modal-body">
-          <div className="text-secondary mb-16" style={{
+          <div id="trip-assign-desc" className="text-secondary mb-16" style={{
             background: 'var(--bg)', borderRadius: 8, padding: 12,
             fontSize: '0.8125rem',
           }}>

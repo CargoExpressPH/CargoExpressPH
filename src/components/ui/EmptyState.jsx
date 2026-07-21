@@ -19,7 +19,7 @@ const EmptyState = ({
   onAction,
   className,
 }) => (
-  <div className={`empty-state-premium ${className || ''}`}>
+  <div className={`empty-state-premium ${className || ''}`} role="status">
     <div className="empty-state-icon-wrap">
       <Icon size={48} strokeWidth={1.5} aria-hidden="true" />
     </div>

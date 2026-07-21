@@ -5,7 +5,8 @@ import usePageTitle from '../../hooks/usePageTitle';
 const NotFoundPage = () => {
   usePageTitle('Page Not Found');
   return (
-  <div className="not-found-page">
+  <main id="main-content" className="not-found-page">
+    <a href="#main-content" className="skip-link">Skip to main content</a>
     {/* Decorative background orbs */}
     <div className="nf-orb nf-orb-1" aria-hidden="true" />
     <div className="nf-orb nf-orb-2" aria-hidden="true" />
@@ -13,9 +14,9 @@ const NotFoundPage = () => {
     <div className="not-found-card">
       {/* Animated icon with pulse ring */}
       <div className="nf-icon-wrap">
-        <div className="nf-icon-ring" />
+        <div className="nf-icon-ring" aria-hidden="true" />
         <div className="nf-icon-circle">
-          <PackageX size={36} strokeWidth={1.8} />
+          <PackageX size={36} strokeWidth={1.8} aria-hidden="true" />
         </div>
       </div>
 
@@ -35,16 +36,16 @@ const NotFoundPage = () => {
       {/* Navigation suggestions */}
       <div className="nf-suggestions">
         <div className="nf-suggestion-label">
-          <Compass size={14} /> Here's where you can go:
+          <Compass size={14} aria-hidden="true" /> Here's where you can go:
         </div>
       </div>
 
       <div className="not-found-actions">
         <Link to="/" className="btn btn-primary">
-          <Home size={16} /> Go Home
+          <Home size={16} aria-hidden="true" /> Go Home
         </Link>
         <Link to="/track" className="btn btn-outline">
-          <Search size={16} /> Track Shipment
+          <Search size={16} aria-hidden="true" /> Track Shipment
         </Link>
       </div>
 
@@ -56,7 +57,7 @@ const NotFoundPage = () => {
         <ArrowLeft size={14} /> Go back to previous page
       </button>
     </div>
-  </div>
+  </main>
   );
 };
 

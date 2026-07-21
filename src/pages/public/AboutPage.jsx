@@ -774,11 +774,12 @@ const AboutPage = () => {
   return (
     <MotionConfig reducedMotion="user">
     <div className="public-about-page" style={{ background: 'var(--bg-gradient, var(--bg))', color: 'var(--text)', minHeight: '100vh', fontFamily: 'Inter, system-ui, sans-serif' }}>
+      <a href="#main-content" className="skip-link">Skip to main content</a>
 
-      {/* â•â•â• Scroll Progress Bar â•â•â• */}
+      {/* â• â• â•  Scroll Progress Bar â• â• â•  */}
       <div className="about-scroll-progress" style={{ width: `${scrollProgress}%` }} />
 
-      {/* â•â•â• 1. Navigation â•â•â• */}
+      {/* â• â• â•  1. Navigation â• â• â•  */}
       <nav className={`about-glass-nav ${scrolled ? 'scrolled' : ''}`}>
         <div className="about-nav-container">
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>

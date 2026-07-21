@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { X, Loader, Smartphone, AlertTriangle, CreditCard, FileText, Trash2, CheckCircle } from 'lucide-react';
 import FocusTrap from './FocusTrap';
 import { uploadPhoto } from '../../lib/storage';
@@ -23,6 +23,16 @@ const AdditionalPaymentModal = ({ order, remainingBalance, onClose, onSave }) =>
   const [error, setError] = useState(null);
 
   const receiptInputRef = useRef(null);
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
 
   const handleReceiptAdd = (e) => {
     const file = e.target.files?.[0];
@@ -89,11 +99,11 @@ const AdditionalPaymentModal = ({ order, remainingBalance, onClose, onSave }) =>
 
   return (
     <FocusTrap active>
-      <div className="modal-overlay" onClick={onClose} role="dialog" aria-modal="true">
+      <div className="modal-overlay" onClick={onClose} role="dialog" aria-modal="true" aria-labelledby="add-payment-modal-title">
         <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 450 }}>
           <div className="modal-header">
-            <h3>Record Payment</h3>
-            <button className="btn-icon btn-ghost" onClick={onClose}><X size={20} /></button>
+            <h3 id="add-payment-modal-title">Record Payment</h3>
+            <button className="btn-icon btn-ghost" onClick={onClose} aria-label="Close record payment modal"><X size={20} aria-hidden="true" /></button>
           </div>
           
           <div className="modal-body" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
