@@ -121,14 +121,26 @@
   margin-left: auto;
   border: 1px solid var(--sidebar-border);
   border-radius: var(--radius-sm);
-  background: color-mix(in srgb, var(--sidebar-text) 8%, transparent);
+  background: rgba(71, 85, 105, 0.08);
   color: var(--sidebar-text);
   cursor: pointer;
   transition: var(--transition-fast);
 }
 .sidebar-drawer-close-btn:hover {
   color: var(--sidebar-text-hover);
-  background: color-mix(in srgb, var(--sidebar-text) 16%, transparent);
+  background: rgba(71, 85, 105, 0.16);
+}
+
+/* color-mix() tints — gated behind @supports so legacy browsers (no
+   color-mix support) keep the solid rgba() fallback above instead of
+   resetting to transparent. */
+@supports (background: color-mix(in srgb, #000, #fff)) {
+  .sidebar-drawer-close-btn {
+    background: color-mix(in srgb, var(--sidebar-text) 8%, transparent);
+  }
+  .sidebar-drawer-close-btn:hover {
+    background: color-mix(in srgb, var(--sidebar-text) 16%, transparent);
+  }
 }
 
 .sidebar-brand {

@@ -47,11 +47,20 @@
   border-right: 1px solid var(--admin-line);
   border-radius: 0;
   background: var(--admin-panel-solid);
-  background:
-    linear-gradient(180deg, color-mix(in srgb, var(--admin-panel-solid) 96%, var(--admin-green-soft) 4%), var(--admin-panel-solid));
   color: var(--admin-muted);
   box-shadow: var(--admin-shadow);
   overflow: hidden;
+}
+
+/* Subtle gradient tint — only applied where color-mix() is supported.
+   On older browsers (iPhone 6/7, Safari < 16.2) a value containing var()
+   still wins the cascade but resolves invalid, which would reset background
+   to transparent. Gating with @supports keeps the solid fallback there. */
+@supports (background: color-mix(in srgb, #000, #fff)) {
+  .app-layout .sidebar {
+    background:
+      linear-gradient(180deg, color-mix(in srgb, var(--admin-panel-solid) 96%, var(--admin-green-soft) 4%), var(--admin-panel-solid));
+  }
 }
 
 .app-layout .main-content {
