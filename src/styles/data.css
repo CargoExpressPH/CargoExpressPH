@@ -112,6 +112,8 @@
   width: 100%;
   overflow-x: auto;
   overflow-y: hidden;
+  touch-action: pan-x pan-y;
+  -webkit-overflow-scrolling: touch;
   padding: 8px 2px 16px;
   scrollbar-width: thin;
   /* Rendered as <ol>/<li> for a11y semantics; suppress native list markers. */

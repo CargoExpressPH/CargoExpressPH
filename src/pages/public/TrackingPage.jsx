@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { getActivityLogsByRecord } from '../../lib/database';
@@ -6,77 +6,42 @@ import { deriveStatusTimestamps } from '../../utils/statusTimestamps';
 import {
   Container, Search, Loader, Package, MapPin, ArrowRight,
   CheckCircle2, XCircle, Clock, Weight, User, Coins,
-  RefreshCw, AlertTriangle, Truck, Calendar, Info,
+  RefreshCw, AlertTriangle, Truck, Calendar, Info, ClipboardCheck, Building2, Bike,
 } from 'lucide-react';
-import { STATUS_TIMELINE, STATUS_COLORS } from '../../constants/status';
+import { STATUS_TIMELINE, TRACKING_STATUS_TONES, STATUS_ICONS, ORDER_STATUS } from '../../constants/status';
 import TrackingTimeline from '../../components/ui/TrackingTimeline';
 import usePageTitle from '../../hooks/usePageTitle';
 
-const TRACKING_STATUS_TONES = {
-  Pending: {
-    bg: 'var(--trk-status-warning-bg)',
-    text: 'var(--trk-status-warning-text)',
-    border: 'var(--trk-status-warning-border)',
-    iconBg: 'var(--trk-status-warning-icon-bg)',
-  },
-  Assigned: {
-    bg: 'var(--trk-status-info-bg)',
-    text: 'var(--trk-status-info-text)',
-    border: 'var(--trk-status-info-border)',
-    iconBg: 'var(--trk-status-info-icon-bg)',
-  },
-  'Picked Up': {
-    bg: 'var(--trk-status-success-bg)',
-    text: 'var(--trk-status-success-text)',
-    border: 'var(--trk-status-success-border)',
-    iconBg: 'var(--trk-status-success-icon-bg)',
-  },
-  'In Transit': {
-    bg: 'var(--trk-status-info-bg)',
-    text: 'var(--trk-status-info-text)',
-    border: 'var(--trk-status-info-border)',
-    iconBg: 'var(--trk-status-info-icon-bg)',
-  },
-  'Arrived at Hub': {
-    bg: 'var(--trk-status-success-bg)',
-    text: 'var(--trk-status-success-text)',
-    border: 'var(--trk-status-success-border)',
-    iconBg: 'var(--trk-status-success-icon-bg)',
-  },
-  'Out for Delivery': {
-    bg: 'var(--trk-status-purple-bg)',
-    text: 'var(--trk-status-purple-text)',
-    border: 'var(--trk-status-purple-border)',
-    iconBg: 'var(--trk-status-purple-icon-bg)',
-  },
-  Delivered: {
-    bg: 'var(--trk-status-success-bg)',
-    text: 'var(--trk-status-success-text)',
-    border: 'var(--trk-status-success-border)',
-    iconBg: 'var(--trk-status-success-icon-bg)',
-  },
-  Cancelled: {
-    bg: 'var(--trk-status-error-bg)',
-    text: 'var(--trk-status-error-text)',
-    border: 'var(--trk-status-error-border)',
-    iconBg: 'var(--trk-status-error-icon-bg)',
-  },
+/* ── Status icon resolver ─────────────────────────────────────────────
+   Complete coverage for every ORDER_STATUS value — previously only 4 of
+   the 9 statuses had a dedicated icon and the rest silently fell back to
+   a generic Package icon on the hero status banner. */
+const ICON_COMPONENTS = {
+  clipboardCheck: ClipboardCheck,
+  clock: Clock,
+  package: Package,
+  truck: Truck,
+  building: Building2,
+  bike: Bike,
+  checkCircle: CheckCircle2,
+  xCircle: XCircle,
 };
+const getStatusIcon = (status) =>
+  (status && ICON_COMPONENTS[STATUS_ICONS[status]]) || Package;
 
-/* ── Status display helpers ────────────────────────────────────────── */
-const getStatusIcon = (status) => {
-  if (status === 'Delivered')  return CheckCircle2;
-  if (status === 'Cancelled')  return XCircle;
-  if (status === 'In Transit') return Truck;
-  return Package;
-};
-
+/* ── Date helpers (locale unified to en-PH everywhere) ──────────────── */
+const PH_LOCALE = 'en-PH';
 const formatDate = (iso, withTime = false) => {
   if (!iso) return '—';
   const opts = { year: 'numeric', month: 'short', day: 'numeric' };
   if (withTime) { opts.hour = '2-digit'; opts.minute = '2-digit'; }
-  return new Date(iso).toLocaleDateString('en-PH', opts);
+  try { return new Date(iso).toLocaleDateString(PH_LOCALE, opts); }
+  catch { return new Date(iso).toLocaleDateString(undefined, opts); }
 };
+
+/* Auto-refresh cadence while the result is visible and the tab is focused.
+   45s — frequent enough to feel "live", gentle on the anon RPC. */
+const REFRESH_INTERVAL_MS = 45000;
 
 /* ══════════════════════════════════════════════════════════════════════
    TrackingPage
@@ -90,66 +55,122 @@ const TrackingPage = ({ embedded = false }) => {
   const [error,   setError]   = useState('');
   const [searched, setSearched] = useState(false);
   const [activityLogs, setActivityLogs] = useState([]);
+  const [lastRefreshed, setLastRefreshed] = useState(null);
+
+  // Latest tracking number we are viewing — kept in a ref so the
+  // visibilitychange/polling callbacks always read the current value
+  // without re-subscribing on every render.
+  const activeQueryRef = useRef(null);
+  const intervalRef = useRef(null);
 
   const stepTimestamps = useMemo(
     () => deriveStatusTimestamps(activityLogs, order?.created_at, order?.status),
     [activityLogs, order?.created_at, order?.status]
   );
 
-  useEffect(() => {
-    const q = searchParams.get('q');
-    if (q?.trim()) {
-      const tn = q.trim().toUpperCase();
-      setTrackingNumber(tn);
-      doSearch(tn);
+  /* fetchOrder: single source of truth for hitting the (now hardened)
+     public RPC. `silent=true` skips loading/error UI so background
+     refreshes don't flicker the page. */
+  const fetchOrder = useCallback(async (tn, { silent = false } = {}) => {
+    if (!silent) {
+      setLoading(true); setError(''); setOrder(null); setSearched(true); setActivityLogs([]);
     }
-  }, []);
-
-  const doSearch = async (tn) => {
-    setLoading(true); setError(''); setOrder(null); setSearched(true); setActivityLogs([]);
     try {
       const { data, error: fetchError } = await supabase
         .rpc('track_order_public', { p_tracking_number: tn })
         .maybeSingle();
       if (fetchError || !data) {
-        setError('No shipment found with this tracking number. Please double-check and try again.');
-      } else {
-        setOrder(data);
-        if (data?.id) {
-          try {
-            const logs = await getActivityLogsByRecord(data.id);
-            setActivityLogs(logs || []);
-          } catch {
-            // Non-admin public query fallback handled by deriveStatusTimestamps baseline
-          }
+        if (!silent) setError('No shipment found with this tracking number. Please double-check and try again.');
+        return;
+      }
+      setOrder(data);
+      setLastRefreshed(new Date());
+      if (data?.id) {
+        try {
+          const logs = await getActivityLogsByRecord(data.id);
+          setActivityLogs(logs || []);
+        } catch {
+          // Non-admin public query fallback handled by deriveStatusTimestamps baseline
         }
       }
     } catch {
-      setError('Something went wrong. Please try again later.');
+      if (!silent) setError('Something went wrong. Please try again later.');
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
-  };
+  }, []);
+
+  // Initial load from ?q= querystring
+  useEffect(() => {
+    const q = searchParams.get('q');
+    if (q?.trim()) {
+      const tn = q.trim().toUpperCase();
+      setTrackingNumber(tn);
+      activeQueryRef.current = tn;
+      fetchOrder(tn);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  /* Auto-refresh: poll while the tab is visible AND we are showing a
+     non-terminal result. Stops entirely when the tab is hidden or the
+     shipment reaches Delivered/Cancelled. */
+  useEffect(() => {
+    const isTerminal = order?.status === ORDER_STATUS.DELIVERED || order?.status === ORDER_STATUS.CANCELLED;
+    const tn = activeQueryRef.current;
+
+    const tick = () => {
+      if (document.visibilityState === 'visible' && tn && !isTerminal) {
+        fetchOrder(tn, { silent: true });
+      }
+    };
+
+    // Clear any prior interval before (re)arming.
+    if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; }
+    if (tn && !isTerminal) {
+      intervalRef.current = setInterval(tick, REFRESH_INTERVAL_MS);
+    }
+    const onVisibility = () => {
+      // Refresh immediately when returning to the tab, then let the interval resume.
+      if (document.visibilityState === 'visible' && tn && !isTerminal) tick();
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+
+    return () => {
+      if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; }
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, [order?.status, fetchOrder]);
 
   const handleSearch = (e) => {
     e.preventDefault();
-    if (!trackingNumber.trim()) return;
-    doSearch(trackingNumber.trim().toUpperCase());
+    const tn = trackingNumber.trim().toUpperCase();
+    if (!tn) return;
+    activeQueryRef.current = tn;
+    fetchOrder(tn);
   };
 
   const handleReset = () => {
+    activeQueryRef.current = null;
     setTrackingNumber('');
     setOrder(null);
     setError('');
     setSearched(false);
+    setLastRefreshed(null);
   };
 
   const StatusIcon = getStatusIcon(order?.status);
-  const statusColor = order ? (TRACKING_STATUS_TONES[order.status] || STATUS_COLORS[order.status]) : null;
+  const statusColor = order ? TRACKING_STATUS_TONES[order.status] : null;
   const completedSteps = order ? STATUS_TIMELINE.indexOf(order.status) : -1;
   const progressPct = order?.status === 'Cancelled' ? 0
     : order ? Math.round(((completedSteps) / (STATUS_TIMELINE.length - 1)) * 100)
     : 0;
+
+  // ETA: only meaningful before delivery. trip.arrival_date from the RPC.
+  const estimatedDelivery = order?.estimated_delivery || null;
+  const showEta = estimatedDelivery
+    && order?.status !== ORDER_STATUS.DELIVERED
+    && order?.status !== ORDER_STATUS.CANCELLED;
 
   return (
     <div className={`trk-page${embedded ? ' trk-page--embedded' : ''}`}>
@@ -175,7 +196,7 @@ const TrackingPage = ({ embedded = false }) => {
           </Link>
         )}
         <h1 className="trk-headline">Track Your Shipment</h1>
-        <p className="trk-subheadline">Real-time updates — know exactly where your package is</p>
+        <p className="trk-subheadline">Live status updates — know exactly where your package is</p>
       </header>
 
       {/* ══════════ SEARCH ══════════ */}
@@ -263,6 +284,20 @@ const TrackingPage = ({ embedded = false }) => {
               <p className="trk-tracking-num-value">{order.tracking_number}</p>
             </div>
           </div>
+
+          {/* ── ETA banner (pre-delivery only) ── */}
+          {showEta && (
+            <div className="trk-eta-banner" role="status">
+              <div className="trk-eta-icon" aria-hidden="true">
+                <Calendar size={16} />
+              </div>
+              <div className="trk-eta-text">
+                <span className="trk-eta-label">Estimated Delivery</span>
+                <span className="trk-eta-value">{formatDate(estimatedDelivery)}</span>
+              </div>
+              <span className="trk-eta-caveat">Estimated</span>
+            </div>
+          )}
 
           {/* ── Progress bar ── */}
           {order.status !== 'Cancelled' && (
@@ -373,8 +408,13 @@ const TrackingPage = ({ embedded = false }) => {
               <Clock size={11} />
               Booked {formatDate(order.created_at)}
             </span>
-            <span className="trk-timestamp">
-              Last updated {formatDate(order.updated_at, true)}
+            <span className="trk-timestamp trk-timestamp-live" title={lastRefreshed ? `Auto-refreshed ${formatDate(lastRefreshed.toISOString(), true)}` : undefined}>
+              <RefreshCw size={11} />
+              {order.status === ORDER_STATUS.DELIVERED || order.status === ORDER_STATUS.CANCELLED
+                ? `Last updated ${formatDate(order.updated_at, true)}`
+                : lastRefreshed
+                  ? `Updated ${formatDate(lastRefreshed.toISOString(), true)} · auto-refresh on`
+                  : `Last updated ${formatDate(order.updated_at, true)}`}
             </span>
           </div>
         </div>

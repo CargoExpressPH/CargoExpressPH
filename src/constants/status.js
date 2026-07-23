@@ -73,6 +73,40 @@ export const STATUS_COLORS = {
   [ORDER_STATUS.CANCELLED]: { bg: 'var(--error-bg)', text: 'var(--error-dark)', border: 'var(--error)' },
 };
 
+// Status → semantic "tone" used by the tracking result card banner/tiles.
+// Single source of truth — extends STATUS_COLORS with the extra `iconBg`
+// token the tracking card needs. Resolves the previous drift where the
+// public TrackingPage redefined its own (incomplete) map that disagreed
+// with STATUS_COLORS (e.g. "Out for Delivery" was purple here, primary
+// there) and silently dropped "Pending Review" / "Pending".
+export const TRACKING_STATUS_TONES = {
+  [ORDER_STATUS.PENDING_REVIEW]: { ...STATUS_COLORS[ORDER_STATUS.PENDING_REVIEW], iconBg: 'var(--warning-icon-bg)' },
+  [ORDER_STATUS.PENDING]:         { ...STATUS_COLORS[ORDER_STATUS.PENDING],         iconBg: 'var(--warning-icon-bg)' },
+  [ORDER_STATUS.ASSIGNED]:        { ...STATUS_COLORS[ORDER_STATUS.ASSIGNED],        iconBg: 'var(--info-icon-bg)' },
+  [ORDER_STATUS.PICKED_UP]:       { ...STATUS_COLORS[ORDER_STATUS.PICKED_UP],       iconBg: 'var(--success-icon-bg)' },
+  [ORDER_STATUS.IN_TRANSIT]:      { ...STATUS_COLORS[ORDER_STATUS.IN_TRANSIT],      iconBg: 'var(--info-icon-bg)' },
+  [ORDER_STATUS.ARRIVED_HUB]:     { ...STATUS_COLORS[ORDER_STATUS.ARRIVED_HUB],     iconBg: 'var(--success-icon-bg)' },
+  [ORDER_STATUS.OUT_FOR_DELIVERY]:{ ...STATUS_COLORS[ORDER_STATUS.OUT_FOR_DELIVERY],iconBg: 'var(--primary-icon-bg)' },
+  [ORDER_STATUS.DELIVERED]:       { ...STATUS_COLORS[ORDER_STATUS.DELIVERED],       iconBg: 'var(--success-icon-bg)' },
+  [ORDER_STATUS.CANCELLED]:       { ...STATUS_COLORS[ORDER_STATUS.CANCELLED],       iconBg: 'var(--error-icon-bg)' },
+};
+
+// Canonical status → icon-name mapping (resolved by the component to a
+// lucide-react icon). Centralised so every surface (banner, tiles,
+// timelines) shows a consistent, complete icon instead of falling back
+// to a generic "Package" for half the statuses.
+export const STATUS_ICONS = {
+  [ORDER_STATUS.PENDING_REVIEW]: 'clipboardCheck',
+  [ORDER_STATUS.PENDING]: 'clock',
+  [ORDER_STATUS.ASSIGNED]: 'package',
+  [ORDER_STATUS.PICKED_UP]: 'package',
+  [ORDER_STATUS.IN_TRANSIT]: 'truck',
+  [ORDER_STATUS.ARRIVED_HUB]: 'building',
+  [ORDER_STATUS.OUT_FOR_DELIVERY]: 'bike',
+  [ORDER_STATUS.DELIVERED]: 'checkCircle',
+  [ORDER_STATUS.CANCELLED]: 'xCircle',
+};
+
 export const TRIP_STATUS_COLORS = {
   [TRIP_STATUS.SCHEDULED]: { bg: 'var(--info-bg)', text: 'var(--info-dark)', border: 'var(--info)' },
   [TRIP_STATUS.IN_PROGRESS]: { bg: 'var(--warning-bg)', text: 'var(--warning-dark)', border: 'var(--warning)' },

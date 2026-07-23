@@ -508,14 +508,16 @@ CREATE POLICY "Allow public read access" ON company_information
   FOR SELECT USING (true);
 
 CREATE POLICY "Allow admin full access" ON company_information
-  FOR ALL USING (auth.role() = 'authenticated');
+  FOR ALL
+  USING (public.is_admin())
+  WITH CHECK (public.is_admin());
 
 -- ─── Activity Logs ──────────────────────────────────────────
 CREATE POLICY "Admins can view activity logs" ON activity_logs
   FOR SELECT USING (public.is_admin());
 
-CREATE POLICY "Authenticated users can insert activity logs" ON activity_logs
-  FOR INSERT WITH CHECK (true);
+CREATE POLICY "Admins can insert activity logs" ON activity_logs
+  FOR INSERT WITH CHECK (public.is_admin());
 
 -- ─── Coverage Regions ───────────────────────────────────────
 CREATE POLICY "Allow public read access" ON coverage_regions
@@ -911,18 +913,47 @@ $$;
 
 GRANT EXECUTE ON FUNCTION public.cancel_own_pending_order(UUID) TO authenticated;
 
+-- mask_name(full_name): collapse a name to "First L." (privacy-safe).
+-- Used by the public tracking RPC so anonymous visitors never see full PII.
+CREATE OR REPLACE FUNCTION public.mask_name(full_name TEXT)
+RETURNS TEXT
+LANGUAGE sql
+IMMUTABLE
+AS $$
+  SELECT CASE
+    WHEN full_name IS NULL OR btrim(full_name) = '' THEN NULL
+    ELSE
+      split_part(btrim(full_name), ' ', 1)
+      || CASE
+        WHEN array_length(string_to_array(btrim(full_name), ' '), 1) > 1
+          THEN ' '
+            || UPPER(LEFT(split_part(
+                  btrim(full_name), ' ',
+                  array_length(string_to_array(btrim(full_name), ' '), 1)
+                ), 1))
+            || '.'
+        ELSE ''
+      END
+  END
+$$;
+
+-- Public tracking: names masked, phones/addresses/payment never returned,
+-- trip.arrival_date surfaced as estimated_delivery for an ETA banner.
+DROP FUNCTION IF EXISTS public.track_order_public(TEXT);
+
 CREATE OR REPLACE FUNCTION public.track_order_public(p_tracking_number TEXT)
 RETURNS TABLE (
   tracking_number VARCHAR,
   status VARCHAR,
-  sender_name VARCHAR,
-  receiver_name VARCHAR,
+  sender_name TEXT,
+  receiver_name TEXT,
   origin VARCHAR,
   destination VARCHAR,
   package_description TEXT,
   package_weight NUMERIC,
   actual_weight NUMERIC,
   shipping_cost NUMERIC,
+  estimated_delivery TIMESTAMPTZ,
   created_at TIMESTAMPTZ,
   updated_at TIMESTAMPTZ
 )
@@ -933,21 +964,24 @@ AS $$
   SELECT
     o.tracking_number,
     o.status,
-    o.sender_name,
-    o.receiver_name,
+    public.mask_name(o.sender_name)   AS sender_name,
+    public.mask_name(o.receiver_name) AS receiver_name,
     o.origin,
     o.destination,
     o.package_description,
     o.package_weight,
     o.actual_weight,
     o.shipping_cost,
+    t.arrival_date AS estimated_delivery,
     o.created_at,
     o.updated_at
   FROM public.orders o
+  LEFT JOIN public.trips t ON t.id = o.trip_id
   WHERE o.tracking_number = UPPER(TRIM(p_tracking_number))
   LIMIT 1;
 $$;
 
+GRANT EXECUTE ON FUNCTION public.mask_name(TEXT) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.track_order_public(TEXT) TO anon, authenticated;
 
 CREATE OR REPLACE FUNCTION public.get_public_business_profile()

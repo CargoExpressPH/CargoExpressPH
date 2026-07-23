@@ -2704,6 +2704,8 @@
 @media (max-width: 820px) {
   .status-timeline {
     overflow-x: visible;
+    overflow-y: visible;
+    touch-action: pan-y;
     padding: 6px 4px 0;
   }
 

@@ -46,6 +46,13 @@
   --info-dark: #2563EB;
   --info-bg: #EFF6FF;
 
+  /* -- Status icon backgrounds (translucent tints for tracking banner/tiles) -- */
+  --primary-icon-bg: rgba(22, 163, 74, 0.12);
+  --success-icon-bg: rgba(16, 185, 129, 0.12);
+  --warning-icon-bg: rgba(245, 158, 11, 0.14);
+  --error-icon-bg: rgba(239, 68, 68, 0.12);
+  --info-icon-bg: rgba(59, 130, 246, 0.12);
+
   /* -- Chart Colors (theme-aware for data visualization) -- */
   --chart-purple: #8B5CF6;
   --chart-pink: #EC4899;
@@ -230,6 +237,13 @@
   --info: #60A5FA;
   --info-dark: #93C5FD;
   --info-bg: #101C2A;
+
+  /* -- Status icon backgrounds (translucent tints — dark mode) -- */
+  --primary-icon-bg: rgba(34, 197, 94, 0.18);
+  --success-icon-bg: rgba(52, 211, 153, 0.18);
+  --warning-icon-bg: rgba(251, 191, 36, 0.18);
+  --error-icon-bg: rgba(248, 113, 113, 0.18);
+  --info-icon-bg: rgba(96, 165, 250, 0.18);
 
   --chart-purple: #A78BFA;
   --chart-pink: #F472B6;
