@@ -1,7 +1,34 @@
 /* -----------------------------------------------------------------------
-   Customer mobile app refresh
-   Final customer-only layer inspired by modern logistics and service apps.
+   Remove all scrollbars across ALL devices (iOS, Android, Windows, macOS, Chrome, Safari, Firefox, Edge)
    ----------------------------------------------------------------------- */
+.customer-layout-v2,
+.customer-layout-v2 *,
+.customer-main,
+.customer-main *,
+.customer-bottom-nav,
+.customer-bottom-nav *,
+:is(.trk-page, .public-about-page, .contact-page, .help-guidelines-page),
+:is(.trk-page, .public-about-page, .contact-page, .help-guidelines-page) *,
+html:has(:is(.customer-layout-v2, .trk-page, .public-about-page, .contact-page, .help-guidelines-page)),
+body:has(:is(.customer-layout-v2, .trk-page, .public-about-page, .contact-page, .help-guidelines-page)) {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+  -webkit-overflow-scrolling: touch;
+}
+
+.customer-layout-v2::-webkit-scrollbar,
+.customer-layout-v2 *::-webkit-scrollbar,
+.customer-main::-webkit-scrollbar,
+.customer-main *::-webkit-scrollbar,
+:is(.trk-page, .public-about-page, .contact-page, .help-guidelines-page)::-webkit-scrollbar,
+:is(.trk-page, .public-about-page, .contact-page, .help-guidelines-page) *::-webkit-scrollbar,
+html:has(:is(.customer-layout-v2, .trk-page, .public-about-page, .contact-page, .help-guidelines-page))::-webkit-scrollbar,
+body:has(:is(.customer-layout-v2, .trk-page, .public-about-page, .contact-page, .help-guidelines-page))::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  background: transparent !important;
+}
 
 .customer-layout-v2 .hero-search-input {
   background: rgba(255, 255, 255, 0.15);
