@@ -1067,8 +1067,9 @@ const AboutPage = () => {
                 >
                   <img src={highlight.resolved_image} alt={highlight.featured_title || 'Delivery photo'} loading="lazy" />
                   <div className="about-highlight-overlay">
-                    <div className="about-highlight-title">
-                      ðŸ“¦ {highlight.featured_title}
+                    <div className="about-highlight-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <Package size={18} style={{ color: 'var(--primary)', flexShrink: 0 }} />
+                      <span>{highlight.featured_title}</span>
                     </div>
                     {highlight.featured_caption && (
                       <div className="about-highlight-caption">
