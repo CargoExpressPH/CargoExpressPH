@@ -109,7 +109,7 @@
   }
 
   .page-title {
-    font-size: 1.35rem !important;
+    font-size: 1.35rem ;
   }
 }
 
@@ -130,17 +130,17 @@
     gap: 10px;
   }
   .app-layout .flex.items-center.gap-16:has(input[type="time"]) > div:first-child {
-    width: auto !important;
+    width: auto ;
     flex: 1 0 auto;
-    font-size: 0.8125rem !important;
+    font-size: 0.8125rem ;
   }
   .app-layout .flex.items-center.gap-16:has(input[type="time"]) > .flex:last-child {
     flex: 1 0 100%;
-    margin-left: 0 !important;
+    margin-left: 0 ;
   }
   .app-layout .flex.items-center.gap-16:has(input[type="time"]) input[type="time"] {
-    width: 100px !important;
-    min-height: 40px !important;
+    width: 100px ;
+    min-height: 40px ;
     flex: 1;
   }
 }
@@ -148,19 +148,19 @@
 /* Feedback page: single column cards + stacked filter on mobile */
 @media (max-width: 640px) {
   .grid-2:has(.hover-lift) {
-    grid-template-columns: 1fr !important;
+    grid-template-columns: 1fr ;
   }
 
   .feedback-filter-row {
     flex-direction: column;
-    gap: 12px !important;
+    gap: 12px ;
   }
   .feedback-filter-row > .form-group {
-    flex: 1 0 100% !important;
-    min-width: 0 !important;
+    flex: 1 0 100% ;
+    min-width: 0 ;
   }
   .feedback-rating-filter {
-    min-width: 0 !important;
+    min-width: 0 ;
   }
 }
 

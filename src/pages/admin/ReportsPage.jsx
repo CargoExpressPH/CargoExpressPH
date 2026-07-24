@@ -263,12 +263,12 @@ const ReportsPage = () => {
               {/* ── Summary Cards ── */}
               <div className="grid grid-4 report-summary-cards mb-20 mt-16">
                 {[
-                  { label: 'Total Orders', value: s.totalOrders, icon: Package, gradient: 'linear-gradient(135deg, var(--primary), var(--primary-light))', prefix: '', decimals: 0 },
-                  { label: 'Delivered', value: s.deliveredCount, icon: CheckCircle, gradient: 'linear-gradient(135deg, var(--success), var(--success-dark))', prefix: '', decimals: 0 },
-                  { label: 'Total Revenue', value: s.totalRevenue, icon: DollarSign, gradient: 'linear-gradient(135deg, var(--accent), var(--accent-light))', prefix: '₱', decimals: 0 },
-                  { label: 'Collected', value: s.totalCollected, icon: TrendingUp, gradient: 'linear-gradient(135deg, var(--info), var(--info-dark))', prefix: '₱', decimals: 0 },
+                  { label: 'Total Orders', value: s.totalOrders, tone: 'primary', prefix: '', decimals: 0 },
+                  { label: 'Delivered', value: s.deliveredCount, tone: 'success', prefix: '', decimals: 0 },
+                  { label: 'Total Revenue', value: s.totalRevenue, tone: 'accent', prefix: '₱', decimals: 0 },
+                  { label: 'Collected', value: s.totalCollected, tone: 'info', prefix: '₱', decimals: 0 },
                 ].map((card, i) => (
-                  <div key={i} className="stat-card stagger-item" style={{ background: card.gradient, animationDelay: `${i * 60}ms` }}>
+                  <div key={i} className={`stat-card stat-card-${card.tone} stagger-item`} style={{ animationDelay: `${i * 60}ms` }}>
                     <div className="stat-value">
                       <AnimatedCounter value={card.value} prefix={card.prefix} decimals={card.decimals} duration={1000} />
                     </div>

@@ -123,7 +123,7 @@ const DashboardPage = () => {
           ) : (
             statCards.map((s, i) => (
               <StaggerItem key={i} className={`stat-card stat-card-${s.tone}`} delay={i * 60}>
-                <div className="stat-icon"><s.icon size={40} /></div>
+                <div className="stat-icon"><s.icon size={22} /></div>
                 <div className="stat-value">
                   <AnimatedCounter value={s.value} duration={1200} />
                 </div>

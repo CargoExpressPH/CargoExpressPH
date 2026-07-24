@@ -6,7 +6,7 @@ import { deriveStatusTimestamps } from '../../utils/statusTimestamps';
 import {
   Container, Search, Loader, Package, MapPin, ArrowRight,
   CheckCircle2, XCircle, Clock, Weight, User, Coins,
-  RefreshCw, AlertTriangle, Truck, Calendar, Info, ClipboardCheck, Building2, Bike,
+  RefreshCw, AlertTriangle, ShieldAlert, Truck, Calendar, Info, ClipboardCheck, Building2, Bike,
 } from 'lucide-react';
 import { STATUS_TIMELINE, TRACKING_STATUS_TONES, STATUS_ICONS, ORDER_STATUS } from '../../constants/status';
 import TrackingTimeline from '../../components/ui/TrackingTimeline';
@@ -42,6 +42,46 @@ const formatDate = (iso, withTime = false) => {
 /* Auto-refresh cadence while the result is visible and the tab is focused.
    45s — frequent enough to feel "live", gentle on the anon RPC. */
 const REFRESH_INTERVAL_MS = 45000;
+const DEFAULT_RETRY_AFTER_SEC = 30;
+const RATE_LIMIT_USER_MSG =
+  'Too many tracking requests. Please wait a moment before trying again.';
+
+/**
+ * Detect rate-limit / 429 style failures from Supabase client errors,
+ * fetch wrappers ("HTTP Error 429"), or message text.
+ * Returns { seconds } when limited, otherwise null.
+ */
+const detectRateLimit = (err) => {
+  if (!err) return null;
+
+  const status = err.status ?? err.statusCode ?? err.code;
+  const blob = [err.message, err.details, err.hint, err.code, String(status ?? '')]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+
+  const isRate =
+    status === 429 ||
+    status === '429' ||
+    blob.includes('rate limit') ||
+    blob.includes('over_request_rate_limit') ||
+    blob.includes('too many requests') ||
+    blob.includes('http error 429') ||
+    /\b429\b/.test(blob);
+
+  if (!isRate) return null;
+
+  // Prefer explicit retry hints when present; otherwise default cooldown.
+  const retryMatch =
+    blob.match(/retry[\s_-]*after[:\s]*(\d+)/i) ||
+    blob.match(/try again in\s+(\d+)/i) ||
+    blob.match(/(\d+)\s*seconds?/);
+  const seconds = retryMatch
+    ? Math.min(300, Math.max(1, parseInt(retryMatch[1], 10)))
+    : DEFAULT_RETRY_AFTER_SEC;
+
+  return { seconds };
+};
 
 /* ══════════════════════════════════════════════════════════════════════
    TrackingPage
@@ -56,33 +96,100 @@ const TrackingPage = ({ embedded = false }) => {
   const [searched, setSearched] = useState(false);
   const [activityLogs, setActivityLogs] = useState([]);
   const [lastRefreshed, setLastRefreshed] = useState(null);
+  const [isRateLimited, setIsRateLimited] = useState(false);
+  const [retryAfterSeconds, setRetryAfterSeconds] = useState(0);
 
   // Latest tracking number we are viewing — kept in a ref so the
   // visibilitychange/polling callbacks always read the current value
   // without re-subscribing on every render.
   const activeQueryRef = useRef(null);
   const intervalRef = useRef(null);
+  // Mirror rate-limit flag for poll/fetch guards (avoids stale closures).
+  const isRateLimitedRef = useRef(false);
 
   const stepTimestamps = useMemo(
     () => deriveStatusTimestamps(activityLogs, order?.created_at, order?.status),
     [activityLogs, order?.created_at, order?.status]
   );
 
+  const applyRateLimit = useCallback((seconds = DEFAULT_RETRY_AFTER_SEC) => {
+    isRateLimitedRef.current = true;
+    setIsRateLimited(true);
+    setRetryAfterSeconds(seconds);
+    setError(RATE_LIMIT_USER_MSG);
+  }, []);
+
+  const clearRateLimit = useCallback(() => {
+    isRateLimitedRef.current = false;
+    setIsRateLimited(false);
+    setRetryAfterSeconds(0);
+    setError(prev => (prev === RATE_LIMIT_USER_MSG ? '' : prev));
+  }, []);
+
+  // Countdown: tick once per second while limited; at 0 lift the cooldown.
+  useEffect(() => {
+    if (!isRateLimited) return undefined;
+
+    if (retryAfterSeconds <= 0) {
+      clearRateLimit();
+      return undefined;
+    }
+
+    const timer = setTimeout(() => {
+      setRetryAfterSeconds(prev => Math.max(0, prev - 1));
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [isRateLimited, retryAfterSeconds, clearRateLimit]);
+
   /* fetchOrder: single source of truth for hitting the (now hardened)
      public RPC. `silent=true` skips loading/error UI so background
      refreshes don't flicker the page. */
   const fetchOrder = useCallback(async (tn, { silent = false } = {}) => {
+    // Hard block while cooldown is active (ref is always current).
+    if (isRateLimitedRef.current) {
+      if (!silent) {
+        setIsRateLimited(true);
+        setError(RATE_LIMIT_USER_MSG);
+      }
+      return;
+    }
+
     if (!silent) {
-      setLoading(true); setError(''); setOrder(null); setSearched(true); setActivityLogs([]);
+      setLoading(true);
+      setError('');
+      setOrder(null);
+      setSearched(true);
+      setActivityLogs([]);
     }
     try {
       const { data, error: fetchError } = await supabase
         .rpc('track_order_public', { p_tracking_number: tn })
         .maybeSingle();
-      if (fetchError || !data) {
-        if (!silent) setError('No shipment found with this tracking number. Please double-check and try again.');
+      if (fetchError) {
+        const rate = detectRateLimit(fetchError);
+        if (rate) {
+          applyRateLimit(rate.seconds);
+          // Silent poll: keep showing last good order; stop further spam via ref.
+          if (!silent) {
+            setOrder(null);
+            setActivityLogs([]);
+          }
+          return;
+        }
+        if (!silent) {
+          setError('No shipment found with this tracking number. Please double-check and try again.');
+        }
         return;
       }
+      if (!data) {
+        if (!silent) {
+          setError('No shipment found with this tracking number. Please double-check and try again.');
+        }
+        return;
+      }
+      // Successful lookup ends any prior cooldown.
+      if (isRateLimitedRef.current) clearRateLimit();
       setOrder(data);
       setLastRefreshed(new Date());
       if (data?.id) {
@@ -93,12 +200,21 @@ const TrackingPage = ({ embedded = false }) => {
           // Non-admin public query fallback handled by deriveStatusTimestamps baseline
         }
       }
-    } catch {
-      if (!silent) setError('Something went wrong. Please try again later.');
+    } catch (err) {
+      const rate = detectRateLimit(err);
+      if (rate) {
+        applyRateLimit(rate.seconds);
+        if (!silent) {
+          setOrder(null);
+          setActivityLogs([]);
+        }
+      } else if (!silent) {
+        setError('Something went wrong. Please try again later.');
+      }
     } finally {
       if (!silent) setLoading(false);
     }
-  }, []);
+  }, [applyRateLimit, clearRateLimit]);
 
   // Initial load from ?q= querystring
   useEffect(() => {
@@ -113,21 +229,25 @@ const TrackingPage = ({ embedded = false }) => {
   }, []);
 
   /* Auto-refresh: poll while the tab is visible AND we are showing a
-     non-terminal result. Stops entirely when the tab is hidden or the
-     shipment reaches Delivered/Cancelled. */
+     non-terminal result and NOT rate-limited. */
   useEffect(() => {
     const isTerminal = order?.status === ORDER_STATUS.DELIVERED || order?.status === ORDER_STATUS.CANCELLED;
     const tn = activeQueryRef.current;
 
     const tick = () => {
-      if (document.visibilityState === 'visible' && tn && !isTerminal) {
+      if (
+        document.visibilityState === 'visible' &&
+        tn &&
+        !isTerminal &&
+        !isRateLimitedRef.current
+      ) {
         fetchOrder(tn, { silent: true });
       }
     };
 
     // Clear any prior interval before (re)arming.
     if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; }
-    if (tn && !isTerminal) {
+    if (tn && !isTerminal && !isRateLimited) {
       intervalRef.current = setInterval(tick, REFRESH_INTERVAL_MS);
     }
     const onVisibility = () => {
@@ -140,10 +260,11 @@ const TrackingPage = ({ embedded = false }) => {
       if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; }
       document.removeEventListener('visibilitychange', onVisibility);
     };
-  }, [order?.status, fetchOrder]);
+  }, [order?.status, fetchOrder, isRateLimited]);
 
   const handleSearch = (e) => {
     e.preventDefault();
+    if (isRateLimitedRef.current) return;
     const tn = trackingNumber.trim().toUpperCase();
     if (!tn) return;
     activeQueryRef.current = tn;
@@ -154,9 +275,14 @@ const TrackingPage = ({ embedded = false }) => {
     activeQueryRef.current = null;
     setTrackingNumber('');
     setOrder(null);
-    setError('');
+    setActivityLogs([]);
     setSearched(false);
     setLastRefreshed(null);
+    // Rate-limit cooldown is request-volume based: clearing the form does NOT
+    // lift it. Only the countdown (or a successful request after expiry) does.
+    if (!isRateLimitedRef.current) {
+      setError('');
+    }
   };
 
   const StatusIcon = getStatusIcon(order?.status);
@@ -209,10 +335,19 @@ const TrackingPage = ({ embedded = false }) => {
             className="trk-search-input"
             placeholder="Enter tracking number (e.g. CE-20240101-001)"
             value={trackingNumber}
-            onChange={e => setTrackingNumber(e.target.value.toUpperCase())}
+            onChange={e => {
+              setTrackingNumber(e.target.value.toUpperCase());
+              // Typing may clear a normal "not found" error, but never lifts
+              // an active rate-limit cooldown (that would defeat the purpose).
+              if (!isRateLimitedRef.current && error && error !== RATE_LIMIT_USER_MSG) {
+                setError('');
+              }
+            }}
             aria-label="Tracking number"
             autoComplete="off"
             spellCheck="false"
+            aria-invalid={Boolean(error && !isRateLimited)}
+            aria-describedby={isRateLimited ? 'trk-rate-limit-status' : undefined}
           />
           {trackingNumber && !loading && (
             <button
@@ -227,8 +362,8 @@ const TrackingPage = ({ embedded = false }) => {
           <button
             type="submit"
             className="trk-search-btn"
-            disabled={loading || !trackingNumber.trim()}
-            aria-label="Track shipment"
+            disabled={loading || isRateLimited || !trackingNumber.trim()}
+            aria-label={isRateLimited ? `Rate limited. Retry in ${retryAfterSeconds}s` : 'Track shipment'}
             aria-busy={loading}
           >
             {loading
@@ -239,8 +374,32 @@ const TrackingPage = ({ embedded = false }) => {
         </div>
       </form>
 
+      {/* ══════════ RATE LIMIT CARD ══════════
+          Shown when limited and there is no result to keep on screen.
+          Silent auto-refresh 429s keep the last good order and only pause polling. */}
+      {isRateLimited && !loading && !order && (
+        <div
+          id="trk-rate-limit-status"
+          className="trk-rate-limit-card animate-slide-up"
+          role="alert"
+          aria-live="assertive"
+        >
+          <div className="trk-rate-limit-icon" aria-hidden="true">
+            <ShieldAlert size={32} />
+          </div>
+          <h3 className="trk-rate-limit-title">Rate Limit Exceeded</h3>
+          <p className="trk-rate-limit-msg">
+            You have made too many tracking requests in a short period to protect system security.
+          </p>
+          <div className="trk-countdown-badge">
+            <Clock size={14} aria-hidden="true" />
+            {' '}Retry available in {retryAfterSeconds}s
+          </div>
+        </div>
+      )}
+
       {/* ══════════ ERROR STATE ══════════ */}
-      {error && !loading && (
+      {error && !isRateLimited && !loading && (
         <div className="trk-not-found animate-slide-up" role="alert">
           <div className="trk-not-found-icon">
             <AlertTriangle size={28} />

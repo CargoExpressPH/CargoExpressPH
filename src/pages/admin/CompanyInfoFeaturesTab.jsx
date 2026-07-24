@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { updateCompanyInformation, updateCompanyFeaturesOrder } from '../../lib/database';
 import { logCompany } from '../../lib/activityLog';
 import { Plus, Trash2, Edit2, Save, Loader, Star, X, GripVertical } from 'lucide-react';
-import * as LucideIcons from 'lucide-react';
+import { getFeatureIcon } from '../../lib/featureIcons';
 import { useToast } from '../../hooks/useToast';
 import ConfirmModal from '../../components/ui/ConfirmModal';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
@@ -28,7 +28,7 @@ const SortableRow = ({ feat, handleEdit, setDeleteTarget }) => {
     zIndex: isDragging ? 10 : 1,
   };
 
-  const Ico = LucideIcons[feat.icon] || LucideIcons.Star;
+  const Ico = getFeatureIcon(feat.icon);
 
   return (
     <tr ref={setNodeRef} style={style}>
@@ -160,7 +160,7 @@ const CompanyInfoFeaturesTab = ({ features, setFeatures }) => {
     }
   };
 
-  const PreviewIcon = LucideIcons[formData.icon] || LucideIcons.Star;
+  const PreviewIcon = getFeatureIcon(formData.icon);
 
   return (
     <div className="flex flex-col gap-16">
@@ -218,7 +218,7 @@ const CompanyInfoFeaturesTab = ({ features, setFeatures }) => {
                       }}>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 6 }}>
                           {ICON_OPTIONS.map(name => {
-                            const Ico = LucideIcons[name];
+                            const Ico = getFeatureIcon(name);
                             if (!Ico) return null;
                             return (
                               <button

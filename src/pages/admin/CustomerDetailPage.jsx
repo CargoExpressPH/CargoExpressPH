@@ -4,7 +4,7 @@ import { getCustomerById } from '../../lib/database';
 import StatusBadge from '../../components/ui/StatusBadge';
 import AnimatedCounter from '../../components/ui/AnimatedCounter';
 import { SkeletonStatCard, SkeletonText } from '../../components/ui/SkeletonLoader';
-import { ArrowLeft, User, Mail, Phone, MapPin, Package, DollarSign } from 'lucide-react';
+import { ArrowLeft, User, Mail, Phone, MapPin, Package, DollarSign, CheckCircle, Clock } from 'lucide-react';
 import Breadcrumb from '../../components/ui/Breadcrumb';
 import usePageTitle from '../../hooks/usePageTitle';
 
@@ -73,12 +73,12 @@ const CustomerDetailPage = () => {
       </div>
       <div className="grid grid-4 mb-16">
         {[
-          {l:'Total Bookings', v:summary.totalOrders, g:'linear-gradient(135deg,var(--info),var(--info-dark))', isNum: true},
-          {l:'Completed', v:summary.completedOrders, g:'linear-gradient(135deg,var(--success),var(--success-dark))', isNum: true},
-          {l:'Pending', v:summary.pendingOrders, g:'linear-gradient(135deg,var(--warning),var(--warning-dark))', isNum: true},
-          {l:'Total Spent', v:summary.totalSpent, g:'linear-gradient(135deg,var(--primary),var(--primary-light))', isNum: true, prefix: '₱', decimals: 0}
-        ].map((s,i)=>(
-          <div key={i} className="stat-card stagger-item" style={{background:s.g, animationDelay: `${(i + 1) * 60}ms`}}>
+          { l: 'Total Bookings', v: summary.totalOrders, tone: 'primary' },
+          { l: 'Completed', v: summary.completedOrders, tone: 'success' },
+          { l: 'Pending', v: summary.pendingOrders, tone: 'warning' },
+          { l: 'Total Spent', v: summary.totalSpent, tone: 'accent', prefix: '₱', decimals: 0 }
+        ].map((s, i) => (
+          <div key={i} className={`stat-card stat-card-${s.tone} stagger-item`} style={{ animationDelay: `${(i + 1) * 60}ms` }}>
             <div className="stat-value">
               <AnimatedCounter value={typeof s.v === 'number' ? s.v : 0} prefix={s.prefix || ''} decimals={s.decimals || 0} duration={1200} />
             </div>

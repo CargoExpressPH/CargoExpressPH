@@ -88,6 +88,24 @@
   --sidebar-bg: #FFFFFF;
   --sidebar-hover: #F1F5F9;
   --sidebar-active: rgba(22, 163, 74, 0.08);
+
+  /* -- Sub-System Token Aliases -- */
+  --customer-green: var(--primary);
+  --customer-green-dark: var(--primary-dark);
+  --customer-green-soft: var(--primary-bg);
+  --customer-green-glow: var(--primary-glow);
+  --customer-ink: var(--text);
+  --customer-panel: var(--surface);
+  --customer-panel-solid: var(--surface);
+  --customer-line: var(--border);
+  --customer-shadow: var(--shadow-md);
+
+  --admin-green: var(--primary);
+  --admin-green-dark: var(--primary-dark);
+  --admin-green-soft: var(--primary-bg);
+  --admin-ink: var(--text);
+  --admin-panel: var(--surface);
+  --admin-line: var(--border);
   --sidebar-border: #E2E8F0;
   --sidebar-text: #475569;
   --sidebar-text-hover: #0F172A;

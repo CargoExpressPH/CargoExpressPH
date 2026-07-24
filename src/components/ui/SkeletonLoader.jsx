@@ -162,24 +162,24 @@ export const SkeletonChat = () => (
       <div className="skeleton skeleton-text" style={{ width: '40%', height: 22 }} />
       <div className="skeleton skeleton-text" style={{ width: '60%', height: 12, marginTop: 8 }} />
     </div>
-    <div className="skeleton-chat-body" style={{ display: 'flex', flexDirection: 'column', gap: 16, marginTop: 20 }}>
-      <div style={{ display: 'flex', gap: 10, alignSelf: 'flex-start', width: '75%' }}>
+    <div className="skeleton-chat-list">
+      <div className="skeleton-chat-msg-row start">
         <SkeletonAvatar size={32} />
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <div className="skeleton skeleton-text" style={{ width: '100%', height: 36, borderRadius: '4px 16px 16px 16px' }} />
+        <div className="skeleton-chat-bubble-col">
+          <div className="skeleton skeleton-text skeleton-chat-bubble-start" style={{ width: '100%', height: 36 }} />
           <div className="skeleton skeleton-text" style={{ width: '25%', height: 8 }} />
         </div>
       </div>
-      <div style={{ display: 'flex', gap: 10, alignSelf: 'flex-end', width: '65%', justifyContent: 'flex-end' }}>
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-end' }}>
-          <div className="skeleton skeleton-text" style={{ width: '100%', height: 48, borderRadius: '16px 4px 16px 16px' }} />
+      <div className="skeleton-chat-msg-row end">
+        <div className="skeleton-chat-bubble-col">
+          <div className="skeleton skeleton-text skeleton-chat-bubble-end" style={{ width: '100%', height: 48 }} />
           <div className="skeleton skeleton-text" style={{ width: '30%', height: 8 }} />
         </div>
       </div>
-      <div style={{ display: 'flex', gap: 10, alignSelf: 'flex-start', width: '55%' }}>
+      <div className="skeleton-chat-msg-row start" style={{ width: '55%' }}>
         <SkeletonAvatar size={32} />
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <div className="skeleton skeleton-text" style={{ width: '100%', height: 32, borderRadius: '4px 16px 16px 16px' }} />
+        <div className="skeleton-chat-bubble-col">
+          <div className="skeleton skeleton-text skeleton-chat-bubble-start" style={{ width: '100%', height: 32 }} />
           <div className="skeleton skeleton-text" style={{ width: '20%', height: 8 }} />
         </div>
       </div>

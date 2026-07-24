@@ -377,9 +377,104 @@
   }
 }
 @media (min-width: 900px) {
-  .customer-mobile-menu { display: none !important; }
-  .customer-bottom-nav { display: none !important; }
+  .customer-mobile-menu { display: none; }
+  .customer-bottom-nav { display: none; }
   .customer-main { padding-bottom: 40px; }
 }
+/* --- HOME NEXT-AVAILABLE TRIP CARD ---
+   Matches other home cards: white/panel in light, dark panel in dark.
+   Uses customer tokens (same family as shipment cards / snapshot pills). */
+.home-hero-trip-card,
+.customer-layout-v2 .home-hero-trip-card {
+  overflow: hidden;
+  background:
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--customer-green-soft) 82%, var(--customer-panel-solid, var(--surface)) 18%),
+      var(--customer-panel-solid, var(--surface)) 62%
+    ),
+    var(--customer-panel-solid, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--customer-green, var(--primary)) 22%, transparent);
+  border-radius: 28px;
+  box-shadow: var(--customer-shadow, var(--shadow-md));
+  padding: 20px;
+  color: var(--customer-ink, var(--text));
+}
+.home-trip-badge-num {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--customer-muted, var(--text-secondary));
+}
+.home-trip-route-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: var(--customer-green-soft, var(--primary-bg));
+  color: var(--customer-green, var(--primary));
+}
+.home-trip-route-label {
+  font-size: 0.75rem;
+  margin-bottom: 2px;
+  color: var(--customer-muted, var(--text-secondary));
+}
+.home-trip-route-title {
+  font-weight: 800;
+  font-size: 1.0625rem;
+  color: var(--customer-ink, var(--text));
+}
+.home-trip-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.home-trip-metric-box {
+  background: color-mix(in srgb, var(--customer-green-soft, var(--primary-bg)) 55%, var(--customer-panel-solid, var(--surface)));
+  border: 1px solid var(--customer-line, var(--border));
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  color: var(--customer-ink, var(--text));
+}
+.home-trip-metric-lbl {
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--customer-muted, var(--text-secondary));
+}
+.home-trip-metric-val {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--customer-ink, var(--text));
+}
+.home-trip-price {
+  margin-bottom: 12px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--customer-muted, var(--text-secondary));
+}
+.home-trip-cta {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 13px;
+  border: none;
+  border-radius: 16px;
+  background: linear-gradient(135deg, var(--customer-green, var(--primary)), #22C55E);
+  color: #ffffff;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 14px 28px rgba(18, 138, 90, 0.22);
+}
+.home-trip-cta:hover {
+  filter: brightness(1.05);
+}
+/* StatusBadge keeps its own badge colors — do not force inherit on .badge */
 
 

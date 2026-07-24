@@ -20,8 +20,47 @@ function swVersionPlugin() {
   }
 }
 
+// Automatically rewrites lucide-react barrel imports into direct ESM per-icon imports
+function lucideTreeShakePlugin() {
+  function toKebab(str) {
+    return str
+      .replace(/([a-z0-9])([A-Z])/g, '$1-$2')
+      .replace(/([a-zA-Z])([0-9])/g, '$1-$2')
+      .replace(/([A-Z])([A-Z][a-z])/g, '$1-$2')
+      .toLowerCase()
+  }
+
+  return {
+    name: 'lucide-treeshake-plugin',
+    transform(code, id) {
+      if (!id.endsWith('.js') && !id.endsWith('.jsx') && !id.endsWith('.tsx') && !id.endsWith('.ts')) return null
+      if (!code.includes('lucide-react')) return null
+
+      const regex = /import\s*\{([^}]+)\}\s*from\s*['"]lucide-react['"]/g
+      let hasMatch = false
+      const transformed = code.replace(regex, (_, specifiers) => {
+        hasMatch = true
+        return specifiers
+          .split(',')
+          .map(s => s.trim())
+          .filter(Boolean)
+          .map(spec => {
+            const parts = spec.split(/\s+as\s+/)
+            const name = parts[0].trim()
+            const alias = parts[1] ? parts[1].trim() : name
+            const kebab = toKebab(name)
+            return `import ${alias} from 'lucide-react/dist/esm/icons/${kebab}.mjs'`
+          })
+          .join(';\n') + ';'
+      })
+
+      return hasMatch ? { code: transformed, map: null } : null
+    },
+  }
+}
+
 export default defineConfig({
-  plugins: [react(), swVersionPlugin()],
+  plugins: [lucideTreeShakePlugin(), react(), swVersionPlugin()],
   server: {
     port: 5173,
     open: true,
@@ -34,8 +73,6 @@ export default defineConfig({
           'vendor-react': ['react', 'react-dom', 'react-router-dom'],
           // Supabase client — large dependency, rarely changes
           'vendor-supabase': ['@supabase/supabase-js'],
-          // Lucide icons — shared across all pages
-          'vendor-icons': ['lucide-react'],
         },
       },
     },

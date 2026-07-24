@@ -58,15 +58,31 @@ const DonutChart = ({
 
   const chartSummary = title || `Donut chart displaying ${segments.length} segments with total value of ${total.toLocaleString()}`;
 
+  const toggleSegment = (i) => {
+    setHoveredIdx(prev => (prev === i ? null : i));
+  };
+
+  const onSegmentKeyDown = (e, i) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      toggleSegment(i);
+    }
+  };
+
   return (
     <div className="donut-chart-wrap">
       <div className="donut-chart-svg-wrap" style={{ width: size, height: size }}>
+        {/*
+          role="group" (not "img") so nested focusable arcs are valid.
+          Do NOT set aria-hidden on this SVG — focusable descendants would be
+          hidden from AT while still tabbable (WCAG failure).
+        */}
         <svg
           width={size}
           height={size}
           viewBox={`0 0 ${size} ${size}`}
           className="donut-chart-svg"
-          role="img"
+          role="group"
           aria-label={chartSummary}
         >
           {/* Background ring */}
@@ -78,8 +94,9 @@ const DonutChart = ({
             stroke="var(--border)"
             strokeWidth={thickness}
             opacity={0.5}
+            aria-hidden="true"
           />
-          {/* Data arcs */}
+          {/* Data arcs — keyboard + pointer highlight */}
           {arcs.map((arc, i) => (
             <circle
               key={i}
@@ -92,23 +109,29 @@ const DonutChart = ({
               strokeDasharray={`${arc.dashLength} ${circumference - arc.dashLength}`}
               strokeDashoffset={mounted ? arc.dashOffset : circumference}
               strokeLinecap="butt"
-              className="donut-chart-arc"
+              className={`donut-chart-arc${hoveredIdx === i ? ' is-active' : ''}`}
               style={{
                 transform: 'rotate(-90deg)',
                 transformOrigin: '50% 50%',
                 transition: mounted
                   ? `stroke-dashoffset 0.8s cubic-bezier(0.4, 0, 0.2, 1) ${i * 0.1}s, stroke-width 0.2s ease`
                   : 'none',
-                cursor: 'pointer',
               }}
+              tabIndex={0}
+              role="button"
+              aria-label={`${arc.label}: ${arc.value.toLocaleString()}`}
+              aria-pressed={hoveredIdx === i}
               onMouseEnter={() => setHoveredIdx(i)}
               onMouseLeave={() => setHoveredIdx(null)}
+              onFocus={() => setHoveredIdx(i)}
+              onBlur={() => setHoveredIdx(null)}
+              onKeyDown={(e) => onSegmentKeyDown(e, i)}
             />
           ))}
         </svg>
-        {/* Center text */}
+        {/* Center text is visual-only; labels live on arcs/legend. */}
         {(centerLabel || centerSub) && (
-          <div className="donut-chart-center">
+          <div className="donut-chart-center" aria-hidden="true">
             {hoveredIdx !== null ? (
               <>
                 <span className="donut-chart-center-value">{arcs[hoveredIdx]?.value?.toLocaleString()}</span>
@@ -124,23 +147,29 @@ const DonutChart = ({
         )}
       </div>
 
-      {/* Legend */}
+      {/* Legend — native buttons (Enter/Space → click; no extra key handler) */}
       {showLegend && (
         <div className="donut-chart-legend">
           {arcs.map((arc, i) => (
-            <div
+            <button
               key={i}
-              className={`donut-chart-legend-item ${hoveredIdx === i ? 'active' : ''}`}
+              type="button"
+              aria-pressed={hoveredIdx === i}
+              aria-label={`${arc.label}: ${arc.value.toLocaleString()} (${(arc.pct * 100).toFixed(0)}%)`}
+              className={`donut-chart-legend-item${hoveredIdx === i ? ' active' : ''}`}
               onMouseEnter={() => setHoveredIdx(i)}
               onMouseLeave={() => setHoveredIdx(null)}
+              onFocus={() => setHoveredIdx(i)}
+              onBlur={() => setHoveredIdx(null)}
+              onClick={() => toggleSegment(i)}
             >
-              <span className="donut-chart-legend-dot" style={{ background: arc.color }} />
+              <span className="donut-chart-legend-dot" style={{ background: arc.color }} aria-hidden="true" />
               <span className="donut-chart-legend-label">{arc.label}</span>
               <span className="donut-chart-legend-value">
                 {arc.value.toLocaleString()}
                 <span className="donut-chart-legend-pct">({(arc.pct * 100).toFixed(0)}%)</span>
               </span>
-            </div>
+            </button>
           ))}
         </div>
       )}

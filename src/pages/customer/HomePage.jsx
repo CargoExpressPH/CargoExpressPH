@@ -168,55 +168,51 @@ const HomePage = () => {
           <h3 className="customer-section-title fw-700 mb-12 flex items-center gap-8">
             <Truck size={18} color="var(--primary)" /> Next Available Trip
           </h3>
-          <div className="customer-trip-card rounded-lg p-20 text-white" style={{
-            background: 'linear-gradient(135deg, var(--accent), var(--accent-light))',
-            boxShadow: '0 8px 24px rgba(15,23,42,0.18)',
-          }}>
+          {/* Same surface language as shipment / snapshot cards (theme-aware panel). */}
+          <div className="home-hero-trip-card">
             {/* Trip badge */}
             <div className="flex items-center justify-between mb-md">
               <StatusBadge status={activeTrip.status} />
-              <span className="text-xs fw-600" style={{ opacity: 0.7 }}>
+              <span className="home-trip-badge-num">
                 {activeTrip.trip_number}
               </span>
             </div>
 
             {/* Route */}
             <div className="flex items-center gap-10 mb-md">
-              <div className="w-40 h-40 rounded-full flex items-center justify-center flex-shrink-0" style={{
-                background: 'var(--primary-glow)',
-              }}>
-                <MapPin size={20} color="var(--primary-light)" />
+              <div className="home-trip-route-icon">
+                <MapPin size={20} color="var(--customer-green, var(--primary))" />
               </div>
               <div>
-                <div className="text-xs mb-2" style={{ opacity: 0.6 }}>Route</div>
-                <div className="fw-800" style={{ fontSize: '1.0625rem' }}>
+                <div className="home-trip-route-label">Route</div>
+                <div className="home-trip-route-title">
                   {activeTrip.origin} → {activeTrip.destination}
                 </div>
               </div>
             </div>
 
             {/* Dates + Capacity row */}
-            <div className="mb-20" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
-              <div className="customer-trip-metric rounded-md" style={{ background: 'rgba(255,255,255,0.08)', padding: '10px 12px' }}>
+            <div className="home-trip-metrics-grid">
+              <div className="home-trip-metric-box">
                 <div className="flex items-center gap-6 mb-4">
                   <Calendar size={13} opacity={0.7} />
-                  <span className="fw-600 text-uppercase" style={{ fontSize: '0.65rem', opacity: 0.65 }}>Departure</span>
+                  <span className="home-trip-metric-lbl">Departure</span>
                 </div>
-                <div className="fw-700" style={{ fontSize: '0.8125rem' }}>{fmtDate(activeTrip.departure_date)}</div>
+                <div className="home-trip-metric-val">{fmtDate(activeTrip.departure_date)}</div>
               </div>
-              <div className="customer-trip-metric rounded-md" style={{ background: 'rgba(255,255,255,0.08)', padding: '10px 12px' }}>
+              <div className="home-trip-metric-box">
                 <div className="flex items-center gap-6 mb-4">
                   <Calendar size={13} opacity={0.7} />
-                  <span className="fw-600 text-uppercase" style={{ fontSize: '0.65rem', opacity: 0.65 }}>ETA</span>
+                  <span className="home-trip-metric-lbl">ETA</span>
                 </div>
-                <div className="fw-700" style={{ fontSize: '0.8125rem' }}>{fmtDate(activeTrip.arrival_date)}</div>
+                <div className="home-trip-metric-val">{fmtDate(activeTrip.arrival_date)}</div>
               </div>
-              <div className="customer-trip-metric rounded-md" style={{ background: 'rgba(255,255,255,0.08)', padding: '10px 12px' }}>
+              <div className="home-trip-metric-box">
                 <div className="flex items-center gap-6 mb-4">
                   <Weight size={13} opacity={0.7} />
-                  <span className="fw-600 text-uppercase" style={{ fontSize: '0.65rem', opacity: 0.65 }}>Avail.</span>
+                  <span className="home-trip-metric-lbl">Avail.</span>
                 </div>
-                <div className="fw-700" style={{ fontSize: '0.8125rem' }}>
+                <div className="home-trip-metric-val">
                   {availableSlots > 0 ? `${availableSlots.toFixed(0)} kg` : 'Full'}
                 </div>
               </div>
@@ -224,9 +220,7 @@ const HomePage = () => {
 
             {/* Price per kilo badge */}
             {activeTrip.price_per_kg && (
-              <div className="mb-12 fw-600" style={{
-                fontSize: '0.8125rem', opacity: 0.8,
-              }}>
+              <div className="home-trip-price">
                 ₱{parseFloat(activeTrip.price_per_kg).toFixed(2)} / kg
               </div>
             )}
@@ -235,13 +229,7 @@ const HomePage = () => {
             <button
               type="button"
               onClick={() => handleBookFromTrip(activeTrip)}
-              className="customer-trip-cta w-full border-none fw-700 cursor-pointer flex items-center justify-center gap-8 rounded-md"
-              style={{
-                padding: '13px',
-                background: 'linear-gradient(135deg, var(--primary), var(--primary-light))',
-                color: 'white', fontSize: '0.9375rem',
-                boxShadow: '0 4px 16px var(--primary-glow)',
-              }}
+              className="home-trip-cta"
             >
               <Package size={18} /> Book Cargo for This Trip
               <ChevronRight size={16} />

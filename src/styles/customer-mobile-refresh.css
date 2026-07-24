@@ -3,14 +3,14 @@
    Final customer-only layer inspired by modern logistics and service apps.
    ----------------------------------------------------------------------- */
 
-.hero-search-input {
-  background: rgba(255, 255, 255, 0.15) !important;
-  border: 1px solid rgba(255, 255, 255, 0.2) !important;
-  color: white !important;
+.customer-layout-v2 .hero-search-input {
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: white;
 }
 
-.hero-search-input::placeholder {
-  color: rgba(255, 255, 255, 0.65) !important;
+.customer-layout-v2 .hero-search-input::placeholder {
+  color: rgba(255, 255, 255, 0.65);
 }
 
 .customer-layout-v2 {
@@ -110,7 +110,7 @@
 
 .customer-layout-v2 .text-primary,
 .customer-layout-v2 .text-accent {
-  color: var(--customer-green) !important;
+  color: var(--customer-green);
 }
 
 .customer-layout-v2 .badge-info,
@@ -163,7 +163,7 @@
   border-radius: 13px;
   background: linear-gradient(145deg, #0B1220, #173725);
   color: #FFFFFF;
-  stroke: var(--customer-green) !important;
+  stroke: var(--customer-green);
   box-shadow: 0 10px 22px rgba(15, 23, 42, 0.16);
 }
 
@@ -177,9 +177,9 @@
   letter-spacing: 0;
 }
 
-.customer-navbar-brand .text-accent,
-.customer-navbar-brand .text-primary {
-  color: var(--customer-green) !important;
+.customer-layout-v2 .customer-navbar-brand .text-accent,
+.customer-layout-v2 .customer-navbar-brand .text-primary {
+  color: var(--customer-green);
 }
 
 .customer-nav-link {
@@ -333,12 +333,12 @@
 
 .customer-home-hero {
   min-height: 236px;
-  margin-bottom: 0 !important;
+  margin-bottom: 0;
   padding: 28px;
   border-radius: 30px;
   background:
     linear-gradient(135deg, rgba(9, 68, 47, 0.96), rgba(18, 138, 90, 0.88)),
-    var(--customer-green-dark) !important;
+    var(--customer-green-dark);
   box-shadow: 0 24px 58px rgba(9, 68, 47, 0.22);
 }
 
@@ -366,7 +366,7 @@
   width: fit-content;
   min-height: 30px;
   align-items: center;
-  margin-bottom: 10px !important;
+  margin-bottom: 10px;
   padding: 5px 11px;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.14);
@@ -376,62 +376,62 @@
 }
 
 .customer-home-hero .customer-track-form {
-  margin-top: 24px !important;
+  margin-top: 24px;
 }
 
 .customer-home-hero .customer-track-form .search-box input {
   min-height: 52px;
-  border-radius: 18px !important;
-  background: rgba(255, 255, 255, 0.08) !important;
-  border: 1.5px solid rgba(255, 255, 255, 0.18) !important;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1.5px solid rgba(255, 255, 255, 0.18);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  color: #FFFFFF !important;
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.08) !important;
-  transition: all 0.2s ease !important;
+  color: #FFFFFF;
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.08);
+  transition: all 0.2s ease;
 }
 
 .customer-home-hero .customer-track-form .search-box input:focus {
-  background: rgba(255, 255, 255, 0.14) !important;
-  border-color: rgba(255, 255, 255, 0.45) !important;
-  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.18) !important;
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.45);
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.18);
 }
 
 .customer-home-hero .customer-track-form .search-box input::placeholder {
-  color: rgba(255, 255, 255, 0.62) !important;
+  color: rgba(255, 255, 255, 0.62);
 }
 
 .customer-home-hero .customer-track-form .search-icon {
-  color: rgba(255, 255, 255, 0.72) !important;
+  color: rgba(255, 255, 255, 0.72);
 }
 
 .customer-home-hero .customer-track-form .btn {
   min-width: 92px;
   min-height: 52px;
-  border-radius: 18px !important;
-  background: #FFFFFF !important;
-  color: #044E32 !important;
-  font-weight: 800 !important;
+  border-radius: 18px;
+  background: #FFFFFF;
+  color: #044E32;
+  font-weight: 800;
   box-shadow: 0 14px 26px rgba(0, 0, 0, 0.13);
 }
 
 .customer-home-hero .customer-track-form .btn:disabled {
-  background: rgba(255, 255, 255, 0.82) !important;
-  color: rgba(4, 78, 50, 0.65) !important;
-  opacity: 0.8 !important;
+  background: rgba(255, 255, 255, 0.82);
+  color: rgba(4, 78, 50, 0.65);
+  opacity: 0.8;
   cursor: not-allowed;
 }
 
 [data-theme="dark"] .customer-home-hero .customer-track-form .btn {
-  background: #FFFFFF !important;
-  color: #044E32 !important;
-  font-weight: 800 !important;
+  background: #FFFFFF;
+  color: #044E32;
+  font-weight: 800;
 }
 
 [data-theme="dark"] .customer-home-hero .customer-track-form .btn:disabled {
-  background: rgba(255, 255, 255, 0.82) !important;
-  color: rgba(4, 78, 50, 0.65) !important;
-  opacity: 0.8 !important;
+  background: rgba(255, 255, 255, 0.82);
+  color: rgba(4, 78, 50, 0.65);
+  opacity: 0.8;
 }
 
 .customer-home-snapshot {
@@ -468,25 +468,26 @@
   font-weight: 700;
 }
 
-.customer-trip-card {
+/* Soft panel trip cards (trips list + home next-available). Same family as
+   shipment cards / snapshot pills: light panel light mode, dark panel dark mode. */
+.customer-layout-v2 .customer-trip-card,
+.customer-layout-v2 .home-hero-trip-card {
   overflow: hidden;
   border: 1px solid color-mix(in srgb, var(--customer-green) 22%, transparent);
-  border-radius: 28px !important;
+  border-radius: 28px;
   background:
     linear-gradient(135deg, color-mix(in srgb, var(--customer-green-soft) 82%, var(--customer-panel-solid) 18%), var(--customer-panel-solid) 62%),
-    var(--customer-panel-solid) !important;
-  color: var(--customer-ink) !important;
-  box-shadow: var(--customer-shadow) !important;
+    var(--customer-panel-solid);
+  color: var(--customer-ink);
+  box-shadow: var(--customer-shadow);
 }
 
-.customer-trip-card * {
-  color: inherit;
-}
-
-.customer-trip-card .customer-trip-cta {
-  background: linear-gradient(135deg, var(--customer-green), #22C55E) !important;
-  color: #FFFFFF !important;
-  box-shadow: 0 14px 28px rgba(18, 138, 90, 0.22) !important;
+/* Do not use `* { color: inherit }` — it breaks StatusBadge / .badge colors. */
+.customer-layout-v2 .customer-trip-card .customer-trip-cta,
+.customer-layout-v2 .home-hero-trip-card .home-trip-cta {
+  background: linear-gradient(135deg, var(--customer-green), #22C55E);
+  color: #FFFFFF;
+  box-shadow: 0 14px 28px rgba(18, 138, 90, 0.22);
 }
 
 .customer-shipment-card,
@@ -561,7 +562,7 @@
 }
 
 .customer-orders-search.search-box {
-  margin-bottom: 14px !important;
+  margin-bottom: 14px ;
 }
 
 .customer-order-tabs,
@@ -712,15 +713,15 @@
   gap: 12px;
 }
 
-.customer-route-option {
+.customer-layout-v2 .customer-route-option {
   min-height: 118px;
-  border-radius: 24px !important;
+  border-radius: 24px;
   box-shadow: none;
 }
 
-.customer-route-option[aria-pressed="true"] {
-  background: var(--customer-green-soft) !important;
-  border-color: var(--customer-green) !important;
+.customer-layout-v2 .customer-route-option[aria-pressed="true"] {
+  background: var(--customer-green-soft);
+  border-color: var(--customer-green);
   box-shadow: 0 12px 28px rgba(18, 138, 90, 0.12);
 }
 
@@ -857,7 +858,7 @@
 
 .customer-order-detail-header {
   align-items: flex-start;
-  margin-bottom: 6px !important;
+  margin-bottom: 6px ;
   padding: 18px;
   border: 1px solid var(--customer-line);
   border-radius: 26px;
@@ -1136,9 +1137,9 @@
 .profile-quick-stats {
   gap: 10px;
   margin: 16px 0;
-  border: 0 !important;
-  background: transparent !important;
-  box-shadow: none !important;
+  border: 0 ;
+  background: transparent ;
+  box-shadow: none ;
 }
 
 .profile-stat-item {
@@ -1159,7 +1160,7 @@
 .profile-menu-item {
   min-height: 74px;
   padding: 16px 18px;
-  border-bottom: 1px solid var(--customer-line) !important;
+  border-bottom: 1px solid var(--customer-line) ;
   display: flex;
   align-items: center;
   gap: 14px;
@@ -1174,7 +1175,7 @@
 }
 
 .profile-menu-item:last-child {
-  border-bottom: none !important;
+  border-bottom: none ;
 }
 
 .profile-menu-item:hover {
@@ -1274,7 +1275,7 @@ input:checked + .toggle-slider:before {
 }
 
 .form-input-icon-left {
-  padding-left: 44px !important;
+  padding-left: 44px ;
 }
 
 .support-chat-page {
@@ -1284,7 +1285,7 @@ input:checked + .toggle-slider:before {
 }
 
 .support-chat-page > .mb-16 {
-  margin-bottom: 4px !important;
+  margin-bottom: 4px ;
 }
 
 .support-chat-page h2 {
@@ -1356,8 +1357,8 @@ input:checked + .toggle-slider:before {
 }
 
 .customer-main:has(.support-chat-page) {
-  padding-bottom: calc(94px + var(--customer-safe-bottom)) !important;
-  scroll-padding-bottom: calc(94px + var(--customer-safe-bottom)) !important;
+  padding-bottom: calc(94px + var(--customer-safe-bottom)) ;
+  scroll-padding-bottom: calc(94px + var(--customer-safe-bottom)) ;
 }
 
 @media (max-width: 899.98px) {
@@ -1380,7 +1381,7 @@ input:checked + .toggle-slider:before {
   .customer-main {
     width: 100%;
     max-width: 560px;
-    padding: 18px 18px calc(160px + var(--customer-safe-bottom)) !important;
+    padding: 18px 18px calc(160px + var(--customer-safe-bottom)) ;
   }
 
   .customer-page-heading,
@@ -1495,7 +1496,7 @@ input:checked + .toggle-slider:before {
 
 @media (max-width: 374px) {
   .customer-main {
-    padding-inline: 14px !important;
+    padding-inline: 14px ;
   }
 
   .customer-navbar-inner {
@@ -1528,7 +1529,7 @@ input:checked + .toggle-slider:before {
 .customer-payment-history-table {
   width: 100%;
   border-collapse: collapse;
-  margin: 0 !important;
+  margin: 0 ;
 }
 
 .customer-payment-history-table thead {
@@ -1536,26 +1537,26 @@ input:checked + .toggle-slider:before {
 }
 
 .customer-payment-history-table th {
-  padding: 12px 16px !important;
+  padding: 12px 16px ;
   font-size: 0.75rem;
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--customer-green-dark);
-  border-bottom: 1px solid var(--customer-line) !important;
+  border-bottom: 1px solid var(--customer-line) ;
   text-align: left;
 }
 
 .customer-payment-history-table td {
-  padding: 12px 16px !important;
+  padding: 12px 16px ;
   font-size: 0.8125rem;
   color: var(--customer-ink);
-  border-bottom: 1px solid var(--customer-line) !important;
+  border-bottom: 1px solid var(--customer-line) ;
   text-align: left;
 }
 
 .customer-payment-history-table tbody tr:last-child td {
-  border-bottom: none !important;
+  border-bottom: none ;
 }
 
 .customer-payment-history-table tbody tr:hover {
@@ -1577,7 +1578,7 @@ input:checked + .toggle-slider:before {
   }
 
   .customer-payment-history-table thead {
-    display: none !important;
+    display: none ;
   }
 
   .customer-payment-history-table tbody {
@@ -1589,7 +1590,7 @@ input:checked + .toggle-slider:before {
   .customer-payment-history-table tbody tr {
     display: flex;
     flex-direction: column;
-    padding: 16px !important;
+    padding: 16px ;
     background: var(--customer-panel);
     border: 1px solid var(--customer-line);
     border-radius: 20px;
@@ -1602,18 +1603,18 @@ input:checked + .toggle-slider:before {
   }
 
   .customer-payment-history-table td {
-    display: flex !important;
+    display: flex ;
     align-items: center;
     justify-content: space-between;
-    padding: 0 0 6px 0 !important;
-    border-bottom: 1px solid color-mix(in srgb, var(--customer-line) 40%, transparent) !important;
+    padding: 0 0 6px 0 ;
+    border-bottom: 1px solid color-mix(in srgb, var(--customer-line) 40%, transparent) ;
     font-size: 0.8125rem;
-    text-align: right !important;
+    text-align: right ;
   }
 
   .customer-payment-history-table td:last-child {
-    border-bottom: none !important;
-    padding-bottom: 0 !important;
+    border-bottom: none ;
+    padding-bottom: 0 ;
   }
 
   /* Inline mobile labels using data-label attribute */
@@ -1633,34 +1634,34 @@ input:checked + .toggle-slider:before {
 /* ── Auto-hide customer bottom navigation when typing on mobile ── */
 body.keyboard-active .customer-bottom-nav,
 body:has(input:is([type="text"], [type="search"], [type="password"], [type="email"], [type="tel"], [type="number"], [type="url"], [type="date"], [type="time"], [type="datetime-local"]):focus, textarea:focus) .customer-bottom-nav {
-  transform: translateY(180%) !important;
-  opacity: 0 !important;
-  pointer-events: none !important;
-  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease !important;
+  transform: translateY(180%) ;
+  opacity: 0 ;
+  pointer-events: none ;
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease ;
 }
 
 /* Remove bottom nav padding reservation when keyboard is active so input field sits directly above software keyboard */
 body.keyboard-active .customer-main,
 body.keyboard-active .customer-main:has(.support-chat-page),
 body:has(textarea:focus) .customer-main:has(.support-chat-page) {
-  padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px)) !important;
-  scroll-padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px)) !important;
+  padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px)) ;
+  scroll-padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px)) ;
 }
 
 body.keyboard-active .support-chat-page,
 body:has(textarea:focus) .support-chat-page {
-  height: calc(100dvh - 76px) !important;
-  min-height: 280px !important;
+  height: calc(100dvh - 76px) ;
+  min-height: 280px ;
 }
 
 /* --- Premium Shipment List Cards ---------------------------------------- */
 .customer-shipment-card-v2 {
-  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease, border-color 0.2s ease !important;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease, border-color 0.2s ease ;
 }
 
 .customer-shipment-card-v2:hover {
-  border-color: var(--customer-green) !important;
-  box-shadow: var(--shadow-md) !important;
+  border-color: var(--customer-green) ;
+  box-shadow: var(--shadow-md) ;
 }
 
 .customer-list-card-booked-date {

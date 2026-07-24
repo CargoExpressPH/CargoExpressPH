@@ -194,41 +194,41 @@ body {
   min-height: 48px;
 }
 
-.customer-home-hero .customer-track-form .search-box input {
+.customer-layout-v2 .customer-home-hero .customer-track-form .search-box input {
   min-height: 48px;
   padding: 12px 16px 12px 44px;
   border-radius: 14px;
-  background: rgba(255, 255, 255, 0.18) !important;
-  border: 1.5px solid rgba(255, 255, 255, 0.32) !important;
-  color: #fff !important;
+  background: rgba(255, 255, 255, 0.18);
+  border: 1.5px solid rgba(255, 255, 255, 0.32);
+  color: #fff;
   cursor: text;
 }
 
-.customer-home-hero .customer-track-form .search-box input::placeholder {
+.customer-layout-v2 .customer-home-hero .customer-track-form .search-box input::placeholder {
   color: rgba(255, 255, 255, 0.72);
 }
 
-.customer-home-hero .customer-track-form .search-box input:hover {
-  background: rgba(255, 255, 255, 0.22) !important;
-  border-color: rgba(255, 255, 255, 0.44) !important;
+.customer-layout-v2 .customer-home-hero .customer-track-form .search-box input:hover {
+  background: rgba(255, 255, 255, 0.22);
+  border-color: rgba(255, 255, 255, 0.44);
 }
 
-.customer-home-hero .customer-track-form .search-box input:focus {
-  background: rgba(255, 255, 255, 0.24) !important;
-  border-color: rgba(255, 255, 255, 0.72) !important;
+.customer-layout-v2 .customer-home-hero .customer-track-form .search-box input:focus {
+  background: rgba(255, 255, 255, 0.24);
+  border-color: rgba(255, 255, 255, 0.72);
   box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.18);
 }
 
-.customer-home-hero .customer-track-form .search-icon {
+.customer-layout-v2 .customer-home-hero .customer-track-form .search-icon {
   left: 15px;
   color: rgba(255, 255, 255, 0.82);
   z-index: 1;
 }
 
-.customer-home-hero .customer-track-form .btn {
+.customer-layout-v2 .customer-home-hero .customer-track-form .btn {
   min-height: 48px;
   padding-inline: 18px;
-  border-radius: 14px !important;
+  border-radius: 14px;
   white-space: nowrap;
 }
 
@@ -246,15 +246,15 @@ body {
   column-gap: 14px;
   align-items: center;
   padding: 20px;
-  background: var(--surface) !important;
-  color: var(--text) !important;
+  background: var(--surface);
+  color: var(--text);
   border: 1px solid var(--border);
   box-shadow: var(--shadow-sm);
 }
 
 .app-layout .stat-card::before,
 .app-layout .stat-card::after {
-  display: none !important;
+  display: none;
 }
 
 .app-layout .stat-card .stat-icon {
@@ -280,6 +280,7 @@ body {
 .app-layout .stat-card-success .stat-icon { color: var(--success); background: var(--success-bg); }
 .app-layout .stat-card-warning .stat-icon { color: var(--warning); background: var(--warning-bg); }
 .app-layout .stat-card-danger .stat-icon { color: var(--error); background: var(--error-bg); }
+.app-layout .stat-card-accent .stat-icon { color: var(--accent); background: color-mix(in srgb, var(--accent) 15%, transparent); }
 
 .app-layout .stat-card .stat-value {
   grid-area: value;
@@ -298,12 +299,22 @@ body {
 }
 
 .app-layout .stat-card:not(:has(.stat-icon)) {
-  grid-template-columns: minmax(0, 1fr);
-  grid-template-areas:
-    "value"
-    "label";
-  align-content: center;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  padding: 18px 20px;
+  min-height: 100px;
+  position: relative;
+  overflow: hidden;
 }
+
+.app-layout .stat-card-primary:not(:has(.stat-icon))::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3.5px; background: var(--primary); }
+.app-layout .stat-card-success:not(:has(.stat-icon))::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3.5px; background: var(--success); }
+.app-layout .stat-card-warning:not(:has(.stat-icon))::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3.5px; background: var(--warning); }
+.app-layout .stat-card-danger:not(:has(.stat-icon))::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3.5px; background: var(--error); }
+.app-layout .stat-card-info:not(:has(.stat-icon))::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3.5px; background: var(--info); }
+.app-layout .stat-card-accent:not(:has(.stat-icon))::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3.5px; background: var(--accent); }
 
 .admin-section-card,
 .admin-table-card {
@@ -801,9 +812,9 @@ body {
 }
 
 .profile-page .profile-quick-stats {
-  box-shadow: none !important;
-  border: none !important;
-  background: transparent !important;
+  box-shadow: none;
+  border: none;
+  background: transparent;
 }
 
 .profile-page .profile-menu-card {
@@ -994,7 +1005,7 @@ body {
 }
 
 [data-theme="dark"] .public-about-brand svg {
-  stroke: var(--primary-dark) !important;
+  stroke: var(--primary-dark);
 }
 
 [data-theme="dark"] .public-about-back {
@@ -1006,14 +1017,14 @@ body {
 }
 
 [data-theme="dark"] .public-about-feature-grid .rounded-md {
-  background: linear-gradient(135deg, rgba(22, 163, 74, 0.20), rgba(22, 163, 74, 0.08)) !important;
+  background: linear-gradient(135deg, rgba(22, 163, 74, 0.20), rgba(22, 163, 74, 0.08));
   color: var(--primary-dark);
   border: 1px solid rgba(240, 157, 92, 0.24);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
 [data-theme="dark"] .public-about-content-grid .w-36.h-36.rounded-sm {
-  background: color-mix(in srgb, var(--surface-raised) 72%, var(--bg) 28%) !important;
+  background: color-mix(in srgb, var(--surface-raised) 72%, var(--bg) 28%);
   border: 1px solid var(--border);
 }
 
@@ -1057,7 +1068,7 @@ body {
 
 [data-theme="dark"] .public-about-page footer {
   background: rgba(7, 17, 31, 0.72);
-  border-top-color: rgba(148, 163, 184, 0.12) !important;
+  border-top-color: rgba(148, 163, 184, 0.12);
 }
 
 [data-theme="dark"] .fp-hero-icon svg,
@@ -1196,13 +1207,13 @@ body {
   }
 
   .customer-main {
-    padding-bottom: var(--customer-bottom-nav-reserve) !important;
-    scroll-padding-bottom: var(--customer-bottom-nav-reserve) !important;
+    padding-bottom: var(--customer-bottom-nav-reserve);
+    scroll-padding-bottom: var(--customer-bottom-nav-reserve);
   }
 
   .customer-main:has(.support-chat-page) {
-    padding-bottom: calc(94px + env(safe-area-inset-bottom, 0px)) !important;
-    scroll-padding-bottom: calc(94px + env(safe-area-inset-bottom, 0px)) !important;
+    padding-bottom: calc(94px + env(safe-area-inset-bottom, 0px));
+    scroll-padding-bottom: calc(94px + env(safe-area-inset-bottom, 0px));
   }
 
   .booking-page {

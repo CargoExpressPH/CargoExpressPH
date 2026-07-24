@@ -108,12 +108,20 @@ input, select, textarea {
     --border-hover: #475569;
     --text-secondary: #1E293B;
     --text-tertiary: #475569;
+    --glass-bg: #FFFFFF;
+    --glass-border: #64748B;
   }
   [data-theme="dark"]:root {
     --border: #475569;
     --border-hover: #64748B;
     --text-secondary: #CBD5E1;
     --text-tertiary: #94A3B8;
+    --glass-bg: #0F172A;
+    --glass-border: #475569;
+  }
+  * {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
   }
 }
 

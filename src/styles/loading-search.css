@@ -64,6 +64,21 @@
   height: 14px; border-radius: var(--radius-xs);
 }
 
+.skeleton-chat-list {
+  display: flex; flex-direction: column; gap: 16px; margin-top: 20px;
+}
+.skeleton-chat-msg-row {
+  display: flex; gap: 10px; width: 75%;
+}
+.skeleton-chat-msg-row.start { align-self: flex-start; }
+.skeleton-chat-msg-row.end { align-self: flex-end; width: 65%; justify-content: flex-end; }
+.skeleton-chat-bubble-col {
+  flex: 1; display: flex; flex-direction: column; gap: 6px;
+}
+.skeleton-chat-msg-row.end .skeleton-chat-bubble-col { align-items: flex-end; }
+.skeleton-chat-bubble-start { border-radius: 4px 16px 16px 16px; }
+.skeleton-chat-bubble-end { border-radius: 16px 4px 16px 16px; }
+
 
 /* --- EMPTY STATE ------------------------------------------------------- */
 

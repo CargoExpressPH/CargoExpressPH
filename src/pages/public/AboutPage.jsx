@@ -8,7 +8,7 @@ import {
   getFeaturedDeliveries
 } from '../../lib/database';
 import { resolvePhotoUrls } from '../../lib/storage';
-import * as LucideIcons from 'lucide-react';
+import { getFeatureIcon } from '../../lib/featureIcons';
 import {
   Container, ArrowUp, Phone, MapPin, Globe, Loader, Send,
   Mail, Clock, Calendar, CheckCircle2,
@@ -143,8 +143,8 @@ const InteractiveMap = ({ coverage, selectedRegionId, onSelectRegion }) => {
   };
 
   return (
-    <div style={{ position: 'relative', width: '100%', height: 460, borderRadius: 24, overflow: 'hidden', marginTop: 24, boxShadow: 'var(--shadow-lg)', border: '1px solid rgba(255,255,255,0.08)', background: '#0b2540' }}>
-      <svg viewBox="0 0 280 420" style={{ width: '100%', height: '100%', display: 'block' }} xmlns="http://www.w3.org/2000/svg">
+    <div className="about-map-box">
+      <svg viewBox="0 0 280 420" className="about-map-svg" xmlns="http://www.w3.org/2000/svg">
         <defs>
           {/* Ocean: deep navy â†’ tropical teal */}
           <linearGradient id="oceanGrad" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -453,10 +453,10 @@ const InteractiveMap = ({ coverage, selectedRegionId, onSelectRegion }) => {
         })}
       </svg>
 
-      <div style={{ position: 'absolute', top: 14, left: 14, display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', background: 'rgba(4, 20, 37, 0.74)', border: '1px solid rgba(255,255,255,0.16)', borderRadius: 9, backdropFilter: 'blur(10px)', color: '#fff', fontSize: '0.7rem', fontWeight: 800, letterSpacing: '0.05em', zIndex: 2 }}>
-        <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#4ade80', boxShadow: '0 0 9px #4ade80' }} /> COVERAGE EXPLORER
+      <div className="about-coverage-tag">
+        <span className="about-green-dot" /> COVERAGE EXPLORER
       </div>
-      <div style={{ position: 'absolute', right: 12, bottom: 12, padding: '5px 7px', background: 'rgba(4, 20, 37, 0.6)', borderRadius: 5, color: 'rgba(255,255,255,0.6)', fontSize: '0.56rem', letterSpacing: '0.03em', zIndex: 2 }}>
+      <div className="about-map-hint">
         Illustrative Philippine coverage map · Select a hub for route details
       </div>
       {/* Floating Tooltip */}
@@ -959,7 +959,7 @@ const AboutPage = () => {
               viewport={{ once: true, margin: "-80px" }}
             >
               {features.map((f, i) => {
-                const Icon = LucideIcons[f.icon] || LucideIcons.Star;
+                const Icon = getFeatureIcon(f.icon);
                 const isHero = i === 0;
                 return (
                   <motion.div 

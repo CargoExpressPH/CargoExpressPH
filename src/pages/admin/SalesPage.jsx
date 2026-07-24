@@ -4,7 +4,7 @@ import { SkeletonStatCard, SkeletonDonut, SkeletonBarChart } from '../../compone
 import AnimatedCounter from '../../components/ui/AnimatedCounter';
 import DonutChart from '../../components/ui/DonutChart';
 import MiniBarChart from '../../components/ui/MiniBarChart';
-import { DollarSign } from 'lucide-react';
+import { DollarSign, CheckCircle, AlertTriangle, Clock } from 'lucide-react';
 import usePageTitle from '../../hooks/usePageTitle';
 
 const SalesPage = () => {
@@ -62,12 +62,12 @@ const SalesPage = () => {
           Array.from({ length: 4 }, (_, i) => <SkeletonStatCard key={i} />)
         ) : (
           [
-            {l:'Total Revenue', v:s.totalRevenue||0, g:'linear-gradient(135deg,var(--primary),var(--primary-light))', prefix:'₱'},
-            {l:'Collected', v:s.paidTotal||0, g:'linear-gradient(135deg,var(--success),var(--success-dark, #059669))', prefix:'₱'},
-            {l:'Outstanding', v:s.unpaidTotal||0, g:'linear-gradient(135deg,var(--error),var(--error-dark, #dc2626))', prefix:'₱'},
-            {l:'Unpaid Orders', v:s.unpaidCount||0, g:'linear-gradient(135deg,var(--warning),var(--warning-dark, #d97706))', prefix:''}
-          ].map((c,i)=>(
-            <div key={i} className="stat-card stagger-item text-white" style={{background:c.g, animationDelay: `${i * 60}ms`}}>
+            { l: 'Total Revenue', v: s.totalRevenue || 0, tone: 'primary', prefix: '₱' },
+            { l: 'Collected', v: s.paidTotal || 0, tone: 'success', prefix: '₱' },
+            { l: 'Outstanding', v: s.unpaidTotal || 0, tone: 'danger', prefix: '₱' },
+            { l: 'Unpaid Orders', v: s.unpaidCount || 0, tone: 'warning', prefix: '' }
+          ].map((c, i) => (
+            <div key={i} className={`stat-card stat-card-${c.tone} stagger-item`} style={{ animationDelay: `${i * 60}ms` }}>
               <div className="stat-value">
                 <AnimatedCounter value={c.v} prefix={c.prefix} decimals={0} duration={1200} />
               </div>
