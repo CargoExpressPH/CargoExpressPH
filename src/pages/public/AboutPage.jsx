@@ -952,26 +952,25 @@ const AboutPage = () => {
             </div>
             
             <motion.div 
-              style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 24 }}
+              style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 24 }}
               variants={containerVariants}
               initial="hidden"
               whileInView="visible"
               viewport={{ once: true, margin: "-80px" }}
             >
-              {features.map((f, i) => {
+              {features.map((f) => {
                 const Icon = getFeatureIcon(f.icon);
-                const isHero = i === 0;
                 return (
                   <motion.div 
                     key={f.id} 
-                    className={`about-bento-card ${isHero ? 'about-feature-hero' : ''}`}
+                    className="about-bento-card"
                     variants={itemVariants}
                   >
                     <div className="about-feature-icon">
                       <Icon size={28} />
                     </div>
                     <div>
-                      <h3 style={{ fontSize: isHero ? '1.5rem' : '1.25rem', fontWeight: 800, marginBottom: 12, color: 'var(--text)' }}>{f.title}</h3>
+                      <h3 style={{ fontSize: '1.25rem', fontWeight: 800, marginBottom: 12, color: 'var(--text)' }}>{f.title}</h3>
                       <p style={{ color: 'var(--text-secondary)', lineHeight: 1.6, fontSize: '0.9375rem' }}>{f.description}</p>
                     </div>
                   </motion.div>
