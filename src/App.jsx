@@ -1,6 +1,6 @@
-import { Suspense } from 'react';
+import { Suspense, useEffect } from 'react';
 import { lazyWithRetry } from './lib/lazyWithRetry';
-import { createBrowserRouter, RouterProvider, Navigate, Outlet } from 'react-router-dom';
+import { createBrowserRouter, RouterProvider, Navigate, Outlet, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { ToastProvider } from './hooks/useToast';
@@ -124,9 +124,19 @@ const RootRedirect = () => {
   return <Navigate to={userProfile.role === 'admin' ? '/admin' : '/customer'} replace />;
 };
 
+/** Automatically scrolls to top of page on route transitions */
+const ScrollToTop = () => {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
+  return null;
+};
+
 // ─── Root Layout (provides Suspense boundary for the entire route tree) ─────
 const RootLayout = () => (
   <Suspense fallback={<LoadingScreen />}>
+    <ScrollToTop />
     <Outlet />
   </Suspense>
 );

@@ -144,17 +144,21 @@ const DeliveryModal = ({ order, onClose, onSave }) => {
 
   return (
     <FocusTrap active>
-    <div className="modal-overlay" onClick={onClose} role="dialog" aria-modal="true" aria-labelledby="delivery-modal-title">
-      <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 500 }}>
+    <div className="modal-overlay" onClick={onClose}>
+      <div
+        className="modal modal-delivery"
+        onClick={e => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="delivery-modal-title"
+      >
         <div className="modal-header">
           <h3 id="delivery-modal-title"><Package size={18} aria-hidden="true" /> Confirm Delivery</h3>
           <button type="button" className="btn-icon btn-ghost" onClick={onClose} aria-label="Close delivery modal"><X size={20} aria-hidden="true" /></button>
         </div>
 
-        <div className="modal-body" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
-          <div className="pickup-summary-card flex justify-between items-center mb-20" style={{
-            background: 'var(--bg-secondary)', borderRadius: 8, padding: 14,
-          }}>
+        <div className="modal-body modal-body-scroll">
+          <div className="pickup-summary-card summary-card-secondary flex justify-between items-center mb-20">
             <div>
               <div className="fw-700 text-accent">{order.tracking_number}</div>
               <div className="text-secondary" style={{ fontSize: '0.8125rem' }}>

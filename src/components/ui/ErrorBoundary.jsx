@@ -45,13 +45,13 @@ class ErrorBoundary extends Component {
           <div className="error-boundary-actions">
             <button
               onClick={this.handleRetry}
-              className="btn btn-outline inline-flex items-center gap-8"
+              className="btn btn-outline"
             >
               Try Again
             </button>
             <button
               onClick={this.handleReload}
-              className="btn btn-primary inline-flex items-center gap-8"
+              className="btn btn-primary"
             >
               <RefreshCw size={16} />
               Reload Page

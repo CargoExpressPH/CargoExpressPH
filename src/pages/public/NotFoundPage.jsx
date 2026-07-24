@@ -1,9 +1,19 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { PackageX, Home, Search, ArrowLeft, Compass } from 'lucide-react';
 import usePageTitle from '../../hooks/usePageTitle';
 
 const NotFoundPage = () => {
   usePageTitle('Page Not Found');
+  const navigate = useNavigate();
+
+  const handleGoBack = () => {
+    if (window.history.length > 2) {
+      navigate(-1);
+    } else {
+      navigate('/', { replace: true });
+    }
+  };
+
   return (
   <main id="main-content" className="not-found-page">
     <a href="#main-content" className="skip-link">Skip to main content</a>
@@ -51,7 +61,7 @@ const NotFoundPage = () => {
 
       <button
         type="button"
-        onClick={() => window.history.back()}
+        onClick={handleGoBack}
         className="nf-back-link"
       >
         <ArrowLeft size={14} /> Go back to previous page

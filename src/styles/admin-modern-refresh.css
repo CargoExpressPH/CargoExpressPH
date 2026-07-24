@@ -153,7 +153,7 @@
 }
 
 .app-layout .sidebar-user-avatar {
-  background: linear-gradient(135deg, var(--admin-green), #22C55E);
+  background: linear-gradient(135deg, var(--admin-green), var(--primary-light));
   box-shadow: 0 10px 22px rgba(18, 138, 90, 0.22);
 }
 
@@ -290,7 +290,7 @@
   font-weight: 800;
   padding: 2px 8px;
   border-radius: 20px;
-  background: linear-gradient(135deg, var(--admin-green), #22C55E);
+  background: linear-gradient(135deg, var(--admin-green), var(--primary-light));
   color: white;
   letter-spacing: 0.02em;
   text-transform: uppercase;
@@ -433,7 +433,7 @@
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--admin-green), #22C55E);
+  background: linear-gradient(135deg, var(--admin-green), var(--primary-light));
   box-shadow: 0 0 8px rgba(18, 138, 90, 0.4);
   flex-shrink: 0;
 }
@@ -733,7 +733,7 @@
 }
 
 .app-layout .btn-primary {
-  background: linear-gradient(135deg, var(--admin-green), #22C55E);
+  background: linear-gradient(135deg, var(--admin-green), var(--primary-light));
   color: #FFFFFF;
   box-shadow: 0 14px 28px rgba(18, 138, 90, 0.24);
 }
@@ -933,7 +933,7 @@
 }
 
 .app-layout .profile-card-avatar {
-  background: linear-gradient(135deg, var(--admin-green), #22C55E);
+  background: linear-gradient(135deg, var(--admin-green), var(--primary-light));
   box-shadow: 0 16px 32px rgba(18, 138, 90, 0.24);
 }
 
