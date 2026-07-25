@@ -318,7 +318,8 @@ const SupportChatPage = () => {
           if (reply.askResolved) setPendingResolutionId(botMsg.id);
         }
       }
-    } catch {
+    } catch (err) {
+      console.error('[SupportChat] Failed to send message:', err);
       setSending(false);
       setBotTyping(false);
       toast.error('Failed to send message. Please try again.');

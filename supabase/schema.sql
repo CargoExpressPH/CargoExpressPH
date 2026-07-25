@@ -1108,6 +1108,8 @@ $$;
 CREATE OR REPLACE FUNCTION public.log_customer_chat_message()
 RETURNS TRIGGER
 LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
 AS $$
 BEGIN
   IF NEW.sender_role = 'customer' THEN
