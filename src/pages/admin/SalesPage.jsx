@@ -5,6 +5,7 @@ import AnimatedCounter from '../../components/ui/AnimatedCounter';
 import DonutChart from '../../components/ui/DonutChart';
 import MiniBarChart from '../../components/ui/MiniBarChart';
 import { DollarSign, CheckCircle, AlertTriangle, Clock } from 'lucide-react';
+import EmptyState from '../../components/ui/EmptyState';
 import usePageTitle from '../../hooks/usePageTitle';
 
 const SalesPage = () => {
@@ -103,7 +104,11 @@ const SalesPage = () => {
           <div className="card-header"><h3>Monthly Revenue</h3></div>
           <div className="card-body">
             {loading ? <SkeletonBarChart height={180} bars={8} /> : monthlySales.length === 0 ? (
-              <div className="text-center text-secondary p-20">No sales data</div>
+              <EmptyState
+                icon={DollarSign}
+                title="No sales data"
+                description="No revenue records available for this period."
+              />
             ) : (
               <MiniBarChart
                 height={180}

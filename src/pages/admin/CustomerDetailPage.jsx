@@ -5,6 +5,7 @@ import StatusBadge from '../../components/ui/StatusBadge';
 import AnimatedCounter from '../../components/ui/AnimatedCounter';
 import { SkeletonStatCard, SkeletonText } from '../../components/ui/SkeletonLoader';
 import { ArrowLeft, User, Mail, Phone, MapPin, Package, DollarSign, CheckCircle, Clock } from 'lucide-react';
+import EmptyState from '../../components/ui/EmptyState';
 import Breadcrumb from '../../components/ui/Breadcrumb';
 import usePageTitle from '../../hooks/usePageTitle';
 
@@ -97,7 +98,18 @@ const CustomerDetailPage = () => {
                 <td data-label="Cost">₱{parseFloat(o.shipping_cost||0).toFixed(2)}</td><td data-label="Status"><StatusBadge status={o.status} size="sm"/></td>
                 <td data-label="Date" className="text-xs text-secondary">{new Date(o.created_at).toLocaleDateString()}</td></tr>
               ))}
-              {orders.length===0&&<tr><td colSpan={5} className="text-center text-secondary p-30">No orders</td></tr>}
+              {orders.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="p-0 b-0">
+                    <EmptyState
+                      icon={Package}
+                      title="No orders found"
+                      description="This customer has not placed any cargo orders yet."
+                      className="empty-state-compact"
+                    />
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>

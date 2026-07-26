@@ -117,10 +117,13 @@
 
 .login-left-content { position: relative; z-index: 1; }
 .login-brand {
-  display: flex; align-items: center; gap: 14px; margin-bottom: 52px;
+  display: flex; align-items: center; gap: 10px; margin-bottom: 52px;
 }
 .login-brand h1 {
-  font-size: 1.75rem; font-weight: 900; color: white; letter-spacing: -0.02em;
+  display: flex; gap: 4px; margin: 0; font-size: 2rem; font-weight: 900; color: white; letter-spacing: -0.02em;
+}
+.login-brand h1 .brand-accent {
+  color: var(--primary-light);
 }
 .login-tagline {
   font-size: clamp(2rem, 3vw, 2.75rem); font-weight: 900; color: white;

@@ -11,6 +11,7 @@ import IosInstallBanner from '../ui/IosInstallBanner';
 import ErrorBoundary from '../ui/ErrorBoundary';
 import ConfirmModal from '../ui/ConfirmModal';
 import OnboardingModal from '../ui/OnboardingModal';
+import { motion, AnimatePresence } from 'framer-motion';
 import PageTransition from '../ui/PageTransition';
 
 const desktopNavItems = [
@@ -271,41 +272,50 @@ const CustomerLayout = () => {
                 </div>
               </button>
 
-              {dropdownOpen && (
-                <div className="customer-dropdown" role="menu">
-                  <div className="customer-dropdown-header">
-                    <div className="fw-600 text-sm">
-                      {getDisplayName(userProfile, user?.email)}
+              <AnimatePresence>
+                {dropdownOpen && (
+                  <motion.div
+                    className="customer-dropdown"
+                    role="menu"
+                    initial={{ opacity: 0, scale: 0.95, y: -8 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95, y: -6 }}
+                    transition={{ duration: 0.15, ease: 'easeOut' }}
+                  >
+                    <div className="customer-dropdown-header">
+                      <div className="fw-600 text-sm">
+                        {getDisplayName(userProfile, user?.email)}
+                      </div>
+                      <div className="text-xs text-secondary mt-2">
+                        {user?.email}
+                      </div>
                     </div>
-                    <div className="text-xs text-secondary mt-2">
-                      {user?.email}
+                    <div className="p-8">
+                      <Link
+                        to="/customer/profile"
+                        onClick={() => setDropdownOpen(false)}
+                        className="customer-dropdown-item"
+                        role="menuitem"
+                      >
+                        <User size={16} /> My Profile
+                        <ChevronRight size={14} className="ml-auto" style={{ opacity: 0.4 }} />
+                      </Link>
+                      <Link
+                        to="/customer/personal-info"
+                        onClick={() => setDropdownOpen(false)}
+                        className="customer-dropdown-item"
+                        role="menuitem"
+                      >
+                        <Settings size={16} /> Account Settings
+                        <ChevronRight size={14} className="ml-auto" style={{ opacity: 0.4 }} />
+                      </Link>
+                      <button onClick={() => { setDropdownOpen(false); setShowLogoutConfirm(true); }} className="customer-dropdown-item danger" role="menuitem">
+                        <LogOut size={16} /> Logout
+                      </button>
                     </div>
-                  </div>
-                  <div className="p-8">
-                    <Link
-                      to="/customer/profile"
-                      onClick={() => setDropdownOpen(false)}
-                      className="customer-dropdown-item"
-                      role="menuitem"
-                    >
-                      <User size={16} /> My Profile
-                      <ChevronRight size={14} className="ml-auto" style={{ opacity: 0.4 }} />
-                    </Link>
-                    <Link
-                      to="/customer/personal-info"
-                      onClick={() => setDropdownOpen(false)}
-                      className="customer-dropdown-item"
-                      role="menuitem"
-                    >
-                      <Settings size={16} /> Account Settings
-                      <ChevronRight size={14} className="ml-auto" style={{ opacity: 0.4 }} />
-                    </Link>
-                    <button onClick={() => { setDropdownOpen(false); setShowLogoutConfirm(true); }} className="customer-dropdown-item danger" role="menuitem">
-                      <LogOut size={16} /> Logout
-                    </button>
-                  </div>
-                </div>
-              )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           </div>
         </div>

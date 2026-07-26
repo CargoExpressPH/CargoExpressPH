@@ -109,6 +109,23 @@
   line-height: 1.6; margin-bottom: 20px;
 }
 
+/* Compact variant for tight containers like table cells */
+.empty-state-premium.empty-state-compact {
+  min-height: 0; padding: 28px 16px;
+}
+.empty-state-premium.empty-state-compact .empty-state-icon-wrap {
+  width: 56px; height: 56px; margin-bottom: 12px;
+}
+.empty-state-premium.empty-state-compact .empty-state-icon-wrap svg {
+  width: 28px; height: 28px;
+}
+.empty-state-premium.empty-state-compact h3 {
+  font-size: 1rem; margin-bottom: 4px;
+}
+.empty-state-premium.empty-state-compact p {
+  font-size: 0.85rem; margin-bottom: 0;
+}
+
 /* Legacy empty state */
 .empty-state-icon { font-size: 3rem; margin-bottom: 16px; opacity: 0.3; }
 .empty-state h3 { font-size: 1.125rem; font-weight: 700; margin-bottom: 8px; }

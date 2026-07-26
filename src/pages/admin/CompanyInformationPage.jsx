@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '../../hooks/useToast';
 import ConfirmModal from '../../components/ui/ConfirmModal';
+import { SkeletonText } from '../../components/ui/SkeletonLoader';
 import CompanyInfoFeaturesTab from './CompanyInfoFeaturesTab';
 import CompanyInfoCoverageTab from './CompanyInfoCoverageTab';
 import usePageTitle from '../../hooks/usePageTitle';
@@ -154,8 +155,14 @@ const CompanyInformationPage = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center" style={{ minHeight: 300 }}>
-        <Loader size={28} className="animate-spin" style={{ color: 'var(--primary)' }} />
+      <div className="page-transition">
+        <div className="card p-24 mb-16">
+          <div className="skeleton skeleton-text w-80 mb-16" style={{ height: 28 }} />
+          <SkeletonText lines={4} />
+        </div>
+        <div className="card p-24">
+          <SkeletonText lines={6} />
+        </div>
       </div>
     );
   }

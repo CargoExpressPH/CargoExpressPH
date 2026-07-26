@@ -49,6 +49,7 @@ const RegisterPage = () => {
   const [showPw,        setShowPw]        = useState(false);
   const [showConfirmPw, setShowConfirmPw] = useState(false);
   const [error,         setError]         = useState('');
+  const [fieldErrors,   setFieldErrors]   = useState({});
   const [phoneError,    setPhoneError]    = useState('');
   const [loading,       setLoading]       = useState(false);
   const [success,       setSuccess]       = useState(false);
@@ -58,7 +59,10 @@ const RegisterPage = () => {
   const { register } = useAuth();
   const navigate     = useNavigate();
 
-  const update = (k, v) => setForm(p => ({ ...p, [k]: v }));
+  const update = (k, v) => {
+    setForm(p => ({ ...p, [k]: v }));
+    setFieldErrors(p => ({ ...p, [k]: '' }));
+  };
   const cities = form.address_province ? PH_LOCATIONS[form.address_province] || [] : [];
   const pwStrength = getPasswordStrength(form.password);
 
@@ -67,8 +71,11 @@ const RegisterPage = () => {
     topRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, [step]);
 
-  const showError = (message) => {
+  const showError = (message, field = null) => {
     setError(message);
+    if (field) {
+      setFieldErrors(p => ({ ...p, [field]: message }));
+    }
     requestAnimationFrame(() => {
       const target = errorRef.current || topRef.current;
       target?.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -88,41 +95,44 @@ const RegisterPage = () => {
   };
 
   const goToStep2 = () => {
+    setFieldErrors({});
     if (!form.name.trim())
-      return showError('Full name is required.');
+      return showError('Full name is required.', 'name');
     if (!form.email.trim())
-      return showError('Email address is required.');
+      return showError('Email address is required.', 'email');
     if (!isEmailValid(form.email))
-      return showError('Please enter a valid email address.');
+      return showError('Please enter a valid email address.', 'email');
     if (form.phone && !isPhoneValid(form.phone))
-      return showError('Mobile number must be 11 digits starting with 09.');
+      return showError('Mobile number must be 11 digits starting with 09.', 'phone');
     const passwordError = getPasswordError(form.password);
     if (passwordError)
-      return showError(passwordError);
+      return showError(passwordError, 'password');
     if (!form.confirmPassword)
-      return showError('Please confirm your password.');
+      return showError('Please confirm your password.', 'confirmPassword');
     if (form.password !== form.confirmPassword)
-      return showError('Passwords do not match.');
+      return showError('Passwords do not match.', 'confirmPassword');
     setError('');
+    setFieldErrors({});
     setStep(2);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.name.trim()) return showError('Full name is required.');
-    if (!form.email.trim()) return showError('Email address is required.');
-    if (!isEmailValid(form.email)) return showError('Please enter a valid email address.');
-    if (form.phone && !isPhoneValid(form.phone)) return showError('Mobile number must be 11 digits starting with 09.');
+    setFieldErrors({});
+    if (!form.name.trim()) return showError('Full name is required.', 'name');
+    if (!form.email.trim()) return showError('Email address is required.', 'email');
+    if (!isEmailValid(form.email)) return showError('Please enter a valid email address.', 'email');
+    if (form.phone && !isPhoneValid(form.phone)) return showError('Mobile number must be 11 digits starting with 09.', 'phone');
     const passwordError = getPasswordError(form.password);
-    if (passwordError) return showError(passwordError);
-    if (!form.confirmPassword) return showError('Please confirm your password.');
-    if (form.password !== form.confirmPassword) return showError('Passwords do not match.');
-    if (!form.address_province) return showError('Province is required.');
-    if (!form.address_city) return showError('City / Municipality is required.');
-    if (!form.address_barangay.trim()) return showError('Barangay is required.');
-    if (!form.address_street.trim()) return showError('Street is required.');
-    if (!form.address_lot_block.trim()) return showError('Lot / Block / Purok is required.');
-    if (!form.address_landmark.trim()) return showError('Landmark is required.');
+    if (passwordError) return showError(passwordError, 'password');
+    if (!form.confirmPassword) return showError('Please confirm your password.', 'confirmPassword');
+    if (form.password !== form.confirmPassword) return showError('Passwords do not match.', 'confirmPassword');
+    if (!form.address_province) return showError('Province is required.', 'address_province');
+    if (!form.address_city) return showError('City / Municipality is required.', 'address_city');
+    if (!form.address_barangay.trim()) return showError('Barangay is required.', 'address_barangay');
+    if (!form.address_street.trim()) return showError('Street is required.', 'address_street');
+    if (!form.address_lot_block.trim()) return showError('Lot / Block / Purok is required.', 'address_lot_block');
+    if (!form.address_landmark.trim()) return showError('Landmark is required.', 'address_landmark');
     setError('');
     setLoading(true);
     try {
@@ -297,16 +307,17 @@ const RegisterPage = () => {
                   <User size={15} className="form-input-icon" aria-hidden="true" />
                   <input
                     id="reg-name"
-                    className="form-input form-input-icon-left"
+                    className={`form-input form-input-icon-left ${fieldErrors.name ? 'error' : ''}`}
                     placeholder="Juan Dela Cruz"
                     value={form.name}
                     onChange={handleTitleCase('name')}
                     required
                     autoComplete="name"
                     aria-required="true"
-                    aria-invalid={error === 'Full name is required.' ? 'true' : 'false'}
+                    aria-invalid={fieldErrors.name || error === 'Full name is required.' ? 'true' : 'false'}
                   />
                 </div>
+                {fieldErrors.name && <p className="form-error">{fieldErrors.name}</p>}
               </div>
 
               {/* Facebook Name */}
@@ -337,16 +348,17 @@ const RegisterPage = () => {
                   <input
                     id="reg-email"
                     type="email"
-                    className="form-input form-input-icon-left"
+                    className={`form-input form-input-icon-left ${fieldErrors.email ? 'error' : ''}`}
                     placeholder="you@email.com"
                     value={form.email}
                     onChange={e => update('email', e.target.value)}
                     required
                     autoComplete="email"
                     aria-required="true"
-                    aria-invalid={(error === 'Email address is required.' || error === 'Please enter a valid email address.') ? 'true' : 'false'}
+                    aria-invalid={fieldErrors.email || (error === 'Email address is required.' || error === 'Please enter a valid email address.') ? 'true' : 'false'}
                   />
                 </div>
+                {fieldErrors.email && <p className="form-error">{fieldErrors.email}</p>}
               </div>
 
               {/* Mobile */}
@@ -358,7 +370,7 @@ const RegisterPage = () => {
                   <Phone size={15} className="form-input-icon" aria-hidden="true" />
                   <input
                     id="reg-phone"
-                    className={`form-input form-input-icon-left ${phoneError ? 'error' : form.phone.length === 11 && !phoneError ? 'success' : ''}`}
+                    className={`form-input form-input-icon-left ${phoneError || fieldErrors.phone ? 'error' : form.phone.length === 11 && !phoneError ? 'success' : ''}`}
                     placeholder="09xxxxxxxxx"
                     value={form.phone}
                     onChange={handlePhone}
@@ -366,15 +378,15 @@ const RegisterPage = () => {
                     maxLength={11}
                     autoComplete="tel"
                     aria-describedby="reg-phone-hint"
-                    aria-invalid={!!phoneError || (error === 'Mobile number must be 11 digits starting with 09.') ? 'true' : 'false'}
+                    aria-invalid={!!phoneError || !!fieldErrors.phone || (error === 'Mobile number must be 11 digits starting with 09.') ? 'true' : 'false'}
                   />
                   {form.phone.length === 11 && !phoneError && (
                     <Check size={14} className="form-input-icon-right-check" aria-hidden="true" />
                   )}
                 </div>
                 <div className="form-meta-row" id="reg-phone-hint">
-                  {phoneError
-                    ? <span className="form-error">{phoneError}</span>
+                  {phoneError || fieldErrors.phone
+                    ? <span className="form-error">{phoneError || fieldErrors.phone}</span>
                     : <span className="form-helper">Philippine mobile number</span>
                   }
                   <span className="form-char-count">{form.phone.length}/11</span>
@@ -391,7 +403,7 @@ const RegisterPage = () => {
                   <input
                     id="reg-password"
                     type={showPw ? 'text' : 'password'}
-                    className="form-input form-input-icon-left form-input-icon-right"
+                    className={`form-input form-input-icon-left form-input-icon-right ${fieldErrors.password ? 'error' : ''}`}
                     placeholder="Min. 8 characters"
                     value={form.password}
                     onChange={e => update('password', e.target.value)}
@@ -399,7 +411,7 @@ const RegisterPage = () => {
                     autoComplete="new-password"
                     aria-required="true"
                     aria-describedby="reg-pw-strength"
-                    aria-invalid={['Password is required.', 'Password must be at least 8 characters.', 'Password must include an uppercase letter.', 'Password must include a lowercase letter.', 'Password must include a number.'].includes(error) ? 'true' : 'false'}
+                    aria-invalid={fieldErrors.password || ['Password is required.', 'Password must be at least 8 characters.', 'Password must include an uppercase letter.', 'Password must include a lowercase letter.', 'Password must include a number.'].includes(error) ? 'true' : 'false'}
                   />
                   <button
                     type="button"
@@ -411,6 +423,7 @@ const RegisterPage = () => {
                     {showPw ? <EyeOff size={15} /> : <Eye size={15} />}
                   </button>
                 </div>
+                {fieldErrors.password && <p className="form-error">{fieldErrors.password}</p>}
 
                 {/* Strength meter */}
                 {form.password && (
@@ -459,6 +472,7 @@ const RegisterPage = () => {
                     id="reg-confirm-password"
                     type={showConfirmPw ? 'text' : 'password'}
                     className={`form-input form-input-icon-left form-input-icon-right ${
+                      fieldErrors.confirmPassword ? 'error' :
                       form.confirmPassword && form.confirmPassword === form.password ? 'success' :
                       form.confirmPassword && form.confirmPassword !== form.password ? 'error' : ''
                     }`}
@@ -468,7 +482,7 @@ const RegisterPage = () => {
                     required
                     autoComplete="new-password"
                     aria-required="true"
-                    aria-invalid={(error === 'Please confirm your password.' || error === 'Passwords do not match.' || (form.confirmPassword && form.confirmPassword !== form.password)) ? 'true' : 'false'}
+                    aria-invalid={fieldErrors.confirmPassword || (error === 'Please confirm your password.' || error === 'Passwords do not match.' || (form.confirmPassword && form.confirmPassword !== form.password)) ? 'true' : 'false'}
                   />
                   <button
                     type="button"
@@ -480,7 +494,8 @@ const RegisterPage = () => {
                     {showConfirmPw ? <EyeOff size={15} /> : <Eye size={15} />}
                   </button>
                 </div>
-                {form.confirmPassword && form.confirmPassword !== form.password && (
+                {fieldErrors.confirmPassword && <p className="form-error">{fieldErrors.confirmPassword}</p>}
+                {!fieldErrors.confirmPassword && form.confirmPassword && form.confirmPassword !== form.password && (
                   <p className="form-error">Passwords don't match</p>
                 )}
               </div>
@@ -513,7 +528,7 @@ const RegisterPage = () => {
                   <MapPin size={15} className="form-input-icon" aria-hidden="true" />
                   <CustomSelect
                     id="reg-province"
-                    className="form-select form-input-icon-left"
+                    className={`form-select form-input-icon-left ${fieldErrors.address_province ? 'error' : ''}`}
                     value={form.address_province}
                     onChange={e => { update('address_province', e.target.value); update('address_city', ''); }}
                     autoComplete="address-level1"
@@ -522,6 +537,7 @@ const RegisterPage = () => {
                     {VALID_PROVINCES.map(p => <option key={p} value={p}>{p}</option>)}
                   </CustomSelect>
                 </div>
+                {fieldErrors.address_province && <p className="form-error">{fieldErrors.address_province}</p>}
               </div>
 
               {/* City */}
@@ -531,7 +547,7 @@ const RegisterPage = () => {
                   <Landmark size={15} className="form-input-icon" aria-hidden="true" />
                   <CustomSelect
                     id="reg-city"
-                    className="form-select form-input-icon-left"
+                    className={`form-select form-input-icon-left ${fieldErrors.address_city ? 'error' : ''}`}
                     value={form.address_city}
                     onChange={e => update('address_city', e.target.value)}
                     autoComplete="address-level2"
@@ -541,6 +557,7 @@ const RegisterPage = () => {
                     {cities.map(c => <option key={c} value={c}>{c}</option>)}
                   </CustomSelect>
                 </div>
+                {fieldErrors.address_city && <p className="form-error">{fieldErrors.address_city}</p>}
               </div>
 
               {/* Barangay */}
@@ -550,13 +567,14 @@ const RegisterPage = () => {
                   <Home size={15} className="form-input-icon" aria-hidden="true" />
                   <input
                     id="reg-barangay"
-                    className="form-input form-input-icon-left"
+                    className={`form-input form-input-icon-left ${fieldErrors.address_barangay ? 'error' : ''}`}
                     placeholder="e.g. Barangay Poblacion"
                     value={form.address_barangay}
                     onChange={handleTitleCase('address_barangay')}
                     autoComplete="address-level3"
                   />
                 </div>
+                {fieldErrors.address_barangay && <p className="form-error">{fieldErrors.address_barangay}</p>}
               </div>
 
               {/* Street */}
@@ -566,13 +584,14 @@ const RegisterPage = () => {
                   <MapPin size={15} className="form-input-icon" aria-hidden="true" />
                   <input
                     id="reg-street"
-                    className="form-input form-input-icon-left"
+                    className={`form-input form-input-icon-left ${fieldErrors.address_street ? 'error' : ''}`}
                     placeholder="e.g. Rizal Street"
                     value={form.address_street}
                     onChange={handleTitleCase('address_street')}
                     autoComplete="street-address"
                   />
                 </div>
+                {fieldErrors.address_street && <p className="form-error">{fieldErrors.address_street}</p>}
               </div>
 
               {/* Lot/Block */}
@@ -582,15 +601,16 @@ const RegisterPage = () => {
                   <Home size={15} className="form-input-icon" aria-hidden="true" />
                   <input
                     id="reg-lot"
-                    className="form-input form-input-icon-left"
+                    className={`form-input form-input-icon-left ${fieldErrors.address_lot_block ? 'error' : ''}`}
                     placeholder="e.g. Lot 12, Block 5"
                     value={form.address_lot_block}
                     onChange={handleTitleCase('address_lot_block')}
                     required
                     aria-required="true"
-                    aria-invalid={error === 'Lot / Block / Purok is required.' ? 'true' : 'false'}
+                    aria-invalid={fieldErrors.address_lot_block ? 'true' : 'false'}
                   />
                 </div>
+                {fieldErrors.address_lot_block && <p className="form-error">{fieldErrors.address_lot_block}</p>}
               </div>
 
               {/* Landmark */}
@@ -600,15 +620,16 @@ const RegisterPage = () => {
                   <Navigation size={15} className="form-input-icon" aria-hidden="true" />
                   <input
                     id="reg-landmark"
-                    className="form-input form-input-icon-left"
+                    className={`form-input form-input-icon-left ${fieldErrors.address_landmark ? 'error' : ''}`}
                     placeholder="e.g. Near Sari-sari Store, Beside Church"
                     value={form.address_landmark}
                     onChange={handleTitleCase('address_landmark')}
                     required
                     aria-required="true"
-                    aria-invalid={error === 'Landmark is required.' ? 'true' : 'false'}
+                    aria-invalid={fieldErrors.address_landmark ? 'true' : 'false'}
                   />
                 </div>
+                {fieldErrors.address_landmark && <p className="form-error">{fieldErrors.address_landmark}</p>}
               </div>
 
               {/* Address note */}

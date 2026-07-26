@@ -105,10 +105,10 @@ const DashboardPage = () => {
       </div>
 
       {statsWarning && (
-        <div className="card mb-16 flex items-center gap-12" role="alert" style={{ padding: '12px 16px', background: 'var(--warning-bg)', border: '1px solid var(--warning)', borderRadius: 'var(--radius-md)' }}>
-          <AlertTriangle size={18} style={{ color: 'var(--warning-dark)', flexShrink: 0 }} />
-          <span className="flex-1 text-sm" style={{ color: 'var(--warning-dark)' }}>{statsWarning}</span>
-          <button type="button" className="btn btn-outline text-xs" onClick={() => setStatsWarning(null)} style={{ padding: '4px 10px', minHeight: 'auto' }}>Dismiss</button>
+        <div className="alert-banner alert-banner-warning mb-16" role="alert">
+          <AlertTriangle size={18} />
+          <span className="flex-1 text-sm">{statsWarning}</span>
+          <button type="button" className="btn btn-outline btn-sm" onClick={() => setStatsWarning(null)}>Dismiss</button>
         </div>
       )}
       {/* Stat Cards */}
@@ -158,7 +158,11 @@ const DashboardPage = () => {
                 />
               </>
             ) : (
-              <div className="text-center text-secondary p-20">No active trip</div>
+              <EmptyState
+                icon={Truck}
+                title="No active trip"
+                description="There are currently no active trips in transit."
+              />
             )}
           </div>
         </StaggerItem>

@@ -184,11 +184,11 @@ const LoginPage = () => {
       ════════════════════════════════════════════════════════════ */}
       <div className="login-left-panel">
         <div className="login-left-content">
-          <div className="login-brand" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div className="login-brand">
             <Container size={28} color="var(--primary)" />
-            <h1 style={{ display: 'flex', gap: 4, margin: 0, fontSize: '2rem', fontWeight: 900 }}>
-              <span style={{ color: '#fff' }}>CARGO</span>
-              <span style={{ color: 'var(--primary-light)' }}>EXPRESS</span>
+            <h1>
+              <span>CARGO</span>
+              <span className="brand-accent">EXPRESS</span>
             </h1>
           </div>
 

@@ -2,8 +2,9 @@ import { useState, useEffect } from 'react';
 import { getAdminFeedback, updateFeedbackVisibility } from '../../lib/database';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../hooks/useToast';
-import { Loader, MessageSquare, Search, Filter, Eye, EyeOff } from 'lucide-react';
+import { MessageSquare, Search, Filter, Eye, EyeOff } from 'lucide-react';
 import usePageTitle from '../../hooks/usePageTitle';
+import { SkeletonCard } from '../../components/ui/SkeletonLoader';
 import EmptyState from '../../components/ui/EmptyState';
 import CustomSelect from '../../components/ui/CustomSelect';
 
@@ -101,8 +102,10 @@ const FeedbackPage = () => {
       </div>
 
       {loading ? (
-        <div className="flex justify-center items-center py-48">
-          <Loader size={32} className="animate-spin text-primary" />
+        <div className="grid grid-2 gap-24">
+          {Array.from({ length: 4 }, (_, i) => (
+            <SkeletonCard key={i} />
+          ))}
         </div>
       ) : filteredFeedback.length === 0 ? (
         <EmptyState 

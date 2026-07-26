@@ -244,11 +244,6 @@
 .truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cursor-pointer { cursor: pointer; }
 .select-none { user-select: none; }
-.sr-only {
-  position: absolute; width: 1px; height: 1px;
-  padding: 0; margin: -1px; overflow: hidden;
-  clip: rect(0,0,0,0); white-space: nowrap; border: 0;
-}
 
 /* -- Extended utility classes for inline style reduction -- */
 .fw-400 { font-weight: 400; }
