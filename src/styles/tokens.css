@@ -175,6 +175,10 @@
   --space-2xl: 40px;
   --space-xxl: 48px;
 
+  /* -- Container Max Widths -- */
+  --container-customer-max: 860px;
+  --container-navbar-max: 1280px;
+
   /* -- Transitions -- */
   --transition: color 0.2s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.2s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1), transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   --transition-fast: color 0.15s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.15s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.15s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.15s cubic-bezier(0.4, 0, 0.2, 1), transform 0.15s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.15s cubic-bezier(0.4, 0, 0.2, 1);
@@ -202,6 +206,12 @@
   --font-size-2xl: 1.5rem;    /* 24px */
   --font-size-3xl: 1.875rem;  /* 30px */
   --font-size-4xl: 2.25rem;   /* 36px */
+
+  /* Fluid Typography Scale */
+  --font-h1-fluid: clamp(1.5rem, 2.5vw + 0.5rem, 2.25rem);
+  --font-h2-fluid: clamp(1.25rem, 1.8vw + 0.4rem, 1.75rem);
+  --font-h3-fluid: clamp(1rem, 1.2vw + 0.3rem, 1.25rem);
+  --font-h4-fluid: clamp(0.875rem, 0.8vw + 0.3rem, 1rem);
 
   /* Font Weights */
   --font-weight-normal: 400;

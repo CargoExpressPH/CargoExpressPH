@@ -15,7 +15,7 @@
   box-shadow: 0 1px 8px rgba(0, 0, 0, 0.04);
 }
 .customer-navbar-inner {
-  height: 60px; max-width: 1280px; margin: 0 auto;
+  height: 60px; max-width: var(--container-navbar-max, 1280px); margin: 0 auto;
   display: flex; align-items: center; justify-content: space-between;
   padding: 0 24px; gap: 24px;
 }
@@ -236,7 +236,7 @@
 .customer-mobile-link.danger:hover { background: var(--error-bg); }
 
 /* Customer Main */
-.customer-main { padding: 24px 20px 120px; max-width: 860px; margin: 0 auto; scroll-behavior: smooth; scrollbar-width: none; -ms-overflow-style: none; }
+.customer-main { padding: 24px 20px 120px; max-width: var(--container-customer-max, 860px); margin: 0 auto; scroll-behavior: smooth; scrollbar-width: none; -ms-overflow-style: none; }
 .customer-main::-webkit-scrollbar { display: none; }
 .customer-main:has(.support-chat-page) { padding-bottom: 24px; }
 

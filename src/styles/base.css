@@ -35,25 +35,25 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 h1 {
-  font-size: clamp(1.5rem, 2.5vw + 0.5rem, 2.25rem);
+  font-size: var(--font-h1-fluid, clamp(1.5rem, 2.5vw + 0.5rem, 2.25rem));
   font-weight: var(--font-weight-extrabold);
   letter-spacing: -0.025em;
   line-height: var(--line-height-tight);
 }
 h2 {
-  font-size: clamp(1.25rem, 1.8vw + 0.4rem, 1.75rem);
+  font-size: var(--font-h2-fluid, clamp(1.25rem, 1.8vw + 0.4rem, 1.75rem));
   font-weight: var(--font-weight-bold);
   letter-spacing: -0.02em;
   line-height: var(--line-height-snug);
 }
 h3 {
-  font-size: clamp(1rem, 1.2vw + 0.3rem, 1.25rem);
+  font-size: var(--font-h3-fluid, clamp(1rem, 1.2vw + 0.3rem, 1.25rem));
   font-weight: var(--font-weight-bold);
   letter-spacing: -0.01em;
   line-height: var(--line-height-tight);
 }
 h4 {
-  font-size: clamp(0.875rem, 0.8vw + 0.3rem, 1rem);
+  font-size: var(--font-h4-fluid, clamp(0.875rem, 0.8vw + 0.3rem, 1rem));
   font-weight: var(--font-weight-semibold);
   line-height: var(--line-height-snug);
 }
