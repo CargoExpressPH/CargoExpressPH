@@ -9,6 +9,7 @@ import EmptyState from '../../components/ui/EmptyState';
 import { SkeletonText } from '../../components/ui/SkeletonLoader';
 import FocusTrap from '../../components/ui/FocusTrap';
 import usePageTitle from '../../hooks/usePageTitle';
+import PullToRefresh from '../../components/ui/PullToRefresh';
 
 const iconMap = { order_update: Package, trip_update: Truck, announcement: Megaphone, general: Bell };
 
@@ -290,7 +291,8 @@ const NotificationsPage = () => {
   const groups = groupByDate(notifications);
 
   return (
-    <div className="page-transition customer-notifications-page">
+    <PullToRefresh onRefresh={loadData}>
+      <div className="page-transition customer-notifications-page">
       <div className="section-header customer-mobile-heading mb-20">
         <div>
           <h1 className="fw-800 flex items-center gap-8 flex-wrap">
@@ -392,6 +394,7 @@ const NotificationsPage = () => {
         loading={clearingAll}
       />
     </div>
+    </PullToRefresh>
   );
 };
 

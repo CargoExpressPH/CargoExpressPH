@@ -7,6 +7,7 @@ import StatusBadge from '../../components/ui/StatusBadge';
 import { SkeletonOrderCard, SkeletonStatCard } from '../../components/ui/SkeletonLoader';
 import EmptyState from '../../components/ui/EmptyState';
 import PageTransition, { StaggerItem } from '../../components/ui/PageTransition';
+import PullToRefresh from '../../components/ui/PullToRefresh';
 import {
   Package, Search, Plus, ArrowRight,
   Container, MapPin, Calendar, Weight, ChevronRight,
@@ -93,7 +94,8 @@ const HomePage = () => {
   const GreetingIcon = greetingInfo.icon;
 
   return (
-    <PageTransition className="customer-home-page">
+    <PullToRefresh onRefresh={loadData}>
+      <PageTransition className="customer-home-page">
 
       {/* ── Hero ─────────────────────────────────────────────────── */}
       <div className="hero customer-home-hero animate-slide-up mb-lg">
@@ -344,6 +346,7 @@ const HomePage = () => {
         </StaggerItem>
       )}
     </PageTransition>
+    </PullToRefresh>
   );
 };
 

@@ -7,6 +7,7 @@ import StatusBadge from '../../components/ui/StatusBadge';
 import { SkeletonOrderCard } from '../../components/ui/SkeletonLoader';
 import EmptyState from '../../components/ui/EmptyState';
 import PageTransition, { StaggerItem } from '../../components/ui/PageTransition';
+import PullToRefresh from '../../components/ui/PullToRefresh';
 import ResponsiveFilterControls from '../../components/ui/ResponsiveFilterControls';
 import { Search, Package, AlertCircle, MapPin, ChevronRight } from 'lucide-react';
 import usePageTitle from '../../hooks/usePageTitle';
@@ -70,7 +71,8 @@ const OrdersPage = () => {
   });
 
   return (
-    <PageTransition className="customer-orders-page">
+    <PullToRefresh onRefresh={() => loadOrders(true)}>
+      <PageTransition className="customer-orders-page">
       <div className="customer-page-heading">
         <div>
           <h1 className="fw-800 mb-4">My Orders</h1>
@@ -158,6 +160,7 @@ const OrdersPage = () => {
         ))
       )}
     </PageTransition>
+    </PullToRefresh>
   );
 };
 

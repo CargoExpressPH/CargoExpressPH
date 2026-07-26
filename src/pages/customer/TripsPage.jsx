@@ -6,6 +6,7 @@ import { SkeletonOrderCard } from '../../components/ui/SkeletonLoader';
 import EmptyState from '../../components/ui/EmptyState';
 import { Calendar, Truck, AlertCircle, ChevronRight, RefreshCw } from 'lucide-react';
 import usePageTitle from '../../hooks/usePageTitle';
+import PullToRefresh from '../../components/ui/PullToRefresh';
 
 // Max ms to wait before showing an error instead of an infinite spinner.
 const LOAD_TIMEOUT_MS = 15000;
@@ -86,7 +87,8 @@ const TripsPage = () => {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <div className="page-transition customer-trips-page">
+    <PullToRefresh onRefresh={loadTrips}>
+      <div className="page-transition customer-trips-page">
       <div className="customer-page-heading">
         <div>
           <h1 className="fw-800 mb-4">Available Trips</h1>
@@ -173,6 +175,7 @@ const TripsPage = () => {
         })
       )}
     </div>
+    </PullToRefresh>
   );
 };
 
