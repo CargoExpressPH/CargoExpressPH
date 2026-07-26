@@ -171,7 +171,8 @@ const BookShipmentPage = () => {
 
   const getSenderProvinces = () => {
     if (!selectedRoute) return VALID_PROVINCES;
-    if (selectedRoute.origin === 'Bohol') return ['Bohol', 'Other Area'];
+    // "Other Area" pickups are only accepted when delivering to Bohol.
+    if (selectedRoute.origin === 'Bohol') return ['Bohol'];
     return ['Metro Manila', 'Cavite', 'Batangas', 'Laguna', 'Bulacan', 'Other Area'];
   };
   const getReceiverProvinces = () => {
@@ -260,6 +261,9 @@ const BookShipmentPage = () => {
     if (!form.sender_name) errs.sender_name = 'Full Name is required.';
     if (!form.sender_facebook) errs.sender_facebook = 'Facebook Name is required.';
     if (!form.sender_province) errs.sender_province = 'Province is required.';
+    else if (form.sender_province === 'Other Area' && selectedRoute?.destination !== 'Bohol') {
+      errs.sender_province = 'Out-of-coverage pickup is only available when delivering to Bohol. Please select a listed province.';
+    }
     if (form.sender_province === 'Other Area' && !form.sender_other_province) errs.sender_other_province = 'Exact province is required.';
     if (!form.sender_city) errs.sender_city = 'City is required.';
     if (!form.sender_barangay) errs.sender_barangay = 'Barangay is required.';
