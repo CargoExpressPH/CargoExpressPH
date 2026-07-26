@@ -370,4 +370,13 @@
   background: linear-gradient(90deg, var(--warning), var(--error));
 }
 
+@container card (max-width: 340px) {
+  .capacity-tracker {
+    padding: var(--space-xs) 0;
+  }
+  .capacity-bar {
+    height: 10px;
+  }
+}
+
 

@@ -109,6 +109,8 @@
   transition: var(--transition);
   overflow: hidden;
   position: relative;
+  container-type: inline-size;
+  container-name: card;
 }
 .card:hover {
   box-shadow: var(--shadow-md);
@@ -143,6 +145,31 @@
   padding: var(--space-md) var(--space-xl);
   border-top: 1px solid var(--border-light);
   background: var(--bg);
+}
+
+/* --- CONTAINER QUERIES (Modular element-level responsiveness) --- */
+.modal-body,
+.sidebar-widget {
+  container-type: inline-size;
+  container-name: card;
+}
+
+@container card (max-width: 380px) {
+  .card-body-lg {
+    padding: var(--space-md);
+  }
+  .card-header {
+    flex-wrap: wrap;
+    gap: var(--space-xs);
+  }
+}
+
+/* container-type creates a stacking context, which would trap the
+   dropdown's z-index inside the card and let later siblings paint over it */
+.card:has(.custom-select-menu),
+.modal-body:has(.custom-select-menu),
+.sidebar-widget:has(.custom-select-menu) {
+  container-type: normal;
 }
 
 
