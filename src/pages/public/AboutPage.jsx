@@ -923,13 +923,13 @@ const AboutPage = () => {
                   src={heroImage} 
                   alt={`${companyName} Logistics`} 
                   className="about-story-main-img"
-                  loading="lazy"
+                  fetchPriority="high"
                 />
                 <img 
                   src={heroImage} 
                   alt={`${companyName} Delivery`} 
                   className="about-story-overlay-img"
-                  loading="lazy"
+                  fetchPriority="high"
                 />
               </div>
             </div>

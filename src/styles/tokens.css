@@ -53,6 +53,40 @@
   --error-icon-bg: rgba(239, 68, 68, 0.12);
   --info-icon-bg: rgba(59, 130, 246, 0.12);
 
+  /* -- Status & Semantic Badge Tokens -- */
+  --badge-pending-bg: #FFF7ED;
+  --badge-pending-color: #C2410C;
+  --badge-pending-border: #FED7AA;
+  --badge-assigned-bg: #EFF6FF;
+  --badge-assigned-color: #1D4ED8;
+  --badge-assigned-border: #BFDBFE;
+  --badge-pickedup-bg: #F0FDF4;
+  --badge-pickedup-color: #15803D;
+  --badge-pickedup-border: #BBF7D0;
+  --badge-intransit-bg: #EFF6FF;
+  --badge-intransit-color: #1E40AF;
+  --badge-intransit-border: #93C5FD;
+  --badge-arrived-bg: #ECFDF5;
+  --badge-arrived-color: #047857;
+  --badge-arrived-border: #A7F3D0;
+  --badge-outdelivery-bg: #FDF4FF;
+  --badge-outdelivery-color: #7E22CE;
+  --badge-outdelivery-border: #E9D5FF;
+  --badge-delivered-bg: #F0FDF4;
+  --badge-delivered-color: #166534;
+  --badge-delivered-border: #86EFAC;
+  --badge-cancelled-bg: #FEF2F2;
+  --badge-cancelled-color: #DC2626;
+  --badge-cancelled-border: #FECACA;
+  --badge-success-color: #047857;
+  --badge-success-border: #A7F3D0;
+  --badge-warning-color: #92400E;
+  --badge-warning-border: #FDE68A;
+  --badge-error-color: #991B1B;
+  --badge-error-border: #FECACA;
+  --badge-info-color: #1E40AF;
+  --badge-info-border: #BFDBFE;
+
   /* -- Chart Colors (theme-aware for data visualization) -- */
   --chart-purple: #8B5CF6;
   --chart-pink: #EC4899;

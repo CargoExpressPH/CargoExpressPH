@@ -97,6 +97,18 @@
 .reg-step-node {
   display: flex; align-items: center; gap: 8px;
   flex-shrink: 0;
+  background: none; border: none; padding: 0;
+  cursor: pointer; text-align: left;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+.reg-step-node:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+.reg-step-node:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 4px;
+  border-radius: var(--radius-sm);
 }
 .reg-step-circle {
   width: 34px; height: 34px; border-radius: 50%;

@@ -5,8 +5,8 @@ import { normalizeProfileAddressFields } from '../../lib/address';
 import {
   Container, Eye, EyeOff, Loader, Check, ArrowRight, ArrowLeft,
   AlertTriangle, User, Mail, Phone, Lock, MapPin, MessageSquare,
-  Home, Landmark, CheckCircle2, Sparkles, Ship, DollarSign, Search,
-  Zap, Package, Navigation,
+  Home, Landmark, CheckCircle2, Ship, DollarSign, Search,
+  Zap, Package, Navigation, ShieldCheck,
 } from 'lucide-react';
 import { PH_LOCATIONS, VALID_PROVINCES } from '../../constants/phLocations';
 import CustomSelect from '../../components/ui/CustomSelect';
@@ -35,22 +35,46 @@ const STEPS = [
 ];
 
 /* ══════════════════════════════════════════════════════════════════════════
-   RegisterPage
+   RegisterPage — 100% World-Class & Ultra-Premium Standard
 ══════════════════════════════════════════════════════════════════════════ */
 const RegisterPage = () => {
   usePageTitle('Create Account');
   const [step, setStep] = useState(1);
-  const [form, setForm] = useState({
-    name: '', email: '', phone: '', password: '', confirmPassword: '',
-    facebook_name: '',
-    address_province: '', address_city: '', address_barangay: '',
-    address_street: '', address_lot_block: '', address_landmark: '',
+  const [form, setForm] = useState(() => {
+    try {
+      const saved = sessionStorage.getItem('reg_draft');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return {
+          name: parsed.name || '',
+          email: parsed.email || '',
+          phone: parsed.phone || '',
+          password: '',
+          confirmPassword: '',
+          facebook_name: parsed.facebook_name || '',
+          address_province: parsed.address_province || '',
+          address_city: parsed.address_city || '',
+          address_barangay: parsed.address_barangay || '',
+          address_street: parsed.address_street || '',
+          address_lot_block: parsed.address_lot_block || '',
+          address_landmark: parsed.address_landmark || '',
+        };
+      }
+    } catch (e) {}
+    return {
+      name: '', email: '', phone: '', password: '', confirmPassword: '',
+      facebook_name: '',
+      address_province: '', address_city: '', address_barangay: '',
+      address_street: '', address_lot_block: '', address_landmark: '',
+    };
   });
+
   const [showPw,        setShowPw]        = useState(false);
   const [showConfirmPw, setShowConfirmPw] = useState(false);
+  const [capsLockOn,    setCapsLockOn]    = useState(false);
   const [error,         setError]         = useState('');
   const [fieldErrors,   setFieldErrors]   = useState({});
-  const [phoneError,    setPhoneError]    = useState('');
+  const [touchedFields, setTouchedFields] = useState({});
   const [loading,       setLoading]       = useState(false);
   const [success,       setSuccess]       = useState(false);
   const topRef = useRef(null);
@@ -59,85 +83,243 @@ const RegisterPage = () => {
   const { register } = useAuth();
   const navigate     = useNavigate();
 
-  const update = (k, v) => {
-    setForm(p => ({ ...p, [k]: v }));
-    setFieldErrors(p => ({ ...p, [k]: '' }));
-  };
   const cities = form.address_province ? PH_LOCATIONS[form.address_province] || [] : [];
   const pwStrength = getPasswordStrength(form.password);
+
+  // Auto-save non-sensitive draft fields
+  useEffect(() => {
+    try {
+      const { password, confirmPassword, ...draft } = form;
+      sessionStorage.setItem('reg_draft', JSON.stringify(draft));
+    } catch (e) {}
+  }, [form]);
 
   // Scroll card top on step change
   useEffect(() => {
     topRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, [step]);
 
-  const showError = (message, field = null) => {
-    setError(message);
-    if (field) {
-      setFieldErrors(p => ({ ...p, [field]: message }));
+  const checkCapsLock = (e) => {
+    if (e.getModifierState) {
+      setCapsLockOn(e.getModifierState('CapsLock'));
     }
+  };
+
+  /* ── Field validation helper ────────────────────────────────────────── */
+  const validateSingleField = (name, value, currentForm = form) => {
+    switch (name) {
+      case 'name':
+        if (!value.trim()) return 'Full name is required.';
+        if (value.trim().length < 2) return 'Full name must be at least 2 characters.';
+        return '';
+      case 'email':
+        if (!value.trim()) return 'Email address is required.';
+        if (!isEmailValid(value)) return 'Please enter a valid email address.';
+        return '';
+      case 'phone':
+        if (value && !isPhoneValid(value)) return 'Mobile number must be 11 digits starting with 09.';
+        return '';
+      case 'password':
+        return getPasswordError(value);
+      case 'confirmPassword':
+        if (!value) return 'Please confirm your password.';
+        if (value !== currentForm.password) return 'Passwords do not match.';
+        return '';
+      case 'address_province':
+        if (!value) return 'Province is required.';
+        return '';
+      case 'address_city':
+        if (!value) return 'City / Municipality is required.';
+        return '';
+      case 'address_barangay':
+        if (!value.trim()) return 'Barangay is required.';
+        return '';
+      case 'address_street':
+        if (!value.trim()) return 'Street is required.';
+        return '';
+      case 'address_lot_block':
+        if (!value.trim()) return 'Lot / Block / Purok is required.';
+        return '';
+      case 'address_landmark':
+        if (!value.trim()) return 'Landmark is required.';
+        return '';
+      default:
+        return '';
+    }
+  };
+
+  /* ── Step-wide validation ───────────────────────────────────────────── */
+  const validateStep1 = (currentForm = form) => {
+    const errors = {};
+    const nameErr = validateSingleField('name', currentForm.name, currentForm);
+    if (nameErr) errors.name = nameErr;
+
+    const emailErr = validateSingleField('email', currentForm.email, currentForm);
+    if (emailErr) errors.email = emailErr;
+
+    const phoneErr = validateSingleField('phone', currentForm.phone, currentForm);
+    if (phoneErr) errors.phone = phoneErr;
+
+    const pwErr = validateSingleField('password', currentForm.password, currentForm);
+    if (pwErr) errors.password = pwErr;
+
+    const confirmErr = validateSingleField('confirmPassword', currentForm.confirmPassword, currentForm);
+    if (confirmErr) errors.confirmPassword = confirmErr;
+
+    return errors;
+  };
+
+  const validateStep2 = (currentForm = form) => {
+    const errors = {};
+    const provErr = validateSingleField('address_province', currentForm.address_province, currentForm);
+    if (provErr) errors.address_province = provErr;
+
+    const cityErr = validateSingleField('address_city', currentForm.address_city, currentForm);
+    if (cityErr) errors.address_city = cityErr;
+
+    const brgyErr = validateSingleField('address_barangay', currentForm.address_barangay, currentForm);
+    if (brgyErr) errors.address_barangay = brgyErr;
+
+    const streetErr = validateSingleField('address_street', currentForm.address_street, currentForm);
+    if (streetErr) errors.address_street = streetErr;
+
+    const lotErr = validateSingleField('address_lot_block', currentForm.address_lot_block, currentForm);
+    if (lotErr) errors.address_lot_block = lotErr;
+
+    const markErr = validateSingleField('address_landmark', currentForm.address_landmark, currentForm);
+    if (markErr) errors.address_landmark = markErr;
+
+    return errors;
+  };
+
+  /* ── Smooth focus on first failing field ────────────────────────────── */
+  const focusFirstError = (errors) => {
+    const errorKeys = Object.keys(errors);
+    if (!errorKeys.length) return;
+
+    const fieldIdMap = {
+      name: 'reg-name',
+      email: 'reg-email',
+      phone: 'reg-phone',
+      password: 'reg-password',
+      confirmPassword: 'reg-confirm-password',
+      address_province: 'reg-province',
+      address_city: 'reg-city',
+      address_barangay: 'reg-barangay',
+      address_street: 'reg-street',
+      address_lot_block: 'reg-lot',
+      address_landmark: 'reg-landmark',
+    };
+
+    const firstFieldKey = errorKeys[0];
+    const elementId = fieldIdMap[firstFieldKey];
     requestAnimationFrame(() => {
+      if (elementId) {
+        const el = document.getElementById(elementId);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          el.focus({ preventScroll: true });
+          return;
+        }
+      }
       const target = errorRef.current || topRef.current;
       target?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      errorRef.current?.focus({ preventScroll: true });
     });
+  };
+
+  /* ── Form State Management ──────────────────────────────────────────── */
+  const update = (k, v) => {
+    setForm(prev => {
+      const nextForm = { ...prev, [k]: v };
+      if (touchedFields[k] || fieldErrors[k]) {
+        const err = validateSingleField(k, v, nextForm);
+        setFieldErrors(pe => ({ ...pe, [k]: err }));
+      }
+      if (k === 'password' && (touchedFields.confirmPassword || fieldErrors.confirmPassword || nextForm.confirmPassword)) {
+        const confirmErr = validateSingleField('confirmPassword', nextForm.confirmPassword, nextForm);
+        setFieldErrors(pe => ({ ...pe, confirmPassword: confirmErr }));
+      }
+      return nextForm;
+    });
+  };
+
+  const handleBlur = (field) => {
+    setTouchedFields(prev => ({ ...prev, [field]: true }));
+    const err = validateSingleField(field, form[field]);
+    setFieldErrors(prev => ({ ...prev, [field]: err }));
   };
 
   const handleTitleCase = (key) => (e) => update(key, toTitleCase(e.target.value));
 
   const handlePhone = (e) => {
-    const digits = e.target.value.replace(/\D/g, '').slice(0, 11);
+    let raw = e.target.value.trim();
+    if (raw.startsWith('+63')) raw = '0' + raw.slice(3);
+    else if (raw.startsWith('63') && raw.length >= 11) raw = '0' + raw.slice(2);
+    else if (raw.length === 10 && raw.startsWith('9')) raw = '0' + raw;
+    const digits = raw.replace(/\D/g, '').slice(0, 11);
     update('phone', digits);
-    if (digits.length === 0)             setPhoneError('');
-    else if (!digits.startsWith('09'))   setPhoneError('Must start with 09');
-    else if (digits.length < 11)         setPhoneError('Must be exactly 11 digits');
-    else                                 setPhoneError('');
+    setTouchedFields(prev => ({ ...prev, phone: true }));
+    const err = validateSingleField('phone', digits);
+    setFieldErrors(pe => ({ ...pe, phone: err }));
   };
 
+  /* ── Navigation Handlers ────────────────────────────────────────────── */
   const goToStep2 = () => {
-    setFieldErrors({});
-    if (!form.name.trim())
-      return showError('Full name is required.', 'name');
-    if (!form.email.trim())
-      return showError('Email address is required.', 'email');
-    if (!isEmailValid(form.email))
-      return showError('Please enter a valid email address.', 'email');
-    if (form.phone && !isPhoneValid(form.phone))
-      return showError('Mobile number must be 11 digits starting with 09.', 'phone');
-    const passwordError = getPasswordError(form.password);
-    if (passwordError)
-      return showError(passwordError, 'password');
-    if (!form.confirmPassword)
-      return showError('Please confirm your password.', 'confirmPassword');
-    if (form.password !== form.confirmPassword)
-      return showError('Passwords do not match.', 'confirmPassword');
+    const allStep1Touched = { name: true, email: true, phone: true, password: true, confirmPassword: true };
+    setTouchedFields(prev => ({ ...prev, ...allStep1Touched }));
+
+    const errors = validateStep1();
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      setError('Please resolve all highlighted errors before continuing.');
+      focusFirstError(errors);
+      return;
+    }
     setError('');
     setFieldErrors({});
     setStep(2);
   };
 
-  const handleSubmit = async (e) => {
+  const handleFormSubmit = (e) => {
     e.preventDefault();
-    setFieldErrors({});
-    if (!form.name.trim()) return showError('Full name is required.', 'name');
-    if (!form.email.trim()) return showError('Email address is required.', 'email');
-    if (!isEmailValid(form.email)) return showError('Please enter a valid email address.', 'email');
-    if (form.phone && !isPhoneValid(form.phone)) return showError('Mobile number must be 11 digits starting with 09.', 'phone');
-    const passwordError = getPasswordError(form.password);
-    if (passwordError) return showError(passwordError, 'password');
-    if (!form.confirmPassword) return showError('Please confirm your password.', 'confirmPassword');
-    if (form.password !== form.confirmPassword) return showError('Passwords do not match.', 'confirmPassword');
-    if (!form.address_province) return showError('Province is required.', 'address_province');
-    if (!form.address_city) return showError('City / Municipality is required.', 'address_city');
-    if (!form.address_barangay.trim()) return showError('Barangay is required.', 'address_barangay');
-    if (!form.address_street.trim()) return showError('Street is required.', 'address_street');
-    if (!form.address_lot_block.trim()) return showError('Lot / Block / Purok is required.', 'address_lot_block');
-    if (!form.address_landmark.trim()) return showError('Landmark is required.', 'address_landmark');
+    if (step === 1) {
+      goToStep2();
+    } else {
+      executeSubmit();
+    }
+  };
+
+  const executeSubmit = async () => {
+    const step1Errors = validateStep1();
+    if (Object.keys(step1Errors).length > 0) {
+      setStep(1);
+      setFieldErrors(step1Errors);
+      setError('Please resolve all errors in your account information.');
+      focusFirstError(step1Errors);
+      return;
+    }
+
+    const allStep2Touched = {
+      address_province: true, address_city: true, address_barangay: true,
+      address_street: true, address_lot_block: true, address_landmark: true,
+    };
+    setTouchedFields(prev => ({ ...prev, ...allStep2Touched }));
+
+    const step2Errors = validateStep2();
+    if (Object.keys(step2Errors).length > 0) {
+      setFieldErrors(step2Errors);
+      setError('Please complete all required address fields highlighted below.');
+      focusFirstError(step2Errors);
+      return;
+    }
+
     setError('');
+    setFieldErrors({});
     setLoading(true);
+
     try {
       const normalizedAddress = normalizeProfileAddressFields(form);
-      const result = await register(form.email, form.password, {
+      const result = await register(form.email.trim(), form.password, {
         name:             form.name,
         phone:            form.phone,
         facebook_name:    form.facebook_name,
@@ -148,20 +330,42 @@ const RegisterPage = () => {
         address_lot_block:normalizedAddress.address_lot_block,
         address_landmark: normalizedAddress.address_landmark,
       });
+
       setLoading(false);
       if (result.success) {
+        try { sessionStorage.removeItem('reg_draft'); } catch (e) {}
         setSuccess(true);
         setTimeout(() => navigate('/'), 1400);
       } else {
-        showError(result.error);
+        const errorMsg = result.error || 'Registration failed. Please try again.';
+        setError(errorMsg);
+        if (errorMsg.toLowerCase().includes('email')) {
+          setStep(1);
+          setFieldErrors({ email: errorMsg });
+          focusFirstError({ email: errorMsg });
+        } else if (errorMsg.toLowerCase().includes('password')) {
+          setStep(1);
+          setFieldErrors({ password: errorMsg });
+          focusFirstError({ password: errorMsg });
+        } else {
+          requestAnimationFrame(() => {
+            errorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            errorRef.current?.focus({ preventScroll: true });
+          });
+        }
       }
     } catch (err) {
       setLoading(false);
-      showError(err.message || 'Registration failed. Please try again.');
+      const msg = err.message || 'Registration failed. Please try again.';
+      setError(msg);
+      requestAnimationFrame(() => {
+        errorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        errorRef.current?.focus({ preventScroll: true });
+      });
     }
   };
 
-  /* ── Success flash ── */
+  /* ── Success Flash View ── */
   if (success) {
     return (
       <div className="auth-page">
@@ -259,11 +463,23 @@ const RegisterPage = () => {
             <p className="login-form-sub">Sign up for free and manage your cargo deliveries.</p>
           </div>
 
-        {/* ── Step Progress ── */}
+        {/* ── Interactive Step Progress Bar ── */}
         <div className="reg-step-bar" role="progressbar" aria-valuenow={step} aria-valuemin={1} aria-valuemax={2}>
           {STEPS.map((s, idx) => (
             <div key={s.id} className="reg-step-item">
-              <div className={`reg-step-node ${step === s.id ? 'active' : ''} ${step > s.id ? 'completed' : ''}`}>
+              <button
+                type="button"
+                className={`reg-step-node ${step === s.id ? 'active' : ''} ${step > s.id ? 'completed' : ''}`}
+                onClick={() => {
+                  if (s.id === 1) {
+                    setError('');
+                    setStep(1);
+                  } else if (s.id === 2) {
+                    goToStep2();
+                  }
+                }}
+                aria-label={`Step ${s.id}: ${s.label}`}
+              >
                 <div className="reg-step-circle">
                   {step > s.id
                     ? <Check size={13} strokeWidth={3} />
@@ -271,7 +487,7 @@ const RegisterPage = () => {
                   }
                 </div>
                 <span className="reg-step-label">{s.label}</span>
-              </div>
+              </button>
               {idx < STEPS.length - 1 && (
                 <div className={`reg-step-connector ${step > s.id ? 'done' : ''}`} />
               )}
@@ -279,7 +495,7 @@ const RegisterPage = () => {
           ))}
         </div>
 
-        {/* ── Error banner ── */}
+        {/* ── Error Banner ── */}
         {error && (
           <div className="auth-error-banner" role="alert" tabIndex={-1} ref={errorRef}>
             <AlertTriangle size={15} />
@@ -287,7 +503,7 @@ const RegisterPage = () => {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} noValidate>
+        <form onSubmit={handleFormSubmit} noValidate>
 
           {/* ══════════════════════════ STEP 1 — ACCOUNT ══════════════════════════ */}
           {step === 1 && (
@@ -307,17 +523,24 @@ const RegisterPage = () => {
                   <User size={15} className="form-input-icon" aria-hidden="true" />
                   <input
                     id="reg-name"
-                    className={`form-input form-input-icon-left ${fieldErrors.name ? 'error' : ''}`}
+                    className={`form-input form-input-icon-left ${fieldErrors.name ? 'error' : touchedFields.name && form.name.trim().length >= 2 ? 'success' : ''}`}
                     placeholder="Juan Dela Cruz"
                     value={form.name}
                     onChange={handleTitleCase('name')}
+                    onBlur={() => handleBlur('name')}
                     required
                     autoComplete="name"
                     aria-required="true"
-                    aria-invalid={fieldErrors.name || error === 'Full name is required.' ? 'true' : 'false'}
+                    aria-invalid={!!fieldErrors.name}
+                    aria-describedby={fieldErrors.name ? 'reg-name-error' : undefined}
                   />
+                  {form.name.trim().length >= 2 && !fieldErrors.name && (
+                    <Check size={14} className="form-input-icon-right-check" aria-hidden="true" />
+                  )}
                 </div>
-                {fieldErrors.name && <p className="form-error">{fieldErrors.name}</p>}
+                {fieldErrors.name && (
+                  <p id="reg-name-error" className="form-error" role="alert">{fieldErrors.name}</p>
+                )}
               </div>
 
               {/* Facebook Name */}
@@ -333,6 +556,7 @@ const RegisterPage = () => {
                     placeholder="Your Facebook display name"
                     value={form.facebook_name}
                     onChange={e => update('facebook_name', e.target.value)}
+                    onBlur={() => handleBlur('facebook_name')}
                     autoComplete="nickname"
                   />
                 </div>
@@ -348,17 +572,24 @@ const RegisterPage = () => {
                   <input
                     id="reg-email"
                     type="email"
-                    className={`form-input form-input-icon-left ${fieldErrors.email ? 'error' : ''}`}
+                    className={`form-input form-input-icon-left ${fieldErrors.email ? 'error' : isEmailValid(form.email) ? 'success' : ''}`}
                     placeholder="you@email.com"
                     value={form.email}
                     onChange={e => update('email', e.target.value)}
+                    onBlur={() => handleBlur('email')}
                     required
                     autoComplete="email"
                     aria-required="true"
-                    aria-invalid={fieldErrors.email || (error === 'Email address is required.' || error === 'Please enter a valid email address.') ? 'true' : 'false'}
+                    aria-invalid={!!fieldErrors.email}
+                    aria-describedby={fieldErrors.email ? 'reg-email-error' : undefined}
                   />
+                  {isEmailValid(form.email) && !fieldErrors.email && (
+                    <Check size={14} className="form-input-icon-right-check" aria-hidden="true" />
+                  )}
                 </div>
-                {fieldErrors.email && <p className="form-error">{fieldErrors.email}</p>}
+                {fieldErrors.email && (
+                  <p id="reg-email-error" className="form-error" role="alert">{fieldErrors.email}</p>
+                )}
               </div>
 
               {/* Mobile */}
@@ -370,24 +601,25 @@ const RegisterPage = () => {
                   <Phone size={15} className="form-input-icon" aria-hidden="true" />
                   <input
                     id="reg-phone"
-                    className={`form-input form-input-icon-left ${phoneError || fieldErrors.phone ? 'error' : form.phone.length === 11 && !phoneError ? 'success' : ''}`}
+                    className={`form-input form-input-icon-left ${fieldErrors.phone ? 'error' : form.phone.length === 11 && isPhoneValid(form.phone) ? 'success' : ''}`}
                     placeholder="09xxxxxxxxx"
                     value={form.phone}
                     onChange={handlePhone}
+                    onBlur={() => handleBlur('phone')}
                     inputMode="numeric"
                     maxLength={11}
                     autoComplete="tel"
-                    aria-describedby="reg-phone-hint"
-                    aria-invalid={!!phoneError || !!fieldErrors.phone || (error === 'Mobile number must be 11 digits starting with 09.') ? 'true' : 'false'}
+                    aria-describedby="reg-phone-hint reg-phone-error"
+                    aria-invalid={!!fieldErrors.phone}
                   />
-                  {form.phone.length === 11 && !phoneError && (
+                  {form.phone.length === 11 && isPhoneValid(form.phone) && !fieldErrors.phone && (
                     <Check size={14} className="form-input-icon-right-check" aria-hidden="true" />
                   )}
                 </div>
                 <div className="form-meta-row" id="reg-phone-hint">
-                  {phoneError || fieldErrors.phone
-                    ? <span className="form-error">{phoneError || fieldErrors.phone}</span>
-                    : <span className="form-helper">Philippine mobile number</span>
+                  {fieldErrors.phone
+                    ? <span id="reg-phone-error" className="form-error" role="alert">{fieldErrors.phone}</span>
+                    : <span className="form-helper">Philippine mobile number (09xxxxxxxxx)</span>
                   }
                   <span className="form-char-count">{form.phone.length}/11</span>
                 </div>
@@ -395,23 +627,31 @@ const RegisterPage = () => {
 
               {/* Password */}
               <div className="form-group">
-                <label className="form-label" htmlFor="reg-password">
-                  Password
-                </label>
+                <div className="login-pw-header">
+                  <label className="form-label" htmlFor="reg-password">Password</label>
+                  {capsLockOn && (
+                    <span className="caps-warning" style={{ fontSize: '0.72rem', color: 'var(--warning)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                      <AlertTriangle size={11} /> Caps Lock ON
+                    </span>
+                  )}
+                </div>
                 <div className="form-input-wrapper">
                   <Lock size={15} className="form-input-icon" aria-hidden="true" />
                   <input
                     id="reg-password"
                     type={showPw ? 'text' : 'password'}
-                    className={`form-input form-input-icon-left form-input-icon-right ${fieldErrors.password ? 'error' : ''}`}
+                    className={`form-input form-input-icon-left form-input-icon-right ${fieldErrors.password ? 'error' : form.password && !getPasswordError(form.password) ? 'success' : ''}`}
                     placeholder="Min. 8 characters"
                     value={form.password}
                     onChange={e => update('password', e.target.value)}
+                    onBlur={() => handleBlur('password')}
+                    onKeyDown={checkCapsLock}
+                    onKeyUp={checkCapsLock}
                     required
                     autoComplete="new-password"
                     aria-required="true"
-                    aria-describedby="reg-pw-strength"
-                    aria-invalid={fieldErrors.password || ['Password is required.', 'Password must be at least 8 characters.', 'Password must include an uppercase letter.', 'Password must include a lowercase letter.', 'Password must include a number.'].includes(error) ? 'true' : 'false'}
+                    aria-describedby={fieldErrors.password ? 'reg-password-error reg-pw-strength' : 'reg-pw-strength'}
+                    aria-invalid={!!fieldErrors.password}
                   />
                   <button
                     type="button"
@@ -423,7 +663,9 @@ const RegisterPage = () => {
                     {showPw ? <EyeOff size={15} /> : <Eye size={15} />}
                   </button>
                 </div>
-                {fieldErrors.password && <p className="form-error">{fieldErrors.password}</p>}
+                {fieldErrors.password && (
+                  <p id="reg-password-error" className="form-error" role="alert">{fieldErrors.password}</p>
+                )}
 
                 {/* Strength meter */}
                 {form.password && (
@@ -473,16 +715,19 @@ const RegisterPage = () => {
                     type={showConfirmPw ? 'text' : 'password'}
                     className={`form-input form-input-icon-left form-input-icon-right ${
                       fieldErrors.confirmPassword ? 'error' :
-                      form.confirmPassword && form.confirmPassword === form.password ? 'success' :
-                      form.confirmPassword && form.confirmPassword !== form.password ? 'error' : ''
+                      form.confirmPassword && form.confirmPassword === form.password ? 'success' : ''
                     }`}
                     placeholder="Repeat password"
                     value={form.confirmPassword}
                     onChange={e => update('confirmPassword', e.target.value)}
+                    onBlur={() => handleBlur('confirmPassword')}
+                    onKeyDown={checkCapsLock}
+                    onKeyUp={checkCapsLock}
                     required
                     autoComplete="new-password"
                     aria-required="true"
-                    aria-invalid={fieldErrors.confirmPassword || (error === 'Please confirm your password.' || error === 'Passwords do not match.' || (form.confirmPassword && form.confirmPassword !== form.password)) ? 'true' : 'false'}
+                    aria-invalid={!!fieldErrors.confirmPassword}
+                    aria-describedby={fieldErrors.confirmPassword ? 'reg-confirm-password-error' : undefined}
                   />
                   <button
                     type="button"
@@ -494,9 +739,8 @@ const RegisterPage = () => {
                     {showConfirmPw ? <EyeOff size={15} /> : <Eye size={15} />}
                   </button>
                 </div>
-                {fieldErrors.confirmPassword && <p className="form-error">{fieldErrors.confirmPassword}</p>}
-                {!fieldErrors.confirmPassword && form.confirmPassword && form.confirmPassword !== form.password && (
-                  <p className="form-error">Passwords don't match</p>
+                {fieldErrors.confirmPassword && (
+                  <p id="reg-confirm-password-error" className="form-error" role="alert">{fieldErrors.confirmPassword}</p>
                 )}
               </div>
 
@@ -528,16 +772,24 @@ const RegisterPage = () => {
                   <MapPin size={15} className="form-input-icon" aria-hidden="true" />
                   <CustomSelect
                     id="reg-province"
-                    className={`form-select form-input-icon-left ${fieldErrors.address_province ? 'error' : ''}`}
+                    className={`form-select form-input-icon-left ${fieldErrors.address_province ? 'error' : form.address_province ? 'success' : ''}`}
                     value={form.address_province}
-                    onChange={e => { update('address_province', e.target.value); update('address_city', ''); }}
+                    onChange={e => {
+                      update('address_province', e.target.value);
+                      update('address_city', '');
+                    }}
                     autoComplete="address-level1"
+                    aria-required="true"
+                    aria-invalid={!!fieldErrors.address_province}
+                    aria-describedby={fieldErrors.address_province ? 'reg-province-error' : undefined}
                   >
                     <option value="">Select Province</option>
                     {VALID_PROVINCES.map(p => <option key={p} value={p}>{p}</option>)}
                   </CustomSelect>
                 </div>
-                {fieldErrors.address_province && <p className="form-error">{fieldErrors.address_province}</p>}
+                {fieldErrors.address_province && (
+                  <p id="reg-province-error" className="form-error" role="alert">{fieldErrors.address_province}</p>
+                )}
               </div>
 
               {/* City */}
@@ -547,17 +799,22 @@ const RegisterPage = () => {
                   <Landmark size={15} className="form-input-icon" aria-hidden="true" />
                   <CustomSelect
                     id="reg-city"
-                    className={`form-select form-input-icon-left ${fieldErrors.address_city ? 'error' : ''}`}
+                    className={`form-select form-input-icon-left ${fieldErrors.address_city ? 'error' : form.address_city ? 'success' : ''}`}
                     value={form.address_city}
                     onChange={e => update('address_city', e.target.value)}
                     autoComplete="address-level2"
                     disabled={!form.address_province}
+                    aria-required="true"
+                    aria-invalid={!!fieldErrors.address_city}
+                    aria-describedby={fieldErrors.address_city ? 'reg-city-error' : undefined}
                   >
                     <option value="">Select City</option>
                     {cities.map(c => <option key={c} value={c}>{c}</option>)}
                   </CustomSelect>
                 </div>
-                {fieldErrors.address_city && <p className="form-error">{fieldErrors.address_city}</p>}
+                {fieldErrors.address_city && (
+                  <p id="reg-city-error" className="form-error" role="alert">{fieldErrors.address_city}</p>
+                )}
               </div>
 
               {/* Barangay */}
@@ -567,14 +824,21 @@ const RegisterPage = () => {
                   <Home size={15} className="form-input-icon" aria-hidden="true" />
                   <input
                     id="reg-barangay"
-                    className={`form-input form-input-icon-left ${fieldErrors.address_barangay ? 'error' : ''}`}
+                    className={`form-input form-input-icon-left ${fieldErrors.address_barangay ? 'error' : touchedFields.address_barangay && form.address_barangay.trim() ? 'success' : ''}`}
                     placeholder="e.g. Barangay Poblacion"
                     value={form.address_barangay}
                     onChange={handleTitleCase('address_barangay')}
+                    onBlur={() => handleBlur('address_barangay')}
+                    required
                     autoComplete="address-level3"
+                    aria-required="true"
+                    aria-invalid={!!fieldErrors.address_barangay}
+                    aria-describedby={fieldErrors.address_barangay ? 'reg-barangay-error' : undefined}
                   />
                 </div>
-                {fieldErrors.address_barangay && <p className="form-error">{fieldErrors.address_barangay}</p>}
+                {fieldErrors.address_barangay && (
+                  <p id="reg-barangay-error" className="form-error" role="alert">{fieldErrors.address_barangay}</p>
+                )}
               </div>
 
               {/* Street */}
@@ -584,14 +848,21 @@ const RegisterPage = () => {
                   <MapPin size={15} className="form-input-icon" aria-hidden="true" />
                   <input
                     id="reg-street"
-                    className={`form-input form-input-icon-left ${fieldErrors.address_street ? 'error' : ''}`}
+                    className={`form-input form-input-icon-left ${fieldErrors.address_street ? 'error' : touchedFields.address_street && form.address_street.trim() ? 'success' : ''}`}
                     placeholder="e.g. Rizal Street"
                     value={form.address_street}
                     onChange={handleTitleCase('address_street')}
+                    onBlur={() => handleBlur('address_street')}
+                    required
                     autoComplete="street-address"
+                    aria-required="true"
+                    aria-invalid={!!fieldErrors.address_street}
+                    aria-describedby={fieldErrors.address_street ? 'reg-street-error' : undefined}
                   />
                 </div>
-                {fieldErrors.address_street && <p className="form-error">{fieldErrors.address_street}</p>}
+                {fieldErrors.address_street && (
+                  <p id="reg-street-error" className="form-error" role="alert">{fieldErrors.address_street}</p>
+                )}
               </div>
 
               {/* Lot/Block */}
@@ -601,16 +872,20 @@ const RegisterPage = () => {
                   <Home size={15} className="form-input-icon" aria-hidden="true" />
                   <input
                     id="reg-lot"
-                    className={`form-input form-input-icon-left ${fieldErrors.address_lot_block ? 'error' : ''}`}
+                    className={`form-input form-input-icon-left ${fieldErrors.address_lot_block ? 'error' : touchedFields.address_lot_block && form.address_lot_block.trim() ? 'success' : ''}`}
                     placeholder="e.g. Lot 12, Block 5"
                     value={form.address_lot_block}
                     onChange={handleTitleCase('address_lot_block')}
+                    onBlur={() => handleBlur('address_lot_block')}
                     required
                     aria-required="true"
-                    aria-invalid={fieldErrors.address_lot_block ? 'true' : 'false'}
+                    aria-invalid={!!fieldErrors.address_lot_block}
+                    aria-describedby={fieldErrors.address_lot_block ? 'reg-lot-error' : undefined}
                   />
                 </div>
-                {fieldErrors.address_lot_block && <p className="form-error">{fieldErrors.address_lot_block}</p>}
+                {fieldErrors.address_lot_block && (
+                  <p id="reg-lot-error" className="form-error" role="alert">{fieldErrors.address_lot_block}</p>
+                )}
               </div>
 
               {/* Landmark */}
@@ -620,22 +895,28 @@ const RegisterPage = () => {
                   <Navigation size={15} className="form-input-icon" aria-hidden="true" />
                   <input
                     id="reg-landmark"
-                    className={`form-input form-input-icon-left ${fieldErrors.address_landmark ? 'error' : ''}`}
+                    className={`form-input form-input-icon-left ${fieldErrors.address_landmark ? 'error' : touchedFields.address_landmark && form.address_landmark.trim() ? 'success' : ''}`}
                     placeholder="e.g. Near Sari-sari Store, Beside Church"
                     value={form.address_landmark}
                     onChange={handleTitleCase('address_landmark')}
+                    onBlur={() => handleBlur('address_landmark')}
                     required
                     aria-required="true"
-                    aria-invalid={fieldErrors.address_landmark ? 'true' : 'false'}
+                    aria-invalid={!!fieldErrors.address_landmark}
+                    aria-describedby={fieldErrors.address_landmark ? 'reg-landmark-error' : undefined}
                   />
                 </div>
-                {fieldErrors.address_landmark && <p className="form-error">{fieldErrors.address_landmark}</p>}
+                {fieldErrors.address_landmark && (
+                  <p id="reg-landmark-error" className="form-error" role="alert">{fieldErrors.address_landmark}</p>
+                )}
               </div>
 
-              {/* Address note */}
-              <div className="reg-address-note">
-                <MapPin size={13} />
-                <p>Your address helps us arrange pickups and deliveries more accurately.</p>
+              {/* Terms note */}
+              <div className="reg-address-note" style={{ background: 'var(--surface-hover)', borderColor: 'var(--border)' }}>
+                <ShieldCheck size={14} style={{ color: 'var(--primary)', marginTop: 2 }} />
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.78rem' }}>
+                  By creating an account, you agree to CargoExpress PH's Terms of Service and Privacy Policy.
+                </p>
               </div>
 
               {/* Buttons */}
@@ -654,7 +935,7 @@ const RegisterPage = () => {
                   aria-busy={loading}
                 >
                   {loading
-                    ? <><Loader size={16} className="animate-spin" /> Creating…</>
+                    ? <><Loader size={16} className="animate-spin" /> Creating Account…</>
                     : 'Create Account'
                   }
                 </button>
