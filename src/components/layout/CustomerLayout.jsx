@@ -235,7 +235,6 @@ const CustomerLayout = () => {
                 className={({ isActive }) =>
                   `customer-nav-link ${isActive ? 'active' : ''}`
                 }
-                aria-current={({ isActive }) => (isActive ? 'page' : undefined)}
               >
                 <item.icon size={16} />
                 {item.label}
@@ -340,7 +339,6 @@ const CustomerLayout = () => {
               className={({ isActive }) =>
                 `customer-bottom-tab ${isActive ? 'active' : ''} ${item.isBookTab ? 'book-tab' : ''}`
               }
-              aria-current={({ isActive }) => (isActive ? 'page' : undefined)}
             >
               {item.isBookTab ? (
                 <div className="book-tab-icon">

@@ -176,6 +176,7 @@
   width: 96px;
   height: 96px;
   border-radius: 50%;
+  background: var(--primary-bg);
   background: linear-gradient(135deg, var(--primary-bg), color-mix(in srgb, var(--primary) 12%, transparent));
   display: flex;
   align-items: center;

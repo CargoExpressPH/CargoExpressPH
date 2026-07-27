@@ -134,7 +134,6 @@ const Sidebar = ({ isOpen, onClose, isCollapsed, onToggleCollapse }) => {
         to={item.to}
         end={item.end}
         className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
-        aria-current={({ isActive }) => (isActive ? 'page' : undefined)}
         onClick={onClose}
         data-tooltip={item.label}
         aria-label={`${item.label}${badgeCount > 0 ? `, ${badgeCount} unread items` : ''}`}

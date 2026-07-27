@@ -618,6 +618,7 @@
   background: var(--warning-bg);
 }
 .inbox-conv-waiting:hover {
+  background: var(--warning-bg);
   background: color-mix(in srgb, var(--warning-bg) 85%, var(--text) 15%);
 }
 

@@ -387,6 +387,7 @@
 .home-hero-trip-card,
 .customer-layout-v2 .home-hero-trip-card {
   overflow: hidden;
+  background: var(--customer-panel-solid, var(--surface));
   background:
     linear-gradient(
       135deg,
@@ -394,6 +395,7 @@
       var(--customer-panel-solid, var(--surface)) 62%
     ),
     var(--customer-panel-solid, var(--surface));
+  border: 1px solid var(--customer-green-soft, var(--primary-bg));
   border: 1px solid color-mix(in srgb, var(--customer-green, var(--primary)) 22%, transparent);
   border-radius: 28px;
   box-shadow: var(--customer-shadow, var(--shadow-md));
@@ -433,6 +435,7 @@
   margin-bottom: 20px;
 }
 .home-trip-metric-box {
+  background: var(--customer-green-soft, var(--primary-bg));
   background: color-mix(in srgb, var(--customer-green-soft, var(--primary-bg)) 55%, var(--customer-panel-solid, var(--surface)));
   border: 1px solid var(--customer-line, var(--border));
   padding: 10px 12px;

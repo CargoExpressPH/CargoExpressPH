@@ -85,6 +85,7 @@ body:has(:is(.customer-layout-v2, .trk-page, .public-about-page, .contact-page, 
 }
 
 .customer-layout-v2 .card:hover {
+  border-color: var(--customer-line);
   border-color: color-mix(in srgb, var(--customer-green) 20%, var(--customer-line));
   box-shadow: var(--customer-shadow);
 }
@@ -107,6 +108,7 @@ body:has(:is(.customer-layout-v2, .trk-page, .public-about-page, .contact-page, 
 .customer-layout-v2 .form-textarea,
 .customer-layout-v2 .search-box input {
   border-color: var(--customer-line);
+  background: var(--customer-panel-solid);
   background: color-mix(in srgb, var(--customer-panel-solid) 92%, var(--bg) 8%);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55);
 }
@@ -140,13 +142,6 @@ body:has(:is(.customer-layout-v2, .trk-page, .public-about-page, .contact-page, 
   color: var(--customer-green);
 }
 
-.customer-layout-v2 .badge-info,
-.customer-layout-v2 .badge-success,
-.customer-layout-v2 .badge-pending {
-  border-color: color-mix(in srgb, var(--customer-green) 24%, transparent);
-  background: var(--customer-green-soft);
-  color: var(--customer-green-dark);
-}
 
 .customer-navbar {
   position: sticky;
@@ -500,8 +495,10 @@ body:has(:is(.customer-layout-v2, .trk-page, .public-about-page, .contact-page, 
 .customer-layout-v2 .customer-trip-card,
 .customer-layout-v2 .home-hero-trip-card {
   overflow: hidden;
+  border: 1px solid var(--customer-green-soft);
   border: 1px solid color-mix(in srgb, var(--customer-green) 22%, transparent);
   border-radius: 28px;
+  background: var(--customer-panel-solid);
   background:
     linear-gradient(135deg, color-mix(in srgb, var(--customer-green-soft) 82%, var(--customer-panel-solid) 18%), var(--customer-panel-solid) 62%),
     var(--customer-panel-solid);
@@ -614,6 +611,7 @@ body:has(:is(.customer-layout-v2, .trk-page, .public-about-page, .contact-page, 
 }
 
 .customer-order-tabs .tab.active {
+  border-color: var(--customer-green);
   border-color: color-mix(in srgb, var(--customer-green) 40%, transparent);
   background: var(--customer-green-soft);
   color: var(--customer-green-dark);
@@ -690,6 +688,7 @@ body:has(:is(.customer-layout-v2, .trk-page, .public-about-page, .contact-page, 
   padding: 10px;
   border: 1px solid var(--customer-line);
   border-radius: 24px;
+  background: var(--customer-panel-solid);
   background: color-mix(in srgb, var(--customer-panel-solid) 92%, transparent);
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
@@ -833,7 +832,9 @@ body:has(:is(.customer-layout-v2, .trk-page, .public-about-page, .contact-page, 
 }
 
 .notification-card.unread {
+  border-color: var(--customer-line);
   border-color: color-mix(in srgb, var(--customer-green) 24%, transparent);
+  background: var(--customer-green-soft);
   background:
     linear-gradient(135deg, var(--customer-green-soft), color-mix(in srgb, var(--customer-panel-solid) 90%, transparent));
 }
@@ -1053,6 +1054,7 @@ body:has(:is(.customer-layout-v2, .trk-page, .public-about-page, .contact-page, 
 }
 
 .profile-completion-container {
+  background: var(--customer-green-soft);
   background: color-mix(in srgb, var(--customer-green-soft) 40%, var(--customer-panel));
   border: 1px solid var(--customer-line);
   border-radius: 22px;
@@ -1325,6 +1327,7 @@ input:checked + .toggle-slider:before {
 .support-chat-messages {
   border-color: var(--customer-line);
   border-radius: 28px;
+  background: var(--customer-panel-solid);
   background:
     linear-gradient(180deg, color-mix(in srgb, var(--customer-green-soft) 42%, transparent), transparent 44%),
     color-mix(in srgb, var(--customer-panel-solid) 88%, var(--bg) 12%);
@@ -1377,6 +1380,7 @@ input:checked + .toggle-slider:before {
   padding: 8px;
   border: 1px solid var(--customer-line);
   border-radius: 999px;
+  background: var(--customer-panel-solid);
   background: color-mix(in srgb, var(--customer-panel-solid) 92%, transparent);
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
@@ -1560,6 +1564,7 @@ input:checked + .toggle-slider:before {
 }
 
 .customer-payment-history-table thead {
+  background: var(--bg-secondary);
   background: color-mix(in srgb, var(--customer-green-soft) 40%, var(--bg-secondary));
 }
 
@@ -1587,6 +1592,7 @@ input:checked + .toggle-slider:before {
 }
 
 .customer-payment-history-table tbody tr:hover {
+  background: var(--customer-green-soft);
   background: color-mix(in srgb, var(--customer-green-soft) 30%, transparent);
 }
 
@@ -1634,6 +1640,7 @@ input:checked + .toggle-slider:before {
     align-items: center;
     justify-content: space-between;
     padding: 0 0 6px 0 ;
+    border-bottom: 1px solid var(--customer-line) ;
     border-bottom: 1px solid color-mix(in srgb, var(--customer-line) 40%, transparent) ;
     font-size: 0.8125rem;
     text-align: right ;
@@ -1728,6 +1735,7 @@ body:has(textarea:focus) .support-chat-page {
 .customer-route-line {
   width: 100%;
   height: 2px;
+  background: var(--customer-line);
   background: color-mix(in srgb, var(--customer-line) 80%, transparent);
   position: relative;
 }
