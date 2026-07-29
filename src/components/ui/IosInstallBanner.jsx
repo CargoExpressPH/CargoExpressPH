@@ -6,9 +6,17 @@ const isIos = () => /iphone|ipad|ipod/i.test(window.navigator.userAgent);
 const isInStandaloneMode = () =>
   window.navigator.standalone === true ||
   window.matchMedia('(display-mode: standalone)').matches;
-const getIosVersion = () => {
-  const match = window.navigator.userAgent.match(/OS (\d+)_/);
-  return match ? parseInt(match[1], 10) : 0;
+/** Returns { major, minor } from iOS UA, or { 0, 0 } if unknown. */
+const getIosVersionParts = () => {
+  const match = window.navigator.userAgent.match(/OS (\d+)_(\d+)/);
+  if (!match) return { major: 0, minor: 0 };
+  return { major: parseInt(match[1], 10), minor: parseInt(match[2], 10) };
+};
+
+/** True when iOS is 16.4+ (minimum for Web Push). */
+const isIosWebPushVersion = () => {
+  const { major, minor } = getIosVersionParts();
+  return major > 16 || (major === 16 && minor >= 4);
 };
 
 const DISMISSED_KEY = 'ios_install_banner_dismissed';
@@ -35,8 +43,7 @@ function wasDismissedRecently() {
 export default function IosInstallBanner() {
   const [visible, setVisible] = useState(false);
   const [step, setStep] = useState(1); // 1 = prompt, 2 = instructions
-  const iosVersion = getIosVersion();
-  const pushSupported = iosVersion >= 16;
+  const pushSupported = isIosWebPushVersion();
 
   useEffect(() => {
     // Only show on iOS Safari, not installed, not dismissed recently

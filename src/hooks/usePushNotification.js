@@ -33,9 +33,12 @@ const isIos = () => /iphone|ipad|ipod/i.test(window.navigator.userAgent);
 /** True on iOS 16.4 or later (minimum for Web Push support) */
 const isIosPushSupported = () => {
   if (!isIos()) return false;
-  const match = window.navigator.userAgent.match(/OS (\d+)_/);
+  // UA looks like: CPU iPhone OS 16_4_1 like Mac OS X
+  const match = window.navigator.userAgent.match(/OS (\d+)_(\d+)/);
   if (!match) return false;
-  return parseInt(match[1], 10) >= 16;
+  const major = parseInt(match[1], 10);
+  const minor = parseInt(match[2], 10);
+  return major > 16 || (major === 16 && minor >= 4);
 };
 
 /**

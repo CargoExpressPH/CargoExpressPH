@@ -412,28 +412,50 @@ self.addEventListener('message', (event) => {
 });
 
 // ============================================================================
-// PUSH — Firebase Cloud Messaging push notification received
+// PUSH — FCM (Android/Chrome) + Web Push (iOS PWA) payload handling
+// Supports both shapes:
+//   FCM:      { notification: { title, body }, data: { url } }
+//   Web Push: { title, body, data: { url } }  (or nested notification)
+// Always show a user-visible notification (required for iOS Web Push).
 // ============================================================================
 self.addEventListener('push', (event) => {
   let data = {};
   try {
     data = event.data?.json() || {};
   } catch (e) {
-    data = { notification: { title: 'CargoExpress PH', body: event.data?.text() || 'You have a new update' } };
+    data = {
+      title: 'CargoExpress PH',
+      body: event.data?.text() || 'You have a new update',
+    };
   }
 
   const notif = data.notification || {};
-  const title = notif.title || 'CargoExpress PH';
-  const body = notif.body || 'You have a new update';
-  const url = data.data?.url || notif.click_action || '/customer/notifications';
+  const nestedData = data.data && typeof data.data === 'object' ? data.data : {};
+  const title =
+    notif.title ||
+    data.title ||
+    nestedData.title ||
+    'CargoExpress PH';
+  const body =
+    notif.body ||
+    data.body ||
+    nestedData.body ||
+    'You have a new update';
+  const url =
+    nestedData.url ||
+    data.url ||
+    notif.click_action ||
+    '/customer/notifications';
+  const icon = notif.icon || data.icon || '/icons/icon-192.png';
+  const badge = notif.badge || data.badge || '/icons/icon-72.png';
 
   const notifOptions = {
     body,
-    icon: '/icons/icon-192.png',
-    badge: '/icons/icon-72.png',
+    icon,
+    badge,
     data: { url },
     vibrate: [200, 100, 200],
-    tag: 'cargoexpress-' + Date.now(),
+    tag: 'cargoexpress-' + (nestedData.tag || Date.now()),
     renotify: true,
     actions: [
       { action: 'open', title: 'Open' },
@@ -442,23 +464,25 @@ self.addEventListener('push', (event) => {
   };
 
   event.waitUntil(
-    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-      // If the app is focused, send an in-app toast instead of a system notification
-      const focusedClient = clientList.find((c) => c.focused);
+    (async () => {
+      const clientList = await self.clients.matchAll({
+        type: 'window',
+        includeUncontrolled: true,
+      });
 
-      if (focusedClient) {
-        focusedClient.postMessage({
+      // In-app toast when a window is open (does not replace system notification)
+      for (const client of clientList) {
+        client.postMessage({
           type: 'PUSH_NOTIFICATION',
           title,
           body,
           url,
         });
-        return;
       }
 
-      // App is in background or closed — show system notification
-      return self.registration.showNotification(title, notifOptions);
-    })
+      // Always show a system notification — required for iOS Web Push retention
+      await self.registration.showNotification(title, notifOptions);
+    })()
   );
 });
 

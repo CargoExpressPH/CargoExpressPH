@@ -179,11 +179,15 @@ async function sendWebPush(
     const jwt = await buildVapidJwt(audience, vapidSubject, vapidPublicKey, vapidPrivateKey)
 
     // ── Plaintext payload ─────────────────────────────────────────────────
+    // Dual shape: top-level fields for iOS Web Push SW parsing, plus
+    // notification/data wrappers for FCM-compatible service workers.
     const payloadBytes = new TextEncoder().encode(JSON.stringify({
-      title, body,
+      title,
+      body,
       icon:  '/icons/icon-192.png',
       badge: '/icons/icon-72.png',
-      data:  { url: clickUrl },
+      notification: { title, body, icon: '/icons/icon-192.png', badge: '/icons/icon-72.png' },
+      data:  { url: clickUrl, title, body },
     }))
 
     // ── RFC 8291: ECDH + HKDF-SHA-256 + AES-128-GCM ──────────────────────
