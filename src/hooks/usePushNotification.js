@@ -110,23 +110,30 @@ async function subscribeIosPush(userId) {
 async function unsubscribeIosPush(userId) {
   try {
     const swReg = await navigator.serviceWorker.getRegistration('/');
-    if (!swReg) return;
+    if (swReg) {
+      const subscription = await swReg.pushManager.getSubscription();
+      if (subscription) {
+        const token = 'webpush:' + JSON.stringify(subscription.toJSON());
 
-    const subscription = await swReg.pushManager.getSubscription();
-    if (!subscription) return;
+        await supabase
+          .from('user_device_tokens')
+          .delete()
+          .eq('token', token)
+          .eq('user_id', userId);
 
-    const token = 'webpush:' + JSON.stringify(subscription.toJSON());
+        await subscription.unsubscribe();
+      }
+    }
 
-    await supabase
-      .from('user_device_tokens')
-      .delete()
-      .eq('token', token)
-      .eq('user_id', userId);
+    try {
+      localStorage.removeItem('ios_push_subscribed');
+      localStorage.setItem('fcm_enabled', 'false');
+    } catch {}
 
-    await subscription.unsubscribe();
-    localStorage.removeItem('ios_push_subscribed');
+    return true;
   } catch (err) {
     console.warn('[PushNotification] iOS unsubscribe failed:', err);
+    return false;
   }
 }
 
@@ -152,6 +159,12 @@ export function usePushNotification(userId, onMsg) {
   const enablePush = useCallback(async () => {
     if (!userId) return { success: false, reason: 'no_user' };
     if (!('Notification' in window)) return { success: false, reason: 'not_supported' };
+
+    // iOS Safari (not installed) cannot use Web Push — do not fall through to FCM
+    if (isIos() && !isIosPwa()) {
+      if (!isIosPushSupported()) return { success: false, reason: 'ios_version' };
+      return { success: false, reason: 'ios_not_installed' };
+    }
 
     const permission = await Notification.requestPermission();
     setPermissionState(permission);
@@ -179,13 +192,26 @@ export function usePushNotification(userId, onMsg) {
 
   // ── Disable push ─────────────────────────────────────────────────────────
   const disablePush = useCallback(async () => {
-    if (!userId) return;
+    if (!userId) return { success: false, reason: 'no_user' };
+
     if (isIosPwa()) {
-      await unsubscribeIosPush(userId);
-    } else {
-      await disableNotificationsForDevice(userId);
+      const ok = await unsubscribeIosPush(userId);
+      if (ok) setIsSubscribed(false);
+      return ok
+        ? { success: true, platform: 'ios-webpush' }
+        : { success: false, reason: 'ios_unsubscribe_failed' };
     }
+
+    const ok = await disableNotificationsForDevice(userId);
+    if (ok) {
+      setIsSubscribed(false);
+      return { success: true, platform: 'fcm' };
+    }
+
+    // Token may already be gone — clear local flag so UI matches user intent
+    try { localStorage.setItem('fcm_enabled', 'false'); } catch {}
     setIsSubscribed(false);
+    return { success: true, platform: 'fcm' };
   }, [userId]);
 
   // ── Auto-init on mount ───────────────────────────────────────────────────

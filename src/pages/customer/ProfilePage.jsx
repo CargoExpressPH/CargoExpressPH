@@ -4,8 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { getOrders } from '../../lib/database';
 import { useToast } from '../../hooks/useToast';
 import { useTheme } from '../../contexts/ThemeContext';
-import { requestNotificationPermission, disableNotificationsForDevice } from '../../lib/firebase-messaging';
-import { supabase } from '../../lib/supabase';
+import { usePushNotification } from '../../hooks/usePushNotification';
 import {
   User, LogOut, ChevronRight, Package, Truck, Bell, MessageCircle,
   CreditCard, HelpCircle, FileText, CheckCircle2,
@@ -26,16 +25,92 @@ const PROFILE_COMPLETION_FIELDS = [
   'address_landmark',
 ];
 
+function getPushStatusLabel({
+  pushSupported,
+  permissionState,
+  isSubscribed,
+  isIosDevice,
+  isIosInstalled,
+  iosPushSupported,
+}) {
+  if (!pushSupported) return 'Not supported on this browser';
+  if (permissionState === 'denied') return 'Blocked (Enable in device settings)';
+  if (isIosDevice && !isIosInstalled) {
+    return iosPushSupported
+      ? 'Install app to Home Screen to enable push'
+      : 'Requires iOS 16.4+ and Home Screen install';
+  }
+  if (isSubscribed) return 'Enabled on this device';
+  return 'Disabled (Click to enable)';
+}
+
 const ProfilePage = () => {
   usePageTitle('Profile');
-  const { user, userProfile, logout, refreshProfile } = useAuth();
+  const { user, userProfile, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const toast = useToast();
   const navigate = useNavigate();
   const [orderStats, setOrderStats] = useState({ total: 0, active: 0, delivered: 0 });
   const [loading, setLoading] = useState(true);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
-  const [pushToggleKey, setPushToggleKey] = useState(0);
+  const [pushBusy, setPushBusy] = useState(false);
+
+  const {
+    permissionState,
+    isSubscribed,
+    isIosDevice,
+    isIosInstalled,
+    iosPushSupported,
+    enablePush,
+    disablePush,
+  } = usePushNotification(user?.id);
+
+  const pushSupported = typeof window !== 'undefined' && 'Notification' in window;
+  const canTogglePush =
+    pushSupported &&
+    permissionState !== 'denied' &&
+    !(isIosDevice && !isIosInstalled);
+  const pushStatusLabel = getPushStatusLabel({
+    pushSupported,
+    permissionState,
+    isSubscribed,
+    isIosDevice,
+    isIosInstalled,
+    iosPushSupported,
+  });
+
+  const handlePushToggle = async (checked) => {
+    if (!user || pushBusy) return;
+    setPushBusy(true);
+    try {
+      if (checked) {
+        const result = await enablePush();
+        if (result.success) {
+          toast.success('Push notifications enabled!');
+          return;
+        }
+        if (result.reason === 'denied') {
+          toast.error('Permission denied. Enable notifications in device settings.');
+        } else if (result.reason === 'ios_not_installed') {
+          toast.error('Add CargoExpress to your Home Screen first to enable push.');
+        } else if (result.reason === 'ios_version') {
+          toast.error('Push requires iOS 16.4 or later.');
+        } else {
+          toast.error('Could not enable push notifications. Please try again.');
+        }
+        return;
+      }
+
+      const result = await disablePush();
+      if (result?.success) {
+        toast.success('Push notifications disabled.');
+      } else {
+        toast.error('Failed to disable notifications.');
+      }
+    } finally {
+      setPushBusy(false);
+    }
+  };
 
   useEffect(() => {
     if (user) {
@@ -223,55 +298,33 @@ const ProfilePage = () => {
               <span className="toggle-slider" />
             </label>
           </div>
-          <div className="profile-menu-item no-hover" key={pushToggleKey}>
+          <div className="profile-menu-item no-hover">
             <div className="profile-menu-icon-wrap accent">
               <Bell size={18} />
             </div>
             <div className="flex-1 text-left">
               <div className="text-sm font-bold">Push Notifications</div>
-              <div className="text-xs text-secondary">
-                {typeof window !== 'undefined' && 'Notification' in window
-                  ? Notification.permission === 'denied'
-                    ? 'Blocked (Enable in device settings)'
-                    : Notification.permission === 'granted' && localStorage.getItem('fcm_enabled') === 'true'
-                      ? 'Enabled on this device'
-                      : 'Disabled (Click to enable)'
-                  : 'Not supported on this browser'}
-              </div>
+              <div className="text-xs text-secondary">{pushStatusLabel}</div>
             </div>
-            {typeof window !== 'undefined' && 'Notification' in window && Notification.permission !== 'denied' ? (
-              <label className="toggle-switch">
+            {canTogglePush ? (
+              <label className={`toggle-switch${pushBusy ? ' opacity-50' : ''}`}>
                 <input
                   type="checkbox"
-                  checked={Notification.permission === 'granted' && localStorage.getItem('fcm_enabled') === 'true'}
-                  onChange={async (e) => {
-                    if (e.target.checked) {
-                      const token = await requestNotificationPermission(user.id);
-                      if (token) {
-                        toast.success('Push notifications enabled!');
-                      } else {
-                        toast.error('Permission denied or FCM failed.');
-                      }
-                    } else {
-                      // Disable: clear the current device token
-                      const success = await disableNotificationsForDevice(user.id);
-                      if (success) {
-                        localStorage.setItem('fcm_enabled', 'false');
-                        setPushToggleKey(k => k + 1);
-                        toast.success('Push notifications disabled.');
-                      } else {
-                        toast.error('Failed to disable notifications.');
-                      }
-                    }
-                    await refreshProfile();
-                  }}
+                  checked={isSubscribed}
+                  disabled={pushBusy}
+                  onChange={(e) => handlePushToggle(e.target.checked)}
                   aria-label="Toggle Push Notifications"
                 />
                 <span className="toggle-slider" />
               </label>
             ) : (
               <label className="toggle-switch disabled opacity-50">
-                <input type="checkbox" checked={false} disabled aria-label="Toggle Push Notifications" />
+                <input
+                  type="checkbox"
+                  checked={false}
+                  disabled
+                  aria-label="Toggle Push Notifications"
+                />
                 <span className="toggle-slider" />
               </label>
             )}
