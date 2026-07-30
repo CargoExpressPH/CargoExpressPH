@@ -525,6 +525,11 @@ CREATE POLICY "Admins can view activity logs" ON activity_logs
 CREATE POLICY "Admins can insert activity logs" ON activity_logs
   FOR INSERT WITH CHECK (public.is_admin());
 
+-- Customers can log their own actions (login, booking); admin_id must match auth.uid()
+CREATE POLICY "Users can insert their own activity logs" ON activity_logs
+  FOR INSERT TO authenticated
+  WITH CHECK (admin_id = auth.uid());
+
 -- ─── Coverage Regions ───────────────────────────────────────
 CREATE POLICY "Allow public read access" ON coverage_regions
   FOR SELECT USING (true);
