@@ -177,18 +177,3 @@ export const deletePhoto = async (pathOrDescriptor, bucket = COMPANY_ASSETS_BUCK
   if (error) throw new Error(`Failed to delete photo: ${error.message}`);
 };
 
-/**
- * Fallback helpers for storing/getting photo via Firebase Datastore/Firestore
- * when standard supabase.storage fails.
- */
-export const storePhotoFallbackFirebase = async (file, orderId, folder) => {
-  // Uses 'store-photo-fallback' edge function
-  // Formats image data as 'firebase_base64'
-  console.log("fallback store triggered");
-};
-
-export const getPhotoFallbackFirebase = async (orderId) => {
-  // Uses 'get-photo-fallback' edge function
-  console.log("fallback get triggered");
-};
-

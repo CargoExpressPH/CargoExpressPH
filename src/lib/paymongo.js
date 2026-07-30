@@ -115,26 +115,14 @@ export const createPayment = async (sourceId, amount, description, orderUpdate =
     body.orderUpdate = orderUpdate;
   }
 
-  console.log('[createPayment] Invoking edge function paymongo-create-payment with body:', body);
-  let res;
-  try {
-    res = await supabase.functions.invoke('paymongo-create-payment', {
-      body,
-    });
-  } catch (err) {
-    console.error('[createPayment] Uncaught exception from invoke:', err);
-    throw err;
-  }
-  console.log('[createPayment] Edge function returned:', res);
-
-  const { data, error } = res;
+  const { data, error } = await supabase.functions.invoke('paymongo-create-payment', {
+    body,
+  });
 
   if (error) {
-    console.error('[createPayment] Supabase invoke returned error:', error);
     throw new Error(error.message || 'Failed to process payment');
   }
   if (data?.error) {
-    console.error('[createPayment] Edge function returned application error:', data.error);
     throw new Error(data.error);
   }
 

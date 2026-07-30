@@ -24,9 +24,6 @@ const requiredSchemaSnippets = [
 
 const requiredStorageSnippets = [
   'supabase.storage',
-  'store-photo-fallback',
-  'get-photo-fallback',
-  'firebase_base64',
 ];
 
 const requiredDatabaseSnippets = [

@@ -1368,6 +1368,41 @@
    PRINT STYLES � Optimized for paper output
    --------------------------------------------------------------------------- */
 @media print {
+  /* Force light-theme ink regardless of active app theme.
+     Dark mode sets --text to near-white, which would print invisibly
+     on white paper. Printed documents must always use light-theme colors. */
+  :root,
+  [data-theme="dark"] {
+    --bg: #FFFFFF;
+    --bg-secondary: #EBF1F6;
+    --surface: #FFFFFF;
+    --surface-raised: #FFFFFF;
+    --border: #E2E8F0;
+    --border-light: #F1F5F9;
+    --text: #0F172A;
+    --text-secondary: #475569;
+    --text-tertiary: #4B5563;
+    --text-inverse: #FFFFFF;
+    --primary: #16A34A;
+    --primary-bg: #F0FDF4;
+    --accent: #1B3A5C;
+    --success: #10B981;
+    --success-dark: #059669;
+    --success-bg: #ECFDF5;
+    --warning: #F59E0B;
+    --warning-dark: #D97706;
+    --warning-bg: #FFFBEB;
+    --error: #EF4444;
+    --error-bg: #FEF2F2;
+    --info: #3B82F6;
+    --info-dark: #2563EB;
+    --info-bg: #EFF6FF;
+    --chart-purple: #8B5CF6;
+    --chart-pink: #EC4899;
+    --chart-slate: #64748B;
+    --chart-teal: #14B8A6;
+  }
+
   /* Hide everything except the report */
   body * {
     visibility: hidden;
@@ -1491,6 +1526,21 @@
 
   /* Avoid breaking inside cards */
   .card, .stat-card, table {
+    break-inside: avoid;
+  }
+
+  /* Long tables must be allowed to flow across pages;
+     repeat their header row on every printed page. */
+  .card:has(.report-table-striped),
+  .report-table-striped {
+    break-inside: auto;
+  }
+
+  .report-table thead {
+    display: table-header-group;
+  }
+
+  .report-table tr {
     break-inside: avoid;
   }
 
