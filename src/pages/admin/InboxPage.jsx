@@ -5,7 +5,7 @@ import { useToast } from '../../hooks/useToast';
 import { supabase } from '../../lib/supabase';
 import {
   getAdminConversations,
-  getMessages,
+  getMessagesPage,
   markCustomerMessagesRead,
   sendMessage,
   withTimeout,
@@ -15,7 +15,7 @@ import {
   getOrCreateConversation,
 } from '../../lib/database';
 import EmptyState from '../../components/ui/EmptyState';
-import { MessageSquare, Send, Loader, User, Bot, Clock, CheckCircle, UserCheck, ArrowLeft, Search } from 'lucide-react';
+import { MessageSquare, Send, Loader, User, Bot, Clock, CheckCircle, UserCheck, ArrowLeft, Search, AlertCircle } from 'lucide-react';
 import usePageTitle from '../../hooks/usePageTitle';
 import { logChat } from '../../lib/activityLog';
 
@@ -51,6 +51,21 @@ const getInitials = (name) =>
   (name || '?').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
 
 const TEXTAREA_BASE_HEIGHT = 42;
+const MESSAGES_PAGE_SIZE = 50;
+
+// Mirrors getAdminConversations() ordering so realtime updates keep the same sort
+const sortConvs = (list) => [...list].sort((a, b) => {
+  if (a.status === 'waiting_admin' && b.status !== 'waiting_admin') return -1;
+  if (b.status === 'waiting_admin' && a.status !== 'waiting_admin') return 1;
+  if (a.unread_count > 0 && !(b.unread_count > 0)) return -1;
+  if (b.unread_count > 0 && !(a.unread_count > 0)) return 1;
+  const timeA = new Date(a.last_message?.created_at || a.created_at);
+  const timeB = new Date(b.last_message?.created_at || b.created_at);
+  return timeB - timeA;
+});
+
+const prefersReducedMotion = () =>
+  typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
 const InboxPage = () => {
   usePageTitle('Inbox');
@@ -73,10 +88,18 @@ const InboxPage = () => {
   const [chatReloadKey, setChatReloadKey] = useState(0);
   const [sending, setSending] = useState(false);
   const [textareaHeight, setTextareaHeight] = useState(TEXTAREA_BASE_HEIGHT);
+  const [hasMoreMessages, setHasMoreMessages] = useState(false);
+  const [loadingOlder, setLoadingOlder] = useState(false);
 
   const messagesEndRef = useRef(null);
+  const messagesContainerRef = useRef(null);
   const activeConvRef = useRef(null); // stable ref for realtime handlers
   const textareaRef = useRef(null);
+  const nearBottomRef = useRef(true);
+  const forceScrollRef = useRef(false);
+  const initialScrollPendingRef = useRef(false);
+  const convIdsRef = useRef(new Set());
+  const failedSeqRef = useRef(0);
 
   // ── Load conversations ─────────────────────────────────────────────────────
   const loadConvs = async (targetUserId) => {
@@ -129,15 +152,11 @@ const InboxPage = () => {
     const updateChannel = supabase.channel('admin_conversations_update')
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'conversations' }, (payload) => {
         setConversations(prev =>
-          prev.map(c =>
+          sortConvs(prev.map(c =>
             c.id === payload.new.id
               ? { ...c, status: payload.new.status, assigned_admin_id: payload.new.assigned_admin_id }
               : c
-          ).sort((a, b) => {
-            if (a.status === 'waiting_admin' && b.status !== 'waiting_admin') return -1;
-            if (b.status === 'waiting_admin' && a.status !== 'waiting_admin') return 1;
-            return new Date(b.created_at) - new Date(a.created_at);
-          })
+          ))
         );
         // Also update activeConv if it's the changed one
         if (activeConvRef.current?.id === payload.new.id) {
@@ -146,12 +165,46 @@ const InboxPage = () => {
       })
       .subscribe();
 
+    // Subscribe to ALL new chat messages so sidebar previews/unread stay live
+    const msgChannel = supabase.channel('admin_chat_messages_all')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages' }, (payload) => {
+        const msg = payload.new;
+        if (!convIdsRef.current.has(msg.conversation_id)) {
+          clearTimeout(timeoutId);
+          timeoutId = setTimeout(() => loadConvs(), 1500);
+          return;
+        }
+        const isActive = activeConvRef.current?.id === msg.conversation_id;
+        setConversations(prev => sortConvs(prev.map(c => {
+          if (c.id !== msg.conversation_id) return c;
+          return {
+            ...c,
+            last_message: {
+              conversation_id: c.id,
+              message: msg.message,
+              created_at: msg.created_at,
+              sender_role: msg.sender_role,
+            },
+            unread_count: msg.sender_role === 'customer'
+              ? (isActive ? 0 : (c.unread_count || 0) + 1)
+              : (c.unread_count || 0),
+          };
+        })));
+      })
+      .subscribe();
+
     return () => {
       clearTimeout(timeoutId);
       supabase.removeChannel(insertChannel);
       supabase.removeChannel(updateChannel);
+      supabase.removeChannel(msgChannel);
     };
   }, [location.state?.contactUserId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Keep known conversation ids available to realtime handlers
+  useEffect(() => {
+    convIdsRef.current = new Set(conversations.map(c => c.id));
+  }, [conversations]);
 
   // ── Load messages when conversation is selected ────────────────────────────
   useEffect(() => {
@@ -164,20 +217,26 @@ const InboxPage = () => {
     }
 
     let isMounted = true;
+    initialScrollPendingRef.current = true;
     const loadMsgs = async () => {
       setLoadingChat(true);
       setErrorChat(null);
       try {
-        const history = await getMessages(activeConv.id);
+        const { messages: history, hasMore } = await getMessagesPage(activeConv.id, { limit: MESSAGES_PAGE_SIZE });
         if (isMounted) {
           setMessages((history || []).map(message =>
             message.sender_role === 'customer' ? { ...message, is_read: true } : message
+          ));
+          setHasMoreMessages(hasMore);
+          setConversations(prev => prev.map(c =>
+            c.id === activeConv.id ? { ...c, unread_count: 0 } : c
           ));
         }
         markCustomerMessagesRead(activeConv.id).catch(() => {});
       } catch (err) {
         if (isMounted) {
           setMessages([]);
+          setHasMoreMessages(false);
           setErrorChat(err?.message || 'Failed to load messages.');
         }
       } finally {
@@ -215,10 +274,59 @@ const InboxPage = () => {
     return () => { supabase.removeChannel(channel); };
   }, [activeConv?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Auto-scroll
+  // Auto-scroll: instant on conversation open; afterwards only when the admin
+  // is already near the bottom or just sent a message (respects reduced motion)
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (messages.length === 0) return;
+    if (initialScrollPendingRef.current) {
+      initialScrollPendingRef.current = false;
+      nearBottomRef.current = true;
+      messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
+      return;
+    }
+    if (forceScrollRef.current || nearBottomRef.current) {
+      forceScrollRef.current = false;
+      messagesEndRef.current?.scrollIntoView({ behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
+    }
   }, [messages]);
+
+  const handleMessagesScroll = () => {
+    const el = messagesContainerRef.current;
+    if (!el) return;
+    nearBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+  };
+
+  // ── Load older messages (pagination) ───────────────────────────────────────
+  const handleLoadOlder = async () => {
+    if (!activeConv || loadingOlder || !hasMoreMessages || messages.length === 0) return;
+    setLoadingOlder(true);
+    const el = messagesContainerRef.current;
+    const prevHeight = el ? el.scrollHeight : 0;
+    const prevTop = el ? el.scrollTop : 0;
+    try {
+      const oldest = messages.find(m => !m.failed);
+      const { messages: older, hasMore } = await getMessagesPage(activeConv.id, {
+        limit: MESSAGES_PAGE_SIZE,
+        before: oldest?.created_at,
+      });
+      setMessages(prev => {
+        const ids = new Set(prev.map(m => m.id));
+        const fresh = (older || [])
+          .filter(m => !ids.has(m.id))
+          .map(m => (m.sender_role === 'customer' ? { ...m, is_read: true } : m));
+        return [...fresh, ...prev];
+      });
+      setHasMoreMessages(hasMore);
+      // Keep the viewport anchored on the message the admin was reading
+      requestAnimationFrame(() => {
+        if (el) el.scrollTop = prevTop + (el.scrollHeight - prevHeight);
+      });
+    } catch {
+      toast.error('Failed to load earlier messages.');
+    } finally {
+      setLoadingOlder(false);
+    }
+  };
 
   // ── Search ALL customers (directory) when admin types a query ──────────────
   useEffect(() => {
@@ -278,15 +386,18 @@ const InboxPage = () => {
   };
 
   // ── Send message ───────────────────────────────────────────────────────────
-  const handleSend = async () => {
-    const text = input.trim();
-    if (!text || !activeConv || !user) return;
+  const makeFailedMessage = (text) => ({
+    id: `failed-${++failedSeqRef.current}`,
+    conversation_id: activeConv?.id,
+    sender_id: user?.id,
+    sender_role: 'admin',
+    message: text,
+    created_at: new Date().toISOString(),
+    failed: true,
+  });
 
-    setInput('');
-    setTextareaHeight(TEXTAREA_BASE_HEIGHT);
-    if (textareaRef.current) {
-      textareaRef.current.style.height = `${TEXTAREA_BASE_HEIGHT}px`;
-    }
+  const sendText = async (text) => {
+    if (!text || !activeConv || !user) return;
     setSending(true);
 
     const isFirstAdminReply = activeConv.status === 'waiting_admin';
@@ -310,22 +421,40 @@ const InboxPage = () => {
         details: `Replied to ${activeConv.profiles?.name || 'Customer'}.`,
       });
 
+      forceScrollRef.current = true;
       setMessages(prev => {
         if (prev.some(m => m.id === newMsg.id)) return prev;
         return [...prev, newMsg];
       });
-    } catch (err) {
-      setInput(text);
-      if (textareaRef.current) {
-        textareaRef.current.style.height = 'auto';
-        const h = Math.min(Math.max(textareaRef.current.scrollHeight, TEXTAREA_BASE_HEIGHT), 120);
-        textareaRef.current.style.height = `${h}px`;
-        setTextareaHeight(h);
-      }
-      toast.error('Failed to send message. Please try again.');
+    } catch {
+      forceScrollRef.current = true;
+      setMessages(prev => [...prev, makeFailedMessage(text)]);
+      toast.error('Message not sent. Use Retry on the message to try again.');
     } finally {
       setSending(false);
     }
+  };
+
+  const handleSend = () => {
+    const text = input.trim();
+    if (!text || !activeConv || !user) return;
+
+    setInput('');
+    setTextareaHeight(TEXTAREA_BASE_HEIGHT);
+    if (textareaRef.current) {
+      textareaRef.current.style.height = `${TEXTAREA_BASE_HEIGHT}px`;
+    }
+    sendText(text);
+  };
+
+  const handleRetryMessage = (failedMsg) => {
+    if (sending) return;
+    setMessages(prev => prev.filter(m => m.id !== failedMsg.id));
+    sendText(failedMsg.message);
+  };
+
+  const handleDiscardMessage = (failedMsg) => {
+    setMessages(prev => prev.filter(m => m.id !== failedMsg.id));
   };
 
   // ── Status change (assign / close / reopen) ────────────────────────────────
@@ -417,14 +546,24 @@ const InboxPage = () => {
                 </div>
               )}
 
-              <div className={`text-sm ${isAdmin ? 'inbox-msg-bubble-admin' : isBot ? 'inbox-msg-bubble-bot' : 'inbox-msg-bubble-customer'}`}>
+              <div className={`text-sm ${isAdmin ? `inbox-msg-bubble-admin${m.failed ? ' is-failed' : ''}` : isBot ? 'inbox-msg-bubble-bot' : 'inbox-msg-bubble-customer'}`}>
                 {m.message.split('\n').map((line, j, arr) => (
                   <span key={j}>{line}{j < arr.length - 1 && <br />}</span>
                 ))}
               </div>
-              <div className={`inbox-msg-timestamp ${isAdmin ? 'is-admin' : 'is-other'}`}>
-                {formatTime(m.created_at)}
-              </div>
+              {m.failed ? (
+                <div className="inbox-msg-failed-actions" role="alert">
+                  <AlertCircle size={11} aria-hidden="true" />
+                  <span>Not sent</span>
+                  <button type="button" onClick={() => handleRetryMessage(m)} disabled={sending}>Retry</button>
+                  <span aria-hidden="true">·</span>
+                  <button type="button" onClick={() => handleDiscardMessage(m)} disabled={sending}>Discard</button>
+                </div>
+              ) : (
+                <div className={`inbox-msg-timestamp ${isAdmin ? 'is-admin' : 'is-other'}`}>
+                  {formatTime(m.created_at)}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -471,7 +610,7 @@ const InboxPage = () => {
             </div>
 
             {/* Status Filter Tabs */}
-            <div className="inbox-filter-tabs" role="tablist" aria-label="Filter conversations">
+            <div className="inbox-filter-tabs" role="group" aria-label="Filter conversations">
               {['all', 'waiting', 'active', 'closed'].map(status => (
                 <button
                   key={status}
@@ -679,6 +818,8 @@ const InboxPage = () => {
               {/* Messages */}
               <div
                 className="inbox-chat-messages"
+                ref={messagesContainerRef}
+                onScroll={handleMessagesScroll}
                 role="log"
                 aria-live="polite"
                 aria-relevant="additions"
@@ -704,7 +845,23 @@ const InboxPage = () => {
                 ) : messages.length === 0 ? (
                   <div className="text-center text-sm text-secondary mt-20">No messages yet.</div>
                 ) : (
-                  renderMessageStream()
+                  <>
+                    {hasMoreMessages && (
+                      <div className="inbox-load-older">
+                        <button
+                          type="button"
+                          className="btn btn-ghost btn-sm"
+                          onClick={handleLoadOlder}
+                          disabled={loadingOlder}
+                        >
+                          {loadingOlder
+                            ? <Loader size={14} className="animate-spin" aria-hidden="true" />
+                            : 'Load earlier messages'}
+                        </button>
+                      </div>
+                    )}
+                    {renderMessageStream()}
+                  </>
                 )}
                 <div ref={messagesEndRef} />
               </div>

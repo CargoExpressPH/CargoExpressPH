@@ -1187,6 +1187,23 @@ export const getMessages = async (conversationId) => {
   return data;
 };
 
+// Paginated fetch: newest page first, `before` cursor loads older history.
+export const getMessagesPage = async (conversationId, { limit = 50, before = null } = {}) => {
+  let query = supabase
+    .from('chat_messages')
+    .select('*, profiles:sender_id (name)')
+    .eq('conversation_id', conversationId)
+    .order('created_at', { ascending: false })
+    .limit(limit + 1);
+  if (before) query = query.lt('created_at', before);
+  const { data, error } = await query;
+  if (error) throw error;
+  const rows = data || [];
+  const hasMore = rows.length > limit;
+  const messages = (hasMore ? rows.slice(0, limit) : rows).reverse();
+  return { messages, hasMore };
+};
+
 export const markCustomerMessagesRead = async (conversationId) => {
   const { error } = await supabase
     .from('chat_messages')
