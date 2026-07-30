@@ -609,6 +609,9 @@
   border-radius: var(--radius-full);
   font-size: 0.6875rem; font-weight: 600;
   white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* --- INBOX — Waiting conversation highlight ---------------------------- */
@@ -1222,6 +1225,10 @@
   .inbox-filter-tab-btn {
     min-height: 40px;
     padding: 8px;
+  }
+
+  .inbox-chat-header-actions .btn {
+    min-height: 44px;
   }
 }
 
