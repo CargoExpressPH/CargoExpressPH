@@ -1,16 +1,23 @@
 import { useState, useEffect } from 'react';
 import { getSalesData, withTimeout } from '../../lib/database';
+import { useAuth } from '../../contexts/AuthContext';
+import { logActivity } from '../../lib/activityLog';
 import { SkeletonStatCard, SkeletonDonut, SkeletonBarChart } from '../../components/ui/SkeletonLoader';
 import AnimatedCounter from '../../components/ui/AnimatedCounter';
 import DonutChart from '../../components/ui/DonutChart';
 import MiniBarChart from '../../components/ui/MiniBarChart';
-import { DollarSign, CheckCircle, AlertTriangle, Clock } from 'lucide-react';
+import PrintDocument from '../../components/ui/PrintDocument';
+import { DollarSign, CheckCircle, AlertTriangle, Clock, Printer } from 'lucide-react';
 import EmptyState from '../../components/ui/EmptyState';
 import usePageTitle from '../../hooks/usePageTitle';
 
+const formatCurrency = (val) => `₱${(val || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
 const SalesPage = () => {
   usePageTitle('Sales');
+  const { userProfile } = useAuth();
   const [data, setData] = useState(null); 
+  const [loadedAt, setLoadedAt] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -21,11 +28,17 @@ const SalesPage = () => {
     try {
       const result = await withTimeout(getSalesData());
       setData(result);
+      setLoadedAt(new Date());
     } catch (e) {
       setError(e.message || 'Failed to load sales data.');
     } finally {
       setLoading(false);
     }
+  };
+
+  const handlePrint = () => {
+    logActivity({ module: 'Sales & Reports', action: 'Sales Report Printed', details: 'Printed sales & revenue report' });
+    window.print();
   };
 
   if (error) return (
@@ -55,6 +68,12 @@ const SalesPage = () => {
           <h1 className="admin-page-title">Sales & Revenue</h1>
           <p className="admin-page-subtitle">Revenue, collection health, and payment method performance.</p>
         </div>
+        {!loading && data && (
+          <button type="button" className="btn btn-primary btn-sm" onClick={handlePrint}>
+            <Printer size={16} />
+            Print Report
+          </button>
+        )}
       </div>
 
       {/* Stat Cards */}
@@ -123,6 +142,120 @@ const SalesPage = () => {
           </div>
         </div>
       </div>
+
+      {/* ── Formal printed document (bond paper) — replaces UI in print ── */}
+      {!loading && data && (
+        <PrintDocument
+          title="Sales & Revenue Report"
+          subtitle="All-Time Sales Summary"
+          generatedAt={loadedAt ? loadedAt.toLocaleString('en-PH', { month: 'long', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true }) : ''}
+          preparedBy={userProfile?.name}
+        >
+          {/* Revenue Summary */}
+          <div className="pd-section">
+            <div className="pd-section-title">I. Revenue Summary</div>
+            <table className="pd-table">
+              <tbody>
+                <tr><td>Total Revenue (billed)</td><td className="num">{formatCurrency(s.totalRevenue)}</td></tr>
+                <tr><td>Total Collected</td><td className="num">{formatCurrency(s.paidTotal)}</td></tr>
+                <tr><td>Outstanding Balance</td><td className="num">{formatCurrency(s.unpaidTotal)}</td></tr>
+                <tr><td>Orders with Unpaid Balance</td><td className="num">{s.unpaidCount || 0}</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          {/* Payment Methods */}
+          <div className="pd-section">
+            <div className="pd-section-title">II. Collections by Payment Method</div>
+            <table className="pd-table">
+              <thead>
+                <tr><th>Payment Method</th><th className="num">Amount Collected</th><th className="num">Share of Collections</th></tr>
+              </thead>
+              <tbody>
+                {paymentMethods.map((pm, i) => (
+                  <tr key={i}>
+                    <td>{pm.l}</td>
+                    <td className="num">{formatCurrency(pm.v)}</td>
+                    <td className="num">{(s.paidTotal || 0) > 0 ? ((pm.v / s.paidTotal) * 100).toFixed(1) : '0.0'}%</td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr><td>Total Collected</td><td className="num">{formatCurrency(s.paidTotal)}</td><td className="num">100%</td></tr>
+              </tfoot>
+            </table>
+          </div>
+
+          {/* Monthly Revenue */}
+          {monthlySales.length > 0 && (
+            <div className="pd-section">
+              <div className="pd-section-title">III. Monthly Revenue Breakdown</div>
+              <table className="pd-table">
+                <thead>
+                  <tr><th>Month</th><th className="num">Revenue</th><th className="num">Collected</th><th className="num">Outstanding</th></tr>
+                </thead>
+                <tbody>
+                  {monthlySales.map((m, i) => (
+                    <tr key={i}>
+                      <td>{new Date(m.month + '-01').toLocaleDateString('en-PH', { month: 'long', year: 'numeric' })}</td>
+                      <td className="num">{formatCurrency(m.total_revenue)}</td>
+                      <td className="num">{formatCurrency(m.collected)}</td>
+                      <td className="num">{formatCurrency(m.outstanding)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr>
+                    <td>Total</td>
+                    <td className="num">{formatCurrency(monthlySales.reduce((sum, m) => sum + (parseFloat(m.total_revenue) || 0), 0))}</td>
+                    <td className="num">{formatCurrency(monthlySales.reduce((sum, m) => sum + (parseFloat(m.collected) || 0), 0))}</td>
+                    <td className="num">{formatCurrency(monthlySales.reduce((sum, m) => sum + (parseFloat(m.outstanding) || 0), 0))}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          )}
+
+          {/* Unpaid Orders */}
+          {(data?.unpaidOrders || []).length > 0 && (
+            <div className="pd-section pd-flow">
+              <div className="pd-section-title">{monthlySales.length > 0 ? 'IV.' : 'III.'} Orders with Outstanding Balance ({data.unpaidOrders.length})</div>
+              <table className="pd-table">
+                <thead>
+                  <tr>
+                    <th>Tracking No.</th>
+                    <th>Booked</th>
+                    <th>Status</th>
+                    <th className="num">Shipping Cost</th>
+                    <th className="num">Amount Paid</th>
+                    <th className="num">Balance</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.unpaidOrders.map(o => (
+                    <tr key={o.id}>
+                      <td>{o.tracking_number}</td>
+                      <td>{o.created_at ? new Date(o.created_at).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}</td>
+                      <td>{o.status || '—'}</td>
+                      <td className="num">{formatCurrency(parseFloat(o.shipping_cost || 0))}</td>
+                      <td className="num">{formatCurrency(parseFloat(o.amount_paid || 0))}</td>
+                      <td className="num">{formatCurrency(parseFloat(o.remaining_balance || 0))}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr>
+                    <td colSpan={3}>Total Outstanding</td>
+                    <td className="num">{formatCurrency(data.unpaidOrders.reduce((sum, o) => sum + (parseFloat(o.shipping_cost) || 0), 0))}</td>
+                    <td className="num">{formatCurrency(data.unpaidOrders.reduce((sum, o) => sum + (parseFloat(o.amount_paid) || 0), 0))}</td>
+                    <td className="num">{formatCurrency(data.unpaidOrders.reduce((sum, o) => sum + (parseFloat(o.remaining_balance) || 0), 0))}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          )}
+        </PrintDocument>
+      )}
     </div>
   );
 };

@@ -46,3 +46,6 @@
 
 /* Final mobile viewport and tap-readability hardening */
 @import './viewport-hardening.css';
+
+/* Formal bond-paper print documents (Reports & Sales) */
+@import './print-document.css';

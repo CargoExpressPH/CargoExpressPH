@@ -1,6 +1,7 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { getReportData } from '../../lib/database';
 import { logActivity } from '../../lib/activityLog';
+import { useAuth } from '../../contexts/AuthContext';
 import { SkeletonStatCard, SkeletonText } from '../../components/ui/SkeletonLoader';
 import AnimatedCounter from '../../components/ui/AnimatedCounter';
 import StatusBadge from '../../components/ui/StatusBadge';
@@ -8,6 +9,7 @@ import EmptyState from '../../components/ui/EmptyState';
 import ResponsiveFilterControls from '../../components/ui/ResponsiveFilterControls';
 import DonutChart from '../../components/ui/DonutChart';
 import MiniBarChart from '../../components/ui/MiniBarChart';
+import PrintDocument from '../../components/ui/PrintDocument';
 import {
   FileText, Printer, Calendar, Package, CheckCircle,
   DollarSign, TrendingUp, Truck, MapPin, BarChart3,
@@ -32,13 +34,13 @@ const STATUS_ORDER = ['Pending', 'Assigned', 'Picked Up', 'In Transit', 'Arrived
 
 const ReportsPage = () => {
   usePageTitle('Reports');
+  const { userProfile } = useAuth();
   const [period, setPeriod] = useState('daily');
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const printRef = useRef(null);
   const hasCustomDateRange = customStart && customEnd;
   const customDateRangeInvalid = Boolean(hasCustomDateRange && customEnd < customStart);
 
@@ -72,7 +74,7 @@ const ReportsPage = () => {
   }, [period]);
 
   const handlePrint = () => {
-    logActivity('Report Printed', { details: `Printed ${period} report` }, 'Sales & Reports');
+    logActivity({ module: 'Sales & Reports', action: 'Report Printed', details: `Printed ${period} report` });
     window.print();
   };
 
@@ -100,7 +102,7 @@ const ReportsPage = () => {
     a.download = `CargoExpress_Report_${period}_${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
-    logActivity('Report Exported', { details: `Exported ${period} report to CSV` }, 'Sales & Reports');
+    logActivity({ module: 'Sales & Reports', action: 'Report Exported', details: `Exported ${period} report to CSV` });
   };
 
   const s = data?.summary || {};
@@ -218,36 +220,9 @@ const ReportsPage = () => {
         </div>
       )}
 
-      {/* ── Report Content (Printable) ── */}
+      {/* ── Report Content (screen only) ── */}
       {!loading && data && (
-        <div id="printable-report" ref={printRef}>
-
-          {/* Print-only header */}
-          <div className="print-report-header">
-            <div className="print-brand">
-              <div className="print-brand-icon">
-                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
-                  <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
-                  <line x1="12" y1="22.08" x2="12" y2="12" />
-                </svg>
-              </div>
-              <div>
-                <h1 className="text-2xl fw-800 m-0">
-                  <span style={{ color: 'var(--accent)' }}>CARGO</span><span style={{ color: 'var(--primary)' }}>EXPRESS</span>
-                  <span className="text-tertiary fw-400 text-sm ml-8">PH</span>
-                </h1>
-                <p className="text-xs text-secondary m-0">Cargo Delivery & Logistics</p>
-              </div>
-            </div>
-            <div className="print-report-meta">
-              <h2 className="text-lg fw-700 m-0 mb-4" style={{ color: 'var(--text)' }}>
-                {period === 'custom' ? 'Custom Period Report' : `${period.charAt(0).toUpperCase() + period.slice(1)} Report`}
-              </h2>
-              <p className="text-secondary m-0" style={{ fontSize: '0.8rem' }}>{data.periodLabel}</p>
-              <p style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)', margin: '2px 0 0 0' }}>Generated: {formatDateTime(data.generatedAt)}</p>
-            </div>
-          </div>
+        <div>
 
           {/* No Data */}
           {!hasData && (
@@ -510,22 +485,153 @@ const ReportsPage = () => {
                 </div>
               </div>
 
-              {/* ── Print Footer ── */}
-              <div className="print-report-footer">
-                <div className="mt-24" style={{ borderTop: '2px solid var(--border)', paddingTop: 16 }}>
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <p className="text-xs fw-600" style={{ color: 'var(--text)', margin: '0 0 2px 0' }}>CargoExpress PH</p>
-                      <p className="text-tertiary m-0" style={{ fontSize: '0.65rem' }}>Cargo Delivery & Logistics Services</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-tertiary" style={{ fontSize: '0.65rem', margin: '0 0 2px 0' }}>This is a system-generated report.</p>
-                      <p className="text-tertiary m-0" style={{ fontSize: '0.65rem' }}>Generated on {formatDateTime(data.generatedAt)}</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
             </>
+          )}
+
+          {/* ── Formal printed document (bond paper) — replaces UI in print ── */}
+          {hasData && (
+            <PrintDocument
+              title={period === 'custom' ? 'Operations Report — Custom Period' : `${period.charAt(0).toUpperCase() + period.slice(1)} Operations Report`}
+              subtitle={data.periodLabel}
+              generatedAt={formatDateTime(data.generatedAt)}
+              preparedBy={userProfile?.name}
+            >
+              {/* Summary */}
+              <div className="pd-section">
+                <div className="pd-section-title">I. Summary</div>
+                <table className="pd-table">
+                  <tbody>
+                    <tr>
+                      <td>Total Orders</td><td className="num">{s.totalOrders}</td>
+                      <td>Total Revenue</td><td className="num">{formatCurrency(s.totalRevenue)}</td>
+                    </tr>
+                    <tr>
+                      <td>Delivered</td><td className="num">{s.deliveredCount}</td>
+                      <td>Total Collected</td><td className="num">{formatCurrency(s.totalCollected)}</td>
+                    </tr>
+                    <tr>
+                      <td>In Transit / Processing</td><td className="num">{s.inTransitCount}</td>
+                      <td>Outstanding Balance</td><td className="num">{formatCurrency(s.totalOutstanding)}</td>
+                    </tr>
+                    <tr>
+                      <td>Pending</td><td className="num">{s.pendingCount}</td>
+                      <td>Total Weight Shipped</td><td className="num">{formatWeight(s.totalWeight)}</td>
+                    </tr>
+                    <tr>
+                      <td>Cancelled</td><td className="num">{s.cancelledCount}</td>
+                      <td></td><td></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Status Breakdown */}
+              <div className="pd-section">
+                <div className="pd-section-title">II. Order Status Breakdown</div>
+                <table className="pd-table">
+                  <thead>
+                    <tr><th>Status</th><th className="ctr">Count</th><th className="num">Percentage</th></tr>
+                  </thead>
+                  <tbody>
+                    {STATUS_ORDER.filter(st => data.statusBreakdown[st]).map(st => (
+                      <tr key={st}>
+                        <td>{st}</td>
+                        <td className="ctr">{data.statusBreakdown[st]}</td>
+                        <td className="num">{s.totalOrders > 0 ? ((data.statusBreakdown[st] / s.totalOrders) * 100).toFixed(1) : 0}%</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr><td>Total</td><td className="ctr">{s.totalOrders}</td><td className="num">100%</td></tr>
+                  </tfoot>
+                </table>
+              </div>
+
+              {/* Payment Methods */}
+              <div className="pd-section">
+                <div className="pd-section-title">III. Collections by Payment Method</div>
+                <table className="pd-table">
+                  <thead>
+                    <tr><th>Payment Method</th><th className="ctr">Orders</th><th className="num">Amount Collected</th></tr>
+                  </thead>
+                  <tbody>
+                    <tr><td>Cash</td><td className="ctr">{s.cashCount}</td><td className="num">{formatCurrency(s.cashTotal)}</td></tr>
+                    <tr><td>GCash</td><td className="ctr">{s.gcashCount}</td><td className="num">{formatCurrency(s.gcashTotal)}</td></tr>
+                    <tr><td>Pay Later</td><td className="ctr">{s.paylaterCount}</td><td className="num">{formatCurrency(s.paylaterTotal)}</td></tr>
+                  </tbody>
+                  <tfoot>
+                    <tr>
+                      <td>Total Collected</td>
+                      <td className="ctr">{(s.cashCount || 0) + (s.gcashCount || 0) + (s.paylaterCount || 0)}</td>
+                      <td className="num">{formatCurrency(s.totalCollected)}</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+
+              {/* Route Performance */}
+              {data.routeBreakdown.length > 0 && (
+                <div className="pd-section">
+                  <div className="pd-section-title">IV. Route Performance</div>
+                  <table className="pd-table">
+                    <thead>
+                      <tr><th>Route</th><th className="ctr">Orders</th><th className="num">Revenue</th><th className="num">Weight</th></tr>
+                    </thead>
+                    <tbody>
+                      {data.routeBreakdown.map((r, i) => (
+                        <tr key={i}>
+                          <td>{r.route}</td>
+                          <td className="ctr">{r.count}</td>
+                          <td className="num">{formatCurrency(r.revenue)}</td>
+                          <td className="num">{formatWeight(r.weight)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {/* Detailed Order List */}
+              <div className="pd-section pd-flow">
+                <div className="pd-section-title">{data.routeBreakdown.length > 0 ? 'V.' : 'IV.'} Detailed Order List ({data.orders.length} orders)</div>
+                <table className="pd-table">
+                  <thead>
+                    <tr>
+                      <th>Tracking No.</th>
+                      <th>Customer</th>
+                      <th>Route</th>
+                      <th>Status</th>
+                      <th className="num">Weight</th>
+                      <th className="num">Amount</th>
+                      <th className="ctr">Payment</th>
+                      <th>Date</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.orders.map(order => (
+                      <tr key={order.id}>
+                        <td>{order.tracking_number}</td>
+                        <td>{order.sender_name || order.profiles?.name || '—'}</td>
+                        <td>{order.origin || '—'} → {order.destination || '—'}</td>
+                        <td>{order.status}</td>
+                        <td className="num">{formatWeight(parseFloat(order.actual_weight || order.package_weight || 0))}</td>
+                        <td className="num">{formatCurrency(parseFloat(order.shipping_cost || 0))}</td>
+                        <td className="ctr" style={{ textTransform: 'capitalize' }}>{order.payment_method || '—'}</td>
+                        <td>{formatDate(order.created_at)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr>
+                      <td colSpan={4}>Total</td>
+                      <td className="num">{formatWeight(s.totalWeight)}</td>
+                      <td className="num">{formatCurrency(s.totalRevenue)}</td>
+                      <td colSpan={2}></td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </PrintDocument>
           )}
         </div>
       )}

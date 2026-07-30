@@ -1,0 +1,221 @@
+/* ============================================================================
+   PRINT DOCUMENT — formal bond-paper report styling
+   Screen: the .print-doc is completely hidden.
+   Print:  ONLY the .print-doc is visible — a formal black-on-white business
+           document (letterhead, plain tables, signatures), never the app UI.
+   ============================================================================ */
+
+.print-doc {
+  display: none;
+}
+
+@media print {
+  /* Portrait short bond paper (8.5in × 11in) with standard margins */
+  @page {
+    size: 8.5in 11in portrait;
+    margin: 0.75in 0.7in 0.85in;
+  }
+
+  /* Hide the entire application UI */
+  body * {
+    visibility: hidden;
+  }
+
+  /* Reveal only the formal document */
+  .print-doc,
+  .print-doc * {
+    visibility: visible;
+  }
+
+  .print-doc {
+    display: block;
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    background: #fff;
+    color: #000;
+    font-family: 'Times New Roman', Georgia, serif;
+    font-size: 11pt;
+    line-height: 1.45;
+  }
+
+  body {
+    background: #fff !important;
+  }
+
+  .print-doc * {
+    animation: none !important;
+    transition: none !important;
+    box-shadow: none !important;
+  }
+
+  /* ── Letterhead ── */
+  .pd-letterhead {
+    text-align: center;
+    padding-bottom: 8pt;
+    border-bottom: 3px double #000;
+    margin-bottom: 14pt;
+  }
+
+  .pd-company-name {
+    font-size: 17pt;
+    font-weight: 700;
+    letter-spacing: 1.5pt;
+    text-transform: uppercase;
+  }
+
+  .pd-company-tagline {
+    font-size: 9.5pt;
+    font-style: italic;
+    margin-top: 1pt;
+  }
+
+  .pd-company-contact {
+    font-size: 8.5pt;
+    color: #222;
+    margin-top: 1pt;
+  }
+
+  /* ── Title block ── */
+  .pd-title-block {
+    text-align: center;
+    margin-bottom: 16pt;
+  }
+
+  .pd-title {
+    font-size: 13.5pt;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5pt;
+  }
+
+  .pd-subtitle {
+    font-size: 10.5pt;
+    margin-top: 2pt;
+  }
+
+  .pd-generated {
+    font-size: 8.5pt;
+    color: #333;
+    margin-top: 2pt;
+  }
+
+  /* ── Sections ── */
+  .pd-section {
+    margin-bottom: 14pt;
+  }
+
+  .pd-section-title {
+    font-size: 10.5pt;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5pt;
+    border-bottom: 1.5px solid #000;
+    padding-bottom: 2pt;
+    margin-bottom: 6pt;
+  }
+
+  /* ── Tables ── */
+  .pd-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 9pt;
+  }
+
+  .pd-table th,
+  .pd-table td {
+    border: 1px solid #444;
+    padding: 3.5pt 5pt;
+    text-align: left;
+    vertical-align: top;
+  }
+
+  .pd-table th {
+    font-weight: 700;
+    background: #e8e8e8;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  .pd-table .num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .pd-table .ctr {
+    text-align: center;
+  }
+
+  .pd-table tfoot td {
+    font-weight: 700;
+    background: #f2f2f2;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  .pd-table thead {
+    display: table-header-group;
+  }
+
+  .pd-table tr {
+    break-inside: avoid;
+  }
+
+  .pd-section,
+  .pd-signatures {
+    break-inside: avoid;
+  }
+
+  /* Long detail tables may flow across pages */
+  .pd-section.pd-flow {
+    break-inside: auto;
+  }
+
+  /* ── Signatures ── */
+  .pd-signatures {
+    display: flex;
+    justify-content: space-between;
+    gap: 48pt;
+    margin-top: 36pt;
+  }
+
+  .pd-signature {
+    flex: 1;
+    max-width: 220pt;
+  }
+
+  .pd-signature-label {
+    font-size: 9.5pt;
+    margin-bottom: 28pt;
+  }
+
+  .pd-signature-line {
+    border-bottom: 1px solid #000;
+  }
+
+  .pd-signature-name {
+    font-size: 9.5pt;
+    font-weight: 700;
+    text-align: center;
+    margin-top: 2pt;
+    text-transform: uppercase;
+  }
+
+  .pd-signature-role {
+    font-size: 8.5pt;
+    text-align: center;
+    color: #333;
+  }
+
+  /* ── Footer note ── */
+  .pd-footer {
+    margin-top: 22pt;
+    padding-top: 4pt;
+    border-top: 1px solid #999;
+    font-size: 7.5pt;
+    color: #444;
+    text-align: center;
+    font-style: italic;
+  }
+}
