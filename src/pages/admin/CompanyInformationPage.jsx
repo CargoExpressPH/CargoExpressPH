@@ -7,7 +7,7 @@ import {
 import { logCompany } from '../../lib/activityLog';
 import { 
   Building2, LayoutTemplate, Phone, Clock, Star, Image as ImageIcon, 
-  Map, BarChart3, CalendarDays, Loader, Save, ExternalLink, AlertTriangle,
+  Map, Loader, Save, ExternalLink, AlertTriangle,
   Upload, X, Trash2, Plus, Edit2, MapPin, PhilippinePeso
 } from 'lucide-react';
 import { useToast } from '../../hooks/useToast';
@@ -23,11 +23,10 @@ const TABS = [
   { id: 'hours',    label: 'Business Hours',  icon: Clock },
   { id: 'features', label: 'Why Choose Us',   icon: Star },
   { id: 'coverage', label: 'Coverage Areas',  icon: Map },
-  { id: 'stats',    label: 'Statistics',      icon: BarChart3 },
   { id: 'pricing',  label: 'Pricing',         icon: PhilippinePeso },
 ];
 
-const SIMPLE_TABS = ['basic', 'contact', 'hours', 'stats', 'pricing'];
+const SIMPLE_TABS = ['basic', 'contact', 'hours', 'pricing'];
 const DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
 
 const getEmptyCompanyInfo = () => ({
@@ -36,7 +35,6 @@ const getEmptyCompanyInfo = () => ({
   hero_image_url: '', hero_title: '', hero_description: '', hero_button_text: '', hero_button_link: '',
   email: '', facebook: '', messenger: '', website: '', smart_phone: '', globe_phone: '',
   manila_address: '', bohol_address: '',
-  stat_years: 0, stat_deliveries: 0, stat_customers: 0, stat_hubs: 0,
   default_price_per_kg: 0,
   always_open: false,
   business_hours: {
@@ -225,11 +223,8 @@ const CompanyInformationPage = () => {
         >
           <div className="flex items-center gap-8" style={{ color: 'var(--warning-dark)', fontSize: '0.875rem', fontWeight: 600 }}>
             <AlertTriangle size={16} />
-            You have unsaved changes on this tab.
+            You have unsaved changes on this tab. Click "Save Changes" to apply them.
           </div>
-          <button className="btn btn-sm" style={{ background: 'var(--warning)', color: '#fff', minHeight: 32 }} onClick={handleSave} disabled={saving}>
-            {saving ? <Loader size={13} className="animate-spin" /> : <Save size={13} />} Save Now
-          </button>
         </div>
       )}
 
@@ -570,55 +565,6 @@ const CompanyInformationPage = () => {
                   })}
                 </div>
               )}
-            </div>
-          </div>
-        )}
-
-        {/* ─── STATISTICS ──────────────────────────────────────────── */}
-        {activeTab === 'stats' && (
-          <div className="flex flex-col gap-16">
-            <div
-              style={{
-                background: 'var(--info-bg)',
-                border: '1px solid rgba(59,130,246,0.2)',
-                borderRadius: 'var(--radius-md)',
-                padding: '12px 16px',
-                fontSize: '0.875rem',
-                color: 'var(--info-dark)',
-              }}
-            >
-              These numbers appear on the <strong>About Us</strong> page as animated counters (e.g. "10+ Years in Service").
-            </div>
-
-            <div className="grid grid-2" style={{ gap: 16 }}>
-              {[
-                { field: 'stat_years',      label: 'Years in Service',      icon: CalendarDays, color: 'var(--primary)',  suffix: '+ years' },
-                { field: 'stat_deliveries', label: 'Deliveries Completed',  icon: BarChart3,    color: 'var(--success)',  suffix: '+ deliveries' },
-                { field: 'stat_customers',  label: 'Customers Served',      icon: Building2,    color: 'var(--info)',     suffix: '+ customers' },
-                { field: 'stat_hubs',       label: 'Operating Hubs',        icon: MapPin,       color: 'var(--warning)',  suffix: ' hubs' },
-              ].map(({ field, label, icon: Icon, color, suffix }) => (
-                <div key={field} className="card card-body">
-                  <div className="flex items-center gap-12 mb-12">
-                    <div style={{ width: 40, height: 40, borderRadius: 'var(--radius-sm)', background: `${color}20`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <Icon size={20} style={{ color }} />
-                    </div>
-                    <div>
-                      <div style={{ fontWeight: 700, fontSize: '0.9375rem' }}>{label}</div>
-                      <div style={{ fontSize: '0.8125rem', color: 'var(--text-tertiary)' }}>
-                        Shows as: <strong style={{ color }}>{companyInfo[field] || 0}{suffix}</strong>
-                      </div>
-                    </div>
-                  </div>
-                  <input
-                    type="number"
-                    className="form-input"
-                    aria-label={label}
-                    min={0}
-                    value={companyInfo[field] || 0}
-                    onChange={e => handleInfoChange(field, parseInt(e.target.value) || 0)}
-                  />
-                </div>
-              ))}
             </div>
           </div>
         )}

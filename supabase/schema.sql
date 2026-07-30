@@ -447,6 +447,12 @@ CREATE POLICY "Customers view own conversations" ON conversations
 CREATE POLICY "Customers insert own conversations" ON conversations
   FOR INSERT WITH CHECK (customer_id = auth.uid());
 
+CREATE POLICY "Admins insert conversations" ON conversations
+  FOR INSERT WITH CHECK (
+    public.is_admin()
+    AND EXISTS (SELECT 1 FROM profiles WHERE id = conversations.customer_id AND role = 'customer')
+  );
+
 CREATE POLICY "Admins can update conversations" ON conversations
   FOR UPDATE USING (
     EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')

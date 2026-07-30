@@ -60,6 +60,8 @@ const InboxPage = () => {
 
   const [conversations, setConversations] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [customerResults, setCustomerResults] = useState([]);
+  const [searchingCustomers, setSearchingCustomers] = useState(false);
   const [statusFilter, setStatusFilter] = useState('all');
   const [activeConv, setActiveConv] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -217,6 +219,63 @@ const InboxPage = () => {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  // ── Search ALL customers (directory) when admin types a query ──────────────
+  useEffect(() => {
+    const q = searchQuery.trim();
+    if (q.length < 2) {
+      setCustomerResults([]);
+      setSearchingCustomers(false);
+      return;
+    }
+    setSearchingCustomers(true);
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      try {
+        // Strip PostgREST filter delimiters so user input can't break the .or() expression
+        const term = q.replace(/[,()]/g, ' ').trim();
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('id, name, email')
+          .eq('role', 'customer')
+          .or(`name.ilike.%${term}%,email.ilike.%${term}%`)
+          .order('name', { ascending: true })
+          .limit(8);
+        if (cancelled) return;
+        if (error) {
+          setCustomerResults([]);
+        } else {
+          const existingIds = new Set(conversations.map(c => c.profiles?.id).filter(Boolean));
+          setCustomerResults((data || []).filter(p => !existingIds.has(p.id)));
+        }
+      } finally {
+        if (!cancelled) setSearchingCustomers(false);
+      }
+    }, 300);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [searchQuery, conversations]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Start a chat with a customer who has no conversation yet ───────────────
+  const handleStartChat = async (customer) => {
+    setLoadingList(true);
+    setSearchQuery('');
+    setCustomerResults([]);
+    try {
+      // New conversations default to 'closed' (bot-first); open it so the
+      // admin can reply immediately instead of hitting a disabled input.
+      const conv = await getOrCreateConversation(customer.id);
+      if (conv.status === 'closed') {
+        await reopenConversation(conv.id);
+      }
+      await loadConvs(customer.id);
+      logChat('Conversation Started', conv.id, customer.name || 'Customer', {
+        details: `Admin started a conversation with ${customer.name || customer.email}.`,
+      });
+    } catch {
+      toast.error('Failed to start conversation.');
+      setLoadingList(false);
+    }
+  };
 
   // ── Send message ───────────────────────────────────────────────────────────
   const handleSend = async () => {
@@ -380,8 +439,10 @@ const InboxPage = () => {
     if (statusFilter === 'active' && conv.status !== 'open') return false;
     if (statusFilter === 'closed' && conv.status !== 'closed') return false;
     if (searchQuery) {
+      const q = searchQuery.toLowerCase();
       const name = conv.profiles?.name?.toLowerCase() || '';
-      if (!name.includes(searchQuery.toLowerCase())) return false;
+      const email = conv.profiles?.email?.toLowerCase() || '';
+      if (!name.includes(q) && !email.includes(q)) return false;
     }
     return true;
   });
@@ -403,7 +464,7 @@ const InboxPage = () => {
               <input
                 type="text"
                 aria-label="Search conversations"
-                placeholder="Search customer name..."
+                placeholder="Search all customers..."
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
               />
@@ -433,12 +494,17 @@ const InboxPage = () => {
                 <p className="mt-4">{errorList}</p>
                 <button type="button" className="btn btn-ghost btn-sm mt-sm" onClick={() => loadConvs()}>Retry</button>
               </div>
-            ) : filteredConvs.length === 0 ? (
+            ) : filteredConvs.length === 0 && customerResults.length === 0 && !searchingCustomers ? (
               <div className="p-md text-center text-sm text-secondary">
-                {conversations.length === 0 ? 'No customer messages yet.' : 'No matching conversations.'}
+                {conversations.length === 0
+                  ? 'No customer messages yet.'
+                  : searchQuery
+                  ? 'No matching customers found.'
+                  : 'No matching conversations.'}
               </div>
             ) : (
-              filteredConvs.map((conv, i) => {
+              <>
+              {filteredConvs.map((conv, i) => {
                 const isWaiting = conv.status === 'waiting_admin';
                 const isClosed = conv.status === 'closed';
                 return (
@@ -496,7 +562,48 @@ const InboxPage = () => {
                     </div>
                   </button>
                 );
-              })
+              })}
+
+              {/* ── All-customer directory results (no conversation yet) ── */}
+              {searchQuery.trim().length >= 2 && (searchingCustomers || customerResults.length > 0) && (
+                <div>
+                  <div
+                    className="text-tertiary fw-700"
+                    style={{ fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.05em', padding: '10px 14px 4px' }}
+                  >
+                    All Customers
+                  </div>
+                  {searchingCustomers ? (
+                    <div className="p-md text-center">
+                      <Loader size={16} className="animate-spin text-secondary" />
+                    </div>
+                  ) : (
+                    customerResults.map(cust => (
+                      <button
+                        key={cust.id}
+                        type="button"
+                        className="inbox-conversation-item"
+                        onClick={() => handleStartChat(cust)}
+                        aria-label={`Start conversation with ${cust.name || cust.email}`}
+                      >
+                        <div className="inbox-conversation-avatar" style={{ background: 'var(--bg-secondary)' }}>
+                          <span className="inbox-avatar-initials">{getInitials(cust.name)}</span>
+                        </div>
+                        <div className="inbox-conversation-info">
+                          <div className="inbox-conversation-name">{cust.name || 'Unnamed Customer'}</div>
+                          <div className="inbox-conv-preview">{cust.email}</div>
+                          <div className="inbox-conversation-meta">
+                            <span className="inbox-status-badge" style={{ color: 'var(--primary)', background: 'var(--primary-bg)' }}>
+                              <MessageSquare size={10} /> Start chat
+                            </span>
+                          </div>
+                        </div>
+                      </button>
+                    ))
+                  )}
+                </div>
+              )}
+              </>
             )}
           </div>
         </div>
