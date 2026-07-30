@@ -941,6 +941,7 @@
 }
 .inbox-conversation-list {
   flex: 1; overflow-y: auto;
+  overscroll-behavior: contain;
 }
 .inbox-conversation-item {
   width: 100%;
@@ -1067,6 +1068,7 @@
   display: flex; flex-direction: column; gap: 12px;
   background: var(--bg);
   min-height: 0;
+  overscroll-behavior: contain;
 }
 .inbox-message-stack {
   max-width: min(70%, 640px);
@@ -1200,6 +1202,26 @@
   .inbox-chat-header-actions {
     width: 100%;
     justify-content: flex-end;
+  }
+}
+
+/* Touch devices: prevent iOS focus auto-zoom (inputs must be >= 16px)
+   and meet the 44px minimum touch-target guideline */
+@media (hover: none) and (pointer: coarse) {
+  .inbox-search-box input,
+  .inbox-textarea {
+    font-size: 16px;
+  }
+
+  .inbox-mobile-back-btn {
+    min-width: 44px;
+    min-height: 44px;
+    padding: 10px;
+  }
+
+  .inbox-filter-tab-btn {
+    min-height: 40px;
+    padding: 8px;
   }
 }
 

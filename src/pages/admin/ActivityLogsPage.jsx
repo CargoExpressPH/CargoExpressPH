@@ -143,7 +143,7 @@ const ActivityLogsPage = () => {
             <ClipboardList size={26} color="var(--primary)" />
             Activity Logs
           </h1>
-          <p className="text-secondary text-sm mt-4">Complete audit trail of all admin actions</p>
+          <p className="text-secondary text-sm mt-4">Audit trail of admin actions — logs are kept for 7 days, older entries are deleted automatically</p>
         </div>
         <div className="flex items-center gap-8">
           <button className="btn btn-ghost btn-sm" onClick={loadLogs} title="Refresh">
