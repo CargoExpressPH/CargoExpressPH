@@ -203,12 +203,14 @@ const TripDetailPage = () => {
       </div>
 
       {/* Trip Activity */}
-      {activityHistory.length > 0 && (
-        <div className="card admin-section-card stagger-item mt-16" style={{ animationDelay: '240ms' }}>
-          <div className="card-header">
-            <h3><Clock size={16} className="inline mr-8" />Trip Activity</h3>
-          </div>
-          <div className="card-body" style={{ paddingTop: 8 }}>
+      <div className="card admin-section-card stagger-item mt-16" style={{ animationDelay: '240ms' }}>
+        <div className="card-header">
+          <h3><Clock size={16} className="inline mr-8" />Trip Activity</h3>
+        </div>
+        <div className="card-body" style={{ paddingTop: 8 }}>
+          {activityHistory.length === 0 ? (
+            <div className="text-center text-secondary py-32">No activity recorded for this trip yet.</div>
+          ) : (
             <div style={{ position: 'relative', paddingLeft: 20 }}>
               <div style={{ position: 'absolute', left: 7, top: 8, bottom: 8, width: 2, background: 'var(--border)', borderRadius: 2 }} />
               {activityHistory.map((log) => (
@@ -234,9 +236,9 @@ const TripDetailPage = () => {
                 </div>
               ))}
             </div>
-          </div>
+          )}
         </div>
-      )}
+      </div>
 
       {/* Confirm Modal */}
       <ConfirmModal
