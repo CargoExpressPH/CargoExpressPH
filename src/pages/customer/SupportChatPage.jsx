@@ -3,14 +3,14 @@ import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 import {
   getOrCreateConversation,
-  getMessages,
+  getMessagesPage,
   sendMessage,
   setConversationWaitingAdmin,
 } from '../../lib/database';
 import { getBotReply, BOT_GREETING } from '../../lib/supportChatEngine';
 import {
   Send, Bot, Loader, MessageSquare, AlertTriangle,
-  RefreshCw, CheckCircle, XCircle, Clock, User,
+  RefreshCw, CheckCircle, XCircle, Clock, User, AlertCircle,
 } from 'lucide-react';
 import EmptyState from '../../components/ui/EmptyState';
 import { useToast } from '../../hooks/useToast';
@@ -21,6 +21,10 @@ import usePageTitle from '../../hooks/usePageTitle';
 const LOAD_TIMEOUT_MS = 15000;
 const MAX_MESSAGE_LENGTH = 1000;
 const TEXTAREA_BASE_HEIGHT = 48;
+const MESSAGES_PAGE_SIZE = 50;
+
+const prefersReducedMotion = () =>
+  typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
 // Welcome-back greeting (shown when customer returns to a CLOSED conversation)
 const BOT_WELCOME_BACK = `Welcome back! 👋
@@ -44,7 +48,7 @@ const formatTime = (ts) => {
 };
 
 // ── Message bubble ─────────────────────────────────────────────────────────────
-const MessageBubble = ({ m, showResolutionPrompt, onVoteYes, onVoteNo, adminName }) => {
+const MessageBubble = ({ m, showResolutionPrompt, onVoteYes, onVoteNo, onRetry, onDiscard, actionsDisabled }) => {
   const isMe    = m.sender_role === 'customer';
   const isBot   = m.sender_role === 'bot';
 
@@ -61,12 +65,22 @@ const MessageBubble = ({ m, showResolutionPrompt, onVoteYes, onVoteNo, adminName
         {isBot && <div className="chat-sender-label bot-label"><Bot size={11} aria-hidden="true" /> CargoExpress Assistant</div>}
         {m.sender_role === 'admin' && <div className="chat-sender-label admin-label"><User size={11} aria-hidden="true" /> {resolvedAdminName}</div>}
 
-        <div className={`support-message-bubble ${isMe ? 'user-bubble' : isBot ? 'bot-bubble' : 'admin-bubble'}`}>
+        <div className={`support-message-bubble ${isMe ? 'user-bubble' : isBot ? 'bot-bubble' : 'admin-bubble'}${m.failed ? ' is-failed' : ''}`}>
           {m.message.split('\n').map((line, j, arr) => (
             <span key={j}>{line}{j < arr.length - 1 && <br />}</span>
           ))}
         </div>
-        <div className={`chat-timestamp ${isMe ? 'text-right' : ''}`}>{formatTime(m.created_at)}</div>
+        {m.failed ? (
+          <div className="chat-msg-failed-actions" role="alert">
+            <AlertCircle size={11} aria-hidden="true" />
+            <span>Not sent</span>
+            <button type="button" onClick={() => onRetry(m)} disabled={actionsDisabled}>Retry</button>
+            <span aria-hidden="true">·</span>
+            <button type="button" onClick={() => onDiscard(m)} disabled={actionsDisabled}>Discard</button>
+          </div>
+        ) : (
+          <div className={`chat-timestamp ${isMe ? 'text-right' : ''}`}>{formatTime(m.created_at)}</div>
+        )}
 
         {/* Yes / No resolution prompt */}
         {isBot && showResolutionPrompt && (
@@ -95,7 +109,6 @@ const SupportChatPage = () => {
 
   const [conversationId, setConversationId] = useState(null);
   const [convStatus, setConvStatus] = useState('closed');
-  const [adminName, setAdminName] = useState(null);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(true);
@@ -103,6 +116,8 @@ const SupportChatPage = () => {
   const [sending, setSending] = useState(false);
   const [botTyping, setBotTyping] = useState(false);
   const [textareaHeight, setTextareaHeight] = useState(48);
+  const [hasMoreMessages, setHasMoreMessages] = useState(false);
+  const [loadingOlder, setLoadingOlder] = useState(false);
 
   // true = chatbot is responding; false = admin live chat mode
   const [isBotMode, setIsBotMode] = useState(false);
@@ -111,10 +126,15 @@ const SupportChatPage = () => {
   const [pendingResolutionId, setPendingResolutionId] = useState(null);
 
   const messagesEndRef = useRef(null);
+  const messagesContainerRef = useRef(null);
   const textareaRef    = useRef(null);
   const timeoutRef     = useRef(null);
   const isMountedRef   = useRef(true);
   const channelRef     = useRef(null);
+  const nearBottomRef  = useRef(true);
+  const forceScrollRef = useRef(false);
+  const initialScrollPendingRef = useRef(false);
+  const failedSeqRef   = useRef(0);
 
   const clearLoadTimeout = useCallback(() => {
     if (timeoutRef.current) { clearTimeout(timeoutRef.current); timeoutRef.current = null; }
@@ -151,6 +171,8 @@ const SupportChatPage = () => {
     setMessages([]);
     setPendingResolutionId(null);
     setIsBotMode(false);
+    setHasMoreMessages(false);
+    initialScrollPendingRef.current = true;
 
     clearLoadTimeout();
     timeoutRef.current = setTimeout(() => {
@@ -161,8 +183,8 @@ const SupportChatPage = () => {
     }, LOAD_TIMEOUT_MS);
 
     try {
-      const conv    = await getOrCreateConversation(user.id);
-      const history = await getMessages(conv.id);
+      const conv = await getOrCreateConversation(user.id);
+      const { messages: history, hasMore } = await getMessagesPage(conv.id, { limit: MESSAGES_PAGE_SIZE });
 
       clearLoadTimeout();
       if (!isMountedRef.current) return;
@@ -170,9 +192,7 @@ const SupportChatPage = () => {
       const status = conv.status || 'open';
       setConversationId(conv.id);
       setConvStatus(status);
-      if (conv.assigned_admin?.name) {
-        setAdminName(conv.assigned_admin.name);
-      }
+      setHasMoreMessages(hasMore);
 
       // ── Route by status ──────────────────────────────────────────────────
       if (status === 'closed') {
@@ -265,38 +285,105 @@ const SupportChatPage = () => {
     return () => { supabase.removeChannel(channel); channelRef.current = null; };
   }, [conversationId]);
 
+  const scrollToEnd = (smooth) => {
+    messagesEndRef.current?.scrollIntoView({ behavior: smooth && !prefersReducedMotion() ? 'smooth' : 'auto' });
+  };
+
+  // Auto-scroll: instant on open; afterwards only when the customer is near the
+  // bottom or just sent a message (respects prefers-reduced-motion)
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (messages.length === 0 && !botTyping) return;
+    if (initialScrollPendingRef.current) {
+      initialScrollPendingRef.current = false;
+      nearBottomRef.current = true;
+      scrollToEnd(false);
+      return;
+    }
+    if (forceScrollRef.current || nearBottomRef.current) {
+      forceScrollRef.current = false;
+      scrollToEnd(true);
+    }
   }, [messages, botTyping]);
 
-  // ── Send ───────────────────────────────────────────────────────────────────
-  const handleSend = async () => {
-    const text = input.trim();
-    if (!text || !conversationId || !user || sending || botTyping) return;
+  const handleMessagesScroll = () => {
+    const el = messagesContainerRef.current;
+    if (!el) return;
+    nearBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+  };
 
-    setInput('');
-    if (textareaRef.current) textareaRef.current.style.height = 'auto';
-    setTextareaHeight(48);
-    setPendingResolutionId(null);
-    setSending(true);
-
+  // ── Load older messages (pagination) ───────────────────────────────────────
+  const handleLoadOlder = async () => {
+    if (!conversationId || loadingOlder || !hasMoreMessages || messages.length === 0) return;
+    setLoadingOlder(true);
+    const el = messagesContainerRef.current;
+    const prevHeight = el ? el.scrollHeight : 0;
+    const prevTop = el ? el.scrollTop : 0;
     try {
-      // 1. Always store the customer's message
+      const oldest = messages.find(m => !m.failed);
+      const { messages: older, hasMore } = await getMessagesPage(conversationId, {
+        limit: MESSAGES_PAGE_SIZE,
+        before: oldest?.created_at,
+      });
+      setMessages(prev => {
+        const ids = new Set(prev.map(m => m.id));
+        const fresh = (older || []).filter(m => !ids.has(m.id));
+        return [...fresh, ...prev];
+      });
+      setHasMoreMessages(hasMore);
+      // Keep the viewport anchored on the message the customer was reading
+      requestAnimationFrame(() => {
+        if (el) el.scrollTop = prevTop + (el.scrollHeight - prevHeight);
+      });
+    } catch {
+      toast.error('Failed to load earlier messages.');
+    } finally {
+      setLoadingOlder(false);
+    }
+  };
+
+  // ── Send ───────────────────────────────────────────────────────────────────
+  const makeFailedMessage = (text) => ({
+    id: `failed-${++failedSeqRef.current}`,
+    conversation_id: conversationId,
+    sender_id: user?.id,
+    sender_role: 'customer',
+    message: text,
+    created_at: new Date().toISOString(),
+    failed: true,
+  });
+
+  const sendCustomerText = async (text) => {
+    if (!text || !conversationId || !user) return;
+    setSending(true);
+    setPendingResolutionId(null);
+
+    // 1. Store the customer's message — on failure keep a retryable bubble
+    try {
       const customerMsg = await sendMessage(conversationId, user.id, 'customer', text);
+      forceScrollRef.current = true;
       setMessages(prev =>
         prev.some(m => m.id === customerMsg.id) ? prev : [...prev, customerMsg]
       );
-
-      // 2. If NOT in bot mode → admin is handling, nothing more to do
-      if (!isBotMode) {
-        setSending(false);
-        return;
-      }
-
-      // 3. Bot processes the message
-      setBotTyping(true);
+    } catch (err) {
+      console.error('[SupportChat] Failed to send message:', err);
+      forceScrollRef.current = true;
+      setMessages(prev => [...prev, makeFailedMessage(text)]);
       setSending(false);
+      toast.error('Message not sent. Tap Retry on the message to try again.');
+      return;
+    }
 
+    // 2. If NOT in bot mode → admin is handling, nothing more to do
+    if (!isBotMode) {
+      setSending(false);
+      return;
+    }
+
+    // 3. Bot processes the message — a bot failure is non-fatal (toast only)
+    setBotTyping(true);
+    setSending(false);
+
+    try {
       const reply = await getBotReply(text, user.id);
       await new Promise(r => setTimeout(r, 700 + Math.random() * 400));
       if (!isMountedRef.current) return;
@@ -319,12 +406,32 @@ const SupportChatPage = () => {
         }
       }
     } catch (err) {
-      console.error('[SupportChat] Failed to send message:', err);
-      setSending(false);
-      setBotTyping(false);
-      toast.error('Failed to send message. Please try again.');
-      setInput(text);
+      console.error('[SupportChat] Bot reply failed:', err);
+      if (isMountedRef.current) {
+        setBotTyping(false);
+        toast.error('The assistant is unavailable right now. Please try again.');
+      }
     }
+  };
+
+  const handleSend = () => {
+    const text = input.trim();
+    if (!text || !conversationId || !user || sending || botTyping) return;
+
+    setInput('');
+    if (textareaRef.current) textareaRef.current.style.height = 'auto';
+    setTextareaHeight(TEXTAREA_BASE_HEIGHT);
+    sendCustomerText(text);
+  };
+
+  const handleRetryMessage = (failedMsg) => {
+    if (sending || botTyping) return;
+    setMessages(prev => prev.filter(m => m.id !== failedMsg.id));
+    sendCustomerText(failedMsg.message);
+  };
+
+  const handleDiscardMessage = (failedMsg) => {
+    setMessages(prev => prev.filter(m => m.id !== failedMsg.id));
   };
 
   // ── Resolution — Yes ───────────────────────────────────────────────────────
@@ -425,6 +532,8 @@ const SupportChatPage = () => {
       {/* Messages area */}
       <div
         className="support-chat-messages"
+        ref={messagesContainerRef}
+        onScroll={handleMessagesScroll}
         role="log"
         aria-live="polite"
         aria-label="Support chat messages"
@@ -435,6 +544,21 @@ const SupportChatPage = () => {
             title="No Messages Yet"
             description="Send a message to start chatting with our support team!"
           />
+        )}
+
+        {hasMoreMessages && messages.length > 0 && (
+          <div className="support-load-older">
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              onClick={handleLoadOlder}
+              disabled={loadingOlder}
+            >
+              {loadingOlder
+                ? <Loader size={14} className="animate-spin" aria-hidden="true" />
+                : 'Load earlier messages'}
+            </button>
+          </div>
         )}
 
         {messages.map((m, i) => {
@@ -455,7 +579,9 @@ const SupportChatPage = () => {
                 showResolutionPrompt={isLastBotWithPrompt}
                 onVoteYes={handleResolvedYes}
                 onVoteNo={handleResolvedNo}
-                adminName={adminName}
+                onRetry={handleRetryMessage}
+                onDiscard={handleDiscardMessage}
+                actionsDisabled={sending || botTyping}
               />
             </div>
           );
@@ -512,7 +638,7 @@ const SupportChatPage = () => {
           }}
           onFocus={() => {
             setTimeout(() => {
-              messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+              scrollToEnd(true);
             }, 150);
           }}
           style={{

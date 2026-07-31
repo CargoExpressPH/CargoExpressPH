@@ -439,6 +439,40 @@
   word-break: normal;
 }
 
+.support-load-older {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 8px;
+}
+
+.support-message-bubble.is-failed {
+  opacity: 0.8;
+  border: 1px dashed var(--error);
+}
+.chat-msg-failed-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  padding: 0 4px;
+  font-size: 0.6875rem;
+  color: var(--error);
+}
+.chat-msg-failed-actions button {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--error);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.chat-msg-failed-actions button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 @media (max-width: 640px) {
   .support-chat-page {
     height: calc(100vh - 160px);
