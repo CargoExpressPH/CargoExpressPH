@@ -454,12 +454,16 @@
 /* --- HYBRID CHAT — Sender Labels --------------------------------------- */
 
 .chat-sender-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   font-size: 0.6875rem;
   font-weight: 600;
   margin-bottom: 3px;
   padding: 0 4px;
   letter-spacing: 0.01em;
 }
+.chat-sender-label svg { flex-shrink: 0; }
 .chat-sender-label.bot-label   { color: var(--primary); }
 .chat-sender-label.admin-label { color: var(--accent); }
 
@@ -749,11 +753,15 @@
 }
 
 .inbox-msg-sender-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   font-size: 0.6875rem;
   color: var(--text-tertiary);
   margin-bottom: 3px;
   padding-left: 4px;
 }
+.inbox-msg-sender-label svg { flex-shrink: 0; }
 
 .inbox-msg-timestamp {
   font-size: 0.6875rem;

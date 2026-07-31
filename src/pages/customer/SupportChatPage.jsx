@@ -10,7 +10,7 @@ import {
 import { getBotReply, BOT_GREETING } from '../../lib/supportChatEngine';
 import {
   Send, Bot, Loader, MessageSquare, AlertTriangle,
-  RefreshCw, CheckCircle, XCircle, Clock, ShieldCheck, User,
+  RefreshCw, CheckCircle, XCircle, Clock, User,
 } from 'lucide-react';
 import EmptyState from '../../components/ui/EmptyState';
 import { useToast } from '../../hooks/useToast';
@@ -48,7 +48,7 @@ const MessageBubble = ({ m, showResolutionPrompt, onVoteYes, onVoteNo, adminName
   const isMe    = m.sender_role === 'customer';
   const isBot   = m.sender_role === 'bot';
 
-  const resolvedAdminName = m.profiles?.name || adminName || 'Support Agent';
+  const resolvedAdminName = 'Admin';
 
   return (
     <div className={`support-message-row ${isMe ? 'is-me' : 'is-admin'}`}>
@@ -58,8 +58,8 @@ const MessageBubble = ({ m, showResolutionPrompt, onVoteYes, onVoteNo, adminName
         </div>
       )}
       <div className="support-message-stack">
-        {isBot && <div className="chat-sender-label bot-label">🤖 CargoExpress Assistant</div>}
-        {m.sender_role === 'admin' && <div className="chat-sender-label admin-label">👤 {resolvedAdminName}</div>}
+        {isBot && <div className="chat-sender-label bot-label"><Bot size={11} aria-hidden="true" /> CargoExpress Assistant</div>}
+        {m.sender_role === 'admin' && <div className="chat-sender-label admin-label"><User size={11} aria-hidden="true" /> {resolvedAdminName}</div>}
 
         <div className={`support-message-bubble ${isMe ? 'user-bubble' : isBot ? 'bot-bubble' : 'admin-bubble'}`}>
           {m.message.split('\n').map((line, j, arr) => (
@@ -466,7 +466,7 @@ const SupportChatPage = () => {
           <div className="support-message-row is-admin" role="status" aria-label="Assistant is typing">
             <div className="chat-avatar bot-avatar"><Bot size={12} /></div>
             <div className="support-message-stack">
-              <div className="chat-sender-label bot-label">🤖 CargoExpress Assistant</div>
+              <div className="chat-sender-label bot-label"><Bot size={11} aria-hidden="true" /> CargoExpress Assistant</div>
               <div className="chat-typing-dots"><span /><span /><span /></div>
             </div>
           </div>
