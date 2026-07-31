@@ -4,9 +4,10 @@ import { getTripById, updateTrip, getActivityLogsByRecord, bulkUpdateOrdersStatu
 import StatusBadge from '../../components/ui/StatusBadge';
 import ConfirmModal from '../../components/ui/ConfirmModal';
 import { SkeletonText } from '../../components/ui/SkeletonLoader';
-import { ArrowLeft, Play, Flag, CheckCircle, XCircle, Loader, Clock, ArrowRight } from 'lucide-react';
+import { ArrowLeft, Play, Flag, CheckCircle, XCircle, Loader, Clock, ArrowRight, Package } from 'lucide-react';
 import CapacityTracker from '../../components/ui/CapacityTracker';
 import Breadcrumb from '../../components/ui/Breadcrumb';
+import EmptyState from '../../components/ui/EmptyState';
 import { useToast } from '../../hooks/useToast';
 import usePageTitle from '../../hooks/usePageTitle';
 import { logTrip } from '../../lib/activityLog';
@@ -168,7 +169,11 @@ const TripDetailPage = () => {
         <div className="card-header"><h3>Assigned Orders ({orders.length})</h3></div>
         <div className="table-container">
           {orders.length === 0 ? (
-            <div className="text-center text-secondary py-32">No assigned bookings found for this trip.</div>
+            <EmptyState
+              icon={Package}
+              title="No Assigned Bookings"
+              description="No bookings have been assigned to this trip yet."
+            />
           ) : (
             <table className="data-table">
               <thead>
@@ -203,14 +208,12 @@ const TripDetailPage = () => {
       </div>
 
       {/* Trip Activity */}
-      <div className="card admin-section-card stagger-item mt-16" style={{ animationDelay: '240ms' }}>
-        <div className="card-header">
-          <h3><Clock size={16} className="inline mr-8" />Trip Activity</h3>
-        </div>
-        <div className="card-body" style={{ paddingTop: 8 }}>
-          {activityHistory.length === 0 ? (
-            <div className="text-center text-secondary py-32">No activity recorded for this trip yet.</div>
-          ) : (
+      {activityHistory.length > 0 && (
+        <div className="card admin-section-card stagger-item mt-16" style={{ animationDelay: '240ms' }}>
+          <div className="card-header">
+            <h3><Clock size={16} className="inline mr-8" />Trip Activity</h3>
+          </div>
+          <div className="card-body" style={{ paddingTop: 8 }}>
             <div style={{ position: 'relative', paddingLeft: 20 }}>
               <div style={{ position: 'absolute', left: 7, top: 8, bottom: 8, width: 2, background: 'var(--border)', borderRadius: 2 }} />
               {activityHistory.map((log) => (
@@ -236,9 +239,9 @@ const TripDetailPage = () => {
                 </div>
               ))}
             </div>
-          )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Confirm Modal */}
       <ConfirmModal
