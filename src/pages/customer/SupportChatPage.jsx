@@ -6,6 +6,7 @@ import {
   getMessagesPage,
   sendMessage,
   setConversationWaitingAdmin,
+  markAdminMessagesRead,
 } from '../../lib/database';
 import { getBotReply, BOT_GREETING } from '../../lib/supportChatEngine';
 import {
@@ -226,6 +227,11 @@ const SupportChatPage = () => {
       }
 
       setLoading(false);
+
+      // Mark admin messages as read now that the customer is viewing the chat
+      if (document.visibilityState === 'visible') {
+        markAdminMessagesRead(conv.id).catch(() => {});
+      }
     } catch (err) {
       clearLoadTimeout();
       if (isMountedRef.current) {
@@ -262,6 +268,10 @@ const SupportChatPage = () => {
         setMessages(prev =>
           prev.some(m => m.id === payload.new.id) ? prev : [...prev, payload.new]
         );
+        // New admin reply while the customer is actively viewing → mark read
+        if (payload.new.sender_role === 'admin' && document.visibilityState === 'visible') {
+          markAdminMessagesRead(conversationId).catch(() => {});
+        }
       })
       // Listen for admin assigning / closing the conversation
       .on('postgres_changes', {
@@ -282,7 +292,20 @@ const SupportChatPage = () => {
       .subscribe();
 
     channelRef.current = channel;
-    return () => { supabase.removeChannel(channel); channelRef.current = null; };
+
+    // When the customer returns to this tab, mark any admin replies as read
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        markAdminMessagesRead(conversationId).catch(() => {});
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    return () => {
+      supabase.removeChannel(channel);
+      channelRef.current = null;
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
   }, [conversationId]);
 
   const scrollToEnd = (smooth) => {

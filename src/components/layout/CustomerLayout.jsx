@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Outlet, NavLink, useNavigate, Link, useLocation } from 'react-router-dom';
-import { Bell, User, Container, LogOut, MessageSquare, Package, MapPin, Plus, Home, ChevronRight, Settings } from 'lucide-react';
+import { Bell, User, Container, LogOut, MessageSquare, Package, MapPin, Plus, Home, ChevronRight } from 'lucide-react';
 import ThemeToggle from '../ui/ThemeToggle';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
@@ -298,15 +298,6 @@ const CustomerLayout = () => {
                         role="menuitem"
                       >
                         <User size={16} /> My Profile
-                        <ChevronRight size={14} className="ml-auto" style={{ opacity: 0.4 }} />
-                      </Link>
-                      <Link
-                        to="/customer/personal-info"
-                        onClick={() => setDropdownOpen(false)}
-                        className="customer-dropdown-item"
-                        role="menuitem"
-                      >
-                        <Settings size={16} /> Account Settings
                         <ChevronRight size={14} className="ml-auto" style={{ opacity: 0.4 }} />
                       </Link>
                       <button onClick={() => { setDropdownOpen(false); setShowLogoutConfirm(true); }} className="customer-dropdown-item danger" role="menuitem">

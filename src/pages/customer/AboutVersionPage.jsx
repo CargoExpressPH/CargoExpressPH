@@ -121,6 +121,9 @@ const AboutVersionPage = () => {
             ? 'Loading company information...'
             : companyInfo?.short_description || companyInfo?.long_description || 'CargoExpress PH connects customers with cargo delivery service between supported routes.'}
         </p>
+        <button type="button" className="btn btn-outline w-full justify-center mt-12" onClick={() => navigate('/about')}>
+          <Globe size={16} /> View Public About Page
+        </button>
       </div>
 
       {(companyInfo?.manila_address || companyInfo?.bohol_address) && (

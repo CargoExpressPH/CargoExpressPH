@@ -6,7 +6,7 @@ import {
 } from '../../lib/database';
 import { logCompany } from '../../lib/activityLog';
 import { 
-  Building2, LayoutTemplate, Phone, Clock, Star, Image as ImageIcon, 
+  Building2, LayoutTemplate, Phone, Star, Image as ImageIcon, 
   Map, Loader, Save, ExternalLink, AlertTriangle,
   Upload, X, Trash2, Plus, Edit2, MapPin, PhilippinePeso
 } from 'lucide-react';
@@ -20,14 +20,12 @@ import usePageTitle from '../../hooks/usePageTitle';
 const TABS = [
   { id: 'basic',    label: 'Basic Info',      icon: Building2 },
   { id: 'contact',  label: 'Contact Info',    icon: Phone },
-  { id: 'hours',    label: 'Business Hours',  icon: Clock },
   { id: 'features', label: 'Why Choose Us',   icon: Star },
   { id: 'coverage', label: 'Coverage Areas',  icon: Map },
   { id: 'pricing',  label: 'Pricing',         icon: PhilippinePeso },
 ];
 
-const SIMPLE_TABS = ['basic', 'contact', 'hours', 'pricing'];
-const DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+const SIMPLE_TABS = ['basic', 'contact', 'pricing'];
 
 const getEmptyCompanyInfo = () => ({
   name: '', short_description: '', long_description: '', story: '',
@@ -36,16 +34,6 @@ const getEmptyCompanyInfo = () => ({
   email: '', facebook: '', messenger: '', website: '', smart_phone: '', globe_phone: '',
   manila_address: '', bohol_address: '',
   default_price_per_kg: 0,
-  always_open: false,
-  business_hours: {
-    monday:    { open: '08:00', close: '17:00', closed: false },
-    tuesday:   { open: '08:00', close: '17:00', closed: false },
-    wednesday: { open: '08:00', close: '17:00', closed: false },
-    thursday:  { open: '08:00', close: '17:00', closed: false },
-    friday:    { open: '08:00', close: '17:00', closed: false },
-    saturday:  { open: '08:00', close: '12:00', closed: false },
-    sunday:    { open: '', close: '', closed: true },
-  }
 });
 
 const CompanyInformationPage = () => {
@@ -105,16 +93,6 @@ const CompanyInformationPage = () => {
 
   const handleInfoChange = (field, value) => {
     setCompanyInfo(prev => ({ ...prev, [field]: value }));
-  };
-
-  const handleHoursChange = (day, field, value) => {
-    setCompanyInfo(prev => ({
-      ...prev,
-      business_hours: {
-        ...prev.business_hours,
-        [day]: { ...prev.business_hours[day], [field]: value }
-      }
-    }));
   };
 
   const handleImageUpload = async (e, fieldName) => {
@@ -288,12 +266,12 @@ const CompanyInformationPage = () => {
                   </div>
                 </div>
                 <div className="form-group">
-                  <label className="form-label" htmlFor="company-short-description">Short Description <span style={{ color: 'var(--text-tertiary)', fontWeight: 400 }}>(shown in footer and meta tags)</span></label>
+                  <label className="form-label" htmlFor="company-short-description">Short Description <span style={{ color: 'var(--text-tertiary)', fontWeight: 400 }}>(shown in footer and search results)</span></label>
                   <input id="company-short-description" className="form-input" value={companyInfo.short_description || ''} onChange={e => handleInfoChange('short_description', e.target.value)} placeholder="One-line company description..." maxLength={160} />
                   <span className="form-helper">{(companyInfo.short_description || '').length}/160 characters</span>
                 </div>
                 <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label" htmlFor="company-long-description">Company Introduction <span style={{ color: 'var(--text-tertiary)', fontWeight: 400 }}>(About Us page — main body text)</span></label>
+                  <label className="form-label" htmlFor="company-long-description">Company Introduction <span style={{ color: 'var(--text-tertiary)', fontWeight: 400 }}>(main text on the About Us page)</span></label>
                   <textarea id="company-long-description" className="form-textarea" rows={5} value={companyInfo.long_description || ''} onChange={e => handleInfoChange('long_description', e.target.value)} placeholder="Tell your company's story..." style={{ minHeight: 120 }} />
                 </div>
               </div>
@@ -304,7 +282,7 @@ const CompanyInformationPage = () => {
 
             <div className="card">
               <div className="card-header">
-                <h3><LayoutTemplate size={16} className="inline mr-8" />Hero Banner Image</h3>
+                <h3><LayoutTemplate size={16} className="inline mr-8" />Homepage Banner Image</h3>
               </div>
               <div className="card-body">
                 {/* Image Preview */}
@@ -374,25 +352,25 @@ const CompanyInformationPage = () => {
 
             <div className="card">
               <div className="card-header">
-                <h3>Hero Text & Call-to-Action</h3>
+                <h3>Banner Text & Call-to-Action</h3>
               </div>
               <div className="card-body">
                 <div className="form-group">
-                  <label className="form-label">Hero Title</label>
-                  <input className="form-input" value={companyInfo.hero_title || ''} onChange={e => handleInfoChange('hero_title', e.target.value)} placeholder="e.g. Connecting Bohol and Manila" />
+                  <label className="form-label" htmlFor="company-hero-title">Headline</label>
+                  <input id="company-hero-title" className="form-input" value={companyInfo.hero_title || ''} onChange={e => handleInfoChange('hero_title', e.target.value)} placeholder="e.g. Connecting Bohol and Manila" />
                 </div>
                 <div className="form-group">
-                  <label className="form-label">Hero Description</label>
-                  <textarea className="form-textarea" rows={3} value={companyInfo.hero_description || ''} onChange={e => handleInfoChange('hero_description', e.target.value)} placeholder="Subtitle text displayed below the hero title..." />
+                  <label className="form-label" htmlFor="company-hero-description">Subheadline</label>
+                  <textarea id="company-hero-description" className="form-textarea" rows={3} value={companyInfo.hero_description || ''} onChange={e => handleInfoChange('hero_description', e.target.value)} placeholder="Subtitle text displayed below the headline..." />
                 </div>
                 <div className="grid grid-2" style={{ gap: 16 }}>
                   <div className="form-group" style={{ marginBottom: 0 }}>
-                    <label className="form-label">Button Text <span style={{ color: 'var(--text-tertiary)', fontWeight: 400 }}>(optional)</span></label>
-                    <input className="form-input" value={companyInfo.hero_button_text || ''} onChange={e => handleInfoChange('hero_button_text', e.target.value)} placeholder="e.g. Book a Shipment" />
+                    <label className="form-label" htmlFor="company-hero-button-text">Button Label <span style={{ color: 'var(--text-tertiary)', fontWeight: 400 }}>(optional)</span></label>
+                    <input id="company-hero-button-text" className="form-input" value={companyInfo.hero_button_text || ''} onChange={e => handleInfoChange('hero_button_text', e.target.value)} placeholder="e.g. Book a Shipment" />
                   </div>
                   <div className="form-group" style={{ marginBottom: 0 }}>
-                    <label className="form-label">Button Link <span style={{ color: 'var(--text-tertiary)', fontWeight: 400 }}>(optional)</span></label>
-                    <input className="form-input" value={companyInfo.hero_button_link || ''} onChange={e => handleInfoChange('hero_button_link', e.target.value)} placeholder="e.g. /login or /customer/book" />
+                    <label className="form-label" htmlFor="company-hero-button-link">Button Link <span style={{ color: 'var(--text-tertiary)', fontWeight: 400 }}>(optional)</span></label>
+                    <input id="company-hero-button-link" className="form-input" value={companyInfo.hero_button_link || ''} onChange={e => handleInfoChange('hero_button_link', e.target.value)} placeholder="e.g. /login or /customer/book" />
                   </div>
                 </div>
               </div>
@@ -463,114 +441,6 @@ const CompanyInformationPage = () => {
                   </div>
                 </div>
               </div>
-            </div>
-          </div>
-        )}
-
-        {/* ─── BUSINESS HOURS ──────────────────────────────────────── */}
-        {activeTab === 'hours' && (
-          <div className="card">
-            <div className="card-header">
-              <h3><Clock size={16} className="inline mr-8" />Business Hours</h3>
-            </div>
-            <div className="card-body">
-              {/* 24/7 Toggle */}
-              <div
-                className="flex items-center gap-12"
-                style={{
-                  padding: '14px 16px',
-                  borderRadius: 'var(--radius-md)',
-                  background: companyInfo.always_open ? 'var(--success-bg)' : 'var(--bg-secondary)',
-                  border: `1px solid ${companyInfo.always_open ? 'rgba(16,185,129,0.3)' : 'var(--border-light)'}`,
-                  marginBottom: 20,
-                  cursor: 'pointer',
-                }}
-                onClick={() => handleInfoChange('always_open', !companyInfo.always_open)}
-                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleInfoChange('always_open', !companyInfo.always_open); } }}
-                role="switch"
-                aria-checked={!!companyInfo.always_open}
-                aria-label="Open 24/7"
-                tabIndex={0}
-              >
-                <div
-                  style={{
-                    width: 44, height: 24, borderRadius: 12, position: 'relative',
-                    background: companyInfo.always_open ? 'var(--success)' : 'var(--border)',
-                    transition: 'background 0.2s ease', flexShrink: 0, cursor: 'pointer',
-                  }}
-                  aria-hidden="true"
-                >
-                  <div style={{
-                    position: 'absolute', top: 3, left: companyInfo.always_open ? 23 : 3,
-                    width: 18, height: 18, borderRadius: '50%', background: 'white',
-                    transition: 'left 0.2s ease', boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
-                  }} />
-                </div>
-                <div>
-                  <div style={{ fontWeight: 700, fontSize: '0.9375rem', color: companyInfo.always_open ? 'var(--success-dark)' : 'var(--text)' }}>
-                    Open 24/7
-                  </div>
-                  <div className="form-helper" style={{ margin: 0 }}>
-                    {companyInfo.always_open ? 'Customers can contact us any time.' : 'Toggle on if you are always available.'}
-                  </div>
-                </div>
-              </div>
-
-              {!companyInfo.always_open && (
-                <div className="flex flex-col gap-8">
-                  {DAYS.map(day => {
-                    const hours = companyInfo.business_hours?.[day] || {};
-                    return (
-                      <div
-                        key={day}
-                        className="flex items-center gap-16"
-                        style={{
-                          padding: '12px 16px',
-                          borderRadius: 'var(--radius-sm)',
-                          background: hours.closed ? 'var(--bg-secondary)' : 'var(--surface)',
-                          border: '1px solid var(--border-light)',
-                          opacity: hours.closed ? 0.65 : 1,
-                          flexWrap: 'wrap',
-                        }}
-                      >
-                        <div style={{ width: 100, textTransform: 'capitalize', fontWeight: 600, fontSize: '0.875rem' }}>
-                          {day}
-                        </div>
-                        <label className="flex items-center gap-6" style={{ cursor: 'pointer', userSelect: 'none', fontSize: '0.8125rem' }}>
-                          <input
-                            type="checkbox"
-                            checked={hours.closed || false}
-                            onChange={e => handleHoursChange(day, 'closed', e.target.checked)}
-                            style={{ cursor: 'pointer' }}
-                          />
-                          Closed
-                        </label>
-                        {!hours.closed && (
-                          <div className="flex items-center gap-8" style={{ marginLeft: 'auto' }}>
-                            <input
-                              type="time"
-                              className="form-input"
-                              aria-label={`${day} open time`}
-                              style={{ width: 120, minHeight: 36, padding: '6px 10px' }}
-                              value={hours.open || ''}
-                              onChange={e => handleHoursChange(day, 'open', e.target.value)}
-                            />
-                            <span style={{ color: 'var(--text-tertiary)', fontWeight: 600 }}>to</span>
-                            <input
-                              type="time"
-                              className="form-input"
-                              aria-label={`${day} close time`}
-                              style={{ width: 120, minHeight: 36, padding: '6px 10px' }}
-                              value={hours.close || ''}
-                              onChange={e => handleHoursChange(day, 'close', e.target.value)}
-                            />
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
             </div>
           </div>
         )}

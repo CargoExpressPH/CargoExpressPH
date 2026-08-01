@@ -1214,6 +1214,29 @@ export const markCustomerMessagesRead = async (conversationId) => {
   if (error) throw error;
 };
 
+// Count unread ADMIN messages across the customer's own conversations
+export const getCustomerUnreadChatCount = async (userId) => {
+  const { count, error } = await supabase
+    .from('chat_messages')
+    .select('id', { count: 'exact', head: true })
+    .eq('sender_role', 'admin')
+    .eq('is_read', false)
+    .in('conversation_id', supabase.from('conversations').select('id').eq('customer_id', userId));
+  if (error) throw error;
+  return count || 0;
+};
+
+// Customer marks ADMIN messages as read in a conversation they own
+export const markAdminMessagesRead = async (conversationId) => {
+  const { error } = await supabase
+    .from('chat_messages')
+    .update({ is_read: true })
+    .eq('conversation_id', conversationId)
+    .eq('sender_role', 'admin')
+    .eq('is_read', false);
+  if (error) throw error;
+};
+
 export const sendMessage = async (conversationId, senderId, senderRole, text) => {
   const { data, error } = await supabase
     .from('chat_messages')

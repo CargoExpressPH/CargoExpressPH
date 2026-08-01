@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import ConfirmModal from '../../components/ui/ConfirmModal';
 import usePageTitle from '../../hooks/usePageTitle';
+import { useCustomerChatUnread } from '../../hooks/useCustomerChatUnread';
 
 const PROFILE_COMPLETION_FIELDS = [
   'name',
@@ -54,6 +55,7 @@ const ProfilePage = () => {
   const [loading, setLoading] = useState(true);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [pushBusy, setPushBusy] = useState(false);
+  const chatUnread = useCustomerChatUnread(user?.id);
 
   const {
     permissionState,
@@ -235,7 +237,7 @@ const ProfilePage = () => {
             </div>
             <ChevronRight size={16} color="var(--text-tertiary)" />
           </button>
-          <button type="button" onClick={() => navigate('/reset-password')} className="profile-menu-item">
+          <button type="button" onClick={() => navigate('/customer/change-password')} className="profile-menu-item">
             <div className="profile-menu-icon-wrap warning">
               <Lock size={18} />
             </div>
@@ -257,32 +259,7 @@ const ProfilePage = () => {
           </button>
         </div>
 
-        {/* Section 2: Shipping Preferences */}
-        <h3 className="profile-section-title">Shipping & Activity</h3>
-        <div className="card mb-16 profile-menu-card stagger-item" style={{ animationDelay: '180ms' }}>
-          <button type="button" onClick={() => navigate('/customer/orders')} className="profile-menu-item">
-            <div className="profile-menu-icon-wrap info">
-              <Package size={18} />
-            </div>
-            <div className="flex-1 text-left">
-              <div className="text-sm font-bold">My Bookings</div>
-              <div className="text-xs text-secondary">View bookings, tracking, and payment records</div>
-            </div>
-            <ChevronRight size={16} color="var(--text-tertiary)" />
-          </button>
-          <button type="button" onClick={() => navigate('/customer/trips')} className="profile-menu-item">
-            <div className="profile-menu-icon-wrap warning">
-              <Truck size={18} />
-            </div>
-            <div className="flex-1 text-left">
-              <div className="text-sm font-bold">Scheduled Trips</div>
-              <div className="text-xs text-secondary">Check upcoming sea trip schedules</div>
-            </div>
-            <ChevronRight size={16} color="var(--text-tertiary)" />
-          </button>
-        </div>
-
-        {/* Section 3: App Settings */}
+        {/* Section 2: App Settings */}
         <h3 className="profile-section-title">Preferences</h3>
         <div className="card mb-16 profile-menu-card stagger-item" style={{ animationDelay: '240ms' }}>
           <div className="profile-menu-item no-hover">
@@ -341,7 +318,7 @@ const ProfilePage = () => {
           </button>
         </div>
 
-        {/* Section 4: Help & Support */}
+        {/* Section 3: Help & Support */}
         <h3 className="profile-section-title">Help & Support</h3>
         <div className="card mb-16 profile-menu-card stagger-item" style={{ animationDelay: '300ms' }}>
           <button type="button" onClick={() => navigate('/customer/support')} className="profile-menu-item">
@@ -352,6 +329,11 @@ const ProfilePage = () => {
               <div className="text-sm font-bold">Live Support Chat</div>
               <div className="text-xs text-secondary">Chat directly with cargo handlers</div>
             </div>
+            {chatUnread > 0 && (
+              <span className="profile-unread-badge" aria-label={`${chatUnread} unread messages`}>
+                {chatUnread > 99 ? '99+' : chatUnread}
+              </span>
+            )}
             <ChevronRight size={16} color="var(--text-tertiary)" />
           </button>
           <button type="button" onClick={() => navigate('/customer/help-guidelines')} className="profile-menu-item">

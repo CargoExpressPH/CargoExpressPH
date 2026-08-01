@@ -1221,6 +1221,22 @@ body:has(:is(.customer-layout-v2, .trk-page, .public-about-page, .contact-page, 
   color: var(--customer-ink);
 }
 
+/* Unread chat badge on the Live Support Chat profile menu item */
+.profile-unread-badge {
+  min-width: 22px;
+  height: 22px;
+  padding: 0 7px;
+  border-radius: var(--radius-full);
+  background: var(--primary);
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
 /* Switch Toggle Styling */
 .toggle-switch {
   position: relative;

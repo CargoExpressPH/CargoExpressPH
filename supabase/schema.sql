@@ -224,8 +224,6 @@ CREATE TABLE IF NOT EXISTS company_information (
   stat_deliveries INTEGER DEFAULT 0,
   stat_customers INTEGER DEFAULT 0,
   stat_hubs INTEGER DEFAULT 0,
-  always_open BOOLEAN DEFAULT false,
-  business_hours JSONB,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   default_price_per_kg NUMERIC DEFAULT 0,
@@ -489,6 +487,25 @@ CREATE POLICY "Users insert messages in allowed conversations" ON chat_messages
 CREATE POLICY "Admins update messages" ON chat_messages
   FOR UPDATE USING (
     EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
+  );
+
+-- Customers can mark ADMIN messages as read (is_read → true) in their own conversations
+CREATE POLICY "Customers mark admin messages read" ON chat_messages
+  FOR UPDATE TO authenticated
+  USING (
+    sender_role = 'admin'
+    AND EXISTS (
+      SELECT 1 FROM conversations
+      WHERE id = chat_messages.conversation_id AND customer_id = auth.uid()
+    )
+  )
+  WITH CHECK (
+    sender_role = 'admin'
+    AND is_read = true
+    AND EXISTS (
+      SELECT 1 FROM conversations
+      WHERE id = chat_messages.conversation_id AND customer_id = auth.uid()
+    )
   );
 
 -- ─── Contact Inquiries ──────────────────────────────────────
