@@ -417,19 +417,6 @@ body {
   z-index: var(--z-overlay);
 }
 
-.booking-success-glow {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background: radial-gradient(
-    circle at 50% 40%,
-    color-mix(in srgb, var(--success) 28%, transparent) 0%,
-    transparent 60%
-  );
-}
-
-
-
 .booking-success-content {
   position: relative;
   z-index: 1;
@@ -455,8 +442,8 @@ body {
   position: absolute;
   inset: 0;
   border-radius: 999px;
-  background: var(--success);
-  box-shadow: 0 0 60px color-mix(in srgb, var(--success) 50%, transparent);
+  background: var(--primary);
+  box-shadow: 0 0 60px color-mix(in srgb, var(--primary) 50%, transparent);
 }
 
 .booking-success-particle {
@@ -464,7 +451,7 @@ body {
   left: 50%;
   top: 50%;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--success) 80%, transparent);
+  background: color-mix(in srgb, var(--primary) 80%, transparent);
 }
 
 .booking-success-checkmark-svg {
@@ -476,7 +463,7 @@ body {
 
 /* ── Text copy ── */
 .booking-success-eyebrow {
-  color: var(--success);
+  color: var(--primary);
   font-size: 0.7rem;
   font-weight: 700;
   letter-spacing: 0.4em;
@@ -504,9 +491,12 @@ body {
   width: 100%;
   margin-top: 24px;
   overflow: hidden;
+  border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   background: var(--surface);
-  box-shadow: 0 30px 80px -30px rgba(15, 23, 42, 0.2);
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.06),
+    0 24px 48px -24px rgba(15, 23, 42, 0.18);
   text-align: left;
 }
 
@@ -545,10 +535,11 @@ body {
 
 .booking-success-ticket-value {
   display: block;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
   color: var(--text);
   font-size: 0.92rem;
   font-weight: 700;
+  line-height: 1.35;
 }
 
 .booking-success-ticket-divider {
@@ -596,6 +587,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
   padding: 16px 24px;
 }
 
@@ -609,13 +601,16 @@ body {
   font-family: var(--font-mono);
   font-size: 0.88rem;
   font-weight: 600;
+  letter-spacing: 0.02em;
   color: var(--text);
+  overflow-wrap: anywhere;
 }
 
 .booking-success-tracking-row {
   display: flex;
   align-items: center;
   gap: 8px;
+  min-width: 0;
 }
 
 .booking-success-copy-btn {
@@ -641,23 +636,33 @@ body {
 }
 
 .booking-success-copy-btn.is-copied {
-  background: var(--success-bg);
-  color: var(--success);
-  border-color: color-mix(in srgb, var(--success) 30%, transparent);
+  background: color-mix(in srgb, var(--primary) 12%, transparent);
+  color: var(--primary);
+  border-color: color-mix(in srgb, var(--primary) 30%, transparent);
 }
 
 .booking-success-status-pill {
   display: inline-flex;
   align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
   padding: 4px 12px;
   border-radius: 999px;
   font-size: 0.75rem;
   font-weight: 600;
 }
 
+.booking-success-status-pill::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
 .booking-success-status-pill.is-pending {
-  background: color-mix(in srgb, var(--success) 12%, transparent);
-  color: var(--success);
+  background: color-mix(in srgb, var(--primary) 12%, transparent);
+  color: var(--primary);
 }
 
 .booking-success-status-pill.is-assigned {
@@ -674,7 +679,7 @@ body {
 
 .booking-success-btn-primary {
   border-radius: 999px;
-  background: var(--success);
+  background: var(--primary);
   color: #fff;
   padding: 12px 24px;
   font-size: 0.88rem;
@@ -709,17 +714,12 @@ body {
   background: var(--bg);
 }
 
-[data-theme="dark"] .booking-success-glow {
-  background: radial-gradient(
-    circle at 50% 40%,
-    color-mix(in srgb, var(--success) 22%, transparent) 0%,
-    transparent 60%
-  );
-}
-
 [data-theme="dark"] .booking-success-ticket {
   background: var(--surface);
-  box-shadow: 0 30px 80px -30px rgba(0, 0, 0, 0.5);
+  border-color: var(--border);
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.4),
+    0 24px 48px -24px rgba(0, 0, 0, 0.5);
 }
 
 [data-theme="dark"] .booking-success-ticket-hole {
@@ -787,6 +787,7 @@ body {
   }
 
   .booking-success-ticket-bottom {
+    flex-wrap: wrap;
     padding: 10px 14px;
   }
 

@@ -417,14 +417,6 @@ const BookShipmentPage = () => {
 
     return (
       <div className="booking-success-page" aria-labelledby="booking-success-title">
-        {/* Ambient glow */}
-        <motion.div
-          className="booking-success-glow"
-          initial={{ opacity: 0, scale: 0.6 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 1.6, ease: luxeEase }}
-        />
-
         <div className="booking-success-content" role="status" aria-live="polite">
           {/* Checkmark with rings */}
           <div className="booking-success-visual">
