@@ -311,3 +311,34 @@
     font-size: 0.64rem;
   }
 }
+
+/* ── Dark mode: primary CTA backgrounds follow the dark --primary token (#22C55E).
+   Overrides the hardcoded light-mode greens (#15803D/#166534) in every layer so
+   CTAs stay vivid on dark UI. Dark navy text on bright green passes AA (7.9:1). ── */
+[data-theme="dark"] .btn-primary,
+[data-theme="dark"] .app-layout .btn-primary,
+[data-theme="dark"] .customer-layout-v2 .btn-primary,
+[data-theme="dark"] .auth-submit-btn,
+[data-theme="dark"] .login-right-panel .login-submit-btn,
+[data-theme="dark"] .auth-page .auth-submit-btn,
+[data-theme="dark"] .login-submit-btn,
+[data-theme="dark"] .trk-search-btn,
+[data-theme="dark"] .onboarding-btn,
+[data-theme="dark"] .about-submit-btn {
+  background: #22C55E;
+  color: #0F172A;
+}
+
+[data-theme="dark"] .btn-primary:hover,
+[data-theme="dark"] .app-layout .btn-primary:hover,
+[data-theme="dark"] .customer-layout-v2 .btn-primary:hover,
+[data-theme="dark"] .auth-submit-btn:hover:not(:disabled),
+[data-theme="dark"] .login-right-panel .login-submit-btn:hover:not(:disabled),
+[data-theme="dark"] .auth-page .auth-submit-btn:hover:not(:disabled),
+[data-theme="dark"] .login-submit-btn:hover:not(:disabled),
+[data-theme="dark"] .trk-search-btn:hover:not(:disabled),
+[data-theme="dark"] .onboarding-btn:hover,
+[data-theme="dark"] .about-submit-btn:hover:not(:disabled) {
+  background: #4ADE80;
+  color: #0F172A;
+}

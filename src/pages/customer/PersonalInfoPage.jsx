@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '../../hooks/useToast';
 import CustomSelect from '../../components/ui/CustomSelect';
+import FocusTrap from '../../components/ui/FocusTrap';
 import usePageTitle from '../../hooks/usePageTitle';
 import { toTitleCase } from '../../utils/string';
 
@@ -134,10 +135,11 @@ const PersonalInfoPage = () => {
     <div className="animate-slide-up customer-personal-info-page">
       {/* C-4 fix: Unsaved changes guard modal */}
       {blocker.state === 'blocked' && (
-        <div className="modal-overlay" style={{ position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }}>
+        <FocusTrap active>
+        <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="blocker-modal-title" style={{ position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }}>
           <div className="card" style={{ maxWidth: 400, width: '90%', padding: 24, textAlign: 'center' }}>
-            <AlertTriangle size={32} color="var(--warning)" style={{ marginBottom: 12 }} />
-            <h3 className="fw-700 mb-8">Discard unsaved changes?</h3>
+            <AlertTriangle size={32} color="var(--warning)" style={{ marginBottom: 12 }} aria-hidden="true" />
+            <h3 id="blocker-modal-title" className="fw-700 mb-8">Discard unsaved changes?</h3>
             <p className="text-sm text-secondary mb-20">You have unsaved changes to your personal information. If you leave now, your changes will be lost.</p>
             <div className="flex gap-12 justify-center">
               <button type="button" className="btn btn-outline" onClick={() => blocker.reset()}>Stay</button>
@@ -145,6 +147,7 @@ const PersonalInfoPage = () => {
             </div>
           </div>
         </div>
+        </FocusTrap>
       )}
 
       <button type="button" onClick={() => navigate(-1)} className="btn btn-ghost customer-back-action mb-16">

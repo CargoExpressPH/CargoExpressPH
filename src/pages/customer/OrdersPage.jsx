@@ -11,8 +11,9 @@ import PullToRefresh from '../../components/ui/PullToRefresh';
 import ResponsiveFilterControls from '../../components/ui/ResponsiveFilterControls';
 import { Search, Package, AlertCircle, MapPin, ChevronRight } from 'lucide-react';
 import usePageTitle from '../../hooks/usePageTitle';
+import { VALID_STATUSES } from '../../constants/status';
 
-const tabs = ['All', 'Pending', 'In Transit', 'Delivered', 'Cancelled'];
+const tabs = ['All', ...VALID_STATUSES];
 
 const fmtDate = (iso) => {
   if (!iso) return '—';

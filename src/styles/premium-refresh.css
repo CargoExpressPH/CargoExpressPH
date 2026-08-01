@@ -43,18 +43,22 @@ body {
 }
 
 .btn-primary {
-  background: var(--primary);
+  background: #166534;
   box-shadow: var(--shadow-primary);
 }
 
 .btn-primary:hover {
-  background: var(--primary-dark);
+  background: #14532D;
   box-shadow: var(--shadow-primary-lg);
 }
 
+[data-theme="dark"] .btn-primary {
+  color: #FFFFFF;
+}
+
 [data-theme="dark"] .btn-primary:hover {
-  background: var(--primary-light);
-  color: #fff;
+  background: #15803D;
+  color: #FFFFFF;
 }
 
 .form-input,

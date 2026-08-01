@@ -428,9 +428,16 @@ const InteractiveMap = ({ coverage, selectedRegionId, onSelectRegion }) => {
           return (
             <g key={pin.name}
               onClick={() => onSelectRegion(isSelected ? null : matchedDbRegion.id)}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelectRegion(isSelected ? null : matchedDbRegion.id); } }}
               onMouseEnter={() => setHoveredPin(pin.name)}
               onMouseLeave={() => setHoveredPin(null)}
-              style={{ cursor: 'pointer' }}
+              onFocus={() => setHoveredPin(pin.name)}
+              onBlur={() => setHoveredPin(null)}
+              style={{ cursor: 'pointer', outline: 'none' }}
+              tabIndex={0}
+              role="button"
+              aria-label={`Select ${pin.name} region`}
+              aria-pressed={isSelected}
             >
               {active && (
                 <motion.circle cx={pin.x} cy={pin.y}
@@ -1014,6 +1021,10 @@ const AboutPage = () => {
                         key={region.id} 
                         className={`about-region-card ${isSelected ? 'selected' : ''}`}
                         onClick={() => setSelectedRegionId(isSelected ? null : region.id)}
+                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedRegionId(isSelected ? null : region.id); } }}
+                        role="button"
+                        tabIndex={0}
+                        aria-pressed={isSelected}
                       >
                         <h4 style={{ fontSize: '1.125rem', fontWeight: 800, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 12 }}>
                           <MapPin size={18} style={{ color: isSelected ? 'var(--primary)' : 'var(--text-tertiary)', transition: 'color 0.2s' }} /> {region.name}

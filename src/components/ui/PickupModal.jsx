@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { X, Camera, Loader, Scale, CreditCard, Calendar, Upload, Trash2, Package, AlertTriangle, CheckCircle, FileText } from 'lucide-react';
+import { X, Camera, Loader, Scale, CreditCard, Calendar, Upload, Trash2, Package, AlertTriangle, CheckCircle, FileText, ExternalLink, RefreshCw } from 'lucide-react';
 import FocusTrap from './FocusTrap';
 import { uploadMultiplePhotos, uploadPhoto } from '../../lib/storage';
 import QRCode from 'react-qr-code';
@@ -39,6 +39,8 @@ const PickupModal = ({ order, onClose, onSave, pricePerKilo = 70 }) => {
   
   const fileInputRef = useRef(null);
   const receiptInputRef = useRef(null);
+  const paymongoIntervalRef = useRef(null);
+  const paymongoSessionRef = useRef(0);
 
   const isPayLater = form.payment_type === 'paylater';
   const estimatedCost = parseFloat(form.actual_weight || 0) * pricePerKilo;
@@ -46,6 +48,7 @@ const PickupModal = ({ order, onClose, onSave, pricePerKilo = 70 }) => {
   const remainingBalance = Math.max(0, estimatedCost - amountPaid);
 
   const handleProceedToGCash = async () => {
+    const session = ++paymongoSessionRef.current;
     try {
       setPaymentStep('generating');
       setError('');
@@ -61,18 +64,32 @@ const PickupModal = ({ order, onClose, onSave, pricePerKilo = 70 }) => {
       };
       
       const source = await createGCashSource(amount, `CargoExpress - ${order.tracking_number} Pickup`, billing, true);
+      if (paymongoSessionRef.current !== session) return;
       setPaymongoSourceId(source.sourceId);
       setCheckoutUrl(source.checkoutUrl);
       setPaymentStep('waiting');
     } catch (err) {
+      if (paymongoSessionRef.current !== session) return;
       setError(err.message);
       setPaymentStep('setup');
     }
   };
 
+  const resetPayMongoFlow = () => {
+    paymongoSessionRef.current++;
+    clearInterval(paymongoIntervalRef.current);
+    paymongoIntervalRef.current = null;
+    setPaymentStep('setup');
+    setPaymongoSourceId(null);
+    setCheckoutUrl(null);
+    setPaymentDetails(null);
+    setError('');
+  };
+
   useEffect(() => {
     if (paymentStep !== 'waiting' || !paymongoSourceId) return;
 
+    const session = paymongoSessionRef.current;
     let interval;
     let isChecking = false;
 
@@ -81,11 +98,13 @@ const PickupModal = ({ order, onClose, onSave, pricePerKilo = 70 }) => {
       isChecking = true;
       try {
         const res = await checkPaymentStatus(paymongoSourceId);
+        if (paymongoSessionRef.current !== session) return;
         if (res.status === 'chargeable') {
           clearInterval(interval);
           try {
             const amount = isPayLater ? parseFloat(form.amount_paid || 0) : estimatedCost;
             const paymentRes = await createPayment(paymongoSourceId, amount, `CargoExpress - ${order.tracking_number} Pickup`);
+            if (paymongoSessionRef.current !== session) return;
             setPaymentDetails({
               reference: paymentRes.paymentId,
               amount: paymentRes.amount,
@@ -95,6 +114,7 @@ const PickupModal = ({ order, onClose, onSave, pricePerKilo = 70 }) => {
             });
             setPaymentStep('successful');
           } catch (err) {
+            if (paymongoSessionRef.current !== session) return;
             setError(err.message);
             setPaymentStep('failed');
           }
@@ -110,8 +130,15 @@ const PickupModal = ({ order, onClose, onSave, pricePerKilo = 70 }) => {
     };
 
     interval = setInterval(checkStatus, 3000);
+    paymongoIntervalRef.current = interval;
     return () => clearInterval(interval);
   }, [paymentStep, paymongoSourceId, isPayLater, form.amount_paid, estimatedCost, order.tracking_number]);
+
+  useEffect(() => {
+    if (form.payment_method !== 'gcash' && (paymentStep !== 'setup' || paymongoSourceId || checkoutUrl || paymentDetails)) {
+      resetPayMongoFlow();
+    }
+  }, [form.payment_method]);
 
   const handlePhotoAdd = (e) => {
     const newFiles = Array.from(e.target.files || []);
@@ -177,8 +204,15 @@ const PickupModal = ({ order, onClose, onSave, pricePerKilo = 70 }) => {
       return;
     }
     if (form.payment_method === 'gcash') {
-      if (paymentStep !== 'successful' || !paymentDetails) {
-        setError('Please complete the GCash payment first');
+      // Allow either automated PayMongo success OR manual reference entry
+      const hasPayMongoSuccess = paymentStep === 'successful' && paymentDetails;
+      const hasManualReference = form.payment_reference && form.payment_reference.trim().length > 0;
+      if (!hasPayMongoSuccess && !hasManualReference) {
+        setError('Please complete the GCash payment via PayMongo or enter a manual reference number.');
+        return;
+      }
+      if (!form.payment_date) {
+        setError('Please set the payment date');
         return;
       }
     }
@@ -189,6 +223,10 @@ const PickupModal = ({ order, onClose, onSave, pricePerKilo = 70 }) => {
     if (isPayLater && !form.promised_payment_date) {
       setError('Please set a promised payment date for Pay Later');
       return;
+    }
+
+    if (form.payment_method === 'gcash' && !(paymentStep === 'successful' && paymentDetails)) {
+      resetPayMongoFlow();
     }
 
     setSaving(true);
@@ -234,8 +272,8 @@ const PickupModal = ({ order, onClose, onSave, pricePerKilo = 70 }) => {
         amount_paid: finalAmountPaid,
         remaining_balance: finalRemaining,
         payment_status: paymentStatus,
-        payment_reference: form.payment_method === 'gcash' ? paymentDetails?.reference : null,
-        payment_date: form.payment_method === 'gcash' ? paymentDetails?.date : null,
+        payment_reference: form.payment_method === 'gcash' ? (paymentDetails?.reference || form.payment_reference || null) : null,
+        payment_date: form.payment_method === 'gcash' ? (paymentDetails?.date || form.payment_date || null) : null,
         receipt_url: receiptUrl,
         pickup_photos: photoUrls,
         promised_payment_date: isPayLater ? form.promised_payment_date : null,
@@ -380,20 +418,106 @@ const PickupModal = ({ order, onClose, onSave, pricePerKilo = 70 }) => {
             </div>
           )}
 
-          {/* GCash Details */}
+          {/* GCash Payment Flow */}
           {form.payment_method === 'gcash' && (
             <div className="mb-16" style={{ background: 'var(--bg-secondary)', borderRadius: 8, padding: 14, border: '1px solid var(--border)' }}>
-              <div className="mb-8" style={{ fontSize: '0.8125rem', fontWeight: 600 }}>GCash Payment Details</div>
-              <div className="form-group mb-12">
-                <label className="form-label">Reference Number *</label>
-                <input
-                  type="text"
-                  className="form-input"
-                  placeholder="Enter GCash Ref No."
-                  value={form.payment_reference}
-                  onChange={e => setForm(p => ({ ...p, payment_reference: e.target.value }))}
-                />
-              </div>
+              <div className="mb-8" style={{ fontSize: '0.8125rem', fontWeight: 600 }}>GCash Payment</div>
+
+              {/* === PayMongo Automated Flow === */}
+              {paymentStep === 'setup' && (
+                <div className="mb-12">
+                  <button
+                    type="button"
+                    className="btn btn-primary btn-sm w-full justify-center"
+                    onClick={handleProceedToGCash}
+                    disabled={(!isPayLater && estimatedCost <= 0) || (isPayLater && parseFloat(form.amount_paid || 0) <= 0)}
+                  >
+                    <CreditCard size={14} className="mr-6" /> Process via PayMongo
+                  </button>
+                  <div className="text-xs text-tertiary mt-4" style={{ textAlign: 'center' }}>Opens GCash checkout for the customer to pay</div>
+                </div>
+              )}
+
+              {paymentStep === 'generating' && (
+                <div className="flex items-center gap-8 mb-12" style={{ padding: '10px 0' }}>
+                  <Loader size={16} className="animate-spin" style={{ color: 'var(--primary)' }} />
+                  <span className="text-sm">Generating GCash checkout link…</span>
+                </div>
+              )}
+
+              {paymentStep === 'waiting' && checkoutUrl && (
+                <div className="mb-12" style={{ background: 'var(--info-bg)', borderRadius: 8, padding: 12, border: '1px solid var(--info)' }}>
+                  <div className="flex items-center gap-8 mb-8">
+                    <Loader size={14} className="animate-spin" style={{ color: 'var(--info)' }} />
+                    <span className="text-sm fw-600" style={{ color: 'var(--info-dark)' }}>Waiting for customer payment…</span>
+                  </div>
+                  <a
+                    href={checkoutUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn btn-outline btn-sm w-full justify-center mb-8"
+                    style={{ fontSize: '0.8125rem' }}
+                  >
+                    <ExternalLink size={14} className="mr-6" /> Open GCash Checkout
+                  </a>
+                  <button
+                    type="button"
+                    className="btn btn-outline btn-sm w-full justify-center mb-8"
+                    onClick={resetPayMongoFlow}
+                  >
+                    <RefreshCw size={14} className="mr-6" /> Cancel Payment Request
+                  </button>
+                  <div className="text-xs text-tertiary" style={{ textAlign: 'center' }}>Share this link with the customer or open it on their device. Payment status updates automatically.</div>
+                </div>
+              )}
+
+              {paymentStep === 'successful' && paymentDetails && (
+                <div className="mb-12" style={{ background: 'var(--success-bg)', borderRadius: 8, padding: 12, border: '1px solid var(--success)' }}>
+                  <div className="flex items-center gap-8 mb-4">
+                    <CheckCircle size={16} style={{ color: 'var(--success)' }} />
+                    <span className="fw-700 text-sm" style={{ color: 'var(--success-dark)' }}>GCash Payment Successful</span>
+                  </div>
+                  <div className="text-xs" style={{ color: 'var(--success-dark)' }}>
+                    Ref: {paymentDetails.reference} · ₱{paymentDetails.amount?.toFixed(2)} · {paymentDetails.date} {paymentDetails.time}
+                  </div>
+                </div>
+              )}
+
+              {(paymentStep === 'failed' || paymentStep === 'expired') && (
+                <div className="mb-12" style={{ background: 'var(--error-bg)', borderRadius: 8, padding: 12, border: '1px solid var(--error)' }}>
+                  <div className="flex items-center gap-8 mb-4">
+                    <AlertTriangle size={16} style={{ color: 'var(--error)' }} />
+                    <span className="fw-700 text-sm" style={{ color: 'var(--error-dark)' }}>
+                      {paymentStep === 'expired' ? 'Payment link expired' : 'Payment failed'}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    className="btn btn-outline btn-sm mt-4"
+                    onClick={resetPayMongoFlow}
+                  >
+                    <RefreshCw size={14} className="mr-6" /> Try Again
+                  </button>
+                </div>
+              )}
+
+              {/* === Manual Reference Fallback === */}
+              {paymentStep !== 'successful' && (
+                <>
+                  <div className="text-xs text-tertiary mb-8" style={{ textAlign: 'center', borderTop: '1px solid var(--border)', paddingTop: 10 }}>Or enter payment details manually</div>
+                  <div className="form-group mb-12">
+                    <label className="form-label">Reference Number</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="Enter GCash Ref No."
+                      value={form.payment_reference}
+                      onChange={e => setForm(p => ({ ...p, payment_reference: e.target.value }))}
+                    />
+                  </div>
+                </>
+              )}
+
               <div className="form-group mb-12">
                 <label className="form-label" htmlFor="pu-payment-date">Payment Date *</label>
                 <input
@@ -489,7 +613,7 @@ const PickupModal = ({ order, onClose, onSave, pricePerKilo = 70 }) => {
 
         <div className="modal-footer">
           <button className="btn btn-outline" onClick={onClose} disabled={saving || (form.payment_method === 'gcash' && (paymentStep === 'generating' || paymentStep === 'waiting'))}>Cancel</button>
-          <button className="btn btn-primary" onClick={handleSubmit} disabled={saving || (form.payment_method === 'gcash' && paymentStep !== 'successful')}>
+          <button className="btn btn-primary" onClick={handleSubmit} disabled={saving || (form.payment_method === 'gcash' && paymentStep !== 'successful' && !(form.payment_reference && form.payment_reference.trim()))}>
             {saving ? <><Loader size={16} className="animate-spin" /> {uploadProgress || 'Processing...'}</> : <><CheckCircle size={16} /> Confirm Pickup</>}
           </button>
         </div>

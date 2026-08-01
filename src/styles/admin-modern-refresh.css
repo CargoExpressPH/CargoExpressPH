@@ -733,13 +733,13 @@
 }
 
 .app-layout .btn-primary {
-  background: linear-gradient(135deg, var(--admin-green), var(--primary-light));
+  background: linear-gradient(135deg, #15803D, #166534);
   color: #FFFFFF;
   box-shadow: 0 14px 28px rgba(18, 138, 90, 0.24);
 }
 
 .app-layout .btn-primary:hover {
-  background: linear-gradient(135deg, var(--admin-green-dark), var(--admin-green));
+  background: linear-gradient(135deg, #166534, #14532D);
   box-shadow: 0 18px 34px rgba(18, 138, 90, 0.28);
 }
 

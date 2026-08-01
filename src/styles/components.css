@@ -16,12 +16,12 @@
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, var(--primary-dark), var(--primary));
+  background: linear-gradient(135deg, #15803D, #166534);
   color: #FFFFFF;
   box-shadow: var(--shadow-primary);
 }
 [data-theme="dark"] .btn-primary {
-  color: #0F172A;
+  color: #FFFFFF;
   font-weight: 700;
 }
 .btn-primary:hover {

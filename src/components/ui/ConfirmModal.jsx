@@ -22,7 +22,8 @@ const variantIcons = {
  * @param {function}  onConfirm     - Called when the confirm action is triggered
  * @param {string}    title         - Modal title
  * @param {string}    message       - Modal body message
- * @param {string}    confirmLabel  - Label for the confirm button (default "Confirm")
+ * @param {string}    confirmLabel  - Label for the confirm button (default "Confirm"). Alias: confirmText
+ * @param {string}    confirmText   - Alias for confirmLabel; used when either prop is provided
  * @param {string}    cancelLabel   - Label for the cancel button (default "Cancel")
  * @param {string}    variant       - Visual variant: "danger" | "warning" | "info" | "success"
  * @param {boolean}   loading       - Disables confirm button and shows spinner
@@ -34,12 +35,15 @@ const ConfirmModal = ({
   onConfirm,
   title,
   message,
-  confirmLabel = 'Confirm',
+  confirmLabel: confirmLabelProp,
+  confirmText,
   cancelLabel = 'Cancel',
   variant = 'danger',
   loading = false,
   icon,
 }) => {
+  // Support both confirmLabel and confirmText props (callers use either)
+  const confirmLabel = confirmLabelProp || confirmText || 'Confirm';
   const modalRef = useRef(null);
   const cancelRef = useRef(null);
 

@@ -228,7 +228,7 @@
 .auth-submit-btn {
   width: 100%; padding: 14px;
   border-radius: var(--radius-md); border: none;
-  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+  background: linear-gradient(135deg, #15803D 0%, #166534 100%);
   color: white; font-weight: 700; font-size: 1rem; cursor: pointer;
   display: flex; align-items: center; justify-content: center; gap: 8px;
   transition: var(--transition);

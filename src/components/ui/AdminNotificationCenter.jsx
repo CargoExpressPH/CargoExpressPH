@@ -259,7 +259,7 @@ const AdminNotificationCenter = ({ isOpen, onClose, anchorRef }) => {
                   const mapping = iconMap[notif.type] || iconMap.general;
                   const Icon = mapping.icon;
                   return (
-                    <button
+                    <div
                       key={notif.id}
                       className={`admin-notif-item ${!notif.is_read ? 'unread' : ''}`}
                       onClick={() => handleNotifClick(notif)}
@@ -268,7 +268,14 @@ const AdminNotificationCenter = ({ isOpen, onClose, anchorRef }) => {
                       <div className="admin-notif-item-icon" style={{ background: mapping.bg, color: mapping.color }}>
                         <Icon size={16} />
                       </div>
-                      <div className="admin-notif-item-content">
+                      <div
+                        className="admin-notif-item-content"
+                        role="button"
+                        tabIndex={0}
+                        aria-label={`Open notification: ${notif.title}`}
+                        onClick={(e) => { e.stopPropagation(); handleNotifClick(notif); }}
+                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); handleNotifClick(notif); } }}
+                      >
                         <div className="admin-notif-item-title">{notif.title}</div>
                         <div className="admin-notif-item-msg">{notif.message}</div>
                         <div className="admin-notif-item-time">
@@ -281,6 +288,7 @@ const AdminNotificationCenter = ({ isOpen, onClose, anchorRef }) => {
                         <button
                           className="admin-notif-delete-btn"
                           onClick={(e) => handleDeleteOne(e, notif.id)}
+                          onKeyDown={(e) => { e.stopPropagation(); }}
                           title="Delete"
                           aria-label="Delete notification"
                         >
@@ -288,7 +296,7 @@ const AdminNotificationCenter = ({ isOpen, onClose, anchorRef }) => {
                         </button>
                         <ChevronRight size={12} className="admin-notif-chevron" />
                       </div>
-                    </button>
+                    </div>
                   );
                 })}
               </div>

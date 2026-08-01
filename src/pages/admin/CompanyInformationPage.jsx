@@ -486,6 +486,11 @@ const CompanyInformationPage = () => {
                   cursor: 'pointer',
                 }}
                 onClick={() => handleInfoChange('always_open', !companyInfo.always_open)}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleInfoChange('always_open', !companyInfo.always_open); } }}
+                role="switch"
+                aria-checked={!!companyInfo.always_open}
+                aria-label="Open 24/7"
+                tabIndex={0}
               >
                 <div
                   style={{
@@ -493,6 +498,7 @@ const CompanyInformationPage = () => {
                     background: companyInfo.always_open ? 'var(--success)' : 'var(--border)',
                     transition: 'background 0.2s ease', flexShrink: 0, cursor: 'pointer',
                   }}
+                  aria-hidden="true"
                 >
                   <div style={{
                     position: 'absolute', top: 3, left: companyInfo.always_open ? 23 : 3,
