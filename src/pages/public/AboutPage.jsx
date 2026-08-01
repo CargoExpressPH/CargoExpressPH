@@ -709,22 +709,55 @@ const AboutPage = () => {
   }, []);
 
   // â”€â”€â”€ Form handlers â”€â”€â”€
-  const handlePhone = (e) => {
-    const val = e.target.value.replace(/\D/g, '').slice(0, 11);
-    setForm(p => ({ ...p, phone: val }));
+  const PHONE_RE = /^09\d{9}$/;
+  const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+  const handleContactInput = (e) => {
+    let val = e.target.value;
+    if (/^\d+$/.test(val) && val.length > 11) {
+      val = val.slice(0, 11);
+    }
+    setForm(p => ({ ...p, phone: val.slice(0, 60) }));
+  };
+
+  const normalizePhone = (value) => {
+    let digits = String(value).replace(/[\s\-().]/g, '');
+    if (digits.startsWith('+63')) return `0${digits.slice(3)}`;
+    if (digits.startsWith('63') && digits.length === 12) return `0${digits.slice(2)}`;
+    return digits;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.name.trim()) { toast.error('Name is required.'); return; }
-    if (!form.phone || !form.phone.startsWith('09') || form.phone.length !== 11) {
-      toast.error('Phone must be exactly 11 digits and start with 09.'); return;
+    const contact = form.phone.trim();
+    if (!contact) {
+      toast.error('Please enter a mobile number or email.');
+      return;
+    }
+    const isEmail = contact.includes('@');
+    const hasDigits = /\d/.test(contact);
+    let storedContact = contact;
+    if (isEmail) {
+      if (!EMAIL_RE.test(contact)) {
+        toast.error('Please enter a valid email address.');
+        return;
+      }
+    } else if (!hasDigits) {
+      toast.error('Please enter a valid mobile number or email address.');
+      return;
+    } else {
+      storedContact = normalizePhone(contact);
+      if (!PHONE_RE.test(storedContact)) {
+        toast.error('Phone must be exactly 11 digits and start with 09.');
+        return;
+      }
     }
     if (!form.message.trim()) { toast.error('Message is required.'); return; }
 
     setLoading(true);
     try {
-      await createContactInquiry({ name: form.name.trim(), phone: form.phone, message: form.message.trim() });
+      await createContactInquiry({ name: form.name.trim(), phone: storedContact, message: form.message.trim() });
       toast.success('Message sent! We will contact you soon.');
       setForm({ name: '', phone: '', message: '' });
     } catch (err) {
@@ -1281,16 +1314,15 @@ const AboutPage = () => {
                     />
                   </div>
                   <div>
-                    <label htmlFor="contact-phone" style={{ display: 'block', fontWeight: 700, fontSize: '0.875rem', marginBottom: 8, color: 'var(--text-secondary)' }}>Mobile Number</label>
-                    <input 
+                    <label htmlFor="contact-phone" style={{ display: 'block', fontWeight: 700, fontSize: '0.875rem', marginBottom: 8, color: 'var(--text-secondary)' }}>Mobile Number or Email</label>
+                    <input
                       id="contact-phone"
+                      type="text"
                       className="about-premium-input"
-                      placeholder="09XXXXXXXXX" 
-                      inputMode="numeric" 
-                      maxLength={11} 
-                      value={form.phone} 
-                      onChange={handlePhone} 
-                      required 
+                      placeholder="Mobile Number or Email"
+                      maxLength={60}
+                      value={form.phone}
+                      onChange={handleContactInput}
                     />
                   </div>
                   <div>

@@ -4,7 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 import {
   LayoutDashboard, Package, Truck, Users, BarChart3,
-  Megaphone, MessageSquare, LogOut, Container, FileText, Mail,
+  Megaphone, MessageSquare, LogOut, Container, Mail,
   ChevronsLeft, ArrowLeft, ClipboardList, Building, ChevronUp
 } from 'lucide-react';
 import ConfirmModal from '../ui/ConfirmModal';
@@ -18,8 +18,7 @@ const mainNav = [
 ];
 
 const toolsNav = [
-  { to: '/admin/sales', icon: BarChart3, label: 'Sales' },
-  { to: '/admin/reports', icon: FileText, label: 'Reports' },
+  { to: '/admin/sales', icon: BarChart3, label: 'Sales & Reports', matchPaths: ['/admin/sales', '/admin/reports'] },
   { to: '/admin/announcements', icon: Megaphone, label: 'Announcements' },
   { to: '/admin/inbox', icon: MessageSquare, label: 'Inbox', badgeKey: 'inbox' },
   { to: '/admin/contact-inquiries', icon: Mail, label: 'Inquiries', badgeKey: 'inquiries' },
@@ -133,6 +132,7 @@ const Sidebar = ({ isOpen, onClose, isCollapsed, onToggleCollapse }) => {
         key={item.to}
         to={item.to}
         end={item.end}
+        isActive={item.matchPaths ? (_, location) => item.matchPaths.includes(location.pathname) : undefined}
         className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
         onClick={onClose}
         data-tooltip={item.label}

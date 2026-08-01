@@ -7,7 +7,8 @@ import AnimatedCounter from '../../components/ui/AnimatedCounter';
 import DonutChart from '../../components/ui/DonutChart';
 import MiniBarChart from '../../components/ui/MiniBarChart';
 import PrintDocument from '../../components/ui/PrintDocument';
-import { DollarSign, CheckCircle, AlertTriangle, Clock, Printer } from 'lucide-react';
+import { exportPrintDocumentToPdf } from '../../lib/exportPdf';
+import { DollarSign, CheckCircle, AlertTriangle, Clock, Printer, Download, Loader } from 'lucide-react';
 import EmptyState from '../../components/ui/EmptyState';
 import usePageTitle from '../../hooks/usePageTitle';
 
@@ -20,6 +21,7 @@ const SalesPage = () => {
   const [loadedAt, setLoadedAt] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => { loadSales(); }, []);
   const loadSales = async () => {
@@ -39,6 +41,19 @@ const SalesPage = () => {
   const handlePrint = () => {
     logActivity({ module: 'Sales & Reports', action: 'Sales Report Printed', details: 'Printed sales & revenue report' });
     window.print();
+  };
+
+  const handleExportPDF = async () => {
+    if (exporting) return;
+    setExporting(true);
+    try {
+      await exportPrintDocumentToPdf(`CargoExpress_SalesReport_${new Date().toISOString().slice(0, 10)}.pdf`);
+      logActivity({ module: 'Sales & Reports', action: 'Sales Report Exported', details: 'Exported sales & revenue report to PDF' });
+    } catch (e) {
+      console.error('PDF export failed:', e);
+    } finally {
+      setExporting(false);
+    }
   };
 
   if (error) return (
@@ -69,10 +84,16 @@ const SalesPage = () => {
           <p className="admin-page-subtitle">Revenue, collection health, and payment method performance.</p>
         </div>
         {!loading && data && (
-          <button type="button" className="btn btn-primary btn-sm" onClick={handlePrint}>
-            <Printer size={16} />
-            Print Report
-          </button>
+          <div className="flex gap-8">
+            <button type="button" className="btn btn-outline btn-sm" onClick={handleExportPDF} disabled={exporting}>
+              {exporting ? <Loader size={16} className="animate-spin" /> : <Download size={16} />}
+              Export PDF
+            </button>
+            <button type="button" className="btn btn-primary btn-sm" onClick={handlePrint}>
+              <Printer size={16} />
+              Print Report
+            </button>
+          </div>
         )}
       </div>
 

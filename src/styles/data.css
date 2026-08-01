@@ -36,6 +36,19 @@
 }
 .data-table tbody tr:last-child td { border-bottom: none; }
 
+.data-table td .contact-link {
+  color: var(--text-secondary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  overflow-wrap: anywhere;
+}
+.data-table td .contact-link:hover {
+  color: var(--primary);
+}
+.data-table td .contact-link-sep {
+  color: var(--text-secondary);
+}
+
 /* Clickable rows */
 .data-table tbody tr.clickable { cursor: pointer; }
 .data-table tbody tr.clickable:active { background: var(--primary-lighter); }

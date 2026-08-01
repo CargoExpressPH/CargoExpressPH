@@ -1280,3 +1280,52 @@
   font-family: inherit;
   color: var(--text-tertiary);
 }
+
+/* ── Combined Sales & Reports page — section switcher ── */
+.sales-reports-switcher {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 20px;
+  padding: 4px;
+  background: var(--bg-secondary);
+  border-radius: 12px;
+  width: fit-content;
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.sales-reports-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 8px 18px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+  white-space: nowrap;
+  font-family: inherit;
+}
+
+.sales-reports-tab:hover {
+  background: var(--surface);
+  color: var(--text);
+}
+
+.sales-reports-tab.active {
+  background: var(--surface);
+  color: var(--primary);
+  font-weight: 600;
+  box-shadow: var(--shadow-sm);
+}
+
+[data-theme="dark"] .sales-reports-tab.active {
+  background: #22C55E;
+  color: #0F172A;
+}

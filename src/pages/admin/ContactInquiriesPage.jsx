@@ -17,6 +17,52 @@ const STATUS_CONFIG = {
   resolved: { label: 'Resolved', className: 'badge-success' },
 };
 
+const splitContact = (value) => {
+  const v = String(value || '').trim();
+  if (!v) return { phone: '', email: '' };
+  const parts = v.split('|').map(p => p.trim());
+  if (parts.length > 1) return { phone: parts[0], email: parts[1] };
+  return parts[0].includes('@') ? { phone: '', email: parts[0] } : { phone: parts[0], email: '' };
+};
+
+const getContactHref = (value) => {
+  const v = String(value || '').trim();
+  if (!v) return null;
+  return v.includes('@') ? `mailto:${v}` : `tel:${v.replace(/[^\d+]/g, '')}`;
+};
+
+const ContactLink = ({ value, className }) => {
+  const { phone, email } = splitContact(value);
+  const phoneHref = getContactHref(phone);
+  const emailHref = getContactHref(email);
+  if (!phoneHref && !emailHref) return <span className={className}>—</span>;
+  return (
+    <span className={className}>
+      {phoneHref && (
+        <a
+          href={phoneHref}
+          className="contact-link"
+          onClick={e => e.stopPropagation()}
+          title={`Call ${phone}`}
+        >
+          {phone}
+        </a>
+      )}
+      {phoneHref && emailHref && <span className="contact-link-sep"> · </span>}
+      {emailHref && (
+        <a
+          href={emailHref}
+          className="contact-link"
+          onClick={e => e.stopPropagation()}
+          title={`Email ${email}`}
+        >
+          {email}
+        </a>
+      )}
+    </span>
+  );
+};
+
 const ContactInquiriesPage = () => {
   usePageTitle('Contact Inquiries');
   const [inquiries, setInquiries] = useState([]);
@@ -65,14 +111,6 @@ const ContactInquiriesPage = () => {
     }
   };
 
-  const handleInquiryRowKeyDown = (event, inquiry) => {
-    if (event.target.closest('button, a, input, select, textarea')) return;
-    if (event.key === 'Enter' || event.key === ' ') {
-      event.preventDefault();
-      handleView(inquiry);
-    }
-  };
-
   const filtered = filter === 'all'
     ? inquiries
     : inquiries.filter(i => i.status === filter);
@@ -83,6 +121,7 @@ const ContactInquiriesPage = () => {
     label: f === 'all' ? 'All' : f,
     count: f === 'all' ? inquiries.length : inquiries.filter(i => i.status === f).length,
   }));
+  const selectedContact = selectedInquiry ? splitContact(selectedInquiry.phone) : null;
 
   if (error && !loading && inquiries.length === 0) {
     return (
@@ -137,7 +176,7 @@ const ContactInquiriesPage = () => {
             <thead>
               <tr>
                 <th>Name</th>
-                <th>Phone</th>
+                <th>Contact</th>
                 <th>Message</th>
                 <th>Status</th>
                 <th>Date</th>
@@ -164,14 +203,10 @@ const ContactInquiriesPage = () => {
                     <tr
                       key={inq.id}
                       className="clickable"
-                      role="button"
-                      tabIndex={0}
-                      aria-label={`View inquiry from ${inq.name}`}
                       style={{
                         background: inq.status === 'new' ? 'var(--warning-bg)' : undefined,
                       }}
                       onClick={() => handleView(inq)}
-                      onKeyDown={event => handleInquiryRowKeyDown(event, inq)}
                     >
                       <td data-label="Name">
                         <div className="flex items-center gap-8">
@@ -183,8 +218,8 @@ const ContactInquiriesPage = () => {
                           </span>
                         </div>
                       </td>
-                      <td data-label="Phone" className="text-sm text-secondary">
-                        {inq.phone || '—'}
+                      <td data-label="Contact" className="text-sm text-secondary">
+                        <ContactLink value={inq.phone} className="text-secondary" />
                       </td>
                       <td data-label="Message">
                         <div
@@ -264,9 +299,30 @@ const ContactInquiriesPage = () => {
                 </div>
                 <div>
                   <div className="fw-700 text-base">{selectedInquiry.name}</div>
-                  {selectedInquiry.phone && (
+                  {selectedContact.phone && (
                     <div className="text-sm text-secondary flex items-center gap-4 mt-2">
-                      <Phone size={12} /> {selectedInquiry.phone}
+                      <Phone size={12} />
+                      <a
+                        href={getContactHref(selectedContact.phone)}
+                        className="text-secondary"
+                        style={{ textDecoration: 'underline' }}
+                        title={`Call ${selectedContact.phone}`}
+                      >
+                        {selectedContact.phone}
+                      </a>
+                    </div>
+                  )}
+                  {selectedContact.email && (
+                    <div className="text-sm text-secondary flex items-center gap-4 mt-2">
+                      <Mail size={12} />
+                      <a
+                        href={getContactHref(selectedContact.email)}
+                        className="text-secondary"
+                        style={{ textDecoration: 'underline' }}
+                        title={`Email ${selectedContact.email}`}
+                      >
+                        {selectedContact.email}
+                      </a>
                     </div>
                   )}
                 </div>

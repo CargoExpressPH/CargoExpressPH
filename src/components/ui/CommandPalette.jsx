@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Search, LayoutDashboard, Package, Truck, Users, BarChart3,
-  Megaphone, MessageSquare, FileText, Mail, Building, ClipboardList, User
+  Megaphone, MessageSquare, Mail, Building, ClipboardList, User
 } from 'lucide-react';
 import FocusTrap from './FocusTrap';
 
@@ -11,8 +11,7 @@ const COMMANDS = [
   { label: 'Orders', to: '/admin/orders', icon: Package, section: 'Navigation', keywords: 'shipments bookings packages' },
   { label: 'Trips', to: '/admin/trips', icon: Truck, section: 'Navigation', keywords: 'routes vehicles delivery' },
   { label: 'Customers', to: '/admin/customers', icon: Users, section: 'Navigation', keywords: 'clients users accounts' },
-  { label: 'Sales', to: '/admin/sales', icon: BarChart3, section: 'Management', keywords: 'revenue income payments' },
-  { label: 'Reports', to: '/admin/reports', icon: FileText, section: 'Management', keywords: 'analytics data export' },
+  { label: 'Sales & Reports', to: '/admin/sales', icon: BarChart3, section: 'Management', keywords: 'sales reports revenue income payments analytics data export' },
   { label: 'Announcements', to: '/admin/announcements', icon: Megaphone, section: 'Management', keywords: 'notifications broadcast' },
   { label: 'Inbox', to: '/admin/inbox', icon: MessageSquare, section: 'Management', keywords: 'messages chat support' },
   { label: 'Contact Inquiries', to: '/admin/contact-inquiries', icon: Mail, section: 'Management', keywords: 'messages inquiries contact' },

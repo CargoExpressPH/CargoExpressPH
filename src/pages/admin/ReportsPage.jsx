@@ -10,6 +10,7 @@ import ResponsiveFilterControls from '../../components/ui/ResponsiveFilterContro
 import DonutChart from '../../components/ui/DonutChart';
 import MiniBarChart from '../../components/ui/MiniBarChart';
 import PrintDocument from '../../components/ui/PrintDocument';
+import { exportPrintDocumentToPdf } from '../../lib/exportPdf';
 import {
   FileText, Printer, Calendar, Package, CheckCircle,
   DollarSign, TrendingUp, Truck, MapPin, BarChart3,
@@ -41,6 +42,7 @@ const ReportsPage = () => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [exporting, setExporting] = useState(false);
   const hasCustomDateRange = customStart && customEnd;
   const customDateRangeInvalid = Boolean(hasCustomDateRange && customEnd < customStart);
 
@@ -78,31 +80,17 @@ const ReportsPage = () => {
     window.print();
   };
 
-  const handleExportCSV = () => {
-    if (!data?.orders?.length) return;
-    const headers = ['Tracking', 'Sender', 'Receiver', 'Route', 'Weight (kg)', 'Cost (₱)', 'Paid (₱)', 'Payment Method', 'Payment Status', 'Status', 'Date'];
-    const rows = data.orders.map(o => [
-      o.tracking_number,
-      o.sender_name,
-      o.receiver_name,
-      `${o.origin} → ${o.destination}`,
-      o.actual_weight || o.package_weight || '',
-      parseFloat(o.shipping_cost || 0).toFixed(2),
-      parseFloat(o.amount_paid || 0).toFixed(2),
-      o.payment_method || '',
-      o.payment_status || '',
-      o.status,
-      new Date(o.created_at).toLocaleDateString('en-PH'),
-    ]);
-    const csvContent = [headers, ...rows].map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
-    const blob = new Blob([`\uFEFF${csvContent}`], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `CargoExpress_Report_${period}_${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-    logActivity({ module: 'Sales & Reports', action: 'Report Exported', details: `Exported ${period} report to CSV` });
+  const handleExportPDF = async () => {
+    if (!data?.orders?.length || exporting) return;
+    setExporting(true);
+    try {
+      await exportPrintDocumentToPdf(`CargoExpress_Report_${period}_${new Date().toISOString().slice(0, 10)}.pdf`);
+      logActivity({ module: 'Sales & Reports', action: 'Report Exported', details: `Exported ${period} report to PDF` });
+    } catch (e) {
+      console.error('PDF export failed:', e);
+    } finally {
+      setExporting(false);
+    }
   };
 
   const s = data?.summary || {};
@@ -128,9 +116,9 @@ const ReportsPage = () => {
           </button>
           {hasData && (
             <>
-              <button type="button" className="btn btn-outline btn-sm" onClick={handleExportCSV}>
-                <Download size={16} />
-                Export CSV
+              <button type="button" className="btn btn-outline btn-sm" onClick={handleExportPDF} disabled={exporting}>
+                {exporting ? <Loader size={16} className="animate-spin" /> : <Download size={16} />}
+                Export PDF
               </button>
               <button type="button" className="btn btn-primary btn-sm" onClick={handlePrint}>
                 <Printer size={16} />

@@ -44,8 +44,7 @@ const CreateTripPage = lazyWithRetry(() => import('./pages/admin/CreateTripPage'
 const TripDetailPage = lazyWithRetry(() => import('./pages/admin/TripDetailPage'));
 const CustomersPage = lazyWithRetry(() => import('./pages/admin/CustomersPage'));
 const CustomerDetailPage = lazyWithRetry(() => import('./pages/admin/CustomerDetailPage'));
-const SalesPage = lazyWithRetry(() => import('./pages/admin/SalesPage'));
-const ReportsPage = lazyWithRetry(() => import('./pages/admin/ReportsPage'));
+const SalesReportsPage = lazyWithRetry(() => import('./pages/admin/SalesReportsPage'));
 const AnnouncementsPage = lazyWithRetry(() => import('./pages/admin/AnnouncementsPage'));
 const InboxPage = lazyWithRetry(() => import('./pages/admin/InboxPage'));
 const ContactInquiriesPage = lazyWithRetry(() => import('./pages/admin/ContactInquiriesPage'));
@@ -199,8 +198,8 @@ const router = createBrowserRouter([
           { path: 'trips/:id', element: <Suspense fallback={<PageLoader />}><TripDetailPage /></Suspense> },
           { path: 'customers', element: <Suspense fallback={<PageLoader />}><CustomersPage /></Suspense> },
           { path: 'customers/:id', element: <Suspense fallback={<PageLoader />}><CustomerDetailPage /></Suspense> },
-          { path: 'sales', element: <Suspense fallback={<PageLoader />}><SalesPage /></Suspense> },
-          { path: 'reports', element: <Suspense fallback={<PageLoader />}><ReportsPage /></Suspense> },
+          { path: 'sales', element: <Suspense fallback={<PageLoader />}><SalesReportsPage /></Suspense> },
+          { path: 'reports', element: <Suspense fallback={<PageLoader />}><SalesReportsPage initialSection="reports" /></Suspense> },
           { path: 'announcements', element: <Suspense fallback={<PageLoader />}><AnnouncementsPage /></Suspense> },
           { path: 'inbox', element: <Suspense fallback={<PageLoader />}><InboxPage /></Suspense> },
           { path: 'contact-inquiries', element: <Suspense fallback={<PageLoader />}><ContactInquiriesPage /></Suspense> },
