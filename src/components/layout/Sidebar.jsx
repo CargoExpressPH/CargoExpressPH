@@ -235,7 +235,7 @@ const Sidebar = ({ isOpen, onClose, isCollapsed, onToggleCollapse }) => {
                   type="button"
                   className="sidebar-profile-dropdown-item"
                   role="menuitem"
-                  onClick={() => { setProfileMenuOpen(false); navigate('/admin/profile'); }}
+                  onClick={() => { setProfileMenuOpen(false); onClose(); navigate('/admin/profile'); }}
                 >
                   <User size={15} aria-hidden="true" />
                   Profile
