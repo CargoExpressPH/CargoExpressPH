@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 import { useNavigate, useBlocker } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import {
-  ArrowLeft, Loader, Mail, Lock, CheckCircle2, Eye, EyeOff, ShieldCheck, Inbox,
+  ArrowLeft, Loader, Mail, Lock, CheckCircle2, Eye, EyeOff, ShieldCheck, Inbox, Info,
 } from 'lucide-react';
 import { useToast } from '../../hooks/useToast';
 import ConfirmModal from '../../components/ui/ConfirmModal';
@@ -98,27 +98,48 @@ const ChangeEmailPage = () => {
 
         {submitted ? (
           <div className="card">
-            <div className="card-body auth-success-card">
-              <div className="auth-success-icon">
-                <Inbox size={36} />
+            <div className="card-body ce-success-body">
+              <div className="ce-success-hero">
+                <div className="ce-success-icon-wrap">
+                  <div className="ce-success-ring" aria-hidden="true" />
+                  <div className="ce-success-icon">
+                    <Inbox size={34} aria-hidden="true" />
+                  </div>
+                </div>
+                <h2 className="ce-success-title">Check your new inbox</h2>
+                <p className="ce-success-subtitle">
+                  We sent a confirmation link to{' '}
+                  <strong className="ce-email-highlight">{newEmailTrimmed}</strong>.
+                  Your email will be updated once you click it.
+                </p>
               </div>
-              <div className="auth-success-title">Check your new inbox</div>
-              <p className="auth-success-sub">
-                We sent a confirmation link to <strong>{newEmailTrimmed}</strong>.
-                Your email will be updated once you click it.
-              </p>
-              <ol className="auth-success-sub" role="list" style={{ textAlign: 'left', marginTop: 8 }}>
-                <li role="listitem">Open the confirmation email sent to <strong>{newEmailTrimmed}</strong></li>
-                <li role="listitem">Click the <strong>Confirm change</strong> button inside</li>
-                <li role="listitem">You'll be signed in with your new email automatically</li>
-              </ol>
-              <p className="form-helper" style={{ textAlign: 'center' }}>
-                Until then, you can still sign in with your current email.
-                Check your spam folder if the email doesn't arrive.
-              </p>
+
+              <div className="ce-steps-box">
+                <p className="ce-steps-label">What happens next?</p>
+                <ol className="ce-steps-list">
+                  <li className="ce-step-item">
+                    <span className="ce-step-dot" aria-hidden="true">1</span>
+                    <span>Open the confirmation email sent to <strong className="ce-email-highlight">{newEmailTrimmed}</strong></span>
+                  </li>
+                  <li className="ce-step-item">
+                    <span className="ce-step-dot" aria-hidden="true">2</span>
+                    <span>Click the <strong>Confirm change</strong> button inside</span>
+                  </li>
+                  <li className="ce-step-item">
+                    <span className="ce-step-dot" aria-hidden="true">3</span>
+                    <span>You'll be signed in with your new email automatically</span>
+                  </li>
+                </ol>
+              </div>
+
+              <div className="ce-note-box">
+                <Info size={14} className="ce-note-icon" aria-hidden="true" />
+                <span>Until then, you can still sign in with your current email. Check your spam folder if the email doesn't arrive.</span>
+              </div>
+
               <button
                 type="button"
-                className="btn btn-primary btn-lg w-full justify-center mt-8"
+                className="btn btn-primary btn-lg w-full justify-center ce-success-cta"
                 onClick={goBackToProfile}
               >
                 Back to Profile
