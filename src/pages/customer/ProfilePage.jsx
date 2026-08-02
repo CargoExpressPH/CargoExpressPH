@@ -8,7 +8,7 @@ import { usePushNotification } from '../../hooks/usePushNotification';
 import {
   User, LogOut, ChevronRight, Package, Truck, Bell, MessageCircle,
   CreditCard, HelpCircle, FileText, CheckCircle2,
-  Sun, Moon, Lock
+  Sun, Moon, Lock, Mail
 } from 'lucide-react';
 import ConfirmModal from '../../components/ui/ConfirmModal';
 import usePageTitle from '../../hooks/usePageTitle';
@@ -244,6 +244,16 @@ const ProfilePage = () => {
             <div className="flex-1 text-left">
               <div className="text-sm font-bold">Change Password</div>
               <div className="text-xs text-secondary">Update and secure your account credentials</div>
+            </div>
+            <ChevronRight size={16} color="var(--text-tertiary)" />
+          </button>
+          <button type="button" onClick={() => navigate('/customer/change-email')} className="profile-menu-item">
+            <div className="profile-menu-icon-wrap info">
+              <Mail size={18} />
+            </div>
+            <div className="flex-1 text-left">
+              <div className="text-sm font-bold">Change Email</div>
+              <div className="text-xs text-secondary">Update the email address you sign in with</div>
             </div>
             <ChevronRight size={16} color="var(--text-tertiary)" />
           </button>

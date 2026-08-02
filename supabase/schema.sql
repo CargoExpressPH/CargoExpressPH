@@ -250,6 +250,39 @@ CREATE TABLE IF NOT EXISTS activity_logs (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- 7-day retention: purge function + daily pg_cron job (matches live DB).
+-- See migration: supabase/migrations/20260730150000_activity_logs_7day_retention.sql
+CREATE EXTENSION IF NOT EXISTS pg_cron;
+
+CREATE OR REPLACE FUNCTION public.purge_old_activity_logs()
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  DELETE FROM public.activity_logs
+  WHERE created_at < now() - interval '7 days';
+END;
+$$;
+
+-- Cron runs as postgres; no client role should call this directly
+REVOKE EXECUTE ON FUNCTION public.purge_old_activity_logs() FROM PUBLIC, anon, authenticated;
+
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'purge-old-activity-logs') THEN
+    PERFORM cron.unschedule('purge-old-activity-logs');
+  END IF;
+END;
+$$;
+
+SELECT cron.schedule(
+  'purge-old-activity-logs',
+  '0 3 * * *',
+  $$SELECT public.purge_old_activity_logs()$$
+);
+
 
 -- ===================== 12. COVERAGE AREAS =====================
 -- NOTE: coverage_regions and coverage_municipalities tables have been merged
@@ -1128,6 +1161,39 @@ BEGIN
   RETURN NEW;
 END;
 $$;
+
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+
+-- ============================================================
+-- AUTH TRIGGER — Sync email changes from auth.users to profiles
+-- Keeps profiles.email (the app's source of truth) current when a
+-- user changes their email and confirms it.
+-- ============================================================
+CREATE OR REPLACE FUNCTION public.sync_auth_email_to_profile()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF NEW.email IS DISTINCT FROM OLD.email THEN
+    UPDATE public.profiles
+    SET email = NEW.email,
+        updated_at = NOW()
+    WHERE id = NEW.id;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS on_auth_user_email_change ON auth.users;
+CREATE TRIGGER on_auth_user_email_change
+  AFTER UPDATE OF email ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.sync_auth_email_to_profile();
 
 
 -- ============================================================

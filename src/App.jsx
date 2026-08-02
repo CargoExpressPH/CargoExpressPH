@@ -30,6 +30,7 @@ const NotificationsPage = lazyWithRetry(() => import('./pages/customer/Notificat
 const CustProfilePage = lazyWithRetry(() => import('./pages/customer/ProfilePage'));
 const CustPersonalInfoPage = lazyWithRetry(() => import('./pages/customer/PersonalInfoPage'));
 const ChangePasswordPage = lazyWithRetry(() => import('./pages/customer/ChangePasswordPage'));
+const ChangeEmailPage = lazyWithRetry(() => import('./pages/shared/ChangeEmailPage'));
 const SupportChatPage = lazyWithRetry(() => import('./pages/customer/SupportChatPage'));
 const PaymentMethodsPage = lazyWithRetry(() => import('./pages/customer/PaymentMethodsPage'));
 const HelpGuidelinesPage = lazyWithRetry(() => import('./pages/customer/HelpGuidelinesPage'));
@@ -180,6 +181,7 @@ const router = createBrowserRouter([
           { path: 'profile', element: <Suspense fallback={<PageLoader />}><CustProfilePage /></Suspense> },
           { path: 'personal-info', element: <Suspense fallback={<PageLoader />}><CustPersonalInfoPage /></Suspense> },
           { path: 'change-password', element: <Suspense fallback={<PageLoader />}><ChangePasswordPage /></Suspense> },
+          { path: 'change-email', element: <Suspense fallback={<PageLoader />}><ChangeEmailPage /></Suspense> },
           { path: 'support', element: <Suspense fallback={<PageLoader />}><SupportChatPage /></Suspense> },
           { path: 'payment-methods', element: <Suspense fallback={<PageLoader />}><PaymentMethodsPage /></Suspense> },
           { path: 'help-guidelines', element: <Suspense fallback={<PageLoader />}><HelpGuidelinesPage /></Suspense> },
@@ -206,6 +208,7 @@ const router = createBrowserRouter([
           { path: 'inbox', element: <Suspense fallback={<PageLoader />}><InboxPage /></Suspense> },
           { path: 'contact-inquiries', element: <Suspense fallback={<PageLoader />}><ContactInquiriesPage /></Suspense> },
           { path: 'profile', element: <Suspense fallback={<PageLoader />}><AdminProfilePage /></Suspense> },
+          { path: 'change-email', element: <Suspense fallback={<PageLoader />}><ChangeEmailPage /></Suspense> },
           { path: 'activity-logs', element: <Suspense fallback={<PageLoader />}><ActivityLogsPage /></Suspense> },
           { path: 'company-info', element: <Suspense fallback={<PageLoader />}><CompanyInformationPage /></Suspense> },
           { path: 'feedback', element: <Suspense fallback={<PageLoader />}><FeedbackPage /></Suspense> },
