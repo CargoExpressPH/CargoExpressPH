@@ -13,9 +13,12 @@ import { getPasswordStrength } from '../../utils/password';
 
 const ChangePasswordPage = () => {
   usePageTitle('Change Password');
-  const { user } = useAuth();
+  const { user, userProfile } = useAuth();
   const navigate = useNavigate();
   const toast = useToast();
+
+  const role = userProfile?.role;
+  const profilePath = role === 'admin' ? '/admin/profile' : '/customer/profile';
 
   const [currentPassword,  setCurrentPassword]  = useState('');
   const [password,         setPassword]         = useState('');
@@ -68,7 +71,7 @@ const ChangePasswordPage = () => {
       setPassword('');
       setConfirmPassword('');
       toast.success('Password updated successfully!');
-      setTimeout(() => navigate('/customer/profile', { replace: true }), 1200);
+      setTimeout(() => navigate(profilePath, { replace: true }), 1200);
     } catch (err) {
       let msg = 'Failed to update password. Please try again.';
       if (err?.code === 'PGRST301' || err?.message?.includes('JWT')) {

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { Mail, LogOut, Shield, ChevronRight } from 'lucide-react';
+import { Mail, LogOut, Shield, ChevronRight, KeyRound } from 'lucide-react';
 import ConfirmModal from '../../components/ui/ConfirmModal';
 import usePageTitle from '../../hooks/usePageTitle';
 
@@ -39,6 +39,14 @@ const AdminProfilePage = () => {
           <div className="flex-1 text-left">
             <div className="font-semibold text-sm">Account Email</div>
             <div className="text-xs text-tertiary">{userProfile?.email || 'No email available'}</div>
+          </div>
+          <ChevronRight size={16} color="var(--text-tertiary)" />
+        </button>
+        <button type="button" onClick={() => navigate('/admin/change-password')} className="profile-menu-item">
+          <KeyRound size={18} />
+          <div className="flex-1 text-left">
+            <div className="font-semibold text-sm">Change Password</div>
+            <div className="text-xs text-tertiary">Update your account password</div>
           </div>
           <ChevronRight size={16} color="var(--text-tertiary)" />
         </button>

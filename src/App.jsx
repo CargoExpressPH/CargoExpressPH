@@ -29,7 +29,7 @@ const CustTripsPage = lazyWithRetry(() => import('./pages/customer/TripsPage'));
 const NotificationsPage = lazyWithRetry(() => import('./pages/customer/NotificationsPage'));
 const CustProfilePage = lazyWithRetry(() => import('./pages/customer/ProfilePage'));
 const CustPersonalInfoPage = lazyWithRetry(() => import('./pages/customer/PersonalInfoPage'));
-const ChangePasswordPage = lazyWithRetry(() => import('./pages/customer/ChangePasswordPage'));
+const ChangePasswordPage = lazyWithRetry(() => import('./pages/shared/ChangePasswordPage'));
 const ChangeEmailPage = lazyWithRetry(() => import('./pages/shared/ChangeEmailPage'));
 const SupportChatPage = lazyWithRetry(() => import('./pages/customer/SupportChatPage'));
 const PaymentMethodsPage = lazyWithRetry(() => import('./pages/customer/PaymentMethodsPage'));
@@ -209,6 +209,7 @@ const router = createBrowserRouter([
           { path: 'contact-inquiries', element: <Suspense fallback={<PageLoader />}><ContactInquiriesPage /></Suspense> },
           { path: 'profile', element: <Suspense fallback={<PageLoader />}><AdminProfilePage /></Suspense> },
           { path: 'change-email', element: <Suspense fallback={<PageLoader />}><ChangeEmailPage /></Suspense> },
+          { path: 'change-password', element: <Suspense fallback={<PageLoader />}><ChangePasswordPage /></Suspense> },
           { path: 'activity-logs', element: <Suspense fallback={<PageLoader />}><ActivityLogsPage /></Suspense> },
           { path: 'company-info', element: <Suspense fallback={<PageLoader />}><CompanyInformationPage /></Suspense> },
           { path: 'feedback', element: <Suspense fallback={<PageLoader />}><FeedbackPage /></Suspense> },
