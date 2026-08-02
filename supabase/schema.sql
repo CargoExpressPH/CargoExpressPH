@@ -13,7 +13,6 @@ CREATE TABLE IF NOT EXISTS profiles (
   name VARCHAR(100) NOT NULL,
   email VARCHAR(100) UNIQUE NOT NULL,
   phone VARCHAR(20) DEFAULT NULL,
-  address TEXT DEFAULT NULL,
   address_lot_block VARCHAR(255) DEFAULT NULL,
   address_street VARCHAR(255) DEFAULT NULL,
   address_barangay VARCHAR(255) DEFAULT NULL,
@@ -23,8 +22,6 @@ CREATE TABLE IF NOT EXISTS profiles (
   -- Contact & social
   facebook_name TEXT DEFAULT NULL,
   address_landmark TEXT DEFAULT NULL,
-  -- Push notifications (FCM)
-  fcm_token TEXT DEFAULT NULL,
   -- Timestamps
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
@@ -220,10 +217,6 @@ CREATE TABLE IF NOT EXISTS company_information (
   globe_phone TEXT,
   manila_address TEXT,
   bohol_address TEXT,
-  stat_years INTEGER DEFAULT 0,
-  stat_deliveries INTEGER DEFAULT 0,
-  stat_customers INTEGER DEFAULT 0,
-  stat_hubs INTEGER DEFAULT 0,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   default_price_per_kg NUMERIC DEFAULT 0,
@@ -248,39 +241,6 @@ CREATE TABLE IF NOT EXISTS activity_logs (
   new_value JSONB DEFAULT NULL,
   details TEXT DEFAULT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
--- 7-day retention: purge function + daily pg_cron job (matches live DB).
--- See migration: supabase/migrations/20260730150000_activity_logs_7day_retention.sql
-CREATE EXTENSION IF NOT EXISTS pg_cron;
-
-CREATE OR REPLACE FUNCTION public.purge_old_activity_logs()
-RETURNS void
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-BEGIN
-  DELETE FROM public.activity_logs
-  WHERE created_at < now() - interval '7 days';
-END;
-$$;
-
--- Cron runs as postgres; no client role should call this directly
-REVOKE EXECUTE ON FUNCTION public.purge_old_activity_logs() FROM PUBLIC, anon, authenticated;
-
-DO $$
-BEGIN
-  IF EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'purge-old-activity-logs') THEN
-    PERFORM cron.unschedule('purge-old-activity-logs');
-  END IF;
-END;
-$$;
-
-SELECT cron.schedule(
-  'purge-old-activity-logs',
-  '0 3 * * *',
-  $$SELECT public.purge_old_activity_logs()$$
 );
 
 
@@ -580,19 +540,9 @@ CREATE POLICY "Users can insert their own activity logs" ON activity_logs
   FOR INSERT TO authenticated
   WITH CHECK (admin_id = auth.uid());
 
--- ─── Coverage Regions ───────────────────────────────────────
-CREATE POLICY "Allow public read access" ON coverage_regions
-  FOR SELECT USING (true);
-
-CREATE POLICY "Allow admin full access" ON coverage_regions
-  FOR ALL USING (auth.role() = 'authenticated');
-
--- ─── Coverage Municipalities ────────────────────────────────
-CREATE POLICY "Allow public read access" ON coverage_municipalities
-  FOR SELECT USING (true);
-
-CREATE POLICY "Allow admin full access" ON coverage_municipalities
-  FOR ALL USING (auth.role() = 'authenticated');
+-- ─── Coverage Regions / Municipalities ──────────────────────
+-- REMOVED: Tables dropped in migration 20260715000000_consolidate_tables.sql
+-- Coverage data is now stored in company_information.coverage (JSONB).
 
 -- ─── Customer Feedback ──────────────────────────────────────
 CREATE POLICY "Admins can manage all feedback" ON customer_feedback
@@ -637,10 +587,10 @@ CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id);
 CREATE INDEX IF NOT EXISTS idx_trips_status ON trips(status);
 CREATE INDEX IF NOT EXISTS idx_conversations_customer_id ON conversations(customer_id);
 CREATE INDEX IF NOT EXISTS idx_chat_messages_conversation_id ON chat_messages(conversation_id);
-CREATE INDEX IF NOT EXISTS idx_chat_messages_conv_id ON chat_messages(conversation_id);
+-- idx_chat_messages_conv_id removed (duplicate of idx_chat_messages_conversation_id)
 CREATE INDEX IF NOT EXISTS idx_chat_messages_created_at ON chat_messages(created_at);
 CREATE INDEX IF NOT EXISTS idx_contact_inquiries_created_at ON contact_inquiries(created_at);
-CREATE INDEX IF NOT EXISTS idx_profiles_fcm_token ON profiles(fcm_token) WHERE fcm_token IS NOT NULL;
+-- idx_profiles_fcm_token removed (fcm_token column dropped; tokens now in user_device_tokens)
 CREATE INDEX IF NOT EXISTS idx_notification_delivery_attempts_notification_id
   ON notification_delivery_attempts(notification_id, attempted_at DESC);
 CREATE INDEX IF NOT EXISTS idx_user_device_tokens_user_id ON user_device_tokens(user_id);
@@ -674,9 +624,7 @@ CREATE TRIGGER orders_updated_at BEFORE UPDATE ON orders
 CREATE TRIGGER announcements_updated_at BEFORE UPDATE ON announcements
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
-DROP TRIGGER IF EXISTS payment_attempts_updated_at ON public.payment_attempts;
-CREATE TRIGGER payment_attempts_updated_at BEFORE UPDATE ON public.payment_attempts
-  FOR EACH ROW EXECUTE FUNCTION public.update_updated_at();
+-- payment_attempts_updated_at trigger: moved to after CREATE TABLE payment_attempts (line ~1323)
 
 
 -- ============================================================
@@ -1045,9 +993,11 @@ $$;
 GRANT EXECUTE ON FUNCTION public.mask_name(TEXT) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.track_order_public(TEXT) TO anon, authenticated;
 
+DROP FUNCTION IF EXISTS public.get_public_business_profile();
+
 CREATE OR REPLACE FUNCTION public.get_public_business_profile()
 RETURNS TABLE (
-  name VARCHAR,
+  name TEXT,
   smart_phone TEXT,
   globe_phone TEXT,
   facebook_link TEXT,
@@ -1059,15 +1009,14 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
   SELECT
-    p.name,
-    p.smart_phone,
-    p.globe_phone,
-    p.facebook_link,
-    p.manila_address,
-    p.bohol_address
-  FROM public.profiles p
-  WHERE p.role = 'admin'
-  ORDER BY p.created_at ASC
+    c.name,
+    c.smart_phone,
+    c.globe_phone,
+    c.facebook AS facebook_link,
+    c.manila_address,
+    c.bohol_address
+  FROM public.company_information c
+  WHERE c.id = '00000000-0000-0000-0000-000000000001'
   LIMIT 1;
 $$;
 
@@ -1161,39 +1110,6 @@ BEGIN
   RETURN NEW;
 END;
 $$;
-
-DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
-CREATE TRIGGER on_auth_user_created
-  AFTER INSERT ON auth.users
-  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
-
-
--- ============================================================
--- AUTH TRIGGER — Sync email changes from auth.users to profiles
--- Keeps profiles.email (the app's source of truth) current when a
--- user changes their email and confirms it.
--- ============================================================
-CREATE OR REPLACE FUNCTION public.sync_auth_email_to_profile()
-RETURNS TRIGGER
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-BEGIN
-  IF NEW.email IS DISTINCT FROM OLD.email THEN
-    UPDATE public.profiles
-    SET email = NEW.email,
-        updated_at = NOW()
-    WHERE id = NEW.id;
-  END IF;
-  RETURN NEW;
-END;
-$$;
-
-DROP TRIGGER IF EXISTS on_auth_user_email_change ON auth.users;
-CREATE TRIGGER on_auth_user_email_change
-  AFTER UPDATE OF email ON auth.users
-  FOR EACH ROW EXECUTE FUNCTION public.sync_auth_email_to_profile();
 
 
 -- ============================================================
@@ -1397,6 +1313,10 @@ CREATE POLICY "Admins can manage payment attempts" ON public.payment_attempts
 CREATE INDEX IF NOT EXISTS idx_payment_attempts_order_id ON public.payment_attempts(order_id);
 CREATE INDEX IF NOT EXISTS idx_payment_attempts_status ON public.payment_attempts(status);
 CREATE INDEX IF NOT EXISTS idx_payment_attempts_created_at ON public.payment_attempts(created_at DESC);
+
+DROP TRIGGER IF EXISTS payment_attempts_updated_at ON public.payment_attempts;
+CREATE TRIGGER payment_attempts_updated_at BEFORE UPDATE ON public.payment_attempts
+  FOR EACH ROW EXECUTE FUNCTION public.update_updated_at();
 
 CREATE OR REPLACE FUNCTION public.reconcile_paymongo_payment_attempt(
   p_source_id TEXT,

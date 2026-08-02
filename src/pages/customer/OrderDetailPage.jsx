@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { getOrderById, cancelOwnOrder, createNotification, getPaymentTransactions, submitFeedback, checkIfFeedbackExists, getActivityLogsByRecord } from '../../lib/database';
 import { deriveStatusTimestamps } from '../../utils/statusTimestamps';
 import { resolvePhotoUrls } from '../../lib/storage';
 import { useAuth } from '../../contexts/AuthContext';
+import { initiateGCashPayment, registerSource, pollPaymentStatus } from '../../lib/paymongo';
 import StatusBadge from '../../components/ui/StatusBadge';
 import TrackingTimeline from '../../components/ui/TrackingTimeline';
 import ConfirmModal from '../../components/ui/ConfirmModal';
@@ -31,7 +32,8 @@ const OrderDetailPage = () => {
   usePageTitle('Order Details');
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { user, userProfile } = useAuth();
   const toast = useToast();
 
   const [order, setOrder] = useState(null);
@@ -59,6 +61,12 @@ const OrderDetailPage = () => {
   const [feedbackMessage, setFeedbackMessage] = useState('');
   const [submittingFeedback, setSubmittingFeedback] = useState(false);
   const [hasFeedback, setHasFeedback] = useState(false);
+
+  const [processingPayment, setProcessingPayment] = useState(false);
+  const [verifyingPayment, setVerifyingPayment] = useState(false);
+
+  // Statuses where payment is allowed (cargo has been picked up and weighed)
+  const PAYABLE_STATUSES = ['Picked Up', 'In Transit', 'Arrived at Hub', 'Out for Delivery'];
 
   // Timeout ref — cleared if data arrives before LOAD_TIMEOUT_MS
   const timeoutRef = useRef(null);
@@ -145,6 +153,65 @@ const OrderDetailPage = () => {
       isMountedRef.current = false;
       clearLoadTimeout();
     };
+  }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Payment Return Handler ───────────────────────────────────────────────
+  // When the customer returns from PayMongo with ?payment=success,
+  // poll the server to trigger reconciliation.
+  useEffect(() => {
+    const paymentResult = searchParams.get('payment');
+    if (!paymentResult || !id) return;
+
+    // Clean up the URL immediately
+    const newParams = new URLSearchParams(searchParams);
+    newParams.delete('payment');
+    setSearchParams(newParams, { replace: true });
+
+    if (paymentResult === 'success') {
+      const storedSourceId = localStorage.getItem(`pending_payment_${id}`);
+      if (!storedSourceId) {
+        // No stored source — just reload the order and hope the webhook did its job
+        toast.info('Verifying payment status...');
+        setTimeout(() => loadOrder(), 2000);
+        return;
+      }
+
+      setVerifyingPayment(true);
+      toast.info('Verifying your payment...');
+
+      // Poll the server to trigger reconciliation
+      const verify = async () => {
+        try {
+          const result = await pollPaymentStatus(storedSourceId, id);
+          if (result.orderReconciled) {
+            localStorage.removeItem(`pending_payment_${id}`);
+            toast.success('Payment confirmed! Your order has been updated.');
+            await loadOrder();
+          } else {
+            // Payment not yet confirmed — retry after a delay
+            await new Promise(r => setTimeout(r, 3000));
+            const retry = await pollPaymentStatus(storedSourceId, id);
+            if (retry.orderReconciled) {
+              localStorage.removeItem(`pending_payment_${id}`);
+              toast.success('Payment confirmed! Your order has been updated.');
+            } else {
+              toast.info('Payment is being processed. Your order will update shortly.');
+            }
+            await loadOrder();
+          }
+        } catch (err) {
+          console.error('Payment verification error:', err);
+          toast.error('Could not verify payment. Please refresh the page.');
+          await loadOrder();
+        } finally {
+          if (isMountedRef.current) setVerifyingPayment(false);
+        }
+      };
+      verify();
+    } else if (paymentResult === 'failed') {
+      localStorage.removeItem(`pending_payment_${id}`);
+      toast.error('Payment was not completed. You can try again.');
+    }
   }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Resolve photo URLs when order changes
@@ -255,6 +322,37 @@ const OrderDetailPage = () => {
       toast.error('Failed to submit feedback. Please try again later.');
     } finally {
       setSubmittingFeedback(false);
+    }
+  };
+
+  const handlePayNow = async () => {
+    if (processingPayment) return;
+    const balance = parseFloat(order.remaining_balance || 0);
+    if (balance <= 0) return;
+
+    setProcessingPayment(true);
+    try {
+      const customer = {
+        name: userProfile?.name || order.sender_name,
+        phone: userProfile?.phone || order.sender_phone,
+      };
+      
+      const { sourceId, checkoutUrl } = await initiateGCashPayment(balance, order.tracking_number, customer, false, order.id);
+      
+      await registerSource(sourceId, balance, { orderId: order.id });
+      
+      // Save sourceId so we can reconcile when the customer returns
+      localStorage.setItem(`pending_payment_${order.id}`, sourceId);
+      
+      toast.success('Redirecting to PayMongo...');
+      
+      // Redirect to GCash checkout in the same tab ONLY AFTER registerSource is complete
+      window.location.href = checkoutUrl;
+    } catch (err) {
+      toast.error(err.message || 'Failed to initiate payment.');
+      setProcessingPayment(false);
+    } finally {
+      setProcessingPayment(false);
     }
   };
 
@@ -531,6 +629,54 @@ const OrderDetailPage = () => {
               <AlertTriangle size={14} /> Payment due: {new Date(order.promised_payment_date).toLocaleDateString()}
             </div>
           )}
+
+          {/* Payment Button — Business Logic Enforcement */}
+          {(() => {
+            const balance = parseFloat(order.remaining_balance || 0);
+            const hasWeight = parseFloat(order.actual_weight || 0) > 0;
+            const isPayableStatus = PAYABLE_STATUSES.includes(order.status);
+            const canPay = balance > 0 && !isCancelled && isPayableStatus && hasWeight;
+            const isEarlyStatus = ['Pending', 'Assigned'].includes(order.status);
+
+            if (verifyingPayment) {
+              return (
+                <div className="mt-16 text-center">
+                  <div className="btn btn-primary w-full justify-center" style={{ opacity: 0.7, pointerEvents: 'none' }}>
+                    <Loader size={16} className="animate-spin mr-8" />
+                    Verifying payment...
+                  </div>
+                </div>
+              );
+            }
+
+            if (canPay) {
+              return (
+                <div className="mt-16 text-center">
+                  <button 
+                    className="btn btn-primary w-full justify-center" 
+                    onClick={handlePayNow}
+                    disabled={processingPayment}
+                  >
+                    {processingPayment ? <Loader size={16} className="animate-spin mr-8" /> : null}
+                    {processingPayment ? 'Processing...' : 'Pay Now with GCash'}
+                  </button>
+                </div>
+              );
+            }
+
+            if (balance > 0 && !isCancelled && isEarlyStatus) {
+              return (
+                <div className="mt-16">
+                  <div className="alert-banner alert-banner-info py-10 px-12" style={{ fontSize: '0.8125rem', borderRadius: '8px' }}>
+                    <Package size={14} style={{ flexShrink: 0, marginTop: 2 }} />
+                    <span>Payment will become available once your shipment has been picked up and the final shipping weight has been confirmed.</span>
+                  </div>
+                </div>
+              );
+            }
+
+            return null;
+          })()}
 
           {/* Payment History Table */}
           {paymentTransactions.length > 0 && (

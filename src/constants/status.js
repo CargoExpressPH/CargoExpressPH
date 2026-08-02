@@ -145,3 +145,28 @@ export const validateStatusTransition = (currentStatus, newStatus, tripId) => {
   }
   return { valid: true };
 };
+
+/**
+ * isTripBookable — can a customer still book onto this trip?
+ *
+ * A trip whose departure date has already passed must never appear as a
+ * booking option, even if an admin forgot to close it. Without this, a trip
+ * that departed on 17 Jul was still selectable on 2 Aug.
+ *
+ * Deliberately scoped to the CUSTOMER booking flow only:
+ *   • the trip row is not modified — no status change, no order cascade
+ *   • admins keep seeing stale trips so they can close them
+ *
+ * Compares against the start of today, so a trip departing later TODAY stays
+ * bookable all day. A pre-departure cutoff (e.g. "closes 6 h before") is a
+ * separate business rule and is not applied here.
+ */
+export const isTripBookable = (trip) => {
+  if (!trip) return false;
+  if (!trip.departure_date) return true;          // no date set — don't hide it
+  const departure = new Date(trip.departure_date);
+  if (Number.isNaN(departure.getTime())) return true;
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+  return departure >= startOfToday;
+};

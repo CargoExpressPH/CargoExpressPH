@@ -5,6 +5,7 @@ import { createOrder, getTrips, getSettings } from '../../lib/database';
 import { logOrder } from '../../lib/activityLog';
 import { buildFullAddress } from '../../lib/address';
 import { ROUTES, PH_LOCATIONS, VALID_PROVINCES, detectPickupLocation, validateRouteProvinces } from '../../constants/phLocations';
+import { isTripBookable } from '../../constants/status';
 import { ArrowLeft, Loader, CheckCircle, Copy, Check, Package, MapPin, User, Truck, AlertTriangle, Info } from 'lucide-react';
 import { useToast } from '../../hooks/useToast';
 import CustomSelect from '../../components/ui/CustomSelect';
@@ -93,7 +94,7 @@ const BookShipmentPage = () => {
       receiver_lot_block: '', receiver_street: '', receiver_barangay: '',
       receiver_city: '', receiver_province: '', receiver_landmark: '',
       package_description: '', package_weight: '',
-      payer_type: 'sender', notes: '', sender_other_province: '',
+      payer_type: 'sender', payment_preference: 'unspecified', notes: '', sender_other_province: '',
     };
     try {
       const savedForm = sessionStorage.getItem('booking_form');
@@ -152,7 +153,14 @@ const BookShipmentPage = () => {
   }, [form]);
 
   const selectedRoute = ROUTES.find(r => r.label === form.route);
-  const filteredTrips = trips.filter(t => selectedRoute && t.origin === selectedRoute.origin && t.destination === selectedRoute.destination);
+  // Route match AND departure not yet past — a trip an admin forgot to close
+  // must not remain bookable. See isTripBookable() in constants/status.js.
+  const filteredTrips = trips.filter(t =>
+    selectedRoute &&
+    t.origin === selectedRoute.origin &&
+    t.destination === selectedRoute.destination &&
+    isTripBookable(t)
+  );
   const selectedTrip = filteredTrips.find(t => t.id === form.trip_id);
   const effectivePricePerKilo = parseFloat(selectedTrip?.price_per_kg || 0) > 0 ? parseFloat(selectedTrip.price_per_kg) : pricePerKilo;
   const cost = (parseFloat(form.package_weight) || 0) * effectivePricePerKilo;
@@ -322,7 +330,7 @@ const BookShipmentPage = () => {
         receiver_name: form.receiver_name, receiver_phone: form.receiver_phone, receiver_address: fullReceiverAddress,
         receiver_facebook: form.receiver_facebook, receiver_city: form.receiver_city, receiver_province: form.receiver_province,
         package_description: form.package_description, package_weight: form.package_weight,
-        payer_type: form.payer_type, notes: form.notes,
+        payer_type: form.payer_type, payment_preference: form.payment_preference, notes: form.notes,
       };
       
       if (form.sender_province === 'Other Area') {
@@ -578,7 +586,7 @@ const BookShipmentPage = () => {
                   receiver_lot_block: '', receiver_street: '', receiver_barangay: '',
                   receiver_city: '', receiver_province: '', receiver_landmark: '',
                   package_description: '', package_weight: '',
-                  payer_type: 'sender', notes: '', sender_other_province: '',
+                  payer_type: 'sender', payment_preference: 'unspecified', notes: '', sender_other_province: '',
                 }));
               }}
             >
@@ -755,6 +763,14 @@ const BookShipmentPage = () => {
             <CustomSelect id="payer-type" className="form-select" value={form.payer_type} onChange={e => u('payer_type', e.target.value)}>
               <option value="sender">Sender</option><option value="receiver">Receiver</option>
             </CustomSelect>
+          </div>
+          <div className="form-group"><label className="form-label" htmlFor="payment-preference">Payment Preference (Optional)</label>
+            <CustomSelect id="payment-preference" className="form-select" value={form.payment_preference} onChange={e => u('payment_preference', e.target.value)}>
+              <option value="unspecified">I'll decide later</option>
+              <option value="cash">Cash</option>
+              <option value="gcash">GCash</option>
+            </CustomSelect>
+            <p className="text-xs text-secondary mt-4">Letting us know how you plan to pay helps our team prepare for pickup or delivery.</p>
           </div>
           <div className="form-group">
             <label className="form-label" htmlFor="package-notes">Special Instructions / Notes (Optional)</label>

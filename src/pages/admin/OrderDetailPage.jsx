@@ -237,7 +237,12 @@ const AdminOrderDetailPage = () => {
         await recordPaymentTransaction(id, pickupData.amount_paid, pickupData.payment_method, pickupData.payment_reference || null, pickupData.payment_status, 'Initial pickup payment', 'Initial Payment', pickupData.payment_date, pickupData.receipt_url);
       }
       
-      logOrder('Pickup Processed', id, order.tracking_number, { details: `Pickup processed. Weight: ${cleanData.actual_weight}kg, Payment: ${cleanData.payment_method}, Amount: ₱${cleanData.amount_paid}` });
+      // amount_paid is intentionally absent when a PayMongo QR is pending —
+      // the webhook records that payment into the ledger, not this save.
+      const collected = cleanData.amount_paid === undefined
+        ? 'pending PayMongo confirmation'
+        : `₱${cleanData.amount_paid}`;
+      logOrder('Pickup Processed', id, order.tracking_number, { details: `Pickup processed. Weight: ${cleanData.actual_weight}kg, Payment: ${cleanData.payment_method}, Amount: ${collected}` });
 
       await createNotification(order.user_id, 'Pickup Complete', `Order ${order.tracking_number} has been picked up`, 'order_update', order.id);
       setShowPickupModal(false);

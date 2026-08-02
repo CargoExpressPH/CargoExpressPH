@@ -15,9 +15,10 @@ const PAYMONGO_API = 'https://api.paymongo.com/v1';
  * @param {string} description - Payment description
  * @param {object} billing - Billing details { name, phone, email }
  * @param {boolean} isAdmin - Whether the admin is initiating the payment
+ * @param {string} orderId - Optional order UUID to redirect back to the specific order page
  * @returns {object} - { sourceId, checkoutUrl }
  */
-export const createGCashSource = async (amount, description, billing = {}, isAdmin = false) => {
+export const createGCashSource = async (amount, description, billing = {}, isAdmin = false, orderId = null) => {
   if (!PAYMONGO_PUBLIC_KEY) {
     throw new Error('PayMongo public key is not configured. Add VITE_PAYMONGO_PUBLIC_KEY to your .env file.');
   }
@@ -33,8 +34,8 @@ export const createGCashSource = async (amount, description, billing = {}, isAdm
         attributes: {
           amount: Math.round(amount * 100), // Convert to centavos
           redirect: {
-            success: `${window.location.origin}/${isAdmin ? 'admin' : 'customer'}/orders?payment=success`,
-            failed: `${window.location.origin}/${isAdmin ? 'admin' : 'customer'}/orders?payment=failed`,
+            success: `${window.location.origin}/${isAdmin ? 'admin' : 'customer'}/orders${orderId ? `/${orderId}` : ''}?payment=success`,
+            failed: `${window.location.origin}/${isAdmin ? 'admin' : 'customer'}/orders${orderId ? `/${orderId}` : ''}?payment=failed`,
           },
           type: 'gcash',
           currency: 'PHP',
@@ -110,7 +111,7 @@ export const createPayment = async (sourceId, amount, description, orderUpdate =
     throw new Error('PayMongo payment amount must be greater than zero.');
   }
 
-  const body = { sourceId, amount, description };
+  const body = { sourceId, amount, description, action: 'capture' };
   if (orderUpdate) {
     body.orderUpdate = orderUpdate;
   }
@@ -135,20 +136,89 @@ export const createPayment = async (sourceId, amount, description, orderUpdate =
 };
 
 /**
+ * Registers a newly created PayMongo source with the backend.
+ * This links the source to the order so webhooks can process it.
+ * @param {string} sourceId - Created source ID
+ * @param {number} amount - Amount in PHP
+ * @param {object} orderUpdate - Order data { orderId, actualWeight, payerType, pickupPhotos }
+ */
+export const registerSource = async (sourceId, amount, orderUpdate) => {
+  if (!sourceId || !orderUpdate?.orderId) {
+    throw new Error('PayMongo source ID and orderId are required.');
+  }
+  
+  const body = { 
+    sourceId, 
+    amount, 
+    description: `CargoExpress PH - Order ${orderUpdate.orderId}`, 
+    orderUpdate, 
+    action: 'register' 
+  };
+  
+  const { data, error } = await supabase.functions.invoke('paymongo-create-payment', {
+    body,
+  });
+
+  if (error) {
+    throw new Error(error.message || 'Failed to register source');
+  }
+  if (data?.error) {
+    throw new Error(data.error);
+  }
+  return data;
+};
+
+/**
  * Initiate GCash payment flow for a customer booking
  * Opens a new window/tab for GCash authorization
  * @param {number} amount - Amount in PHP
  * @param {string} trackingNumber - Order tracking number
  * @param {object} customer - { name, phone, email }
  * @param {boolean} isAdmin - Whether the admin is initiating the payment
+ * @param {string} orderId - Optional order UUID for redirect
  * @returns {string} sourceId - To poll for payment status
  */
-export const initiateGCashPayment = async (amount, trackingNumber, customer = {}, isAdmin = false) => {
+export const initiateGCashPayment = async (amount, trackingNumber, customer = {}, isAdmin = false, orderId = null) => {
   const description = `CargoExpress PH - Order ${trackingNumber}`;
-  const { sourceId, checkoutUrl } = await createGCashSource(amount, description, customer, isAdmin);
+  const { sourceId, checkoutUrl } = await createGCashSource(amount, description, customer, isAdmin, orderId);
 
-  // Open GCash checkout in new tab
-  window.open(checkoutUrl, '_blank', 'noopener,noreferrer');
+  return { sourceId, checkoutUrl };
+};
 
-  return sourceId;
+/**
+ * Poll the payment status from the server.
+ * Called when the customer returns from PayMongo checkout.
+ * The server checks the PayMongo source status and reconciles if paid.
+ * @param {string} sourceId - PayMongo source ID
+ * @param {string} orderId - Order UUID
+ * @returns {object} - { status, orderReconciled, paymentId, amount, error }
+ */
+export const pollPaymentStatus = async (sourceId, orderId) => {
+  if (!sourceId || !orderId) {
+    throw new Error('sourceId and orderId are required for polling');
+  }
+
+  const { data, error } = await supabase.functions.invoke('paymongo-create-payment', {
+    body: {
+      sourceId,
+      amount: 1, // Minimum — the server uses the stored attempt amount
+      action: 'poll',
+      orderUpdate: { orderId },
+    },
+  });
+
+  if (error) {
+    throw new Error(error.message || 'Failed to verify payment status');
+  }
+  if (data?.error) {
+    throw new Error(data.error);
+  }
+
+  return {
+    status: data.status || 'unknown',
+    orderReconciled: data.orderReconciled || false,
+    paymentId: data.paymentId || null,
+    amount: data.amount || 0,
+    message: data.message || null,
+  };
 };

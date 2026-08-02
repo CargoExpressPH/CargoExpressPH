@@ -3,7 +3,8 @@ import { X, Camera, Loader, Scale, CreditCard, Calendar, Upload, Trash2, Package
 import FocusTrap from './FocusTrap';
 import { uploadMultiplePhotos, uploadPhoto } from '../../lib/storage';
 import QRCode from 'react-qr-code';
-import { createGCashSource, checkPaymentStatus, createPayment } from '../../lib/paymongo';
+import { createGCashSource, registerSource, pollPaymentStatus } from '../../lib/paymongo';
+import { supabase } from '../../lib/supabase';
 
 /**
  * PickupModal — Admin pickup processing modal
@@ -33,14 +34,20 @@ const PickupModal = ({ order, onClose, onSave, pricePerKilo = 70 }) => {
   const [checkoutUrl, setCheckoutUrl] = useState(null);
   const [paymentDetails, setPaymentDetails] = useState(null);
   
+  // Live confirmation that the customer completed the GCash payment.
+  // null while waiting; populated once the ledger records the payment.
+  const [paymentConfirmed, setPaymentConfirmed] = useState(null);
+  const [checkingPayment, setCheckingPayment] = useState(false);
+
   const [saving, setSaving] = useState(false);
   const [uploadProgress, setUploadProgress] = useState('');
   const [error, setError] = useState('');
-  
+
   const fileInputRef = useRef(null);
   const receiptInputRef = useRef(null);
   const paymongoIntervalRef = useRef(null);
-  const paymongoSessionRef = useRef(0);
+  // amount_paid at the moment the QR was generated — anything above this is new money
+  const baselinePaidRef = useRef(parseFloat(order?.amount_paid || 0));
 
   const isPayLater = form.payment_type === 'paylater';
   const estimatedCost = parseFloat(form.actual_weight || 0) * pricePerKilo;
@@ -48,7 +55,6 @@ const PickupModal = ({ order, onClose, onSave, pricePerKilo = 70 }) => {
   const remainingBalance = Math.max(0, estimatedCost - amountPaid);
 
   const handleProceedToGCash = async () => {
-    const session = ++paymongoSessionRef.current;
     try {
       setPaymentStep('generating');
       setError('');
@@ -64,78 +70,107 @@ const PickupModal = ({ order, onClose, onSave, pricePerKilo = 70 }) => {
       };
       
       const source = await createGCashSource(amount, `CargoExpress - ${order.tracking_number} Pickup`, billing, true);
-      if (paymongoSessionRef.current !== session) return;
+      await registerSource(source.sourceId, amount, { orderId: order.id, actualWeight: parseFloat(form.actual_weight), payerType: form.payer_type });
+      
+      // Anything paid above this baseline is money from THIS checkout.
+      baselinePaidRef.current = parseFloat(order?.amount_paid || 0);
+      setPaymentConfirmed(null);
       setPaymongoSourceId(source.sourceId);
       setCheckoutUrl(source.checkoutUrl);
       setPaymentStep('waiting');
     } catch (err) {
-      if (paymongoSessionRef.current !== session) return;
       setError(err.message);
       setPaymentStep('setup');
     }
   };
 
   const resetPayMongoFlow = () => {
-    paymongoSessionRef.current++;
-    clearInterval(paymongoIntervalRef.current);
-    paymongoIntervalRef.current = null;
     setPaymentStep('setup');
     setPaymongoSourceId(null);
     setCheckoutUrl(null);
     setPaymentDetails(null);
+    setPaymentConfirmed(null);
     setError('');
   };
 
+  /**
+   * Records a confirmed payment from a fresh `orders` row.
+   * Called by both the realtime subscription and the manual status check.
+   */
+  const applyConfirmedOrder = (row) => {
+    const paid = parseFloat(row?.amount_paid || 0);
+    if (!(paid > baselinePaidRef.current)) return false;
+    setPaymentConfirmed({
+      received: paid - baselinePaidRef.current,
+      amountPaid: paid,
+      remaining: parseFloat(row.remaining_balance || 0),
+      status: row.payment_status,
+      reference: row.payment_reference || null,
+    });
+    return true;
+  };
+
+  /**
+   * (C) Manual "Check payment status".
+   * Asks the server to re-query PayMongo and reconcile if the source is paid.
+   * Also used as an automatic fallback poll while the QR is on screen, for the
+   * case where the realtime event is missed.
+   */
+  const checkPaymentNow = async (silent = false) => {
+    if (!paymongoSourceId || !order?.id) return;
+    if (!silent) { setCheckingPayment(true); setError(''); }
+    try {
+      await pollPaymentStatus(paymongoSourceId, order.id).catch(() => null);
+      // Read the authoritative totals back from the order row — the ledger
+      // trigger owns them, so this is the truth regardless of what poll returned.
+      const { data: fresh } = await supabase
+        .from('orders')
+        .select('amount_paid, remaining_balance, payment_status, payment_reference')
+        .eq('id', order.id)
+        .single();
+      const found = applyConfirmedOrder(fresh);
+      if (!found && !silent) {
+        setError('No payment received yet. Ask the customer to complete the GCash payment, then check again.');
+      }
+    } catch (err) {
+      if (!silent) setError(err.message || 'Could not check payment status.');
+    } finally {
+      if (!silent) setCheckingPayment(false);
+    }
+  };
+
+  /**
+   * (B) Live confirmation.
+   * `orders` is already in the supabase_realtime publication, so the admin's
+   * screen updates the moment the webhook reconciles the payment — even though
+   * the customer paid on a different device. A 15s poll backs it up.
+   */
   useEffect(() => {
-    if (paymentStep !== 'waiting' || !paymongoSourceId) return;
+    if (paymentStep !== 'waiting' || !order?.id || paymentConfirmed) return;
 
-    const session = paymongoSessionRef.current;
-    let interval;
-    let isChecking = false;
+    const channel = supabase
+      .channel(`pickup_payment_${order.id}`)
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'orders',
+        filter: `id=eq.${order.id}`,
+      }, (payload) => applyConfirmedOrder(payload.new))
+      .subscribe();
 
-    const checkStatus = async () => {
-      if (isChecking) return;
-      isChecking = true;
-      try {
-        const res = await checkPaymentStatus(paymongoSourceId);
-        if (paymongoSessionRef.current !== session) return;
-        if (res.status === 'chargeable') {
-          clearInterval(interval);
-          try {
-            const amount = isPayLater ? parseFloat(form.amount_paid || 0) : estimatedCost;
-            const paymentRes = await createPayment(paymongoSourceId, amount, `CargoExpress - ${order.tracking_number} Pickup`);
-            if (paymongoSessionRef.current !== session) return;
-            setPaymentDetails({
-              reference: paymentRes.paymentId,
-              amount: paymentRes.amount,
-              date: new Date().toISOString().split('T')[0],
-              time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-              status: paymentRes.status
-            });
-            setPaymentStep('successful');
-          } catch (err) {
-            if (paymongoSessionRef.current !== session) return;
-            setError(err.message);
-            setPaymentStep('failed');
-          }
-        } else if (res.status === 'failed' || res.status === 'expired' || res.status === 'cancelled') {
-          clearInterval(interval);
-          setPaymentStep(res.status === 'expired' ? 'expired' : 'failed');
-        }
-      } catch (err) {
-        console.error('Error checking payment status:', err);
-      } finally {
-        isChecking = false;
+    paymongoIntervalRef.current = setInterval(() => checkPaymentNow(true), 15000);
+
+    return () => {
+      supabase.removeChannel(channel);
+      if (paymongoIntervalRef.current) {
+        clearInterval(paymongoIntervalRef.current);
+        paymongoIntervalRef.current = null;
       }
     };
-
-    interval = setInterval(checkStatus, 3000);
-    paymongoIntervalRef.current = interval;
-    return () => clearInterval(interval);
-  }, [paymentStep, paymongoSourceId, isPayLater, form.amount_paid, estimatedCost, order.tracking_number]);
+  }, [paymentStep, order?.id, paymongoSourceId, paymentConfirmed]);
 
   useEffect(() => {
-    if (form.payment_method !== 'gcash' && (paymentStep !== 'setup' || paymongoSourceId || checkoutUrl || paymentDetails)) {
+    if (form.payment_method !== 'gcash' && (paymentStep !== 'setup' || paymongoSourceId || checkoutUrl)) {
       resetPayMongoFlow();
     }
   }, [form.payment_method]);
@@ -204,15 +239,14 @@ const PickupModal = ({ order, onClose, onSave, pricePerKilo = 70 }) => {
       return;
     }
     if (form.payment_method === 'gcash') {
-      // Allow either automated PayMongo success OR manual reference entry
-      const hasPayMongoSuccess = paymentStep === 'successful' && paymentDetails;
+      const hasGeneratedQR = paymentStep === 'waiting' && checkoutUrl;
       const hasManualReference = form.payment_reference && form.payment_reference.trim().length > 0;
-      if (!hasPayMongoSuccess && !hasManualReference) {
-        setError('Please complete the GCash payment via PayMongo or enter a manual reference number.');
+      if (!hasGeneratedQR && !hasManualReference) {
+        setError('Please generate a GCash QR or enter a manual reference number.');
         return;
       }
-      if (!form.payment_date) {
-        setError('Please set the payment date');
+      if (hasManualReference && !form.payment_date) {
+        setError('Please set the payment date for manual reference');
         return;
       }
     }
@@ -223,10 +257,6 @@ const PickupModal = ({ order, onClose, onSave, pricePerKilo = 70 }) => {
     if (isPayLater && !form.promised_payment_date) {
       setError('Please set a promised payment date for Pay Later');
       return;
-    }
-
-    if (form.payment_method === 'gcash' && !(paymentStep === 'successful' && paymentDetails)) {
-      resetPayMongoFlow();
     }
 
     setSaving(true);
@@ -249,36 +279,51 @@ const PickupModal = ({ order, onClose, onSave, pricePerKilo = 70 }) => {
 
       setUploadProgress('Processing Payment...');
 
-      let paymentStatus = 'paid';
-      let finalAmountPaid = parseFloat(form.amount_paid || 0);
-      
-      if (isPayLater) {
-        paymentStatus = finalAmountPaid > 0 ? 'partial' : 'unpaid';
-      } else {
-        if (!form.amount_paid && form.amount_paid !== "0") {
-          finalAmountPaid = estimatedCost;
-          paymentStatus = 'paid';
-        } else {
-          paymentStatus = estimatedCost > finalAmountPaid ? 'partial' : 'paid';
-        }
-      }
-
-      const finalRemaining = Math.max(0, estimatedCost - finalAmountPaid);
+      // ─────────────────────────────────────────────────────────────────────
+      // A PayMongo QR/link is live and no manual reference was entered, so this
+      // payment is settled by webhook reconciliation:
+      //     PayMongo → paymongo-webhook → reconcile RPC
+      //       → INSERT payment_transactions → trigger recomputes orders totals
+      //
+      // This modal must NOT write payment columns in that case. Previously it
+      // sent amount_paid = 0 / payment_status = 'unpaid', which OVERWROTE a
+      // payment the customer had already completed while the QR was on screen
+      // (the ledger row survived, but orders no longer matched it and nothing
+      // corrected the drift). Omitting the fields lets updateOrder derive the
+      // balance from the true, ledger-backed amount_paid instead.
+      // ─────────────────────────────────────────────────────────────────────
+      const paymongoPending =
+        form.payment_method === 'gcash' && paymentStep === 'waiting' && !form.payment_reference;
 
       const updates = {
         actual_weight: parseFloat(form.actual_weight),
         payment_method: form.payment_method,
         payer_type: form.payer_type,
-        amount_paid: finalAmountPaid,
-        remaining_balance: finalRemaining,
-        payment_status: paymentStatus,
-        payment_reference: form.payment_method === 'gcash' ? (paymentDetails?.reference || form.payment_reference || null) : null,
-        payment_date: form.payment_method === 'gcash' ? (paymentDetails?.date || form.payment_date || null) : null,
         receipt_url: receiptUrl,
         pickup_photos: photoUrls,
         promised_payment_date: isPayLater ? form.promised_payment_date : null,
         status: 'Picked Up',
       };
+
+      if (!paymongoPending) {
+        let paymentStatus = 'paid';
+        let finalAmountPaid = parseFloat(form.amount_paid || 0);
+
+        if (isPayLater) {
+          paymentStatus = finalAmountPaid > 0 ? 'partial' : 'unpaid';
+        } else if (!form.amount_paid && form.amount_paid !== "0") {
+          finalAmountPaid = estimatedCost;
+          paymentStatus = 'paid';
+        } else {
+          paymentStatus = estimatedCost > finalAmountPaid ? 'partial' : 'paid';
+        }
+
+        updates.amount_paid       = finalAmountPaid;
+        updates.remaining_balance = Math.max(0, estimatedCost - finalAmountPaid);
+        updates.payment_status    = paymentStatus;
+        updates.payment_reference = form.payment_method === 'gcash' ? (form.payment_reference || null) : null;
+        updates.payment_date      = form.payment_method === 'gcash' ? (form.payment_date || null) : null;
+      }
 
       await onSave(updates);
     } catch (err) {
@@ -445,64 +490,84 @@ const PickupModal = ({ order, onClose, onSave, pricePerKilo = 70 }) => {
                 </div>
               )}
 
-              {paymentStep === 'waiting' && checkoutUrl && (
-                <div className="mb-12" style={{ background: 'var(--info-bg)', borderRadius: 8, padding: 12, border: '1px solid var(--info)' }}>
-                  <div className="flex items-center gap-8 mb-8">
-                    <Loader size={14} className="animate-spin" style={{ color: 'var(--info)' }} />
-                    <span className="text-sm fw-600" style={{ color: 'var(--info-dark)' }}>Waiting for customer payment…</span>
-                  </div>
-                  <a
-                    href={checkoutUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="btn btn-outline btn-sm w-full justify-center mb-8"
-                    style={{ fontSize: '0.8125rem' }}
-                  >
-                    <ExternalLink size={14} className="mr-6" /> Open GCash Checkout
-                  </a>
-                  <button
-                    type="button"
-                    className="btn btn-outline btn-sm w-full justify-center mb-8"
-                    onClick={resetPayMongoFlow}
-                  >
-                    <RefreshCw size={14} className="mr-6" /> Cancel Payment Request
-                  </button>
-                  <div className="text-xs text-tertiary" style={{ textAlign: 'center' }}>Share this link with the customer or open it on their device. Payment status updates automatically.</div>
-                </div>
-              )}
-
-              {paymentStep === 'successful' && paymentDetails && (
-                <div className="mb-12" style={{ background: 'var(--success-bg)', borderRadius: 8, padding: 12, border: '1px solid var(--success)' }}>
-                  <div className="flex items-center gap-8 mb-4">
-                    <CheckCircle size={16} style={{ color: 'var(--success)' }} />
-                    <span className="fw-700 text-sm" style={{ color: 'var(--success-dark)' }}>GCash Payment Successful</span>
-                  </div>
-                  <div className="text-xs" style={{ color: 'var(--success-dark)' }}>
-                    Ref: {paymentDetails.reference} · ₱{paymentDetails.amount?.toFixed(2)} · {paymentDetails.date} {paymentDetails.time}
-                  </div>
-                </div>
-              )}
-
-              {(paymentStep === 'failed' || paymentStep === 'expired') && (
-                <div className="mb-12" style={{ background: 'var(--error-bg)', borderRadius: 8, padding: 12, border: '1px solid var(--error)' }}>
-                  <div className="flex items-center gap-8 mb-4">
-                    <AlertTriangle size={16} style={{ color: 'var(--error)' }} />
-                    <span className="fw-700 text-sm" style={{ color: 'var(--error-dark)' }}>
-                      {paymentStep === 'expired' ? 'Payment link expired' : 'Payment failed'}
+              {/* ── Payment CONFIRMED — the ledger has recorded the money ── */}
+              {paymentStep === 'waiting' && paymentConfirmed && (
+                <div className="mb-12" style={{ background: 'var(--success-bg)', borderRadius: 8, padding: 14, border: '1px solid var(--success)' }}>
+                  <div className="flex items-center gap-8 mb-12">
+                    <CheckCircle size={20} style={{ color: 'var(--success)' }} aria-hidden="true" />
+                    <span className="text-sm fw-700" style={{ color: 'var(--success-dark)' }}>
+                      Payment received — ₱{paymentConfirmed.received.toFixed(2)}
                     </span>
                   </div>
-                  <button
-                    type="button"
-                    className="btn btn-outline btn-sm mt-4"
-                    onClick={resetPayMongoFlow}
-                  >
-                    <RefreshCw size={14} className="mr-6" /> Try Again
-                  </button>
+                  <div className="text-xs" style={{ color: 'var(--success-dark)', lineHeight: 1.8 }}>
+                    <div className="flex justify-between">
+                      <span>Total paid</span><strong>₱{paymentConfirmed.amountPaid.toFixed(2)}</strong>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Remaining balance</span><strong>₱{paymentConfirmed.remaining.toFixed(2)}</strong>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Payment status</span><strong className="text-capitalize">{paymentConfirmed.status}</strong>
+                    </div>
+                    {paymentConfirmed.reference && (
+                      <div className="flex justify-between">
+                        <span>Reference</span>
+                        <strong style={{ fontSize: '0.6875rem', wordBreak: 'break-all' }}>{paymentConfirmed.reference}</strong>
+                      </div>
+                    )}
+                  </div>
+                  <div className="text-xs text-tertiary mt-12" style={{ textAlign: 'center' }}>
+                    Recorded automatically. You can now confirm the pickup.
+                  </div>
+                </div>
+              )}
+
+              {/* ── Waiting for the customer to pay ── */}
+              {paymentStep === 'waiting' && !paymentConfirmed && checkoutUrl && (
+                <div className="mb-12" style={{ background: 'var(--info-bg)', borderRadius: 8, padding: 12, border: '1px solid var(--info)' }}>
+                  <div className="flex flex-col items-center gap-8 mb-16">
+                    <div style={{ background: 'white', padding: 8, borderRadius: 8 }}>
+                      <QRCode value={checkoutUrl} size={150} />
+                    </div>
+                    <span className="text-sm fw-600" style={{ color: 'var(--info-dark)' }}>Scan to Pay via GCash</span>
+                  </div>
+
+                  <div className="flex items-center justify-center gap-8 mb-16" role="status" aria-live="polite">
+                    <Loader size={14} className="animate-spin" style={{ color: 'var(--info-dark)' }} aria-hidden="true" />
+                    <span className="text-xs" style={{ color: 'var(--info-dark)' }}>
+                      Waiting for the customer to complete payment…
+                    </span>
+                  </div>
+
+                  <div className="text-xs text-tertiary mb-16" style={{ textAlign: 'center' }}>
+                    This updates by itself the moment the payment goes through — even if the
+                    customer pays on their own phone. Keep this open, or check manually below.
+                  </div>
+
+                  <div className="flex gap-8">
+                    <button
+                      type="button"
+                      className="btn btn-outline btn-sm flex-1 justify-center"
+                      onClick={() => navigator.clipboard.writeText(checkoutUrl)}
+                    >
+                      Copy Payment Link
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-sm flex-1 justify-center"
+                      onClick={() => checkPaymentNow(false)}
+                      disabled={checkingPayment}
+                    >
+                      {checkingPayment
+                        ? <><Loader size={14} className="animate-spin mr-6" aria-hidden="true" /> Checking…</>
+                        : <><RefreshCw size={14} className="mr-6" aria-hidden="true" /> Check payment</>}
+                    </button>
+                  </div>
                 </div>
               )}
 
               {/* === Manual Reference Fallback === */}
-              {paymentStep !== 'successful' && (
+              {paymentStep !== 'waiting' && (
                 <>
                   <div className="text-xs text-tertiary mb-8" style={{ textAlign: 'center', borderTop: '1px solid var(--border)', paddingTop: 10 }}>Or enter payment details manually</div>
                   <div className="form-group mb-12">
@@ -612,8 +677,8 @@ const PickupModal = ({ order, onClose, onSave, pricePerKilo = 70 }) => {
         </div>
 
         <div className="modal-footer">
-          <button className="btn btn-outline" onClick={onClose} disabled={saving || (form.payment_method === 'gcash' && (paymentStep === 'generating' || paymentStep === 'waiting'))}>Cancel</button>
-          <button className="btn btn-primary" onClick={handleSubmit} disabled={saving || (form.payment_method === 'gcash' && paymentStep !== 'successful' && !(form.payment_reference && form.payment_reference.trim()))}>
+          <button className="btn btn-outline" onClick={onClose} disabled={saving || paymentStep === 'generating'}>Cancel</button>
+          <button className="btn btn-primary" onClick={handleSubmit} disabled={saving || (form.payment_method === 'gcash' && paymentStep !== 'waiting' && !(form.payment_reference && form.payment_reference.trim()))}>
             {saving ? <><Loader size={16} className="animate-spin" /> {uploadProgress || 'Processing...'}</> : <><CheckCircle size={16} /> Confirm Pickup</>}
           </button>
         </div>

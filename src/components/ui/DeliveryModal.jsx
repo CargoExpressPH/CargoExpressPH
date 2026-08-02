@@ -2,6 +2,8 @@ import { useState, useRef, useEffect } from 'react';
 import { X, Camera, Loader, Package, CreditCard, CheckCircle, Smartphone, AlertTriangle, Trash2, FileText, Upload } from 'lucide-react';
 import FocusTrap from './FocusTrap';
 import { uploadMultiplePhotos, uploadPhoto } from '../../lib/storage';
+import QRCode from 'react-qr-code';
+import { createGCashSource, registerSource } from '../../lib/paymongo';
 
 /**
  * DeliveryModal — Admin delivery processing modal
@@ -25,12 +27,56 @@ const DeliveryModal = ({ order, onClose, onSave }) => {
   const [receiptPhoto, setReceiptPhoto] = useState(null);
   const [receiptPreview, setReceiptPreview] = useState(null);
 
+  // PayMongo GCash flow states
+  const [paymentStep, setPaymentStep] = useState('setup');
+  const [paymongoSourceId, setPaymongoSourceId] = useState(null);
+  const [checkoutUrl, setCheckoutUrl] = useState(null);
+
   const [saving, setSaving] = useState(false);
   const [uploadProgress, setUploadProgress] = useState('');
   const [error, setError] = useState('');
 
   const fileInputRef = useRef(null);
   const receiptInputRef = useRef(null);
+
+  const handleProceedToGCash = async () => {
+    try {
+      setPaymentStep('generating');
+      setError('');
+      if (balance <= 0) {
+        setError('Payment amount must be greater than 0.');
+        setPaymentStep('setup');
+        return;
+      }
+      const billing = {
+        name: order.receiver_name,
+        phone: order.receiver_phone,
+      };
+      
+      const source = await createGCashSource(balance, `CargoExpress - ${order.tracking_number} Delivery`, billing, true);
+      await registerSource(source.sourceId, balance, { orderId: order.id, payerType: 'receiver' });
+      
+      setPaymongoSourceId(source.sourceId);
+      setCheckoutUrl(source.checkoutUrl);
+      setPaymentStep('waiting');
+    } catch (err) {
+      setError(err.message);
+      setPaymentStep('setup');
+    }
+  };
+
+  const resetPayMongoFlow = () => {
+    setPaymentStep('setup');
+    setPaymongoSourceId(null);
+    setCheckoutUrl(null);
+    setError('');
+  };
+
+  useEffect(() => {
+    if (form.payment_method !== 'gcash' && (paymentStep !== 'setup' || paymongoSourceId || checkoutUrl)) {
+      resetPayMongoFlow();
+    }
+  }, [form.payment_method]);
 
   const handlePhotoAdd = (e) => {
     const newFiles = Array.from(e.target.files || []);
@@ -79,12 +125,14 @@ const DeliveryModal = ({ order, onClose, onSave }) => {
     }
 
     if (needsPayment && form.payment_method === 'gcash') {
-      if (!form.payment_reference) {
-        setError('Reference number is required for GCash');
+      const hasGeneratedQR = paymentStep === 'waiting' && checkoutUrl;
+      const hasManualReference = form.payment_reference && form.payment_reference.trim().length > 0;
+      if (!hasGeneratedQR && !hasManualReference) {
+        setError('Please generate a GCash QR or enter a manual reference number.');
         return;
       }
-      if (!form.payment_date) {
-        setError('Payment date is required for GCash');
+      if (hasManualReference && !form.payment_date) {
+        setError('Payment date is required for manual GCash reference');
         return;
       }
     }
@@ -114,14 +162,20 @@ const DeliveryModal = ({ order, onClose, onSave }) => {
       };
 
       if (needsPayment) {
-        updates.amount_paid = balance; // Ensure amount is passed to onSave
-        updates.payment_method = form.payment_method;
-        updates.payment_status = 'paid';
-        updates.remaining_balance = 0;
-        if (form.payment_method === 'gcash') {
-          updates.payment_reference = form.payment_reference;
-          updates.payment_date = form.payment_date;
-          updates.receipt_url = receiptUrl;
+        if (form.payment_method === 'gcash' && paymentStep === 'waiting' && !form.payment_reference) {
+          // Waiting for webhook to handle payment status and balance
+          updates.payment_method = 'gcash';
+          // Keep current unpaid status and balance, let webhook override it
+        } else {
+          updates.amount_paid = balance; // Ensure amount is passed to onSave
+          updates.payment_method = form.payment_method;
+          updates.payment_status = 'paid';
+          updates.remaining_balance = 0;
+          if (form.payment_method === 'gcash') {
+            updates.payment_reference = form.payment_reference;
+            updates.payment_date = form.payment_date;
+            updates.receipt_url = receiptUrl;
+          }
         }
       }
 
@@ -205,47 +259,100 @@ const DeliveryModal = ({ order, onClose, onSave }) => {
 
               {form.payment_method === 'gcash' && (
                 <div style={{ background: 'var(--bg-secondary)', borderRadius: 8, padding: 14, marginTop: 12 }}>
-                  <div className="form-group mb-12">
-                    <label className="form-label">Reference Number *</label>
-                    <input
-                      type="text"
-                      className="form-input"
-                      placeholder="Enter GCash Ref No."
-                      value={form.payment_reference}
-                      onChange={e => setForm(p => ({ ...p, payment_reference: e.target.value }))}
-                    />
-                  </div>
-                  <div className="form-group mb-12">
-                    <label className="form-label" htmlFor="dl-payment-date">Payment Date *</label>
-                    <input
-                      id="dl-payment-date"
-                      type="date"
-                      className="form-input"
-                      value={form.payment_date}
-                      onChange={e => setForm(p => ({ ...p, payment_date: e.target.value }))}
-                      max={new Date().toISOString().split('T')[0]}
-                    />
-                  </div>
-                  <div className="form-group mb-0">
-                    <label className="form-label">Receipt Screenshot (Optional)</label>
-                    <p className="text-xs text-tertiary mb-8">Receipt screenshot is optional and should only be uploaded if requested by the administrator or if additional proof is needed.</p>
-                    {receiptPreview ? (
-                      <div className="relative overflow-hidden mb-8" style={{ width: 90, height: 90, borderRadius: 8, border: '2px solid var(--border)' }}>
-                        <img src={receiptPreview} alt="Receipt" className="w-full h-full" style={{ objectFit: 'cover' }} />
-                        <button type="button" onClick={() => { setReceiptPhoto(null); setReceiptPreview(null); }} className="pickup-photo-remove-btn">
-                          <Trash2 size={12} />
-                        </button>
-                      </div>
-                    ) : (
+                  <div className="mb-8" style={{ fontSize: '0.8125rem', fontWeight: 600 }}>GCash Payment</div>
+                  
+                  {/* === PayMongo Automated Flow === */}
+                  {paymentStep === 'setup' && (
+                    <div className="mb-12">
                       <button
-                        type="button" onClick={() => receiptInputRef.current?.click()}
-                        style={{ padding: '8px 16px', borderRadius: 8, border: '1px dashed var(--border)', background: 'transparent', cursor: 'pointer', fontSize: '0.8125rem' }}
+                        type="button"
+                        className="btn btn-primary btn-sm w-full justify-center"
+                        onClick={handleProceedToGCash}
+                        disabled={balance <= 0}
                       >
-                        <FileText size={14} className="inline mr-6" /> Upload Receipt
+                        <CreditCard size={14} className="mr-6" /> Process via PayMongo
                       </button>
-                    )}
-                    <input ref={receiptInputRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={handleReceiptAdd} style={{ display: 'none' }} />
-                  </div>
+                      <div className="text-xs text-tertiary mt-4" style={{ textAlign: 'center' }}>Opens GCash checkout for the customer to pay</div>
+                    </div>
+                  )}
+
+                  {paymentStep === 'generating' && (
+                    <div className="flex items-center gap-8 mb-12" style={{ padding: '10px 0' }}>
+                      <Loader size={16} className="animate-spin" style={{ color: 'var(--primary)' }} />
+                      <span className="text-sm">Generating GCash checkout link…</span>
+                    </div>
+                  )}
+
+                  {paymentStep === 'waiting' && checkoutUrl && (
+                    <div className="mb-12" style={{ background: 'var(--info-bg)', borderRadius: 8, padding: 12, border: '1px solid var(--info)' }}>
+                      <div className="flex flex-col items-center gap-8 mb-16">
+                        <div style={{ background: 'white', padding: 8, borderRadius: 8 }}>
+                          <QRCode value={checkoutUrl} size={150} />
+                        </div>
+                        <span className="text-sm fw-600" style={{ color: 'var(--info-dark)' }}>Scan to Pay via GCash</span>
+                      </div>
+                      <div className="text-xs text-tertiary mb-16" style={{ textAlign: 'center' }}>
+                        Payment link generated. The order will be automatically marked as paid once the customer completes the transaction. You can now confirm the delivery.
+                      </div>
+                      <button
+                        type="button"
+                        className="btn btn-outline btn-sm w-full justify-center"
+                        onClick={() => {
+                          navigator.clipboard.writeText(checkoutUrl);
+                        }}
+                      >
+                        Copy Payment Link
+                      </button>
+                    </div>
+                  )}
+
+                  {/* === Manual Reference Fallback === */}
+                  {paymentStep !== 'waiting' && (
+                    <>
+                      <div className="text-xs text-tertiary mb-8" style={{ textAlign: 'center', borderTop: '1px solid var(--border)', paddingTop: 10 }}>Or enter payment details manually</div>
+                      <div className="form-group mb-12">
+                        <label className="form-label">Reference Number *</label>
+                        <input
+                          type="text"
+                          className="form-input"
+                          placeholder="Enter GCash Ref No."
+                          value={form.payment_reference}
+                          onChange={e => setForm(p => ({ ...p, payment_reference: e.target.value }))}
+                        />
+                      </div>
+                      <div className="form-group mb-12">
+                        <label className="form-label" htmlFor="dl-payment-date">Payment Date *</label>
+                        <input
+                          id="dl-payment-date"
+                          type="date"
+                          className="form-input"
+                          value={form.payment_date}
+                          onChange={e => setForm(p => ({ ...p, payment_date: e.target.value }))}
+                          max={new Date().toISOString().split('T')[0]}
+                        />
+                      </div>
+                      <div className="form-group mb-0">
+                        <label className="form-label">Receipt Screenshot (Optional)</label>
+                        <p className="text-xs text-tertiary mb-8">Receipt screenshot is optional and should only be uploaded if requested by the administrator or if additional proof is needed.</p>
+                        {receiptPreview ? (
+                          <div className="relative overflow-hidden mb-8" style={{ width: 90, height: 90, borderRadius: 8, border: '2px solid var(--border)' }}>
+                            <img src={receiptPreview} alt="Receipt" className="w-full h-full" style={{ objectFit: 'cover' }} />
+                            <button type="button" onClick={() => { setReceiptPhoto(null); setReceiptPreview(null); }} className="pickup-photo-remove-btn">
+                              <Trash2 size={12} />
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            type="button" onClick={() => receiptInputRef.current?.click()}
+                            style={{ padding: '8px 16px', borderRadius: 8, border: '1px dashed var(--border)', background: 'transparent', cursor: 'pointer', fontSize: '0.8125rem' }}
+                          >
+                            <FileText size={14} className="inline mr-6" /> Upload Receipt
+                          </button>
+                        )}
+                        <input ref={receiptInputRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={handleReceiptAdd} style={{ display: 'none' }} />
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
             </div>
@@ -283,8 +390,8 @@ const DeliveryModal = ({ order, onClose, onSave }) => {
         </div>
 
         <div className="modal-footer">
-          <button className="btn btn-outline" onClick={onClose} disabled={saving}>Cancel</button>
-          <button className="btn btn-primary" onClick={handleSubmit} disabled={saving}>
+          <button className="btn btn-outline" onClick={onClose} disabled={saving || paymentStep === 'generating'}>Cancel</button>
+          <button className="btn btn-primary" onClick={handleSubmit} disabled={saving || (needsPayment && form.payment_method === 'gcash' && paymentStep !== 'waiting' && !(form.payment_reference && form.payment_reference.trim()))}>
             {saving ? <><Loader size={16} className="animate-spin" /> {uploadProgress || 'Processing...'}</> : <><CheckCircle size={16} /> Complete Delivery</>}
           </button>
         </div>

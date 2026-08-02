@@ -195,18 +195,52 @@ serve(async (req) => {
       console.log(`[paymongo-webhook] Capturing payment. chargeAmount=${chargeAmount}`)
 
       await markAttempt(adminSupabase, sourceId, { status: 'chargeable', last_error: null })
-      const payment = await capturePayment(sourceId, chargeAmount, attributes.description || null)
-      console.log(`[paymongo-webhook] Captured. paymentId=${payment.paymentId}, status=${payment.status}`)
+      
+      try {
+        const payment = await capturePayment(sourceId, chargeAmount, attributes.description || null)
+        console.log(`[paymongo-webhook] Captured. paymentId=${payment.paymentId}, status=${payment.status}`)
 
-      const result = await reconcile(adminSupabase, sourceId, payment.paymentId, payment.amount, payment.status)
-      console.log(`[paymongo-webhook] Reconciled. orderReconciled=${result?.order_reconciled}`)
+        const result = await reconcile(adminSupabase, sourceId, payment.paymentId, payment.amount, payment.status)
+        console.log(`[paymongo-webhook] Reconciled. orderReconciled=${result?.order_reconciled}`)
 
-      return json({
-        received: true,
-        eventId,
-        paymentId: payment.paymentId,
-        orderReconciled: !!result?.order_reconciled,
-      })
+        return json({
+          received: true,
+          eventId,
+          paymentId: payment.paymentId,
+          orderReconciled: !!result?.order_reconciled,
+        })
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err)
+        if (msg.includes('not chargeable')) {
+          console.log(`[paymongo-webhook] Source ${sourceId} capture failed: not chargeable. Checking source status...`)
+
+          // Self-healing: verify source is paid via PayMongo API, then reconcile directly
+          try {
+            const sourceRes = await fetch(`https://api.paymongo.com/v1/sources/${sourceId}`, {
+              headers: { 'Authorization': paymongoAuthHeader() },
+            })
+            const sourceData = await sourceRes.json()
+            const sourceStatus = sourceData?.data?.attributes?.status
+            const sourceAmount = Number(sourceData?.data?.attributes?.amount || 0) / 100
+
+            if (sourceStatus === 'paid') {
+              console.log(`[paymongo-webhook] Source ${sourceId} confirmed PAID by PayMongo. Self-healing reconciliation...`)
+              const healAmount = sourceAmount || chargeAmount
+              const result = await reconcile(adminSupabase, sourceId, `auto_${sourceId}`, healAmount, 'paid')
+              console.log(`[paymongo-webhook] Self-healed. orderReconciled=${result?.order_reconciled}`)
+              return json({ received: true, eventId, orderReconciled: !!result?.order_reconciled, selfHealed: true })
+            }
+
+            console.log(`[paymongo-webhook] Source ${sourceId} status is "${sourceStatus}", not paid. Returning 200.`)
+            return json({ received: true, ignored: true, reason: `Source status: ${sourceStatus}` })
+          } catch (healErr) {
+            const errMsg = healErr instanceof Error ? healErr.message : JSON.stringify(healErr)
+            console.error(`[paymongo-webhook] Self-heal failed: ${errMsg}`)
+            return json({ received: true, ignored: true, reason: 'Self-heal failed, awaiting payment.paid' })
+          }
+        }
+        throw err
+      }
     }
 
     if (eventType === 'payment.paid') {
