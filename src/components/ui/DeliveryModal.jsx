@@ -156,30 +156,35 @@ const DeliveryModal = ({ order, onClose, onSave }) => {
 
       setUploadProgress('Finalizing...');
 
-      const updates = {
-        status: 'Delivered',
+      // Order metadata only. amount_paid / remaining_balance / payment_status
+      // are owned by the payment_transactions ledger — record_delivery_payment
+      // inserts the ledger row and lets the trigger derive the totals.
+      const payload = {
         delivery_photos: photoUrls,
+        payment_method: null,
+        payment_reference: null,
+        payment: null,
       };
 
       if (needsPayment) {
         if (form.payment_method === 'gcash' && paymentStep === 'waiting' && !form.payment_reference) {
-          // Waiting for webhook to handle payment status and balance
-          updates.payment_method = 'gcash';
-          // Keep current unpaid status and balance, let webhook override it
+          // A PayMongo QR is live — the webhook writes the ledger row.
+          // Send no payment payload so we don't double-count it.
+          payload.payment_method = 'gcash';
         } else {
-          updates.amount_paid = balance; // Ensure amount is passed to onSave
-          updates.payment_method = form.payment_method;
-          updates.payment_status = 'paid';
-          updates.remaining_balance = 0;
+          payload.payment_method = form.payment_method;
+          payload.payment = {
+            amount: balance,
+            payment_date: form.payment_method === 'gcash' ? (form.payment_date || null) : null,
+            receipt_url: form.payment_method === 'gcash' ? receiptUrl : null,
+          };
           if (form.payment_method === 'gcash') {
-            updates.payment_reference = form.payment_reference;
-            updates.payment_date = form.payment_date;
-            updates.receipt_url = receiptUrl;
+            payload.payment_reference = form.payment_reference;
           }
         }
       }
 
-      await onSave(updates);
+      await onSave(payload);
     } catch (err) {
       setError(err.message);
       setSaving(false);

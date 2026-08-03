@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { getOrderById, cancelOwnOrder, createNotification, getPaymentTransactions, submitFeedback, checkIfFeedbackExists, getActivityLogsByRecord } from '../../lib/database';
-import { deriveStatusTimestamps } from '../../utils/statusTimestamps';
+import { getOrderById, cancelOwnOrder, createNotification, getPaymentTransactions, submitFeedback, checkIfFeedbackExists, getOrderStatusEvents } from '../../lib/database';
+import { buildStatusTimestamps } from '../../utils/statusTimestamps';
 import { resolvePhotoUrls } from '../../lib/storage';
 import { useAuth } from '../../contexts/AuthContext';
 import { initiateGCashPayment, registerSource, pollPaymentStatus } from '../../lib/paymongo';
@@ -48,11 +48,11 @@ const OrderDetailPage = () => {
   const [resolvedDeliveryPhotos, setResolvedDeliveryPhotos] = useState([]);
   const [deliveryPhotoLoadState, setDeliveryPhotoLoadState] = useState({});
   const [paymentTransactions, setPaymentTransactions] = useState([]);
-  const [activityLogs, setActivityLogs] = useState([]);
+  const [statusEvents, setStatusEvents] = useState([]);
 
   const stepTimestamps = useMemo(
-    () => deriveStatusTimestamps(activityLogs, order?.created_at, order?.status),
-    [activityLogs, order?.created_at, order?.status]
+    () => buildStatusTimestamps(statusEvents, order?.created_at, order?.status),
+    [statusEvents, order?.created_at, order?.status]
   );
   
   // Feedback state
@@ -103,22 +103,22 @@ const OrderDetailPage = () => {
     try {
       const data = await getOrderById(id);
       let pmts = [];
-      let logs = [];
+      let events = [];
       try {
         pmts = await getPaymentTransactions(id);
       } catch (err) {
         if (import.meta.env.DEV) console.warn('Failed to fetch payment history', err);
       }
       try {
-        logs = await getActivityLogsByRecord(id);
+        events = await getOrderStatusEvents(id);
       } catch (err) {
-        if (import.meta.env.DEV) console.warn('Failed to fetch activity logs for customer', err);
+        if (import.meta.env.DEV) console.warn('Failed to fetch status events', err);
       }
       clearLoadTimeout();
       if (isMountedRef.current) {
         setOrder(data);
         setPaymentTransactions(pmts);
-        setActivityLogs(logs || []);
+        setStatusEvents(events || []);
         setLoading(false);
         
         // Check if we should show feedback modal

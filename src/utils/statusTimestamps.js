@@ -1,139 +1,60 @@
-import { ORDER_STATUS, STATUS_TIMELINE } from '../constants/status';
-
-// Action strings that imply a status change but don't carry new_value.status.
-// Keep this list in sync with the logOrder(...) and logTrip(...) call sites across the app.
-const ACTION_STATUS_FALLBACK = {
-  'Booking Created': ORDER_STATUS.PENDING_REVIEW,
-  'Out-of-Coverage Booking Submitted': ORDER_STATUS.PENDING_REVIEW,
-  'Order Created': ORDER_STATUS.PENDING_REVIEW,
-  'Out-of-Coverage Request Approved': ORDER_STATUS.PENDING,
-  'Request Approved': ORDER_STATUS.PENDING,
-  'Assigned to Trip': ORDER_STATUS.ASSIGNED,
-  'Order Assigned': ORDER_STATUS.ASSIGNED,
-  'Trip Assigned': ORDER_STATUS.ASSIGNED,
-  'Trip Reassigned': ORDER_STATUS.ASSIGNED,
-  'Assigned': ORDER_STATUS.ASSIGNED,
-  'Pickup Processed': ORDER_STATUS.PICKED_UP,
-  'Picked Up': ORDER_STATUS.PICKED_UP,
-  'In Transit': ORDER_STATUS.IN_TRANSIT,
-  'Trip Started': ORDER_STATUS.IN_TRANSIT,
-  'Arrived at Hub': ORDER_STATUS.ARRIVED_HUB,
-  'Trip Arrived': ORDER_STATUS.ARRIVED_HUB,
-  'Out for Delivery': ORDER_STATUS.OUT_FOR_DELIVERY,
-  'Delivery Proof Uploaded': ORDER_STATUS.DELIVERED,
-  'Delivered': ORDER_STATUS.DELIVERED,
-};
-
-const VALID_STATUS_VALUES = new Set(Object.values(ORDER_STATUS));
+import { STATUS_TIMELINE } from '../constants/status';
 
 /**
- * Extract a status string from a single activity log entry.
- * @returns {string|null} a value from ORDER_STATUS, or null if not a status change.
- */
-const statusFromLog = (log) => {
-  if (!log || typeof log !== 'object') return null;
-
-  let nv = log.new_value;
-  if (typeof nv === 'string') {
-    try {
-      nv = JSON.parse(nv);
-    } catch {
-      // nv remains a raw string
-    }
-  }
-  
-  // 1. Authoritative: explicit new_value.status
-  if (nv && typeof nv === 'object' && typeof nv.status === 'string' && nv.status.trim()) {
-    const val = nv.status.trim();
-    if (VALID_STATUS_VALUES.has(val)) return val;
-  }
-  if (typeof nv === 'string' && nv.trim() && VALID_STATUS_VALUES.has(nv.trim())) {
-    return nv.trim();
-  }
-  
-  // 2. Fallback: known action strings
-  const action = log.action;
-  if (action && typeof action === 'string') {
-    const trimmedAction = action.trim();
-    if (Object.prototype.hasOwnProperty.call(ACTION_STATUS_FALLBACK, trimmedAction)) {
-      return ACTION_STATUS_FALLBACK[trimmedAction];
-    }
-    
-    // 3. `Status Changed to X` or `Status advanced from A to B`
-    if (trimmedAction.startsWith('Status Changed to ')) {
-      const target = trimmedAction.slice('Status Changed to '.length).trim();
-      if (VALID_STATUS_VALUES.has(target)) return target;
-    }
-  }
-
-  // 4. Inspect details string for trip trigger fallbacks
-  const details = log.details;
-  if (details && typeof details === 'string') {
-    if (details.includes('Triggered by Trip Start')) return ORDER_STATUS.IN_TRANSIT;
-    if (details.includes('Triggered by Trip Arrival')) return ORDER_STATUS.ARRIVED_HUB;
-    if (details.includes('auto-assigned to Trip') || details.includes('assigned to Trip')) return ORDER_STATUS.ASSIGNED;
-    if (details.includes('Status advanced from')) {
-      const match = details.match(/to\s+["']?([^"']+)["']?$/i);
-      if (match && match[1] && VALID_STATUS_VALUES.has(match[1].trim())) {
-        return match[1].trim();
-      }
-    }
-  }
-  
-  return null;
-};
-
-/**
- * Build a { status: ISO-string } map from activity logs.
+ * Build a { status: ISO-string } map from order_status_events rows.
  *
- * @param {Array<{created_at?: string, new_value?: any, action?: string, details?: string}>} logs
- *   Activity log entries, in any order. `created_at` is an ISO timestamp.
+ * Previously this module reconstructed the timeline from activity_logs by
+ * string matching — a 20-entry action lookup table, a "Status Changed to X"
+ * prefix parse, and substring sniffing on `details`. That was necessary only
+ * because status history had no home of its own; activity_logs is purged after
+ * 7 days, so timelines silently collapsed to created_at once they aged out.
+ *
+ * order_status_events is now the permanent source (written by the
+ * orders_log_status_event trigger), so this reduces to a straight fold plus
+ * the backfill below.
+ *
+ * @param {Array<{status?: string, changed_at?: string}>} events
+ *   Status events in any order. Duplicates are fine — the earliest wins,
+ *   because a status can legitimately be re-entered and the timeline shows
+ *   when each step was FIRST reached.
  * @param {string|null} orderCreatedAt
- *   Fallback timestamp for initial PENDING_REVIEW & PENDING steps.
+ *   Fallback for the initial step when no event exists (pre-backfill rows).
  * @param {string|null} currentStatus
- *   Current order status to backfill missing timestamps for completed steps.
- * @returns {Record<string, string>}
- *   Map of ORDER_STATUS value → ISO timestamp of when it was first reached.
+ *   Current order status, used to backfill steps that were passed through
+ *   without producing an event.
+ * @returns {Record<string, string>} status → ISO timestamp
  */
-export const deriveStatusTimestamps = (logs, orderCreatedAt = null, currentStatus = null) => {
+export const buildStatusTimestamps = (events, orderCreatedAt = null, currentStatus = null) => {
   const map = {};
 
   try {
-    // Baseline: Initialize initial creation statuses with order.created_at
+    // Baseline for orders whose creation event predates this table.
     if (orderCreatedAt) {
       const iso = typeof orderCreatedAt === 'string' ? orderCreatedAt : String(orderCreatedAt);
-      map[ORDER_STATUS.PENDING_REVIEW] = iso;
-      map[ORDER_STATUS.PENDING] = iso;
+      map[STATUS_TIMELINE[0]] = iso;
     }
 
-    if (Array.isArray(logs) && logs.length > 0) {
-      // Sort ascending by created_at so "first occurrence" = earliest transition.
-      const sorted = [...logs].filter(Boolean).sort((a, b) => {
-        const ta = a?.created_at ? Date.parse(a.created_at) : NaN;
-        const tb = b?.created_at ? Date.parse(b.created_at) : NaN;
-        if (isNaN(ta) && isNaN(tb)) return 0;
-        if (isNaN(ta)) return 1;
-        if (isNaN(tb)) return -1;
-        return ta - tb;
-      });
+    if (Array.isArray(events)) {
+      for (const event of events) {
+        const status = event?.status;
+        const iso = event?.changed_at;
+        if (!status || !iso) continue;
 
-      for (const log of sorted) {
-        const status = statusFromLog(log);
-        if (!status) continue;
-        const iso = log?.created_at;
-        if (!iso) continue;
         const strIso = typeof iso === 'string' ? iso : String(iso);
+        const existing = map[status];
 
-        // Explicit log entry overrides baseline orderCreatedAt
-        if (!map[status] || map[status] === orderCreatedAt) {
+        // Earliest occurrence wins. The baseline above is provisional, so a
+        // real event always replaces it.
+        if (!existing || existing === orderCreatedAt || Date.parse(strIso) < Date.parse(existing)) {
           map[status] = strIso;
         }
       }
     }
 
-    // Backfill missing timestamps for completed prior steps:
-    // If an order has reached a later status, any completed step lacking an explicit log
-    // inherits the timestamp of the preceding completed step.
+    // Backfill: if the order has reached a later step, any earlier completed
+    // step with no event of its own inherits the preceding step's timestamp.
+    // Still needed — trip-cascade updates can skip intermediate statuses, and
+    // historical rows predate the events table.
     if (currentStatus) {
       const currentIdx = STATUS_TIMELINE.indexOf(currentStatus);
       if (currentIdx > 0) {
@@ -149,10 +70,10 @@ export const deriveStatusTimestamps = (logs, orderCreatedAt = null, currentStatu
       }
     }
   } catch (e) {
-    console.warn('[deriveStatusTimestamps] Failed to derive timestamps safely:', e);
+    console.warn('[buildStatusTimestamps] Failed to build timestamps safely:', e);
   }
 
   return map;
 };
 
-export default deriveStatusTimestamps;
+export default buildStatusTimestamps;

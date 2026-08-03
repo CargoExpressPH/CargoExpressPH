@@ -345,22 +345,15 @@ export const updateOrder = async (orderId, updates) => {
     updates.shipping_cost = weight * pricePerKilo;
   }
   
-  // Recalculate balance if shipping_cost or amount_paid changed —
-  // but only when the caller did NOT explicitly provide remaining_balance.
-  // PickupModal always passes remaining_balance for GCash Pay Later orders,
-  // and overwriting it here was silently zeroing out unpaid balances.
-  if ((updates.shipping_cost !== undefined || updates.amount_paid !== undefined) && updates.remaining_balance === undefined) {
-    const newCost = updates.shipping_cost ?? currentOrder?.shipping_cost ?? 0;
-    const amtPaid = parseFloat(updates.amount_paid ?? currentOrder?.amount_paid ?? 0) || 0;
-    updates.remaining_balance = Math.max(0, newCost - amtPaid);
-    if (updates.remaining_balance <= 0) {
-      updates.payment_status = 'paid';
-    } else if (amtPaid > 0) {
-      updates.payment_status = 'partial';
-    } else {
-      updates.payment_status = 'unpaid';
-    }
-  }
+  // ── Payment totals are NOT derived here ──────────────────────────────────
+  // amount_paid / remaining_balance / payment_status are owned exclusively by
+  // the payment_transactions ledger, via the update_order_payment_totals
+  // trigger. This function used to compute them client-side, which competed
+  // with that trigger and with PickupModal — three writers for three columns.
+  // Money now flows through record_pickup_payment / record_delivery_payment
+  // (atomic) or recordPaymentTransaction (ledger insert). See P0-1 in
+  // docs/database-architecture-review.md.
+  // ─────────────────────────────────────────────────────────────────────────
 
   const { data, error } = await supabase
     .from('orders')
@@ -419,10 +412,13 @@ export const createTrip = async (tripData) => {
   const { data, error } = await supabase
     .from('trips')
     .insert({
+      // available_slots is intentionally not written: it was a stale copy of
+      // capacity that nothing ever read or decremented. Deprecated in
+      // 20260803150000_deprecate_dead_columns.sql. Trip load is computed live
+      // from order weights (see getTrips / current_trip_weight).
       ...tripData,
       status: 'scheduled',
       trip_number: tripNumber,
-      available_slots: tripData.capacity || 1000,
       created_by: user?.user?.id || null,
     })
     .select()
@@ -1015,16 +1011,45 @@ export const createAdminNotification = async (title, message, type = 'general', 
 };
 
 // ==================== CONTACT INQUIRIES ====================
+/**
+ * Submit a public contact inquiry.
+ *
+ * @param {Object} data
+ * @param {string} data.name
+ * @param {string} data.message
+ * @param {string} [data.contact_phone] — mobile number, if supplied
+ * @param {string} [data.contact_email] — email address, if supplied
+ *
+ * Writes the normalized contact_phone/contact_email columns and, for this
+ * release only, keeps the legacy polymorphic `phone` column in sync so a
+ * rollback loses nothing. `phone` is deprecated — see
+ * 20260803140000_contact_inquiries_normalize.sql.
+ */
 export const createContactInquiry = async (data) => {
+  const contactPhone = data.contact_phone || null;
+  const contactEmail = data.contact_email || null;
+
+  // Legacy dual-write, matching the old "phone | email" encoding that
+  // ContactInquiriesPage's splitContact() understands.
+  const legacyPhone = [contactPhone, contactEmail].filter(Boolean).join(' | ') || null;
+
   const { error } = await supabase
     .from('contact_inquiries')
-    .insert(data);
+    .insert({
+      name: data.name,
+      message: data.message,
+      contact_phone: contactPhone,
+      contact_email: contactEmail,
+      phone: legacyPhone,
+    });
   if (error) throw error;
 
   // ── Non-blocking: notify admin(s) of new inquiry ────────────────────────
+  // (This used to read data.email and data.subject — neither of which is a
+  // column on contact_inquiries, so both were always undefined.)
   void createAdminNotification(
     'New Contact Inquiry',
-    `Inquiry from ${data.name || data.email || 'Visitor'}: ${(data.subject || data.message || '').slice(0, 80)}`,
+    `Inquiry from ${data.name || contactEmail || contactPhone || 'Visitor'}: ${(data.message || '').slice(0, 80)}`,
     'inquiry',
     null
   );
@@ -1423,6 +1448,45 @@ export const getActivityLogsByRecord = async (recordId) => {
   return data || [];
 };
 
+// ==================== ORDER STATUS EVENTS ====================
+
+/**
+ * Permanent shipment status history for one order.
+ *
+ * Replaces reconstructing the timeline from activity_logs, which is purged
+ * after 7 days. Rows are written by the orders_log_status_event trigger and
+ * are readable by the order's owner and by admins.
+ *
+ * @returns {Array<{status: string, changed_at: string, note: ?string}>}
+ *          ascending by changed_at
+ */
+export const getOrderStatusEvents = async (orderId) => {
+  if (!orderId) return [];
+  const { data, error } = await supabase
+    .from('order_status_events')
+    .select('status, changed_at, note')
+    .eq('order_id', orderId)
+    .order('changed_at', { ascending: true });
+  if (error) throw error;
+  return data || [];
+};
+
+/**
+ * Status history for the anonymous tracking page.
+ *
+ * Anonymous visitors cannot read order_status_events directly (RLS), so this
+ * goes through an RPC that returns only status + timestamp — no names, no
+ * amounts, no ids.
+ */
+export const getPublicOrderEvents = async (trackingNumber) => {
+  if (!trackingNumber) return [];
+  const { data, error } = await supabase.rpc('get_public_order_events', {
+    p_tracking_number: trackingNumber,
+  });
+  if (error) throw error;
+  return data || [];
+};
+
 /**
  * Bulk updates the status of all orders assigned to a specific trip that match given current statuses.
  * @param {string} tripId
@@ -1497,6 +1561,63 @@ export const recordPaymentTransaction = async (orderId, amount, method, ref, sta
     receipt_url: receiptUrl
   }).select().single();
   
+  if (error) throw error;
+  return data;
+};
+
+/**
+ * Atomically record a pickup: order metadata UPDATE + ledger INSERT in one
+ * transaction. Replaces the old two-round-trip updateOrder() +
+ * recordPaymentTransaction() sequence, where a failure between the two left
+ * the order marked paid with no backing ledger row.
+ *
+ * Never pass amount_paid / remaining_balance / payment_status — the ledger
+ * trigger derives them. Pass the money under `payment` instead.
+ *
+ * @param {string} orderId
+ * @param {Object} payload
+ * @param {number} payload.actual_weight
+ * @param {string} payload.payment_method
+ * @param {string} [payload.payer_type='sender']
+ * @param {Array}  [payload.pickup_photos=[]]
+ * @param {string} [payload.promised_payment_date]
+ * @param {string} [payload.payment_reference]
+ * @param {?Object} [payload.payment] — { amount, payment_date, receipt_url }.
+ *                  Null when a PayMongo QR is still pending; the webhook
+ *                  records that payment into the ledger instead.
+ * @returns {Object} the fresh order row, totals already recomputed
+ */
+export const recordPickupPayment = async (orderId, payload) => {
+  const { data, error } = await supabase.rpc('record_pickup_payment', {
+    p_order_id: orderId,
+    p_actual_weight: payload.actual_weight,
+    p_payment_method: payload.payment_method,
+    p_payer_type: payload.payer_type || 'sender',
+    p_pickup_photos: payload.pickup_photos || [],
+    p_promised_payment_date: payload.promised_payment_date || null,
+    p_amount: payload.payment?.amount ?? null,
+    p_reference: payload.payment_reference || null,
+    p_payment_date: payload.payment?.payment_date || null,
+    p_receipt_url: payload.payment?.receipt_url || null,
+  });
+  if (error) throw error;
+  return data;
+};
+
+/**
+ * Atomically record a delivery: order metadata UPDATE + optional balance
+ * settlement in one transaction. Same contract as recordPickupPayment.
+ */
+export const recordDeliveryPayment = async (orderId, payload) => {
+  const { data, error } = await supabase.rpc('record_delivery_payment', {
+    p_order_id: orderId,
+    p_delivery_photos: payload.delivery_photos || [],
+    p_payment_method: payload.payment_method || null,
+    p_amount: payload.payment?.amount ?? null,
+    p_reference: payload.payment_reference || null,
+    p_payment_date: payload.payment?.payment_date || null,
+    p_receipt_url: payload.payment?.receipt_url || null,
+  });
   if (error) throw error;
   return data;
 };
@@ -1748,53 +1869,56 @@ export const checkIfFeedbackExists = async (orderId) => {
   return !!data;
 };
 
+/**
+ * Public testimonials for the About page.
+ *
+ * Goes through the get_public_feedback() RPC rather than reading
+ * customer_feedback directly. The old query relied on two over-broad RLS
+ * policies that exposed customer_id — a stable identifier linking a public
+ * review to a user account — to anonymous visitors. The RPC never returns it
+ * and masks the author name via mask_name().
+ *
+ * The flat RPC rows are re-shaped into the nested { profiles, orders } form
+ * the page already consumes, so rendering is unchanged.
+ *
+ * Note: authors now actually have names. The old PostgREST embed
+ * profiles:customer_id(name) returned NULL for anon (profiles RLS blocks it),
+ * so every public testimonial rendered as "Customer".
+ */
 export const getPublicFeedback = async () => {
-  const { data, error } = await supabase
-    .from('customer_feedback')
-    .select(`
-      id,
-      rating,
-      message,
-      created_at,
-      profiles:customer_id ( name ),
-      orders:order_id (
-        featured_on_website,
-        featured_image_type,
-        pickup_photos,
-        delivery_photos,
-        receiver_city,
-        receiver_province
-      )
-    `)
-    .eq('is_hidden', false)
-    .order('rating', { ascending: false })
-    .order('created_at', { ascending: false });
-    
+  const { data, error } = await supabase.rpc('get_public_feedback');
   if (error) throw error;
-  return data;
+
+  return (data || []).map(row => ({
+    id: row.id,
+    rating: row.rating,
+    message: row.message,
+    created_at: row.created_at,
+    profiles: { name: row.customer_name },
+    orders: {
+      featured_on_website: row.featured_on_website,
+      featured_image_type: row.featured_image_type,
+      pickup_photos: row.pickup_photos,
+      delivery_photos: row.delivery_photos,
+      receiver_city: row.receiver_city,
+      receiver_province: row.receiver_province,
+    },
+  }));
 };
 
+/**
+ * Featured delivery gallery for the About page.
+ *
+ * Goes through the get_featured_deliveries() RPC. The old query relied on an
+ * anon RLS policy that granted every column of a featured order — phones,
+ * addresses, payment_reference, user_id — not just the ones selected here.
+ * tracking_number and updated_at are no longer returned: the page never
+ * rendered them, and a tracking number is a lookup key for public tracking.
+ */
 export const getFeaturedDeliveries = async () => {
-  const { data, error } = await supabase
-    .from('orders')
-    .select(`
-      id,
-      tracking_number,
-      featured_title,
-      featured_caption,
-      featured_image_type,
-      featured_at,
-      pickup_photos,
-      delivery_photos,
-      updated_at,
-      receiver_city,
-      receiver_province
-    `)
-    .eq('featured_on_website', true)
-    .order('featured_at', { ascending: false });
-    
+  const { data, error } = await supabase.rpc('get_featured_deliveries');
   if (error) throw error;
-  return data;
+  return data || [];
 };
 
 export const getAdminFeedback = async () => {

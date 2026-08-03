@@ -10,3 +10,4 @@ dist/
 deployment.js
 .git-temp/
 .vercel-old/
+.history/

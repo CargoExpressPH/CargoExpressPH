@@ -17,8 +17,20 @@ const STATUS_CONFIG = {
   resolved: { label: 'Resolved', className: 'badge-success' },
 };
 
-const splitContact = (value) => {
-  const v = String(value || '').trim();
+/**
+ * Read an inquiry's contact channels.
+ *
+ * Prefers the normalized contact_phone / contact_email columns. Falls back to
+ * parsing the legacy polymorphic `phone` column (a phone OR an email OR
+ * "phone | email") for any row the backfill in
+ * 20260803140000_contact_inquiries_normalize.sql did not reach.
+ */
+const readContact = (inquiry) => {
+  if (!inquiry) return { phone: '', email: '' };
+  if (inquiry.contact_phone || inquiry.contact_email) {
+    return { phone: inquiry.contact_phone || '', email: inquiry.contact_email || '' };
+  }
+  const v = String(inquiry.phone || '').trim();
   if (!v) return { phone: '', email: '' };
   const parts = v.split('|').map(p => p.trim());
   if (parts.length > 1) return { phone: parts[0], email: parts[1] };
@@ -31,8 +43,8 @@ const getContactHref = (value) => {
   return v.includes('@') ? `mailto:${v}` : `tel:${v.replace(/[^\d+]/g, '')}`;
 };
 
-const ContactLink = ({ value, className }) => {
-  const { phone, email } = splitContact(value);
+const ContactLink = ({ inquiry, className }) => {
+  const { phone, email } = readContact(inquiry);
   const phoneHref = getContactHref(phone);
   const emailHref = getContactHref(email);
   if (!phoneHref && !emailHref) return <span className={className}>—</span>;
@@ -121,7 +133,7 @@ const ContactInquiriesPage = () => {
     label: f === 'all' ? 'All' : f,
     count: f === 'all' ? inquiries.length : inquiries.filter(i => i.status === f).length,
   }));
-  const selectedContact = selectedInquiry ? splitContact(selectedInquiry.phone) : null;
+  const selectedContact = selectedInquiry ? readContact(selectedInquiry) : null;
 
   if (error && !loading && inquiries.length === 0) {
     return (
@@ -219,7 +231,7 @@ const ContactInquiriesPage = () => {
                         </div>
                       </td>
                       <td data-label="Contact" className="text-sm text-secondary">
-                        <ContactLink value={inq.phone} className="text-secondary" />
+                        <ContactLink inquiry={inq} className="text-secondary" />
                       </td>
                       <td data-label="Message">
                         <div

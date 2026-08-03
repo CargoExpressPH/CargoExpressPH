@@ -37,7 +37,7 @@ CREATE TABLE IF NOT EXISTS trips (
   departure_date TIMESTAMPTZ NOT NULL,
   arrival_date TIMESTAMPTZ DEFAULT NULL,
   capacity INTEGER DEFAULT 0,
-  available_slots INTEGER DEFAULT 0,
+  _deprecated_available_slots INTEGER DEFAULT 0,  -- DEPRECATED (20260803150000): write-only duplicate of capacity
   price_per_kg DECIMAL(10,2) DEFAULT 0,
   status VARCHAR(20) DEFAULT 'scheduled' CHECK (status IN ('scheduled', 'in_progress', 'arrived', 'completed', 'cancelled')),
   notes TEXT DEFAULT NULL,
@@ -89,9 +89,10 @@ CREATE TABLE IF NOT EXISTS orders (
   -- Service area
   service_area_status TEXT DEFAULT 'standard' CHECK (service_area_status IN ('standard', 'for_review', 'approved', 'rejected')),
   service_area_remarks TEXT DEFAULT NULL,
-  -- Payment extras
-  payment_date DATE DEFAULT NULL,
-  receipt_url TEXT DEFAULT NULL,
+  -- Payment extras — DEPRECATED (20260803150000). Superseded by the
+  -- payment_transactions columns of the same name; these were write-only.
+  _deprecated_payment_date DATE DEFAULT NULL,
+  _deprecated_receipt_url TEXT DEFAULT NULL,
   -- Featured on website
   featured_on_website BOOLEAN DEFAULT FALSE,
   featured_title TEXT DEFAULT NULL,
@@ -170,8 +171,10 @@ CREATE TABLE IF NOT EXISTS conversations (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   customer_id UUID NOT NULL UNIQUE REFERENCES profiles(id) ON DELETE CASCADE,
   created_at TIMESTAMPTZ DEFAULT NOW(),
-  status TEXT DEFAULT 'open',
-  assigned_admin_id UUID DEFAULT NULL
+  status TEXT DEFAULT 'open' CHECK (status IN ('open', 'closed', 'waiting_admin')),
+  -- FK added in 20260622000000; schema.sql previously omitted it, which broke
+  -- the PostgREST embed assigned_admin:assigned_admin_id(name) on rebuild.
+  assigned_admin_id UUID DEFAULT NULL REFERENCES profiles(id) ON DELETE SET NULL
 );
 
 
@@ -192,9 +195,14 @@ CREATE TABLE IF NOT EXISTS chat_messages (
 CREATE TABLE IF NOT EXISTS contact_inquiries (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
+  -- Legacy polymorphic column: held a phone OR an email OR "phone | email".
+  -- Still dual-written this release; normalized into the two columns below by
+  -- 20260803140000_contact_inquiries_normalize.sql.
   phone TEXT DEFAULT NULL,
+  contact_phone TEXT DEFAULT NULL,
+  contact_email TEXT DEFAULT NULL,
   message TEXT NOT NULL,
-  status TEXT NOT NULL DEFAULT 'new',
+  status TEXT NOT NULL DEFAULT 'new' CHECK (status IN ('new', 'read', 'resolved')),
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -404,11 +412,12 @@ CREATE POLICY "Admins can update orders" ON orders
 CREATE POLICY "Admins can delete orders" ON orders
   FOR DELETE USING (public.is_admin());
 
-CREATE POLICY "Public can read featured orders" ON orders
-  FOR SELECT TO anon USING (featured_on_website = true);
-
-CREATE POLICY "Public can read featured orders auth" ON orders
-  FOR SELECT TO authenticated USING (featured_on_website = true);
+-- REMOVED (20260803120000_public_data_rpcs.sql): "Public can read featured
+-- orders" / "…auth" granted anon EVERY column of a featured order — phones,
+-- addresses, payment_reference, user_id — not just the ones the About page
+-- selects. The public gallery now goes through get_featured_deliveries(),
+-- a SECURITY DEFINER RPC with a whitelisted column list.
+-- anon has no table-level access to orders.
 
 -- ─── Announcements ──────────────────────────────────────────
 -- Everyone reads, admins manage
@@ -553,6 +562,9 @@ CREATE POLICY "Admins can view inquiries" ON contact_inquiries
 CREATE POLICY "Admins can update contact inquiries" ON contact_inquiries
   FOR UPDATE USING (public.is_admin()) WITH CHECK (public.is_admin());
 
+CREATE POLICY "Admins can delete contact inquiries" ON contact_inquiries
+  FOR DELETE USING (public.is_admin());
+
 -- ─── Company Information ────────────────────────────────────
 CREATE POLICY "Allow public read access" ON company_information
   FOR SELECT USING (true);
@@ -590,11 +602,10 @@ CREATE POLICY "Customers can insert own feedback" ON customer_feedback
 CREATE POLICY "Customers can read own feedback" ON customer_feedback
   FOR SELECT USING (auth.uid() = customer_id);
 
-CREATE POLICY "Public can read non-hidden feedback" ON customer_feedback
-  FOR SELECT USING (is_hidden = false);
-
-CREATE POLICY "Public can read non-hidden feedback auth" ON customer_feedback
-  FOR SELECT USING (is_hidden = false);
+-- REMOVED (20260803120000_public_data_rpcs.sql): two byte-identical policies,
+-- neither with a TO clause, exposed customer_id for every visible testimonial
+-- to anon. Public testimonials now come from get_public_feedback(), which
+-- masks the author name and never returns customer_id.
 
 -- ─── Payment Transactions ───────────────────────────────────
 CREATE POLICY "Admins can insert and select payment transactions" ON payment_transactions
@@ -611,15 +622,54 @@ CREATE POLICY "Customers can view their own payment transactions" ON payment_tra
 
 
 -- ============================================================
+-- CHECK CONSTRAINTS
+-- Added 20260803130000. conversations.status and contact_inquiries.status
+-- are declared inline on their tables above.
+-- ============================================================
+ALTER TABLE orders
+  DROP CONSTRAINT IF EXISTS orders_amount_paid_non_negative;
+ALTER TABLE orders
+  ADD CONSTRAINT orders_amount_paid_non_negative CHECK (amount_paid >= 0);
+
+ALTER TABLE orders
+  DROP CONSTRAINT IF EXISTS orders_remaining_balance_non_negative;
+ALTER TABLE orders
+  ADD CONSTRAINT orders_remaining_balance_non_negative CHECK (remaining_balance >= 0);
+
+-- Previously validated only in CreateTripPage.jsx — i.e. not at all, from the
+-- database's point of view.
+--
+-- Safe on a fresh install. On the existing production DB this had to be
+-- deferred: pre-existing rows violate it. See
+-- 20260803131000_trips_date_constraint.sql, which must be applied only after
+-- those rows are reconciled — a NOT VALID constraint still re-checks a row on
+-- every UPDATE, so adding it early would make the offending trips uneditable
+-- and strand their orders.
+ALTER TABLE trips
+  DROP CONSTRAINT IF EXISTS trips_arrival_after_departure;
+ALTER TABLE trips
+  ADD CONSTRAINT trips_arrival_after_departure
+  CHECK (arrival_date IS NULL OR arrival_date > departure_date);
+
+-- company_information is a singleton that every reader assumes (hardcoded
+-- UUID, .single()). Make it structural rather than conventional.
+ALTER TABLE company_information
+  DROP CONSTRAINT IF EXISTS company_information_singleton;
+ALTER TABLE company_information
+  ADD CONSTRAINT company_information_singleton
+  CHECK (id = '00000000-0000-0000-0000-000000000001');
+
+
+-- ============================================================
 -- INDEXES (Performance)
 -- ============================================================
 CREATE INDEX IF NOT EXISTS idx_orders_user_id ON orders(user_id);
 CREATE INDEX IF NOT EXISTS idx_orders_trip_id ON orders(trip_id);
 CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status);
-CREATE INDEX IF NOT EXISTS idx_orders_tracking ON orders(tracking_number);
+-- idx_orders_tracking removed (20260803130000): duplicate of the UNIQUE index
 CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id);
 CREATE INDEX IF NOT EXISTS idx_trips_status ON trips(status);
-CREATE INDEX IF NOT EXISTS idx_conversations_customer_id ON conversations(customer_id);
+-- idx_conversations_customer_id removed (20260803130000): duplicate of UNIQUE
 CREATE INDEX IF NOT EXISTS idx_chat_messages_conversation_id ON chat_messages(conversation_id);
 -- idx_chat_messages_conv_id removed (duplicate of idx_chat_messages_conversation_id)
 CREATE INDEX IF NOT EXISTS idx_chat_messages_created_at ON chat_messages(created_at);
@@ -633,6 +683,17 @@ CREATE INDEX IF NOT EXISTS idx_activity_logs_created_at ON activity_logs(created
 CREATE INDEX IF NOT EXISTS idx_activity_logs_module ON activity_logs(module);
 CREATE INDEX IF NOT EXISTS idx_activity_logs_record_id ON activity_logs(record_id);
 CREATE UNIQUE INDEX IF NOT EXISTS unique_tx_ref ON payment_transactions(transaction_reference) WHERE transaction_reference IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_payment_transactions_order_id ON payment_transactions(order_id);
+
+-- Added 20260803130000 — each backs a query the app already runs.
+CREATE INDEX IF NOT EXISTS idx_profiles_role ON profiles(role);
+CREATE INDEX IF NOT EXISTS idx_orders_created_at ON orders(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_orders_featured ON orders(featured_at DESC) WHERE featured_on_website = true;
+CREATE INDEX IF NOT EXISTS idx_notifications_user_unread ON notifications(user_id, is_read);
+CREATE INDEX IF NOT EXISTS idx_chat_messages_unread ON chat_messages(conversation_id, sender_role, is_read);
+CREATE INDEX IF NOT EXISTS idx_customer_feedback_customer_id ON customer_feedback(customer_id);
+CREATE INDEX IF NOT EXISTS idx_contact_inquiries_status ON contact_inquiries(status);
+CREATE INDEX IF NOT EXISTS idx_trips_departure_date ON trips(departure_date);
 
 
 -- ============================================================
@@ -1310,6 +1371,352 @@ DROP TRIGGER IF EXISTS trigger_update_totals_after_payment ON payment_transactio
 CREATE TRIGGER trigger_update_totals_after_payment
   AFTER INSERT OR UPDATE OR DELETE ON payment_transactions
   FOR EACH ROW EXECUTE FUNCTION public.update_order_payment_totals();
+
+
+-- ============================================================
+-- PUBLIC DATA RPCs — About page gallery and testimonials
+-- See migration: supabase/migrations/20260803120000_public_data_rpcs.sql
+--
+-- These replace four over-broad RLS policies that granted anon whole-row
+-- access to featured orders and to customer_feedback.customer_id.
+-- Never widen table-level anon access to serve a public page — add an RPC.
+-- ============================================================
+CREATE OR REPLACE FUNCTION public.get_featured_deliveries()
+RETURNS TABLE (
+  id                  UUID,
+  featured_title      TEXT,
+  featured_caption    TEXT,
+  featured_image_type TEXT,
+  featured_at         TIMESTAMPTZ,
+  pickup_photos       JSONB,
+  delivery_photos     JSONB,
+  receiver_city       TEXT,
+  receiver_province   TEXT
+)
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT
+    o.id,
+    o.featured_title,
+    o.featured_caption,
+    o.featured_image_type,
+    o.featured_at,
+    o.pickup_photos,
+    o.delivery_photos,
+    o.receiver_city,
+    o.receiver_province
+  FROM public.orders o
+  WHERE o.featured_on_website = true
+  ORDER BY o.featured_at DESC NULLS LAST;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.get_featured_deliveries() TO anon, authenticated;
+
+CREATE OR REPLACE FUNCTION public.get_public_feedback()
+RETURNS TABLE (
+  id                  UUID,
+  rating              INTEGER,
+  message             TEXT,
+  created_at          TIMESTAMPTZ,
+  customer_name       TEXT,
+  featured_on_website BOOLEAN,
+  featured_image_type TEXT,
+  pickup_photos       JSONB,
+  delivery_photos     JSONB,
+  receiver_city       TEXT,
+  receiver_province   TEXT
+)
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT
+    f.id,
+    f.rating,
+    f.message,
+    f.created_at,
+    public.mask_name(p.name) AS customer_name,
+    COALESCE(o.featured_on_website, false) AS featured_on_website,
+    o.featured_image_type,
+    o.pickup_photos,
+    o.delivery_photos,
+    o.receiver_city,
+    o.receiver_province
+  FROM public.customer_feedback f
+  LEFT JOIN public.profiles p ON p.id = f.customer_id
+  LEFT JOIN public.orders   o ON o.id = f.order_id
+  WHERE f.is_hidden = false
+  ORDER BY f.rating DESC, f.created_at DESC;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.get_public_feedback() TO anon, authenticated;
+
+
+-- ============================================================
+-- ORDER STATUS EVENTS — permanent shipment history
+-- See migration: supabase/migrations/20260803110000_order_status_events.sql
+--
+-- The tracking timeline used to be reconstructed by string-matching
+-- activity_logs, which is purged after 7 days — so timelines silently
+-- collapsed to created_at once they aged out. This append-only table is fed
+-- by a trigger and has no retention purge.
+--
+-- Deliberately NOT unique on (order_id, status): a status can be re-entered.
+-- Consumers take MIN(changed_at) per status for "first reached".
+-- ============================================================
+CREATE TABLE IF NOT EXISTS public.order_status_events (
+  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  order_id   UUID NOT NULL REFERENCES public.orders(id) ON DELETE CASCADE,
+  status     VARCHAR(30) NOT NULL,
+  changed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  changed_by UUID DEFAULT NULL REFERENCES public.profiles(id) ON DELETE SET NULL,
+  note       TEXT DEFAULT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_order_status_events_order_id
+  ON public.order_status_events(order_id, changed_at);
+
+ALTER TABLE public.order_status_events ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users view own order status events" ON public.order_status_events;
+CREATE POLICY "Users view own order status events" ON public.order_status_events
+  FOR SELECT USING (
+    public.is_admin()
+    OR EXISTS (
+      SELECT 1 FROM public.orders o
+      WHERE o.id = order_status_events.order_id
+        AND o.user_id = auth.uid()
+    )
+  );
+
+-- No INSERT/UPDATE/DELETE policy: rows come only from the trigger below.
+
+CREATE OR REPLACE FUNCTION public.log_order_status_event()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF TG_OP = 'INSERT' THEN
+    INSERT INTO public.order_status_events (order_id, status, changed_at, changed_by)
+    VALUES (NEW.id, NEW.status, COALESCE(NEW.created_at, NOW()), auth.uid());
+    RETURN NEW;
+  END IF;
+
+  IF NEW.status IS DISTINCT FROM OLD.status THEN
+    INSERT INTO public.order_status_events (order_id, status, changed_at, changed_by)
+    VALUES (NEW.id, NEW.status, NOW(), auth.uid());
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS orders_log_status_event ON public.orders;
+CREATE TRIGGER orders_log_status_event
+  AFTER INSERT OR UPDATE OF status ON public.orders
+  FOR EACH ROW EXECUTE FUNCTION public.log_order_status_event();
+
+-- Public tracking: status + timestamp only. No names, amounts, or ids.
+CREATE OR REPLACE FUNCTION public.get_public_order_events(p_tracking_number TEXT)
+RETURNS TABLE (
+  status     VARCHAR,
+  changed_at TIMESTAMPTZ
+)
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT e.status, MIN(e.changed_at) AS changed_at
+  FROM public.order_status_events e
+  JOIN public.orders o ON o.id = e.order_id
+  WHERE o.tracking_number = UPPER(TRIM(p_tracking_number))
+  GROUP BY e.status
+  ORDER BY MIN(e.changed_at);
+$$;
+
+GRANT EXECUTE ON FUNCTION public.get_public_order_events(TEXT) TO anon, authenticated;
+
+-- (The one-time historical backfill lives in the migration only.)
+
+
+-- ============================================================
+-- ATOMIC PICKUP / DELIVERY PAYMENT RECORDING
+-- See migration: supabase/migrations/20260803100000_atomic_order_payment.sql
+--
+-- These RPCs write order METADATA only. amount_paid / remaining_balance /
+-- payment_status are derived by update_order_payment_totals from the
+-- payment_transactions ledger — the ledger is the single source of truth.
+--
+-- Step order is load-bearing: the orders UPDATE must run first so
+-- guard_order_update recomputes shipping_cost from the new actual_weight
+-- before the ledger trigger reads it to derive the remaining balance.
+-- ============================================================
+CREATE OR REPLACE FUNCTION public.record_pickup_payment(
+  p_order_id              UUID,
+  p_actual_weight         NUMERIC,
+  p_payment_method        TEXT,
+  p_payer_type            TEXT    DEFAULT 'sender',
+  p_pickup_photos         JSONB   DEFAULT '[]'::jsonb,
+  p_promised_payment_date DATE    DEFAULT NULL,
+  p_amount                NUMERIC DEFAULT NULL,
+  p_reference             TEXT    DEFAULT NULL,
+  p_payment_date          DATE    DEFAULT NULL,
+  p_receipt_url           TEXT    DEFAULT NULL,
+  p_payment_type          TEXT    DEFAULT 'Initial Payment',
+  p_notes                 TEXT    DEFAULT 'Initial pickup payment'
+)
+RETURNS public.orders
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_order      public.orders;
+  v_admin_name TEXT;
+  v_paid_after NUMERIC;
+  v_label      TEXT;
+BEGIN
+  IF NOT public.is_admin() THEN
+    RAISE EXCEPTION 'Admin access required';
+  END IF;
+
+  SELECT * INTO v_order FROM public.orders WHERE id = p_order_id FOR UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Order not found';
+  END IF;
+
+  IF COALESCE(p_actual_weight, 0) <= 0 THEN
+    RAISE EXCEPTION 'Actual weight must be greater than zero';
+  END IF;
+
+  UPDATE public.orders
+     SET actual_weight         = p_actual_weight,
+         payment_method        = p_payment_method,
+         payer_type            = COALESCE(p_payer_type, payer_type, 'sender'),
+         pickup_photos         = COALESCE(p_pickup_photos, pickup_photos),
+         promised_payment_date = p_promised_payment_date,
+         payment_reference     = COALESCE(p_reference, payment_reference),
+         status                = 'Picked Up'
+   WHERE id = p_order_id;
+
+  IF COALESCE(p_amount, 0) > 0 THEN
+    SELECT name INTO v_admin_name FROM public.profiles WHERE id = auth.uid();
+
+    SELECT COALESCE(SUM(amount), 0) + p_amount
+      INTO v_paid_after
+      FROM public.payment_transactions
+     WHERE order_id = p_order_id
+       AND payment_status IN ('paid', 'partial');
+
+    SELECT CASE
+             WHEN v_paid_after >= COALESCE(shipping_cost, 0) THEN 'paid'
+             ELSE 'partial'
+           END
+      INTO v_label
+      FROM public.orders
+     WHERE id = p_order_id;
+
+    INSERT INTO public.payment_transactions (
+      order_id, amount, payment_method, payment_status,
+      transaction_reference, admin_id, admin_name, notes,
+      payment_type, payment_date, receipt_url
+    ) VALUES (
+      p_order_id, p_amount, p_payment_method, v_label,
+      p_reference, auth.uid(), COALESCE(v_admin_name, 'Unknown Admin'), p_notes,
+      p_payment_type, p_payment_date, p_receipt_url
+    )
+    ON CONFLICT (transaction_reference) WHERE transaction_reference IS NOT NULL
+    DO NOTHING;
+  END IF;
+
+  SELECT * INTO v_order FROM public.orders WHERE id = p_order_id;
+  RETURN v_order;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.record_delivery_payment(
+  p_order_id        UUID,
+  p_delivery_photos JSONB   DEFAULT '[]'::jsonb,
+  p_payment_method  TEXT    DEFAULT NULL,
+  p_amount          NUMERIC DEFAULT NULL,
+  p_reference       TEXT    DEFAULT NULL,
+  p_payment_date    DATE    DEFAULT NULL,
+  p_receipt_url     TEXT    DEFAULT NULL,
+  p_payment_type    TEXT    DEFAULT 'Balance Settlement',
+  p_notes           TEXT    DEFAULT 'Balance settlement upon delivery'
+)
+RETURNS public.orders
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_order      public.orders;
+  v_admin_name TEXT;
+  v_paid_after NUMERIC;
+  v_label      TEXT;
+BEGIN
+  IF NOT public.is_admin() THEN
+    RAISE EXCEPTION 'Admin access required';
+  END IF;
+
+  SELECT * INTO v_order FROM public.orders WHERE id = p_order_id FOR UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Order not found';
+  END IF;
+
+  UPDATE public.orders
+     SET delivery_photos   = COALESCE(p_delivery_photos, delivery_photos),
+         payment_method    = COALESCE(p_payment_method, payment_method),
+         payment_reference = COALESCE(p_reference, payment_reference),
+         status            = 'Delivered'
+   WHERE id = p_order_id;
+
+  IF COALESCE(p_amount, 0) > 0 THEN
+    SELECT name INTO v_admin_name FROM public.profiles WHERE id = auth.uid();
+
+    SELECT COALESCE(SUM(amount), 0) + p_amount
+      INTO v_paid_after
+      FROM public.payment_transactions
+     WHERE order_id = p_order_id
+       AND payment_status IN ('paid', 'partial');
+
+    SELECT CASE
+             WHEN v_paid_after >= COALESCE(shipping_cost, 0) THEN 'paid'
+             ELSE 'partial'
+           END
+      INTO v_label
+      FROM public.orders
+     WHERE id = p_order_id;
+
+    INSERT INTO public.payment_transactions (
+      order_id, amount, payment_method, payment_status,
+      transaction_reference, admin_id, admin_name, notes,
+      payment_type, payment_date, receipt_url
+    ) VALUES (
+      p_order_id, p_amount, COALESCE(p_payment_method, 'cash'), v_label,
+      p_reference, auth.uid(), COALESCE(v_admin_name, 'Unknown Admin'), p_notes,
+      p_payment_type, p_payment_date, p_receipt_url
+    )
+    ON CONFLICT (transaction_reference) WHERE transaction_reference IS NOT NULL
+    DO NOTHING;
+  END IF;
+
+  SELECT * INTO v_order FROM public.orders WHERE id = p_order_id;
+  RETURN v_order;
+END;
+$$;
+
+REVOKE EXECUTE ON FUNCTION public.record_pickup_payment(UUID, NUMERIC, TEXT, TEXT, JSONB, DATE, NUMERIC, TEXT, DATE, TEXT, TEXT, TEXT) FROM PUBLIC, anon;
+REVOKE EXECUTE ON FUNCTION public.record_delivery_payment(UUID, JSONB, TEXT, NUMERIC, TEXT, DATE, TEXT, TEXT, TEXT) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.record_pickup_payment(UUID, NUMERIC, TEXT, TEXT, JSONB, DATE, NUMERIC, TEXT, DATE, TEXT, TEXT, TEXT) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.record_delivery_payment(UUID, JSONB, TEXT, NUMERIC, TEXT, DATE, TEXT, TEXT, TEXT) TO authenticated;
 
 
 -- Supabase Storage bucket for proof photos. Private bucket; app reads signed URLs.

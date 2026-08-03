@@ -1,8 +1,8 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
-import { getActivityLogsByRecord } from '../../lib/database';
-import { deriveStatusTimestamps } from '../../utils/statusTimestamps';
+import { getPublicOrderEvents } from '../../lib/database';
+import { buildStatusTimestamps } from '../../utils/statusTimestamps';
 import {
   Container, Search, Loader, Package, MapPin, ArrowRight,
   CheckCircle2, XCircle, Clock, Weight, User, Coins,
@@ -94,7 +94,7 @@ const TrackingPage = ({ embedded = false }) => {
   const [loading, setLoading] = useState(false);
   const [error,   setError]   = useState('');
   const [searched, setSearched] = useState(false);
-  const [activityLogs, setActivityLogs] = useState([]);
+  const [statusEvents, setStatusEvents] = useState([]);
   const [lastRefreshed, setLastRefreshed] = useState(null);
   const [isRateLimited, setIsRateLimited] = useState(false);
   const [retryAfterSeconds, setRetryAfterSeconds] = useState(0);
@@ -108,8 +108,8 @@ const TrackingPage = ({ embedded = false }) => {
   const isRateLimitedRef = useRef(false);
 
   const stepTimestamps = useMemo(
-    () => deriveStatusTimestamps(activityLogs, order?.created_at, order?.status),
-    [activityLogs, order?.created_at, order?.status]
+    () => buildStatusTimestamps(statusEvents, order?.created_at, order?.status),
+    [statusEvents, order?.created_at, order?.status]
   );
 
   const applyRateLimit = useCallback((seconds = DEFAULT_RETRY_AFTER_SEC) => {
@@ -160,7 +160,7 @@ const TrackingPage = ({ embedded = false }) => {
       setError('');
       setOrder(null);
       setSearched(true);
-      setActivityLogs([]);
+      setStatusEvents([]);
     }
     try {
       const { data, error: fetchError } = await supabase
@@ -173,7 +173,7 @@ const TrackingPage = ({ embedded = false }) => {
           // Silent poll: keep showing last good order; stop further spam via ref.
           if (!silent) {
             setOrder(null);
-            setActivityLogs([]);
+            setStatusEvents([]);
           }
           return;
         }
@@ -192,13 +192,18 @@ const TrackingPage = ({ embedded = false }) => {
       if (isRateLimitedRef.current) clearRateLimit();
       setOrder(data);
       setLastRefreshed(new Date());
-      if (data?.id) {
-        try {
-          const logs = await getActivityLogsByRecord(data.id);
-          setActivityLogs(logs || []);
-        } catch {
-          // Non-admin public query fallback handled by deriveStatusTimestamps baseline
-        }
+      // Status history via a public RPC keyed on the tracking number.
+      //
+      // This previously called getActivityLogsByRecord(data.id) — which never
+      // ran, because track_order_public() does not return `id`, and would have
+      // been blocked by activity_logs' admin-only RLS even if it had. The
+      // public timeline has therefore never shown real timestamps.
+      try {
+        const events = await getPublicOrderEvents(tn);
+        setStatusEvents(events || []);
+      } catch {
+        // Fall back to the created_at baseline in buildStatusTimestamps.
+        setStatusEvents([]);
       }
     } catch (err) {
       const rate = detectRateLimit(err);
@@ -206,7 +211,7 @@ const TrackingPage = ({ embedded = false }) => {
         applyRateLimit(rate.seconds);
         if (!silent) {
           setOrder(null);
-          setActivityLogs([]);
+          setStatusEvents([]);
         }
       } else if (!silent) {
         setError('Something went wrong. Please try again later.');
@@ -275,7 +280,7 @@ const TrackingPage = ({ embedded = false }) => {
     activeQueryRef.current = null;
     setTrackingNumber('');
     setOrder(null);
-    setActivityLogs([]);
+    setStatusEvents([]);
     setSearched(false);
     setLastRefreshed(null);
     // Rate-limit cooldown is request-volume based: clearing the form does NOT

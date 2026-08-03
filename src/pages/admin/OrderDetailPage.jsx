@@ -1,8 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getOrderById, updateOrder, createNotification, getTripReassignments, reassignTrip, getActivityLogsByRecord, getPaymentTransactions, recordPaymentTransaction, recordAdditionalPayment } from '../../lib/database';
+import { getOrderById, updateOrder, createNotification, getTripReassignments, reassignTrip, getActivityLogsByRecord, getPaymentTransactions, recordAdditionalPayment, recordPickupPayment, recordDeliveryPayment, getOrderStatusEvents } from '../../lib/database';
 import { logOrder, logPayment } from '../../lib/activityLog';
-import { deriveStatusTimestamps } from '../../utils/statusTimestamps';
+import { buildStatusTimestamps } from '../../utils/statusTimestamps';
 import { resolvePhotoUrls, deletePhoto } from '../../lib/storage';
 import { supabase } from '../../lib/supabase';
 import StatusBadge from '../../components/ui/StatusBadge';
@@ -98,6 +98,7 @@ const AdminOrderDetailPage = () => {
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [tripHistory, setTripHistory] = useState([]);
   const [activityHistory, setActivityHistory] = useState([]);
+  const [statusEvents, setStatusEvents] = useState([]);
   const [paymentTransactions, setPaymentTransactions] = useState([]);
   const [lightboxIndex, setLightboxIndex] = useState(-1);
   const [lightboxImages, setLightboxImages] = useState([]);
@@ -117,8 +118,8 @@ const AdminOrderDetailPage = () => {
 
   // Per-step timestamps for tracking timeline
   const stepTimestamps = useMemo(
-    () => deriveStatusTimestamps(activityHistory, order?.created_at, order?.status),
-    [activityHistory, order?.created_at, order?.status]
+    () => buildStatusTimestamps(statusEvents, order?.created_at, order?.status),
+    [statusEvents, order?.created_at, order?.status]
   );
 
   useEffect(() => {
@@ -187,6 +188,8 @@ const AdminOrderDetailPage = () => {
       if (isMounted) setTripHistory(history);
       const actLogs = await getActivityLogsByRecord(id);
       if (isMounted) setActivityHistory(actLogs);
+      const events = await getOrderStatusEvents(id);
+      if (isMounted) setStatusEvents(events);
       const pmts = await getPaymentTransactions(id);
       if (isMounted) setPaymentTransactions(pmts);
     } catch (e) {
@@ -226,23 +229,17 @@ const AdminOrderDetailPage = () => {
 
   const handlePickupSave = async (pickupData) => {
     try {
-      // Clean up internal flags before state updates
-      const cleanData = { ...pickupData };
-      delete cleanData.skipPaymentInsert;
+      // Single transaction: order metadata UPDATE + ledger INSERT. The RPC
+      // never writes amount_paid/payment_status — update_order_payment_totals
+      // derives them from the ledger. See P0-1 in the architecture review.
+      await recordPickupPayment(id, pickupData);
 
-      await updateOrder(id, cleanData);
-
-      // Also automatically record the payment transaction if money was collected and insert wasn't skipped
-      if (pickupData.amount_paid && pickupData.amount_paid > 0 && !pickupData.skipPaymentInsert) {
-        await recordPaymentTransaction(id, pickupData.amount_paid, pickupData.payment_method, pickupData.payment_reference || null, pickupData.payment_status, 'Initial pickup payment', 'Initial Payment', pickupData.payment_date, pickupData.receipt_url);
-      }
-      
-      // amount_paid is intentionally absent when a PayMongo QR is pending —
-      // the webhook records that payment into the ledger, not this save.
-      const collected = cleanData.amount_paid === undefined
-        ? 'pending PayMongo confirmation'
-        : `₱${cleanData.amount_paid}`;
-      logOrder('Pickup Processed', id, order.tracking_number, { details: `Pickup processed. Weight: ${cleanData.actual_weight}kg, Payment: ${cleanData.payment_method}, Amount: ${collected}` });
+      // pickupData.payment is null when a PayMongo QR is still pending — the
+      // webhook records that payment into the ledger, not this save.
+      const collected = pickupData.payment
+        ? `₱${pickupData.payment.amount}`
+        : 'pending PayMongo confirmation';
+      logOrder('Pickup Processed', id, order.tracking_number, { details: `Pickup processed. Weight: ${pickupData.actual_weight}kg, Payment: ${pickupData.payment_method}, Amount: ${collected}` });
 
       await createNotification(order.user_id, 'Pickup Complete', `Order ${order.tracking_number} has been picked up`, 'order_update', order.id);
       setShowPickupModal(false);
@@ -253,11 +250,7 @@ const AdminOrderDetailPage = () => {
 
   const handleDeliverySave = async (deliveryData) => {
     try {
-      await updateOrder(id, deliveryData);
-      
-      if (deliveryData.amount_paid && deliveryData.amount_paid > 0) {
-        await recordPaymentTransaction(id, deliveryData.amount_paid, deliveryData.payment_method, deliveryData.payment_reference || null, deliveryData.payment_status, 'Balance settlement upon delivery', 'Balance Settlement', deliveryData.payment_date, deliveryData.receipt_url);
-      }
+      await recordDeliveryPayment(id, deliveryData);
 
       logOrder('Delivery Proof Uploaded', id, order.tracking_number, { details: `Delivery processed. Photos uploaded: ${deliveryData.delivery_photos.length}` });
       await createNotification(order.user_id, 'Delivery Complete', `Order ${order.tracking_number} has been delivered`, 'order_update', order.id);

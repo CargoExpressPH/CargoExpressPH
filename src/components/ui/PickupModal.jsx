@@ -285,47 +285,45 @@ const PickupModal = ({ order, onClose, onSave, pricePerKilo = 70 }) => {
       //     PayMongo → paymongo-webhook → reconcile RPC
       //       → INSERT payment_transactions → trigger recomputes orders totals
       //
-      // This modal must NOT write payment columns in that case. Previously it
-      // sent amount_paid = 0 / payment_status = 'unpaid', which OVERWROTE a
-      // payment the customer had already completed while the QR was on screen
-      // (the ledger row survived, but orders no longer matched it and nothing
-      // corrected the drift). Omitting the fields lets updateOrder derive the
-      // balance from the true, ledger-backed amount_paid instead.
+      // In that case we send NO payment payload at all — the webhook writes the
+      // ledger row. Sending one here would double-count, or (as it once did)
+      // overwrite a payment the customer completed while the QR was on screen.
       // ─────────────────────────────────────────────────────────────────────
       const paymongoPending =
         form.payment_method === 'gcash' && paymentStep === 'waiting' && !form.payment_reference;
 
-      const updates = {
+      // Order metadata. amount_paid / remaining_balance / payment_status are
+      // deliberately absent — the payment_transactions ledger owns them and
+      // record_pickup_payment lets the trigger derive them.
+      const payload = {
         actual_weight: parseFloat(form.actual_weight),
         payment_method: form.payment_method,
         payer_type: form.payer_type,
-        receipt_url: receiptUrl,
         pickup_photos: photoUrls,
         promised_payment_date: isPayLater ? form.promised_payment_date : null,
-        status: 'Picked Up',
+        payment_reference: form.payment_method === 'gcash' ? (form.payment_reference || null) : null,
+        payment: null,
       };
 
       if (!paymongoPending) {
-        let paymentStatus = 'paid';
-        let finalAmountPaid = parseFloat(form.amount_paid || 0);
-
-        if (isPayLater) {
-          paymentStatus = finalAmountPaid > 0 ? 'partial' : 'unpaid';
-        } else if (!form.amount_paid && form.amount_paid !== "0") {
-          finalAmountPaid = estimatedCost;
-          paymentStatus = 'paid';
-        } else {
-          paymentStatus = estimatedCost > finalAmountPaid ? 'partial' : 'paid';
+        // How much is actually being collected right now.
+        //   pay-later  → whatever the admin typed (may be 0 = nothing down)
+        //   full       → the typed amount, or the full estimate if left blank
+        let collected = parseFloat(form.amount_paid || 0);
+        if (!isPayLater && !form.amount_paid && form.amount_paid !== '0') {
+          collected = estimatedCost;
         }
 
-        updates.amount_paid       = finalAmountPaid;
-        updates.remaining_balance = Math.max(0, estimatedCost - finalAmountPaid);
-        updates.payment_status    = paymentStatus;
-        updates.payment_reference = form.payment_method === 'gcash' ? (form.payment_reference || null) : null;
-        updates.payment_date      = form.payment_method === 'gcash' ? (form.payment_date || null) : null;
+        if (collected > 0) {
+          payload.payment = {
+            amount: collected,
+            payment_date: form.payment_method === 'gcash' ? (form.payment_date || null) : null,
+            receipt_url: receiptUrl,
+          };
+        }
       }
 
-      await onSave(updates);
+      await onSave(payload);
     } catch (err) {
       setError(err.message);
       setSaving(false);

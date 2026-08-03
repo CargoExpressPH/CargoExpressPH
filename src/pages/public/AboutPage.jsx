@@ -757,7 +757,15 @@ const AboutPage = () => {
 
     setLoading(true);
     try {
-      await createContactInquiry({ name: form.name.trim(), phone: storedContact, message: form.message.trim() });
+      // The form accepts either a mobile number or an email in one field.
+      // Which one it is has already been determined above, so record it in
+      // the matching column rather than in a single polymorphic one.
+      await createContactInquiry({
+        name: form.name.trim(),
+        message: form.message.trim(),
+        contact_phone: isEmail ? null : storedContact,
+        contact_email: isEmail ? storedContact : null,
+      });
       toast.success('Message sent! We will contact you soon.');
       setForm({ name: '', phone: '', message: '' });
     } catch (err) {
