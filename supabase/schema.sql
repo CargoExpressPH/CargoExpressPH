@@ -977,6 +977,23 @@ BEGIN
     NEW.remaining_balance := GREATEST(0, NEW.shipping_cost - COALESCE(NEW.amount_paid, 0));
   END IF;
 
+  -- ── Warehouse dispatch gate (20260804100000) ─────────────────────────────
+  -- Unpaid cargo is held at the destination warehouse and not dispatched for
+  -- doorstep delivery. Freight Collect is exempt (payment is due at the door);
+  -- a recorded Promise Date is the explicit override.
+  -- Placed last so it sees the recomputed remaining_balance above.
+  IF NEW.status = 'Out for Delivery' AND OLD.status IS DISTINCT FROM NEW.status THEN
+    IF COALESCE(NEW.payer_type, 'sender') <> 'receiver'
+       AND COALESCE(NEW.remaining_balance, 0) > 0
+       AND NEW.promised_payment_date IS NULL
+    THEN
+      RAISE EXCEPTION
+        'Cannot dispatch order % — ₱% is still owing. Settle the balance, or record a Promise Date to dispatch anyway.',
+        NEW.tracking_number,
+        TO_CHAR(COALESCE(NEW.remaining_balance, 0), 'FM999999990.00');
+    END IF;
+  END IF;
+
   RETURN NEW;
 END;
 $$;
@@ -1649,7 +1666,8 @@ CREATE OR REPLACE FUNCTION public.record_delivery_payment(
   p_payment_date    DATE    DEFAULT NULL,
   p_receipt_url     TEXT    DEFAULT NULL,
   p_payment_type    TEXT    DEFAULT 'Balance Settlement',
-  p_notes           TEXT    DEFAULT 'Balance settlement upon delivery'
+  p_notes           TEXT    DEFAULT 'Balance settlement upon delivery',
+  p_promised_payment_date DATE DEFAULT NULL
 )
 RETURNS public.orders
 LANGUAGE plpgsql
@@ -1672,10 +1690,11 @@ BEGIN
   END IF;
 
   UPDATE public.orders
-     SET delivery_photos   = COALESCE(p_delivery_photos, delivery_photos),
-         payment_method    = COALESCE(p_payment_method, payment_method),
-         payment_reference = COALESCE(p_reference, payment_reference),
-         status            = 'Delivered'
+     SET delivery_photos       = COALESCE(p_delivery_photos, delivery_photos),
+         payment_method        = COALESCE(p_payment_method, payment_method),
+         payment_reference     = COALESCE(p_reference, payment_reference),
+         promised_payment_date = COALESCE(p_promised_payment_date, promised_payment_date),
+         status                = 'Delivered'
    WHERE id = p_order_id;
 
   IF COALESCE(p_amount, 0) > 0 THEN
@@ -1714,9 +1733,9 @@ END;
 $$;
 
 REVOKE EXECUTE ON FUNCTION public.record_pickup_payment(UUID, NUMERIC, TEXT, TEXT, JSONB, DATE, NUMERIC, TEXT, DATE, TEXT, TEXT, TEXT) FROM PUBLIC, anon;
-REVOKE EXECUTE ON FUNCTION public.record_delivery_payment(UUID, JSONB, TEXT, NUMERIC, TEXT, DATE, TEXT, TEXT, TEXT) FROM PUBLIC, anon;
+REVOKE EXECUTE ON FUNCTION public.record_delivery_payment(UUID, JSONB, TEXT, NUMERIC, TEXT, DATE, TEXT, TEXT, TEXT, DATE) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.record_pickup_payment(UUID, NUMERIC, TEXT, TEXT, JSONB, DATE, NUMERIC, TEXT, DATE, TEXT, TEXT, TEXT) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.record_delivery_payment(UUID, JSONB, TEXT, NUMERIC, TEXT, DATE, TEXT, TEXT, TEXT) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.record_delivery_payment(UUID, JSONB, TEXT, NUMERIC, TEXT, DATE, TEXT, TEXT, TEXT, DATE) TO authenticated;
 
 
 -- Supabase Storage bucket for proof photos. Private bucket; app reads signed URLs.
@@ -1920,3 +1939,56 @@ BEGIN
 END;
 $$;
 
+
+-- ============================================================
+-- TRIP COMPLETION GUARD (20260804100000)
+-- A trip cannot be completed while any of its orders still owes money.
+-- This is the enforceable form of "an order can never be tagged Completed
+-- while unpaid" — orders have no Completed status, but trips do.
+-- ============================================================
+CREATE OR REPLACE FUNCTION public.guard_trip_completion()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_count     INT;
+  v_unsettled TEXT;
+BEGIN
+  IF NEW.status = 'completed' AND OLD.status IS DISTINCT FROM 'completed' THEN
+    SELECT COUNT(*)
+      INTO v_count
+      FROM public.orders
+     WHERE trip_id = NEW.id
+       AND status <> 'Cancelled'
+       AND COALESCE(remaining_balance, 0) > 0;
+
+    IF v_count > 0 THEN
+      SELECT STRING_AGG(tracking_number, ', ')
+        INTO v_unsettled
+        FROM (
+          SELECT tracking_number
+            FROM public.orders
+           WHERE trip_id = NEW.id
+             AND status <> 'Cancelled'
+             AND COALESCE(remaining_balance, 0) > 0
+           ORDER BY tracking_number
+           LIMIT 5
+        ) t;
+
+      RAISE EXCEPTION
+        'Cannot complete trip % — % order(s) still have an unpaid balance: %%',
+        NEW.trip_number, v_count, v_unsettled,
+        CASE WHEN v_count > 5 THEN ' …' ELSE '' END;
+    END IF;
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trips_guard_completion ON public.trips;
+CREATE TRIGGER trips_guard_completion
+  BEFORE UPDATE OF status ON public.trips
+  FOR EACH ROW EXECUTE FUNCTION public.guard_trip_completion();

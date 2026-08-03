@@ -278,7 +278,7 @@ export const updateOrder = async (orderId, updates) => {
   if (updates.status) {
     const { data } = await supabase
       .from('orders')
-      .select('status, trip_id, actual_weight, package_weight, amount_paid, shipping_cost')
+      .select('status, trip_id, actual_weight, package_weight, amount_paid, shipping_cost, remaining_balance, payer_type, promised_payment_date')
       .eq('id', orderId)
       .single();
     currentOrder = data;
@@ -293,7 +293,7 @@ export const updateOrder = async (orderId, updates) => {
       
       if (!isPickupSave) {
         const tripId = updates.trip_id || currentOrder.trip_id;
-        const validation = validateStatusTransition(currentOrder.status, updates.status, tripId);
+        const validation = validateStatusTransition(currentOrder.status, updates.status, tripId, { ...currentOrder, ...updates });
         if (!validation.valid) {
           throw new Error(validation.error);
         }
@@ -304,7 +304,7 @@ export const updateOrder = async (orderId, updates) => {
   if (!currentOrder && (updates.trip_id !== undefined || updates.actual_weight !== undefined || updates.amount_paid !== undefined)) {
     const { data } = await supabase
       .from('orders')
-      .select('status, trip_id, actual_weight, package_weight, amount_paid, shipping_cost')
+      .select('status, trip_id, actual_weight, package_weight, amount_paid, shipping_cost, remaining_balance, payer_type, promised_payment_date')
       .eq('id', orderId)
       .single();
     currentOrder = data;
@@ -543,7 +543,9 @@ export const getTripById = async (tripId) => {
 
   const { data: orders } = await supabase
     .from('orders')
-    .select('id, tracking_number, sender_name, receiver_name, status, package_weight, actual_weight, sender_province, sender_city, receiver_province, receiver_city, created_at')
+    // remaining_balance / payment_status back the trip-completion guard and the
+    // settlement column on TripDetailPage.
+    .select('id, tracking_number, sender_name, receiver_name, status, package_weight, actual_weight, sender_province, sender_city, receiver_province, receiver_city, created_at, remaining_balance, payment_status, promised_payment_date')
     .eq('trip_id', tripId)
     .order('created_at', { ascending: true });
 
@@ -1617,6 +1619,9 @@ export const recordDeliveryPayment = async (orderId, payload) => {
     p_reference: payload.payment_reference || null,
     p_payment_date: payload.payment?.payment_date || null,
     p_receipt_url: payload.payment?.receipt_url || null,
+    // Required by the business rule when cargo is handed over with a balance
+    // still owing — see 20260804100000_settlement_guards.sql.
+    p_promised_payment_date: payload.promised_payment_date || null,
   });
   if (error) throw error;
   return data;

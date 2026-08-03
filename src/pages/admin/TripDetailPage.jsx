@@ -69,6 +69,14 @@ const TripDetailPage = () => {
         setConfirmAction(null);
         return;
       }
+      // A trip cannot be completed while any order still owes money. Mirrors
+      // the guard_trip_completion trigger; the database is the authority.
+      const unsettled = (orders || []).filter(o => o.status !== 'Cancelled' && parseFloat(o.remaining_balance || 0) > 0);
+      if (unsettled.length > 0) {
+        toast.error(`${unsettled.length} order(s) still have an unpaid balance: ${unsettled.slice(0, 3).map(o => o.tracking_number).join(', ')}${unsettled.length > 3 ? '…' : ''}`);
+        setConfirmAction(null);
+        return;
+      }
     }
 
     setSaving(true);
@@ -102,6 +110,11 @@ const TripDetailPage = () => {
     const undelivered = orders.some(o => o.status !== 'Delivered' && o.status !== 'Cancelled');
     if (undelivered) {
       toast.error('All assigned orders must be delivered or cancelled before completing this trip.');
+      return;
+    }
+    const unsettled = orders.filter(o => o.status !== 'Cancelled' && parseFloat(o.remaining_balance || 0) > 0);
+    if (unsettled.length > 0) {
+      toast.error(`Cannot complete: ${unsettled.length} order(s) still have an unpaid balance: ${unsettled.slice(0, 3).map(o => o.tracking_number).join(', ')}${unsettled.length > 3 ? '…' : ''}`);
       return;
     }
     openConfirm('completed', 'Complete Trip', `Complete trip ${trip.trip_number}? All orders have been delivered.`, 'success');

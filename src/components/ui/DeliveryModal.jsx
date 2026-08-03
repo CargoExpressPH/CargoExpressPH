@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { X, Camera, Loader, Package, CreditCard, CheckCircle, Smartphone, AlertTriangle, Trash2, FileText, Upload } from 'lucide-react';
+import { X, Camera, Loader, Package, CreditCard, CheckCircle, Smartphone, AlertTriangle, Trash2, FileText, Upload, Calendar } from 'lucide-react';
 import FocusTrap from './FocusTrap';
 import { uploadMultiplePhotos, uploadPhoto } from '../../lib/storage';
 import QRCode from 'react-qr-code';
@@ -19,7 +19,18 @@ const DeliveryModal = ({ order, onClose, onSave }) => {
     payment_method: needsPayment ? 'cash' : '',
     payment_reference: '',
     payment_date: new Date().toISOString().split('T')[0],
+    promised_payment_date: order?.promised_payment_date || '',
   });
+
+  // How much is actually being collected at the door, and what is left after.
+  // The modal used to hardcode the full balance, so "the receiver cannot pay
+  // right now" had no representation at all.
+  const collectedNow = needsPayment ? (parseFloat(form.amount_paid || 0) || 0) : 0;
+  const balanceAfter = Math.max(0, Math.round((balance - collectedNow) * 100) / 100);
+  // Business rule: goods may be handed over with money still owing, but only
+  // against a recorded Promise Date. The driver is standing there — that is
+  // the moment to ask "when can you pay?", not a week later at reconciliation.
+  const needsPromiseDate = needsPayment && balanceAfter > 0;
 
   const [photos, setPhotos] = useState([]);
   const [photoPreviews, setPhotoPreviews] = useState([]);
@@ -124,7 +135,7 @@ const DeliveryModal = ({ order, onClose, onSave }) => {
       return;
     }
 
-    if (needsPayment && form.payment_method === 'gcash') {
+    if (needsPayment && collectedNow > 0 && form.payment_method === 'gcash') {
       const hasGeneratedQR = paymentStep === 'waiting' && checkoutUrl;
       const hasManualReference = form.payment_reference && form.payment_reference.trim().length > 0;
       if (!hasGeneratedQR && !hasManualReference) {
@@ -135,6 +146,16 @@ const DeliveryModal = ({ order, onClose, onSave }) => {
         setError('Payment date is required for manual GCash reference');
         return;
       }
+    }
+
+    if (collectedNow > balance + 0.01) {
+      setError(`Amount collected cannot exceed the ₱${balance.toFixed(2)} balance.`);
+      return;
+    }
+
+    if (needsPromiseDate && !form.promised_payment_date) {
+      setError(`₱${balanceAfter.toFixed(2)} will still be owing. Record a Promise Date before handing over the cargo.`);
+      return;
     }
 
     setSaving(true);
@@ -163,6 +184,9 @@ const DeliveryModal = ({ order, onClose, onSave }) => {
         delivery_photos: photoUrls,
         payment_method: null,
         payment_reference: null,
+        // Carried whenever a balance remains, so the promise survives on the
+        // order and drives the unsettled-deliveries follow-up.
+        promised_payment_date: needsPromiseDate ? (form.promised_payment_date || null) : null,
         payment: null,
       };
 
@@ -171,10 +195,10 @@ const DeliveryModal = ({ order, onClose, onSave }) => {
           // A PayMongo QR is live — the webhook writes the ledger row.
           // Send no payment payload so we don't double-count it.
           payload.payment_method = 'gcash';
-        } else {
+        } else if (collectedNow > 0) {
           payload.payment_method = form.payment_method;
           payload.payment = {
-            amount: balance,
+            amount: collectedNow,
             payment_date: form.payment_method === 'gcash' ? (form.payment_date || null) : null,
             receipt_url: form.payment_method === 'gcash' ? receiptUrl : null,
           };
@@ -182,6 +206,8 @@ const DeliveryModal = ({ order, onClose, onSave }) => {
             payload.payment_reference = form.payment_reference;
           }
         }
+        // collectedNow === 0 → nothing collected at the door. No ledger row;
+        // the full balance rides on the order against the Promise Date.
       }
 
       await onSave(payload);
@@ -247,6 +273,37 @@ const DeliveryModal = ({ order, onClose, onSave }) => {
                 <span className="fw-600">Payment Collection Required</span>
               </div>
               
+              {/* How much is actually being collected right now. */}
+              <div className="form-group mb-12">
+                <label className="form-label" htmlFor="dm-amount-collected">Amount Collected (₱) *</label>
+                <div className="flex gap-8">
+                  <input
+                    id="dm-amount-collected"
+                    type="number"
+                    className="form-input flex-1"
+                    value={form.amount_paid}
+                    onChange={e => setForm(p => ({ ...p, amount_paid: e.target.value }))}
+                    min="0"
+                    max={balance}
+                    step="0.01"
+                    placeholder="0.00"
+                  />
+                  <button
+                    type="button"
+                    className="btn btn-outline btn-sm"
+                    onClick={() => setForm(p => ({ ...p, amount_paid: balance.toString() }))}
+                  >
+                    Collect full ₱{balance.toFixed(2)}
+                  </button>
+                </div>
+                <div className="text-xs mt-4" style={{ color: balanceAfter > 0 ? 'var(--warning-dark)' : 'var(--success)' }}>
+                  {balanceAfter > 0
+                    ? `₱${balanceAfter.toFixed(2)} will still be owing after this.`
+                    : 'This settles the order in full.'}
+                </div>
+              </div>
+
+              {collectedNow > 0 && (
               <div className="form-group mb-12">
                 <label className="form-label"><CreditCard size={14} className="inline mr-6" /> Payment Method *</label>
                 <div className="pickup-segment-row flex gap-8">
@@ -261,8 +318,35 @@ const DeliveryModal = ({ order, onClose, onSave }) => {
                   ))}
                 </div>
               </div>
+              )}
 
-              {form.payment_method === 'gcash' && (
+              {/* Promise Date — required whenever cargo is handed over with a balance. */}
+              {needsPromiseDate && (
+                <div className="mb-12" style={{ background: 'var(--warning-bg)', borderRadius: 8, padding: 14, border: '1px solid var(--warning)' }}>
+                  <div className="mb-8" style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--warning-dark)' }}>
+                    <AlertTriangle size={14} className="inline mr-6" /> Promise to Pay
+                  </div>
+                  <div className="form-group mb-0">
+                    <label className="form-label" htmlFor="dm-promised-date">
+                      <Calendar size={14} className="inline mr-6" /> Promise Date *
+                    </label>
+                    <input
+                      id="dm-promised-date"
+                      type="date"
+                      className="form-input"
+                      value={form.promised_payment_date}
+                      onChange={e => setForm(p => ({ ...p, promised_payment_date: e.target.value }))}
+                      min={new Date().toISOString().split('T')[0]}
+                    />
+                  </div>
+                  <div className="text-xs mt-8" style={{ color: 'var(--warning-dark)' }}>
+                    The cargo may be handed over, but ₱{balanceAfter.toFixed(2)} remains owing.
+                    This order will stay unsettled and its trip cannot be completed until it is paid.
+                  </div>
+                </div>
+              )}
+
+              {collectedNow > 0 && form.payment_method === 'gcash' && (
                 <div style={{ background: 'var(--bg-secondary)', borderRadius: 8, padding: 14, marginTop: 12 }}>
                   <div className="mb-8" style={{ fontSize: '0.8125rem', fontWeight: 600 }}>GCash Payment</div>
                   
@@ -396,7 +480,7 @@ const DeliveryModal = ({ order, onClose, onSave }) => {
 
         <div className="modal-footer">
           <button className="btn btn-outline" onClick={onClose} disabled={saving || paymentStep === 'generating'}>Cancel</button>
-          <button className="btn btn-primary" onClick={handleSubmit} disabled={saving || (needsPayment && form.payment_method === 'gcash' && paymentStep !== 'waiting' && !(form.payment_reference && form.payment_reference.trim()))}>
+          <button className="btn btn-primary" onClick={handleSubmit} disabled={saving || (needsPayment && collectedNow > 0 && form.payment_method === 'gcash' && paymentStep !== 'waiting' && !(form.payment_reference && form.payment_reference.trim()))}>
             {saving ? <><Loader size={16} className="animate-spin" /> {uploadProgress || 'Processing...'}</> : <><CheckCircle size={16} /> Complete Delivery</>}
           </button>
         </div>

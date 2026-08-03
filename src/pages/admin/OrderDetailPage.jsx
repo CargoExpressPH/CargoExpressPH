@@ -20,7 +20,7 @@ import { SkeletonText } from '../../components/ui/SkeletonLoader';
 import ErrorBoundarySection from '../../components/ui/ErrorBoundarySection';
 import CustomSelect from '../../components/ui/CustomSelect';
 import {
-  STATUS_FLOW, STATUS_TIMELINE, validateStatusTransition,
+  STATUS_FLOW, STATUS_TIMELINE, validateStatusTransition, isOrderSettled,
   PAYMENT_METHODS, PAYMENT_STATUSES, ORDER_STATUS
 } from '../../constants/status';
 import {
@@ -214,7 +214,7 @@ const AdminOrderDetailPage = () => {
       setShowDeliveryModal(true);
       return;
     }
-    const validation = validateStatusTransition(order.status, next, order.trip_id);
+    const validation = validateStatusTransition(order.status, next, order.trip_id, order);
     if (!validation.valid) { toast.error(validation.error); return; }
     setSaving(true);
     try {
@@ -736,7 +736,13 @@ const AdminOrderDetailPage = () => {
             {order.payment_method && <span className="badge badge-info text-capitalize">{order.payment_method === 'gcash' ? 'GCash' : order.payment_method === 'paylater' ? 'Pay Later' : 'Cash'}</span>}
             {order.payer_type && <span className="badge badge-info text-capitalize">Payer: {order.payer_type}</span>}
             {order.payment_status && <span className={`badge ${order.payment_status === 'paid' ? 'badge-success' : order.payment_status === 'partial' ? 'badge-warning' : 'badge-error'} text-capitalize`}>{order.payment_status}</span>}
-            {order.promised_payment_date && <span className="badge badge-warning">Due: {safeFormatDate(order.promised_payment_date)}</span>}
+            {/* Settlement is shown separately from status: status says where the
+                cargo is, this says where the money is. A delivered order with a
+                balance owing is a real, valid state. */}
+            {isOrderSettled(order)
+              ? <span className="badge badge-success">Settled</span>
+              : <span className="badge badge-error">Unsettled — ₱{(parseFloat(order.remaining_balance || 0) || 0).toFixed(2)} owing</span>}
+            {order.promised_payment_date && <span className="badge badge-warning">Promised: {safeFormatDate(order.promised_payment_date)}</span>}
           </div>
 
 

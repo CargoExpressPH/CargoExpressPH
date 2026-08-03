@@ -123,7 +123,53 @@ export const PAYMENT_STATUSES = ['paid', 'partial', 'unpaid'];
 export const PAYER_TYPES = ['sender', 'receiver'];
 
 // Validate status transition
-export const validateStatusTransition = (currentStatus, newStatus, tripId) => {
+/**
+ * canDispatchForDelivery — the warehouse hold rule.
+ *
+ * Cargo always travels to the destination warehouse, paid or not. An UNPAID
+ * shipment is then held there and is NOT dispatched for doorstep delivery
+ * until the balance is settled — unless an admin records a Promise Date,
+ * which is the explicit, logged override.
+ *
+ * Freight Collect (payer_type = 'receiver') is exempt: payment is due at the
+ * door, so a COD order is unpaid by definition until delivery. Gating it
+ * would deadlock it in the warehouse forever.
+ *
+ * Mirrors the server-side gate in guard_order_update. This copy exists only
+ * to produce a good message before the round trip — the database is the
+ * authority.
+ *
+ * @param {Object} order — needs payer_type, remaining_balance, promised_payment_date
+ * @returns {{ allowed: boolean, reason?: string }}
+ */
+export const canDispatchForDelivery = (order) => {
+  if (!order) return { allowed: true };
+  if ((order.payer_type || 'sender') === 'receiver') return { allowed: true };
+
+  const balance = parseFloat(order.remaining_balance || 0) || 0;
+  if (balance <= 0) return { allowed: true };
+  if (order.promised_payment_date) return { allowed: true };
+
+  return {
+    allowed: false,
+    reason: `₱${balance.toFixed(2)} is still owing on this order. Settle the balance, or record a Promise Date to dispatch anyway.`,
+  };
+};
+
+/**
+ * isOrderSettled — has the money actually been collected?
+ *
+ * Deliberately separate from `status`: status answers "where is the cargo",
+ * this answers "where is the money". Keeping them independent is what makes
+ * "delivered, balance owing, payment promised" representable.
+ */
+export const isOrderSettled = (order) => {
+  if (!order) return false;
+  if (order.status === ORDER_STATUS.CANCELLED) return true;
+  return (parseFloat(order.remaining_balance || 0) || 0) <= 0;
+};
+
+export const validateStatusTransition = (currentStatus, newStatus, tripId, order = null) => {
   if (currentStatus === ORDER_STATUS.DELIVERED || currentStatus === ORDER_STATUS.CANCELLED) {
     return { valid: false, error: `Cannot update an order that is already "${currentStatus}"` };
   }
@@ -143,6 +189,17 @@ export const validateStatusTransition = (currentStatus, newStatus, tripId) => {
       error: `Invalid transition: "${currentStatus}" → "${newStatus}". Next: "${expectedNext || 'none'}"`,
     };
   }
+
+  // Warehouse hold: an unpaid Prepaid shipment is not dispatched for doorstep
+  // delivery without a Promise Date. Only checked when the caller supplied the
+  // order, so existing 3-arg callers are unaffected.
+  if (newStatus === ORDER_STATUS.OUT_FOR_DELIVERY && order) {
+    const dispatch = canDispatchForDelivery(order);
+    if (!dispatch.allowed) {
+      return { valid: false, error: dispatch.reason };
+    }
+  }
+
   return { valid: true };
 };
 
