@@ -6,6 +6,6 @@ dist/
 .vscode/
 .firebase/
 .vercel
-.env*
+!.env.example
 deployment.js
 .git-temp/
