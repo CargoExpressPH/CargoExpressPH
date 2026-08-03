@@ -82,6 +82,7 @@ CREATE TABLE IF NOT EXISTS orders (
   remaining_balance DECIMAL(10,2) DEFAULT 0.00,
   promised_payment_date DATE DEFAULT NULL,
   payment_reference VARCHAR(255) DEFAULT NULL,
+  payment_preference TEXT DEFAULT 'unspecified',
   -- Pickup & delivery proof (photo arrays)
   pickup_photos JSONB DEFAULT '[]'::jsonb,
   delivery_photos JSONB DEFAULT '[]'::jsonb,
@@ -1402,10 +1403,8 @@ SET search_path = public
 AS $$
 DECLARE
   attempt_row public.payment_attempts%ROWTYPE;
-  order_row public.orders%ROWTYPE;
+  order_row   public.orders%ROWTYPE;
   paid_amount DECIMAL(10,2);
-  total_cost DECIMAL(10,2);
-  remaining DECIMAL(10,2);
   final_payment_status TEXT;
 BEGIN
   SELECT *
@@ -1429,71 +1428,59 @@ BEGIN
 
   IF NOT FOUND THEN
     UPDATE public.payment_attempts
-       SET status = 'failed',
-           payment_id = COALESCE(p_payment_id, payment_attempts.payment_id),
+       SET status         = 'failed',
+           payment_id     = COALESCE(p_payment_id, payment_attempts.payment_id),
            payment_status = p_payment_status,
-           last_error = 'Order no longer exists'
+           last_error     = 'Order no longer exists'
      WHERE source_id = p_source_id;
 
     RETURN QUERY SELECT false, attempt_row.order_id, p_payment_id, 'Order no longer exists';
     RETURN;
   END IF;
 
-  -- Block duplicate payment only if already FULLY paid with a DIFFERENT reference.
-  -- Partial/unpaid orders are allowed to proceed with a new payment.
-  IF order_row.payment_status = 'paid'
-     AND order_row.payment_reference IS NOT NULL
-     AND p_payment_id IS NOT NULL
-     AND order_row.payment_reference <> p_payment_id THEN
-    UPDATE public.payment_attempts
-       SET status = 'failed',
-           payment_id = COALESCE(p_payment_id, payment_attempts.payment_id),
-           payment_status = p_payment_status,
-           last_error = 'Order already fully paid with a different payment reference'
-     WHERE source_id = p_source_id;
-
-    RETURN QUERY SELECT false, attempt_row.order_id, p_payment_id, 'Order already fully paid with a different payment reference';
-    RETURN;
-  END IF;
-
-  -- Calculate remaining balance and payment status based on payment type
-  total_cost := COALESCE(attempt_row.estimated_cost, order_row.shipping_cost, paid_amount);
-  remaining := GREATEST(0, total_cost - paid_amount);
-
   IF attempt_row.payment_type = 'paylater' THEN
-    -- Pay Later: this is a downpayment, there may be a remaining balance
-    final_payment_status := CASE WHEN paid_amount > 0 THEN
-      CASE WHEN remaining > 0 THEN 'partial' ELSE 'paid' END
-    ELSE 'unpaid' END;
+    final_payment_status := 'partial';
   ELSE
-    -- Full Payment: trust the QR amount was the full amount
     final_payment_status := 'paid';
-    remaining := 0;
   END IF;
 
-  UPDATE public.orders
-     SET payment_method = 'gcash',
-         payer_type = COALESCE(attempt_row.payer_type, 'sender'),
-         amount_paid = paid_amount,
-         remaining_balance = remaining,
-         payment_status = final_payment_status,
-         payment_reference = COALESCE(p_payment_id, order_row.payment_reference),
-         actual_weight = COALESCE(attempt_row.actual_weight, order_row.actual_weight),
-         pickup_photos = COALESCE(attempt_row.pickup_photos, order_row.pickup_photos),
-         promised_payment_date = COALESCE(attempt_row.promised_payment_date, order_row.promised_payment_date),
-         status = 'Picked Up'
-   WHERE id = attempt_row.order_id;
+  -- Only record money when the payment was actually captured.
+  IF p_payment_id IS NOT NULL THEN
+    -- The ledger is the source of truth; trigger_update_totals_after_payment
+    -- recomputes orders.amount_paid / remaining_balance / payment_status.
+    INSERT INTO public.payment_transactions (
+      order_id, amount, payment_method, payment_status,
+      transaction_reference, admin_name, notes
+    ) VALUES (
+      attempt_row.order_id, paid_amount, 'gcash', final_payment_status,
+      p_payment_id, 'System Webhook', 'Captured via PayMongo Webhook'
+    )
+    -- THE FIX: the index predicate is required to infer a PARTIAL index
+    ON CONFLICT (transaction_reference) WHERE transaction_reference IS NOT NULL
+    DO NOTHING;
+
+    -- Order metadata only. amount_paid is deliberately NOT written here --
+    -- the ledger trigger owns it.
+    UPDATE public.orders
+       SET payment_method        = 'gcash',
+           payer_type            = COALESCE(attempt_row.payer_type, order_row.payer_type, 'sender'),
+           payment_reference     = COALESCE(p_payment_id, order_row.payment_reference),
+           actual_weight         = COALESCE(attempt_row.actual_weight, order_row.actual_weight),
+           pickup_photos         = COALESCE(attempt_row.pickup_photos, order_row.pickup_photos),
+           promised_payment_date = COALESCE(attempt_row.promised_payment_date, order_row.promised_payment_date)
+     WHERE id = attempt_row.order_id;
+  END IF;
 
   UPDATE public.payment_attempts
-     SET status = 'reconciled',
-         payment_id = COALESCE(p_payment_id, payment_attempts.payment_id),
+     SET status         = 'reconciled',
+         payment_id     = COALESCE(p_payment_id, payment_attempts.payment_id),
          payment_status = final_payment_status,
-         amount = paid_amount,
-         last_error = NULL,
-         reconciled_at = COALESCE(payment_attempts.reconciled_at, NOW())
+         amount         = paid_amount,
+         last_error     = NULL,
+         reconciled_at  = COALESCE(payment_attempts.reconciled_at, NOW())
    WHERE source_id = p_source_id;
 
-  RETURN QUERY SELECT true, attempt_row.order_id, p_payment_id, 'Order reconciled';
+  RETURN QUERY SELECT true, attempt_row.order_id, p_payment_id, 'Order reconciled via payment_transactions insert';
 END;
 $$;
 
