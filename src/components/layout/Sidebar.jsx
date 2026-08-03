@@ -5,7 +5,7 @@ import { supabase } from '../../lib/supabase';
 import {
   LayoutDashboard, Package, Truck, Users, BarChart3,
   Megaphone, MessageSquare, LogOut, Container, Mail,
-  ChevronsLeft, ArrowLeft, ClipboardList, Building, ChevronUp
+  ChevronsLeft, ArrowLeft, ClipboardList, Building, ChevronUp, User
 } from 'lucide-react';
 import ConfirmModal from '../ui/ConfirmModal';
 import { logAuth } from '../../lib/activityLog';
@@ -230,6 +230,16 @@ const Sidebar = ({ isOpen, onClose, isCollapsed, onToggleCollapse }) => {
                     <div className="sidebar-profile-dropdown-role">Administrator</div>
                   </div>
                 </div>
+                <div className="sidebar-profile-dropdown-divider" />
+                <button
+                  type="button"
+                  className="sidebar-profile-dropdown-item"
+                  role="menuitem"
+                  onClick={() => { setProfileMenuOpen(false); onClose(); navigate('/admin/profile'); }}
+                >
+                  <User size={15} aria-hidden="true" />
+                  Profile
+                </button>
                 <div className="sidebar-profile-dropdown-divider" />
                 <button
                   type="button"

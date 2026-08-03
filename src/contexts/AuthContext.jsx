@@ -65,7 +65,9 @@ export const AuthProvider = ({ children }) => {
 
         if (session?.user) {
           setUser(session.user);
-          if (event === 'SIGNED_IN' && !isAuthAction.current) {
+          // USER_UPDATED fires after an email change is confirmed — re-fetch the
+          // profile so the new email is reflected everywhere.
+          if ((event === 'SIGNED_IN' && !isAuthAction.current) || event === 'USER_UPDATED') {
             fetchProfile(session.user.id, isMounted);
           } else if (event !== 'INITIAL_SESSION') {
             // Ensure loading is cleared for TOKEN_REFRESHED or other events.
@@ -259,6 +261,48 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   /**
+   * changeEmail — world-class email update flow:
+   * 1. Re-authenticates with the current password (Supabase rejects sensitive
+   *    updates when the session is older than ~1 hour).
+   * 2. Requests the change via supabase.auth.updateUser({ email }).
+   * 3. Supabase emails a confirmation link to the NEW address; the email only
+   *    changes after the link is clicked (USER_UPDATED event + DB trigger sync
+   *    the profiles.email column).
+   */
+  const changeEmail = useCallback(async (newEmail, currentPassword) => {
+    try {
+      if (!user?.email) throw new Error('You are not logged in.');
+
+      // 1) Re-authenticate with the current password
+      const { error: verifyError } = await supabase.auth.signInWithPassword({
+        email: user.email,
+        password: currentPassword,
+      });
+      if (verifyError) {
+        if (verifyError.message?.toLowerCase().includes('invalid login')) {
+          throw new Error('Current password is incorrect.');
+        }
+        throw verifyError;
+      }
+
+      // 2) Request the email change
+      const { error } = await supabase.auth.updateUser({ email: newEmail });
+      if (error) throw error;
+      return { success: true };
+    } catch (error) {
+      let msg = error.message || 'Failed to update email. Please try again.';
+      if (msg.toLowerCase().includes('email already registered') ||
+          msg.toLowerCase().includes('already been registered')) {
+        msg = 'This email is already registered to another account.';
+      } else if (msg.toLowerCase().includes('rate limit') ||
+                 msg.toLowerCase().includes('too many')) {
+        msg = 'Too many attempts. Please wait a few minutes and try again.';
+      }
+      return { success: false, error: msg };
+    }
+  }, [user?.email]);
+
+  /**
    * refreshProfile — re-fetches the profiles row from Supabase and updates context state.
    * Call this after any profile save to keep the UI in sync without a full page reload.
    */
@@ -280,8 +324,9 @@ export const AuthProvider = ({ children }) => {
     logout,
     resetPassword,
     changePassword,
+    changeEmail,
     refreshProfile,
-  }), [user, userProfile, loading, logout, resetPassword, changePassword, refreshProfile]);
+  }), [user, userProfile, loading, logout, resetPassword, changePassword, changeEmail, refreshProfile]);
 
   return (
     <AuthContext.Provider value={value}>
