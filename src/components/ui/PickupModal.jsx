@@ -49,7 +49,18 @@ const PickupModal = ({ order, onClose, onSave, pricePerKilo = 70 }) => {
   // amount_paid at the moment the QR was generated — anything above this is new money
   const baselinePaidRef = useRef(parseFloat(order?.amount_paid || 0));
 
-  const isPayLater = form.payment_type === 'paylater';
+  // ── Billing mode ─────────────────────────────────────────────────────────
+  // Freight Prepaid  (payer_type = 'sender')   → money is collected HERE, at pickup.
+  // Freight Collect  (payer_type = 'receiver') → money is collected at DELIVERY,
+  //                                              from someone who is not present now.
+  //
+  // Collect is the industry-standard COD arrangement: the carrier's security is
+  // possession of the cargo, so there is nothing to collect at pickup and the
+  // driver must never be asked to. Previously payer_type only picked a billing
+  // name for the PayMongo source and payment_method was required regardless, so
+  // the only way to process a receiver-pays pickup was to abuse "Pay Later ₱0".
+  const isPrepaid = form.payer_type === 'sender';
+  const isPayLater = isPrepaid && form.payment_type === 'paylater';
   const estimatedCost = parseFloat(form.actual_weight || 0) * pricePerKilo;
   const amountPaid = parseFloat(form.amount_paid || 0);
   const remainingBalance = Math.max(0, estimatedCost - amountPaid);
@@ -234,28 +245,32 @@ const PickupModal = ({ order, onClose, onSave, pricePerKilo = 70 }) => {
       setError('Please enter the actual weight');
       return;
     }
-    if (!form.payment_method) {
-      setError('Please select a payment method');
-      return;
-    }
-    if (form.payment_method === 'gcash') {
-      const hasGeneratedQR = paymentStep === 'waiting' && checkoutUrl;
-      const hasManualReference = form.payment_reference && form.payment_reference.trim().length > 0;
-      if (!hasGeneratedQR && !hasManualReference) {
-        setError('Please generate a GCash QR or enter a manual reference number.');
+    // Payment validation applies to Prepaid only. On a Collect shipment there is
+    // nobody here to pay, so demanding a payment method would be nonsensical.
+    if (isPrepaid) {
+      if (!form.payment_method) {
+        setError('Please select a payment method');
         return;
       }
-      if (hasManualReference && !form.payment_date) {
-        setError('Please set the payment date for manual reference');
+      if (form.payment_method === 'gcash') {
+        const hasGeneratedQR = paymentStep === 'waiting' && checkoutUrl;
+        const hasManualReference = form.payment_reference && form.payment_reference.trim().length > 0;
+        if (!hasGeneratedQR && !hasManualReference) {
+          setError('Please generate a GCash QR or enter a manual reference number.');
+          return;
+        }
+        if (hasManualReference && !form.payment_date) {
+          setError('Please set the payment date for manual reference');
+          return;
+        }
+      }
+      if (isPayLater && !form.promised_payment_date) {
+        setError('Please set a promised payment date for Pay Later');
         return;
       }
     }
     if (photos.length === 0) {
       setError('At least 1 pickup proof photo is required');
-      return;
-    }
-    if (isPayLater && !form.promised_payment_date) {
-      setError('Please set a promised payment date for Pay Later');
       return;
     }
 
@@ -297,15 +312,19 @@ const PickupModal = ({ order, onClose, onSave, pricePerKilo = 70 }) => {
       // record_pickup_payment lets the trigger derive them.
       const payload = {
         actual_weight: parseFloat(form.actual_weight),
-        payment_method: form.payment_method,
+        // Collect: no method is chosen yet — it is decided at delivery, by the
+        // receiver. Leaving it NULL is honest; picking one here would be a guess.
+        payment_method: isPrepaid ? form.payment_method : null,
         payer_type: form.payer_type,
         pickup_photos: photoUrls,
         promised_payment_date: isPayLater ? form.promised_payment_date : null,
-        payment_reference: form.payment_method === 'gcash' ? (form.payment_reference || null) : null,
+        payment_reference: (isPrepaid && form.payment_method === 'gcash') ? (form.payment_reference || null) : null,
         payment: null,
       };
 
-      if (!paymongoPending) {
+      // Freight Collect — nothing is collected at pickup. The order leaves with
+      // its full balance owing; DeliveryModal is the collection point.
+      if (isPrepaid && !paymongoPending) {
         // How much is actually being collected right now.
         //   pay-later  → whatever the admin typed (may be 0 = nothing down)
         //   full       → the typed amount, or the full estimate if left blank
@@ -395,6 +414,53 @@ const PickupModal = ({ order, onClose, onSave, pricePerKilo = 70 }) => {
             )}
           </div>
 
+          {/* ── Billing mode — decides whether we collect anything at all ── */}
+          <div className="form-group">
+            <label className="form-label">
+              <CreditCard size={14} className="inline mr-6" />
+              Who Pays? *
+            </label>
+            <div className="pickup-segment-row flex gap-8">
+              {['sender', 'receiver'].map(t => (
+                <button
+                  key={t} type="button"
+                  className={`btn ${form.payer_type === t ? 'btn-secondary' : 'btn-outline'} btn-sm flex-1 justify-center`}
+                  onClick={() => setForm(p => ({ ...p, payer_type: t }))}
+                >
+                  {t === 'sender' ? 'Sender (pay now)' : 'Receiver (pay on delivery)'}
+                </button>
+              ))}
+            </div>
+            {/* What the customer declared at booking. Previously collected and
+                never shown to anyone. */}
+            {(order?.payer_type || order?.payment_preference) && (
+              <div className="text-xs text-secondary mt-4">
+                Booking says: <strong className="text-capitalize">{order.payer_type || 'sender'}</strong> pays
+                {order.payment_preference && order.payment_preference !== 'unspecified' && (
+                  <> · prefers <strong className="text-capitalize">{order.payment_preference}</strong></>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* ── Freight Collect: nothing to collect here ── */}
+          {!isPrepaid && (
+            <div className="mb-16" style={{ background: 'var(--info-bg, var(--bg-secondary))', borderRadius: 8, padding: 14, border: '1px solid var(--info, var(--border))' }}>
+              <div className="mb-4" style={{ fontSize: '0.8125rem', fontWeight: 600 }}>
+                <Package size={14} className="inline mr-6" />
+                Freight Collect — no payment at pickup
+              </div>
+              <div className="text-xs text-secondary">
+                {estimatedCost > 0 ? <>₱{estimatedCost.toFixed(2)} will be collected from </> : <>The freight charge will be collected from </>}
+                <strong>{order?.receiver_name || 'the receiver'}</strong> on delivery.
+                Weigh the parcel, take the proof photos, and confirm — there is nothing to collect now.
+              </div>
+            </div>
+          )}
+
+          {/* ── Prepaid: everything below is the collection UI ── */}
+          {isPrepaid && (
+          <>
           {/* Payment Type */}
           <div className="form-group">
             <label className="form-label">
@@ -430,36 +496,19 @@ const PickupModal = ({ order, onClose, onSave, pricePerKilo = 70 }) => {
             </div>
           </div>
 
-          {/* Payer Type */}
-          <div className="form-group">
-            <label className="form-label">Who Pays?</label>
-            <div className="pickup-segment-row flex gap-8">
-              {['sender', 'receiver'].map(t => (
-                <button
-                  key={t} type="button"
-                  className={`btn ${form.payer_type === t ? 'btn-secondary' : 'btn-outline'} btn-sm flex-1 justify-center text-capitalize`}
-                  onClick={() => setForm(p => ({ ...p, payer_type: t }))}
-                >
-                  {t}
-                </button>
-              ))}
-            </div>
-          </div>
-
           {/* Amount Paid */}
-          {(!isPayLater || isPayLater) && (
-            <div className="form-group">
-              <label className="form-label">{isPayLater ? 'Downpayment (₱) (Optional)' : 'Amount Received (₱) *'}</label>
-              <input
-                type="number"
-                className="form-input"
-                placeholder={isPayLater ? "0.00" : estimatedCost.toFixed(2)}
-                value={form.amount_paid}
-                onChange={e => setForm(p => ({ ...p, amount_paid: e.target.value }))}
-                min="0"
-              />
-            </div>
-          )}
+          <div className="form-group">
+            <label className="form-label" htmlFor="pu-amount-paid">{isPayLater ? 'Downpayment (₱) (Optional)' : 'Amount Received (₱) *'}</label>
+            <input
+              id="pu-amount-paid"
+              type="number"
+              className="form-input"
+              placeholder={isPayLater ? "0.00" : estimatedCost.toFixed(2)}
+              value={form.amount_paid}
+              onChange={e => setForm(p => ({ ...p, amount_paid: e.target.value }))}
+              min="0"
+            />
+          </div>
 
           {/* GCash Payment Flow */}
           {form.payment_method === 'gcash' && (
@@ -641,6 +690,8 @@ const PickupModal = ({ order, onClose, onSave, pricePerKilo = 70 }) => {
               </div>
             </div>
           )}
+          </>
+          )}
 
           {/* Pickup Proofs */}
           <div className="form-group mt-16 mb-0">
@@ -676,7 +727,7 @@ const PickupModal = ({ order, onClose, onSave, pricePerKilo = 70 }) => {
 
         <div className="modal-footer">
           <button className="btn btn-outline" onClick={onClose} disabled={saving || paymentStep === 'generating'}>Cancel</button>
-          <button className="btn btn-primary" onClick={handleSubmit} disabled={saving || (form.payment_method === 'gcash' && paymentStep !== 'waiting' && !(form.payment_reference && form.payment_reference.trim()))}>
+          <button className="btn btn-primary" onClick={handleSubmit} disabled={saving || (isPrepaid && form.payment_method === 'gcash' && paymentStep !== 'waiting' && !(form.payment_reference && form.payment_reference.trim()))}>
             {saving ? <><Loader size={16} className="animate-spin" /> {uploadProgress || 'Processing...'}</> : <><CheckCircle size={16} /> Confirm Pickup</>}
           </button>
         </div>
