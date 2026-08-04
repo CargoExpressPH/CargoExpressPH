@@ -572,23 +572,33 @@
 .chat-rating {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 2px;
   margin-top: 4px;
-  opacity: 0.75;
-  transition: opacity var(--transition-fast);
+  /* No group opacity. It faded the label to 4.00:1 in light / 4.46:1 in dark,
+     both under the 4.5:1 AA floor for 11px text. The token is already muted
+     enough to read as a footnote without dimming it further. */
 }
-.chat-rating:hover { opacity: 1; }
 .chat-rating-label {
   font-size: 0.7rem;
   color: var(--text-tertiary);
-  margin-right: 2px;
+  margin-right: 6px;
 }
 .chat-rating-btn {
   background: none;
   border: none;
-  padding: 2px 4px;
-  border-radius: var(--radius-xs);
-  font-size: 0.9rem;
+  /* 44x44 tap target, matching .customer-nav-icon-btn and .admin-card-action.
+     Was ~22x18, failing WCAG 2.5.8 (24px) and both platform guidelines — on a
+     control where the negative choice escalates to a human with no undo.
+     The glyph stays small, so this reads no heavier; it just gains a
+     thumb-sized hit area. */
+  min-width: 44px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border-radius: var(--radius-sm);
+  font-size: 1rem;
   line-height: 1;
   cursor: pointer;
   transition: var(--transition-fast);
