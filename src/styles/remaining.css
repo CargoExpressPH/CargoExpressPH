@@ -703,6 +703,59 @@
   box-shadow: var(--shadow-sm);
 }
 
+/* Queue counts. Always rendered, including zero — a queue you can SEE is
+   empty is the reassurance; a hidden one is how conversations got buried. */
+.inbox-filter-count {
+  display: inline-block;
+  margin-left: 4px;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.65;
+}
+.inbox-filter-tab-btn.has-waiting {
+  color: var(--warning);
+}
+.inbox-filter-tab-btn.has-waiting .inbox-filter-count {
+  opacity: 1;
+  font-weight: 700;
+}
+.inbox-filter-tab-btn.active.has-waiting {
+  color: var(--warning);
+}
+
+/* Overdue call-out — the one thing in this page that must never be missed. */
+.inbox-overdue-banner {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  margin-bottom: 8px;
+  padding: 7px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--error);
+  background: var(--error-bg);
+  color: var(--error-dark);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+  transition: var(--transition-fast);
+}
+.inbox-overdue-banner:hover {
+  filter: brightness(0.97);
+}
+
+/* Per-row wait age */
+.inbox-wait-age {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.inbox-wait-age.overdue {
+  color: var(--error);
+}
+
 /* --- INBOX — Messages Bubbles ------------------------------------------ */
 
 .inbox-msg-bubble-admin {

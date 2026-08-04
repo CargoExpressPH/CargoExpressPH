@@ -10,9 +10,12 @@ import {
   sendMessage,
   withTimeout,
   assignConversation,
-  closeConversation,
+  resolveConversation,
   reopenConversation,
+  setConversationWaitingCustomer,
   getOrCreateConversation,
+  compareConversations,
+  CONVERSATION_STATUS,
 } from '../../lib/database';
 import EmptyState from '../../components/ui/EmptyState';
 import { MessageSquare, Send, Loader, User, Bot, Clock, CheckCircle, UserCheck, ArrowLeft, Search, AlertCircle } from 'lucide-react';
@@ -20,13 +23,32 @@ import usePageTitle from '../../hooks/usePageTitle';
 import { logChat } from '../../lib/activityLog';
 
 // ── Status badge config ────────────────────────────────────────────────────────
-// 'waiting_admin' — customer escalated, waiting for a live admin
-// 'open'          — admin is actively handling this conversation
-// 'closed'        — resolved (admin closed) OR bot handling (no active admin)
+// See 20260804210000_conversation_service_state.sql. 'closed' used to mean both
+// "born, bot is handling it" and "an admin finished" — the ambiguity that made
+// an unanswered customer invisible.
 const STATUS_BADGE = {
-  waiting_admin: { text: 'Waiting', color: 'var(--warning)',      bg: 'var(--warning-bg)',    icon: Clock },
-  open:          { text: 'Active',  color: 'var(--success)',      bg: 'var(--success-bg)',    icon: MessageSquare },
-  closed:        { text: 'Closed',  color: 'var(--text-tertiary)', bg: 'var(--bg-secondary)', icon: CheckCircle },
+  waiting:          { text: 'Waiting',    color: 'var(--warning)',       bg: 'var(--warning-bg)',   icon: Clock },
+  open:             { text: 'Active',     color: 'var(--success)',       bg: 'var(--success-bg)',   icon: MessageSquare },
+  waiting_customer: { text: 'Their turn', color: 'var(--info)',          bg: 'var(--info-bg)',      icon: Clock },
+  resolved:         { text: 'Resolved',   color: 'var(--text-tertiary)', bg: 'var(--bg-secondary)', icon: CheckCircle },
+  bot_active:       { text: 'Bot',        color: 'var(--text-tertiary)', bg: 'var(--bg-secondary)', icon: MessageSquare },
+};
+
+const WAITING_ALERT_HOURS = 24;
+
+/** How long this customer has been waiting on us, in hours. */
+const waitingHours = (conv) => {
+  if (conv.status !== 'waiting') return 0;
+  const since = new Date(conv.last_customer_message_at || conv.created_at);
+  return (Date.now() - since.getTime()) / 3600000;
+};
+
+/** "waiting 3h" / "waiting 4 days" — the age of the oldest unanswered message. */
+const formatWait = (hours) => {
+  if (hours < 1) return 'waiting <1h';
+  if (hours < 24) return `waiting ${Math.floor(hours)}h`;
+  const days = Math.floor(hours / 24);
+  return `waiting ${days} day${days === 1 ? '' : 's'}`;
 };
 
 const ConvStatusBadge = ({ status, assignedAdmin }) => {
@@ -53,16 +75,9 @@ const getInitials = (name) =>
 const TEXTAREA_BASE_HEIGHT = 42;
 const MESSAGES_PAGE_SIZE = 50;
 
-// Mirrors getAdminConversations() ordering so realtime updates keep the same sort
-const sortConvs = (list) => [...list].sort((a, b) => {
-  if (a.status === 'waiting_admin' && b.status !== 'waiting_admin') return -1;
-  if (b.status === 'waiting_admin' && a.status !== 'waiting_admin') return 1;
-  if (a.unread_count > 0 && !(b.unread_count > 0)) return -1;
-  if (b.unread_count > 0 && !(a.unread_count > 0)) return 1;
-  const timeA = new Date(a.last_message?.created_at || a.created_at);
-  const timeB = new Date(b.last_message?.created_at || b.created_at);
-  return timeB - timeA;
-});
+// Ordering lives in database.js so a realtime update and a reload cannot sort
+// the same list differently.
+const sortConvs = (list) => [...list].sort(compareConversations);
 
 const prefersReducedMotion = () =>
   typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
@@ -148,19 +163,26 @@ const InboxPage = () => {
       })
       .subscribe();
 
-    // Subscribe to conversation UPDATE (status changes — waiting_admin, resolved, etc.)
+    // Subscribe to conversation UPDATE (status changes — waiting, resolved, etc.)
     const updateChannel = supabase.channel('admin_conversations_update')
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'conversations' }, (payload) => {
+        // last_customer_message_at rides along: it drives the wait-age badge
+        // and the waiting-first ordering, so omitting it would leave the queue
+        // showing a stale age after a live update.
+        const patch = {
+          status: payload.new.status,
+          assigned_admin_id: payload.new.assigned_admin_id,
+          escalated: payload.new.escalated,
+          first_response_at: payload.new.first_response_at,
+          last_customer_message_at: payload.new.last_customer_message_at,
+          resolved_at: payload.new.resolved_at,
+        };
         setConversations(prev =>
-          sortConvs(prev.map(c =>
-            c.id === payload.new.id
-              ? { ...c, status: payload.new.status, assigned_admin_id: payload.new.assigned_admin_id }
-              : c
-          ))
+          sortConvs(prev.map(c => (c.id === payload.new.id ? { ...c, ...patch } : c)))
         );
         // Also update activeConv if it's the changed one
         if (activeConvRef.current?.id === payload.new.id) {
-          setActiveConv(prev => ({ ...prev, status: payload.new.status, assigned_admin_id: payload.new.assigned_admin_id }));
+          setActiveConv(prev => ({ ...prev, ...patch }));
         }
       })
       .subscribe();
@@ -369,10 +391,10 @@ const InboxPage = () => {
     setSearchQuery('');
     setCustomerResults([]);
     try {
-      // New conversations default to 'closed' (bot-first); open it so the
+      // New conversations default to 'bot_active' (bot-first); open it so the
       // admin can reply immediately instead of hitting a disabled input.
       const conv = await getOrCreateConversation(customer.id);
-      if (conv.status === 'closed') {
+      if (conv.status === CONVERSATION_STATUS.BOT_ACTIVE || conv.status === CONVERSATION_STATUS.RESOLVED) {
         await reopenConversation(conv.id);
       }
       await loadConvs(customer.id);
@@ -400,12 +422,18 @@ const InboxPage = () => {
     if (!text || !activeConv || !user) return;
     setSending(true);
 
-    const isFirstAdminReply = activeConv.status === 'waiting_admin';
+    // Taking an unassigned conversation out of the queue, or picking up one
+    // the bot was handling, both count as accepting it.
+    const isFirstAdminReply =
+      (activeConv.status === CONVERSATION_STATUS.WAITING ||
+       activeConv.status === CONVERSATION_STATUS.BOT_ACTIVE) &&
+      !activeConv.assigned_admin_id;
 
     try {
       const newMsg = await sendMessage(activeConv.id, user.id, 'admin', text);
 
-      // Auto-assign on first admin reply to a 'waiting_admin' conversation
+      // Auto-assign on first admin reply. The status flip to 'open' is done by
+      // the maintain_conversation_service_state trigger; this mirrors it locally.
       if (isFirstAdminReply) {
         await assignConversation(activeConv.id);
         logChat('Conversation Assigned', activeConv.id, activeConv.profiles?.name || 'Customer', {
@@ -468,13 +496,20 @@ const InboxPage = () => {
         });
         toast.success('Conversation assigned to you.');
         setActiveConv(prev => ({ ...prev, status: 'open', assigned_admin_id: user.id }));
-      } else if (newStatus === 'closed') {
-        await closeConversation(activeConv.id);
+      } else if (newStatus === CONVERSATION_STATUS.RESOLVED) {
+        await resolveConversation(activeConv.id);
         logChat('Conversation Resolved', activeConv.id, activeConv.profiles?.name || 'Customer', {
           details: `Conversation marked as resolved.`,
         });
-        toast.success('Conversation resolved.');
-        setActiveConv(prev => ({ ...prev, status: 'closed' }));
+        toast.success('Resolved. It reopens automatically if they reply.');
+        setActiveConv(prev => ({ ...prev, status: CONVERSATION_STATUS.RESOLVED }));
+      } else if (newStatus === CONVERSATION_STATUS.WAITING_CUSTOMER) {
+        await setConversationWaitingCustomer(activeConv.id);
+        logChat('Awaiting Customer', activeConv.id, activeConv.profiles?.name || 'Customer', {
+          details: `Conversation is awaiting a customer reply.`,
+        });
+        toast.success('Marked as awaiting the customer.');
+        setActiveConv(prev => ({ ...prev, status: CONVERSATION_STATUS.WAITING_CUSTOMER }));
       } else if (newStatus === 'open') {
         await reopenConversation(activeConv.id);
         logChat('Conversation Reopened', activeConv.id, activeConv.profiles?.name || 'Customer', {
@@ -572,11 +607,23 @@ const InboxPage = () => {
   };
 
   // ── Render ─────────────────────────────────────────────────────────────────
+  // Queue counts. `waiting` is shown even when zero — a visibly empty queue is
+  // the reassurance; a hidden one is how conversations got buried.
+  const queueCounts = {
+    waiting: conversations.filter(c => c.status === CONVERSATION_STATUS.WAITING).length,
+    overdue: conversations.filter(c => waitingHours(c) >= WAITING_ALERT_HOURS).length,
+    open: conversations.filter(c => c.status === CONVERSATION_STATUS.OPEN).length,
+    waiting_customer: conversations.filter(c => c.status === CONVERSATION_STATUS.WAITING_CUSTOMER).length,
+    resolved: conversations.filter(c => c.status === CONVERSATION_STATUS.RESOLVED).length,
+    bot: conversations.filter(c => c.status === CONVERSATION_STATUS.BOT_ACTIVE).length,
+  };
+
   const filteredConvs = conversations.filter(conv => {
-    if (statusFilter === 'waiting' && conv.status !== 'waiting_admin') return false;
-    // UI tab is "active"; DB status for live admin chats is "open"
-    if (statusFilter === 'active' && conv.status !== 'open') return false;
-    if (statusFilter === 'closed' && conv.status !== 'closed') return false;
+    if (statusFilter === 'waiting' && conv.status !== CONVERSATION_STATUS.WAITING) return false;
+    if (statusFilter === 'active' && conv.status !== CONVERSATION_STATUS.OPEN) return false;
+    if (statusFilter === 'their_turn' && conv.status !== CONVERSATION_STATUS.WAITING_CUSTOMER) return false;
+    if (statusFilter === 'resolved' && conv.status !== CONVERSATION_STATUS.RESOLVED) return false;
+    if (statusFilter === 'bot' && conv.status !== CONVERSATION_STATUS.BOT_ACTIVE) return false;
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       const name = conv.profiles?.name?.toLowerCase() || '';
@@ -609,17 +656,38 @@ const InboxPage = () => {
               />
             </div>
 
-            {/* Status Filter Tabs */}
+            {/* Overdue banner — the one thing that must never be missable */}
+            {queueCounts.overdue > 0 && (
+              <button
+                type="button"
+                className="inbox-overdue-banner"
+                onClick={() => setStatusFilter('waiting')}
+              >
+                <AlertCircle size={14} aria-hidden="true" />
+                {queueCounts.overdue} waiting over {WAITING_ALERT_HOURS}h
+              </button>
+            )}
+
+            {/* Queue filters. Counts are always visible, including zero: the
+                point of the queue is that it can be seen to be empty. */}
             <div className="inbox-filter-tabs" role="group" aria-label="Filter conversations">
-              {['all', 'waiting', 'active', 'closed'].map(status => (
+              {[
+                { key: 'waiting',    label: 'Waiting',   count: queueCounts.waiting, urgent: true },
+                { key: 'active',     label: 'Active',    count: queueCounts.open },
+                { key: 'their_turn', label: 'Their turn', count: queueCounts.waiting_customer },
+                { key: 'resolved',   label: 'Resolved',  count: queueCounts.resolved },
+                { key: 'bot',        label: 'Bot',       count: queueCounts.bot },
+                { key: 'all',        label: 'All',       count: conversations.length },
+              ].map(tab => (
                 <button
-                  key={status}
+                  key={tab.key}
                   type="button"
-                  aria-pressed={statusFilter === status}
-                  onClick={() => setStatusFilter(status)}
-                  className={`inbox-filter-tab-btn ${statusFilter === status ? 'active' : ''}`}
+                  aria-pressed={statusFilter === tab.key}
+                  onClick={() => setStatusFilter(tab.key)}
+                  className={`inbox-filter-tab-btn ${statusFilter === tab.key ? 'active' : ''} ${tab.urgent && tab.count > 0 ? 'has-waiting' : ''}`}
                 >
-                  {status === 'waiting' ? 'Waiting' : status}
+                  {tab.label}
+                  <span className="inbox-filter-count">{tab.count}</span>
                 </button>
               ))}
             </div>
@@ -644,8 +712,9 @@ const InboxPage = () => {
             ) : (
               <>
               {filteredConvs.map((conv, i) => {
-                const isWaiting = conv.status === 'waiting_admin';
-                const isClosed = conv.status === 'closed';
+                const isWaiting = conv.status === CONVERSATION_STATUS.WAITING;
+                const isClosed = conv.status === CONVERSATION_STATUS.RESOLVED;
+                const waitHrs = waitingHours(conv);
                 return (
                   <button
                     key={conv.id}
@@ -697,6 +766,11 @@ const InboxPage = () => {
                           status={conv.status}
                           assignedAdmin={conv.assigned_admin?.name}
                         />
+                        {isWaiting && (
+                          <span className={`inbox-wait-age ${waitHrs >= WAITING_ALERT_HOURS ? 'overdue' : ''}`}>
+                            {formatWait(waitHrs)}
+                          </span>
+                        )}
                       </div>
                     </div>
                   </button>
@@ -787,19 +861,29 @@ const InboxPage = () => {
 
                 {/* Action buttons */}
                 <div className="inbox-chat-header-actions">
-                  {activeConv.status !== 'closed' && (
+                  {activeConv.status !== CONVERSATION_STATUS.RESOLVED && (
                     <>
                       {!activeConv.assigned_admin_id && (
                         <button type="button" className="btn btn-outline btn-sm" onClick={() => handleStatusChange('assigned')}>
                           Assign to Me
                         </button>
                       )}
-                      <button type="button" className="btn btn-resolve-success btn-sm gap-4 flex items-center" onClick={() => handleStatusChange('closed')}>
+                      {activeConv.status === CONVERSATION_STATUS.OPEN && (
+                        <button
+                          type="button"
+                          className="btn btn-outline btn-sm"
+                          onClick={() => handleStatusChange(CONVERSATION_STATUS.WAITING_CUSTOMER)}
+                          title="Clears it from the queue without claiming it is resolved"
+                        >
+                          Awaiting Customer
+                        </button>
+                      )}
+                      <button type="button" className="btn btn-resolve-success btn-sm gap-4 flex items-center" onClick={() => handleStatusChange(CONVERSATION_STATUS.RESOLVED)}>
                         <CheckCircle size={14} /> Resolve
                       </button>
                     </>
                   )}
-                  {activeConv.status === 'closed' && (
+                  {activeConv.status === CONVERSATION_STATUS.RESOLVED && (
                     <button type="button" className="btn btn-primary btn-sm" onClick={() => handleStatusChange('open')}>
                       Reopen
                     </button>
@@ -808,10 +892,14 @@ const InboxPage = () => {
               </div>
 
               {/* Waiting banner inside chat area */}
-              {activeConv.status === 'waiting_admin' && (
+              {activeConv.status === CONVERSATION_STATUS.WAITING && (
                 <div className="inbox-waiting-banner">
                   <Clock size={14} />
-                  <span>This customer is <strong>waiting for your response</strong>. Reply to auto-assign this conversation to you.</span>
+                  <span>
+                    This customer is <strong>waiting for your response</strong>
+                    {waitingHours(activeConv) >= 1 && <> — {formatWait(waitingHours(activeConv))}</>}.
+                    Reply to auto-assign this conversation to you.
+                  </span>
                 </div>
               )}
 
@@ -878,7 +966,7 @@ const InboxPage = () => {
                   ref={textareaRef}
                   className="form-input flex-1 inbox-textarea"
                   aria-label="Type a reply"
-                  placeholder={activeConv.status === 'closed' ? 'Conversation resolved. Reopen to reply.' : 'Type a reply…'}
+                  placeholder={activeConv.status === CONVERSATION_STATUS.RESOLVED ? 'Conversation resolved. Reopen to reply.' : 'Type a reply…'}
                   value={input}
                   onChange={e => {
                     const nextValue = e.target.value;
@@ -900,13 +988,13 @@ const InboxPage = () => {
                     }
                   }}
                   style={{ height: `${textareaHeight}px` }}
-                  disabled={sending || activeConv.status === 'closed' || !!errorChat}
+                  disabled={sending || activeConv.status === CONVERSATION_STATUS.RESOLVED || !!errorChat}
                 />
                 <button
                   type="submit"
                   className="btn btn-primary inbox-send-btn"
                   aria-label="Send reply"
-                  disabled={!input.trim() || sending || activeConv.status === 'closed' || !!errorChat}
+                  disabled={!input.trim() || sending || activeConv.status === CONVERSATION_STATUS.RESOLVED || !!errorChat}
                 >
                   {sending ? <Loader size={18} className="animate-spin" aria-hidden="true" /> : <><Send size={18} aria-hidden="true" /> Reply</>}
                 </button>

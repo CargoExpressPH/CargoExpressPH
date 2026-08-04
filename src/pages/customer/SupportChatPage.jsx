@@ -5,7 +5,8 @@ import {
   getOrCreateConversation,
   getMessagesPage,
   sendMessage,
-  setConversationWaitingAdmin,
+  escalateConversation,
+  CONVERSATION_STATUS,
   markAdminMessagesRead,
 } from '../../lib/database';
 import { getBotReply, BOT_GREETING } from '../../lib/supportChatEngine';
@@ -109,7 +110,7 @@ const SupportChatPage = () => {
   const toast = useToast();
 
   const [conversationId, setConversationId] = useState(null);
-  const [convStatus, setConvStatus] = useState('closed');
+  const [convStatus, setConvStatus] = useState(CONVERSATION_STATUS.BOT_ACTIVE);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(true);
@@ -157,9 +158,15 @@ const SupportChatPage = () => {
   //
   // Conversation lifecycle routing (status-based, NOT message-count-based):
   //
-  //   Case A — no conversation exists → create (status='closed') → bot greets
-  //   Case B — status = 'closed'     → bot takes over, sends welcome-back msg
-  //   Case C — status = 'open' | 'waiting_admin' → admin mode, no bot
+  //   Case A — no conversation exists → create (status='bot_active') → bot greets
+  //   Case B — status = 'bot_active'  → bot takes over, sends welcome-back msg
+  //   Case C — anything else ('waiting' | 'open' | 'waiting_customer' |
+  //            'resolved') → admin mode, no bot.
+  //
+  // 'resolved' counts as ADMIN mode on purpose: a customer returning to a
+  // thread a person handled should reach that person again, not be bounced
+  // back to the bot. Their next message flips the conversation to 'waiting'
+  // via the maintain_conversation_service_state trigger.
   //
   const greetingSentRef = useRef(false);
 
@@ -196,7 +203,7 @@ const SupportChatPage = () => {
       setHasMoreMessages(hasMore);
 
       // ── Route by status ──────────────────────────────────────────────────
-      if (status === 'closed') {
+      if (status === CONVERSATION_STATUS.BOT_ACTIVE) {
         // BOT MODE: chatbot is the first responder
         setIsBotMode(true);
 
@@ -220,7 +227,7 @@ const SupportChatPage = () => {
           }
         }
       } else {
-        // ADMIN MODE: status is 'open' or 'waiting_admin'
+        // ADMIN MODE: waiting / open / waiting_customer / resolved
         // Admin is handling — display history, no bot responses
         setIsBotMode(false);
         setMessages(history || []);
@@ -281,10 +288,10 @@ const SupportChatPage = () => {
         filter: `id=eq.${conversationId}`,
       }, (payload) => {
         if (!isMountedRef.current) return;
-        const newStatus = payload.new.status || 'open';
+        const newStatus = payload.new.status || CONVERSATION_STATUS.OPEN;
         setConvStatus(newStatus);
-        // If admin opens the conversation (from waiting → open), switch to admin mode
-        if (newStatus === 'open' || newStatus === 'waiting_admin') {
+        // Anything other than bot_active means a human owns the thread now.
+        if (newStatus !== CONVERSATION_STATUS.BOT_ACTIVE) {
           setIsBotMode(false);
           setPendingResolutionId(null);
         }
@@ -417,8 +424,8 @@ const SupportChatPage = () => {
         const escText = `I understand you need more specific assistance.\n\nPlease wait while I connect you with one of our support administrators. 🔄`;
         const escMsg = await insertBotMessage(escText, conversationId);
         if (escMsg) setMessages(prev => prev.some(m => m.id === escMsg.id) ? prev : [...prev, escMsg]);
-        await setConversationWaitingAdmin(conversationId);
-        setConvStatus('waiting_admin');
+        await escalateConversation(conversationId);
+        setConvStatus(CONVERSATION_STATUS.WAITING);
         setIsBotMode(false);
       } else {
         // Normal bot reply
@@ -466,11 +473,11 @@ const SupportChatPage = () => {
       conversationId
     );
     if (msg) setMessages(prev => prev.some(m => m.id === msg.id) ? prev : [...prev, msg]);
-    // Conversation status remains 'closed' — bot stays in control for future visits
+    // Conversation status remains 'bot_active' — bot stays in control
   };
 
   // ── Resolution — No ────────────────────────────────────────────────────────
-  // Escalate to admin: flip status to 'waiting_admin'
+  // Escalate to admin: flip status to 'waiting' and raise the escalated flag
   const handleResolvedNo = async () => {
     setPendingResolutionId(null);
     const escMsg = await insertBotMessage(
@@ -479,8 +486,8 @@ const SupportChatPage = () => {
     );
     if (escMsg) setMessages(prev => prev.some(m => m.id === escMsg.id) ? prev : [...prev, escMsg]);
     try {
-      await setConversationWaitingAdmin(conversationId);
-      setConvStatus('waiting_admin');
+      await escalateConversation(conversationId);
+      setConvStatus(CONVERSATION_STATUS.WAITING);
       setIsBotMode(false);
     } catch {
       toast.error('Failed to connect to admin. Please try again.');
@@ -524,7 +531,7 @@ const SupportChatPage = () => {
   }
 
   // ── Chat UI ────────────────────────────────────────────────────────────────
-  const isWaiting   = convStatus === 'waiting_admin';
+  const isWaiting   = convStatus === CONVERSATION_STATUS.WAITING;
   // Keep waiting-admin conversations writable so customers can leave details while they wait.
   const inputDisabled = sending || botTyping;
 

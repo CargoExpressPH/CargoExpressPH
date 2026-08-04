@@ -1270,13 +1270,17 @@ export const getOrCreateConversation = async (customerId) => {
   
   let conv = convRows && convRows.length > 0 ? convRows[0] : null;
   
-  // If not exists, create with status='closed' so the chatbot becomes the
-  // first responder. Status flips to 'waiting_admin' / 'open' only when
-  // the customer escalates to a live admin.
+  // If not exists, create with status='bot_active' so the chatbot becomes the
+  // first responder. It moves to 'waiting' only when the customer escalates.
+  //
+  // This used to insert 'closed' — the same value an admin wrote when they
+  // FINISHED a conversation. One value meaning both "never needed a human"
+  // and "a human is done" is why "nobody has replied yet" was unrepresentable.
+  // See 20260804210000_conversation_service_state.sql.
   if (!conv) {
     const { data: newConv, error: createError } = await supabase
       .from('conversations')
-      .insert({ customer_id: customerId, status: 'closed' })
+      .insert({ customer_id: customerId, status: 'bot_active' })
       .select()
       .single();
     if (createError) throw createError;
@@ -1286,6 +1290,49 @@ export const getOrCreateConversation = async (customerId) => {
 };
 
 
+/**
+ * Conversation service states (20260804210000). Exported so the inbox and the
+ * customer chat agree on the vocabulary instead of each hard-coding strings.
+ */
+export const CONVERSATION_STATUS = {
+  BOT_ACTIVE: 'bot_active',            // bot handling; hidden from the queue
+  WAITING: 'waiting',                  // a human is needed — THE QUEUE
+  OPEN: 'open',                        // an admin has replied and is engaged
+  WAITING_CUSTOMER: 'waiting_customer',// we answered; their turn
+  RESOLVED: 'resolved',                // done; reopens if they write again
+};
+
+/** States that need an admin to look at them. `bot_active` is deliberately absent. */
+export const ADMIN_ACTIONABLE_STATUSES = [
+  CONVERSATION_STATUS.WAITING,
+  CONVERSATION_STATUS.OPEN,
+  CONVERSATION_STATUS.WAITING_CUSTOMER,
+];
+
+/**
+ * Inbox ordering, shared by the initial fetch and the realtime updates so a
+ * live change cannot reshuffle the list differently from a reload.
+ * Waiting first — that is the whole point of the queue — then oldest wait
+ * first within it, so the person who has waited longest is at the top.
+ */
+export const compareConversations = (a, b) => {
+  const aWaiting = a.status === CONVERSATION_STATUS.WAITING;
+  const bWaiting = b.status === CONVERSATION_STATUS.WAITING;
+  if (aWaiting !== bWaiting) return aWaiting ? -1 : 1;
+
+  if (aWaiting && bWaiting) {
+    const aSince = new Date(a.last_customer_message_at || a.created_at);
+    const bSince = new Date(b.last_customer_message_at || b.created_at);
+    return aSince - bSince;   // oldest wait first
+  }
+
+  if ((a.unread_count > 0) !== (b.unread_count > 0)) return a.unread_count > 0 ? -1 : 1;
+
+  const timeA = new Date(a.last_message?.created_at || a.created_at);
+  const timeB = new Date(b.last_message?.created_at || b.created_at);
+  return timeB - timeA;
+};
+
 export const getAdminConversations = async () => {
   const { data, error } = await supabase
     .from('conversations')
@@ -1293,6 +1340,10 @@ export const getAdminConversations = async () => {
       id,
       created_at,
       status,
+      escalated,
+      first_response_at,
+      last_customer_message_at,
+      resolved_at,
       assigned_admin_id,
       profiles:customer_id (id, name, email),
       assigned_admin:assigned_admin_id (name)
@@ -1346,15 +1397,7 @@ export const getAdminConversations = async () => {
     });
   }
 
-  convs.sort((a, b) => {
-    if (a.status === 'waiting_admin' && b.status !== 'waiting_admin') return -1;
-    if (b.status === 'waiting_admin' && a.status !== 'waiting_admin') return 1;
-    if ((a.unread_count > 0) && (b.unread_count === 0)) return -1;
-    if ((b.unread_count > 0) && (a.unread_count === 0)) return 1;
-    const timeA = a.last_message ? new Date(a.last_message.created_at) : new Date(a.created_at);
-    const timeB = b.last_message ? new Date(b.last_message.created_at) : new Date(b.created_at);
-    return timeB - timeA;
-  });
+  convs.sort(compareConversations);
 
   return convs;
 };
@@ -1858,33 +1901,74 @@ export const getPaymentTransactionsBatch = async (orderIds) => {
 export const assignConversation = async (conversationId) => {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('Not authenticated');
-  // Also flip status back to 'open' to clear the 'waiting_admin' state
+  // Taking a conversation also clears the waiting state — an admin is on it.
   const { error } = await supabase
     .from('conversations')
-    .update({ assigned_admin_id: user.id, status: 'open' })
+    .update({ assigned_admin_id: user.id, status: CONVERSATION_STATUS.OPEN })
     .eq('id', conversationId);
   if (error) throw error;
 };
 
-export const closeConversation = async (conversationId) => {
-  const { error } = await supabase.from('conversations').update({ status: 'closed' }).eq('id', conversationId);
-  if (error) throw error;
-};
-
-export const reopenConversation = async (conversationId) => {
-  const { error } = await supabase.from('conversations').update({ status: 'open' }).eq('id', conversationId);
+/** Hand a conversation back to the pool without resolving it. */
+export const unassignConversation = async (conversationId) => {
+  const { error } = await supabase
+    .from('conversations')
+    .update({ assigned_admin_id: null })
+    .eq('id', conversationId);
   if (error) throw error;
 };
 
 /**
- * setConversationWaitingAdmin
- * Called by the bot when the customer indicates their concern is unresolved.
- * Sets status to 'waiting_admin' so the admin inbox highlights it.
+ * Mark the customer's issue dealt with.
+ *
+ * Named `resolve`, not `close`, deliberately: resolved is a claim about the
+ * customer, closed was a claim about the admin's screen. `resolved_at` is
+ * stamped by a trigger, not written here.
+ *
+ * Not final — if the customer writes again the trigger returns the
+ * conversation to `waiting`.
  */
-export const setConversationWaitingAdmin = async (conversationId) => {
+export const resolveConversation = async (conversationId) => {
   const { error } = await supabase
     .from('conversations')
-    .update({ status: 'waiting_admin' })
+    .update({ status: CONVERSATION_STATUS.RESOLVED })
+    .eq('id', conversationId);
+  if (error) throw error;
+};
+
+/** Pull a resolved conversation back into active handling. */
+export const reopenConversation = async (conversationId) => {
+  const { error } = await supabase
+    .from('conversations')
+    .update({ status: CONVERSATION_STATUS.OPEN })
+    .eq('id', conversationId);
+  if (error) throw error;
+};
+
+/**
+ * The admin has answered and is waiting on the customer. Keeps the queue
+ * honest: it removes the row from `waiting` without claiming the issue is
+ * resolved, and starts the 7-day auto-resolve clock.
+ */
+export const setConversationWaitingCustomer = async (conversationId) => {
+  const { error } = await supabase
+    .from('conversations')
+    .update({ status: CONVERSATION_STATUS.WAITING_CUSTOMER })
+    .eq('id', conversationId);
+  if (error) throw error;
+};
+
+/**
+ * escalateConversation
+ * Called when the bot matches an escalation pattern, or the customer says
+ * their concern is unresolved. Sets `waiting` (the queue) and raises the
+ * `escalated` flag — status answers "whose turn", escalated answers
+ * "how urgent". They are separate on purpose.
+ */
+export const escalateConversation = async (conversationId) => {
+  const { error } = await supabase
+    .from('conversations')
+    .update({ status: CONVERSATION_STATUS.WAITING, escalated: true })
     .eq('id', conversationId);
   if (error) throw error;
 };
