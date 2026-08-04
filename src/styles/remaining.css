@@ -643,7 +643,10 @@
 
 /* --- INBOX — Waiting conversation highlight ---------------------------- */
 
-.inbox-conv-waiting { border-left-color: var(--warning); }
+.inbox-conv-waiting .inbox-conversation-name {
+  font-weight: 700;
+  color: var(--text);
+}
 
 /* --- INBOX — Waiting banner inside chat area --------------------------- */
 
@@ -1000,16 +1003,17 @@
   display: flex; align-items: center; gap: 12px;
   padding: 14px 18px;
   border: none;
-  border-left: 2px solid transparent;
   background: transparent;
   text-align: left;
   cursor: pointer;
-  transition: background-color 0.15s ease, border-color 0.15s ease;
+  transition: background-color 0.12s ease;
 }
-.inbox-conversation-item:hover { background: var(--bg-secondary); }
-.inbox-conversation-item.active {
-  background: var(--bg-secondary);
-  border-left-color: var(--primary);
+.inbox-conversation-item:hover {
+  background: color-mix(in srgb, var(--text) 4%, transparent);
+}
+.inbox-conversation-item.active,
+.inbox-conversation-item.active:hover {
+  background: color-mix(in srgb, var(--text) 9%, transparent);
 }
 .inbox-conversation-avatar {
   width: 40px; height: 40px; border-radius: 50%;
@@ -3224,4 +3228,30 @@
 .inbox-status-quiet {
   font-size: 0.68rem;
   color: var(--text-tertiary);
+}
+
+/* --- INBOX — Close the open conversation ------------------------------- */
+/* The back arrow is mobile-only, so on desktop opening a chat was a one-way
+   door — particularly wrong for an empty thread you decided not to send. */
+.inbox-close-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+.inbox-close-btn:hover {
+  background: color-mix(in srgb, var(--text) 8%, transparent);
+  color: var(--text);
+}
+.inbox-close-btn:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 1px;
 }

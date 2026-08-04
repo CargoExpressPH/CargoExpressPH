@@ -18,7 +18,7 @@ import {
   CONVERSATION_STATUS,
 } from '../../lib/database';
 import EmptyState from '../../components/ui/EmptyState';
-import { MessageSquare, Send, Loader, User, Bot, Clock, CheckCircle, UserCheck, ArrowLeft, Search, AlertCircle } from 'lucide-react';
+import { MessageSquare, Send, Loader, User, Bot, Clock, CheckCircle, UserCheck, ArrowLeft, Search, AlertCircle, X } from 'lucide-react';
 import usePageTitle from '../../hooks/usePageTitle';
 import { logChat } from '../../lib/activityLog';
 
@@ -898,6 +898,15 @@ const InboxPage = () => {
                       </button>
                     </>
                   )}
+                  <button
+                    type="button"
+                    className="inbox-close-btn"
+                    onClick={() => { setActiveConv(null); activeConvRef.current = null; }}
+                    aria-label="Close conversation"
+                    title="Close"
+                  >
+                    <X size={16} aria-hidden="true" />
+                  </button>
 
                 </div>
               </div>
