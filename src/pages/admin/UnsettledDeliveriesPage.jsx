@@ -147,7 +147,16 @@ const UnsettledDeliveriesPage = () => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    payloads.forEach(({ new: row, eventType }) => {
+    payloads.forEach(({ new: row, old: oldRow, eventType }) => {
+      // DELETE payloads carry the removed row in `old`; `new` is null.
+      if (eventType === 'DELETE') {
+        if (oldRow?.id && byId.has(oldRow.id)) {
+          byId.delete(oldRow.id);
+          touched += 1;
+        }
+        return;
+      }
+
       if (!row?.id) return;
       const known = byId.get(row.id);
 
@@ -160,7 +169,7 @@ const UnsettledDeliveriesPage = () => {
         // Keep the joined customer record; realtime payloads carry columns only.
         const merged = { ...known, ...row, profiles: known.profiles };
         byId.set(row.id, { ...merged, ...deriveSettlement(merged, today) });
-      } else if (qualifiesAsUnsettled(row) && eventType !== 'DELETE') {
+      } else if (qualifiesAsUnsettled(row)) {
         needsFullReload = true;           // new arrival — needs the customer join
         touched += 1;
       }

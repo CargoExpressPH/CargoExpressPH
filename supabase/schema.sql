@@ -2224,22 +2224,16 @@ GRANT EXECUTE ON FUNCTION public.record_delivery_payment(UUID, JSONB, TEXT, NUME
 
 -- Supabase Storage bucket for proof photos.
 --
--- public = TRUE mirrors the LIVE project. This file previously declared FALSE
--- while production ran TRUE, which made re-running schema.sql a live change:
--- the ON CONFLICT clause below would have flipped the bucket private and
--- broken the public homepage hero image. The declaration now matches reality.
---
--- TRUE is not the intended end state. Proof photos and receipts sit under
--- guessable paths (the tracking number is in the path), so a public bucket
--- means shipment evidence is world-readable. The transition is staged in
--- 20260804180000_customer_photo_access.sql: company assets move to the
--- dedicated public `company-assets` bucket, then this flips to FALSE and
--- resolvePhotoUrl()'s signed URLs become the only way in.
+-- public = FALSE. Proof photos and receipts sit under guessable paths (the
+-- tracking number is in the path), so the bucket is private and the app uses
+-- signed URLs (see 20260804180000_customer_photo_access.sql and
+-- 20260804200000_lock_cargo_photos.sql). Company website decoration lives in
+-- the separate public `company-assets` bucket below.
 INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 VALUES (
   'cargo-photos',
   'cargo-photos',
-  TRUE,
+  FALSE,
   5242880,
   ARRAY['image/jpeg', 'image/png', 'image/webp']
 )
@@ -2310,6 +2304,43 @@ CREATE POLICY "Public read company assets" ON storage.objects
   USING (
     bucket_id IN ('cargo-photos', 'company-assets')
     AND (storage.foldername(name))[1] IN ('gallery', 'hero', 'timeline')
+  );
+
+-- Featured delivery photos stay readable to anonymous visitors (About page
+-- gallery) even though the bucket is private. The helper is SECURITY DEFINER
+-- because anon has no table-level access to orders; it reads one boolean and
+-- leaks nothing else.
+CREATE OR REPLACE FUNCTION public.is_featured_order_ref(p_ref TEXT)
+RETURNS BOOLEAN
+LANGUAGE sql
+SECURITY DEFINER
+STABLE
+SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1
+    FROM public.orders o
+    WHERE o.featured_on_website = TRUE
+      AND (
+        o.tracking_number = p_ref
+        OR o.id = public.safe_uuid(p_ref)
+      )
+  );
+$$;
+
+REVOKE ALL ON FUNCTION public.is_featured_order_ref(TEXT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.is_featured_order_ref(TEXT) TO anon, authenticated;
+
+DROP POLICY IF EXISTS "Public read featured delivery photos" ON storage.objects;
+
+CREATE POLICY "Public read featured delivery photos" ON storage.objects
+  FOR SELECT TO anon, authenticated
+  USING (
+    bucket_id = 'cargo-photos'
+    AND (storage.foldername(name))[1] IN (
+      'pickup', 'delivery', 'pickup-proofs', 'delivery-proofs'
+    )
+    AND public.is_featured_order_ref((storage.foldername(name))[2])
   );
 
 -- ============================================================
