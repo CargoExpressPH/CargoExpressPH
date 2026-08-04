@@ -219,8 +219,41 @@ CREATE TABLE IF NOT EXISTS contact_inquiries (
   contact_email TEXT DEFAULT NULL,
   message TEXT NOT NULL,
   status TEXT NOT NULL DEFAULT 'new' CHECK (status IN ('new', 'read', 'resolved')),
+  -- Ownership + service timing (20260804230000). Without an owner nobody is
+  -- answerable for an inquiry and two admins can answer the same person.
+  -- The shared queue proposed as Phase 3 of the CS study was cancelled by
+  -- decision — inquiries keep their own page, they just stop being anonymous.
+  assigned_admin_id UUID DEFAULT NULL REFERENCES profiles(id) ON DELETE SET NULL,
+  first_response_at TIMESTAMPTZ DEFAULT NULL,
+  resolved_at TIMESTAMPTZ DEFAULT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- Stamps first_response_at / resolved_at from the status transition, so the
+-- values are correct whichever client made the call.
+CREATE OR REPLACE FUNCTION public.stamp_inquiry_service_state()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  IF NEW.status IS DISTINCT FROM OLD.status THEN
+    IF NEW.status <> 'new' THEN
+      NEW.first_response_at := COALESCE(NEW.first_response_at, now());
+    END IF;
+    IF NEW.status = 'resolved' THEN
+      NEW.resolved_at := COALESCE(NEW.resolved_at, now());
+    ELSE
+      NEW.resolved_at := NULL;
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS contact_inquiries_stamp_service_state ON public.contact_inquiries;
+CREATE TRIGGER contact_inquiries_stamp_service_state
+  BEFORE UPDATE OF status ON public.contact_inquiries
+  FOR EACH ROW EXECUTE FUNCTION public.stamp_inquiry_service_state();
 
 
 -- ===================== 10. COMPANY INFORMATION =====================

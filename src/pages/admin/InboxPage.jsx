@@ -15,6 +15,8 @@ import {
   setConversationWaitingCustomer,
   getOrCreateConversation,
   compareConversations,
+  reassignConversation,
+  getAdminProfiles,
   CONVERSATION_STATUS,
 } from '../../lib/database';
 import EmptyState from '../../components/ui/EmptyState';
@@ -105,6 +107,8 @@ const InboxPage = () => {
   const [textareaHeight, setTextareaHeight] = useState(TEXTAREA_BASE_HEIGHT);
   const [hasMoreMessages, setHasMoreMessages] = useState(false);
   const [loadingOlder, setLoadingOlder] = useState(false);
+  const [admins, setAdmins] = useState([]);
+  const [reassigning, setReassigning] = useState(false);
 
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
@@ -146,6 +150,37 @@ const InboxPage = () => {
       setErrorList(err.message || 'Failed to load conversations.');
     } finally {
       setLoadingList(false);
+    }
+  };
+
+  // Admin roster for the reassign control. Fetched once; a handover is rare
+  // enough that it does not need to stay live.
+  useEffect(() => {
+    getAdminProfiles().then(setAdmins).catch(() => setAdmins([]));
+  }, []);
+
+  const handleReassign = async (adminId) => {
+    if (!activeConv) return;
+    setReassigning(true);
+    try {
+      await reassignConversation(activeConv.id, adminId);
+      const target = admins.find(a => a.id === adminId);
+      logChat('Conversation Reassigned', activeConv.id, activeConv.profiles?.name || 'Customer', {
+        details: adminId
+          ? `Reassigned to ${target?.name || target?.email || 'another admin'}.`
+          : 'Returned to the unassigned pool.',
+      });
+      setActiveConv(prev => ({
+        ...prev,
+        assigned_admin_id: adminId || null,
+        assigned_admin: target ? { name: target.name } : null,
+      }));
+      toast.success(adminId ? `Reassigned to ${target?.name || 'admin'}.` : 'Returned to the pool.');
+      loadConvs();
+    } catch {
+      toast.error('Failed to reassign conversation.');
+    } finally {
+      setReassigning(false);
     }
   };
 
@@ -850,10 +885,32 @@ const InboxPage = () => {
                         assignedAdmin={activeConv.assigned_admin?.name}
                       />
                     </div>
-                    {activeConv.assigned_admin?.name && (
+                    {activeConv.assigned_admin_id && (
                       <div className="text-tertiary inbox-chat-user-assigned">
-                        <UserCheck size={11} />
-                        Assigned to: {activeConv.assigned_admin.name}
+                        <UserCheck size={11} aria-hidden="true" />
+                        <label htmlFor="inbox-reassign" className="sr-only">Reassign this conversation</label>
+                        <span>Assigned to</span>
+                        {/* A handover path. Assignment used to be one-way, so a
+                            conversation owned by someone on leave was stuck. */}
+                        <select
+                          id="inbox-reassign"
+                          className="inbox-reassign-select"
+                          value={activeConv.assigned_admin_id || ''}
+                          disabled={reassigning}
+                          onChange={e => handleReassign(e.target.value || null)}
+                        >
+                          {admins.length === 0 && (
+                            <option value={activeConv.assigned_admin_id}>
+                              {activeConv.assigned_admin?.name || 'Assigned'}
+                            </option>
+                          )}
+                          {admins.map(a => (
+                            <option key={a.id} value={a.id}>
+                              {a.id === user?.id ? `${a.name || a.email} (me)` : (a.name || a.email)}
+                            </option>
+                          ))}
+                          <option value="">— Unassign —</option>
+                        </select>
                       </div>
                     )}
                   </div>

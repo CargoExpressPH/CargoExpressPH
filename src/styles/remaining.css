@@ -3220,3 +3220,24 @@
     padding: 14px 14px;
   }
 }
+
+/* --- INBOX — Reassign control (Phase 1c) ------------------------------- */
+/* Assignment used to be one-way: set on first reply, no way to hand over.
+   A conversation owned by someone on leave had no recovery path. */
+.inbox-reassign-select {
+  font-size: 0.7rem;
+  font-family: inherit;
+  color: var(--text-secondary);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xs);
+  padding: 1px 4px;
+  margin-left: 4px;
+  cursor: pointer;
+  max-width: 150px;
+}
+.inbox-reassign-select:hover:not(:disabled) {
+  border-color: var(--primary);
+  color: var(--text);
+}
+.inbox-reassign-select:disabled { opacity: 0.6; cursor: wait; }

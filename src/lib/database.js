@@ -1215,10 +1215,34 @@ export const createContactInquiry = async (data) => {
 export const getContactInquiries = async () => {
   const { data, error } = await supabase
     .from('contact_inquiries')
-    .select('*')
+    .select('*, assigned_admin:assigned_admin_id (name)')
     .order('created_at', { ascending: false });
   if (error) throw error;
   return data || [];
+};
+
+/**
+ * Claim an inquiry. Ownership is the whole point of Phase 1d: without it
+ * nobody is answerable, and two admins can answer the same person.
+ * `first_response_at` is stamped by trigger on the status change, not here.
+ */
+export const assignInquiry = async (inquiryId) => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
+  const { error } = await supabase
+    .from('contact_inquiries')
+    .update({ assigned_admin_id: user.id })
+    .eq('id', inquiryId);
+  if (error) throw error;
+};
+
+/** Release an inquiry back to the unclaimed pool. */
+export const unassignInquiry = async (inquiryId) => {
+  const { error } = await supabase
+    .from('contact_inquiries')
+    .update({ assigned_admin_id: null })
+    .eq('id', inquiryId);
+  if (error) throw error;
 };
 
 export const updateContactInquiry = async (id, updates) => {
@@ -1916,6 +1940,32 @@ export const unassignConversation = async (conversationId) => {
     .update({ assigned_admin_id: null })
     .eq('id', conversationId);
   if (error) throw error;
+};
+
+/**
+ * Move a conversation to a different admin.
+ *
+ * Assignment used to be one-way — set on first reply, with no way to hand
+ * over. That is survivable with two admins and a real problem at three:
+ * a conversation assigned to someone on leave had no recovery path.
+ */
+export const reassignConversation = async (conversationId, adminId) => {
+  const { error } = await supabase
+    .from('conversations')
+    .update({ assigned_admin_id: adminId || null })
+    .eq('id', conversationId);
+  if (error) throw error;
+};
+
+/** Admin roster for the reassign control. Admin-gated by RLS on profiles. */
+export const getAdminProfiles = async () => {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, name, email')
+    .eq('role', 'admin')
+    .order('name', { ascending: true });
+  if (error) throw error;
+  return data || [];
 };
 
 /**

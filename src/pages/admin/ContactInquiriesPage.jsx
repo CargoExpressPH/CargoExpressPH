@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
-import { getContactInquiries, updateContactInquiry } from '../../lib/database';
+import { getContactInquiries, updateContactInquiry, assignInquiry, unassignInquiry } from '../../lib/database';
 import { logChat } from '../../lib/activityLog';
+import { useAuth } from '../../contexts/AuthContext';
 import { SkeletonTableRow } from '../../components/ui/SkeletonLoader';
 import EmptyState from '../../components/ui/EmptyState';
 import ResponsiveFilterControls from '../../components/ui/ResponsiveFilterControls';
 import {
-  Mail, Phone, Clock, CheckCircle, Eye,
+  Mail, Phone, Clock, CheckCircle, Eye, UserCheck,
   Loader, MessageSquare, AlertCircle, X
 } from 'lucide-react';
 import usePageTitle from '../../hooks/usePageTitle';
@@ -77,6 +78,7 @@ const ContactLink = ({ inquiry, className }) => {
 
 const ContactInquiriesPage = () => {
   usePageTitle('Contact Inquiries');
+  const { user, userProfile } = useAuth();
   const [inquiries, setInquiries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -109,6 +111,32 @@ const ContactInquiriesPage = () => {
       if (selectedInquiry?.id === id) {
         setSelectedInquiry(prev => ({ ...prev, status: newStatus }));
       }
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setUpdating(null);
+    }
+  };
+
+  // Ownership. Without it nobody is answerable for an inquiry, and with more
+  // than one admin two people can answer the same person.
+  const handleAssign = async (inquiry) => {
+    setUpdating(inquiry.id);
+    try {
+      const mine = inquiry.assigned_admin_id === user?.id;
+      if (mine) {
+        await unassignInquiry(inquiry.id);
+      } else {
+        await assignInquiry(inquiry.id);
+      }
+      const patch = mine
+        ? { assigned_admin_id: null, assigned_admin: null }
+        : { assigned_admin_id: user?.id, assigned_admin: { name: userProfile?.name || 'You' } };
+      setInquiries(prev => prev.map(i => (i.id === inquiry.id ? { ...i, ...patch } : i)));
+      if (selectedInquiry?.id === inquiry.id) setSelectedInquiry(prev => ({ ...prev, ...patch }));
+      logChat(mine ? 'Inquiry Released' : 'Inquiry Claimed', inquiry.id, inquiry.name || 'Unknown', {
+        details: mine ? 'Returned to the unclaimed pool.' : 'Claimed by admin.',
+      });
     } catch (e) {
       setError(e.message);
     } finally {
@@ -225,9 +253,17 @@ const ContactInquiriesPage = () => {
                           <div className="sidebar-user-avatar w-32 h-32 text-xs flex-shrink-0">
                             {(inq.name || '?')[0].toUpperCase()}
                           </div>
-                          <span style={{ fontWeight: inq.status === 'new' ? 700 : 500 }}>
-                            {inq.name}
-                          </span>
+                          <div className="flex flex-col">
+                            <span style={{ fontWeight: inq.status === 'new' ? 700 : 500 }}>
+                              {inq.name}
+                            </span>
+                            {inq.assigned_admin_id && (
+                              <span className="text-xs text-tertiary flex items-center gap-4">
+                                <UserCheck size={10} aria-hidden="true" />
+                                {inq.assigned_admin_id === user?.id ? 'You' : (inq.assigned_admin?.name || 'Assigned')}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </td>
                       <td data-label="Contact" className="text-sm text-secondary">
@@ -338,12 +374,36 @@ const ContactInquiriesPage = () => {
                     </div>
                   )}
                 </div>
-                <div className="ml-auto">
+                <div className="ml-auto flex items-center gap-8">
                   <span className={`badge ${(STATUS_CONFIG[selectedInquiry.status] || STATUS_CONFIG.new).className}`}>
                     {(STATUS_CONFIG[selectedInquiry.status] || STATUS_CONFIG.new).label}
                   </span>
+                  <button
+                    type="button"
+                    className={`btn btn-sm ${selectedInquiry.assigned_admin_id ? 'btn-outline' : 'btn-secondary'}`}
+                    onClick={() => handleAssign(selectedInquiry)}
+                    disabled={updating === selectedInquiry.id}
+                  >
+                    <UserCheck size={13} aria-hidden="true" />
+                    {selectedInquiry.assigned_admin_id
+                      ? (selectedInquiry.assigned_admin_id === user?.id ? 'Release' : `With ${selectedInquiry.assigned_admin?.name || 'admin'}`)
+                      : 'Claim'}
+                  </button>
                 </div>
               </div>
+
+              {selectedInquiry.first_response_at && (
+                <div className="text-xs text-tertiary mb-16 flex items-center gap-4">
+                  <Clock size={12} aria-hidden="true" />
+                  First actioned {new Date(selectedInquiry.first_response_at).toLocaleString('en-PH', {
+                    month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true,
+                  })}
+                  {' · '}
+                  {Math.round(
+                    (new Date(selectedInquiry.first_response_at) - new Date(selectedInquiry.created_at)) / 3600000
+                  )}h after it arrived
+                </div>
+              )}
 
               <div className="mb-16">
                 <div className="text-xs text-tertiary font-bold mb-6 text-uppercase">
