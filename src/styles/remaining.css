@@ -3445,9 +3445,26 @@
 
 /* Mobile-only controls, hidden on desktop. */
 .inbox-resolve-quick,
-.inbox-header-overflow {
+.inbox-assign-quick {
   display: none;
 }
+
+.inbox-assign-quick {
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--primary-bg);
+  color: var(--primary-text);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: var(--transition-fast);
+}
+.inbox-assign-quick:hover { background: color-mix(in srgb, var(--primary) 18%, var(--surface)); }
+.inbox-assign-quick:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 
 .inbox-resolve-quick {
   align-items: center;
@@ -3466,73 +3483,19 @@
 .inbox-resolve-quick:hover { background: color-mix(in srgb, var(--success) 20%, var(--surface)); }
 .inbox-resolve-quick:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 
-.inbox-header-overflow { position: relative; flex-shrink: 0; }
-
-.inbox-header-menu-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 44px;
-  height: 44px;
-  padding: 0;
-  border: none;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--text-secondary);
-  cursor: pointer;
-  transition: var(--transition-fast);
-}
-.inbox-header-menu-btn:hover { background: var(--bg-secondary); color: var(--text); }
-.inbox-header-menu-btn:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
-
-/* Opens downward, inside .inbox-layout's overflow:hidden box. Kept short
-   (two items) so it cannot be clipped by the layout bounds. */
-.inbox-header-menu {
-  position: absolute;
-  top: calc(100% + 6px);
-  right: 0;
-  min-width: 210px;
-  padding: 6px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-lg);
-  z-index: var(--z-dropdown);
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.inbox-header-menu-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-  min-height: 44px;
-  padding: 10px 12px;
-  border: none;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--text);
-  font-family: inherit;
-  font-size: 0.875rem;
-  font-weight: 500;
-  text-align: left;
-  cursor: pointer;
-  transition: var(--transition-fast);
-}
-.inbox-header-menu-item:hover { background: var(--bg-secondary); }
-.inbox-header-menu-item:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
-
 @media (max-width: 768px) {
   .inbox-actions-desktop { display: none; }
-  .inbox-resolve-quick { display: flex; }
-  .inbox-header-overflow { display: block; }
+  .inbox-resolve-quick,
+  .inbox-assign-quick { display: flex; }
 
-  /* Email is reference information, not an action — it costs a whole row on a
-     375px screen. It remains available on desktop and in the conversation list.
-     Targeted by its own class, not the generic .truncate utility. */
-  .inbox-chat-user-email { display: none; }
+  /* Email stays visible. It was hidden while an overflow menu owned this space,
+     which left no way to see a customer's email on a phone at all. With the
+     menu gone the action group is the same width (two 44px icons), so the row
+     it sits on is free again. Truncates rather than wrapping. */
+  .inbox-chat-user-email {
+    min-width: 0;
+    flex: 0 1 auto;
+  }
 }
 
 /* --- INBOX — Message search results ------------------------------------ */

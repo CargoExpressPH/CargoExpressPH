@@ -19,7 +19,7 @@ import {
   CONVERSATION_STATUS,
 } from '../../lib/database';
 import EmptyState from '../../components/ui/EmptyState';
-import { MessageSquare, Send, Loader, User, Bot, Clock, CheckCircle, UserCheck, ArrowLeft, Search, AlertCircle, X, MoreVertical } from 'lucide-react';
+import { MessageSquare, Send, Loader, User, Bot, Clock, CheckCircle, UserCheck, ArrowLeft, Search, AlertCircle, X } from 'lucide-react';
 import usePageTitle from '../../hooks/usePageTitle';
 import { logChat } from '../../lib/activityLog';
 
@@ -108,33 +108,6 @@ const InboxPage = () => {
   const [messageMatches, setMessageMatches] = useState(new Map());
   const [admins, setAdmins] = useState([]);
   const [reassigning, setReassigning] = useState(false);
-  // Mobile-only overflow menu for secondary chat-header actions.
-  const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
-  const headerMenuRef = useRef(null);
-
-  // Escape + outside-click dismissal, matching the other menus in this app.
-  // Listeners are only attached while the menu is open.
-  useEffect(() => {
-    if (!headerMenuOpen) return undefined;
-    const onKeyDown = (e) => {
-      if (e.key === 'Escape') setHeaderMenuOpen(false);
-    };
-    const onPointerDown = (e) => {
-      if (!headerMenuRef.current?.contains(e.target)) setHeaderMenuOpen(false);
-    };
-    document.addEventListener('keydown', onKeyDown);
-    document.addEventListener('pointerdown', onPointerDown);
-    return () => {
-      document.removeEventListener('keydown', onKeyDown);
-      document.removeEventListener('pointerdown', onPointerDown);
-    };
-  }, [headerMenuOpen]);
-
-  // The menu's open state lives here, above the header that renders it, so it
-  // survives the header unmounting when you go back to the list. Without this
-  // reset, opening the menu, going back, then opening another conversation
-  // would show the menu already open against a different customer.
-  useEffect(() => { setHeaderMenuOpen(false); }, [activeConv?.id]);
 
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
@@ -998,11 +971,23 @@ const InboxPage = () => {
                     </button>
                   </div>
 
-                  {/* ── Mobile: Resolve stays one tap; the rest go behind ⋮ ──
-                       Resolve is the action an admin performs on nearly every
-                       conversation, so burying it would cost a tap every time.
-                       The header's ✕ is omitted here: the back arrow already
-                       does exactly the same thing. */}
+                  {/* ── Mobile: two direct icon actions, no hidden menu ──
+                       An overflow menu holding one situational item costs more
+                       than it gives. The header's ✕ is omitted here because the
+                       back arrow already does exactly the same thing; on desktop
+                       there is no back arrow, so ✕ stays in the group above. */}
+                  {activeConv.status !== CONVERSATION_STATUS.RESOLVED && !activeConv.assigned_admin_id && (
+                    <button
+                      type="button"
+                      className="inbox-assign-quick"
+                      onClick={() => handleStatusChange('assigned')}
+                      aria-label="Assign this conversation to me"
+                      title="Assign to me"
+                    >
+                      <UserCheck size={18} aria-hidden="true" />
+                    </button>
+                  )}
+
                   {activeConv.status !== CONVERSATION_STATUS.RESOLVED && (
                     <button
                       type="button"
@@ -1014,42 +999,6 @@ const InboxPage = () => {
                       <CheckCircle size={18} aria-hidden="true" />
                     </button>
                   )}
-
-                  <div className="inbox-header-overflow" ref={headerMenuRef}>
-                    <button
-                      type="button"
-                      className="inbox-header-menu-btn"
-                      onClick={() => setHeaderMenuOpen(o => !o)}
-                      aria-haspopup="menu"
-                      aria-expanded={headerMenuOpen}
-                      aria-label="More conversation actions"
-                    >
-                      <MoreVertical size={18} aria-hidden="true" />
-                    </button>
-
-                    {headerMenuOpen && (
-                      <div className="inbox-header-menu" role="menu">
-                        {activeConv.status !== CONVERSATION_STATUS.RESOLVED && !activeConv.assigned_admin_id && (
-                          <button
-                            type="button"
-                            role="menuitem"
-                            className="inbox-header-menu-item"
-                            onClick={() => { setHeaderMenuOpen(false); handleStatusChange('assigned'); }}
-                          >
-                            <UserCheck size={15} aria-hidden="true" /> Assign to Me
-                          </button>
-                        )}
-                        <button
-                          type="button"
-                          role="menuitem"
-                          className="inbox-header-menu-item"
-                          onClick={() => { setHeaderMenuOpen(false); setActiveConv(null); activeConvRef.current = null; }}
-                        >
-                          <X size={15} aria-hidden="true" /> Close conversation
-                        </button>
-                      </div>
-                    )}
-                  </div>
                 </div>
               </div>
 
