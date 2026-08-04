@@ -5,6 +5,34 @@
 **Date:** 4 August 2026
 **Data source:** live Supabase project `duigaivxgxlnjmfienhg`, queried 4 August 2026
 
+> ### ⚠ Revision, 4 August 2026 — read before quoting section 4
+>
+> After this study was written, the project owner confirmed that **chat support is still in its
+> testing phase and has not carried real customer traffic.**
+>
+> That invalidates the *behavioural* readings in [§4.2](#42-response-time--the-core-problem-quantified)
+> and [§4.4](#44-timing--admins-reply-when-customers-arent-writing). The 54-hour median, the 47-day
+> worst case, the 20% never-answered rate and the "admins reply on Saturday" pattern describe the
+> developer and testers exercising the feature at irregular hours — **not customers being kept
+> waiting.** They must not be cited as an operational baseline, and the SLA ladder in
+> [§6.3](#63-sla-targets--calibrated-to-your-numbers) has been **withdrawn from Phase 1**; targets
+> will be set once real traffic exists.
+>
+> **What is unaffected:** Findings [1](#finding-1--closed-means-two-opposite-things--critical),
+> [2](#finding-2--no-timestamps-so-no-measurable-service--high),
+> [4](#finding-4--bot-outcomes-are-invisible--medium) and
+> [5](#finding-5--assignment-is-one-way--medium) are facts about the *code*, established by reading
+> it, and hold with zero customers: a conversation is born `closed`, an admin finishing also writes
+> `closed`, and `conversations` carries no service timestamps. The measurements were the motivation
+> for the restructure, not its justification — the design stands on the structural argument alone.
+>
+> Shipping the instrumentation *before* launch is now the stronger reason to proceed: it means the
+> first real month of traffic produces a genuine baseline instead of another reconstruction.
+>
+> Scope also narrowed by decision: **Phase 3's shared queue is cancelled.** `contact_inquiries`
+> gets an assignee and a response stamp on its existing page; the Inbox stays exclusively for
+> live chat.
+
 ---
 
 ## Contents
