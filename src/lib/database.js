@@ -1370,6 +1370,33 @@ export const compareConversations = (a, b) => {
   return timeB - timeA;
 };
 
+/**
+ * Search message BODIES across every conversation (admin only).
+ *
+ * The sidebar search matched customer name and email only, so a thread an
+ * admin remembered by what was said in it was unfindable. Returns one row per
+ * matching conversation with the most recent matching line, so the list can
+ * show why a result came back.
+ *
+ * @param {string} query
+ * @returns {Map<string, {snippet: string, matchCount: number, matchedAt: string}>}
+ *          keyed by conversation id; empty for queries under 2 characters.
+ */
+export const searchConversationMessages = async (query) => {
+  const term = (query || '').trim();
+  if (term.length < 2) return new Map();
+
+  const { data, error } = await supabase.rpc('search_conversation_messages', { p_query: term });
+  if (error) throw error;
+
+  return new Map(
+    (data || []).map(row => [
+      row.conversation_id,
+      { snippet: row.snippet, matchCount: row.match_count, matchedAt: row.matched_at },
+    ])
+  );
+};
+
 export const getAdminConversations = async () => {
   const { data, error } = await supabase
     .from('conversations')

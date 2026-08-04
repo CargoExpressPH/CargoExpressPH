@@ -3255,3 +3255,31 @@
   outline: 2px solid var(--primary);
   outline-offset: 1px;
 }
+
+/* --- INBOX — Message search results ------------------------------------ */
+/* A row returned by a message match shows the matching line, not the last
+   message: otherwise the admin sees unrelated text and cannot tell why the
+   result came back. */
+.inbox-conv-preview.is-match {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+.inbox-conv-preview.is-match > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.inbox-conv-preview.is-empty {
+  color: var(--text-tertiary);
+  font-style: italic;
+}
+.inbox-match-count {
+  flex-shrink: 0;
+  font-size: 0.62rem;
+  font-weight: 700;
+  font-style: normal;
+  color: var(--text-tertiary);
+}

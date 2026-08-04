@@ -15,6 +15,7 @@ import {
   compareConversations,
   reassignConversation,
   getAdminProfiles,
+  searchConversationMessages,
   CONVERSATION_STATUS,
 } from '../../lib/database';
 import EmptyState from '../../components/ui/EmptyState';
@@ -104,6 +105,7 @@ const InboxPage = () => {
   const [textareaHeight, setTextareaHeight] = useState(TEXTAREA_BASE_HEIGHT);
   const [hasMoreMessages, setHasMoreMessages] = useState(false);
   const [loadingOlder, setLoadingOlder] = useState(false);
+  const [messageMatches, setMessageMatches] = useState(new Map());
   const [admins, setAdmins] = useState([]);
   const [reassigning, setReassigning] = useState(false);
 
@@ -407,6 +409,12 @@ const InboxPage = () => {
         if (error) {
           setCustomerResults([]);
         } else {
+          // Anyone who already has a conversation row is excluded here, empty
+          // or not — during a search those rows are shown in the list above,
+          // so listing them here too would surface the same customer twice.
+          // (The bug this replaced was in the LIST, not here: empty rows were
+          // hidden there while also being excluded here, so such a customer
+          // appeared in neither half of the sidebar.)
           const existingIds = new Set(conversations.map(c => c.profiles?.id).filter(Boolean));
           setCustomerResults((data || []).filter(p => !existingIds.has(p.id)));
         }
@@ -416,6 +424,27 @@ const InboxPage = () => {
     }, 300);
     return () => { cancelled = true; clearTimeout(timer); };
   }, [searchQuery, conversations]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Search message BODIES (admin-only RPC) ────────────────────────────────
+  // Runs beside the directory lookup on the same query. Kept as its own effect
+  // so a failure here degrades to name/email search rather than breaking it.
+  useEffect(() => {
+    const q = searchQuery.trim();
+    if (q.length < 2) {
+      setMessageMatches(new Map());
+      return undefined;
+    }
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      try {
+        const matches = await searchConversationMessages(q);
+        if (!cancelled) setMessageMatches(matches);
+      } catch {
+        if (!cancelled) setMessageMatches(new Map());
+      }
+    }, 300);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [searchQuery]);
 
   // ── Start a chat with a customer who has no conversation yet ───────────────
   const handleStartChat = async (customer) => {
@@ -631,17 +660,24 @@ const InboxPage = () => {
   const needsReply = conversations.filter(c => c.status === CONVERSATION_STATUS.WAITING && c.last_message).length;
   const overdue = conversations.filter(c => waitingHours(c) >= WAITING_ALERT_HOURS && c.last_message).length;
 
+  const query = searchQuery.trim().toLowerCase();
+  const searching = query.length > 0;
+
   const filteredConvs = conversations.filter(conv => {
-    // Hide empty conversations (0 messages) unless it's the one we just actively clicked
-    if (!conv.last_message && conv.id !== activeConv?.id) return false;
-    
-    // Resolved threads are history, not work. One checkbox instead of a tab.
-    if (!showResolved && conv.status === CONVERSATION_STATUS.RESOLVED) return false;
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase();
+    // Empty conversations are noise in the resting list — but they are exactly
+    // what someone is looking for when they search a customer by name, so the
+    // rule lifts while a search is running.
+    if (!searching && !conv.last_message && conv.id !== activeConv?.id) return false;
+
+    // Resolved threads are history, not work. One checkbox instead of a tab —
+    // and a search should still find them, or the search looks broken.
+    if (!searching && !showResolved && conv.status === CONVERSATION_STATUS.RESOLVED) return false;
+
+    if (searching) {
       const name = conv.profiles?.name?.toLowerCase() || '';
       const email = conv.profiles?.email?.toLowerCase() || '';
-      if (!name.includes(q) && !email.includes(q)) return false;
+      const matchedInMessages = messageMatches.has(conv.id);
+      if (!name.includes(query) && !email.includes(query) && !matchedInMessages) return false;
     }
     return true;
   });
@@ -760,12 +796,24 @@ const InboxPage = () => {
                         )}
                       </div>
 
-                      {conv.last_message?.message && (
+                      {searching && messageMatches.has(conv.id) ? (
+                        <div className="inbox-conv-preview is-match">
+                          <Search size={10} aria-hidden="true" />
+                          <span>{messageMatches.get(conv.id).snippet}</span>
+                          {messageMatches.get(conv.id).matchCount > 1 && (
+                            <span className="inbox-match-count">
+                              +{messageMatches.get(conv.id).matchCount - 1}
+                            </span>
+                          )}
+                        </div>
+                      ) : conv.last_message?.message ? (
                         <div className="inbox-conv-preview">
                           {conv.last_message.sender_role === 'admin' ? 'You: ' : conv.last_message.sender_role === 'bot' ? 'Bot: ' : ''}
                           {conv.last_message.message}
                         </div>
-                      )}
+                      ) : searching ? (
+                        <div className="inbox-conv-preview is-empty">No messages yet</div>
+                      ) : null}
 
                       <div className="inbox-conversation-meta">
                         <ConvStatusBadge
