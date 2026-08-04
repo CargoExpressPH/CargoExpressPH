@@ -1276,12 +1276,29 @@
     padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
   }
 
-  /* Sits on the SAME row as the customer name, not wrapped underneath.
-     This was `width: 100%` so the old full-width text buttons ("Assign to Me",
-     "Resolve", "✕") had room, which pushed them onto a row of their own. On
-     mobile the group is now just two 44px icons (quick Resolve and ⋮), so it
-     fits beside the identity block — .inbox-chat-header-identity carries
-     `flex: 1 1 auto; min-width: 0`, so the name truncates instead. */
+  /* Keep Resolve and ⋮ on the top row, right-aligned beside the name.
+     Three rules are needed together — removing the old `width: 100%` alone is
+     not enough:
+
+       1. flex-wrap: nowrap on the header. With `wrap`, a flex item whose BASE
+          size exceeds the line wraps BEFORE it shrinks (flex-shrink only
+          applies to items already sharing a line). The identity block would
+          therefore claim the whole line and push the icons onto a second row,
+          where the header's `justify-content: space-between` left a lone item
+          sitting at the LEFT.
+       2. flex-basis 0 on the identity, so its base size never forces that wrap
+          and it simply absorbs whatever space is left.
+       3. width auto on the actions, replacing the `width: 100%` that existed
+          for the old full-width text buttons. */
+  .inbox-chat-header {
+    flex-wrap: nowrap;
+  }
+
+  .inbox-chat-header-identity {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
   .inbox-chat-header-actions {
     width: auto;
     flex: 0 0 auto;
