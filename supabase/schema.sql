@@ -22,6 +22,11 @@ CREATE TABLE IF NOT EXISTS profiles (
   -- Contact & social
   facebook_name TEXT DEFAULT NULL,
   address_landmark TEXT DEFAULT NULL,
+  -- Pre-joined single-line address built by buildProfileAddress() from the
+  -- address_* columns above, which remain the source of truth. Restored in
+  -- 20260805120000_profiles_add_address.sql after 20260802000000 dropped it,
+  -- because the client still writes it on register and profile save.
+  address TEXT DEFAULT NULL,
   -- Timestamps
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
