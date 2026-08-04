@@ -752,6 +752,52 @@ CREATE TRIGGER chat_messages_guard_insert
 
 
 -- ============================================================
+-- ACTIVITY LOG WRITE GUARD
+-- Same principle as guard_chat_message_insert: identity is taken from
+-- auth.uid(), never from the client. Without it any authenticated customer
+-- could forge staff entries in the audit trail — the RLS policy only pins
+-- admin_id, leaving admin_name / module / action as free text.
+-- Non-admins are limited to the modules the customer app actually writes.
+-- See migration 20260804160000_activity_log_guard.sql.
+-- ============================================================
+CREATE OR REPLACE FUNCTION public.guard_activity_log_insert()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_uid      UUID := auth.uid();
+  v_is_admin BOOLEAN;
+  v_name     TEXT;
+BEGIN
+  -- Service role / trigger-internal writes: nothing to attribute, leave as-is.
+  IF v_uid IS NULL THEN
+    RETURN NEW;
+  END IF;
+
+  v_is_admin := public.is_admin();
+
+  IF NOT v_is_admin AND NEW.module NOT IN ('Orders', 'Authentication') THEN
+    RAISE EXCEPTION 'Not allowed to write % activity logs', NEW.module;
+  END IF;
+
+  SELECT name INTO v_name FROM public.profiles WHERE id = v_uid;
+
+  NEW.admin_id   := v_uid;
+  NEW.admin_name := COALESCE(NULLIF(btrim(v_name), ''), 'Unknown Admin');
+
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS activity_logs_guard_insert ON public.activity_logs;
+CREATE TRIGGER activity_logs_guard_insert
+  BEFORE INSERT ON public.activity_logs
+  FOR EACH ROW EXECUTE FUNCTION public.guard_activity_log_insert();
+
+
+-- ============================================================
 -- ENABLE REALTIME
 -- ============================================================
 ALTER PUBLICATION supabase_realtime ADD TABLE conversations;
@@ -1927,6 +1973,14 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
+  -- Authenticated callers only. Created without grants, this SECURITY DEFINER
+  -- function defaulted to EXECUTE TO PUBLIC — letting anonymous visitors push
+  -- arbitrary text into every admin's notification feed.
+  -- See migration 20260804160000_activity_log_guard.sql.
+  IF auth.uid() IS NULL THEN
+    RAISE EXCEPTION 'Authentication required';
+  END IF;
+
   RETURN QUERY
   WITH inserted AS (
     INSERT INTO public.notifications (user_id, title, message, type, reference_id)
@@ -1938,6 +1992,9 @@ BEGIN
   SELECT user_id FROM inserted;
 END;
 $$;
+
+REVOKE EXECUTE ON FUNCTION public.create_admin_notifications_rpc(TEXT, TEXT, TEXT, UUID) FROM PUBLIC, anon;
+GRANT  EXECUTE ON FUNCTION public.create_admin_notifications_rpc(TEXT, TEXT, TEXT, UUID) TO authenticated;
 
 
 -- ============================================================

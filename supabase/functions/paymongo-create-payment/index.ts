@@ -46,7 +46,9 @@ const paymongoAuthHeader = () => {
 const getAttempt = async (adminSupabase: ReturnType<typeof createClient>, sourceId: string) => {
   const { data } = await adminSupabase
     .from('payment_attempts')
-    .select('source_id, amount, status, payment_id, payment_status, payment_type, estimated_cost, promised_payment_date')
+    // order_id is selected for the ownership binding in ensureAttempt / poll —
+    // without it, an attempt could be silently re-pointed at another order.
+    .select('source_id, order_id, amount, status, payment_id, payment_status, payment_type, estimated_cost, promised_payment_date')
     .eq('source_id', sourceId)
     .maybeSingle()
   return data
@@ -62,6 +64,27 @@ const ensureAttempt = async (
 ) => {
   const existing = await getAttempt(adminSupabase, sourceId)
   if (!orderUpdate?.orderId) return existing
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // SECURITY: a source is bound to the order it was first registered against.
+  //
+  // Without this, any authenticated user could re-point someone else's pending
+  // attempt at their OWN order — the row is written with the service-role key,
+  // so RLS does not apply here. The source id is not a secret: it is embedded
+  // in the checkout URL that the admin displays as a QR code at the counter.
+  // Photograph that QR, POST it back with your own orderId, and the victim's
+  // payment reconciles against your order while theirs stays unpaid.
+  //
+  // Re-registering the SAME order is still allowed — that is the ordinary
+  // retry path.
+  // ───────────────────────────────────────────────────────────────────────────
+  if (existing?.order_id && existing.order_id !== orderUpdate.orderId) {
+    console.warn(
+      `[paymongo-create-payment] ATTEMPT REBIND REJECTED source=${sourceId} ` +
+      `bound_order=${existing.order_id} requested_order=${orderUpdate.orderId} user=${createdBy}`,
+    )
+    throw new Error('This payment source is already registered to a different order.')
+  }
 
   const payload = {
     source_id: sourceId,
@@ -286,6 +309,14 @@ serve(async (req) => {
       const attempt = await getAttempt(adminSupabase, sourceId)
       if (!attempt) {
         return json({ error: 'No payment attempt found for this source' }, 404)
+      }
+
+      // The ownership check above validated the caller against orderUpdate.orderId,
+      // but the attempt is looked up by sourceId alone. Without this binding a
+      // customer could poll a stranger's source while passing their own order id
+      // and read back its amount, status and payment id.
+      if (!isAdmin && attempt.order_id !== orderUpdate?.orderId) {
+        return json({ error: 'Unauthorized to poll this payment' }, 403)
       }
 
       // If already reconciled, return immediately

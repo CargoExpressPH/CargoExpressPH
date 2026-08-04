@@ -275,8 +275,6 @@ serve(async (req) => {
     if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS_HEADERS })
 
     const { notification_id, user_id, title, body, url } = await req.json()
-    const clickUrl    = url || DEFAULT_NOTIFICATION_PATH
-    const webpushLink = getHttpsUrl(clickUrl)
 
     if (!user_id || !title) return jsonResp({ error: 'user_id and title required' }, 400)
 
@@ -302,9 +300,40 @@ serve(async (req) => {
         : supabase.from('profiles').select('role').eq('id', user_id).single(),
     ])
     const isTargetAdmin = targetUser?.role === 'admin'
-    if (reqErr || (requester?.role !== 'admin' && userData.user.id !== user_id && !isTargetAdmin)) {
+    const isRequesterAdmin = requester?.role === 'admin'
+    if (reqErr || (!isRequesterAdmin && userData.user.id !== user_id && !isTargetAdmin)) {
       return jsonResp({ error: 'Access denied' }, 403)
     }
+
+    // ───────────────────────────────────────────────────────────────────────────
+    // SECURITY: the click-through destination is caller-supplied.
+    //
+    // The rule above deliberately lets a CUSTOMER push a notification to an
+    // ADMIN (new chat message, new booking). Combined with an unrestricted url
+    // that is a phishing primitive: a customer could send staff a notification
+    // carrying the app's own name and icon that opens an attacker-controlled
+    // https:// site. getHttpsUrl() accepted any host.
+    //
+    // Non-admin callers are therefore limited to in-app paths. Admins keep the
+    // absolute-URL capability, which the FCM webpush link field needs.
+    // ───────────────────────────────────────────────────────────────────────────
+    const isSafeInAppPath = (value: unknown): value is string =>
+      typeof value === 'string' && value.startsWith('/') && !value.startsWith('//')
+
+    let clickUrl: string
+    if (isRequesterAdmin) {
+      clickUrl = (typeof url === 'string' && url) || DEFAULT_NOTIFICATION_PATH
+    } else if (isSafeInAppPath(url)) {
+      clickUrl = url
+    } else {
+      if (url) {
+        console.warn(
+          `[send-push] Rejected non-admin click url=${String(url).slice(0, 120)} from user=${userData.user.id}`,
+        )
+      }
+      clickUrl = DEFAULT_NOTIFICATION_PATH
+    }
+    const webpushLink = getHttpsUrl(clickUrl)
 
     // Fetch device tokens for the target user(s)
     let devices: { id: string; token: string; user_id: string }[] = []

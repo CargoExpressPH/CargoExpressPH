@@ -125,7 +125,7 @@ const UnsettledDeliveriesPage = () => {
   }, [orders, filter, search]);
 
   const filteredOutstanding = useMemo(
-    () => filtered.reduce((sum, o) => sum + parseFloat(o.remaining_balance || 0), 0),
+    () => filtered.reduce((sum, o) => sum + o.outstanding, 0),
     [filtered]
   );
 
@@ -241,6 +241,20 @@ const UnsettledDeliveriesPage = () => {
         </div>
       )}
 
+      {!loading && (t.mismatched || 0) > 0 && (
+        <div
+          className="mb-16 no-print"
+          style={{
+            background: 'var(--warning-bg)', color: 'var(--badge-warning-color)', border: '1px solid var(--warning)',
+            borderRadius: 8, padding: '10px 14px', fontSize: '0.8125rem',
+          }}
+          role="status"
+        >
+          {t.mismatched} shipment{t.mismatched === 1 ? ' has a' : 's have'} stored balance that disagrees with
+          billed minus paid. The figures shown are derived from billed minus paid; the stored total needs reconciling.
+        </div>
+      )}
+
       <div className="flex gap-8 flex-wrap items-center mb-16 no-print">
         <ResponsiveFilterControls
           options={filterOptions}
@@ -320,7 +334,14 @@ const UnsettledDeliveriesPage = () => {
                       </td>
                       <td data-label="Billed" className="num">{formatCurrency(o.shipping_cost)}</td>
                       <td data-label="Paid" className="num">{formatCurrency(o.amount_paid)}</td>
-                      <td data-label="Balance" className="num fw-700 text-error">{formatCurrency(o.remaining_balance)}</td>
+                      <td data-label="Balance" className="num fw-700 text-error">
+                        {formatCurrency(o.outstanding)}
+                        {o.balance_mismatch && (
+                          <div className="text-xs text-tertiary fw-400" title={`Stored remaining_balance is ${formatCurrency(o.remaining_balance)} — the ledger total is stale and should be reconciled.`}>
+                            ledger says {formatCurrency(o.remaining_balance)}
+                          </div>
+                        )}
+                      </td>
                       <td data-label="Action">
                         <button
                           type="button"
@@ -386,6 +407,7 @@ const UnsettledDeliveriesPage = () => {
                 <tr><td>Overdue Promises</td><td className="num">{t.overdue || 0}</td></tr>
                 <tr><td>Overdue Amount</td><td className="num">{formatCurrency(t.overdueAmount)}</td></tr>
                 <tr><td>Delivered with Balance Owing</td><td className="num">{t.delivered || 0}</td></tr>
+                <tr><td>Stored Balance Needing Reconciliation</td><td className="num">{t.mismatched || 0}</td></tr>
               </tbody>
             </table>
           </div>
@@ -418,7 +440,7 @@ const UnsettledDeliveriesPage = () => {
                     <td>{o.promised_payment_date ? formatDate(o.promised_payment_date) : '—'}</td>
                     <td className="num">{formatCurrency(o.shipping_cost)}</td>
                     <td className="num">{formatCurrency(o.amount_paid)}</td>
-                    <td className="num">{formatCurrency(o.remaining_balance)}</td>
+                    <td className="num">{formatCurrency(o.outstanding)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -436,7 +458,7 @@ const UnsettledDeliveriesPage = () => {
       {payingOrder && (
         <AdditionalPaymentModal
           order={payingOrder}
-          remainingBalance={parseFloat(payingOrder.remaining_balance || 0)}
+          remainingBalance={payingOrder.outstanding}
           onClose={() => setPayingOrder(null)}
           onSave={handleRecordPayment}
         />

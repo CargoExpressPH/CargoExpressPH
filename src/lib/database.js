@@ -983,8 +983,25 @@ const classifySettlement = (order, today) => {
  * Only orders that have actually been picked up are included — a booking that
  * has not been weighed yet has a placeholder balance, not a receivable.
  *
- * @returns {{orders: Array, totals: Object}} orders carry `settlement_bucket`
- *          and `days_overdue`; totals are computed over the same rows.
+ * WHAT COUNTS AS OWING (widened 2026-08-04):
+ *   outstanding = MAX(0, shipping_cost - amount_paid)
+ *
+ * `remaining_balance` is not used as the filter. It is trigger-derived and
+ * correct on every row the current triggers have touched, but legacy rows
+ * predating them can carry NULL — and `.gt('remaining_balance', 0)` drops
+ * NULLs silently, hiding genuinely unpaid old cargo. Deriving the figure from
+ * the two columns that are always populated catches those rows.
+ *
+ * PostgREST cannot compare two columns in a filter, so the arithmetic happens
+ * here and the query narrows by status only.
+ *
+ * Rows where the stored and derived figures disagree are flagged
+ * `balance_mismatch` — that is a stale ledger total worth a human look, not
+ * something to paper over.
+ *
+ * @returns {{orders: Array, totals: Object}} orders carry `settlement_bucket`,
+ *          `outstanding`, `balance_mismatch` and `days_overdue`; totals are
+ *          computed over the same rows.
  */
 export const getUnsettledOrders = async () => {
   const { data, error } = await supabase
@@ -992,7 +1009,6 @@ export const getUnsettledOrders = async () => {
     // sender_phone backs the PayMongo billing block in AdditionalPaymentModal.
     .select('id, tracking_number, sender_name, sender_phone, receiver_name, user_id, status, payment_status, payment_method, payer_type, promised_payment_date, shipping_cost, amount_paid, remaining_balance, actual_weight, package_weight, origin, destination, created_at, trip_id, profiles:user_id (name, phone, email)')
     .neq('status', 'Cancelled')
-    .gt('remaining_balance', 0)
     .in('status', ['Picked Up', 'In Transit', 'Arrived at Hub', 'Out for Delivery', 'Delivered'])
     .order('created_at', { ascending: false });
 
@@ -1001,24 +1017,41 @@ export const getUnsettledOrders = async () => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  const orders = (data || []).map(o => {
-    const bucket = classifySettlement(o, today);
+  const orders = (data || []).reduce((acc, o) => {
+    const cost = parseFloat(o.shipping_cost || 0);
+    const paid = parseFloat(o.amount_paid || 0);
+    const outstanding = Math.max(0, Math.round((cost - paid) * 100) / 100);
+    if (outstanding <= 0) return acc;
+
+    const stored = o.remaining_balance == null ? null : parseFloat(o.remaining_balance);
+
     let daysOverdue = 0;
     if (o.promised_payment_date) {
       const promised = new Date(`${o.promised_payment_date}T00:00:00`);
       daysOverdue = Math.max(0, Math.floor((today - promised) / 86400000));
     }
-    return { ...o, settlement_bucket: bucket, days_overdue: daysOverdue };
-  });
+
+    acc.push({
+      ...o,
+      outstanding,
+      // NULL is the legacy case this widening exists for — not a mismatch to
+      // report, just an absent figure the derived one stands in for.
+      balance_mismatch: stored != null && Math.abs(stored - outstanding) > 0.01,
+      settlement_bucket: classifySettlement(o, today),
+      days_overdue: daysOverdue,
+    });
+    return acc;
+  }, []);
 
   const totals = {
     count: orders.length,
-    outstanding: orders.reduce((sum, o) => sum + parseFloat(o.remaining_balance || 0), 0),
+    outstanding: orders.reduce((sum, o) => sum + o.outstanding, 0),
     held: orders.filter(o => o.settlement_bucket === SETTLEMENT_BUCKETS.HELD).length,
     overdue: orders.filter(o => o.settlement_bucket === SETTLEMENT_BUCKETS.OVERDUE).length,
+    mismatched: orders.filter(o => o.balance_mismatch).length,
     overdueAmount: orders
       .filter(o => o.settlement_bucket === SETTLEMENT_BUCKETS.OVERDUE)
-      .reduce((sum, o) => sum + parseFloat(o.remaining_balance || 0), 0),
+      .reduce((sum, o) => sum + o.outstanding, 0),
     delivered: orders.filter(o => o.settlement_bucket === SETTLEMENT_BUCKETS.DELIVERED).length,
   };
 
