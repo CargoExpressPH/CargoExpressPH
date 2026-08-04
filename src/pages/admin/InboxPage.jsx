@@ -628,8 +628,8 @@ const InboxPage = () => {
   // ── Render ─────────────────────────────────────────────────────────────────
   // One number matters: how many people are waiting on us. Everything else
   // the admin can see by looking at the list.
-  const needsReply = conversations.filter(c => c.status === CONVERSATION_STATUS.WAITING).length;
-  const overdue = conversations.filter(c => waitingHours(c) >= WAITING_ALERT_HOURS).length;
+  const needsReply = conversations.filter(c => c.status === CONVERSATION_STATUS.WAITING && c.last_message).length;
+  const overdue = conversations.filter(c => waitingHours(c) >= WAITING_ALERT_HOURS && c.last_message).length;
 
   const filteredConvs = conversations.filter(conv => {
     // Hide empty conversations (0 messages) unless it's the one we just actively clicked
