@@ -938,7 +938,9 @@ const InboxPage = () => {
                       <div className="text-tertiary inbox-chat-user-assigned">
                         <UserCheck size={11} aria-hidden="true" />
                         <label htmlFor="inbox-reassign" className="sr-only">Reassign this conversation</label>
-                        <span>Assigned to</span>
+                        {/* Hidden on mobile to give the select room; the icon
+                            plus the sr-only label above still carry the meaning. */}
+                        <span className="inbox-assigned-label">Assigned to</span>
                         {/* A handover path. Assignment used to be one-way, so a
                             conversation owned by someone on leave was stuck. */}
                         <select

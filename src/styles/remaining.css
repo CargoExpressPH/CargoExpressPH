@@ -1294,9 +1294,39 @@
     flex-wrap: nowrap;
   }
 
+  /* Space budget at 320px before this block: the identity block left ~80px for
+     everything nested inside it — the name fitted ~9 characters and the
+     reassign select computed to NEGATIVE width. Three reclaims, ~133px total:
+       - drop the avatar (36px + gap): the name is the identity here, and the
+         conversation list already shows avatars. Gmail does the same.
+       - tighten the gap 12 -> 8
+       - drop the "Assigned to" words (the icon and sr-only label still say it) */
   .inbox-chat-header-identity {
     flex: 1 1 0;
     min-width: 0;
+    gap: 8px;
+  }
+
+  .inbox-header-avatar {
+    display: none;
+  }
+
+  .inbox-assigned-label {
+    display: none;
+  }
+
+  /* Wrap to a second line rather than clipping. A customer's name is the most
+     important thing in this header, so truncating it is the worst outcome;
+     two lines covers every realistic name down to 320px. */
+  .inbox-chat-user-name {
+    white-space: normal;
+    overflow: hidden;
+    text-overflow: clip;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    line-height: 1.25;
   }
 
   .inbox-chat-header-actions {
@@ -3261,7 +3291,10 @@
     padding: 6px 8px;
     margin-left: 0;
     max-width: 100%;
-    flex: 1 1 140px;
+    /* basis 0, not 140px: a basis wider than the line makes a flex item wrap
+       before it shrinks, which would drop the select onto a row of its own at
+       320px. With basis 0 it simply absorbs whatever width is left. */
+    flex: 1 1 0;
     min-width: 0;
   }
 
