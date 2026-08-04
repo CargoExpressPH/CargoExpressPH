@@ -78,16 +78,27 @@ export const compressImage = async (file) => {
  * @param {string} trackingNumber - order tracking number for organized folder structure
  * @param {number} index          - 1-based index used for sequential filename numbering
  */
+// Folders holding shipment evidence — private, and cached only briefly.
+const EVIDENCE_FOLDERS = ['pickup', 'delivery', 'receipts', 'pickup-proofs', 'delivery-proofs'];
+
 const uploadToSupabaseStorage = async (file, folder, trackingNumber = '', index = null) => {
   validatePhotoFile(file);
   const compressed = await compressImage(file);
   const path = makePhotoPath(folder, trackingNumber, index);
 
+  // A year-long cache header is right for immutable public decoration and
+  // wrong for cargo evidence. Anything served through the CDN stays in the
+  // edge cache for its max-age regardless of what the bucket's privacy
+  // setting does afterwards — which is exactly why proof photos uploaded
+  // while `cargo-photos` was public survived it being locked down. One hour
+  // keeps the CDN useful without pinning private evidence at the edge.
+  const isEvidence = EVIDENCE_FOLDERS.includes(folder);
+
   const { error } = await supabase.storage
     .from(COMPANY_ASSETS_BUCKET)
     .upload(path, compressed, {
       contentType: 'image/jpeg',
-      cacheControl: '31536000',
+      cacheControl: isEvidence ? '3600' : '31536000',
       upsert: true, // upsert=true so re-uploads overwrite cleanly (e.g. hero banner replacement)
     });
 
