@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { getSalesData, withTimeout } from '../../lib/database';
 import { useAuth } from '../../contexts/AuthContext';
+import useRealtimeOrders from '../../hooks/useRealtimeOrders';
 import { logActivity } from '../../lib/activityLog';
 import { SkeletonStatCard, SkeletonDonut, SkeletonBarChart } from '../../components/ui/SkeletonLoader';
 import AnimatedCounter from '../../components/ui/AnimatedCounter';
@@ -16,27 +17,48 @@ const formatCurrency = (val) => `₱${(val || 0).toLocaleString('en-PH', { minim
 
 const SalesPage = () => {
   usePageTitle('Sales');
-  const { userProfile } = useAuth();
-  const [data, setData] = useState(null); 
+  const { user, userProfile } = useAuth();
+  const [data, setData] = useState(null);
   const [loadedAt, setLoadedAt] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
   const [exporting, setExporting] = useState(false);
 
   useEffect(() => { loadSales(); }, []);
-  const loadSales = async () => {
+  const loadSales = async ({ silent = false } = {}) => {
     setError(null);
-    setLoading(true);
+    if (silent) setRefreshing(true); else setLoading(true);
     try {
       const result = await withTimeout(getSalesData());
       setData(result);
       setLoadedAt(new Date());
     } catch (e) {
-      setError(e.message || 'Failed to load sales data.');
+      // Keep the last good figures on screen if a background refresh fails.
+      if (!silent) setError(e.message || 'Failed to load sales data.');
     } finally {
-      setLoading(false);
+      if (silent) setRefreshing(false); else setLoading(false);
     }
   };
+
+  // ── Realtime ──────────────────────────────────────────────────────────────
+  // Every figure here is an aggregate, so there is nothing to patch in place —
+  // any order change can move the totals and the monthly series. A 2s debounce
+  // (vs 800ms on the row-level list) keeps a burst of webhook reconciliations
+  // to a single recompute; a couple of seconds of staleness on an all-time
+  // revenue tile is invisible, and get_sales_summary is the heaviest read in
+  // the app.
+  const handleRealtimeBatch = useCallback(() => {
+    loadSales({ silent: true });
+  }, []);
+
+  useRealtimeOrders({
+    enabled: !loading,
+    channelName: 'sales_overview',
+    userId: user?.id,
+    debounceMs: 2000,
+    onBatch: handleRealtimeBatch,
+  });
 
   const handlePrint = () => {
     logActivity({ module: 'Sales & Reports', action: 'Sales Report Printed', details: 'Printed sales & revenue report' });
@@ -61,7 +83,7 @@ const SalesPage = () => {
       <div className="card text-center admin-error-card p-40">
         <h3>Error</h3>
         <p>{error}</p>
-        <button type="button" className="btn btn-primary mt-md" onClick={loadSales}>Retry</button>
+        <button type="button" className="btn btn-primary mt-md" onClick={() => loadSales()}>Retry</button>
       </div>
     </div>
   );
@@ -82,6 +104,24 @@ const SalesPage = () => {
         <div>
           <h1 className="admin-page-title">Sales & Revenue</h1>
           <p className="admin-page-subtitle">Revenue, collection health, and payment method performance.</p>
+          {!loading && data && (
+            <div className="text-xs text-tertiary mt-4 no-print" role="status" aria-live="polite">
+              {refreshing ? (
+                <><Loader size={12} className="animate-spin inline mr-6" aria-hidden="true" /> Updating…</>
+              ) : (
+                <>
+                  <span
+                    aria-hidden="true"
+                    style={{
+                      display: 'inline-block', width: 7, height: 7, borderRadius: '50%',
+                      background: 'var(--success)', marginRight: 6, verticalAlign: 'middle',
+                    }}
+                  />
+                  Live · updated {loadedAt ? loadedAt.toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit' }) : ''}
+                </>
+              )}
+            </div>
+          )}
         </div>
         {!loading && data && (
           <div className="flex gap-8">

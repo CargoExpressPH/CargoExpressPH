@@ -1,9 +1,11 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import {
   getUnsettledOrders, recordAdditionalPayment, withTimeout, SETTLEMENT_BUCKETS,
+  deriveSettlement, summarizeSettlements, qualifiesAsUnsettled,
 } from '../../lib/database';
 import { useAuth } from '../../contexts/AuthContext';
+import useRealtimeOrders from '../../hooks/useRealtimeOrders';
 import { logPayment, logActivity } from '../../lib/activityLog';
 import { SkeletonStatCard, SkeletonTableRow } from '../../components/ui/SkeletonLoader';
 import StatusBadge from '../../components/ui/StatusBadge';
@@ -68,9 +70,19 @@ const BUCKET_META = {
  * "Held at hub" rows, and `guard_trip_completion` refuses to close a trip
  * while any of these are still attached to it.
  */
+/** "just now" / "3m ago" — how fresh the numbers on screen are. */
+const formatFreshness = (date, now) => {
+  if (!date) return '';
+  const seconds = Math.max(0, Math.round((now - date) / 1000));
+  if (seconds < 45) return 'just now';
+  const minutes = Math.round(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  return date.toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit' });
+};
+
 const UnsettledDeliveriesPage = () => {
   usePageTitle('Unsettled Deliveries');
-  const { userProfile } = useAuth();
+  const { user, userProfile } = useAuth();
   const toast = useToast();
 
   const [orders, setOrders] = useState([]);
@@ -84,23 +96,96 @@ const UnsettledDeliveriesPage = () => {
   const [perPage, setPerPage] = useState(10);
   const [payingOrder, setPayingOrder] = useState(null);
   const [exporting, setExporting] = useState(false);
+  // A background reload triggered by realtime. Distinct from `loading` so the
+  // table is never replaced by skeletons under the admin's cursor.
+  const [refreshing, setRefreshing] = useState(false);
+  const [liveCount, setLiveCount] = useState(0);
+  const [now, setNow] = useState(() => new Date());
 
   useEffect(() => { loadUnsettled(); }, []);
 
-  const loadUnsettled = async () => {
+  // Re-render the freshness label without refetching anything.
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 30000);
+    return () => clearInterval(id);
+  }, []);
+
+  const loadUnsettled = async ({ silent = false } = {}) => {
     setError(null);
-    setLoading(true);
+    if (silent) setRefreshing(true); else setLoading(true);
     try {
       const result = await withTimeout(getUnsettledOrders());
       setOrders(result.orders);
       setTotals(result.totals);
       setLoadedAt(new Date());
     } catch (e) {
-      setError(e.message || 'Failed to load unsettled deliveries.');
+      // A failed background refresh must not blank out good data the admin is
+      // reading — surface the error only when this was an explicit load.
+      if (!silent) setError(e.message || 'Failed to load unsettled deliveries.');
     } finally {
-      setLoading(false);
+      if (silent) setRefreshing(false); else setLoading(false);
     }
   };
+
+  // ── Realtime ──────────────────────────────────────────────────────────────
+  // Payments land here from three directions the admin cannot see: the GCash
+  // webhook, another admin's screen, and the customer's own phone. Without
+  // this, a laptop left open on this page shows figures that quietly go stale.
+  //
+  // Rows already on screen are patched in place — no refetch, no scroll jump,
+  // no closed modal. A refetch happens only when a row that is NOT on screen
+  // starts qualifying, because only the query carries the customer join.
+  const ordersRef = useRef(orders);
+  ordersRef.current = orders;
+
+  const handleRealtimeBatch = useCallback((payloads) => {
+    const current = ordersRef.current;
+    const byId = new Map(current.map(o => [o.id, o]));
+    let touched = 0;
+    let needsFullReload = false;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    payloads.forEach(({ new: row, eventType }) => {
+      if (!row?.id) return;
+      const known = byId.get(row.id);
+
+      if (known) {
+        touched += 1;
+        if (!qualifiesAsUnsettled(row)) {
+          byId.delete(row.id);            // settled, cancelled, or rolled back
+          return;
+        }
+        // Keep the joined customer record; realtime payloads carry columns only.
+        const merged = { ...known, ...row, profiles: known.profiles };
+        byId.set(row.id, { ...merged, ...deriveSettlement(merged, today) });
+      } else if (qualifiesAsUnsettled(row) && eventType !== 'DELETE') {
+        needsFullReload = true;           // new arrival — needs the customer join
+        touched += 1;
+      }
+    });
+
+    if (touched === 0) return;
+
+    if (needsFullReload) {
+      loadUnsettled({ silent: true });
+    } else {
+      const next = Array.from(byId.values());
+      setOrders(next);
+      setTotals(summarizeSettlements(next));
+      setLoadedAt(new Date());
+    }
+    setLiveCount(c => c + touched);
+  }, []);
+
+  useRealtimeOrders({
+    enabled: !loading,
+    channelName: 'unsettled_deliveries',
+    userId: user?.id,
+    debounceMs: 800,
+    onBatch: handleRealtimeBatch,
+  });
 
   const filterOptions = useMemo(() => {
     const countOf = (bucket) => orders.filter(o => o.settlement_bucket === bucket).length;
@@ -143,7 +228,9 @@ const UnsettledDeliveriesPage = () => {
       details: `${formatCurrency(amount)} collected via ${method} from the unsettled deliveries list`,
     });
     setPayingOrder(null);
-    await loadUnsettled();
+    // Silent: the realtime patch usually lands first anyway, and a skeleton
+    // flash right after a successful collection looks like something failed.
+    await loadUnsettled({ silent: true });
     toast.success(`Payment of ${formatCurrency(amount)} recorded for ${order.tracking_number}.`);
   };
 
@@ -177,7 +264,7 @@ const UnsettledDeliveriesPage = () => {
     <div className="card text-center admin-error-card p-40">
       <h3>Error</h3>
       <p>{error}</p>
-      <button type="button" className="btn btn-primary mt-md" onClick={loadUnsettled}>Retry</button>
+      <button type="button" className="btn btn-primary mt-md" onClick={() => loadUnsettled()}>Retry</button>
     </div>
   );
 
@@ -191,10 +278,29 @@ const UnsettledDeliveriesPage = () => {
           <p className="admin-page-subtitle">
             Shipments in the pipeline that still owe money — who owes it, how much, and how overdue.
           </p>
+          {!loading && loadedAt && (
+            <div className="text-xs text-tertiary mt-4 no-print" role="status" aria-live="polite">
+              {refreshing ? (
+                <><Loader size={12} className="animate-spin inline mr-6" aria-hidden="true" /> Updating…</>
+              ) : (
+                <>
+                  <span
+                    aria-hidden="true"
+                    style={{
+                      display: 'inline-block', width: 7, height: 7, borderRadius: '50%',
+                      background: 'var(--success)', marginRight: 6, verticalAlign: 'middle',
+                    }}
+                  />
+                  Live · updated {formatFreshness(loadedAt, now)}
+                  {liveCount > 0 && <> · {liveCount} change{liveCount === 1 ? '' : 's'} received</>}
+                </>
+              )}
+            </div>
+          )}
         </div>
         {!loading && (
           <div className="flex gap-8 no-print">
-            <button type="button" className="btn btn-outline btn-sm" onClick={loadUnsettled}>
+            <button type="button" className="btn btn-outline btn-sm" onClick={() => loadUnsettled()}>
               <RefreshCw size={16} /> Refresh
             </button>
             <button type="button" className="btn btn-outline btn-sm" onClick={handleExportPDF} disabled={exporting || filtered.length === 0}>

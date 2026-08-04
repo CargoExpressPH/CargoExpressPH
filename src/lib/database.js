@@ -959,6 +959,14 @@ export const SETTLEMENT_BUCKETS = {
 };
 
 /**
+ * Order statuses that can carry a receivable. A booking that has not been
+ * picked up yet has a placeholder balance, not money owed.
+ */
+export const SETTLEMENT_TRACKED_STATUSES = [
+  'Picked Up', 'In Transit', 'Arrived at Hub', 'Out for Delivery', 'Delivered',
+];
+
+/**
  * Classifies one order into a settlement bucket.
  * `today` is passed in so a whole list is classified against one instant.
  */
@@ -1009,53 +1017,83 @@ export const getUnsettledOrders = async () => {
     // sender_phone backs the PayMongo billing block in AdditionalPaymentModal.
     .select('id, tracking_number, sender_name, sender_phone, receiver_name, user_id, status, payment_status, payment_method, payer_type, promised_payment_date, shipping_cost, amount_paid, remaining_balance, actual_weight, package_weight, origin, destination, created_at, trip_id, profiles:user_id (name, phone, email)')
     .neq('status', 'Cancelled')
-    .in('status', ['Picked Up', 'In Transit', 'Arrived at Hub', 'Out for Delivery', 'Delivered'])
+    .in('status', SETTLEMENT_TRACKED_STATUSES)
     .order('created_at', { ascending: false });
 
   if (error) throw error;
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const orders = (data || [])
+    .map(o => ({ ...o, ...deriveSettlement(o) }))
+    .filter(o => o.outstanding > 0);
 
-  const orders = (data || []).reduce((acc, o) => {
-    const cost = parseFloat(o.shipping_cost || 0);
-    const paid = parseFloat(o.amount_paid || 0);
-    const outstanding = Math.max(0, Math.round((cost - paid) * 100) / 100);
-    if (outstanding <= 0) return acc;
+  return { orders, totals: summarizeSettlements(orders) };
+};
 
-    const stored = o.remaining_balance == null ? null : parseFloat(o.remaining_balance);
+/**
+ * Derives the settlement fields for ONE order row.
+ *
+ * Shared by the full fetch above and by the realtime patch path in
+ * UnsettledDeliveriesPage. Realtime hands us a raw `orders` row from the
+ * WebSocket, and it must be classified by exactly the same rules as a row
+ * that arrived through the query — otherwise a payment that lands while the
+ * admin is watching would render differently from the same payment after a
+ * refresh.
+ *
+ * @param {Object} order  raw orders row
+ * @param {Date}   [today] midnight reference; pass one instant for a whole list
+ * @returns {{outstanding: number, balance_mismatch: boolean,
+ *            settlement_bucket: string, days_overdue: number}}
+ */
+export const deriveSettlement = (order, today = null) => {
+  const ref = today || (() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; })();
 
-    let daysOverdue = 0;
-    if (o.promised_payment_date) {
-      const promised = new Date(`${o.promised_payment_date}T00:00:00`);
-      daysOverdue = Math.max(0, Math.floor((today - promised) / 86400000));
-    }
+  const cost = parseFloat(order.shipping_cost || 0);
+  const paid = parseFloat(order.amount_paid || 0);
+  const outstanding = Math.max(0, Math.round((cost - paid) * 100) / 100);
+  const stored = order.remaining_balance == null ? null : parseFloat(order.remaining_balance);
 
-    acc.push({
-      ...o,
-      outstanding,
-      // NULL is the legacy case this widening exists for — not a mismatch to
-      // report, just an absent figure the derived one stands in for.
-      balance_mismatch: stored != null && Math.abs(stored - outstanding) > 0.01,
-      settlement_bucket: classifySettlement(o, today),
-      days_overdue: daysOverdue,
-    });
-    return acc;
-  }, []);
+  let daysOverdue = 0;
+  if (order.promised_payment_date) {
+    const promised = new Date(`${order.promised_payment_date}T00:00:00`);
+    daysOverdue = Math.max(0, Math.floor((ref - promised) / 86400000));
+  }
 
-  const totals = {
-    count: orders.length,
-    outstanding: orders.reduce((sum, o) => sum + o.outstanding, 0),
-    held: orders.filter(o => o.settlement_bucket === SETTLEMENT_BUCKETS.HELD).length,
-    overdue: orders.filter(o => o.settlement_bucket === SETTLEMENT_BUCKETS.OVERDUE).length,
-    mismatched: orders.filter(o => o.balance_mismatch).length,
-    overdueAmount: orders
-      .filter(o => o.settlement_bucket === SETTLEMENT_BUCKETS.OVERDUE)
-      .reduce((sum, o) => sum + o.outstanding, 0),
-    delivered: orders.filter(o => o.settlement_bucket === SETTLEMENT_BUCKETS.DELIVERED).length,
+  return {
+    outstanding,
+    // NULL is the legacy case the widening exists for — not a mismatch to
+    // report, just an absent figure the derived one stands in for.
+    balance_mismatch: stored != null && Math.abs(stored - outstanding) > 0.01,
+    settlement_bucket: classifySettlement(order, ref),
+    days_overdue: daysOverdue,
   };
+};
 
-  return { orders, totals };
+/**
+ * Recomputes the summary tiles from a list of already-derived orders.
+ * Kept next to deriveSettlement so a realtime patch and a full reload
+ * produce identical totals.
+ */
+export const summarizeSettlements = (orders = []) => ({
+  count: orders.length,
+  outstanding: orders.reduce((sum, o) => sum + o.outstanding, 0),
+  held: orders.filter(o => o.settlement_bucket === SETTLEMENT_BUCKETS.HELD).length,
+  overdue: orders.filter(o => o.settlement_bucket === SETTLEMENT_BUCKETS.OVERDUE).length,
+  mismatched: orders.filter(o => o.balance_mismatch).length,
+  overdueAmount: orders
+    .filter(o => o.settlement_bucket === SETTLEMENT_BUCKETS.OVERDUE)
+    .reduce((sum, o) => sum + o.outstanding, 0),
+  delivered: orders.filter(o => o.settlement_bucket === SETTLEMENT_BUCKETS.DELIVERED).length,
+});
+
+/**
+ * Is this raw orders row one the settlement list should be showing?
+ * Used by the realtime path to decide whether an incoming row belongs in the
+ * list at all before any patching happens.
+ */
+export const qualifiesAsUnsettled = (order) => {
+  if (!order || order.status === 'Cancelled') return false;
+  if (!SETTLEMENT_TRACKED_STATUSES.includes(order.status)) return false;
+  return parseFloat(order.shipping_cost || 0) - parseFloat(order.amount_paid || 0) > 0.005;
 };
 
 // ==================== SETTINGS ====================
