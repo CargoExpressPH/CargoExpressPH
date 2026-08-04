@@ -11,7 +11,6 @@ import {
   withTimeout,
   assignConversation,
   resolveConversation,
-  reopenConversation,
   getOrCreateConversation,
   compareConversations,
   reassignConversation,
@@ -28,8 +27,8 @@ import { logChat } from '../../lib/activityLog';
 // admin's attention, and one that says this thread is finished. A row with
 // no badge is a row with nothing to do — silence is the signal.
 const STATUS_BADGE = {
-  waiting:  { text: 'Waiting',  color: 'var(--warning)',       bg: 'var(--warning-bg)',   icon: Clock },
-  resolved: { text: 'Resolved', color: 'var(--text-tertiary)', bg: 'var(--bg-secondary)', icon: CheckCircle },
+  waiting:  { text: 'Waiting',  color: 'var(--warning-text)' },
+  resolved: { text: 'Resolved', color: 'var(--text-tertiary)' },
 };
 
 const WAITING_ALERT_HOURS = 24;
@@ -54,10 +53,9 @@ const ConvStatusBadge = ({ status, assignedAdmin }) => {
   if (!cfg) return assignedAdmin
     ? <span className="inbox-status-quiet">{assignedAdmin}</span>
     : null;
-  const Icon = cfg.icon;
   return (
-    <span className="inbox-status-badge" style={{ color: cfg.color, background: cfg.bg }}>
-      <Icon size={10} />
+    <span className="inbox-status-badge" style={{ color: cfg.color }}>
+      <span className="inbox-status-dot" aria-hidden="true" />
       {cfg.text}
       {assignedAdmin && <span style={{ marginLeft: 4, opacity: 0.8 }}>· {assignedAdmin}</span>}
     </span>
@@ -425,12 +423,11 @@ const InboxPage = () => {
     setSearchQuery('');
     setCustomerResults([]);
     try {
-      // New conversations default to 'bot_active' (bot-first); open it so the
-      // admin can reply immediately instead of hitting a disabled input.
+      // Deliberately does NOT touch status. Opening a conversation is not an
+      // event in it — nobody has said anything yet, so claiming the customer
+      // is "waiting" would be a lie the amber badge then repeats. The admin's
+      // first message is the event, and the trigger derives the state from it.
       const conv = await getOrCreateConversation(customer.id);
-      if (conv.status === CONVERSATION_STATUS.BOT_ACTIVE || conv.status === CONVERSATION_STATUS.RESOLVED) {
-        await reopenConversation(conv.id);
-      }
       await loadConvs(customer.id);
       logChat('Conversation Started', conv.id, customer.name || 'Customer', {
         details: `Admin started a conversation with ${customer.name || customer.email}.`,
@@ -539,13 +536,6 @@ const InboxPage = () => {
         });
         toast.success('Resolved. The bot handles them if they write again.');
         setActiveConv(prev => ({ ...prev, status: CONVERSATION_STATUS.RESOLVED }));
-      } else if (newStatus === 'reopen') {
-        await reopenConversation(activeConv.id);
-        logChat('Conversation Reopened', activeConv.id, activeConv.profiles?.name || 'Customer', {
-          details: `Conversation reopened.`,
-        });
-        toast.success('Conversation reopened.');
-        setActiveConv(prev => ({ ...prev, status: CONVERSATION_STATUS.WAITING }));
       }
       loadConvs();
     } catch {
@@ -670,7 +660,7 @@ const InboxPage = () => {
               <input
                 type="text"
                 aria-label="Search conversations"
-                placeholder="Search all customers..."
+                placeholder="Search or message a customer…"
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
               />
@@ -797,7 +787,7 @@ const InboxPage = () => {
                     className="text-tertiary fw-700"
                     style={{ fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.05em', padding: '10px 14px 4px' }}
                   >
-                    All Customers
+                    Start a new conversation
                   </div>
                   {searchingCustomers ? (
                     <div className="p-md text-center">
@@ -908,11 +898,7 @@ const InboxPage = () => {
                       </button>
                     </>
                   )}
-                  {activeConv.status === CONVERSATION_STATUS.RESOLVED && (
-                    <button type="button" className="btn btn-primary btn-sm" onClick={() => handleStatusChange('reopen')}>
-                      Reopen
-                    </button>
-                  )}
+
                 </div>
               </div>
 
@@ -991,7 +977,7 @@ const InboxPage = () => {
                   ref={textareaRef}
                   className="form-input flex-1 inbox-textarea"
                   aria-label="Type a reply"
-                  placeholder={activeConv.status === CONVERSATION_STATUS.RESOLVED ? 'Conversation resolved. Reopen to reply.' : 'Type a reply…'}
+                  placeholder={activeConv.status === CONVERSATION_STATUS.RESOLVED ? 'Resolved — replying reopens it' : 'Type a reply…'}
                   value={input}
                   onChange={e => {
                     const nextValue = e.target.value;
@@ -1013,13 +999,13 @@ const InboxPage = () => {
                     }
                   }}
                   style={{ height: `${textareaHeight}px` }}
-                  disabled={sending || activeConv.status === CONVERSATION_STATUS.RESOLVED || !!errorChat}
+                  disabled={sending || !!errorChat}
                 />
                 <button
                   type="submit"
                   className="btn btn-primary inbox-send-btn"
                   aria-label="Send reply"
-                  disabled={!input.trim() || sending || activeConv.status === CONVERSATION_STATUS.RESOLVED || !!errorChat}
+                  disabled={!input.trim() || sending || !!errorChat}
                 >
                   {sending ? <Loader size={18} className="animate-spin" aria-hidden="true" /> : <><Send size={18} aria-hidden="true" /> Reply</>}
                 </button>

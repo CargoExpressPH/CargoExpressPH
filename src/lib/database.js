@@ -2002,18 +2002,9 @@ export const resolveConversation = async (conversationId) => {
   if (error) throw error;
 };
 
-/**
- * Pull a resolved conversation back into the queue.
- * Reopening means "not finished", and the admin who reopened it is the one
- * about to act — so it lands on our side, not the customer's.
- */
-export const reopenConversation = async (conversationId) => {
-  const { error } = await supabase
-    .from('conversations')
-    .update({ status: CONVERSATION_STATUS.WAITING })
-    .eq('id', conversationId);
-  if (error) throw error;
-};
+// reopenConversation removed: replying to a resolved thread reopens it by
+// itself (the trigger derives the state from the message), so a separate
+// button asked the admin to do something the system already handles.
 
 /**
  * Record whether the bot actually answered the customer's question.

@@ -628,36 +628,30 @@
 /* --- INBOX — Status Badges --------------------------------------------- */
 
 .inbox-status-badge {
-  display: inline-flex; align-items: center; gap: 4px;
-  padding: 2px 8px;
-  border-radius: var(--radius-full);
-  font-size: 0.6875rem; font-weight: 600;
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 0.68rem; font-weight: 600;
   white-space: nowrap;
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.inbox-status-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+}
 
 /* --- INBOX — Waiting conversation highlight ---------------------------- */
 
-.inbox-conv-waiting {
-  border-left: 3px solid var(--warning);
-  background: var(--warning-bg);
-}
-.inbox-conv-waiting:hover {
-  background: var(--warning-bg);
-  background: color-mix(in srgb, var(--warning-bg) 85%, var(--text) 15%);
-}
+.inbox-conv-waiting { border-left-color: var(--warning); }
 
 /* --- INBOX — Waiting banner inside chat area --------------------------- */
 
 .inbox-waiting-banner {
   display: flex; align-items: center; gap: 8px;
-  padding: 8px 20px;
-  background: var(--warning-bg);
-  color: var(--warning-dark);
-  border-bottom: 1px solid var(--border-light);
-  font-size: 0.8125rem;
+  padding: 10px 20px 0;
+  color: var(--warning-text);
+  font-size: 0.78rem;
   font-weight: 500;
 }
 
@@ -708,27 +702,6 @@
   color: var(--warning);
 }
 
-/* Overdue call-out — the one thing in this page that must never be missed. */
-.inbox-overdue-banner {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  width: 100%;
-  margin-bottom: 8px;
-  padding: 7px 10px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--error);
-  background: var(--error-bg);
-  color: var(--error-dark);
-  font-size: 0.75rem;
-  font-weight: 600;
-  cursor: pointer;
-  text-align: left;
-  transition: var(--transition-fast);
-}
-.inbox-overdue-banner:hover {
-  filter: brightness(0.97);
-}
 
 /* Per-row wait age */
 .inbox-wait-age {
@@ -778,10 +751,9 @@
 /* --- INBOX — Custom Layouts & Avatars ---------------------------------- */
 
 .inbox-search-box {
-  padding: 6px 10px;
+  padding: 8px 10px;
   border-radius: var(--radius-sm);
   background: var(--bg-secondary);
-  border: 1px solid var(--border);
   display: flex;
   align-items: center;
   gap: 8px;
@@ -1003,11 +975,9 @@
   display: flex;
   flex: 1;
   min-height: 0;
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-lg);
   overflow: hidden;
   background: var(--surface);
-  box-shadow: var(--shadow-sm);
+  border-radius: var(--radius-lg);
 }
 .inbox-sidebar {
   width: clamp(260px, 28%, 320px);
@@ -1016,12 +986,10 @@
   min-height: 0;
 }
 .inbox-sidebar-header {
-  padding: 16px 20px;
-  border-bottom: 1px solid var(--border-light);
-  background: var(--bg);
+  padding: 18px 20px 14px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 .inbox-conversation-list {
   flex: 1; overflow-y: auto;
@@ -1030,20 +998,17 @@
 .inbox-conversation-item {
   width: 100%;
   display: flex; align-items: center; gap: 12px;
-  padding: 14px 16px;
-  border-bottom: 1px solid var(--border-light);
-  border-left: 3px solid transparent;
+  padding: 14px 18px;
+  border: none;
+  border-left: 2px solid transparent;
   background: transparent;
   text-align: left;
   cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: background-color 0.15s ease, border-color 0.15s ease;
 }
-.inbox-conversation-item:hover {
-  background: var(--bg);
-  transform: translateX(2px);
-}
+.inbox-conversation-item:hover { background: var(--bg-secondary); }
 .inbox-conversation-item.active {
-  background: var(--primary-bg);
+  background: var(--bg-secondary);
   border-left-color: var(--primary);
 }
 .inbox-conversation-avatar {
@@ -1127,9 +1092,8 @@
   min-height: 0;
 }
 .inbox-chat-header {
-  padding: 14px 20px;
+  padding: 16px 20px;
   border-bottom: 1px solid var(--border-light);
-  background: var(--bg);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -3234,17 +3198,13 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 7px 10px;
-  border-radius: var(--radius-sm);
-  background: var(--bg-secondary);
-  color: var(--text-secondary);
+  color: var(--text-tertiary);
   font-size: 0.78rem;
-  font-weight: 600;
+  font-weight: 500;
 }
 .inbox-queue-line.has-waiting {
-  background: var(--warning-bg);
-  color: var(--badge-warning-color);
-  border: 1px solid var(--warning);
+  color: var(--warning-text);
+  font-weight: 600;
 }
 .inbox-queue-line strong { font-variant-numeric: tabular-nums; }
 
