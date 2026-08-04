@@ -2,18 +2,21 @@ import { useState } from 'react';
 import SalesPage from './SalesPage';
 import ReportsPage from './ReportsPage';
 import UnsettledDeliveriesPage from './UnsettledDeliveriesPage';
+import ServiceReportsPage from './ServiceReportsPage';
 
 /**
  * SalesReportsPage — Combined Sales & Reports page.
- * All three financial views live behind a single admin navigation entry.
+ * All four views live behind a single admin navigation entry.
  * Sales = all-time revenue/collection overview; Unsettled = shipments that
- * still owe money, row by row; Reports = period-based operational analytics.
+ * still owe money, row by row; Customer Service = queue health and response
+ * times; Reports = period-based operational analytics.
  * The /admin/reports route opens this page with the Reports section active
  * (initialSection="reports").
  */
 const SECTIONS = [
   { value: 'sales', label: 'Sales Overview' },
   { value: 'unsettled', label: 'Unsettled Deliveries' },
+  { value: 'service', label: 'Customer Service' },
   { value: 'reports', label: 'Reports & Analytics' },
 ];
 
@@ -39,6 +42,7 @@ const SalesReportsPage = ({ initialSection }) => {
       </div>
       {section === 'sales' && <SalesPage />}
       {section === 'unsettled' && <UnsettledDeliveriesPage />}
+      {section === 'service' && <ServiceReportsPage />}
       {section === 'reports' && <ReportsPage />}
     </div>
   );

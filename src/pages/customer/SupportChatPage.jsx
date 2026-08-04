@@ -6,6 +6,7 @@ import {
   getMessagesPage,
   sendMessage,
   escalateConversation,
+  recordBotOutcome,
   CONVERSATION_STATUS,
   markAdminMessagesRead,
 } from '../../lib/database';
@@ -465,9 +466,13 @@ const SupportChatPage = () => {
   };
 
   // ── Resolution — Yes ───────────────────────────────────────────────────────
-  // Conversation stays CLOSED — bot handled everything successfully
+  // Conversation stays bot-handled — the bot answered successfully.
   const handleResolvedYes = async () => {
     setPendingResolutionId(null);
+    // The deflection signal. Without it a bot-answered thread and an
+    // abandoned one look identical in the data. Non-blocking: a failed
+    // write must never cost the customer their reply.
+    void recordBotOutcome(conversationId, true).catch(() => {});
     const msg = await insertBotMessage(
       `Thank you for contacting CargoExpress PH! 😊\n\nHave a great day! If you have another concern in the future, feel free to message us anytime.`,
       conversationId
@@ -480,6 +485,7 @@ const SupportChatPage = () => {
   // Escalate to admin: flip status to 'waiting' and raise the escalated flag
   const handleResolvedNo = async () => {
     setPendingResolutionId(null);
+    void recordBotOutcome(conversationId, false).catch(() => {});
     const escMsg = await insertBotMessage(
       `Thank you. I wasn't able to fully resolve your concern. 🙏\n\nPlease wait while one of our administrators assists you.`,
       conversationId

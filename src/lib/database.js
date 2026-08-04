@@ -1096,6 +1096,23 @@ export const qualifiesAsUnsettled = (order) => {
   return parseFloat(order.shipping_cost || 0) - parseFloat(order.amount_paid || 0) > 0.005;
 };
 
+// ==================== SERVICE REPORTING ====================
+
+/**
+ * Customer-service metrics for the Service tab, in one admin-gated round
+ * trip. Same pattern as getSalesData/get_sales_summary.
+ *
+ * Returns measurements only — no targets, no breach counts. Chat support has
+ * not carried real customer traffic yet, so any target would be invented and
+ * every comparison against it meaningless. Targets get set from a real month
+ * of data, which is why the instrumentation shipped before launch.
+ */
+export const getServiceSummary = async () => {
+  const { data, error } = await supabase.rpc('get_service_summary');
+  if (error) throw error;
+  return data || null;
+};
+
 // ==================== SETTINGS ====================
 export const getSettings = async () => {
   const { data, error } = await supabase
@@ -2004,6 +2021,26 @@ export const setConversationWaitingCustomer = async (conversationId) => {
   const { error } = await supabase
     .from('conversations')
     .update({ status: CONVERSATION_STATUS.WAITING_CUSTOMER })
+    .eq('id', conversationId);
+  if (error) throw error;
+};
+
+/**
+ * Record whether the bot actually answered the customer's question.
+ *
+ * `bot_resolved` starts NULL — "we do not know". 12 of the conversations in
+ * the service study ended with a bot reply and no human follow-up, and
+ * success (the bot deflected the question) was indistinguishable from
+ * failure (the customer gave up). This is the one signal that separates
+ * them, and it comes from the only party who knows: the customer.
+ *
+ * Written on every vote, including repeat votes in a long conversation —
+ * the latest answer wins, because it reflects the most recent exchange.
+ */
+export const recordBotOutcome = async (conversationId, resolved) => {
+  const { error } = await supabase
+    .from('conversations')
+    .update({ bot_resolved: resolved })
     .eq('id', conversationId);
   if (error) throw error;
 };
