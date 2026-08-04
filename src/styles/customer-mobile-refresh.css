@@ -268,11 +268,17 @@ body:has(:is(.customer-layout-v2, .trk-page, .public-about-page, .contact-page, 
   min-height: 58px;
   padding: 7px 8px;
   border-radius: 22px;
-  color: #657184;
+  color: #657184; /* 4.89:1 on the light nav — passes; kept so light mode is unchanged */
   font-size: 0.66rem;
   font-weight: 800;
   letter-spacing: 0;
   text-transform: none;
+}
+
+/* #657184 measured only 3.39:1 against the dark nav (rgba(19,32,51,.86) over
+   --bg). The token resolves to #9AA9BA here, giving 6.99:1. */
+[data-theme="dark"] .customer-bottom-tab {
+  color: var(--text-tertiary);
 }
 
 .customer-bottom-tab.active {

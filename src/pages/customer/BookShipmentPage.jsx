@@ -292,13 +292,29 @@ const BookShipmentPage = () => {
     return errs;
   };
 
+  // After a failed validation, move focus to the first field flagged invalid.
+  // Queried from the DOM rather than mapped from error keys — the key/id naming
+  // is not 1:1 (e.g. `lot_block` -> `lot-block`), and a mapping would break
+  // silently the moment a field is renamed.
+  const focusFirstInvalid = () => {
+    requestAnimationFrame(() => {
+      const el = document.querySelector('.booking-page [aria-invalid="true"]');
+      if (el && typeof el.focus === 'function') el.focus();
+    });
+  };
+
   const handleSubmit = async () => {
     setLoading(true);
+    // When validation sends the user back to a step, we focus the offending
+    // field — and focusing already scrolls it into view. The catch block's
+    // scroll-to-top would fight that, yanking the page away from the field the
+    // user was just sent to fix, so it is skipped on that path only.
+    let focusingInvalidField = false;
     try {
       if (!selectedRoute) throw new Error('Please select a route.');
       // C-2 fix: Navigate to the step containing the error before throwing
-      const sErrs = validateSender(); if (Object.keys(sErrs).length) { setFieldErrors(sErrs); setStep(2); throw new Error('Please fix sender details.'); }
-      const rErrs = validateReceiver(); if (Object.keys(rErrs).length) { setFieldErrors(rErrs); setStep(3); throw new Error('Please fix receiver details.'); }
+      const sErrs = validateSender(); if (Object.keys(sErrs).length) { setFieldErrors(sErrs); setStep(2); focusingInvalidField = true; focusFirstInvalid(); throw new Error('Please fix sender details.'); }
+      const rErrs = validateReceiver(); if (Object.keys(rErrs).length) { setFieldErrors(rErrs); setStep(3); focusingInvalidField = true; focusFirstInvalid(); throw new Error('Please fix receiver details.'); }
       const validation = validateRouteProvinces(form.sender_province, form.receiver_province, selectedRoute);
       if (!validation.valid) throw new Error(validation.error);
       
@@ -340,7 +356,7 @@ const BookShipmentPage = () => {
       } catch { /* sessionStorage unavailable in private mode */ }
     } catch (err) {
       toast.error(err.message || 'An unexpected error occurred while saving the booking.');
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      if (!focusingInvalidField) window.scrollTo({ top: 0, behavior: 'smooth' });
     } finally { setLoading(false); }
   };
 
@@ -349,38 +365,48 @@ const BookShipmentPage = () => {
     const cities = isSender ? senderCities : receiverCities;
     const getProvinces = isSender ? getSenderProvinces : getReceiverProvinces;
     const id = (field) => `${prefix}-${field}`;
+    const errId = (key) => `${prefix}-${key}-error`;
     const fe = (key) => fieldErrors[`${prefix}_${key}`];
     const fc = (key) => fe(key) ? 'field-invalid' : '';
-    const errEl = (key) => fe(key) ? <div className="field-error-inline"><AlertTriangle size={12} />{fe(key)}</div> : null;
+    // Programmatic error association. Without aria-invalid + aria-describedby a
+    // screen reader announces the label and reads nothing about the error — the
+    // red border and inline text are visual-only.
+    const a11y = (key) => ({
+      'aria-invalid': fe(key) ? 'true' : undefined,
+      'aria-describedby': fe(key) ? errId(key) : undefined,
+    });
+    const errEl = (key) => fe(key)
+      ? <div className="field-error-inline" id={errId(key)} role="alert"><AlertTriangle size={12} aria-hidden="true" />{fe(key)}</div>
+      : null;
     return (
       <div className="grid grid-2 gap-16">
-        <div className="form-group" style={{ gridColumn: '1 / -1' }}><label className="form-label" htmlFor={id('name')}>Full Name</label><input id={id('name')} className={`form-input ${fc('name')}`} value={form[`${prefix}_name`]} onChange={handleTextChange(`${prefix}_name`)} autoComplete={isSender ? 'name' : 'shipping name'} autoCapitalize="words" required />{errEl('name')}</div>
-        <div className="form-group"><label className="form-label" htmlFor={id('phone')}>Mobile Number</label><input id={id('phone')} className={`form-input ${fc('phone')}`} value={form[`${prefix}_phone`]} onChange={handlePhoneChange(`${prefix}_phone`)} inputMode="numeric" maxLength={11} placeholder="09xxxxxxxxx" autoComplete="tel" required />{errEl('phone')}</div>
-        <div className="form-group"><label className="form-label" htmlFor={id('facebook')}>Facebook Name</label><input id={id('facebook')} className={`form-input ${fc('facebook')}`} value={form[`${prefix}_facebook`]} onChange={handleTextChange(`${prefix}_facebook`)} placeholder="Your name on Facebook" autoCapitalize="words" required />{errEl('facebook')}</div>
+        <div className="form-group" style={{ gridColumn: '1 / -1' }}><label className="form-label" htmlFor={id('name')}>Full Name</label><input id={id('name')} className={`form-input ${fc('name')}`} value={form[`${prefix}_name`]} onChange={handleTextChange(`${prefix}_name`)} autoComplete={isSender ? 'name' : 'shipping name'} autoCapitalize="words" required {...a11y('name')} />{errEl('name')}</div>
+        <div className="form-group"><label className="form-label" htmlFor={id('phone')}>Mobile Number</label><input id={id('phone')} className={`form-input ${fc('phone')}`} value={form[`${prefix}_phone`]} onChange={handlePhoneChange(`${prefix}_phone`)} inputMode="numeric" maxLength={11} placeholder="09xxxxxxxxx" autoComplete="tel" required {...a11y('phone')} />{errEl('phone')}</div>
+        <div className="form-group"><label className="form-label" htmlFor={id('facebook')}>Facebook Name</label><input id={id('facebook')} className={`form-input ${fc('facebook')}`} value={form[`${prefix}_facebook`]} onChange={handleTextChange(`${prefix}_facebook`)} placeholder="Your name on Facebook" autoCapitalize="words" required {...a11y('facebook')} />{errEl('facebook')}</div>
         <div className="form-group"><label className="form-label" htmlFor={id('province')}>Province</label>
-          <CustomSelect id={id('province')} className={`form-select ${fc('province')}`} value={form[`${prefix}_province`]} onChange={e => { u(`${prefix}_province`, e.target.value); u(`${prefix}_city`, ''); }}>
+          <CustomSelect id={id('province')} className={`form-select ${fc('province')}`} value={form[`${prefix}_province`]} onChange={e => { u(`${prefix}_province`, e.target.value); u(`${prefix}_city`, ''); }} {...a11y('province')}>
             <option value="">Select Province</option>
             {getProvinces().map(p => <option key={p} value={p}>{p}</option>)}
           </CustomSelect>{errEl('province')}
         </div>
         {isSender && form[`${prefix}_province`] === 'Other Area' && (
-          <div className="form-group"><label className="form-label" htmlFor={id('other_province')}>Exact Province</label><input id={id('other_province')} className={`form-input ${fc('other_province')}`} value={form[`${prefix}_other_province`] || ''} onChange={handleTextChange(`${prefix}_other_province`)} autoCapitalize="words" required />{errEl('other_province')}</div>
+          <div className="form-group"><label className="form-label" htmlFor={id('other_province')}>Exact Province</label><input id={id('other_province')} className={`form-input ${fc('other_province')}`} value={form[`${prefix}_other_province`] || ''} onChange={handleTextChange(`${prefix}_other_province`)} autoCapitalize="words" required {...a11y('other_province')} />{errEl('other_province')}</div>
         )}
         <div className="form-group"><label className="form-label" htmlFor={id('city')}>City / Municipality</label>
           {isSender && form[`${prefix}_province`] === 'Other Area' ? (
-            <input id={id('city')} className={`form-input ${fc('city')}`} value={form[`${prefix}_city`] || ''} onChange={handleTextChange(`${prefix}_city`)} autoCapitalize="words" required />
+            <input id={id('city')} className={`form-input ${fc('city')}`} value={form[`${prefix}_city`] || ''} onChange={handleTextChange(`${prefix}_city`)} autoCapitalize="words" required {...a11y('city')} />
           ) : (
-            <CustomSelect id={id('city')} className={`form-select ${fc('city')}`} value={form[`${prefix}_city`]} onChange={e => u(`${prefix}_city`, e.target.value)} disabled={!form[`${prefix}_province`]}>
+            <CustomSelect id={id('city')} className={`form-select ${fc('city')}`} value={form[`${prefix}_city`]} onChange={e => u(`${prefix}_city`, e.target.value)} disabled={!form[`${prefix}_province`]} {...a11y('city')}>
               <option value="">Select City</option>
               {cities.map(c => <option key={c} value={c}>{c}</option>)}
             </CustomSelect>
           )}
           {errEl('city')}
         </div>
-        <div className="form-group"><label className="form-label" htmlFor={id('barangay')}>Barangay</label><input id={id('barangay')} className={`form-input ${fc('barangay')}`} value={form[`${prefix}_barangay`]} onChange={handleTextChange(`${prefix}_barangay`)} autoComplete="address-level3" autoCapitalize="words" required />{errEl('barangay')}</div>
-        <div className="form-group"><label className="form-label" htmlFor={id('street')}>Street</label><input id={id('street')} className={`form-input ${fc('street')}`} value={form[`${prefix}_street`]} onChange={handleTextChange(`${prefix}_street`)} autoComplete="address-line1" autoCapitalize="words" required />{errEl('street')}</div>
-        <div className="form-group"><label className="form-label" htmlFor={id('lot-block')}>Lot / Block / Purok</label><input id={id('lot-block')} className={`form-input ${fc('lot_block')}`} value={form[`${prefix}_lot_block`]} onChange={handleTextChange(`${prefix}_lot_block`)} autoComplete="address-line2" autoCapitalize="words" required />{errEl('lot_block')}</div>
-        <div className="form-group"><label className="form-label" htmlFor={id('landmark')}>Landmark</label><input id={id('landmark')} className={`form-input ${fc('landmark')}`} value={form[`${prefix}_landmark`]} onChange={handleTextChange(`${prefix}_landmark`)} placeholder="Near what building/place?" autoCapitalize="words" required />{errEl('landmark')}</div>
+        <div className="form-group"><label className="form-label" htmlFor={id('barangay')}>Barangay</label><input id={id('barangay')} className={`form-input ${fc('barangay')}`} value={form[`${prefix}_barangay`]} onChange={handleTextChange(`${prefix}_barangay`)} autoComplete="address-level3" autoCapitalize="words" required {...a11y('barangay')} />{errEl('barangay')}</div>
+        <div className="form-group"><label className="form-label" htmlFor={id('street')}>Street</label><input id={id('street')} className={`form-input ${fc('street')}`} value={form[`${prefix}_street`]} onChange={handleTextChange(`${prefix}_street`)} autoComplete="address-line1" autoCapitalize="words" required {...a11y('street')} />{errEl('street')}</div>
+        <div className="form-group"><label className="form-label" htmlFor={id('lot-block')}>Lot / Block / Purok</label><input id={id('lot-block')} className={`form-input ${fc('lot_block')}`} value={form[`${prefix}_lot_block`]} onChange={handleTextChange(`${prefix}_lot_block`)} autoComplete="address-line2" autoCapitalize="words" required {...a11y('lot_block')} />{errEl('lot_block')}</div>
+        <div className="form-group"><label className="form-label" htmlFor={id('landmark')}>Landmark</label><input id={id('landmark')} className={`form-input ${fc('landmark')}`} value={form[`${prefix}_landmark`]} onChange={handleTextChange(`${prefix}_landmark`)} placeholder="Near what building/place?" autoCapitalize="words" required {...a11y('landmark')} />{errEl('landmark')}</div>
         {isSender && form[`${prefix}_province`] === 'Other Area' && (
           <div className="alert alert-warning mt-md" style={{ gridColumn: '1 / -1' }}>
             <AlertTriangle size={16} style={{display:'inline', marginRight: '8px', verticalAlign: 'middle'}}/>
@@ -707,7 +733,7 @@ const BookShipmentPage = () => {
           {renderAddressFields('sender')}
           <button type="button" className="btn btn-primary btn-lg w-full mt-20 justify-center" onClick={() => {
             const errs = validateSender();
-            if (Object.keys(errs).length) { setFieldErrors(errs); toast.error('Please fill in all required sender fields.'); return; }
+            if (Object.keys(errs).length) { setFieldErrors(errs); toast.error('Please fill in all required sender fields.'); focusFirstInvalid(); return; }
             setFieldErrors({});
             setStep(3);
           }}>Continue</button>
@@ -727,7 +753,7 @@ const BookShipmentPage = () => {
           {renderAddressFields('receiver')}
           <button type="button" className="btn btn-primary btn-lg w-full mt-20 justify-center" onClick={() => {
             const errs = validateReceiver();
-            if (Object.keys(errs).length) { setFieldErrors(errs); toast.error('Please fill in all required receiver fields.'); return; }
+            if (Object.keys(errs).length) { setFieldErrors(errs); toast.error('Please fill in all required receiver fields.'); focusFirstInvalid(); return; }
             const v = validateRouteProvinces(form.sender_province, form.receiver_province, selectedRoute);
             if (!v.valid) { toast.error(v.error); return; }
             setFieldErrors({});

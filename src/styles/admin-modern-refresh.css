@@ -1104,6 +1104,22 @@
     margin-top: 0;
   }
 
+  /* NOTE ON ALIGNMENT — read before adding `text-align` here.
+     The table→card conversion is defined in TWO places at different
+     breakpoints, and this block is the narrower one:
+
+       remaining.css  @media (max-width: 900px)  grid card, value right-aligned
+       this file      @media (max-width: 768px)  flex card
+
+     remaining.css sets `text-align: right !important` on `.data-table td`.
+     An !important author declaration beats a normal one regardless of
+     specificity or source order, so a plain `text-align: left` here has NO
+     effect — it was previously declared and silently ignored. It has been
+     removed rather than left as a lie. Cell text below 768px is right-aligned
+     (labels stay left via the ::before rule below), matching the ≤900px design.
+
+     Consolidating these two blocks into one is worthwhile but needs visual
+     verification across the 9 admin table pages in both themes. */
   .app-layout .data-table td,
   .app-layout .report-table td {
     display: flex ;
@@ -1111,7 +1127,6 @@
     gap: 10px;
     padding: 9px 4px ;
     border-bottom: 1px solid color-mix(in srgb, var(--admin-line) 50%, transparent) ;
-    text-align: left ;
     width: auto ;
     max-width: none ;
     word-break: break-word;

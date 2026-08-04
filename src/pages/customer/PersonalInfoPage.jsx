@@ -169,9 +169,11 @@ const PersonalInfoPage = () => {
                 placeholder="Juan Dela Cruz"
                 value={form.name}
                 onChange={handleTitleCase('name')}
+                aria-invalid={fieldErrors.name ? 'true' : undefined}
+                aria-describedby={fieldErrors.name ? 'profile-name-error' : undefined}
               />
             </div>
-            {fieldErrors.name && <p className="form-error">{fieldErrors.name}</p>}
+            {fieldErrors.name && <p className="form-error" id="profile-name-error" role="alert">{fieldErrors.name}</p>}
           </div>
 
           {/* Facebook Name */}
@@ -185,9 +187,11 @@ const PersonalInfoPage = () => {
                 placeholder="Juan Dela Cruz on FB"
                 value={form.facebook_name}
                 onChange={e => setField('facebook_name', e.target.value)}
+                aria-invalid={fieldErrors.facebook_name ? 'true' : undefined}
+                aria-describedby={fieldErrors.facebook_name ? 'profile-facebook-name-error' : undefined}
               />
             </div>
-            {fieldErrors.facebook_name && <p className="form-error">{fieldErrors.facebook_name}</p>}
+            {fieldErrors.facebook_name && <p className="form-error" id="profile-facebook-name-error" role="alert">{fieldErrors.facebook_name}</p>}
           </div>
 
           {/* Mobile Number */}
@@ -203,11 +207,13 @@ const PersonalInfoPage = () => {
                 onChange={handlePhone}
                 inputMode="numeric"
                 maxLength={11}
+                aria-invalid={fieldErrors.phone ? 'true' : undefined}
+                aria-describedby={fieldErrors.phone ? 'profile-phone-error' : 'profile-phone-helper'}
               />
             </div>
             {fieldErrors.phone
-              ? <p className="form-error">{fieldErrors.phone}</p>
-              : <p className="form-helper">Must start with 09 and be exactly 11 digits</p>
+              ? <p className="form-error" id="profile-phone-error" role="alert">{fieldErrors.phone}</p>
+              : <p className="form-helper" id="profile-phone-helper">Must start with 09 and be exactly 11 digits</p>
             }
           </div>
 
@@ -286,9 +292,11 @@ const PersonalInfoPage = () => {
                 placeholder="e.g. Lot 12, Block 5"
                 value={form.address_lot_block}
                 onChange={handleTitleCase('address_lot_block')}
+                aria-invalid={fieldErrors.address_lot_block ? 'true' : undefined}
+                aria-describedby={fieldErrors.address_lot_block ? 'profile-lot-block-error' : undefined}
               />
             </div>
-            {fieldErrors.address_lot_block && <p className="form-error">{fieldErrors.address_lot_block}</p>}
+            {fieldErrors.address_lot_block && <p className="form-error" id="profile-lot-block-error" role="alert">{fieldErrors.address_lot_block}</p>}
           </div>
 
           {/* Landmark */}
@@ -302,9 +310,11 @@ const PersonalInfoPage = () => {
                 placeholder="e.g. Near Sari-sari Store"
                 value={form.address_landmark}
                 onChange={handleTitleCase('address_landmark')}
+                aria-invalid={fieldErrors.address_landmark ? 'true' : undefined}
+                aria-describedby={fieldErrors.address_landmark ? 'profile-landmark-error' : undefined}
               />
             </div>
-            {fieldErrors.address_landmark && <p className="form-error">{fieldErrors.address_landmark}</p>}
+            {fieldErrors.address_landmark && <p className="form-error" id="profile-landmark-error" role="alert">{fieldErrors.address_landmark}</p>}
           </div>
 
           {/* Save */}

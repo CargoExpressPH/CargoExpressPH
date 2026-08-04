@@ -191,10 +191,10 @@ const SortableMuni = ({ muni, regionId, handleEditMuni, setDeleteTarget }) => {
         <GripVertical size={14} />
       </div>
       <div style={{ flex: 1, fontSize: '0.8125rem', fontWeight: 500 }}>{muni.name}</div>
-      <button className="btn-icon" style={{ padding: 4, background: 'none', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer' }} onClick={() => handleEditMuni(muni, regionId)}>
+      <button className="btn-icon" style={{ padding: 4, background: 'none', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer' }} onClick={() => handleEditMuni(muni, regionId)} aria-label={`Edit ${muni.name}`}>
         <Edit2 size={12} />
       </button>
-      <button className="btn-icon" style={{ padding: 4, background: 'none', border: 'none', color: 'var(--error)', cursor: 'pointer' }} onClick={() => setDeleteTarget({ type: 'muni', id: muni.id, regionId, name: muni.name })}>
+      <button className="btn-icon" style={{ padding: 4, background: 'none', border: 'none', color: 'var(--error)', cursor: 'pointer' }} onClick={() => setDeleteTarget({ type: 'muni', id: muni.id, regionId, name: muni.name })} aria-label={`Delete ${muni.name}`}>
         <Trash2 size={12} />
       </button>
     </div>
@@ -402,8 +402,9 @@ const CompanyInfoCoverageTab = ({ coverageAreas, setCoverageAreas }) => {
               {editingRegion === 'new' ? 'New Region' : 'Edit Region'}
             </div>
             <div className="form-group" style={{ marginBottom: 0 }}>
-              <label className="form-label">Region Name <span className="required">*</span></label>
+              <label className="form-label" htmlFor="coverage-region-name">Region Name <span className="required">*</span></label>
               <input
+                id="coverage-region-name"
                 className="form-input"
                 value={regionForm.name}
                 onChange={e => setRegionForm({...regionForm, name: e.target.value})}
@@ -427,8 +428,9 @@ const CompanyInfoCoverageTab = ({ coverageAreas, setCoverageAreas }) => {
               {editingMuni === 'new' ? 'New Municipality' : 'Edit Municipality'}
             </div>
             <div className="form-group" style={{ marginBottom: 0 }}>
-              <label className="form-label">Municipality Name <span className="required">*</span></label>
+              <label className="form-label" htmlFor="coverage-muni-name">Municipality Name <span className="required">*</span></label>
               <input
+                id="coverage-muni-name"
                 className="form-input"
                 value={muniForm.name}
                 onChange={e => setMuniForm({...muniForm, name: e.target.value})}

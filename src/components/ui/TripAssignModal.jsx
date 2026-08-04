@@ -2,12 +2,15 @@ import { useState, useEffect } from 'react';
 import { getTrips } from '../../lib/database';
 import { X, Truck, Loader, MapPin, AlertTriangle } from 'lucide-react';
 import FocusTrap from './FocusTrap';
+import useScrollLock from '../../hooks/useScrollLock';
 
 /**
  * TripAssignModal — Assign an order to an available trip
  * Only shows trips that match the order's route (origin → destination)
  */
 const TripAssignModal = ({ order, onClose, onAssign }) => {
+  useScrollLock(true); // mounted only while open
+
   const [trips, setTrips] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedTrip, setSelectedTrip] = useState(null);

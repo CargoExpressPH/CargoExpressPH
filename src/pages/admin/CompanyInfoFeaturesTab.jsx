@@ -246,6 +246,7 @@ const CompanyInfoFeaturesTab = ({ features, setFeatures }) => {
                           Or type a custom name:{' '}
                           <input
                             className="form-input"
+                            aria-label="Custom icon name"
                             style={{ display: 'inline', width: 120, padding: '4px 8px', minHeight: 'auto', fontSize: '0.8125rem' }}
                             value={formData.icon}
                             onChange={e => setFormData(p => ({ ...p, icon: e.target.value }))}
@@ -260,8 +261,9 @@ const CompanyInfoFeaturesTab = ({ features, setFeatures }) => {
 
               {/* Title */}
               <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label">Title <span className="required">*</span></label>
+                <label className="form-label" htmlFor="feature-title">Title <span className="required">*</span></label>
                 <input
+                  id="feature-title"
                   className="form-input"
                   value={formData.title}
                   onChange={e => setFormData({ ...formData, title: e.target.value })}
@@ -272,8 +274,9 @@ const CompanyInfoFeaturesTab = ({ features, setFeatures }) => {
 
               {/* Description */}
               <div className="form-group" style={{ marginBottom: 0, gridColumn: '1 / -1' }}>
-                <label className="form-label">Description</label>
+                <label className="form-label" htmlFor="feature-description">Description</label>
                 <textarea
+                  id="feature-description"
                   className="form-textarea"
                   rows={2}
                   value={formData.description || ''}

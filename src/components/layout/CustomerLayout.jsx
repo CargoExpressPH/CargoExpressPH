@@ -337,14 +337,14 @@ const CustomerLayout = () => {
                 </div>
               ) : (
                 <>
+                  {/* Wrapper retained: it keeps the icon a non-direct child, which
+                      viewport-hardening.css's `.customer-bottom-tab > svg` rule
+                      depends on. No bottomNavItems entry ever set hasBadge, so the
+                      unread badge that used to be rendered here was unreachable —
+                      the count is shown on the navbar bell, which is visible on
+                      mobile too. */}
                   <div className="relative inline-flex">
                     <item.icon size={20} />
-                    {item.hasBadge && unreadCount > 0 && (
-                      <span className="notification-badge-sm" aria-live="polite" aria-atomic="true">
-                        {unreadCount > 9 ? '9+' : unreadCount}
-                        <span className="sr-only">unread notifications</span>
-                      </span>
-                    )}
                   </div>
                   <span>{item.label}</span>
                 </>

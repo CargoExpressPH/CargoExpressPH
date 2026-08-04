@@ -5,6 +5,7 @@ import {
   Megaphone, MessageSquare, Mail, Building, ClipboardList, User
 } from 'lucide-react';
 import FocusTrap from './FocusTrap';
+import useScrollLock from '../../hooks/useScrollLock';
 
 const COMMANDS = [
   { label: 'Dashboard', to: '/admin', icon: LayoutDashboard, section: 'Navigation', keywords: 'home overview stats' },
@@ -21,6 +22,8 @@ const COMMANDS = [
 ];
 
 const CommandPalette = ({ isOpen, onClose }) => {
+  useScrollLock(isOpen);
+
   const [query, setQuery] = useState('');
   const [highlightedIndex, setHighlightedIndex] = useState(0);
   const inputRef = useRef(null);

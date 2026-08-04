@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { X, Camera, Loader, Package, CreditCard, CheckCircle, Smartphone, AlertTriangle, Trash2, FileText, Upload, Calendar } from 'lucide-react';
 import FocusTrap from './FocusTrap';
+import useScrollLock from '../../hooks/useScrollLock';
 import { uploadMultiplePhotos, uploadPhoto } from '../../lib/storage';
 import QRCode from 'react-qr-code';
 import { createGCashSource, registerSource } from '../../lib/paymongo';
@@ -10,6 +11,8 @@ import { createGCashSource, registerSource } from '../../lib/paymongo';
  * Captures photos and GCash fields if unpaid
  */
 const DeliveryModal = ({ order, onClose, onSave }) => {
+  useScrollLock(true); // mounted only while open
+
   const isPaid = order.payment_status === 'paid';
   const balance = parseFloat(order.remaining_balance || 0);
   const needsPayment = !isPaid && balance > 0;
@@ -400,8 +403,9 @@ const DeliveryModal = ({ order, onClose, onSave }) => {
                     <>
                       <div className="text-xs text-tertiary mb-8" style={{ textAlign: 'center', borderTop: '1px solid var(--border)', paddingTop: 10 }}>Or enter payment details manually</div>
                       <div className="form-group mb-12">
-                        <label className="form-label">Reference Number *</label>
+                        <label className="form-label" htmlFor="delivery-payment-reference">Reference Number *</label>
                         <input
+                          id="delivery-payment-reference"
                           type="text"
                           className="form-input"
                           placeholder="Enter GCash Ref No."
@@ -426,7 +430,7 @@ const DeliveryModal = ({ order, onClose, onSave }) => {
                         {receiptPreview ? (
                           <div className="relative overflow-hidden mb-8" style={{ width: 90, height: 90, borderRadius: 8, border: '2px solid var(--border)' }}>
                             <img src={receiptPreview} alt="Receipt" className="w-full h-full" style={{ objectFit: 'cover' }} />
-                            <button type="button" onClick={() => { setReceiptPhoto(null); setReceiptPreview(null); }} className="pickup-photo-remove-btn">
+                            <button type="button" onClick={() => { setReceiptPhoto(null); setReceiptPreview(null); }} className="pickup-photo-remove-btn" aria-label="Remove receipt">
                               <Trash2 size={12} />
                             </button>
                           </div>

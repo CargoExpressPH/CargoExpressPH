@@ -871,8 +871,9 @@ const AdminOrderDetailPage = () => {
             {featureForm.featured_on_website && (
               <div className="grid grid-2 gap-16 mt-16 p-16" style={{ background: 'var(--bg-secondary)', borderRadius: 12 }}>
                 <div className="form-group" style={{ gridColumn: '1 / -1' }}>
-                  <label className="form-label">Highlight Title</label>
+                  <label className="form-label" htmlFor="order-featured-title">Highlight Title</label>
                   <input
+                    id="order-featured-title"
                     type="text"
                     className="form-input"
                     placeholder="e.g. Bound for Jagna"
@@ -881,8 +882,9 @@ const AdminOrderDetailPage = () => {
                   />
                 </div>
                 <div className="form-group" style={{ gridColumn: '1 / -1' }}>
-                  <label className="form-label">Caption</label>
+                  <label className="form-label" htmlFor="order-featured-caption">Caption</label>
                   <textarea
+                    id="order-featured-caption"
                     className="form-textarea"
                     rows={2}
                     placeholder="Thank you for trusting CargoExpress PH..."

@@ -207,8 +207,9 @@
 }
 .trk-countdown-badge {
   display: inline-flex; align-items: center; gap: 8px;
-  background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.35);
-  color: #b45309; padding: 8px 18px; border-radius: var(--radius-full);
+  /* Tint reduced 0.15 -> 0.12 so --warning-text clears 4.5:1 in light mode too. */
+  background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.35);
+  color: var(--warning-text); padding: 8px 18px; border-radius: var(--radius-full);
   font-size: 0.85rem; font-weight: 700;
 }
 

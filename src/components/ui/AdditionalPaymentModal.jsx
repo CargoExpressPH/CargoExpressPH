@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { X, Loader, Smartphone, AlertTriangle, CreditCard, FileText, Trash2, CheckCircle } from 'lucide-react';
 import FocusTrap from './FocusTrap';
+import useScrollLock from '../../hooks/useScrollLock';
 import { uploadPhoto } from '../../lib/storage';
 import QRCode from 'react-qr-code';
 import { createGCashSource, registerSource } from '../../lib/paymongo';
@@ -9,6 +10,8 @@ import { createGCashSource, registerSource } from '../../lib/paymongo';
  * AdditionalPaymentModal — Manually collects additional payments for remaining balances.
  */
 const AdditionalPaymentModal = ({ order, remainingBalance, onClose, onSave }) => {
+  useScrollLock(true); // mounted only while open
+
   const [form, setForm] = useState({
     amount: remainingBalance.toString(),
     payment_method: 'cash',
@@ -264,8 +267,9 @@ const AdditionalPaymentModal = ({ order, remainingBalance, onClose, onSave }) =>
                   <>
                     <div className="text-xs text-tertiary mb-8" style={{ textAlign: 'center', borderTop: '1px solid var(--border)', paddingTop: 10 }}>Or enter payment details manually</div>
                     <div className="form-group mb-12">
-                      <label className="form-label">Reference Number *</label>
+                      <label className="form-label" htmlFor="addl-payment-reference">Reference Number *</label>
                       <input
+                        id="addl-payment-reference"
                         type="text"
                         className="form-input"
                         placeholder="Enter GCash Ref No."
@@ -314,8 +318,9 @@ const AdditionalPaymentModal = ({ order, remainingBalance, onClose, onSave }) =>
             )}
 
             <div className="form-group mb-0">
-              <label className="form-label">Admin Notes (Optional)</label>
+              <label className="form-label" htmlFor="addl-payment-notes">Admin Notes (Optional)</label>
               <textarea
+                id="addl-payment-notes"
                 className="form-input"
                 placeholder="E.g., Collected by Juan"
                 value={form.notes}

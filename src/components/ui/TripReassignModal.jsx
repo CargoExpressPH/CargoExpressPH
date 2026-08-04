@@ -2,11 +2,14 @@ import { useState, useEffect } from 'react';
 import { getTrips } from '../../lib/database';
 import { X, Truck, Loader, MapPin, Edit3, AlertTriangle } from 'lucide-react';
 import FocusTrap from './FocusTrap';
+import useScrollLock from '../../hooks/useScrollLock';
 
 /**
  * TripReassignModal — Reassign an order to a different trip, requiring a reason
  */
 const TripReassignModal = ({ order, onClose, onReassign }) => {
+  useScrollLock(true); // mounted only while open
+
   const [trips, setTrips] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedTrip, setSelectedTrip] = useState(null);
@@ -53,6 +56,18 @@ const TripReassignModal = ({ order, onClose, onReassign }) => {
     }
   };
 
+  // Escape steps back one level: from the confirm step to the form, then out.
+  // Ignored mid-save so a reassignment in flight can't be abandoned.
+  useEffect(() => {
+    const handleEscape = (e) => {
+      if (e.key !== 'Escape' || saving) return;
+      if (showConfirm) setShowConfirm(false);
+      else onClose();
+    };
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [showConfirm, saving, onClose]);
+
   if (showConfirm) {
     return (
       <FocusTrap active>
@@ -60,7 +75,7 @@ const TripReassignModal = ({ order, onClose, onReassign }) => {
           <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 400 }}>
             <div className="modal-header">
               <h3 id="confirm-reassign-title"><AlertTriangle size={18} className="inline mr-8 text-warning" /> Confirm Reassignment</h3>
-              <button className="btn-icon btn-ghost" onClick={() => setShowConfirm(false)} disabled={saving}><X size={20} /></button>
+              <button className="btn-icon btn-ghost" onClick={() => setShowConfirm(false)} disabled={saving} aria-label="Back to reassignment form"><X size={20} /></button>
             </div>
             <div className="modal-body text-center">
               <p className="mb-16">Are you sure you want to change the trip assignment?</p>
@@ -103,9 +118,10 @@ const TripReassignModal = ({ order, onClose, onReassign }) => {
           </div>
 
           <div className="form-group mb-16">
-            <label className="form-label required">Reason for Change</label>
-            <textarea 
-              className="form-control" 
+            <label className="form-label required" htmlFor="trip-reassign-reason">Reason for Change</label>
+            <textarea
+              id="trip-reassign-reason"
+              className="form-control"
               placeholder="e.g., Customer requested later departure, Capacity adjustment"
               value={reason}
               onChange={(e) => setReason(e.target.value)}

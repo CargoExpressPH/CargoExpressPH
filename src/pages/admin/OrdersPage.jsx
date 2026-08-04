@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { getOrders, withTimeout } from '../../lib/database';
 import useNetworkRecovery from '../../hooks/useNetworkRecovery';
@@ -13,6 +13,10 @@ import usePageTitle from '../../hooks/usePageTitle';
 
 const tabs = ['All', 'Pending Review', 'Pending', 'Assigned', 'Picked Up', 'In Transit', 'Arrived at Hub', 'Out for Delivery', 'Delivered', 'Cancelled'];
 
+// Debounce delay in ms — avoids firing a DB query on every keystroke.
+// Matches CustomersPage so admin search feels consistent across pages.
+const SEARCH_DEBOUNCE_MS = 350;
+
 const AdminOrdersPage = () => {
   usePageTitle('Bookings');
   const [orders, setOrders] = useState([]);
@@ -25,6 +29,10 @@ const AdminOrdersPage = () => {
 
   const [totalOrders, setTotalOrders] = useState(0);
 
+  // Only the debounced value reaches the query; `search` drives the input.
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const debounceTimer = useRef(null);
+
   const loadOrders = async () => {
     setError(null);
     setLoading(true);
@@ -34,7 +42,7 @@ const AdminOrdersPage = () => {
           page: currentPage,
           perPage,
           statusFilter: activeTab,
-          search: search.trim(),
+          search: debouncedSearch.trim(),
         })
       );
       setOrders(data || []);
@@ -46,7 +54,10 @@ const AdminOrdersPage = () => {
     }
   };
 
-  useEffect(() => { loadOrders(); }, [currentPage, perPage, activeTab, search]);
+  useEffect(() => { loadOrders(); }, [currentPage, perPage, activeTab, debouncedSearch]);
+
+  // Cleanup debounce on unmount so a pending timer can't set state after teardown
+  useEffect(() => () => clearTimeout(debounceTimer.current), []);
 
   useNetworkRecovery(loadOrders);
 
@@ -59,7 +70,13 @@ const AdminOrdersPage = () => {
   }));
 
   const handleTabChange = (tab) => { setActiveTab(tab); setCurrentPage(1); };
-  const handleSearchChange = (e) => { setSearch(e.target.value); setCurrentPage(1); };
+  const handleSearchChange = (e) => {
+    const val = e.target.value;
+    setSearch(val);
+    setCurrentPage(1);
+    clearTimeout(debounceTimer.current);
+    debounceTimer.current = setTimeout(() => setDebouncedSearch(val), SEARCH_DEBOUNCE_MS);
+  };
 
   const paginated = orders;
   const totalFiltered = totalOrders;

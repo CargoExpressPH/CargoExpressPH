@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Package, MapPin, Bell, Truck, ArrowRight, X, CheckCircle } from 'lucide-react';
 import FocusTrap from './FocusTrap';
+import useScrollLock from '../../hooks/useScrollLock';
 
 const ONBOARDING_KEY = 'cargoexpress_onboarding_done';
 
@@ -67,6 +68,19 @@ const OnboardingModal = () => {
       setShow(false);
     }, 300);
   };
+
+  // Escape dismisses the tour — same document-level pattern as ConfirmModal,
+  // which works regardless of where focus currently sits.
+  useEffect(() => {
+    if (!show || exiting) return;
+    const handleEscape = (e) => {
+      if (e.key === 'Escape') handleFinish();
+    };
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [show, exiting]);
+
+  useScrollLock(show);
 
   if (!show) return null;
 

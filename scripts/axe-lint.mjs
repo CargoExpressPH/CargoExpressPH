@@ -187,21 +187,24 @@ function checkFile(file) {
     //      - aria-label / aria-labelledby / title / placeholder
     //      - id (assumed linked to a sibling <label htmlFor=>)
     //      - being wrapped inside an open <label>...</label>
-    if (tag === 'input') {
+    //    NOTE: `placeholder` is deliberately NOT accepted as an accessible
+    //    name. A placeholder disappears as soon as the field has content, so
+    //    it fails WCAG 2.5.3/3.3.2 — the field becomes unlabelled precisely
+    //    when a user returns to check what they typed.
+    if (tag === 'input' || tag === 'textarea') {
       const type = (getAttr(collapsed, 'type') || 'text').toLowerCase();
-      if (type !== 'hidden' && type !== 'submit' && type !== 'button' && type !== 'image' && type !== 'reset') {
+      if (!['hidden', 'submit', 'button', 'image', 'reset'].includes(type)) {
         const hasName =
           hasAttr(collapsed, 'aria-label') ||
           hasAttr(collapsed, 'aria-labelledby') ||
           hasAttr(collapsed, 'title') ||
-          hasAttr(collapsed, 'placeholder') ||
           hasAttr(collapsed, 'id') ||
           labelDepth > 0; // wrapped in <label>
         if (!hasName) {
           violations.push({
             file, line: startLine, tag,
             rule: 'input-label',
-            msg: `<input type="${type}"> has no accessible name. Add aria-label, link a <label>, or wrap it in <label>...</label>.`,
+            msg: `<${tag}${tag === 'input' ? ` type="${type}"` : ''}> has no accessible name. A placeholder is not a label — add aria-label, or give it an id and point a <label htmlFor> at it.`,
           });
         }
       }
@@ -245,6 +248,29 @@ function checkFile(file) {
       });
     } else {
       seenIds.set(id, line);
+    }
+  }
+
+  // 6. Every static aria-describedby / aria-labelledby must resolve to an id
+  //    that exists in the same file. A typo here fails silently in the browser:
+  //    the field simply has no description and nothing indicates why.
+  //    Dynamic values (template literals, expressions) are skipped — they cannot
+  //    be resolved statically, and flagging them would be noise.
+  for (const attr of ['aria-describedby', 'aria-labelledby']) {
+    const re = new RegExp(`\\b${attr}\\s*=\\s*"([^"{}\`$]+)"`, 'g');
+    for (const m of source.matchAll(re)) {
+      const line = lineAt(idLineMap, m.index);
+      // The attribute may list several ids separated by spaces.
+      for (const ref of m[1].trim().split(/\s+/)) {
+        if (!ref) continue;
+        if (!seenIds.has(ref)) {
+          violations.push({
+            file, line, tag: '(aria)',
+            rule: 'aria-reference-broken',
+            msg: `${attr}="${ref}" does not match any id in this file.`,
+          });
+        }
+      }
     }
   }
 }

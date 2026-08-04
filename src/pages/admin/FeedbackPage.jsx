@@ -68,10 +68,11 @@ const FeedbackPage = () => {
         <div className="feedback-filter-row flex gap-16 flex-wrap">
           <div className="form-group flex-1" style={{ marginBottom: 0 }}>
             <div style={{ position: 'relative' }}>
-              <Search size={18} style={{ position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)' }} />
+              <Search size={18} aria-hidden="true" style={{ position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)' }} />
               <input
                 type="text"
                 className="form-input"
+                aria-label="Search feedback"
                 style={{ paddingLeft: 48 }}
                 placeholder="Search by customer, message, or tracking number..."
                 value={searchTerm}

@@ -43,16 +43,6 @@
   letter-spacing: 0;
 }
 
-.notification-badge-sm {
-  top: -5px;
-  right: -8px;
-  min-width: 16px;
-  height: 16px;
-  border-radius: 8px;
-  font-size: 0.625rem;
-  letter-spacing: 0;
-}
-
 .customer-bottom-tab {
   min-width: 60px;
   font-size: 0.7rem;
@@ -93,7 +83,6 @@
 .customer-inline-action > svg,
 .alert-banner > svg,
 .profile-menu-item > svg,
-.customer-mobile-link > svg,
 .sidebar-link > svg,
 .customer-bottom-tab > svg,
 .responsive-filter-option > svg,
@@ -130,7 +119,6 @@
 .customer-inline-action,
 .alert-banner,
 .profile-menu-item,
-.customer-mobile-link,
 .sidebar-link {
   align-items: center;
 }
@@ -285,12 +273,6 @@
     min-width: 52px;
     padding-inline: 6px;
     font-size: 0.6875rem;
-  }
-
-  .notification-badge-sm {
-    min-width: 15px;
-    height: 15px;
-    font-size: 0.6rem;
   }
 
   .customer-layout-v2 .customer-home-snapshot {

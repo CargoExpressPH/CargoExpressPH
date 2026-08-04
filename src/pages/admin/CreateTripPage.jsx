@@ -129,8 +129,8 @@ const CreateTripPage = () => {
               ))}
             </div>
             {fieldErrors.route && (
-              <div className="field-error-inline" style={{ marginTop: 12 }}>
-                <AlertTriangle size={12} />
+              <div className="field-error-inline" role="alert" style={{ marginTop: 12 }}>
+                <AlertTriangle size={12} aria-hidden="true" />
                 {fieldErrors.route}
               </div>
             )}
@@ -146,13 +146,13 @@ const CreateTripPage = () => {
             <div className="grid grid-2 gap-16">
               <div className="form-group">
                 <label className="form-label" htmlFor="trip-departure-date">Departure Date & Time</label>
-                <input id="trip-departure-date" type="datetime-local" className={`form-input ${fieldErrors.departure_date ? 'field-invalid' : ''}`} value={form.departure_date} onChange={e => u('departure_date', e.target.value)} required />
-                {fieldErrors.departure_date && <div className="field-error-inline"><AlertTriangle size={12} />{fieldErrors.departure_date}</div>}
+                <input id="trip-departure-date" type="datetime-local" className={`form-input ${fieldErrors.departure_date ? 'field-invalid' : ''}`} value={form.departure_date} onChange={e => u('departure_date', e.target.value)} required aria-invalid={fieldErrors.departure_date ? 'true' : undefined} aria-describedby={fieldErrors.departure_date ? 'trip-departure-date-error' : undefined} />
+                {fieldErrors.departure_date && <div className="field-error-inline" id="trip-departure-date-error" role="alert"><AlertTriangle size={12} aria-hidden="true" />{fieldErrors.departure_date}</div>}
               </div>
               <div className="form-group">
                 <label className="form-label" htmlFor="trip-arrival-date">Estimated Arrival Date & Time</label>
-                <input id="trip-arrival-date" type="datetime-local" className={`form-input ${fieldErrors.arrival_date ? 'field-invalid' : ''}`} value={form.arrival_date} onChange={e => u('arrival_date', e.target.value)} />
-                {fieldErrors.arrival_date && <div className="field-error-inline"><AlertTriangle size={12} />{fieldErrors.arrival_date}</div>}
+                <input id="trip-arrival-date" type="datetime-local" className={`form-input ${fieldErrors.arrival_date ? 'field-invalid' : ''}`} value={form.arrival_date} onChange={e => u('arrival_date', e.target.value)} aria-invalid={fieldErrors.arrival_date ? 'true' : undefined} aria-describedby={fieldErrors.arrival_date ? 'trip-arrival-date-error' : undefined} />
+                {fieldErrors.arrival_date && <div className="field-error-inline" id="trip-arrival-date-error" role="alert"><AlertTriangle size={12} aria-hidden="true" />{fieldErrors.arrival_date}</div>}
               </div>
             </div>
           </div>
@@ -167,17 +167,17 @@ const CreateTripPage = () => {
             <div className="grid grid-2 gap-16">
               <div className="form-group">
                 <label className="form-label" htmlFor="trip-capacity">Capacity (kg)</label>
-                <input id="trip-capacity" type="number" className={`form-input ${fieldErrors.capacity ? 'field-invalid' : ''}`} value={form.capacity} onChange={e => u('capacity', e.target.value)} placeholder="e.g. 1000" min="1" step="1" required aria-describedby="trip-capacity-helper" />
-                {fieldErrors.capacity && <div className="field-error-inline"><AlertTriangle size={12} />{fieldErrors.capacity}</div>}
+                <input id="trip-capacity" type="number" className={`form-input ${fieldErrors.capacity ? 'field-invalid' : ''}`} value={form.capacity} onChange={e => u('capacity', e.target.value)} placeholder="e.g. 1000" min="1" step="1" required aria-invalid={fieldErrors.capacity ? 'true' : undefined} aria-describedby={fieldErrors.capacity ? 'trip-capacity-error trip-capacity-helper' : 'trip-capacity-helper'} />
+                {fieldErrors.capacity && <div className="field-error-inline" id="trip-capacity-error" role="alert"><AlertTriangle size={12} aria-hidden="true" />{fieldErrors.capacity}</div>}
                 <p id="trip-capacity-helper" className="text-xs text-tertiary mt-4">Maximum total cargo weight for this trip.</p>
               </div>
               <div className="form-group">
                 <label className="form-label" htmlFor="trip-price-per-kg">Amount per Kilo (₱)</label>
                 <div className="relative">
                   <DollarSign size={16} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)', pointerEvents: 'none' }} />
-                  <input id="trip-price-per-kg" type="number" className={`form-input ${fieldErrors.price_per_kg ? 'field-invalid' : ''}`} value={form.price_per_kg} onChange={e => u('price_per_kg', e.target.value)} placeholder="e.g. 70" min="0.01" step="0.01" style={{ paddingLeft: 34 }} required aria-describedby="trip-price-helper" />
+                  <input id="trip-price-per-kg" type="number" className={`form-input ${fieldErrors.price_per_kg ? 'field-invalid' : ''}`} value={form.price_per_kg} onChange={e => u('price_per_kg', e.target.value)} placeholder="e.g. 70" min="0.01" step="0.01" style={{ paddingLeft: 34 }} required aria-invalid={fieldErrors.price_per_kg ? 'true' : undefined} aria-describedby={fieldErrors.price_per_kg ? 'trip-price-error trip-price-helper' : 'trip-price-helper'} />
                 </div>
-                {fieldErrors.price_per_kg && <div className="field-error-inline"><AlertTriangle size={12} />{fieldErrors.price_per_kg}</div>}
+                {fieldErrors.price_per_kg && <div className="field-error-inline" id="trip-price-error" role="alert"><AlertTriangle size={12} aria-hidden="true" />{fieldErrors.price_per_kg}</div>}
                 <p id="trip-price-helper" className="text-xs text-tertiary mt-4">Cost per kilogram for bookings on this trip.</p>
               </div>
             </div>

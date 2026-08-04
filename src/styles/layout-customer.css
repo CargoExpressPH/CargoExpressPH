@@ -135,27 +135,8 @@
   letter-spacing: -0.02em;
 }
 
-/* Notification Badge � Mobile Bottom Tab */
-.notification-badge-sm {
-  position: absolute;
-  top: -3px;
-  right: -6px;
-  background: linear-gradient(135deg, #EF4444, #DC2626);
-  color: white;
-  font-size: 0.5rem;
-  font-weight: 800;
-  min-width: 14px;
-  height: 14px;
-  border-radius: 7px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0 3px;
-  border: 1.5px solid var(--surface);
-  box-shadow: 0 2px 6px rgba(239, 68, 68, 0.4);
-  animation: badgePop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
-  line-height: 1;
-}
+/* .notification-badge-sm removed alongside the unreachable bottom-tab badge
+   in CustomerLayout — no bottomNavItems entry ever set hasBadge. */
 
 @keyframes badgePop {
   0% { transform: scale(0); opacity: 0; }
@@ -208,32 +189,9 @@
 .customer-dropdown-item.danger { color: var(--error); }
 .customer-dropdown-item.danger:hover { background: var(--error-bg); }
 
-/* Hamburger */
-.customer-hamburger {
-  display: none; background: none; border: none; cursor: pointer;
-  color: var(--text-secondary); padding: 6px; border-radius: var(--radius-sm);
-  transition: var(--transition);
-}
-.customer-hamburger:hover { background: var(--bg-secondary); color: var(--text); }
-
-/* Mobile Dropdown Menu */
-.customer-mobile-menu {
-  border-top: 1px solid var(--border-light);
-  background: var(--surface); padding: 8px 16px 16px;
-  animation: slideDown 0.2s ease;
-}
-.customer-mobile-link {
-  display: flex; align-items: center; gap: 10px;
-  padding: 12px 12px; font-size: 0.9375rem; font-weight: 500;
-  color: var(--text-secondary); text-decoration: none;
-  background: none; border: none; width: 100%; cursor: pointer;
-  border-radius: var(--radius-sm); transition: var(--transition);
-  text-align: left;
-}
-.customer-mobile-link:hover { background: var(--bg-secondary); color: var(--text); }
-.customer-mobile-link.active { color: var(--primary); font-weight: 700; background: var(--primary-bg); }
-.customer-mobile-link.danger { color: var(--error); }
-.customer-mobile-link.danger:hover { background: var(--error-bg); }
+/* The hamburger + mobile dropdown menu were replaced by the bottom tab bar.
+   Their rules were removed — no component rendered .customer-hamburger,
+   .customer-mobile-menu, or .customer-mobile-link. */
 
 /* Customer Main */
 .customer-main { padding: 24px 20px 120px; max-width: var(--container-customer-max, 860px); margin: 0 auto; scroll-behavior: smooth; scrollbar-width: none; -ms-overflow-style: none; }
@@ -364,7 +322,6 @@
 /* Responsive: show bottom nav on phones and portrait tablets */
 @media (max-width: 899.98px) {
   .customer-navbar-links { display: none; }
-  .customer-hamburger { display: none; }
   .customer-bottom-nav { display: block; }
   .customer-navbar-inner { padding: 0 16px; height: 56px; }
   .customer-main {
@@ -377,7 +334,6 @@
   }
 }
 @media (min-width: 900px) {
-  .customer-mobile-menu { display: none; }
   .customer-bottom-nav { display: none; }
   .customer-main { padding-bottom: 40px; }
 }

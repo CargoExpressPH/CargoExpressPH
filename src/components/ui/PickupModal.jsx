@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { X, XCircle, Camera, Loader, Scale, CreditCard, Calendar, Upload, Trash2, Package, AlertTriangle, CheckCircle, FileText, ExternalLink, RefreshCw } from 'lucide-react';
 import FocusTrap from './FocusTrap';
+import useScrollLock from '../../hooks/useScrollLock';
 import { uploadMultiplePhotos, uploadPhoto } from '../../lib/storage';
 import QRCode from 'react-qr-code';
 import { createGCashSource, registerSource, pollPaymentStatus } from '../../lib/paymongo';
@@ -11,6 +12,8 @@ import { supabase } from '../../lib/supabase';
  * Captures: actual weight, payment method, payment amount, photos, and manual GCash reference
  */
 const PickupModal = ({ order, onClose, onSave, pricePerKilo = 70 }) => {
+  useScrollLock(true); // mounted only while open
+
   const [form, setForm] = useState({
     actual_weight: order?.actual_weight || '',
     payment_type: (order?.payment_status === 'partial' || order?.payment_status === 'unpaid' || order?.payment_method === 'paylater') ? 'paylater' : 'full',
@@ -447,11 +450,12 @@ const PickupModal = ({ order, onClose, onSave, pricePerKilo = 70 }) => {
 
           {/* Actual Weight */}
           <div className="form-group">
-            <label className="form-label">
+            <label className="form-label" htmlFor="pickup-actual-weight">
               <Scale size={14} className="inline mr-6" />
               Actual Weight (kg) *
             </label>
             <input
+              id="pickup-actual-weight"
               type="number"
               className="form-input"
               placeholder="Enter actual weight after weighing"
@@ -686,8 +690,9 @@ const PickupModal = ({ order, onClose, onSave, pricePerKilo = 70 }) => {
                 <>
                   <div className="text-xs text-tertiary mb-8" style={{ textAlign: 'center', borderTop: '1px solid var(--border)', paddingTop: 10 }}>Or enter payment details manually</div>
                   <div className="form-group mb-12">
-                    <label className="form-label">Reference Number</label>
+                    <label className="form-label" htmlFor="pickup-payment-reference">Reference Number</label>
                     <input
+                      id="pickup-payment-reference"
                       type="text"
                       className="form-input"
                       placeholder="Enter GCash Ref No."

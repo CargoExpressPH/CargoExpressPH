@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { X, ZoomIn, ZoomOut, RotateCw, ChevronLeft, ChevronRight } from 'lucide-react';
 import FocusTrap from './FocusTrap';
+import useScrollLock from '../../hooks/useScrollLock';
 
 /**
  * ImageLightbox — Full-screen image viewer with zoom, pan, pinch, and swipe.
@@ -45,11 +46,8 @@ const ImageLightbox = ({ images = [], initialIndex = 0, onClose }) => {
     return () => document.removeEventListener('keydown', handleKey);
   }, [index, images.length, onClose, resetTransform]);
 
-  // Lock body scroll
-  useEffect(() => {
-    document.body.style.overflow = 'hidden';
-    return () => { document.body.style.overflow = ''; };
-  }, []);
+  // Lock body scroll (shared hook: ref-counted, iOS-safe, no layout shift)
+  useScrollLock(true);
 
   // Mouse drag for pan
   const handleMouseDown = (e) => {

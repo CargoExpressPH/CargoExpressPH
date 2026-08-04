@@ -164,10 +164,11 @@ const ActivityLogsPage = () => {
           </div>
           <div className="activity-logs-filter-grid">
             <div className="form-group m-0">
-              <label className="form-label">Search</label>
+              <label className="form-label" htmlFor="activity-search">Search</label>
               <div className="form-input-wrapper">
-                <Search size={15} className="form-input-icon" />
+                <Search size={15} className="form-input-icon" aria-hidden="true" />
                 <input
+                  id="activity-search"
                   type="text"
                   className="form-input form-input-icon-left"
                   placeholder="Action, admin, ref..."
@@ -185,8 +186,9 @@ const ActivityLogsPage = () => {
             </div>
 
             <div className="form-group m-0">
-              <label className="form-label">Action</label>
+              <label className="form-label" htmlFor="activity-action-filter">Action</label>
               <input
+                id="activity-action-filter"
                 type="text"
                 className="form-control"
                 placeholder="Filter by action..."

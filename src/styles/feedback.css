@@ -236,7 +236,7 @@
   background: transparent;
   border: none;
   cursor: pointer;
-  color: #94a3b8; /* slate-400 */
+  color: var(--text-tertiary); /* #94a3b8 measured 2.56:1 on white — below the 3:1 UI minimum */
   width: 24px;
   height: 24px;
   position: relative;
@@ -257,7 +257,7 @@
 }
 .toast-close:hover {
   background: rgba(15, 23, 42, 0.06);
-  color: #475569;
+  color: var(--text-secondary);
 }
 .toast-close:focus-visible {
   outline: 2px solid var(--primary-light);

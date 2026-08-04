@@ -18,10 +18,15 @@ import {
 import { useToast } from '../../hooks/useToast';
 import usePageTitle from '../../hooks/usePageTitle';
 import FocusTrap from '../../components/ui/FocusTrap';
+import useScrollLock from '../../hooks/useScrollLock';
 import { motion, useScroll, useTransform, AnimatePresence, MotionConfig } from 'framer-motion';
 
 // â”€â”€â”€ Lightbox Component (with prev/next navigation) â”€â”€â”€
 const Lightbox = ({ images, currentIndex, onClose, onNavigate }) => {
+  // Shared hook: ref-counted and iOS-safe. The previous inline version reset
+  // body overflow to 'unset' rather than restoring the prior value.
+  useScrollLock(currentIndex >= 0);
+
   useEffect(() => {
     if (currentIndex < 0) return;
     const handleKeyDown = (e) => {
@@ -30,10 +35,8 @@ const Lightbox = ({ images, currentIndex, onClose, onNavigate }) => {
       if (e.key === 'ArrowRight') onNavigate(1);
     };
     window.addEventListener('keydown', handleKeyDown);
-    document.body.style.overflow = 'hidden';
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
-      document.body.style.overflow = 'unset';
     };
   }, [currentIndex, onClose, onNavigate]);
 

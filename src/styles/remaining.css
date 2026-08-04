@@ -2415,7 +2415,9 @@
 
 .admin-card-action:hover {
   color: var(--error-dark);
-  background: #FEE2E2;
+  /* Theme-aware tint. A hardcoded light pink here rendered the icon at
+     1.55:1 in dark mode (light text on a light background). */
+  background: color-mix(in srgb, var(--error) 18%, var(--surface));
 }
 
 .admin-compact-input {
@@ -2449,23 +2451,6 @@
   justify-content: space-around;
   gap: 12px;
   transition: var(--transition);
-}
-
-.admin-external-link {
-  min-height: 44px;
-  margin-top: 4px;
-  padding: 8px 0;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  color: #3B82F6;
-  font-size: 0.8125rem;
-  font-weight: 600;
-  text-decoration: none;
-}
-
-.admin-external-link:hover {
-  color: #1D4ED8;
 }
 
 @media (max-width: 820px) {

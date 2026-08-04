@@ -388,12 +388,12 @@ const CompanyInformationPage = () => {
               <div className="card-body">
                 <div className="grid grid-2" style={{ gap: 16 }}>
                   <div className="form-group" style={{ marginBottom: 0 }}>
-                    <label className="form-label">Smart / TNT Number</label>
-                    <input className="form-input" value={companyInfo.smart_phone || ''} onChange={e => handleInfoChange('smart_phone', e.target.value)} placeholder="09XX-XXX-XXXX" />
+                    <label className="form-label" htmlFor="company-smart-phone">Smart / TNT Number</label>
+                    <input id="company-smart-phone" className="form-input" value={companyInfo.smart_phone || ''} onChange={e => handleInfoChange('smart_phone', e.target.value)} placeholder="09XX-XXX-XXXX" />
                   </div>
                   <div className="form-group" style={{ marginBottom: 0 }}>
-                    <label className="form-label">Globe / TM Number</label>
-                    <input className="form-input" value={companyInfo.globe_phone || ''} onChange={e => handleInfoChange('globe_phone', e.target.value)} placeholder="09XX-XXX-XXXX" />
+                    <label className="form-label" htmlFor="company-globe-phone">Globe / TM Number</label>
+                    <input id="company-globe-phone" className="form-input" value={companyInfo.globe_phone || ''} onChange={e => handleInfoChange('globe_phone', e.target.value)} placeholder="09XX-XXX-XXXX" />
                   </div>
                 </div>
               </div>
@@ -406,20 +406,23 @@ const CompanyInformationPage = () => {
               <div className="card-body">
                 <div className="grid grid-2" style={{ gap: 16 }}>
                   <div className="form-group">
-                    <label className="form-label">Email Address</label>
-                    <input className="form-input" type="email" value={companyInfo.email || ''} onChange={e => handleInfoChange('email', e.target.value)} placeholder="info@cargoexpress.ph" />
+                    <label className="form-label" htmlFor="company-email">Email Address</label>
+                    <input id="company-email" className="form-input" type="email" value={companyInfo.email || ''} onChange={e => handleInfoChange('email', e.target.value)} placeholder="info@cargoexpress.ph" />
                   </div>
                   <div className="form-group">
-                    <label className="form-label">Facebook Page URL</label>
-                    <input className="form-input" type="url" value={companyInfo.facebook || ''} onChange={e => handleInfoChange('facebook', e.target.value)} placeholder="https://facebook.com/..." />
+                    <label className="form-label" htmlFor="company-facebook">Facebook Page URL</label>
+                    <input id="company-facebook" className="form-input" type="url" value={companyInfo.facebook || ''} onChange={e => handleInfoChange('facebook', e.target.value)} placeholder="https://facebook.com/..." />
                   </div>
                   <div className="form-group" style={{ marginBottom: 0 }}>
-                    <label className="form-label">Messenger Link</label>
-                    <input className="form-input" type="url" value={companyInfo.messenger || ''} onChange={e => handleInfoChange('messenger', e.target.value)} placeholder="https://m.me/..." />
+                    <label className="form-label" htmlFor="company-messenger">Messenger Link</label>
+                    <input id="company-messenger" className="form-input" type="url" value={companyInfo.messenger || ''} onChange={e => handleInfoChange('messenger', e.target.value)} placeholder="https://m.me/..." />
                   </div>
                   <div className="form-group" style={{ marginBottom: 0 }}>
-                    <label className="form-label">Website</label>
-                    <input className="form-input" type="url" value={companyInfo.website || ''} onChange={e => handleInfoChange('website', e.target.value)} placeholder="https://..." />
+                    {/* NOTE: this edits the same companyInfo.website field as the
+                        "Website URL" input in the Business Details card above.
+                        Distinct id so the labels stay unambiguous. */}
+                    <label className="form-label" htmlFor="company-website-online">Website</label>
+                    <input id="company-website-online" className="form-input" type="url" value={companyInfo.website || ''} onChange={e => handleInfoChange('website', e.target.value)} placeholder="https://..." />
                   </div>
                 </div>
               </div>
@@ -432,12 +435,12 @@ const CompanyInformationPage = () => {
               <div className="card-body">
                 <div className="grid grid-2" style={{ gap: 16 }}>
                   <div className="form-group" style={{ marginBottom: 0 }}>
-                    <label className="form-label">Manila Hub Address</label>
-                    <textarea className="form-textarea" rows={3} value={companyInfo.manila_address || ''} onChange={e => handleInfoChange('manila_address', e.target.value)} placeholder="Full address of Manila hub..." />
+                    <label className="form-label" htmlFor="company-manila-address">Manila Hub Address</label>
+                    <textarea id="company-manila-address" className="form-textarea" rows={3} value={companyInfo.manila_address || ''} onChange={e => handleInfoChange('manila_address', e.target.value)} placeholder="Full address of Manila hub..." />
                   </div>
                   <div className="form-group" style={{ marginBottom: 0 }}>
-                    <label className="form-label">Bohol Hub Address</label>
-                    <textarea className="form-textarea" rows={3} value={companyInfo.bohol_address || ''} onChange={e => handleInfoChange('bohol_address', e.target.value)} placeholder="Full address of Bohol hub..." />
+                    <label className="form-label" htmlFor="company-bohol-address">Bohol Hub Address</label>
+                    <textarea id="company-bohol-address" className="form-textarea" rows={3} value={companyInfo.bohol_address || ''} onChange={e => handleInfoChange('bohol_address', e.target.value)} placeholder="Full address of Bohol hub..." />
                   </div>
                 </div>
               </div>

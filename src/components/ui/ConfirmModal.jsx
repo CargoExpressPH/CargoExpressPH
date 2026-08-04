@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { AlertTriangle, Info, CheckCircle, Loader, LogOut } from 'lucide-react';
 import FocusTrap from './FocusTrap';
+import useScrollLock from '../../hooks/useScrollLock';
 
 /**
  * Resolves the default icon based on variant.
@@ -66,6 +67,8 @@ const ConfirmModal = ({
       cancelRef.current.focus();
     }
   }, [isOpen]);
+
+  useScrollLock(isOpen);
 
   if (!isOpen) return null;
 
