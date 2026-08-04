@@ -213,6 +213,16 @@
   padding-right: 36px;
 }
 
+/* CustomSelect renders its own <ChevronDown> inside the trigger. When callers
+   also pass `form-select` (11 of them do: booking, register, profile, feedback,
+   order detail) the background chevron above painted a SECOND arrow next to it.
+   Suppress it whenever the class lands on a CustomSelect trigger — the higher
+   specificity here wins regardless of source order. */
+.custom-select-trigger.form-select {
+  background-image: none;
+  padding-right: 14px;
+}
+
 /* --- DATE & TIME INPUT ENHANCEMENTS ------------------------------------ */
 input[type="date"],
 input[type="time"],

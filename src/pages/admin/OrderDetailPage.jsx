@@ -893,15 +893,18 @@ const AdminOrderDetailPage = () => {
                   />
                 </div>
                 <div className="form-group">
-                  <label className="form-label">Featured Image</label>
-                  <select
+                  <label className="form-label" htmlFor="order-featured-image">Featured Image</label>
+                  {/* CustomSelect for consistency with every other dropdown in
+                      the admin UI; a native select opens the OS picker instead. */}
+                  <CustomSelect
+                    id="order-featured-image"
                     className="form-select"
                     value={featureForm.featured_image_type}
                     onChange={e => setFeatureForm({ ...featureForm, featured_image_type: e.target.value })}
                   >
                     {resolvedPickupPhotos.length > 0 && <option value="pickup">Use Pickup Proof</option>}
                     {resolvedDeliveryPhotos.length > 0 && <option value="delivery">Use Delivery Proof</option>}
-                  </select>
+                  </CustomSelect>
                 </div>
                 
                 <div className="form-group" style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'flex-end', marginTop: 12 }}>

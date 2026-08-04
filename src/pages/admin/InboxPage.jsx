@@ -19,6 +19,7 @@ import {
   CONVERSATION_STATUS,
 } from '../../lib/database';
 import EmptyState from '../../components/ui/EmptyState';
+import CustomSelect from '../../components/ui/CustomSelect';
 import { MessageSquare, Send, Loader, User, Bot, Clock, CheckCircle, UserCheck, ArrowLeft, Search, AlertCircle, X } from 'lucide-react';
 import usePageTitle from '../../hooks/usePageTitle';
 import { logChat } from '../../lib/activityLog';
@@ -916,9 +917,16 @@ const InboxPage = () => {
                         <span className="inbox-assigned-label">Assigned to</span>
                         {/* A handover path. Assignment used to be one-way, so a
                             conversation owned by someone on leave was stuck. */}
-                        <select
+                        {/* CustomSelect, not a native <select>, so this matches
+                            every other dropdown in the admin UI (Activity Logs,
+                            Customers, Feedback). A native select hands off to
+                            the OS picker — a centred dialog on Android, a wheel
+                            on iOS — which read as a different app. It also
+                            renders a <button>, and iOS never focus-zooms a
+                            button, so the auto-zoom problem cannot recur. */}
+                        <CustomSelect
                           id="inbox-reassign"
-                          className="inbox-reassign-select"
+                          className="form-control inbox-reassign-select"
                           value={activeConv.assigned_admin_id || ''}
                           disabled={reassigning}
                           onChange={e => handleReassign(e.target.value || null)}
@@ -934,7 +942,7 @@ const InboxPage = () => {
                             </option>
                           ))}
                           <option value="">— Unassign —</option>
-                        </select>
+                        </CustomSelect>
                       </div>
                     )}
                   </div>

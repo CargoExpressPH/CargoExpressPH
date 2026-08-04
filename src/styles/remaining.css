@@ -3259,17 +3259,22 @@
 /* --- INBOX — Reassign control (Phase 1c) ------------------------------- */
 /* Assignment used to be one-way: set on first reply, no way to hand over.
    A conversation owned by someone on leave had no recovery path. */
+/* Applied to the CustomSelect trigger (a <button>) on top of .form-control,
+   so it inherits the same look as every other dropdown in the admin UI.
+   This only trims it down for the desktop header sub-row. */
 .inbox-reassign-select {
-  font-size: 0.7rem;
-  font-family: inherit;
-  color: var(--text-secondary);
-  background: transparent;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-xs);
-  padding: 1px 4px;
-  margin-left: 4px;
-  cursor: pointer;
-  max-width: 150px;
+  min-height: 30px;
+  padding: 4px 10px;
+  font-size: 0.75rem;
+  gap: 6px;
+}
+
+/* CustomSelect's root is width:100% by default. Inline-sized here on desktop,
+   full width on touch. */
+.inbox-chat-user-assigned .custom-select-root {
+  width: auto;
+  min-width: 0;
+  flex: 0 1 220px;
 }
 .inbox-reassign-select:hover:not(:disabled) {
   border-color: var(--primary);
@@ -3285,21 +3290,24 @@
    back out, and `padding: 1px 4px` produced a ~14px tall target. Desktop keeps
    the compact styling; it is a fine-pointer device and unaffected. */
 @media (hover: none) and (pointer: coarse) {
+  /* Touch gets the full .form-control sizing back: 44px tall and a comfortable
+     label size. The iOS focus-zoom rule does not apply here — CustomSelect
+     renders a <button>, and Safari only auto-zooms text-entry controls — but
+     16px is still the right size to read and tap. */
   .inbox-reassign-select {
-    font-size: 16px;
     min-height: 44px;
-    padding: 6px 8px;
-    margin-left: 0;
-    max-width: 100%;
-    /* basis 0, not 140px: a basis wider than the line makes a flex item wrap
-       before it shrinks, which would drop the select onto a row of its own at
-       320px. With basis 0 it simply absorbs whatever width is left. */
-    flex: 1 1 0;
-    min-width: 0;
+    padding: 10px 14px;
+    font-size: 16px;
   }
 
-  /* Let "Assigned to [select]" wrap rather than crushing the select on a
-     360px screen. */
+  /* basis 0, not a fixed width: a basis wider than the line makes a flex item
+     wrap before it shrinks, which would drop the control onto a row of its own
+     at 320px. With basis 0 it absorbs whatever width is left. */
+  .inbox-chat-user-assigned .custom-select-root {
+    flex: 1 1 0;
+  }
+
+  /* Let "Assigned to [control]" wrap rather than crushing it on a 360px screen. */
   .inbox-chat-user-assigned {
     flex-wrap: wrap;
     row-gap: 6px;
