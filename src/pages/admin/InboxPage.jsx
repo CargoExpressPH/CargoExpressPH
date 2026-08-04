@@ -19,7 +19,7 @@ import {
   CONVERSATION_STATUS,
 } from '../../lib/database';
 import EmptyState from '../../components/ui/EmptyState';
-import { MessageSquare, Send, Loader, User, Bot, Clock, CheckCircle, UserCheck, ArrowLeft, Search, AlertCircle, X, MoreVertical } from 'lucide-react';
+import { MessageSquare, Send, Loader, User, Bot, Clock, CheckCircle, UserCheck, ArrowLeft, Search, AlertCircle, X } from 'lucide-react';
 import usePageTitle from '../../hooks/usePageTitle';
 import { logChat } from '../../lib/activityLog';
 
@@ -108,33 +108,6 @@ const InboxPage = () => {
   const [messageMatches, setMessageMatches] = useState(new Map());
   const [admins, setAdmins] = useState([]);
   const [reassigning, setReassigning] = useState(false);
-  // Mobile-only overflow menu for secondary chat-header actions.
-  const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
-  const headerMenuRef = useRef(null);
-
-  // Escape + outside-click dismissal, matching the other menus in this app.
-  // Listeners are only attached while the menu is open.
-  useEffect(() => {
-    if (!headerMenuOpen) return undefined;
-    const onKeyDown = (e) => {
-      if (e.key === 'Escape') setHeaderMenuOpen(false);
-    };
-    const onPointerDown = (e) => {
-      if (!headerMenuRef.current?.contains(e.target)) setHeaderMenuOpen(false);
-    };
-    document.addEventListener('keydown', onKeyDown);
-    document.addEventListener('pointerdown', onPointerDown);
-    return () => {
-      document.removeEventListener('keydown', onKeyDown);
-      document.removeEventListener('pointerdown', onPointerDown);
-    };
-  }, [headerMenuOpen]);
-
-  // The menu's open state lives here, above the header that renders it, so it
-  // survives the header unmounting when you go back to the list. Without this
-  // reset, opening the menu, going back, then opening another conversation
-  // would show the menu already open against a different customer.
-  useEffect(() => { setHeaderMenuOpen(false); }, [activeConv?.id]);
 
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
@@ -928,7 +901,7 @@ const InboxPage = () => {
                       {activeConv.profiles?.name || 'Customer'}
                     </div>
                     <div className="text-secondary inbox-chat-user-sub">
-                      <span className="truncate inbox-chat-user-email">{activeConv.profiles?.email}</span>
+                      <span className="truncate">{activeConv.profiles?.email}</span>
                       <ConvStatusBadge
                         status={activeConv.status}
                         assignedAdmin={activeConv.assigned_admin?.name}
@@ -965,89 +938,30 @@ const InboxPage = () => {
                   </div>
                 </div>
 
-                {/* Action buttons.
-                    Desktop and mobile render separate groups rather than one
-                    shared set. Each is display:none at the other breakpoint, so
-                    only one is ever in the accessibility tree — no duplicate
-                    controls announced to a screen reader. */}
+                {/* Action buttons */}
                 <div className="inbox-chat-header-actions">
-                  {/* ── Desktop: full labelled buttons ── */}
-                  <div className="inbox-actions-desktop">
-                    {activeConv.status !== CONVERSATION_STATUS.RESOLVED && (
-                      <>
-                        {!activeConv.assigned_admin_id && (
-                          <button type="button" className="btn btn-outline btn-sm" onClick={() => handleStatusChange('assigned')}>
-                            Assign to Me
-                          </button>
-                        )}
-                        <button type="button" className="btn btn-resolve-success btn-sm gap-4 flex items-center" onClick={() => handleStatusChange(CONVERSATION_STATUS.RESOLVED)}>
-                          <CheckCircle size={14} /> Resolve
-                        </button>
-                      </>
-                    )}
-                    <button
-                      type="button"
-                      className="inbox-close-btn"
-                      onClick={() => { setActiveConv(null); activeConvRef.current = null; }}
-                      aria-label="Close conversation"
-                      title="Close"
-                    >
-                      <X size={16} aria-hidden="true" />
-                    </button>
-                  </div>
-
-                  {/* ── Mobile: Resolve stays one tap; the rest go behind ⋮ ──
-                       Resolve is the action an admin performs on nearly every
-                       conversation, so burying it would cost a tap every time.
-                       The header's ✕ is omitted here: the back arrow already
-                       does exactly the same thing. */}
                   {activeConv.status !== CONVERSATION_STATUS.RESOLVED && (
-                    <button
-                      type="button"
-                      className="inbox-resolve-quick"
-                      onClick={() => handleStatusChange(CONVERSATION_STATUS.RESOLVED)}
-                      aria-label="Resolve conversation"
-                      title="Resolve"
-                    >
-                      <CheckCircle size={18} aria-hidden="true" />
-                    </button>
-                  )}
-
-                  <div className="inbox-header-overflow" ref={headerMenuRef}>
-                    <button
-                      type="button"
-                      className="inbox-header-menu-btn"
-                      onClick={() => setHeaderMenuOpen(o => !o)}
-                      aria-haspopup="menu"
-                      aria-expanded={headerMenuOpen}
-                      aria-label="More conversation actions"
-                    >
-                      <MoreVertical size={18} aria-hidden="true" />
-                    </button>
-
-                    {headerMenuOpen && (
-                      <div className="inbox-header-menu" role="menu">
-                        {activeConv.status !== CONVERSATION_STATUS.RESOLVED && !activeConv.assigned_admin_id && (
-                          <button
-                            type="button"
-                            role="menuitem"
-                            className="inbox-header-menu-item"
-                            onClick={() => { setHeaderMenuOpen(false); handleStatusChange('assigned'); }}
-                          >
-                            <UserCheck size={15} aria-hidden="true" /> Assign to Me
-                          </button>
-                        )}
-                        <button
-                          type="button"
-                          role="menuitem"
-                          className="inbox-header-menu-item"
-                          onClick={() => { setHeaderMenuOpen(false); setActiveConv(null); activeConvRef.current = null; }}
-                        >
-                          <X size={15} aria-hidden="true" /> Close conversation
+                    <>
+                      {!activeConv.assigned_admin_id && (
+                        <button type="button" className="btn btn-outline btn-sm" onClick={() => handleStatusChange('assigned')}>
+                          Assign to Me
                         </button>
-                      </div>
-                    )}
-                  </div>
+                      )}
+                      <button type="button" className="btn btn-resolve-success btn-sm gap-4 flex items-center" onClick={() => handleStatusChange(CONVERSATION_STATUS.RESOLVED)}>
+                        <CheckCircle size={14} /> Resolve
+                      </button>
+                    </>
+                  )}
+                  <button
+                    type="button"
+                    className="inbox-close-btn"
+                    onClick={() => { setActiveConv(null); activeConvRef.current = null; }}
+                    aria-label="Close conversation"
+                    title="Close"
+                  >
+                    <X size={16} aria-hidden="true" />
+                  </button>
+
                 </div>
               </div>
 
