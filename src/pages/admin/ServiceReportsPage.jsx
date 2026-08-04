@@ -143,7 +143,7 @@ const ServiceReportsPage = () => {
           [
             { l: 'Waiting on us', v: q.waiting ?? 0, tone: (q.waiting > 0 ? 'warning' : 'success') },
             { l: `Waiting over 24h`, v: q.waitingOver24h ?? 0, tone: (q.waitingOver24h > 0 ? 'danger' : 'success') },
-            { l: 'Active conversations', v: q.open ?? 0, tone: 'primary' },
+            { l: 'Awaiting customer', v: q.waitingCustomer ?? 0, tone: 'primary' },
             { l: 'Unassigned', v: q.unassigned ?? 0, tone: (q.unassigned > 0 ? 'warning' : 'success') },
           ].map((c, i) => (
             <div key={i} className={`stat-card stat-card-${c.tone} stagger-item`} style={{ animationDelay: `${i * 60}ms` }}>
@@ -313,7 +313,6 @@ const ServiceReportsPage = () => {
                 <tr><td>Waiting on us</td><td className="num">{q.waiting ?? 0}</td></tr>
                 <tr><td>Waiting over 24 hours</td><td className="num">{q.waitingOver24h ?? 0}</td></tr>
                 <tr><td>Longest current wait</td><td className="num">{q.oldestWaitHours ?? 0} h</td></tr>
-                <tr><td>Active</td><td className="num">{q.open ?? 0}</td></tr>
                 <tr><td>Awaiting the customer</td><td className="num">{q.waitingCustomer ?? 0}</td></tr>
                 <tr><td>Resolved</td><td className="num">{q.resolved ?? 0}</td></tr>
                 <tr><td>Handled by bot only</td><td className="num">{q.botActive ?? 0}</td></tr>

@@ -171,16 +171,17 @@ CREATE TABLE IF NOT EXISTS conversations (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   customer_id UUID NOT NULL UNIQUE REFERENCES profiles(id) ON DELETE CASCADE,
   created_at TIMESTAMPTZ DEFAULT NOW(),
-  -- Service state (20260804210000). 'closed' used to mean BOTH "born, bot is
-  -- handling it" and "an admin finished", so "nobody has replied yet" was not
-  -- representable. Split into:
-  --   bot_active       bot handling; hidden from the admin queue
-  --   waiting          a human is needed — THE QUEUE
-  --   open             an admin has replied and is engaged
-  --   waiting_customer we answered and asked something; their turn
-  --   resolved         done; reopens automatically if the customer writes
+  -- Service state. Every value is DERIVED from who spoke last, by trigger;
+  -- the only one a human sets is 'resolved' (20260804260000).
+  --   bot_active       bot handling — new chat, or a customer returning to a
+  --                    resolved thread (usually a new, basic question)
+  --   waiting          the customer spoke last — OUR TURN, the queue
+  --   waiting_customer an admin spoke last — their turn
+  --   resolved         an admin said so
+  -- 'open' was deleted: once every admin reply means "waiting on the
+  -- customer", it described nothing assigned_admin_id did not already say.
   status TEXT DEFAULT 'bot_active'
-    CHECK (status IN ('bot_active', 'waiting', 'open', 'waiting_customer', 'resolved')),
+    CHECK (status IN ('bot_active', 'waiting', 'waiting_customer', 'resolved')),
   -- A FLAG, not a state: 'escalated' answers "how urgent", status answers
   -- "whose turn". Collapsing the two is what produced the original defect.
   escalated BOOLEAN NOT NULL DEFAULT FALSE,
@@ -815,19 +816,37 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public
 AS $$
+DECLARE
+  v_status TEXT;
 BEGIN
+  SELECT status INTO v_status FROM public.conversations WHERE id = NEW.conversation_id;
+
+  -- Marks this as a SERVER decision so guard_conversation_update lets the
+  -- status move through. Transaction-local and cleared immediately; a client
+  -- cannot set it, since inserting a message is its own transaction.
+  PERFORM set_config('app.conversation_service_write', 'on', true);
+
   IF NEW.sender_role = 'customer' THEN
     UPDATE public.conversations
        SET last_customer_message_at = NEW.created_at,
-           status = CASE WHEN status = 'bot_active' THEN 'bot_active' ELSE 'waiting' END,
+           status = CASE
+                      WHEN v_status = 'bot_active' THEN 'bot_active'
+                      WHEN v_status = 'resolved'   THEN 'bot_active'
+                      ELSE 'waiting'
+                    END,
            resolved_at = NULL
      WHERE id = NEW.conversation_id;
+
   ELSIF NEW.sender_role = 'admin' THEN
+    -- An admin replying IS the signal that we are waiting on the customer.
+    -- This replaced a manual "Awaiting Customer" button.
     UPDATE public.conversations
        SET first_response_at = COALESCE(first_response_at, NEW.created_at),
-           status = CASE WHEN status IN ('waiting', 'bot_active') THEN 'open' ELSE status END
+           status = 'waiting_customer'
      WHERE id = NEW.conversation_id;
   END IF;
+
+  PERFORM set_config('app.conversation_service_write', 'off', true);
   RETURN NEW;
 END;
 $$;
@@ -852,7 +871,10 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
-  IF auth.uid() IS NULL OR public.is_admin() THEN
+  IF auth.uid() IS NULL
+     OR public.is_admin()
+     OR COALESCE(current_setting('app.conversation_service_write', true), 'off') = 'on'
+  THEN
     RETURN NEW;
   END IF;
 
@@ -918,7 +940,7 @@ BEGIN
   WITH swept AS (
     UPDATE public.conversations
        SET status = 'resolved'
-     WHERE status IN ('open', 'waiting_customer')
+     WHERE status = 'waiting_customer'
        AND COALESCE(last_customer_message_at, created_at) < now() - interval '7 days'
     RETURNING id
   )
@@ -1499,11 +1521,12 @@ BEGIN
       'total',            COUNT(*),
       'botActive',        COUNT(*) FILTER (WHERE status = 'bot_active'),
       'waiting',          COUNT(*) FILTER (WHERE status = 'waiting'),
-      'open',             COUNT(*) FILTER (WHERE status = 'open'),
       'waitingCustomer',  COUNT(*) FILTER (WHERE status = 'waiting_customer'),
       'resolved',         COUNT(*) FILTER (WHERE status = 'resolved'),
       'escalated',        COUNT(*) FILTER (WHERE escalated),
-      'unassigned',       COUNT(*) FILTER (WHERE status IN ('waiting','open') AND assigned_admin_id IS NULL),
+      'unassigned',       COUNT(*) FILTER (
+                            WHERE status IN ('waiting', 'waiting_customer')
+                              AND assigned_admin_id IS NULL),
       'waitingOver24h',   COUNT(*) FILTER (
                             WHERE status = 'waiting'
                               AND COALESCE(last_customer_message_at, created_at) < now() - interval '24 hours'),

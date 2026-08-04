@@ -1335,20 +1335,16 @@ export const getOrCreateConversation = async (customerId) => {
  * Conversation service states (20260804210000). Exported so the inbox and the
  * customer chat agree on the vocabulary instead of each hard-coding strings.
  */
+/**
+ * Every state is DERIVED from who spoke last, by trigger. The only one a
+ * human sets is `resolved` — see 20260804260000_simplify_conversation_states.
+ */
 export const CONVERSATION_STATUS = {
-  BOT_ACTIVE: 'bot_active',            // bot handling; hidden from the queue
-  WAITING: 'waiting',                  // a human is needed — THE QUEUE
-  OPEN: 'open',                        // an admin has replied and is engaged
-  WAITING_CUSTOMER: 'waiting_customer',// we answered; their turn
-  RESOLVED: 'resolved',                // done; reopens if they write again
+  BOT_ACTIVE: 'bot_active',            // bot handling; new chat or a returning customer
+  WAITING: 'waiting',                  // customer spoke last — OUR TURN, the queue
+  WAITING_CUSTOMER: 'waiting_customer',// an admin spoke last — their turn
+  RESOLVED: 'resolved',                // an admin said so; the only manual state
 };
-
-/** States that need an admin to look at them. `bot_active` is deliberately absent. */
-export const ADMIN_ACTIONABLE_STATUSES = [
-  CONVERSATION_STATUS.WAITING,
-  CONVERSATION_STATUS.OPEN,
-  CONVERSATION_STATUS.WAITING_CUSTOMER,
-];
 
 /**
  * Inbox ordering, shared by the initial fetch and the realtime updates so a
@@ -1942,10 +1938,13 @@ export const getPaymentTransactionsBatch = async (orderIds) => {
 export const assignConversation = async (conversationId) => {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('Not authenticated');
-  // Taking a conversation also clears the waiting state — an admin is on it.
+  // Ownership only. Claiming a conversation does not change whose turn it is —
+  // it is still ours until we actually reply, and the reply is what moves the
+  // state. This used to also force 'open', which quietly emptied the queue
+  // before anyone had answered.
   const { error } = await supabase
     .from('conversations')
-    .update({ assigned_admin_id: user.id, status: CONVERSATION_STATUS.OPEN })
+    .update({ assigned_admin_id: user.id })
     .eq('id', conversationId);
   if (error) throw error;
 };
@@ -2003,24 +2002,15 @@ export const resolveConversation = async (conversationId) => {
   if (error) throw error;
 };
 
-/** Pull a resolved conversation back into active handling. */
+/**
+ * Pull a resolved conversation back into the queue.
+ * Reopening means "not finished", and the admin who reopened it is the one
+ * about to act — so it lands on our side, not the customer's.
+ */
 export const reopenConversation = async (conversationId) => {
   const { error } = await supabase
     .from('conversations')
-    .update({ status: CONVERSATION_STATUS.OPEN })
-    .eq('id', conversationId);
-  if (error) throw error;
-};
-
-/**
- * The admin has answered and is waiting on the customer. Keeps the queue
- * honest: it removes the row from `waiting` without claiming the issue is
- * resolved, and starts the 7-day auto-resolve clock.
- */
-export const setConversationWaitingCustomer = async (conversationId) => {
-  const { error } = await supabase
-    .from('conversations')
-    .update({ status: CONVERSATION_STATUS.WAITING_CUSTOMER })
+    .update({ status: CONVERSATION_STATUS.WAITING })
     .eq('id', conversationId);
   if (error) throw error;
 };

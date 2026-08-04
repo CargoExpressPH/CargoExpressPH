@@ -567,51 +567,37 @@
 
 /* --- HYBRID CHAT — Resolution Prompt (Yes / No) ------------------------ */
 
-.chat-resolution-prompt {
+/* Quiet inline rating (client direction: the boxed Yes/No felt naggy after
+   every bot answer). Reads as a footnote to the message, not a demand. */
+.chat-rating {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-top: 8px;
-  padding: 10px 12px;
-  border-radius: var(--radius-md);
-  background: var(--primary-bg);
-  border: 1px solid var(--primary-light-border, rgba(59,130,246,0.2));
-  width: fit-content;
-  max-width: 100%;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+  opacity: 0.75;
+  transition: opacity var(--transition-fast);
 }
-.chat-resolution-text {
-  font-size: 0.8125rem;
-  font-weight: 600;
-  color: var(--text);
+.chat-rating:hover { opacity: 1; }
+.chat-rating-label {
+  font-size: 0.7rem;
+  color: var(--text-tertiary);
+  margin-right: 2px;
 }
-.chat-resolution-btns {
-  display: flex; gap: 8px;
+.chat-rating-btn {
+  background: none;
+  border: none;
+  padding: 2px 4px;
+  border-radius: var(--radius-xs);
+  font-size: 0.9rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: var(--transition-fast);
 }
-.chat-resolve-btn {
-  display: flex; align-items: center; gap: 5px;
-  padding: 6px 14px;
-  border-radius: var(--radius-full);
-  border: 1.5px solid transparent;
-  font-size: 0.8125rem; font-weight: 600;
-  cursor: pointer; transition: var(--transition-fast);
-}
-.chat-resolve-btn.yes {
-  background: var(--success-bg);
-  color: #065F46;
-  border-color: #A7F3D0;
-}
-.chat-resolve-btn.yes:hover {
-  background: #D1FAE5;
-  transform: translateY(-1px);
-}
-.chat-resolve-btn.no {
-  background: var(--error-bg);
-  color: #991B1B;
-  border-color: #FECACA;
-}
-.chat-resolve-btn.no:hover {
-  background: #FEE2E2;
-  transform: translateY(-1px);
+.chat-rating-btn:hover { background: var(--bg-secondary); transform: scale(1.15); }
+.chat-rating-btn:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .chat-rating-btn:hover { transform: none; }
 }
 
 /* --- HYBRID CHAT — Status Banners -------------------------------------- */
@@ -3241,3 +3227,41 @@
   color: var(--text);
 }
 .inbox-reassign-select:disabled { opacity: 0.6; cursor: wait; }
+
+/* --- INBOX — Simplified header (client direction: minimal) ------------- */
+/* Replaces six filter tabs with one status line and one checkbox. */
+.inbox-queue-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+.inbox-queue-line.has-waiting {
+  background: var(--warning-bg);
+  color: var(--badge-warning-color);
+  border: 1px solid var(--warning);
+}
+.inbox-queue-line strong { font-variant-numeric: tabular-nums; }
+
+.inbox-show-resolved {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  font-size: 0.72rem;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  user-select: none;
+}
+.inbox-show-resolved input { cursor: pointer; margin: 0; }
+
+/* Assignee shown without the weight of a status pill. */
+.inbox-status-quiet {
+  font-size: 0.68rem;
+  color: var(--text-tertiary);
+}

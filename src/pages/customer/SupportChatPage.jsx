@@ -13,7 +13,7 @@ import {
 import { getBotReply, BOT_GREETING } from '../../lib/supportChatEngine';
 import {
   Send, Bot, Loader, MessageSquare, AlertTriangle,
-  RefreshCw, CheckCircle, XCircle, Clock, User, AlertCircle,
+  RefreshCw, Clock, User, AlertCircle,
 } from 'lucide-react';
 import EmptyState from '../../components/ui/EmptyState';
 import { useToast } from '../../hooks/useToast';
@@ -85,18 +85,30 @@ const MessageBubble = ({ m, showResolutionPrompt, onVoteYes, onVoteNo, onRetry, 
           <div className={`chat-timestamp ${isMe ? 'text-right' : ''}`}>{formatTime(m.created_at)}</div>
         )}
 
-        {/* Yes / No resolution prompt */}
+        {/* Quiet inline rating. A boxed "Did I solve your concern? [Yes] [No]"
+            after every single bot answer reads as nagging; two small icons ask
+            the same question without interrupting the conversation. */}
         {isBot && showResolutionPrompt && (
-          <div className="chat-resolution-prompt">
-            <span className="chat-resolution-text">Did I solve your concern?</span>
-            <div className="chat-resolution-btns">
-              <button className="chat-resolve-btn yes" onClick={onVoteYes}>
-                <CheckCircle size={14} /> Yes
-              </button>
-              <button className="chat-resolve-btn no" onClick={onVoteNo}>
-                <XCircle size={14} /> No
-              </button>
-            </div>
+          <div className="chat-rating">
+            <span className="chat-rating-label">Was this helpful?</span>
+            <button
+              type="button"
+              className="chat-rating-btn"
+              onClick={onVoteYes}
+              aria-label="Yes, this was helpful"
+              title="Yes, this helped"
+            >
+              👍
+            </button>
+            <button
+              type="button"
+              className="chat-rating-btn"
+              onClick={onVoteNo}
+              aria-label="No, I need a person"
+              title="No — talk to a person"
+            >
+              👎
+            </button>
           </div>
         )}
       </div>
@@ -160,14 +172,13 @@ const SupportChatPage = () => {
   // Conversation lifecycle routing (status-based, NOT message-count-based):
   //
   //   Case A — no conversation exists → create (status='bot_active') → bot greets
-  //   Case B — status = 'bot_active'  → bot takes over, sends welcome-back msg
-  //   Case C — anything else ('waiting' | 'open' | 'waiting_customer' |
-  //            'resolved') → admin mode, no bot.
+  //   Case B — status = 'bot_active' or 'resolved' → bot takes over
+  //   Case C — 'waiting' | 'waiting_customer' → admin mode, no bot
   //
-  // 'resolved' counts as ADMIN mode on purpose: a customer returning to a
-  // thread a person handled should reach that person again, not be bounced
-  // back to the bot. Their next message flips the conversation to 'waiting'
-  // via the maintain_conversation_service_state trigger.
+  // 'resolved' returns to BOT mode by client direction: a customer coming back
+  // to a finished thread usually has a NEW and often basic question, so the
+  // bot gets first crack and escalates if it cannot help. The trigger moves
+  // the row back to 'bot_active' on their first message.
   //
   const greetingSentRef = useRef(false);
 
@@ -198,13 +209,13 @@ const SupportChatPage = () => {
       clearLoadTimeout();
       if (!isMountedRef.current) return;
 
-      const status = conv.status || 'open';
+      const status = conv.status || CONVERSATION_STATUS.BOT_ACTIVE;
       setConversationId(conv.id);
       setConvStatus(status);
       setHasMoreMessages(hasMore);
 
       // ── Route by status ──────────────────────────────────────────────────
-      if (status === CONVERSATION_STATUS.BOT_ACTIVE) {
+      if (status === CONVERSATION_STATUS.BOT_ACTIVE || status === CONVERSATION_STATUS.RESOLVED) {
         // BOT MODE: chatbot is the first responder
         setIsBotMode(true);
 
@@ -228,7 +239,7 @@ const SupportChatPage = () => {
           }
         }
       } else {
-        // ADMIN MODE: waiting / open / waiting_customer / resolved
+        // ADMIN MODE: waiting / waiting_customer — a person owns this thread
         // Admin is handling — display history, no bot responses
         setIsBotMode(false);
         setMessages(history || []);
@@ -289,10 +300,12 @@ const SupportChatPage = () => {
         filter: `id=eq.${conversationId}`,
       }, (payload) => {
         if (!isMountedRef.current) return;
-        const newStatus = payload.new.status || CONVERSATION_STATUS.OPEN;
+        const newStatus = payload.new.status || CONVERSATION_STATUS.BOT_ACTIVE;
         setConvStatus(newStatus);
-        // Anything other than bot_active means a human owns the thread now.
-        if (newStatus !== CONVERSATION_STATUS.BOT_ACTIVE) {
+        // waiting / waiting_customer mean a person owns the thread now.
+        // bot_active and resolved both leave the bot in charge.
+        if (newStatus === CONVERSATION_STATUS.WAITING ||
+            newStatus === CONVERSATION_STATUS.WAITING_CUSTOMER) {
           setIsBotMode(false);
           setPendingResolutionId(null);
         }
