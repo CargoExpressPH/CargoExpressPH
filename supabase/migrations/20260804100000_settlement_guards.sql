@@ -232,12 +232,20 @@ BEGIN
            LIMIT 5
         ) t;
 
+      -- The truncation marker is appended to the string, NOT passed as another
+      -- RAISE argument: '%%' in a RAISE format string is an escaped literal '%',
+      -- not two placeholders, so the earlier version passed 4 arguments to a
+      -- 2-placeholder format and failed to compile with
+      --   ERROR 42601: too many parameters specified for RAISE
+      IF v_count > 5 THEN
+        v_unsettled := v_unsettled || ' …';
+      END IF;
+
       RAISE EXCEPTION
-        'Cannot complete trip % — % order(s) still have an unpaid balance: %%',
+        'Cannot complete trip % — % order(s) still have an unpaid balance: %',
         NEW.trip_number,
         v_count,
-        v_unsettled,
-        CASE WHEN v_count > 5 THEN ' …' ELSE '' END;
+        v_unsettled;
     END IF;
   END IF;
 

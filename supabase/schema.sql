@@ -1977,10 +1977,15 @@ BEGIN
            LIMIT 5
         ) t;
 
+      -- '%%' in a RAISE format string is an escaped literal '%', not two
+      -- placeholders. Append the marker to the string instead.
+      IF v_count > 5 THEN
+        v_unsettled := v_unsettled || ' …';
+      END IF;
+
       RAISE EXCEPTION
-        'Cannot complete trip % — % order(s) still have an unpaid balance: %%',
-        NEW.trip_number, v_count, v_unsettled,
-        CASE WHEN v_count > 5 THEN ' …' ELSE '' END;
+        'Cannot complete trip % — % order(s) still have an unpaid balance: %',
+        NEW.trip_number, v_count, v_unsettled;
     END IF;
   END IF;
 
