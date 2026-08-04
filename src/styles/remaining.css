@@ -1276,8 +1276,17 @@
     padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
   }
 
+  /* Sits on the SAME row as the customer name, not wrapped underneath.
+     This was `width: 100%` so the old full-width text buttons ("Assign to Me",
+     "Resolve", "✕") had room, which pushed them onto a row of their own. On
+     mobile the group is now just two 44px icons (quick Resolve and ⋮), so it
+     fits beside the identity block — .inbox-chat-header-identity carries
+     `flex: 1 1 auto; min-width: 0`, so the name truncates instead. */
   .inbox-chat-header-actions {
-    width: 100%;
+    width: auto;
+    flex: 0 0 auto;
+    flex-wrap: nowrap;
+    align-items: center;
     justify-content: flex-end;
   }
 }
