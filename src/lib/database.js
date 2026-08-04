@@ -2070,12 +2070,22 @@ export const updateFeedbackVisibility = async (id, isHidden) => {
   if (error) throw error;
 };
 
+/**
+ * Upload a company website asset (hero banner, gallery image, timeline photo)
+ * and return a durable public URL.
+ *
+ * These go to the dedicated PUBLIC `company-assets` bucket rather than
+ * `cargo-photos`. Website decoration is meant to be world-readable; cargo
+ * evidence is not, and sharing one bucket forced a single privacy setting on
+ * both — which is why proof photos ended up publicly reachable.
+ * See migration 20260804180000_customer_photo_access.sql.
+ */
 export const uploadPublicAsset = async (file, path) => {
   // Compress image before uploading
   const { compressImage } = await import('./storage');
   const compressed = await compressImage(file);
-  
-  const bucket = import.meta.env.VITE_SUPABASE_PHOTOS_BUCKET || 'cargo-photos';
+
+  const bucket = 'company-assets';
   const { data, error } = await supabase.storage.from(bucket).upload(path, compressed, { upsert: true });
   if (error) throw error;
   const { data: publicUrlData } = supabase.storage.from(bucket).getPublicUrl(path);

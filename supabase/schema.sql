@@ -1382,6 +1382,8 @@ BEGIN
 END;
 $$;
 
+ALTER FUNCTION public.reassign_trip(UUID, UUID, TEXT) SET search_path = public;
+REVOKE ALL ON FUNCTION public.reassign_trip(UUID, UUID, TEXT) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.reassign_trip(UUID, UUID, TEXT) TO authenticated;
 
 
@@ -1784,12 +1786,40 @@ GRANT EXECUTE ON FUNCTION public.record_pickup_payment(UUID, NUMERIC, TEXT, TEXT
 GRANT EXECUTE ON FUNCTION public.record_delivery_payment(UUID, JSONB, TEXT, NUMERIC, TEXT, DATE, TEXT, TEXT, TEXT, DATE) TO authenticated;
 
 
--- Supabase Storage bucket for proof photos. Private bucket; app reads signed URLs.
+-- Supabase Storage bucket for proof photos.
+--
+-- public = TRUE mirrors the LIVE project. This file previously declared FALSE
+-- while production ran TRUE, which made re-running schema.sql a live change:
+-- the ON CONFLICT clause below would have flipped the bucket private and
+-- broken the public homepage hero image. The declaration now matches reality.
+--
+-- TRUE is not the intended end state. Proof photos and receipts sit under
+-- guessable paths (the tracking number is in the path), so a public bucket
+-- means shipment evidence is world-readable. The transition is staged in
+-- 20260804180000_customer_photo_access.sql: company assets move to the
+-- dedicated public `company-assets` bucket, then this flips to FALSE and
+-- resolvePhotoUrl()'s signed URLs become the only way in.
 INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 VALUES (
   'cargo-photos',
   'cargo-photos',
-  FALSE,
+  TRUE,
+  5242880,
+  ARRAY['image/jpeg', 'image/png', 'image/webp']
+)
+ON CONFLICT (id) DO UPDATE SET
+  public = EXCLUDED.public,
+  file_size_limit = EXCLUDED.file_size_limit,
+  allowed_mime_types = EXCLUDED.allowed_mime_types;
+
+-- Public bucket for company website assets (hero, gallery, timeline).
+-- Separate from cargo-photos so website decoration and cargo evidence are not
+-- forced to share one privacy setting.
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES (
+  'company-assets',
+  'company-assets',
+  TRUE,
   5242880,
   ARRAY['image/jpeg', 'image/png', 'image/webp']
 )
@@ -1800,22 +1830,50 @@ ON CONFLICT (id) DO UPDATE SET
 
 DROP POLICY IF EXISTS "Admins manage cargo photos" ON storage.objects;
 DROP POLICY IF EXISTS "Users read own cargo photos" ON storage.objects;
+DROP POLICY IF EXISTS "Public read company assets" ON storage.objects;
+DROP POLICY IF EXISTS "Admins manage company assets" ON storage.objects;
 
 CREATE POLICY "Admins manage cargo photos" ON storage.objects
   FOR ALL TO authenticated
   USING (bucket_id = 'cargo-photos' AND public.is_admin())
   WITH CHECK (bucket_id = 'cargo-photos' AND public.is_admin());
 
+CREATE POLICY "Admins manage company assets" ON storage.objects
+  FOR ALL TO authenticated
+  USING (bucket_id = 'company-assets' AND public.is_admin())
+  WITH CHECK (bucket_id = 'company-assets' AND public.is_admin());
+
+-- Customers read the evidence for their OWN shipments.
+-- Matches both path schemes: the current <folder>/<tracking-number>/<file>
+-- and the original <folder>/<order-uuid>/<file>. Keying on the UUID alone
+-- silently stopped matching when the naming scheme changed, so this policy
+-- granted nothing at all until 20260804180000_customer_photo_access.sql.
 CREATE POLICY "Users read own cargo photos" ON storage.objects
   FOR SELECT TO authenticated
   USING (
     bucket_id = 'cargo-photos'
+    AND (storage.foldername(name))[1] IN (
+      'pickup', 'delivery', 'receipts',
+      'pickup-proofs', 'delivery-proofs'
+    )
     AND EXISTS (
       SELECT 1
       FROM public.orders o
-      WHERE o.id = public.safe_uuid((storage.foldername(name))[2])
-        AND o.user_id = auth.uid()
+      WHERE o.user_id = auth.uid()
+        AND (
+          o.tracking_number = (storage.foldername(name))[2]
+          OR o.id = public.safe_uuid((storage.foldername(name))[2])
+        )
     )
+  );
+
+-- Company website assets stay readable to anonymous visitors (the About page
+-- is public), and are the only folders anon may sign a URL for.
+CREATE POLICY "Public read company assets" ON storage.objects
+  FOR SELECT TO anon, authenticated
+  USING (
+    bucket_id IN ('cargo-photos', 'company-assets')
+    AND (storage.foldername(name))[1] IN ('gallery', 'hero', 'timeline')
   );
 
 -- ============================================================
@@ -1956,6 +2014,12 @@ BEGIN
 END;
 $$;
 
+-- The REVOKE is the load-bearing half. PostgreSQL grants EXECUTE to PUBLIC on
+-- every new function, so a bare GRANT TO service_role left this SECURITY
+-- DEFINER payment-writing RPC callable by `anon` — a direct payment-forgery
+-- path for anyone holding a source id from a checkout QR.
+-- See 20260804190000_function_privileges.sql.
+REVOKE ALL ON FUNCTION public.reconcile_paymongo_payment_attempt(TEXT, TEXT, DECIMAL, TEXT) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.reconcile_paymongo_payment_attempt(TEXT, TEXT, DECIMAL, TEXT) TO service_role;
 
 -- =====================================================================

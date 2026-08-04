@@ -134,6 +134,26 @@ export const uploadMultiplePhotos = async (files, folder = 'pickup-proofs', trac
   return photos;
 };
 
+// Signed URLs are minted per render. One hour outlives any realistic viewing
+// session without leaving a long-lived link in browser history or logs.
+const SIGNED_URL_TTL_SECONDS = 3600;
+
+/**
+ * Turn a storage descriptor into a URL the browser can load.
+ *
+ * Prefers a SIGNED url over a public one. A signed url is authorised by the
+ * caller's own session against the storage RLS policies, so it is the only
+ * form that keeps working once `cargo-photos` becomes a private bucket —
+ * and, unlike /object/public/, it cannot be guessed. Proof photos and
+ * receipts live under predictable paths (the tracking number is in the URL),
+ * so a public bucket means anyone who can guess a tracking number can read
+ * the evidence for that shipment.
+ *
+ * Falls back to the public url when signing is refused — that covers company
+ * website assets viewed by anonymous visitors on a bucket that is still
+ * public. The fallback is intentionally last: if signing works, we never hand
+ * out an unauthenticated link.
+ */
 export const resolvePhotoUrl = async (photo) => {
   if (!photo) return '';
   if (typeof photo === 'string') return photo;
@@ -141,7 +161,14 @@ export const resolvePhotoUrl = async (photo) => {
   try {
     if (photo.type === 'supabase_storage' && photo.path) {
       if (photo.url) return photo.url;
-      const { data: pData } = supabase.storage.from(photo.bucket || COMPANY_ASSETS_BUCKET).getPublicUrl(photo.path);
+      const bucket = photo.bucket || COMPANY_ASSETS_BUCKET;
+
+      const { data: signed, error: signError } = await supabase.storage
+        .from(bucket)
+        .createSignedUrl(photo.path, SIGNED_URL_TTL_SECONDS);
+      if (!signError && signed?.signedUrl) return signed.signedUrl;
+
+      const { data: pData } = supabase.storage.from(bucket).getPublicUrl(photo.path);
       return pData.publicUrl;
     }
     return photo.url || '';
