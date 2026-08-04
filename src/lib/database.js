@@ -941,6 +941,90 @@ export const getSalesData = async () => {
   };
 };
 
+// ==================== UNSETTLED DELIVERIES ====================
+
+/**
+ * Settlement buckets — why an order still owes money, in the operational
+ * sense the admin acts on. Derived from the same three columns the Phase 1b
+ * guards read (status, payer_type, promised_payment_date), so what this list
+ * shows and what the database will refuse to dispatch cannot drift apart.
+ */
+export const SETTLEMENT_BUCKETS = {
+  HELD: 'held',              // Arrived at Hub, prepaid, no promise → dispatch BLOCKED by guard_order_update
+  OVERDUE: 'overdue',        // A promise date that has already passed
+  PROMISED: 'promised',      // Dispatched on a promise that is still in the future
+  DELIVERED: 'delivered',    // Cargo handed over, balance still owing
+  COLLECT: 'collect',        // Freight collect, in flight — due at the door, not late
+  IN_FLIGHT: 'in_flight',    // Prepaid, still moving, not yet at the dispatch gate
+};
+
+/**
+ * Classifies one order into a settlement bucket.
+ * `today` is passed in so a whole list is classified against one instant.
+ */
+const classifySettlement = (order, today) => {
+  const promised = order.promised_payment_date ? new Date(`${order.promised_payment_date}T00:00:00`) : null;
+  const isOverdue = promised && promised < today;
+  const isCollect = (order.payer_type || 'sender') === 'receiver';
+
+  if (isOverdue) return SETTLEMENT_BUCKETS.OVERDUE;
+  if (order.status === 'Delivered') return SETTLEMENT_BUCKETS.DELIVERED;
+  if (promised) return SETTLEMENT_BUCKETS.PROMISED;
+  if (order.status === 'Arrived at Hub' && !isCollect) return SETTLEMENT_BUCKETS.HELD;
+  if (isCollect) return SETTLEMENT_BUCKETS.COLLECT;
+  return SETTLEMENT_BUCKETS.IN_FLIGHT;
+};
+
+/**
+ * Every non-cancelled order that still owes money, for the admin settlement
+ * list. Admin-only by RLS (`orders` grants admins full read); no widened
+ * anon access and no new RPC needed.
+ *
+ * Only orders that have actually been picked up are included — a booking that
+ * has not been weighed yet has a placeholder balance, not a receivable.
+ *
+ * @returns {{orders: Array, totals: Object}} orders carry `settlement_bucket`
+ *          and `days_overdue`; totals are computed over the same rows.
+ */
+export const getUnsettledOrders = async () => {
+  const { data, error } = await supabase
+    .from('orders')
+    // sender_phone backs the PayMongo billing block in AdditionalPaymentModal.
+    .select('id, tracking_number, sender_name, sender_phone, receiver_name, user_id, status, payment_status, payment_method, payer_type, promised_payment_date, shipping_cost, amount_paid, remaining_balance, actual_weight, package_weight, origin, destination, created_at, trip_id, profiles:user_id (name, phone, email)')
+    .neq('status', 'Cancelled')
+    .gt('remaining_balance', 0)
+    .in('status', ['Picked Up', 'In Transit', 'Arrived at Hub', 'Out for Delivery', 'Delivered'])
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const orders = (data || []).map(o => {
+    const bucket = classifySettlement(o, today);
+    let daysOverdue = 0;
+    if (o.promised_payment_date) {
+      const promised = new Date(`${o.promised_payment_date}T00:00:00`);
+      daysOverdue = Math.max(0, Math.floor((today - promised) / 86400000));
+    }
+    return { ...o, settlement_bucket: bucket, days_overdue: daysOverdue };
+  });
+
+  const totals = {
+    count: orders.length,
+    outstanding: orders.reduce((sum, o) => sum + parseFloat(o.remaining_balance || 0), 0),
+    held: orders.filter(o => o.settlement_bucket === SETTLEMENT_BUCKETS.HELD).length,
+    overdue: orders.filter(o => o.settlement_bucket === SETTLEMENT_BUCKETS.OVERDUE).length,
+    overdueAmount: orders
+      .filter(o => o.settlement_bucket === SETTLEMENT_BUCKETS.OVERDUE)
+      .reduce((sum, o) => sum + parseFloat(o.remaining_balance || 0), 0),
+    delivered: orders.filter(o => o.settlement_bucket === SETTLEMENT_BUCKETS.DELIVERED).length,
+  };
+
+  return { orders, totals };
+};
+
 // ==================== SETTINGS ====================
 export const getSettings = async () => {
   const { data, error } = await supabase

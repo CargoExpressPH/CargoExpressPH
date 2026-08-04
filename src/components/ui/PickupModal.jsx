@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { X, Camera, Loader, Scale, CreditCard, Calendar, Upload, Trash2, Package, AlertTriangle, CheckCircle, FileText, ExternalLink, RefreshCw } from 'lucide-react';
+import { X, XCircle, Camera, Loader, Scale, CreditCard, Calendar, Upload, Trash2, Package, AlertTriangle, CheckCircle, FileText, ExternalLink, RefreshCw } from 'lucide-react';
 import FocusTrap from './FocusTrap';
 import { uploadMultiplePhotos, uploadPhoto } from '../../lib/storage';
 import QRCode from 'react-qr-code';
@@ -42,6 +42,9 @@ const PickupModal = ({ order, onClose, onSave, pricePerKilo = 70 }) => {
   const [saving, setSaving] = useState(false);
   const [uploadProgress, setUploadProgress] = useState('');
   const [error, setError] = useState('');
+  // Non-error feedback (e.g. "checkout cancelled") — an error-styled banner
+  // would misread as a failure when nothing failed.
+  const [notice, setNotice] = useState('');
 
   const fileInputRef = useRef(null);
   const receiptInputRef = useRef(null);
@@ -65,10 +68,26 @@ const PickupModal = ({ order, onClose, onSave, pricePerKilo = 70 }) => {
   const amountPaid = parseFloat(form.amount_paid || 0);
   const remainingBalance = Math.max(0, estimatedCost - amountPaid);
 
+  // ── GCash settlement gate ────────────────────────────────────────────────
+  // A live PayMongo checkout is an OPEN question: the customer may still be
+  // paying, may abandon, or may already have paid without us having heard yet.
+  // Confirming the pickup inside that window is the race — the parcel is
+  // released while the webhook is still deciding, so the cargo can leave with
+  // money that was never collected and never promised.
+  //
+  // The button therefore stays locked until the question is ANSWERED:
+  //   authorised → paymentConfirmed is populated from the reconciled order row
+  //   cancelled  → the admin abandons the checkout (below) and falls back to
+  //                cash or a manual GCash reference
+  const hasManualReference = Boolean(form.payment_reference && form.payment_reference.trim());
+  const gcashUnresolved =
+    isPrepaid && form.payment_method === 'gcash' && !paymentConfirmed && !hasManualReference;
+
   const handleProceedToGCash = async () => {
     try {
       setPaymentStep('generating');
       setError('');
+      setNotice('');
       const amount = isPayLater ? parseFloat(form.amount_paid || 0) : estimatedCost;
       if (amount <= 0) {
         setError('Payment amount must be greater than 0.');
@@ -102,6 +121,22 @@ const PickupModal = ({ order, onClose, onSave, pricePerKilo = 70 }) => {
     setPaymentDetails(null);
     setPaymentConfirmed(null);
     setError('');
+  };
+
+  /**
+   * Abandon a pending GCash checkout — the "cancelled" half of the gate above.
+   *
+   * The PayMongo source is deliberately NOT voided: if the customer pays that
+   * link ten minutes from now, the webhook still reconciles it against this
+   * order and the ledger stays honest. Cancelling only says "we are not going
+   * to stand here waiting for it" and re-opens cash / manual reference.
+   */
+  const handleCancelGCashPayment = () => {
+    resetPayMongoFlow();
+    setNotice(
+      'GCash checkout cancelled. Collect in cash, or enter the GCash reference number manually. '
+      + 'If the customer completes that payment link later, it is still recorded against this order.'
+    );
   };
 
   /**
@@ -253,10 +288,16 @@ const PickupModal = ({ order, onClose, onSave, pricePerKilo = 70 }) => {
         return;
       }
       if (form.payment_method === 'gcash') {
-        const hasGeneratedQR = paymentStep === 'waiting' && checkoutUrl;
-        const hasManualReference = form.payment_reference && form.payment_reference.trim().length > 0;
-        if (!hasGeneratedQR && !hasManualReference) {
-          setError('Please generate a GCash QR or enter a manual reference number.');
+        if (paymentStep === 'generating') {
+          setError('Wait for the GCash checkout link to finish generating.');
+          return;
+        }
+        // Same gate as the disabled Confirm button, restated here because a
+        // disabled button is a hint, not an enforcement point.
+        if (gcashUnresolved) {
+          setError(paymentStep === 'waiting'
+            ? 'This GCash payment has not been confirmed yet. Wait for it to go through, or cancel the checkout and record the payment another way.'
+            : 'Please generate a GCash QR or enter a manual reference number.');
           return;
         }
         if (hasManualReference && !form.payment_date) {
@@ -295,17 +336,19 @@ const PickupModal = ({ order, onClose, onSave, pricePerKilo = 70 }) => {
       setUploadProgress('Processing Payment...');
 
       // ─────────────────────────────────────────────────────────────────────
-      // A PayMongo QR/link is live and no manual reference was entered, so this
-      // payment is settled by webhook reconciliation:
+      // The GCash payment was settled through PayMongo, so the ledger row
+      // already exists:
       //     PayMongo → paymongo-webhook → reconcile RPC
       //       → INSERT payment_transactions → trigger recomputes orders totals
       //
-      // In that case we send NO payment payload at all — the webhook writes the
-      // ledger row. Sending one here would double-count, or (as it once did)
-      // overwrite a payment the customer completed while the QR was on screen.
+      // In that case we send NO payment payload at all. Sending one would
+      // double-count, or (as it once did) overwrite a payment the customer
+      // completed while the QR was on screen.
+      //
+      // Keyed on paymentConfirmed — proof the money landed — not on "a QR is
+      // on screen", which was true of unpaid checkouts too.
       // ─────────────────────────────────────────────────────────────────────
-      const paymongoPending =
-        form.payment_method === 'gcash' && paymentStep === 'waiting' && !form.payment_reference;
+      const settledByPayMongo = form.payment_method === 'gcash' && Boolean(paymentConfirmed);
 
       // Order metadata. amount_paid / remaining_balance / payment_status are
       // deliberately absent — the payment_transactions ledger owns them and
@@ -324,7 +367,7 @@ const PickupModal = ({ order, onClose, onSave, pricePerKilo = 70 }) => {
 
       // Freight Collect — nothing is collected at pickup. The order leaves with
       // its full balance owing; DeliveryModal is the collection point.
-      if (isPrepaid && !paymongoPending) {
+      if (isPrepaid && !settledByPayMongo) {
         // How much is actually being collected right now.
         //   pay-later  → whatever the admin typed (may be 0 = nothing down)
         //   full       → the typed amount, or the full estimate if left blank
@@ -390,6 +433,15 @@ const PickupModal = ({ order, onClose, onSave, pricePerKilo = 70 }) => {
               borderRadius: 8, fontSize: '0.8125rem', marginBottom: 16, border: '1px solid var(--error)',
             }} role="alert">
               {error}
+            </div>
+          )}
+
+          {notice && !error && (
+            <div style={{
+              background: 'var(--info-bg)', color: 'var(--info-dark)', padding: '10px 14px',
+              borderRadius: 8, fontSize: '0.8125rem', marginBottom: 16, border: '1px solid var(--info)',
+            }} role="status">
+              {notice}
             </div>
           )}
 
@@ -591,7 +643,7 @@ const PickupModal = ({ order, onClose, onSave, pricePerKilo = 70 }) => {
                     customer pays on their own phone. Keep this open, or check manually below.
                   </div>
 
-                  <div className="flex gap-8">
+                  <div className="flex gap-8 mb-8">
                     <button
                       type="button"
                       className="btn btn-outline btn-sm flex-1 justify-center"
@@ -609,6 +661,22 @@ const PickupModal = ({ order, onClose, onSave, pricePerKilo = 70 }) => {
                         ? <><Loader size={14} className="animate-spin mr-6" aria-hidden="true" /> Checking…</>
                         : <><RefreshCw size={14} className="mr-6" aria-hidden="true" /> Check payment</>}
                     </button>
+                  </div>
+
+                  {/* The escape hatch that makes locking Confirm Pickup safe:
+                      without it, a customer who walks away would strand the
+                      admin in a modal they cannot submit. */}
+                  <button
+                    type="button"
+                    className="btn btn-outline btn-sm w-full justify-center"
+                    onClick={handleCancelGCashPayment}
+                    disabled={checkingPayment}
+                  >
+                    <XCircle size={14} className="mr-6" aria-hidden="true" /> Cancel payment — pay another way
+                  </button>
+
+                  <div className="text-xs text-tertiary mt-12" style={{ textAlign: 'center' }}>
+                    <strong>Confirm Pickup is locked</strong> until this payment is confirmed or cancelled.
                   </div>
                 </div>
               )}
@@ -727,7 +795,14 @@ const PickupModal = ({ order, onClose, onSave, pricePerKilo = 70 }) => {
 
         <div className="modal-footer">
           <button className="btn btn-outline" onClick={onClose} disabled={saving || paymentStep === 'generating'}>Cancel</button>
-          <button className="btn btn-primary" onClick={handleSubmit} disabled={saving || (isPrepaid && form.payment_method === 'gcash' && paymentStep !== 'waiting' && !(form.payment_reference && form.payment_reference.trim()))}>
+          <button
+            className="btn btn-primary"
+            onClick={handleSubmit}
+            disabled={saving || paymentStep === 'generating' || gcashUnresolved}
+            title={gcashUnresolved && paymentStep === 'waiting'
+              ? 'Waiting for the GCash payment to be confirmed or cancelled'
+              : undefined}
+          >
             {saving ? <><Loader size={16} className="animate-spin" /> {uploadProgress || 'Processing...'}</> : <><CheckCircle size={16} /> Confirm Pickup</>}
           </button>
         </div>
