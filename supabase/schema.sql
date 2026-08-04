@@ -171,7 +171,23 @@ CREATE TABLE IF NOT EXISTS conversations (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   customer_id UUID NOT NULL UNIQUE REFERENCES profiles(id) ON DELETE CASCADE,
   created_at TIMESTAMPTZ DEFAULT NOW(),
-  status TEXT DEFAULT 'open' CHECK (status IN ('open', 'closed', 'waiting_admin')),
+  -- Service state (20260804210000). 'closed' used to mean BOTH "born, bot is
+  -- handling it" and "an admin finished", so "nobody has replied yet" was not
+  -- representable. Split into:
+  --   bot_active       bot handling; hidden from the admin queue
+  --   waiting          a human is needed — THE QUEUE
+  --   open             an admin has replied and is engaged
+  --   waiting_customer we answered and asked something; their turn
+  --   resolved         done; reopens automatically if the customer writes
+  status TEXT DEFAULT 'bot_active'
+    CHECK (status IN ('bot_active', 'waiting', 'open', 'waiting_customer', 'resolved')),
+  -- A FLAG, not a state: 'escalated' answers "how urgent", status answers
+  -- "whose turn". Collapsing the two is what produced the original defect.
+  escalated BOOLEAN NOT NULL DEFAULT FALSE,
+  first_response_at TIMESTAMPTZ DEFAULT NULL,
+  last_customer_message_at TIMESTAMPTZ DEFAULT NULL,
+  resolved_at TIMESTAMPTZ DEFAULT NULL,
+  bot_resolved BOOLEAN DEFAULT NULL,   -- NULL = unknown, the honest default
   -- FK added in 20260622000000; schema.sql previously omitted it, which broke
   -- the PostgREST embed assigned_admin:assigned_admin_id(name) on rebuild.
   assigned_admin_id UUID DEFAULT NULL REFERENCES profiles(id) ON DELETE SET NULL
@@ -752,6 +768,102 @@ CREATE TRIGGER chat_messages_guard_insert
 
 
 -- ============================================================
+-- CONVERSATION SERVICE STATE (20260804210000)
+-- Derived service values are maintained server-side, never written by a
+-- client — same principle as update_order_payment_totals. The auto-reopen
+-- in the customer branch is what structurally prevents a resolved thread
+-- from burying a customer who writes again.
+-- A 'bot' message deliberately changes nothing: a bot reply is not a
+-- response for service purposes and must never clear the queue.
+-- ============================================================
+CREATE OR REPLACE FUNCTION public.maintain_conversation_service_state()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF NEW.sender_role = 'customer' THEN
+    UPDATE public.conversations
+       SET last_customer_message_at = NEW.created_at,
+           status = CASE WHEN status = 'bot_active' THEN 'bot_active' ELSE 'waiting' END,
+           resolved_at = NULL
+     WHERE id = NEW.conversation_id;
+  ELSIF NEW.sender_role = 'admin' THEN
+    UPDATE public.conversations
+       SET first_response_at = COALESCE(first_response_at, NEW.created_at),
+           status = CASE WHEN status IN ('waiting', 'bot_active') THEN 'open' ELSE status END
+     WHERE id = NEW.conversation_id;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS chat_messages_maintain_service_state ON public.chat_messages;
+CREATE TRIGGER chat_messages_maintain_service_state
+  AFTER INSERT ON public.chat_messages
+  FOR EACH ROW EXECUTE FUNCTION public.maintain_conversation_service_state();
+
+CREATE OR REPLACE FUNCTION public.stamp_conversation_resolved_at()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  IF NEW.status = 'resolved' AND OLD.status IS DISTINCT FROM 'resolved' THEN
+    NEW.resolved_at := COALESCE(NEW.resolved_at, now());
+  ELSIF NEW.status <> 'resolved' THEN
+    NEW.resolved_at := NULL;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS conversations_stamp_resolved_at ON public.conversations;
+CREATE TRIGGER conversations_stamp_resolved_at
+  BEFORE UPDATE OF status ON public.conversations
+  FOR EACH ROW EXECUTE FUNCTION public.stamp_conversation_resolved_at();
+
+-- Nightly sweep. Excluding 'waiting' is load-bearing: a timer must never
+-- clear a conversation where a human is still needed.
+CREATE OR REPLACE FUNCTION public.auto_resolve_stale_conversations()
+RETURNS integer
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_count integer;
+BEGIN
+  WITH swept AS (
+    UPDATE public.conversations
+       SET status = 'resolved'
+     WHERE status IN ('open', 'waiting_customer')
+       AND COALESCE(last_customer_message_at, created_at) < now() - interval '7 days'
+    RETURNING id
+  )
+  SELECT COUNT(*) INTO v_count FROM swept;
+  RETURN v_count;
+END;
+$$;
+
+REVOKE EXECUTE ON FUNCTION public.auto_resolve_stale_conversations() FROM PUBLIC, anon, authenticated;
+
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'auto-resolve-stale-conversations') THEN
+    PERFORM cron.unschedule('auto-resolve-stale-conversations');
+  END IF;
+END;
+$$;
+
+SELECT cron.schedule(
+  'auto-resolve-stale-conversations',
+  '30 3 * * *',
+  $$SELECT public.auto_resolve_stale_conversations()$$
+);
+
+
+-- ============================================================
 -- ACTIVITY LOG WRITE GUARD
 -- Same principle as guard_chat_message_insert: identity is taken from
 -- auth.uid(), never from the client. Without it any authenticated customer
@@ -778,7 +890,12 @@ BEGIN
 
   v_is_admin := public.is_admin();
 
-  IF NOT v_is_admin AND NEW.module NOT IN ('Orders', 'Authentication') THEN
+  -- 'Chat' is written by the log_customer_chat_message() trigger on the
+  -- customer's own behalf. Omitting it aborted the customer's chat_messages
+  -- INSERT outright — see 20260804220000_fix_chat_activity_log_guard.sql.
+  -- Any future narrowing of this list must enumerate SERVER-SIDE writers too,
+  -- not just logActivity() calls in the client.
+  IF NOT v_is_admin AND NEW.module NOT IN ('Orders', 'Authentication', 'Chat') THEN
     RAISE EXCEPTION 'Not allowed to write % activity logs', NEW.module;
   END IF;
 

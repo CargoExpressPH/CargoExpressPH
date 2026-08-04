@@ -33,6 +33,27 @@
 > gets an assignee and a response stamp on its existing page; the Inbox stays exclusively for
 > live chat.
 
+> ### ⚠ Correction, 4 August 2026 — "2 buried conversations" was wrong
+>
+> This study stated that **2 conversations sat in `closed` with the customer's message last,
+> idle up to 43.6 days**, and Finding 1 used them as its illustration. **That claim is false.**
+>
+> The query behind it grouped `sender_role IN ('customer','bot')` under the label
+> `awaiting_admin`. Running the per-row backfill preview before applying the Phase 1a migration
+> showed what that lumping hid: in **both** of those conversations the **bot** spoke last, not the
+> customer. No conversation in the database has a customer waiting as the last speaker, and the
+> Phase 1a backfill resurfaced nothing — it mapped them to `bot_active`, correctly.
+>
+> **What remains true:** the 13 customer messages that never received a human reply
+> ([§4.3](#43-bot-deflection--genuinely-working-but-unmeasurable)) are real, but they sit
+> *mid-conversation* — a question was asked, the thread moved on, no human ever answered that
+> message. That is a weaker fact than "a customer was ignored for 43 days", and the difference
+> matters.
+>
+> Finding 1 itself is **unaffected**: `closed` is still written by two unrelated events, and
+> "nobody has replied yet" is still not representable. That was established by reading
+> `getOrCreateConversation` and `closeConversation`, not by counting rows.
+
 ---
 
 ## Contents
@@ -75,7 +96,7 @@ unanswered and finished look identical. The measured consequence, from the live 
 | Mean time to first admin reply | **186 hours** (7.8 days) |
 | Worst case | **1,124 hours** (47 days) |
 | Customer messages that never got a human reply | **13 of 64 (20%)** |
-| Conversations sitting in `closed` with the customer's message last | **2**, idle up to **43.6 days** |
+| ~~Conversations sitting in `closed` with the customer's message last~~ | ~~**2**, idle up to **43.6 days**~~ **— retracted, see correction above. The bot spoke last in both; the true count is 0.** |
 
 Those two `closed`-but-waiting conversations are the finding in miniature. Nothing is broken,
 no error was thrown, and the inbox looks tidy — the customers were simply filed away.
@@ -269,7 +290,9 @@ A new conversation is born `closed` (bot-first). An admin finishing a conversati
 
 - The Closed tab mixes *"bot handled it"*, *"admin resolved it"*, and *"we ignored a human being for 43 days"*.
 - **"Awaiting first human reply" is not representable**, so it cannot be counted, filtered, alerted on, or reported.
-- 2 conversations are `closed` right now with the customer's message last — idle 2.8 and 43.6 days.
+- ~~2 conversations are `closed` right now with the customer's message last — idle 2.8 and 43.6 days.~~
+  **Retracted.** The bot spoke last in both; the correct count is **0**. See the correction at the
+  top of this document. The finding stands on the code, not on this example.
 
 Everything else in this list is downstream of this.
 
@@ -615,7 +638,11 @@ WITH last_msg AS (
     FROM chat_messages ORDER BY conversation_id, created_at DESC
 )
 SELECT c.status, COUNT(*) AS convs,
-       COUNT(*) FILTER (WHERE l.sender_role IN ('customer','bot')) AS awaiting_admin,
+       -- NOTE: this predicate is the source of the retracted "2 buried
+       -- conversations" claim. Lumping 'bot' in with 'customer' labels a
+       -- bot-answered thread as awaiting a human. Split them:
+       COUNT(*) FILTER (WHERE l.sender_role = 'customer') AS awaiting_admin,
+       COUNT(*) FILTER (WHERE l.sender_role = 'bot')      AS bot_answered_last,
        ROUND(MAX(EXTRACT(EPOCH FROM (NOW() - l.created_at))/86400)::numeric, 1) AS oldest_idle_days
   FROM conversations c LEFT JOIN last_msg l ON l.conversation_id = c.id
  GROUP BY c.status;
