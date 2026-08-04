@@ -448,7 +448,7 @@ const ReportsPage = () => {
                             </td>
                             <td data-label="Status"><StatusBadge status={order.status} /></td>
                             <td data-label="Weight" className="text-right" style={{ fontSize: '0.85rem' }}>
-                              {formatWeight(parseFloat(order.actual_weight || order.package_weight || 0))}
+                              {formatWeight(parseFloat(order.actual_weight || 0))}
                             </td>
                             <td data-label="Amount" className="text-right fw-600" style={{ fontSize: '0.85rem' }}>
                               {formatCurrency(parseFloat(order.shipping_cost || 0))}
@@ -602,7 +602,7 @@ const ReportsPage = () => {
                         <td>{order.sender_name || order.profiles?.name || '—'}</td>
                         <td>{order.origin || '—'} → {order.destination || '—'}</td>
                         <td>{order.status}</td>
-                        <td className="num">{formatWeight(parseFloat(order.actual_weight || order.package_weight || 0))}</td>
+                        <td className="num">{formatWeight(parseFloat(order.actual_weight || 0))}</td>
                         <td className="num">{formatCurrency(parseFloat(order.shipping_cost || 0))}</td>
                         <td className="ctr" style={{ textTransform: 'capitalize' }}>{order.payment_method || '—'}</td>
                         <td>{formatDate(order.created_at)}</td>

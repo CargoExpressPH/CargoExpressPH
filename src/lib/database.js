@@ -47,7 +47,7 @@ const getTripCurrentWeight = async (tripId, excludeOrderId = null) => {
   if (!tripId) return 0;
   let query = supabase
     .from('orders')
-    .select('id, actual_weight, package_weight')
+    .select('id, actual_weight')
     .eq('trip_id', tripId)
     .neq('status', 'Cancelled');
 
@@ -57,7 +57,7 @@ const getTripCurrentWeight = async (tripId, excludeOrderId = null) => {
   if (error) throw error;
 
   return (data || []).reduce(
-    (sum, order) => sum + parseFloat(order.actual_weight || order.package_weight || 0),
+    (sum, order) => sum + parseFloat(order.actual_weight || 0),
     0
   );
 };
@@ -151,7 +151,10 @@ export const createOrder = async (orderData) => {
     }
   }
 
-  const weight = parseFloat(orderData.package_weight) || 0;
+  // A booking has no weight: the customer describes the parcel, the scale
+  // prices it at pickup. Kept as 0 so the trip-capacity call below keeps its
+  // shape — the rate is still resolved because it is shown to the customer.
+  const weight = 0;
   let pricePerKilo = await getGlobalPricePerKilo();
 
   let finalStatus = 'Pending';
@@ -179,6 +182,8 @@ export const createOrder = async (orderData) => {
     finalDestination = trip.destination;
   }
 
+  // 0 until the parcel is weighed. prepare_order_insert enforces this
+  // server-side too; sending it explicitly keeps the optimistic row honest.
   const shippingCost = weight * pricePerKilo;
 
   const { data, error } = await withTimeout(
@@ -278,7 +283,7 @@ export const updateOrder = async (orderId, updates) => {
   if (updates.status) {
     const { data } = await supabase
       .from('orders')
-      .select('status, trip_id, actual_weight, package_weight, amount_paid, shipping_cost, remaining_balance, payer_type, promised_payment_date')
+      .select('status, trip_id, actual_weight, amount_paid, shipping_cost, remaining_balance, payer_type, promised_payment_date')
       .eq('id', orderId)
       .single();
     currentOrder = data;
@@ -304,7 +309,7 @@ export const updateOrder = async (orderId, updates) => {
   if (!currentOrder && (updates.trip_id !== undefined || updates.actual_weight !== undefined || updates.amount_paid !== undefined)) {
     const { data } = await supabase
       .from('orders')
-      .select('status, trip_id, actual_weight, package_weight, amount_paid, shipping_cost, remaining_balance, payer_type, promised_payment_date')
+      .select('status, trip_id, actual_weight, amount_paid, shipping_cost, remaining_balance, payer_type, promised_payment_date')
       .eq('id', orderId)
       .single();
     currentOrder = data;
@@ -319,7 +324,7 @@ export const updateOrder = async (orderId, updates) => {
     if (tripError) throw tripError;
     await assertTripCapacity(
       trip,
-      updates.actual_weight ?? currentOrder?.actual_weight ?? currentOrder?.package_weight ?? 0,
+      updates.actual_weight ?? currentOrder?.actual_weight ?? 0,
       orderId
     );
   }
@@ -328,7 +333,7 @@ export const updateOrder = async (orderId, updates) => {
   if (updates.actual_weight !== undefined || updates.trip_id !== undefined) {
     let trip = null;
     const tripId = updates.trip_id || currentOrder?.trip_id;
-    const weight = parseFloat(updates.actual_weight !== undefined ? updates.actual_weight : (currentOrder?.actual_weight ?? currentOrder?.package_weight ?? 0)) || 0;
+    const weight = parseFloat(updates.actual_weight !== undefined ? updates.actual_weight : (currentOrder?.actual_weight ?? 0)) || 0;
     
     if (tripId) {
       const { data: tripData } = await supabase
@@ -430,7 +435,7 @@ export const createTrip = async (tripData) => {
   if (data.origin && data.destination) {
     const { data: pendingOrders, error: pendingErr } = await supabase
       .from('orders')
-      .select('id, actual_weight, package_weight')
+      .select('id, actual_weight')
       .eq('status', 'Pending')
       .is('trip_id', null)
       .eq('origin', data.origin)
@@ -443,7 +448,7 @@ export const createTrip = async (tripData) => {
       const capacity = Number(data.capacity || 0);
 
       for (const order of pendingOrders) {
-        const weight = parseFloat(order.actual_weight || order.package_weight || 0);
+        const weight = parseFloat(order.actual_weight || 0);
         if (capacity > 0 && plannedWeight + weight > capacity) continue;
         plannedWeight += weight;
         selectedIds.push(order.id);
@@ -512,14 +517,14 @@ export const getTrips = async (statusFilter) => {
   if (tripIds.length > 0) {
     const { data: allWeightData } = await supabase
       .from('orders')
-      .select('trip_id, actual_weight, package_weight')
+      .select('trip_id, actual_weight')
       .in('trip_id', tripIds)
       .neq('status', 'Cancelled');
 
     const weightByTrip = new Map();
     for (const row of allWeightData || []) {
       const prev = weightByTrip.get(row.trip_id) || 0;
-      weightByTrip.set(row.trip_id, prev + parseFloat(row.actual_weight || row.package_weight || 0));
+      weightByTrip.set(row.trip_id, prev + parseFloat(row.actual_weight || 0));
     }
 
     for (const trip of trips) {
@@ -545,13 +550,13 @@ export const getTripById = async (tripId) => {
     .from('orders')
     // remaining_balance / payment_status back the trip-completion guard and the
     // settlement column on TripDetailPage.
-    .select('id, tracking_number, sender_name, receiver_name, status, package_weight, actual_weight, sender_province, sender_city, receiver_province, receiver_city, created_at, remaining_balance, payment_status, promised_payment_date')
+    .select('id, tracking_number, sender_name, receiver_name, status, actual_weight, sender_province, sender_city, receiver_province, receiver_city, created_at, remaining_balance, payment_status, promised_payment_date')
     .eq('trip_id', tripId)
     .order('created_at', { ascending: true });
 
   const currentWeight = (orders || [])
     .filter(o => o.status !== 'Cancelled')
-    .reduce((sum, o) => sum + parseFloat(o.actual_weight || o.package_weight || 0), 0);
+    .reduce((sum, o) => sum + parseFloat(o.actual_weight || 0), 0);
 
   return { trip, orders: orders || [], current_weight: currentWeight };
 };
@@ -884,12 +889,12 @@ export const getVanCapacity = async () => {
   if (activeTrip) {
     const { data: orders } = await supabase
       .from('orders')
-      .select('actual_weight, package_weight')
+      .select('actual_weight')
       .eq('trip_id', activeTrip.id)
       .neq('status', 'Cancelled');
 
     totalWeight = (orders || []).reduce((sum, o) =>
-      sum + parseFloat(o.actual_weight || o.package_weight || 0), 0);
+      sum + parseFloat(o.actual_weight || 0), 0);
   }
 
   const maxCapacity = activeTrip?.capacity > 0 ? activeTrip.capacity : 1000;
@@ -1015,7 +1020,7 @@ export const getUnsettledOrders = async () => {
   const { data, error } = await supabase
     .from('orders')
     // sender_phone backs the PayMongo billing block in AdditionalPaymentModal.
-    .select('id, tracking_number, sender_name, sender_phone, receiver_name, user_id, status, payment_status, payment_method, payer_type, promised_payment_date, shipping_cost, amount_paid, remaining_balance, actual_weight, package_weight, origin, destination, created_at, trip_id, profiles:user_id (name, phone, email)')
+    .select('id, tracking_number, sender_name, sender_phone, receiver_name, user_id, status, payment_status, payment_method, payer_type, promised_payment_date, shipping_cost, amount_paid, remaining_balance, actual_weight, origin, destination, created_at, trip_id, profiles:user_id (name, phone, email)')
     .neq('status', 'Cancelled')
     .in('status', SETTLEMENT_TRACKED_STATUSES)
     .order('created_at', { ascending: false });
@@ -1590,7 +1595,7 @@ export const getReportData = async (period = 'daily', customStart = null, custom
     .from('orders')
     .select(`
       id, tracking_number, user_id, trip_id, origin, destination,
-      sender_name, status, package_weight, actual_weight, shipping_cost,
+      sender_name, status, actual_weight, shipping_cost,
       amount_paid, remaining_balance, payment_method, created_at,
       profiles:user_id (name, email, phone)
     `)
@@ -1610,7 +1615,7 @@ export const getReportData = async (period = 'daily', customStart = null, custom
   const totalRevenue = filtered.filter(o => o.status !== 'Cancelled').reduce((s, o) => s + parseFloat(o.shipping_cost || 0), 0);
   const totalCollected = filtered.reduce((s, o) => s + parseFloat(o.amount_paid || 0), 0);
   const totalOutstanding = filtered.filter(o => o.status !== 'Cancelled').reduce((s, o) => s + parseFloat(o.remaining_balance || 0), 0);
-  const totalWeight = filtered.filter(o => o.status !== 'Cancelled').reduce((s, o) => s + parseFloat(o.actual_weight || o.package_weight || 0), 0);
+  const totalWeight = filtered.filter(o => o.status !== 'Cancelled').reduce((s, o) => s + parseFloat(o.actual_weight || 0), 0);
 
   // Payment breakdown
   const cashOrders = filtered.filter(o => o.payment_method === 'cash');
@@ -1624,7 +1629,7 @@ export const getReportData = async (period = 'daily', customStart = null, custom
     if (!routeMap[key]) routeMap[key] = { route: key, count: 0, revenue: 0, weight: 0 };
     routeMap[key].count++;
     routeMap[key].revenue += parseFloat(o.shipping_cost || 0);
-    routeMap[key].weight += parseFloat(o.actual_weight || o.package_weight || 0);
+    routeMap[key].weight += parseFloat(o.actual_weight || 0);
   });
   const routeBreakdown = Object.values(routeMap).sort((a, b) => b.count - a.count);
 

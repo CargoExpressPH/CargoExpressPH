@@ -87,7 +87,7 @@ const TripAssignModal = ({ order, onClose, onAssign }) => {
               {trips.map(trip => {
                 const isSelected = selectedTrip?.id === trip.id;
                 const capPct = trip.capacity > 0 ? (trip.current_weight / trip.capacity) * 100 : 0;
-                const orderWeight = parseFloat(order.actual_weight || order.package_weight || 0);
+                const orderWeight = parseFloat(order.actual_weight || 0);
                 const availableWeight = trip.capacity > 0 ? Number(trip.capacity) - Number(trip.current_weight || 0) : Infinity;
                 const exceedsCapacity = trip.capacity > 0 && orderWeight > availableWeight;
                 const overloadWeight = Math.max(0, orderWeight - availableWeight);

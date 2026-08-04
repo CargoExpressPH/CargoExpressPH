@@ -403,7 +403,7 @@ const fetchCustomerOrders = async (userId) => {
     .select(`
       id, tracking_number, status, origin, destination,
       shipping_cost, amount_paid, remaining_balance, payment_status,
-      package_weight, actual_weight, sender_name, receiver_name,
+      actual_weight, sender_name, receiver_name,
       created_at,
       trips:trip_id (trip_number, origin, destination, status)
     `)

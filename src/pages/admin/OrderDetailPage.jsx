@@ -430,23 +430,25 @@ const AdminOrderDetailPage = () => {
   const hasPhotos = resolvedPickupPhotos.length > 0;
   const canReassignTrip = order.trip_id && [ORDER_STATUS.PENDING, ORDER_STATUS.ASSIGNED].includes(order.status);
 
+  // Back out the rate from a weighed order; otherwise fall back to the
+  // default. There is no declared weight to divide by any more.
   const ratePerKg = parseFloat(order.trips?.price_per_kg || 0) > 0
     ? parseFloat(order.trips.price_per_kg)
-    : parseFloat(order.package_weight || 0) > 0
-      ? parseFloat(order.shipping_cost || 0) / parseFloat(order.package_weight)
+    : parseFloat(order.actual_weight || 0) > 0
+      ? parseFloat(order.shipping_cost || 0) / parseFloat(order.actual_weight)
       : 70;
 
-  const currentWeight = parseFloat(order.actual_weight) || parseFloat(order.package_weight) || 0;
+  const currentWeight = parseFloat(order.actual_weight) || 0;
   const computedShippingCost = currentWeight * ratePerKg;
   const computedAmountPaid = parseFloat(order.amount_paid || 0);
   const computedRemainingBalance = computedShippingCost - computedAmountPaid;
   const isOverpaid = computedRemainingBalance < 0;
   const pickupPricePerKilo = ratePerKg;
 
-  const estimatedWeight = parseFloat(order.package_weight) || 0;
+  // The estimate-vs-actual discrepancy warning is gone with the estimate:
+  // there is no longer a customer-declared figure to disagree with.
   const actualWeightVal = parseFloat(order.actual_weight) || 0;
-  const showsWeightWarning = estimatedWeight > 0 && actualWeightVal > 0 &&
-    (actualWeightVal > estimatedWeight * 2 || actualWeightVal < estimatedWeight * 0.25);
+  const showsWeightWarning = false;
 
 
 
@@ -633,7 +635,7 @@ const AdminOrderDetailPage = () => {
         <div className="card-body p-16">
           <div className="grid grid-3 gap-16">
             <div><div className="text-xs text-tertiary" style={{ marginBottom: 2 }}>Description</div><div className="text-sm font-bold">{order.package_description || '—'}</div></div>
-            <div><div className="text-xs text-tertiary" style={{ marginBottom: 2 }}>Est. Weight</div><div className="text-sm font-bold">{order.package_weight || '—'} kg</div></div>
+
             <div><div className="text-xs text-tertiary" style={{ marginBottom: 2 }}>Actual Weight</div>
               <div className={`text-sm font-bold ${order.actual_weight ? 'text-success' : 'text-tertiary'}`}>
                 {order.actual_weight ? `${order.actual_weight} kg` : 'Not weighed'}

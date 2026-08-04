@@ -93,7 +93,7 @@ const BookShipmentPage = () => {
       receiver_name: '', receiver_phone: '', receiver_facebook: '',
       receiver_lot_block: '', receiver_street: '', receiver_barangay: '',
       receiver_city: '', receiver_province: '', receiver_landmark: '',
-      package_description: '', package_weight: '',
+      package_description: '',
       payer_type: 'sender', payment_preference: 'unspecified', notes: '', sender_other_province: '',
     };
     try {
@@ -115,8 +115,8 @@ const BookShipmentPage = () => {
     // Check if any meaningful field has been filled
     // Exclude route if it matches the preselected route (prefill should not trigger dirty)
     const routeDirty = form.route && form.route !== preRoute;
-    return !!(routeDirty || form.sender_name || form.receiver_name || form.package_weight);
-  }, [success, form.route, form.sender_name, form.receiver_name, form.package_weight, preRoute]);
+    return !!(routeDirty || form.sender_name || form.receiver_name || form.package_description);
+  }, [success, form.route, form.sender_name, form.receiver_name, form.package_description, preRoute]);
 
   const blocker = useBlocker(({ currentLocation, nextLocation }) => {
     return isFormDirty() && currentLocation.pathname !== nextLocation.pathname;
@@ -163,19 +163,13 @@ const BookShipmentPage = () => {
   );
   const selectedTrip = filteredTrips.find(t => t.id === form.trip_id);
   const effectivePricePerKilo = parseFloat(selectedTrip?.price_per_kg || 0) > 0 ? parseFloat(selectedTrip.price_per_kg) : pricePerKilo;
-  const cost = (parseFloat(form.package_weight) || 0) * effectivePricePerKilo;
+  // No cost preview: weight is the only price input and the customer no
+  // longer declares one. The parcel is priced when it is weighed at pickup.
   const selectedTripCapacity = Number(selectedTrip?.capacity || 0);
   const selectedTripCurrentWeight = Number(selectedTrip?.current_weight || 0);
   const selectedTripRemainingCapacity = selectedTrip && selectedTripCapacity > 0
     ? Math.max(0, selectedTripCapacity - selectedTripCurrentWeight)
     : null;
-  const packageWeightValue = parseFloat(form.package_weight);
-  const exceedsSelectedTripCapacity = Boolean(
-    selectedTrip &&
-    selectedTripRemainingCapacity !== null &&
-    Number.isFinite(packageWeightValue) &&
-    packageWeightValue > selectedTripRemainingCapacity
-  );
 
   const getSenderProvinces = () => {
     if (!selectedRoute) return VALID_PROVINCES;
@@ -312,13 +306,6 @@ const BookShipmentPage = () => {
         throw new Error('CargoExpress PH currently delivers to Bohol destinations only.');
       }
       
-      const packageWeight = parseFloat(form.package_weight);
-      if (!Number.isFinite(packageWeight) || packageWeight <= 0) throw new Error('Package weight must be greater than 0 kg.');
-      if (exceedsSelectedTripCapacity) {
-        setStep(4);
-        throw new Error(`Selected trip only has ${formatKg(selectedTripRemainingCapacity)} available. Please choose another trip or book without selecting a trip.`);
-      }
-
       const fullSenderAddress = buildFullAddress({ lotBlock: form.sender_lot_block, street: form.sender_street, barangay: form.sender_barangay, city: form.sender_city, province: form.sender_province === 'Other Area' ? form.sender_other_province : form.sender_province, landmark: form.sender_landmark });
       const fullReceiverAddress = buildFullAddress({ lotBlock: form.receiver_lot_block, street: form.receiver_street, barangay: form.receiver_barangay, city: form.receiver_city, province: form.receiver_province, landmark: form.receiver_landmark });
 
@@ -329,7 +316,7 @@ const BookShipmentPage = () => {
         sender_facebook: form.sender_facebook, sender_city: form.sender_city, sender_province: form.sender_province === 'Other Area' ? form.sender_other_province : form.sender_province,
         receiver_name: form.receiver_name, receiver_phone: form.receiver_phone, receiver_address: fullReceiverAddress,
         receiver_facebook: form.receiver_facebook, receiver_city: form.receiver_city, receiver_province: form.receiver_province,
-        package_description: form.package_description, package_weight: form.package_weight,
+        package_description: form.package_description,
         payer_type: form.payer_type, payment_preference: form.payment_preference, notes: form.notes,
       };
       
@@ -519,8 +506,8 @@ const BookShipmentPage = () => {
               </div>
               <div className="booking-success-ticket-divider" />
               <div className="booking-success-ticket-cell">
-                <span className="booking-success-ticket-label">Weight</span>
-                <span className="booking-success-ticket-value">{success.package_weight} kg</span>
+                <span className="booking-success-ticket-label">Items</span>
+                <span className="booking-success-ticket-value">{success.package_description || '—'}</span>
               </div>
             </div>
 
@@ -585,7 +572,7 @@ const BookShipmentPage = () => {
                   receiver_name: '', receiver_phone: '', receiver_facebook: '',
                   receiver_lot_block: '', receiver_street: '', receiver_barangay: '',
                   receiver_city: '', receiver_province: '', receiver_landmark: '',
-                  package_description: '', package_weight: '',
+                  package_description: '',
                   payer_type: 'sender', payment_preference: 'unspecified', notes: '', sender_other_province: '',
                 }));
               }}
@@ -753,11 +740,10 @@ const BookShipmentPage = () => {
       {step === 4 && (
         <div className="card animate-fade-in"><div className="card-body">
           <h3 className="fw-700 mb-16"><Package size={18} className="inline mr-8" />Package Details</h3>
-          <div className="form-group"><label className="form-label" htmlFor="package-description">Description (Optional)</label><input id="package-description" className="form-input" value={form.package_description} onChange={e => u('package_description', e.target.value)} placeholder="e.g. Documents, Clothes, etc." /></div>
           <div className="form-group">
-            <label className="form-label" htmlFor="package-weight">Estimated Weight (kg)</label>
-            <input id="package-weight" type="number" className="form-input" value={form.package_weight} onChange={e => u('package_weight', e.target.value)} placeholder="0.0" min="0.1" step="0.1" required aria-describedby="package-weight-helper" />
-            <p id="package-weight-helper" className="text-xs text-secondary mt-4">Note: This is an estimate. Final weight may be updated by the admin during weighing.</p>
+            <label className="form-label" htmlFor="package-description">What are you sending?</label>
+            <input id="package-description" className="form-input" value={form.package_description} onChange={e => u('package_description', e.target.value)} placeholder="e.g. Documents, 2 boxes of clothes, small appliance" aria-describedby="package-description-helper" />
+            <p id="package-description-helper" className="text-xs text-secondary mt-4">Describe your items. We weigh the parcel at pickup and the exact cost is confirmed then.</p>
           </div>
           <div className="form-group"><label className="form-label" htmlFor="payer-type">Who Pays?</label>
             <CustomSelect id="payer-type" className="form-select" value={form.payer_type} onChange={e => u('payer_type', e.target.value)}>
@@ -784,40 +770,23 @@ const BookShipmentPage = () => {
               style={{ resize: 'vertical' }}
             />
           </div>
-          {form.package_weight && (
-            <div className="booking-cost-card mb-16 text-center">
-              <div className="text-sm text-secondary">Estimated Cost</div>
-              <div className="text-2xl fw-800 text-primary">₱{cost.toFixed(2)}</div>
-              <div className="text-xs text-tertiary">{form.package_weight} kg x PHP {effectivePricePerKilo}/kg</div>
-            </div>
-          )}
+          <div className="booking-cost-card mb-16 text-center">
+            <div className="text-sm text-secondary">Shipping Rate</div>
+            <div className="text-2xl fw-800 text-primary">₱{effectivePricePerKilo}/kg</div>
+            <div className="text-xs text-tertiary">Your total is calculated when we weigh your parcel at pickup.</div>
+          </div>
           {selectedTrip && selectedTripRemainingCapacity !== null && (
-            <div className={`alert-banner ${exceedsSelectedTripCapacity ? 'alert-banner-warning' : 'alert-banner-info'} mb-16`} style={{ fontSize: '0.8125rem', alignItems: 'flex-start' }}>
+            <div className="alert-banner alert-banner-info mb-16" style={{ fontSize: '0.8125rem', alignItems: 'flex-start' }}>
               <AlertTriangle size={14} />
               <div style={{ flex: 1 }}>
                 <strong>{selectedTrip.trip_number} has {formatKg(selectedTripRemainingCapacity)} available.</strong>
                 <div className="text-xs mt-4">
-                  {exceedsSelectedTripCapacity
-                    ? 'Your package is heavier than this trip can take. Choose another trip or continue without a selected trip so admin can assign it.'
-                    : 'Your estimated package weight fits the selected trip capacity.'}
+                  If your parcel turns out heavier than the trip can take, our team will move it to the next available trip.
                 </div>
-                {exceedsSelectedTripCapacity && (
-                  <button type="button" className="btn btn-ghost btn-sm mt-8" onClick={() => u('trip_id', '')}>
-                    Continue without selected trip
-                  </button>
-                )}
               </div>
             </div>
           )}
-          <button type="button" className="btn btn-primary btn-lg w-full justify-center" onClick={() => {
-            const packageWeight = parseFloat(form.package_weight);
-            if (!Number.isFinite(packageWeight) || packageWeight <= 0) { toast.error('Package weight must be greater than 0 kg.'); return; }
-            if (exceedsSelectedTripCapacity) {
-              toast.error(`Selected trip only has ${formatKg(selectedTripRemainingCapacity)} available. Choose another trip or continue without a selected trip.`);
-              return;
-            }
-            setStep(5);
-          }} disabled={!form.package_weight || parseFloat(form.package_weight) <= 0}>Review Booking</button>
+          <button type="button" className="btn btn-primary btn-lg w-full justify-center" onClick={() => setStep(5)}>Review Booking</button>
         </div></div>
       )}
 
@@ -844,8 +813,9 @@ const BookShipmentPage = () => {
             </div>
           </div>
           <div className="booking-cost-card text-center mb-16">
-            <div className="text-sm text-secondary">Estimated Cost</div>
-            <div className="fw-800 text-primary" style={{ fontSize: '2rem' }}>₱{cost.toFixed(2)}</div>
+            <div className="text-sm text-secondary">Shipping Rate</div>
+            <div className="fw-800 text-primary" style={{ fontSize: '2rem' }}>₱{effectivePricePerKilo}/kg</div>
+            <div className="text-xs text-tertiary mt-4">Weighed at pickup — you pay for the actual weight, nothing estimated.</div>
           </div>
           <button type="button" className="btn btn-primary btn-lg w-full justify-center" onClick={handleSubmit} disabled={loading}>
             {loading ? <Loader size={18} className="animate-spin" /> : 'Confirm Booking'}

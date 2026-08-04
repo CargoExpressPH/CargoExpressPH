@@ -516,7 +516,7 @@ const TrackingPage = ({ embedded = false }) => {
                   <p className="trk-info-tile-label">Package</p>
                   <p className="trk-info-tile-value">{order.package_description || 'No description'}</p>
                   <p className="trk-info-tile-meta">
-                    <Weight size={11} /> {order.actual_weight || order.package_weight || '—'} kg
+                    <Weight size={11} /> {order.actual_weight || '—'} kg
                   </p>
                 </div>
               </div>

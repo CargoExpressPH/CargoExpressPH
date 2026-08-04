@@ -71,7 +71,6 @@ CREATE TABLE IF NOT EXISTS orders (
   receiver_facebook TEXT DEFAULT NULL,
   -- Package info
   package_description TEXT,
-  package_weight DECIMAL(10,2) DEFAULT 0,
   actual_weight DECIMAL(10,2) DEFAULT NULL,
   shipping_cost DECIMAL(10,2) DEFAULT 0,
   -- Payment info
@@ -1113,7 +1112,8 @@ LANGUAGE sql
 SECURITY DEFINER
 SET search_path = public
 AS $$
-  SELECT COALESCE(SUM(COALESCE(actual_weight, package_weight, 0)), 0)
+  -- actual_weight only: an unweighed booking contributes nothing (20260805130000)
+  SELECT COALESCE(SUM(COALESCE(actual_weight, 0)), 0)
   FROM public.orders
   WHERE trip_id = p_trip_id
     AND status <> 'Cancelled'
@@ -1155,20 +1155,13 @@ SET search_path = public
 AS $$
 DECLARE
   trip_row public.trips%ROWTYPE;
-  weight NUMERIC;
-  price NUMERIC;
-  next_weight NUMERIC;
 BEGIN
   IF auth.uid() IS NOT NULL AND NEW.user_id <> auth.uid() AND NOT public.is_admin() THEN
     RAISE EXCEPTION 'Cannot create orders for another user';
   END IF;
 
-  weight := COALESCE(NEW.package_weight, 0);
-  IF weight <= 0 THEN
-    RAISE EXCEPTION 'Package weight must be greater than zero';
-  END IF;
-
-  price := public.global_price_per_kilo();
+  -- No customer-declared weight any more, so a booking carries no price:
+  -- shipping_cost is set when an admin weighs the parcel (20260805130000).
   NEW.tracking_number := public.generate_order_tracking_number();
   NEW.actual_weight := NULL;
   NEW.payment_method := NULL;
@@ -1185,10 +1178,6 @@ BEGIN
       RAISE EXCEPTION 'Selected trip does not exist';
     END IF;
 
-    next_weight := public.current_trip_weight(NEW.trip_id) + weight;
-    -- Capacity check removed to allow administrators to manually exceed limits.
-
-    price := COALESCE(NULLIF(trip_row.price_per_kg, 0), price);
     NEW.status := 'Assigned';
     NEW.origin := trip_row.origin;
     NEW.destination := trip_row.destination;
@@ -1196,11 +1185,35 @@ BEGIN
     NEW.status := 'Pending';
   END IF;
 
-  NEW.shipping_cost := ROUND(weight * price, 2);
-  NEW.remaining_balance := NEW.shipping_cost;
+  NEW.shipping_cost := 0;
+  NEW.remaining_balance := 0;
   RETURN NEW;
 END;
 $$;
+
+-- Single source of truth for payment_status. Both the ledger trigger and
+-- guard_order_update call it, so a weight correction and a payment can never
+-- label the same order differently. 'unpaid' when nothing is collected also
+-- covers an unpriced booking (cost 0, paid 0), which a `remaining <= 0` test
+-- wrongly called 'paid'. See 20260805120000.
+CREATE OR REPLACE FUNCTION public.derive_payment_status(
+  p_shipping_cost NUMERIC,
+  p_amount_paid   NUMERIC
+)
+RETURNS TEXT
+LANGUAGE sql
+IMMUTABLE
+SET search_path = public
+AS $$
+  SELECT CASE
+    WHEN COALESCE(p_amount_paid, 0) <= 0 THEN 'unpaid'
+    WHEN COALESCE(p_amount_paid, 0) >= COALESCE(p_shipping_cost, 0) - 0.005 THEN 'paid'
+    ELSE 'partial'
+  END;
+$$;
+
+REVOKE ALL ON FUNCTION public.derive_payment_status(NUMERIC, NUMERIC) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.derive_payment_status(NUMERIC, NUMERIC) TO authenticated, service_role;
 
 CREATE OR REPLACE FUNCTION public.guard_order_update()
 RETURNS TRIGGER
@@ -1212,7 +1225,6 @@ DECLARE
   trip_row public.trips%ROWTYPE;
   weight NUMERIC;
   price NUMERIC;
-  next_weight NUMERIC;
 BEGIN
   IF NEW.trip_id IS NOT NULL AND NEW.status <> 'Cancelled' THEN
     SELECT * INTO trip_row FROM public.trips WHERE id = NEW.trip_id;
@@ -1222,8 +1234,6 @@ BEGIN
 
     NEW.origin := trip_row.origin;
     NEW.destination := trip_row.destination;
-    weight := COALESCE(NEW.actual_weight, NEW.package_weight, 0);
-    next_weight := public.current_trip_weight(NEW.trip_id, NEW.id) + weight;
     -- Capacity check removed to allow administrators to manually exceed limits.
 
     IF OLD.trip_id IS DISTINCT FROM NEW.trip_id AND NEW.status = 'Pending' THEN
@@ -1234,13 +1244,16 @@ BEGIN
   IF NEW.actual_weight IS DISTINCT FROM OLD.actual_weight
      OR NEW.trip_id IS DISTINCT FROM OLD.trip_id
      OR NEW.amount_paid IS DISTINCT FROM OLD.amount_paid THEN
-    weight := COALESCE(NEW.actual_weight, NEW.package_weight, 0);
+    weight := COALESCE(NEW.actual_weight, 0);
     price := CASE
       WHEN NEW.trip_id IS NOT NULL THEN public.effective_trip_price(NEW.trip_id)
       ELSE public.global_price_per_kilo()
     END;
     NEW.shipping_cost := ROUND(weight * price, 2);
     NEW.remaining_balance := GREATEST(0, NEW.shipping_cost - COALESCE(NEW.amount_paid, 0));
+    -- The badge follows the balance. Without this a re-weighed order kept a
+    -- stale 'Paid' label while money was owing (20260805120000).
+    NEW.payment_status := public.derive_payment_status(NEW.shipping_cost, NEW.amount_paid);
   END IF;
 
   -- ── Warehouse dispatch gate (20260804100000) ─────────────────────────────
@@ -1337,7 +1350,6 @@ RETURNS TABLE (
   origin VARCHAR,
   destination VARCHAR,
   package_description TEXT,
-  package_weight NUMERIC,
   actual_weight NUMERIC,
   shipping_cost NUMERIC,
   estimated_delivery TIMESTAMPTZ,
@@ -1356,7 +1368,6 @@ AS $$
     o.origin,
     o.destination,
     o.package_description,
-    o.package_weight,
     o.actual_weight,
     o.shipping_cost,
     t.arrival_date AS estimated_delivery,
@@ -1833,7 +1844,6 @@ DECLARE
   v_total_paid DECIMAL(10,2);
   v_shipping_cost DECIMAL(10,2);
   v_remaining DECIMAL(10,2);
-  v_payment_status TEXT;
   v_order_id UUID;
 BEGIN
   v_order_id := COALESCE(NEW.order_id, OLD.order_id);
@@ -1848,18 +1858,10 @@ BEGIN
 
   v_remaining := GREATEST(0, COALESCE(v_shipping_cost, 0) - v_total_paid);
 
-  IF v_remaining <= 0 THEN
-    v_payment_status := 'paid';
-  ELSIF v_total_paid > 0 THEN
-    v_payment_status := 'partial';
-  ELSE
-    v_payment_status := 'unpaid';
-  END IF;
-
   UPDATE public.orders
-  SET amount_paid = v_total_paid,
+  SET amount_paid       = v_total_paid,
       remaining_balance = v_remaining,
-      payment_status = v_payment_status
+      payment_status    = public.derive_payment_status(v_shipping_cost, v_total_paid)
   WHERE id = v_order_id;
 
   RETURN NULL;

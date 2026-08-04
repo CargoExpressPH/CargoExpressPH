@@ -12,7 +12,7 @@ import { supabase } from '../../lib/supabase';
  */
 const PickupModal = ({ order, onClose, onSave, pricePerKilo = 70 }) => {
   const [form, setForm] = useState({
-    actual_weight: order?.actual_weight || order?.package_weight || '',
+    actual_weight: order?.actual_weight || '',
     payment_type: (order?.payment_status === 'partial' || order?.payment_status === 'unpaid' || order?.payment_method === 'paylater') ? 'paylater' : 'full',
     payment_method: (order?.payment_method === 'paylater') ? '' : (order?.payment_method || ''),
     amount_paid: order?.amount_paid || '',
@@ -423,7 +423,7 @@ const PickupModal = ({ order, onClose, onSave, pricePerKilo = 70 }) => {
               </div>
             </div>
             <div className="text-xs text-tertiary">
-              Est. {order.package_weight} kg
+              {order.package_description || 'No description'}
             </div>
           </div>
 
