@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import usePageTitle from '../../hooks/usePageTitle';
 import FocusTrap from '../../components/ui/FocusTrap';
+import useScrollLock from '../../hooks/useScrollLock';
 
 const STATUS_CONFIG = {
   new: { label: 'New', className: 'badge-warning' },
@@ -87,6 +88,20 @@ const ContactInquiriesPage = () => {
   const [filter, setFilter] = useState('all');
 
   useEffect(() => { loadInquiries(); }, []);
+
+  // This detail modal is built inline rather than from components/ui, so it was
+  // missed when scroll locking and Escape were added to the shared modals.
+  // Both hooks sit above the early return below so hook order stays stable.
+  useScrollLock(!!selectedInquiry);
+
+  useEffect(() => {
+    if (!selectedInquiry) return undefined;
+    const handleEscape = (e) => {
+      if (e.key === 'Escape') setSelectedInquiry(null);
+    };
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [selectedInquiry]);
 
   const loadInquiries = async () => {
     setError(null);
@@ -271,11 +286,8 @@ const ContactInquiriesPage = () => {
                       </td>
                       <td data-label="Message">
                         <div
-                          className="text-sm truncate"
-                          style={{
-                            maxWidth: 280,
-                            fontWeight: inq.status === 'new' ? 600 : 400,
-                          }}
+                          className="text-sm inquiry-message-preview"
+                          style={{ fontWeight: inq.status === 'new' ? 600 : 400 }}
                         >
                           {inq.message}
                         </div>
@@ -341,7 +353,7 @@ const ContactInquiriesPage = () => {
             <div className="modal-body">
               <div style={{
                 background: 'var(--bg-secondary)', borderRadius: 10,
-              }} className="p-16 mb-16 flex items-center gap-12">
+              }} className="p-16 mb-16 inquiry-identity-row">
                 <div className="sidebar-user-avatar text-base flex-shrink-0" style={{ width: 44, height: 44 }}>
                   {(selectedInquiry.name || '?')[0].toUpperCase()}
                 </div>
@@ -374,7 +386,7 @@ const ContactInquiriesPage = () => {
                     </div>
                   )}
                 </div>
-                <div className="ml-auto flex items-center gap-8">
+                <div className="inquiry-identity-actions">
                   <span className={`badge ${(STATUS_CONFIG[selectedInquiry.status] || STATUS_CONFIG.new).className}`}>
                     {(STATUS_CONFIG[selectedInquiry.status] || STATUS_CONFIG.new).label}
                   </span>

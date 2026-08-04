@@ -849,8 +849,23 @@
   background: linear-gradient(135deg, var(--primary), var(--primary-light));
 }
 
+/* Identity group: back button + avatar + name/email/assignment.
+   `min-width: 0` is required here as well as on .inbox-chat-user-meta —
+   truncation only works if every ancestor in the flex chain can shrink. */
+.inbox-chat-header-identity {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
 .inbox-chat-user-name {
   font-size: 1.0625rem;
+  /* A long customer name previously widened the whole header. */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .inbox-chat-user-sub {
@@ -1272,6 +1287,21 @@
 @media (hover: none) and (pointer: coarse) {
   .inbox-search-box input,
   .inbox-textarea {
+    font-size: 16px;
+  }
+
+  /* NOTE: the .inbox-reassign-select overrides are NOT here. Its base rule
+     lives further down this same file, so a declaration here would lose the
+     cascade (equal specificity, later source wins). See the coarse-pointer
+     block directly after that base rule instead. */
+
+  /* Global form controls sit at 0.9375rem (15px) — also under the iOS
+     threshold, so every form in the admin and customer apps zooms on focus.
+     Their base rule is in components.css, which this file already outranks. */
+  .form-input,
+  .form-select,
+  .form-textarea,
+  .form-control {
     font-size: 16px;
   }
 
@@ -3190,6 +3220,92 @@
   color: var(--text);
 }
 .inbox-reassign-select:disabled { opacity: 0.6; cursor: wait; }
+
+/* Touch devices. Must live AFTER the base rule above — a media query adds no
+   specificity, so placing this with the other coarse-pointer overrides higher
+   in this file would lose to `font-size: 0.7rem` on source order alone.
+
+   At 0.7rem (11.2px) iOS Safari auto-zooms the page on tap and does not zoom
+   back out, and `padding: 1px 4px` produced a ~14px tall target. Desktop keeps
+   the compact styling; it is a fine-pointer device and unaffected. */
+@media (hover: none) and (pointer: coarse) {
+  .inbox-reassign-select {
+    font-size: 16px;
+    min-height: 44px;
+    padding: 6px 8px;
+    margin-left: 0;
+    max-width: 100%;
+    flex: 1 1 140px;
+    min-width: 0;
+  }
+
+  /* Let "Assigned to [select]" wrap rather than crushing the select on a
+     360px screen. */
+  .inbox-chat-user-assigned {
+    flex-wrap: wrap;
+    row-gap: 6px;
+  }
+}
+
+/* --- CONTACT INQUIRIES — responsive -----------------------------------
+   The page previously relied on inline fixed sizes (maxWidth: 280 on the
+   message cell, ml-auto on the modal's action group) which do not survive
+   narrow viewports. */
+
+/* Desktop table: keep each row one scannable line. */
+.inquiry-message-preview {
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* At <=900px .data-table becomes stacked cards, where a 280px cap truncated
+   messages on phones that had room for more. Allow up to three wrapped lines. */
+@media (max-width: 900px) {
+  .inquiry-message-preview {
+    max-width: 100%;
+    white-space: normal;
+    text-overflow: clip;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+}
+
+/* Modal identity row: avatar + name/contact + status badge + claim button. */
+.inquiry-identity-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.inquiry-identity-row > div:not(.inquiry-identity-actions) {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.inquiry-identity-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* Below ~520px the badge and Claim button cannot share a line with the name
+   and a long email. Drop them onto their own full-width row. */
+@media (max-width: 520px) {
+  .inquiry-identity-row {
+    flex-wrap: wrap;
+  }
+  .inquiry-identity-actions {
+    margin-left: 0;
+    width: 100%;
+    justify-content: space-between;
+  }
+}
 
 /* --- INBOX — Simplified header (client direction: minimal) ------------- */
 /* Replaces six filter tabs with one status line and one checkbox. */

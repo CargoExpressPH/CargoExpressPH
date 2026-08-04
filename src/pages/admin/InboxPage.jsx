@@ -881,7 +881,10 @@ const InboxPage = () => {
             <>
               {/* Chat Header */}
               <div className="inbox-chat-header">
-                <div className="flex items-center gap-12">
+                {/* Needs its own class, not `flex` utilities: as a flex item it
+                    defaults to min-width:auto, so a long name or email could not
+                    shrink and pushed the header past the viewport on mobile. */}
+                <div className="inbox-chat-header-identity">
                   <button
                     type="button"
                     className="inbox-mobile-back-btn"
