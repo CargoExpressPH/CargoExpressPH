@@ -775,17 +775,7 @@ const BookShipmentPage = () => {
             <div className="text-2xl fw-800 text-primary">₱{effectivePricePerKilo}/kg</div>
             <div className="text-xs text-tertiary">Your total is calculated when we weigh your parcel at pickup.</div>
           </div>
-          {selectedTrip && selectedTripRemainingCapacity !== null && (
-            <div className="alert-banner alert-banner-info mb-16" style={{ fontSize: '0.8125rem', alignItems: 'flex-start' }}>
-              <AlertTriangle size={14} />
-              <div style={{ flex: 1 }}>
-                <strong>{selectedTrip.trip_number} has {formatKg(selectedTripRemainingCapacity)} available.</strong>
-                <div className="text-xs mt-4">
-                  If your parcel turns out heavier than the trip can take, our team will move it to the next available trip.
-                </div>
-              </div>
-            </div>
-          )}
+
           <button type="button" className="btn btn-primary btn-lg w-full justify-center" onClick={() => setStep(5)}>Review Booking</button>
         </div></div>
       )}
