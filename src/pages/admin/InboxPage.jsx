@@ -632,6 +632,9 @@ const InboxPage = () => {
   const overdue = conversations.filter(c => waitingHours(c) >= WAITING_ALERT_HOURS).length;
 
   const filteredConvs = conversations.filter(conv => {
+    // Hide empty conversations (0 messages) unless it's the one we just actively clicked
+    if (!conv.last_message && conv.id !== activeConv?.id) return false;
+    
     // Resolved threads are history, not work. One checkbox instead of a tab.
     if (!showResolved && conv.status === CONVERSATION_STATUS.RESOLVED) return false;
     if (searchQuery) {
