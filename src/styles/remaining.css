@@ -3260,9 +3260,16 @@
 /* Assignment used to be one-way: set on first reply, no way to hand over.
    A conversation owned by someone on leave had no recovery path. */
 /* Applied to the CustomSelect trigger (a <button>) on top of .form-control,
-   so it inherits the same look as every other dropdown in the admin UI.
-   This only trims it down for the desktop header sub-row. */
-.inbox-reassign-select {
+   so it inherits the same look as every other dropdown in the admin UI, then
+   trimmed down for this metadata row.
+
+   SCOPED TO THE PARENT ON PURPOSE. .form-control re-asserts `min-height: 44px`
+   inside a `@media (max-width: 480px)` block that sits LATER in the bundle than
+   this file. At equal specificity that later rule wins on source order, so an
+   unscoped `.inbox-reassign-select` silently lost on exactly the phone sizes
+   this is meant to fix. The descendant selector (0,2,0) beats `.form-control`
+   (0,1,0) regardless of order. */
+.inbox-chat-user-assigned .inbox-reassign-select {
   min-height: 30px;
   padding: 4px 10px;
   font-size: 0.75rem;
@@ -3290,14 +3297,25 @@
    back out, and `padding: 1px 4px` produced a ~14px tall target. Desktop keeps
    the compact styling; it is a fine-pointer device and unaffected. */
 @media (hover: none) and (pointer: coarse) {
-  /* Touch gets the full .form-control sizing back: 44px tall and a comfortable
-     label size. The iOS focus-zoom rule does not apply here — CustomSelect
-     renders a <button>, and Safari only auto-zooms text-entry controls — but
-     16px is still the right size to read and tap. */
-  .inbox-reassign-select {
-    min-height: 44px;
-    padding: 10px 14px;
-    font-size: 16px;
+  /* Compact on touch too. This control sits in a 0.75rem metadata row, and at
+     44px/16px it dominated the header and pushed it to three tall rows.
+
+     The 16px floor existed only to stop iOS auto-zoom on the old native
+     <select>. CustomSelect renders a <button>, and Safari only auto-zooms
+     text-entry controls, so that constraint no longer applies here.
+
+     32px still clears the WCAG 2.5.8 (AA) 24px minimum. It is under Apple's
+     44pt guideline, which is aimed at primary actions — reassigning a
+     conversation is a rare handover, not something an admin taps often.
+
+     Scoped to the parent for the same reason as the base rule above: it must
+     outrank .form-control's `min-height: 44px` at <=480px, which ships after
+     this file and would otherwise win on source order. */
+  .inbox-chat-user-assigned .inbox-reassign-select {
+    min-height: 32px;
+    padding: 5px 10px;
+    font-size: 0.8125rem;
+    gap: 6px;
   }
 
   /* basis 0, not a fixed width: a basis wider than the line makes a flex item
