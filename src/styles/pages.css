@@ -22,7 +22,7 @@
 }
 .about-block h3 {
   font-size: 0.75rem; font-weight: 700; text-transform: uppercase;
-  letter-spacing: 0.06em; color: var(--primary); margin-bottom: 8px;
+  letter-spacing: 0.06em; color: var(--primary-text); margin-bottom: 8px;
 }
 .about-block p { font-size: 0.8125rem; color: var(--text-secondary); line-height: 1.65; }
 

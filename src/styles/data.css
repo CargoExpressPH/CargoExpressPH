@@ -43,7 +43,7 @@
   overflow-wrap: anywhere;
 }
 .data-table td .contact-link:hover {
-  color: var(--primary);
+  color: var(--primary-text);
 }
 .data-table td .contact-link-sep {
   color: var(--text-secondary);
@@ -189,14 +189,14 @@
   transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease;
 }
 .status-timeline-step.completed .status-timeline-node {
-  background: var(--success);
-  border-color: var(--success);
+  background: var(--success-fill);
+  border-color: var(--success-fill);
   color: white;
   box-shadow: 0 4px 12px var(--success-glow);
 }
 .status-timeline-step.active .status-timeline-node {
-  background: var(--primary);
-  border-color: var(--primary);
+  background: var(--primary-fill);
+  border-color: var(--primary-fill);
   color: white;
   width: 34px;
   height: 34px;
@@ -232,11 +232,11 @@
   white-space: nowrap;
 }
 .status-timeline-step.completed .status-timeline-time {
-  color: var(--success);
+  color: var(--success-text);
   opacity: 0.85;
 }
 .status-timeline-step.active .status-timeline-time {
-  color: var(--primary);
+  color: var(--primary-text);
   opacity: 1;
 }
 .status-timeline-step.completed .status-timeline-label {

@@ -119,14 +119,16 @@
   transition: var(--transition-slow);
   flex-shrink: 0;
 }
+/* Step numerals are 12.8px — body-size text, so these fills need the AA-safe
+   variants: the base --primary/--success give white only 3.30:1 and 2.54:1. */
 .reg-step-node.active .reg-step-circle {
-  border-color: var(--primary); color: white;
-  background: var(--primary);
+  border-color: var(--primary-fill); color: white;
+  background: var(--primary-fill);
   box-shadow: 0 0 0 4px var(--primary-glow);
 }
 .reg-step-node.completed .reg-step-circle {
-  border-color: var(--success); color: white;
-  background: var(--success);
+  border-color: var(--success-fill); color: white;
+  background: var(--success-fill);
   box-shadow: 0 0 0 4px var(--success-glow);
 }
 .reg-step-label {
@@ -134,8 +136,8 @@
   color: var(--text-tertiary);
   transition: var(--transition);
 }
-.reg-step-node.active .reg-step-label   { color: var(--primary); }
-.reg-step-node.completed .reg-step-label { color: var(--success); }
+.reg-step-node.active .reg-step-label   { color: var(--primary-text); }
+.reg-step-node.completed .reg-step-label { color: var(--success-text); }
 .reg-step-connector {
   flex: 1; height: 2px;
   background: var(--border); margin: 0 10px;
@@ -148,7 +150,7 @@
 .reg-section-label {
   display: flex; align-items: center; gap: 6px;
   font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
-  letter-spacing: 0.08em; color: var(--primary);
+  letter-spacing: 0.08em; color: var(--primary-text);
   margin-bottom: 16px;
 }
 
@@ -168,7 +170,9 @@
 /* -- Right-side check icon for valid phone -- */
 .form-input-icon-right-check {
   position: absolute; right: 13px;
-  color: var(--success); flex-shrink: 0;
+  /* Validation tick inside a white input — --success is 2.54:1, failing even
+     the 3:1 non-text minimum. */
+  color: var(--success-text); flex-shrink: 0;
   pointer-events: none;
 }
 
@@ -439,7 +443,7 @@
   animation: sentEnvelope 0.55s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 .fp-email-highlight {
-  color: var(--primary); word-break: break-all;
+  color: var(--primary-text); word-break: break-all;
 }
 
 /* -- Resend row -- */
@@ -515,7 +519,7 @@
   display: flex; align-items: center; justify-content: center;
   color: transparent; transition: var(--transition);
 }
-.rp-requirement-item.met { color: var(--success); }
+.rp-requirement-item.met { color: var(--success-text); }
 .rp-requirement-item.met .rp-req-icon {
   border-color: var(--success); background: var(--success-bg);
   color: var(--success); box-shadow: 0 0 0 3px var(--success-glow);
@@ -524,7 +528,7 @@
 /* -- Passwords match indicator -- */
 .rp-match-ok {
   display: flex; align-items: center; gap: 5px;
-  font-size: 0.775rem; font-weight: 600; color: var(--success);
+  font-size: 0.775rem; font-weight: 600; color: var(--success-text);
   margin-top: 5px; animation: slideDown 0.2s ease;
 }
 

@@ -193,7 +193,9 @@
   gap: 10px;
   padding: 16px 36px;
   border-radius: 100px;
-  background: var(--primary);
+  /* 16px/700 is not "large text" (needs >=18.66px bold), so white on --primary
+     at 3.30:1 fails AA. This is the landing page's primary CTA. */
+  background: var(--primary-fill);
   color: #fff;
   text-decoration: none;
   font-weight: 700;
@@ -346,8 +348,14 @@
 }
 
 /* ── Content Wrapper ── */
+/* max-width must stay relative to the container, not just the 1200px cap.
+   This is a stretched flex item in a column flex container (.public-about-page),
+   so a bare `max-width: 1200px` never constrains it to the viewport and its
+   min-content floor (372px) wins instead. Below 372px that overflowed a parent
+   with `overflow-x: hidden`, clipping body text unreachably — a WCAG 1.4.10
+   Reflow failure at the required 320px. `min()` keeps the 1200px desktop cap. */
 .about-content-wrapper {
-  max-width: 1200px;
+  max-width: min(1200px, 100%);
   margin: 0 auto;
   padding: 80px 20px 0;
 }
@@ -367,7 +375,7 @@
 
 /* ── Section Headers ── */
 .about-section-label {
-  color: var(--primary);
+  color: var(--primary-text);
   font-weight: 700;
   letter-spacing: 1.5px;
   text-transform: uppercase;
@@ -488,7 +496,8 @@
 .about-timeline-year {
   font-size: 0.75rem;
   font-weight: 800;
-  color: var(--primary);
+  /* 12px text — --primary is 3.30:1 on the surface, needs the AA token. */
+  color: var(--primary-text);
   letter-spacing: 0.5px;
   text-transform: uppercase;
   margin-bottom: 2px;
@@ -611,7 +620,7 @@
 }
 .about-region-card.selected .about-muni-tag {
   border-color: rgba(var(--primary-rgb), 0.2);
-  color: var(--primary);
+  color: var(--primary-text);
 }
 
 @media (max-width: 640px) {
@@ -850,8 +859,8 @@
   transform: translateY(-1px);
 }
 .about-filter-chip.active {
-  background: var(--primary);
-  border-color: var(--primary);
+  background: var(--primary-fill);
+  border-color: var(--primary-fill);
   color: #fff;
   box-shadow: 0 4px 14px rgba(var(--primary-rgb), 0.35);
 }
@@ -872,6 +881,15 @@
 .about-contact-grid {
   display: grid;
   grid-template-columns: 1fr;
+}
+/* Grid items default to `min-width: auto`, so a `1fr` track cannot shrink below
+   its content's min-content width. .about-contact-info's 24px side padding put
+   its floor at 330px, which overflowed the 278px track and was clipped by
+   .about-contact-card's `overflow: hidden` — cutting off the heading and body
+   copy at 320px. Applies to both columns so the form side can't regress the
+   same way. */
+.about-contact-grid > * {
+  min-width: 0;
 }
 @media (min-width: 900px) {
   .about-contact-grid { grid-template-columns: 1fr 1fr; }
@@ -897,6 +915,13 @@
   gap: 16px;
   transition: transform 0.2s ease;
 }
+/* Same `min-width: auto` trap as the grid above: the text column's min-content
+   is set by the unbreakable email address, so it refused to shrink and pushed
+   the address past the clipped card edge at 320px. Needs the break-word rule on
+   .about-contact-link too — neither alone is sufficient. */
+.about-contact-block > * {
+  min-width: 0;
+}
 .about-contact-block:hover { transform: translateX(4px); }
 .about-contact-icon-box {
   width: 48px;
@@ -916,6 +941,9 @@
   color: rgba(255,255,255,0.7);
   text-decoration: none;
   transition: color 0.2s;
+  /* Email addresses have no natural break points; without this the address
+     overflows its column at narrow widths even once min-width is released. */
+  overflow-wrap: break-word;
 }
 .about-contact-link:hover { color: #fff; text-decoration: underline; }
 
@@ -945,7 +973,8 @@
   width: 100%;
   padding: 16px;
   border-radius: 16px;
-  background: var(--primary);
+  /* 16.8px/700 is still below the large-text threshold, so this needs 4.5:1. */
+  background: var(--primary-fill);
   color: #fff;
   border: none;
   font-weight: 700;
@@ -1131,7 +1160,7 @@
 }
 
 [data-theme="dark"] .about-login-btn.scrolled {
-  background: var(--primary);
+  background: var(--primary-fill);
   color: #fff;
 }
 

@@ -59,7 +59,7 @@ h4 {
 }
 p { line-height: var(--line-height-relaxed); }
 
-a { color: var(--primary); text-decoration: none; transition: var(--transition-fast); }
+a { color: var(--primary-text); text-decoration: none; transition: var(--transition-fast); }
 a:hover { color: var(--primary-dark); }
 
 button {
@@ -91,7 +91,7 @@ input, select, textarea {
   top: -100%;
   left: var(--space-xs);
   padding: var(--space-xs) var(--space-md);
-  background: var(--primary);
+  background: var(--primary-fill);
   color: white;
   font-weight: var(--font-weight-bold);
   font-size: var(--font-size-sm);

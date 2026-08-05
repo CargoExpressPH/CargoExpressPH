@@ -138,8 +138,11 @@ body:has(:is(.customer-layout-v2, .trk-page, .public-about-page, .contact-page, 
 }
 
 .customer-layout-v2 .text-primary,
+/* This covers every .text-accent in the customer app — including tracking-number
+   and order links in tables, which are body-size text. --customer-green aliases
+   --primary at 3.30:1, so it fails AA there; --primary-text is the AA variant. */
 .customer-layout-v2 .text-accent {
-  color: var(--customer-green);
+  color: var(--primary-text);
 }
 
 
@@ -199,9 +202,11 @@ body:has(:is(.customer-layout-v2, .trk-page, .public-about-page, .contact-page, 
   letter-spacing: 0;
 }
 
+/* (0,3,0) — outranks the .customer-layout-v2 .text-accent rule above, so this
+   needs the AA token too or the wordmark stays at 3.08:1 on the navbar. */
 .customer-layout-v2 .customer-navbar-brand .text-accent,
 .customer-layout-v2 .customer-navbar-brand .text-primary {
-  color: var(--customer-green);
+  color: var(--primary-text);
 }
 
 .customer-nav-link {
@@ -281,8 +286,11 @@ body:has(:is(.customer-layout-v2, .trk-page, .public-about-page, .contact-page, 
   color: var(--text-tertiary);
 }
 
+/* The active tab label is 11.2px — body-size text, so --customer-green
+   (aliases --primary, 3.08:1 on the translucent white nav bar) fails AA.
+   The icon keeps its own colour rule below; only the label needs this. */
 .customer-bottom-tab.active {
-  color: var(--customer-green);
+  color: var(--primary-text);
 }
 
 .customer-bottom-tab.active::before {
@@ -515,7 +523,10 @@ body:has(:is(.customer-layout-v2, .trk-page, .public-about-page, .contact-page, 
 /* Do not use `* { color: inherit }` — it breaks StatusBadge / .badge colors. */
 .customer-layout-v2 .customer-trip-card .customer-trip-cta,
 .customer-layout-v2 .home-hero-trip-card .home-trip-cta {
-  background: linear-gradient(135deg, var(--customer-green), #22C55E);
+  /* Was `var(--customer-green) → #22C55E`; white text on the #22C55E stop is
+     only 2.28:1. Matches the .customer-layout-v2 .btn-primary gradient above,
+     which is already AA-safe across both stops. */
+  background: linear-gradient(135deg, #15803D, #166534);
   color: #FFFFFF;
   box-shadow: 0 14px 28px rgba(18, 138, 90, 0.22);
 }
@@ -717,7 +728,8 @@ body:has(:is(.customer-layout-v2, .trk-page, .public-about-page, .contact-page, 
 
 .step-progress .step.active .step-number,
 .step-progress .step.completed .step-number {
-  background: var(--customer-green);
+  /* Contains the step numeral — body-size text, so needs the AA-safe fill. */
+  background: var(--primary-fill);
   color: #FFFFFF;
   box-shadow: 0 8px 18px rgba(18, 138, 90, 0.22);
 }
@@ -1080,7 +1092,7 @@ body:has(:is(.customer-layout-v2, .trk-page, .public-about-page, .contact-page, 
 }
 
 .profile-completion-header strong {
-  color: var(--customer-green);
+  color: var(--primary-text);
   font-weight: 900;
 }
 
@@ -1233,7 +1245,7 @@ body:has(:is(.customer-layout-v2, .trk-page, .public-about-page, .contact-page, 
   height: 22px;
   padding: 0 7px;
   border-radius: var(--radius-full);
-  background: var(--primary);
+  background: var(--primary-fill);
   color: #fff;
   font-size: 0.75rem;
   font-weight: 700;

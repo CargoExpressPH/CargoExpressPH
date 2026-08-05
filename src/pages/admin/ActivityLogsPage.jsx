@@ -12,12 +12,14 @@ import {
   RefreshCw, Clock, User
 } from 'lucide-react';
 
+// Labels render at 11.2px — body-size text, so these use the AA text tokens
+// rather than the raw semantic colours (which measured 3.30–4.23:1 on white).
 const MODULE_COLORS = {
-  Orders:         { bg: 'var(--primary-glow)', color: 'var(--primary)', icon: Package },
-  Trips:          { bg: 'var(--success-glow)', color: 'var(--success)', icon: Truck },
-  Payments:       { bg: 'var(--warning-bg)', color: 'var(--warning)', icon: CreditCard },
-  Chat:           { bg: 'color-mix(in srgb, var(--chart-1) 12%, transparent)', color: 'var(--chart-1)', icon: MessageSquare },
-  Authentication: { bg: 'var(--error-glow)', color: 'var(--error)', icon: Shield },
+  Orders:         { bg: 'var(--primary-glow)', color: 'var(--primary-text)', icon: Package },
+  Trips:          { bg: 'var(--success-glow)', color: 'var(--success-text)', icon: Truck },
+  Payments:       { bg: 'var(--warning-bg)', color: 'var(--warning-text)', icon: CreditCard },
+  Chat:           { bg: 'color-mix(in srgb, var(--chart-1) 12%, transparent)', color: 'var(--chart-purple-text)', icon: MessageSquare },
+  Authentication: { bg: 'var(--error-glow)', color: 'var(--error-text)', icon: Shield },
   System:         { bg: 'var(--border-light)', color: 'var(--text-secondary)', icon: Settings },
 };
 

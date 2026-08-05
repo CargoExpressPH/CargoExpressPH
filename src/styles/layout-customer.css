@@ -186,7 +186,7 @@
   text-align: left; margin: 2px 4px; width: calc(100% - 8px);
 }
 .customer-dropdown-item:hover { background: var(--bg-secondary); color: var(--text); }
-.customer-dropdown-item.danger { color: var(--error); }
+.customer-dropdown-item.danger { color: var(--error-text); }
 .customer-dropdown-item.danger:hover { background: var(--error-bg); }
 
 /* The hamburger + mobile dropdown menu were replaced by the bottom tab bar.
@@ -243,7 +243,7 @@
   transform: scale(0.92);
 }
 .customer-bottom-tab.active {
-  color: var(--primary);
+  color: var(--primary-text);
 }
 .customer-bottom-tab.active svg {
   transform: scale(1.12) translateY(-1px);

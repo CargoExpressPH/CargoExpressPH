@@ -118,6 +118,10 @@
   justify-content: center;
   width: 44px;
   height: 44px;
+  /* Flex sibling of the brand block, which has no min-width floor of its own;
+     without this the 44px width was compressed to 20px at 320px, under the
+     24px WCAG 2.2 target-size minimum. */
+  flex-shrink: 0;
   margin-left: auto;
   border: 1px solid var(--sidebar-border);
   border-radius: var(--radius-sm);
@@ -150,7 +154,7 @@
 }
 .sidebar-brand h1 {
   font-size: 1.25rem; font-weight: 800;
-  color: var(--primary); letter-spacing: -0.02em;
+  color: var(--primary-text); letter-spacing: -0.02em;
 }
 .sidebar-brand span { color: var(--sidebar-text); font-weight: 400; }
 
@@ -186,7 +190,7 @@
 .sidebar-link:hover svg { transform: scale(1.08); }
 .sidebar-link svg { transition: var(--transition-fast); flex-shrink: 0; }
 .sidebar-link.danger {
-  color: var(--error);
+  color: var(--error-text);
 }
 .sidebar-link.danger:hover {
   background: var(--error-bg);

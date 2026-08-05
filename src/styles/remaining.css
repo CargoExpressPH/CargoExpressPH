@@ -130,7 +130,7 @@
 }
 
 .notification-clear-all-btn {
-  color: var(--error);
+  color: var(--error-text);
 }
 .notification-clear-all-btn:hover {
   background: var(--error-bg);
@@ -456,7 +456,7 @@
   margin-top: 4px;
   padding: 0 4px;
   font-size: 0.6875rem;
-  color: var(--error);
+  color: var(--error-text);
 }
 .chat-msg-failed-actions button {
   background: none;
@@ -498,7 +498,7 @@
   letter-spacing: 0.01em;
 }
 .chat-sender-label svg { flex-shrink: 0; }
-.chat-sender-label.bot-label   { color: var(--primary); }
+.chat-sender-label.bot-label   { color: var(--primary-text); }
 .chat-sender-label.admin-label { color: var(--accent); }
 
 /* --- HYBRID CHAT — Avatars --------------------------------------------- */
@@ -705,14 +705,14 @@
   opacity: 0.65;
 }
 .inbox-filter-tab-btn.has-waiting {
-  color: var(--warning);
+  color: var(--warning-text);
 }
 .inbox-filter-tab-btn.has-waiting .inbox-filter-count {
   opacity: 1;
   font-weight: 700;
 }
 .inbox-filter-tab-btn.active.has-waiting {
-  color: var(--warning);
+  color: var(--warning-text);
 }
 
 
@@ -725,7 +725,7 @@
   white-space: nowrap;
 }
 .inbox-wait-age.overdue {
-  color: var(--error);
+  color: var(--error-text);
 }
 
 /* --- INBOX — Messages Bubbles ------------------------------------------ */
@@ -1178,7 +1178,7 @@
   margin-top: 4px;
   padding: 0 4px;
   font-size: 0.6875rem;
-  color: var(--error);
+  color: var(--error-text);
 }
 .inbox-msg-failed-actions button {
   background: none;
@@ -1361,6 +1361,26 @@
     font-size: 16px;
   }
 
+  /* The auth pages need their own selectors here. tabs-steps.css sets
+     `.login-right-panel .form-input, .auth-page .form-input` to 0.9375rem at
+     (0,2,0); a media query adds no specificity, so the (0,1,0) rule above lost
+     and login/register/forgot/reset kept zooming on focus. Matching (0,2,0)
+     wins on source order — tabs-steps.css is imported before this file.
+     Only .form-input needs it: tabs-steps.css never targets the select or
+     textarea variants, so those are already covered above. */
+  .login-right-panel .form-input,
+  .auth-page .form-input {
+    font-size: 16px;
+  }
+
+  /* Search inputs carry no .form-input class, so the rule above misses them.
+     Their 0.875rem comes from loading-search.css `.search-box input` (0,1,1);
+     matching that here wins on source order. Covers admin Orders/Customers/
+     Inbox, customer Home/Orders, and public Tracking. */
+  .search-box input {
+    font-size: 16px;
+  }
+
   .inbox-mobile-back-btn {
     min-width: 44px;
     min-height: 44px;
@@ -1491,7 +1511,9 @@
   display: flex;
   gap: 12px;
   flex: 1;
-  min-width: 300px;
+  /* A hard 300px floor overflowed the ~280px content box at 320px. min() keeps
+     the intended width wherever there is room and lets it shrink when there isn't. */
+  min-width: min(300px, 100%);
 }
 
 .report-date-inputs .form-group {
@@ -1625,7 +1647,7 @@
 
 /* -- Enhanced Input Focus -- */
 .form-group:focus-within .form-label {
-  color: var(--primary);
+  color: var(--primary-text);
   transition: color 0.2s ease;
 }
 
@@ -2255,7 +2277,7 @@
 }
 
 .trip-detail-route-sep {
-  color: var(--primary);
+  color: var(--primary-text);
   font-weight: 800;
 }
 
@@ -2451,7 +2473,7 @@
 .admin-error-card {
   padding: 40px;
   text-align: center;
-  color: var(--error);
+  color: var(--error-text);
 }
 
 .admin-form-actions {
@@ -3071,7 +3093,7 @@
   color: var(--border);
 }
 .feedback-star-btn.active {
-  color: var(--warning);
+  color: var(--warning-text);
 }
 .feedback-star-btn:hover {
   transform: scale(1.15);
@@ -3144,7 +3166,7 @@
 }
 
 .ce-email-highlight {
-  color: var(--primary);
+  color: var(--primary-text);
   font-weight: 700;
   word-break: break-word;
   overflow-wrap: anywhere;

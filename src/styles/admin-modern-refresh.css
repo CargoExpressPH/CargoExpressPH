@@ -88,14 +88,17 @@
   box-shadow: 0 10px 22px rgba(15, 23, 42, 0.16);
 }
 
+/* --admin-green aliases --primary, which is 3.30:1 on the white sidebar. The
+   wordmark renders at 13.4px, so it is body-size text needing 4.5:1 — use the
+   AA text token, which stays theme-aware (#15803D light / #4ADE80 dark). */
 .app-layout .sidebar-brand h1 {
-  color: var(--admin-green);
+  color: var(--primary-text);
   font-weight: 900;
   letter-spacing: 0;
 }
 
 .app-layout .sidebar-brand h1 span {
-  color: var(--admin-green);
+  color: var(--primary-text);
   font-weight: 900;
 }
 
@@ -217,7 +220,9 @@
   height: 18px;
   padding: 0 5px;
   border-radius: 9px;
-  background: linear-gradient(135deg, #EF4444, #DC2626);
+  /* Darkened from #EF4444→#DC2626: white on #EF4444 is 3.76:1, and at
+     0.5625rem/800 this is body-size text needing 4.5:1. */
+  background: linear-gradient(135deg, #DC2626, var(--error-fill));
   color: white;
   font-size: 0.5625rem;
   font-weight: 800;
@@ -609,15 +614,17 @@
   background: linear-gradient(90deg, transparent, var(--admin-line), transparent);
 }
 
+/* --admin-green aliases --primary (3.30:1 on white). The topbar wordmark is
+   body-size text, so it needs the AA token — theme-aware in both modes. */
 .app-layout .topbar-title {
-  color: var(--admin-green);
+  color: var(--primary-text);
   font-weight: 900;
   letter-spacing: 0;
 }
 
 .app-layout .topbar-title .text-accent,
 .app-layout .topbar-title .text-primary {
-  color: var(--admin-green);
+  color: var(--primary-text);
 }
 
 .app-layout .topbar-logo-icon {

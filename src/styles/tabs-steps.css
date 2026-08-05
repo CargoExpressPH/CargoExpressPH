@@ -22,7 +22,7 @@
 }
 .tab:hover { color: var(--text); background: var(--bg-secondary); border-radius: var(--radius-xs) var(--radius-xs) 0 0; }
 .tab.active {
-  color: var(--primary); border-bottom-color: var(--primary);
+  color: var(--primary-text); border-bottom-color: var(--primary-text);
   font-weight: 700;
 }
 .tab .tab-count {
@@ -64,8 +64,8 @@
   font-size: 0.8125rem; font-weight: 500;
   color: var(--text-secondary);
 }
-.step.active .step-label { color: var(--primary); font-weight: 600; }
-.step.completed .step-label { color: var(--success); }
+.step.active .step-label { color: var(--primary-text); font-weight: 600; }
+.step.completed .step-label { color: var(--success-text); }
 .step-connector {
   flex: 1; height: 2px; background: var(--border);
   margin: 0 8px; transition: var(--transition-slow);

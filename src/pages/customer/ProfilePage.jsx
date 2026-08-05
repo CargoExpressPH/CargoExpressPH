@@ -373,7 +373,7 @@ const ProfilePage = () => {
           type="button"
           className="btn btn-outline w-full stagger-item justify-center profile-signout"
           onClick={() => setShowLogoutConfirm(true)}
-          style={{ color: 'var(--error)', borderColor: 'var(--error-glow)', animationDelay: '360ms' }}
+          style={{ color: 'var(--error-text)', borderColor: 'var(--error-glow)', animationDelay: '360ms' }}
         >
           <LogOut size={18} /> Sign Out
         </button>

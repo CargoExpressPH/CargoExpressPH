@@ -24,7 +24,7 @@ export const getAnnouncementCategoryInfo = (announcement) => {
       icon: Zap,
       accentColor: 'var(--success)',
       badgeBg: 'color-mix(in srgb, var(--success) 14%, transparent)',
-      badgeColor: 'var(--success)'
+      badgeColor: 'var(--success-text)'
     };
   }
   if (title.includes('🚢') || text.includes('[schedule]')) {
@@ -33,7 +33,7 @@ export const getAnnouncementCategoryInfo = (announcement) => {
       icon: Calendar,
       accentColor: 'var(--info)',
       badgeBg: 'color-mix(in srgb, var(--info) 14%, transparent)',
-      badgeColor: 'var(--info)'
+      badgeColor: 'var(--info-text)'
     };
   }
   if (title.includes('⚠️') || text.includes('[advisory]')) {
@@ -42,7 +42,7 @@ export const getAnnouncementCategoryInfo = (announcement) => {
       icon: AlertTriangle,
       accentColor: 'var(--warning)',
       badgeBg: 'color-mix(in srgb, var(--warning) 14%, transparent)',
-      badgeColor: 'var(--warning)'
+      badgeColor: 'var(--warning-text)'
     };
   }
   if (title.includes('📞') || title.includes('🔔') || text.includes('[notice]')) {
@@ -51,7 +51,7 @@ export const getAnnouncementCategoryInfo = (announcement) => {
       icon: Bell,
       accentColor: 'var(--chart-1)',
       badgeBg: 'color-mix(in srgb, var(--chart-1) 14%, transparent)',
-      badgeColor: 'var(--chart-1)'
+      badgeColor: 'var(--chart-purple-text)'
     };
   }
   if (title.includes('📢') || text.includes('[general]')) {
@@ -60,7 +60,7 @@ export const getAnnouncementCategoryInfo = (announcement) => {
       icon: Megaphone,
       accentColor: 'var(--primary)',
       badgeBg: 'color-mix(in srgb, var(--primary) 14%, transparent)',
-      badgeColor: 'var(--primary)'
+      badgeColor: 'var(--primary-text)'
     };
   }
 
@@ -73,7 +73,7 @@ export const getAnnouncementCategoryInfo = (announcement) => {
       icon: Zap,
       accentColor: 'var(--success)',
       badgeBg: 'color-mix(in srgb, var(--success) 14%, transparent)',
-      badgeColor: 'var(--success)'
+      badgeColor: 'var(--success-text)'
     };
   }
 
@@ -83,7 +83,7 @@ export const getAnnouncementCategoryInfo = (announcement) => {
       icon: Calendar,
       accentColor: 'var(--info)',
       badgeBg: 'color-mix(in srgb, var(--info) 14%, transparent)',
-      badgeColor: 'var(--info)'
+      badgeColor: 'var(--info-text)'
     };
   }
 
@@ -93,7 +93,7 @@ export const getAnnouncementCategoryInfo = (announcement) => {
       icon: AlertTriangle,
       accentColor: 'var(--warning)',
       badgeBg: 'color-mix(in srgb, var(--warning) 14%, transparent)',
-      badgeColor: 'var(--warning)'
+      badgeColor: 'var(--warning-text)'
     };
   }
 
@@ -103,7 +103,7 @@ export const getAnnouncementCategoryInfo = (announcement) => {
       icon: Bell,
       accentColor: 'var(--chart-1)',
       badgeBg: 'color-mix(in srgb, var(--chart-1) 14%, transparent)',
-      badgeColor: 'var(--chart-1)'
+      badgeColor: 'var(--chart-purple-text)'
     };
   }
 
@@ -112,6 +112,6 @@ export const getAnnouncementCategoryInfo = (announcement) => {
     icon: Megaphone,
     accentColor: 'var(--primary)',
     badgeBg: 'color-mix(in srgb, var(--primary) 14%, transparent)',
-    badgeColor: 'var(--primary)'
+    badgeColor: 'var(--primary-text)'
   };
 };

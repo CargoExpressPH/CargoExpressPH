@@ -287,7 +287,7 @@
   background: var(--bg-secondary);
   padding: 3px 8px; border-radius: var(--radius-full);
 }
-.trk-timestamp-live { color: var(--primary); }
+.trk-timestamp-live { color: var(--primary-text); }
 .trk-timestamp-live svg { animation: none; }
 
 /* -- Progress Bar -- */
@@ -308,7 +308,7 @@
   transition: width 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 .trk-progress-pct {
-  font-size: 0.72rem; font-weight: 700; color: var(--primary);
+  font-size: 0.72rem; font-weight: 700; color: var(--primary-text);
   white-space: nowrap; min-width: 76px; text-align: right;
 }
 
@@ -361,7 +361,7 @@
   font-size: 0.775rem; color: var(--text-secondary); margin-top: 3px;
 }
 .trk-route-arrow { color: var(--text-tertiary); flex-shrink: 0; }
-.trk-cost { color: var(--success); }
+.trk-cost { color: var(--success-text); }
 
 /* -- Card Footer -- */
 .trk-card-footer {
@@ -417,7 +417,7 @@
   position: relative; z-index: 1; line-height: 1.8;
 }
 .trk-footer-link {
-  color: var(--primary); font-weight: 700; text-decoration: none;
+  color: var(--primary-text); font-weight: 700; text-decoration: none;
   transition: opacity 0.2s;
 }
 .trk-footer-link:hover { opacity: 0.8; }
@@ -492,7 +492,7 @@
 }
 
 .public-about-contact-link {
-  color: var(--info);
+  color: var(--info-text);
   display: inline-flex;
   align-items: center;
   gap: 6px;
