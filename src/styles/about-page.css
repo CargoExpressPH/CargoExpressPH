@@ -83,10 +83,10 @@
 }
 .about-nav-link.transparent { color: rgba(255,255,255,0.8); }
 .about-nav-link.scrolled { color: var(--text-secondary); }
-.about-nav-link:hover { background: rgba(var(--primary-rgb), 0.1); color: var(--primary); }
+.about-nav-link:hover { background: rgba(var(--primary-rgb), 0.1); color: var(--primary-text); }
 .about-nav-link.active {
   background: rgba(var(--primary-rgb), 0.12);
-  color: var(--primary);
+  color: var(--primary-text);
   font-weight: 700;
 }
 

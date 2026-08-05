@@ -80,12 +80,12 @@
   display: flex; align-items: center; justify-content: center;
   margin: 0 auto 16px;
 }
-.confirm-modal-icon.danger { background: var(--error-bg); color: var(--error); }
-.confirm-modal-icon.warning { background: var(--warning-bg); color: var(--warning); }
-.confirm-modal-icon.info { background: var(--info-bg); color: var(--info); }
-.confirm-modal-icon.success { background: var(--success-bg); color: var(--success); }
+.confirm-modal-icon.danger { background: var(--error-bg); color: var(--error-fill); }
+.confirm-modal-icon.warning { background: var(--warning-bg); color: var(--warning-text); }
+.confirm-modal-icon.info { background: var(--info-bg); color: var(--info-text); }
+.confirm-modal-icon.success { background: var(--success-bg); color: var(--success-text); }
 .confirm-modal-icon.secondary { background: rgba(var(--accent-rgb), 0.12); color: var(--accent); }
-.confirm-modal-icon.primary { background: var(--primary-bg); color: var(--primary); }
+.confirm-modal-icon.primary { background: var(--primary-bg); color: var(--primary-text); }
 
 .confirm-modal h3 {
   color: var(--text); font-size: 1.125rem; font-weight: 700; margin-bottom: 8px;
@@ -153,7 +153,7 @@
 }
 .toast-success .toast-icon-wrap {
   background: rgba(16, 185, 129, 0.08);
-  color: var(--success);
+  color: var(--success-text);
 }
 .toast-success .toast-type-label {
   color: var(--success-dark);
@@ -179,7 +179,7 @@
 }
 .toast-warning .toast-icon-wrap {
   background: rgba(245, 158, 11, 0.08);
-  color: var(--warning);
+  color: var(--warning-text);
 }
 .toast-warning .toast-type-label {
   color: var(--warning-dark);

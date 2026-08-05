@@ -159,7 +159,7 @@
   width: 64px; height: 64px; border-radius: 50%;
   background: var(--error-bg);
   border: 1px solid var(--error-glow);
-  color: var(--error);
+  color: var(--error-fill);
   display: flex; align-items: center; justify-content: center;
   margin: 0 auto 16px;
 }
@@ -345,7 +345,7 @@
 .trk-info-tile-icon {
   width: 30px; height: 30px; border-radius: var(--radius-sm); flex-shrink: 0;
   background: var(--primary-bg);
-  color: var(--primary);
+  color: var(--primary-text);
   display: flex; align-items: center; justify-content: center;
 }
 .trk-info-tile-label {
@@ -386,7 +386,7 @@
   width: 80px; height: 80px; border-radius: 50%; margin: 0 auto 20px;
   background: var(--primary-bg);
   border: 1px solid var(--primary-glow);
-  color: var(--primary);
+  color: var(--primary-text);
   display: flex; align-items: center; justify-content: center;
   animation: float 5s ease-in-out infinite;
 }

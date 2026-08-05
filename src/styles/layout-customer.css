@@ -45,7 +45,7 @@
 }
 .customer-nav-link:hover { background: var(--bg-secondary); color: var(--text); }
 .customer-nav-link.active {
-  color: var(--primary); font-weight: 700;
+  color: var(--primary-text); font-weight: 700;
   background: var(--primary-bg);
 }
 .customer-nav-link.active::after {

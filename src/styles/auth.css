@@ -206,7 +206,7 @@
 }
 .pw-rule svg { opacity: 0.35; }
 .pw-rule.met {
-  color: var(--success); background: var(--success-bg);
+  color: var(--success-text); background: var(--success-bg);
   border-color: rgba(16,185,129,0.3);
 }
 .pw-rule.met svg { opacity: 1; }
@@ -264,7 +264,7 @@
   cursor: pointer; transition: var(--transition); flex-shrink: 0;
 }
 .auth-back-btn:hover {
-  border-color: var(--primary); color: var(--primary);
+  border-color: var(--primary); color: var(--primary-text);
   background: var(--primary-bg);
 }
 .auth-back-btn:focus-visible {
@@ -305,7 +305,7 @@
 }
 .auth-success-icon {
   width: 88px; height: 88px; border-radius: 50%;
-  background: var(--success-bg); color: var(--success);
+  background: var(--success-bg); color: var(--success-text);
   display: flex; align-items: center; justify-content: center;
   animation: bounceIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
   box-shadow: 0 0 0 12px rgba(16,185,129,0.1);
@@ -437,7 +437,7 @@
 }
 .fp-sent-icon {
   width: 72px; height: 72px; border-radius: 50%;
-  background: var(--success-bg); color: var(--success);
+  background: var(--success-bg); color: var(--success-text);
   display: flex; align-items: center; justify-content: center;
   box-shadow: 0 0 0 8px rgba(16,185,129,0.08);
   animation: sentEnvelope 0.55s cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -460,7 +460,7 @@
 .fp-resend-btn {
   display: flex; align-items: center; gap: 5px;
   font-size: 0.8rem; font-weight: 700;
-  color: var(--primary); background: none; border: none; cursor: pointer;
+  color: var(--primary-text); background: none; border: none; cursor: pointer;
   padding: 4px 8px; border-radius: var(--radius-sm);
   transition: var(--transition);
 }
@@ -490,7 +490,7 @@
   width: 56px; height: 56px; border-radius: 50%;
   background: var(--primary-bg);
   display: flex; align-items: center; justify-content: center;
-  color: var(--primary);
+  color: var(--primary-text);
   box-shadow: 0 0 0 6px rgba(22, 163, 74, 0.08);
 }
 .rp-verifying-text {
@@ -522,7 +522,7 @@
 .rp-requirement-item.met { color: var(--success-text); }
 .rp-requirement-item.met .rp-req-icon {
   border-color: var(--success); background: var(--success-bg);
-  color: var(--success); box-shadow: 0 0 0 3px var(--success-glow);
+  color: var(--success-text); box-shadow: 0 0 0 3px var(--success-glow);
 }
 
 /* -- Passwords match indicator -- */

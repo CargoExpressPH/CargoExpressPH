@@ -32,7 +32,7 @@
   margin-left: 4px;
 }
 .tab.active .tab-count {
-  background: var(--primary-bg); color: var(--primary);
+  background: var(--primary-bg); color: var(--primary-text);
 }
 
 
@@ -427,7 +427,7 @@
   transition: var(--transition);
 }
 .login-signup-btn:hover {
-  border-color: var(--primary); color: var(--primary);
+  border-color: var(--primary); color: var(--primary-text);
   background: var(--primary-bg);
   transform: translateY(-1px);
   box-shadow: var(--shadow-sm);
@@ -480,7 +480,7 @@
 }
 .login-tab:hover { color: var(--text); background: rgba(255,255,255,0.6); }
 .login-tab.active {
-  background: var(--surface); color: var(--primary);
+  background: var(--surface); color: var(--primary-text);
   box-shadow: var(--shadow-sm);
 }
 

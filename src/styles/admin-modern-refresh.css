@@ -1342,7 +1342,7 @@
 
 .sales-reports-tab.active {
   background: var(--surface);
-  color: var(--primary);
+  color: var(--primary-text);
   font-weight: 600;
   box-shadow: var(--shadow-sm);
 }

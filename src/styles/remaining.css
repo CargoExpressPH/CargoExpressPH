@@ -206,7 +206,7 @@
 
 .notification-delete-btn:hover {
   background: var(--error-bg);
-  color: var(--error);
+  color: var(--error-fill);
   transform: scale(1.1);
 }
 
@@ -462,7 +462,7 @@
   background: none;
   border: none;
   padding: 0;
-  color: var(--error);
+  color: var(--error-text);
   font-size: 0.6875rem;
   font-weight: 700;
   text-decoration: underline;
@@ -692,7 +692,7 @@
 }
 .inbox-filter-tab-btn.active {
   background: var(--surface);
-  color: var(--primary);
+  color: var(--primary-text);
   box-shadow: var(--shadow-sm);
 }
 
@@ -929,7 +929,7 @@
 .profile-card-badge {
   display: inline-flex; align-items: center; gap: 4px;
   padding: 4px 12px; border-radius: var(--radius-full);
-  background: var(--primary-bg); color: var(--primary);
+  background: var(--primary-bg); color: var(--primary-text);
   font-size: 0.75rem; font-weight: 600; margin-top: 8px;
 }
 
@@ -943,7 +943,9 @@
   width: 100%; text-align: left;
 }
 .profile-menu-item:hover {
-  background: var(--bg-secondary); color: var(--primary);
+  /* --primary-text (#15803D) is only 4.41:1 on --bg-secondary — the darkest
+     primary token still misses AA here, so use the same #166534 as .btn-primary. */
+  background: var(--bg-secondary); color: #166534;
 }
 .profile-menu-item:last-child { border-bottom: none; }
 .profile-menu-item svg { color: var(--text-tertiary); flex-shrink: 0; }
@@ -1184,7 +1186,7 @@
   background: none;
   border: none;
   padding: 0;
-  color: var(--error);
+  color: var(--error-text);
   font-size: 0.6875rem;
   font-weight: 700;
   text-decoration: underline;
@@ -1490,7 +1492,7 @@
 
 .report-period-tab.active {
   background: var(--surface);
-  color: var(--primary);
+  color: var(--primary-text);
   font-weight: 600;
   box-shadow: var(--shadow-sm);
 }
@@ -2527,7 +2529,7 @@
   height: 44px;
   padding: 0;
   flex-shrink: 0;
-  color: var(--error);
+  color: var(--error-fill);
   background: var(--error-bg);
 }
 
@@ -3141,7 +3143,7 @@
   height: 72px;
   border-radius: 50%;
   background: var(--success-bg);
-  color: var(--success);
+  color: var(--success-text);
   display: flex;
   align-items: center;
   justify-content: center;

@@ -1117,7 +1117,7 @@ body:has(:is(.customer-layout-v2, .trk-page, .public-about-page, .contact-page, 
   background: none;
   border: none;
   padding: 0;
-  color: var(--customer-green);
+  color: var(--primary-text);
   font-size: 0.72rem;
   font-weight: 800;
   cursor: pointer;
@@ -1152,7 +1152,7 @@ body:has(:is(.customer-layout-v2, .trk-page, .public-about-page, .contact-page, 
 
 .profile-menu-icon-wrap.primary {
   background: var(--primary-bg);
-  color: var(--primary);
+  color: var(--primary-text);
 }
 
 .profile-menu-icon-wrap.accent {
@@ -1162,12 +1162,12 @@ body:has(:is(.customer-layout-v2, .trk-page, .public-about-page, .contact-page, 
 
 .profile-menu-icon-wrap.success {
   background: var(--success-bg);
-  color: var(--success);
+  color: var(--success-text);
 }
 
 .profile-menu-icon-wrap.info {
   background: var(--info-bg);
-  color: var(--info);
+  color: var(--info-text);
 }
 
 .profile-menu-icon-wrap.warning {

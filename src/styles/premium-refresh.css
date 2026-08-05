@@ -279,7 +279,7 @@ body {
   place-items: center;
   border-radius: 12px;
   opacity: 1;
-  color: var(--primary);
+  color: var(--primary-text);
   background: var(--primary-bg);
 }
 
@@ -288,11 +288,11 @@ body {
   height: 22px;
 }
 
-.app-layout .stat-card-primary .stat-icon { color: var(--primary); background: var(--primary-bg); }
-.app-layout .stat-card-info .stat-icon { color: var(--info); background: var(--info-bg); }
-.app-layout .stat-card-success .stat-icon { color: var(--success); background: var(--success-bg); }
-.app-layout .stat-card-warning .stat-icon { color: var(--warning); background: var(--warning-bg); }
-.app-layout .stat-card-danger .stat-icon { color: var(--error); background: var(--error-bg); }
+.app-layout .stat-card-primary .stat-icon { color: var(--primary-text); background: var(--primary-bg); }
+.app-layout .stat-card-info .stat-icon { color: var(--info-text); background: var(--info-bg); }
+.app-layout .stat-card-success .stat-icon { color: var(--success-text); background: var(--success-bg); }
+.app-layout .stat-card-warning .stat-icon { color: var(--warning-text); background: var(--warning-bg); }
+.app-layout .stat-card-danger .stat-icon { color: var(--error-fill); background: var(--error-bg); }
 .app-layout .stat-card-accent .stat-icon { color: var(--accent); background: color-mix(in srgb, var(--accent) 15%, transparent); }
 
 .app-layout .stat-card .stat-value {
@@ -637,7 +637,7 @@ body {
 
 .booking-success-copy-btn.is-copied {
   background: color-mix(in srgb, var(--primary) 12%, transparent);
-  color: var(--primary);
+  color: var(--primary-text);
   border-color: color-mix(in srgb, var(--primary) 30%, transparent);
 }
 
@@ -662,12 +662,12 @@ body {
 
 .booking-success-status-pill.is-pending {
   background: color-mix(in srgb, var(--primary) 12%, transparent);
-  color: var(--primary);
+  color: var(--primary-text);
 }
 
 .booking-success-status-pill.is-assigned {
   background: color-mix(in srgb, var(--info) 12%, transparent);
-  color: var(--info);
+  color: var(--info-text);
 }
 
 /* ── Action buttons ── */

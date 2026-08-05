@@ -181,7 +181,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--primary);
+  color: var(--primary-text);
   position: relative;
   z-index: 2;
   box-shadow: 0 0 0 6px var(--primary-glow), var(--shadow-md);
@@ -284,7 +284,7 @@
   transition: var(--transition);
 }
 .nf-back-link:hover {
-  color: var(--primary);
+  color: var(--primary-text);
   background: var(--primary-bg);
 }
 
@@ -325,7 +325,7 @@
 }
 .error-boundary-error {
   font-size: 0.75rem;
-  color: var(--error);
+  color: var(--error-fill);
   background: var(--error-bg);
   padding: 0.75rem 1rem;
   border-radius: var(--radius-md);

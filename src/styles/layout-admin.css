@@ -102,7 +102,7 @@
   box-shadow: var(--shadow-sm);
 }
 .sidebar-collapse-btn:hover {
-  color: var(--primary); background: var(--sidebar-hover);
+  color: var(--primary-text); background: var(--sidebar-hover);
   box-shadow: var(--shadow-md);
 }
 .sidebar-collapse-btn svg {
@@ -194,7 +194,7 @@
 }
 .sidebar-link.danger:hover {
   background: var(--error-bg);
-  color: var(--error);
+  color: var(--error-fill);
 }
 .sidebar-link-label {
   flex: 1;
@@ -222,7 +222,7 @@
 
 .sidebar-link.active {
   background: var(--sidebar-active);
-  color: var(--primary);
+  color: var(--primary-text);
   font-weight: 600;
 }
 .sidebar-link.active::before {
