@@ -1,3 +1,6 @@
+[functions.paymongo-create-payment]
+verify_jwt = true
+
 [functions.paymongo-webhook]
 verify_jwt = false
 
