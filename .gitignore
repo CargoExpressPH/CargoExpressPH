@@ -12,3 +12,4 @@ deployment.js
 .vercel-old/
 .history/
 .antigravitycli/
+.claude/
