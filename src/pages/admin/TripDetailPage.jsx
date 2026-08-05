@@ -131,7 +131,7 @@ const TripDetailPage = () => {
   );
   if (error) return (
     <div className="page-transition">
-      <div className="card text-center" role="alert" style={{ padding: 40, color: 'var(--error)' }}>
+      <div className="card text-center" role="alert" style={{ padding: 40, color: 'var(--error-text)' }}>
         <h3>Error Loading Trip</h3>
         <p className="mt-8 mb-20">{error}</p>
         <button type="button" className="btn btn-primary" onClick={() => load()}>Retry</button>
@@ -153,7 +153,7 @@ const TripDetailPage = () => {
           <h1 className="fw-800">{trip.trip_number}</h1>
           <div className="flex items-center gap-8 mt-4 text-sm">
             <span className="fw-800 text-secondary">{trip.origin}</span>
-            <span className="fw-700" style={{ color: 'var(--primary)' }}>➔</span>
+            <span className="fw-700" style={{ color: 'var(--primary-text)' }}>➔</span>
             <span className="fw-800 text-secondary">{trip.destination}</span>
           </div>
         </div>

@@ -588,7 +588,7 @@ const PickupModal = ({ order, onClose, onSave, pricePerKilo = 70 }) => {
 
               {paymentStep === 'generating' && (
                 <div className="flex items-center gap-8 mb-12" style={{ padding: '10px 0' }}>
-                  <Loader size={16} className="animate-spin" style={{ color: 'var(--primary)' }} />
+                  <Loader size={16} className="animate-spin" style={{ color: 'var(--primary-text)' }} />
                   <span className="text-sm">Generating GCash checkout link…</span>
                 </div>
               )}
@@ -597,7 +597,7 @@ const PickupModal = ({ order, onClose, onSave, pricePerKilo = 70 }) => {
               {paymentStep === 'waiting' && paymentConfirmed && (
                 <div className="mb-12" style={{ background: 'var(--success-bg)', borderRadius: 8, padding: 14, border: '1px solid var(--success)' }}>
                   <div className="flex items-center gap-8 mb-12">
-                    <CheckCircle size={20} style={{ color: 'var(--success)' }} aria-hidden="true" />
+                    <CheckCircle size={20} style={{ color: 'var(--success-text)' }} aria-hidden="true" />
                     <span className="text-sm fw-700" style={{ color: 'var(--success-dark)' }}>
                       Payment received — ₱{paymentConfirmed.received.toFixed(2)}
                     </span>

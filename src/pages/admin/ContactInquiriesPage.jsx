@@ -181,7 +181,7 @@ const ContactInquiriesPage = () => {
   if (error && !loading && inquiries.length === 0) {
     return (
       <div className="page-transition">
-        <div className="card text-center" style={{ padding: 40, color: 'var(--error)' }}>
+        <div className="card text-center" style={{ padding: 40, color: 'var(--error-text)' }}>
           <AlertCircle size={32} className="mb-8" />
           <h3>Error</h3>
           <p>{error}</p>

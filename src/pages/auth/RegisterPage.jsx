@@ -405,7 +405,7 @@ const RegisterPage = () => {
             <Container size={28} color="var(--primary)" />
             <h1 style={{ display: 'flex', gap: 4, margin: 0, fontSize: '2rem', fontWeight: 900 }}>
               <span style={{ color: '#fff' }}>CARGO</span>
-              <span style={{ color: 'var(--primary-light)' }}>EXPRESS</span>
+              <span style={{ color: 'var(--primary-text)' }}>EXPRESS</span>
             </h1>
           </div>
 
@@ -630,7 +630,7 @@ const RegisterPage = () => {
                 <div className="login-pw-header">
                   <label className="form-label" htmlFor="reg-password">Password</label>
                   {capsLockOn && (
-                    <span className="caps-warning" style={{ fontSize: '0.72rem', color: 'var(--warning)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                    <span className="caps-warning" style={{ fontSize: '0.72rem', color: 'var(--warning-text)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 3 }}>
                       <AlertTriangle size={11} /> Caps Lock ON
                     </span>
                   )}
@@ -913,7 +913,7 @@ const RegisterPage = () => {
 
               {/* Terms note */}
               <div className="reg-address-note" style={{ background: 'var(--surface-hover)', borderColor: 'var(--border)' }}>
-                <ShieldCheck size={14} style={{ color: 'var(--primary)', marginTop: 2 }} />
+                <ShieldCheck size={14} style={{ color: 'var(--primary-text)', marginTop: 2 }} />
                 <p style={{ color: 'var(--text-secondary)', fontSize: '0.78rem' }}>
                   By creating an account, you agree to CargoExpress PH's Terms of Service and Privacy Policy.
                 </p>

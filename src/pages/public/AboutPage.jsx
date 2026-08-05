@@ -1123,7 +1123,7 @@ const AboutPage = () => {
                   <img src={highlight.resolved_image} alt={highlight.featured_title || 'Delivery photo'} loading="lazy" />
                   <div className="about-highlight-overlay">
                     <div className="about-highlight-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <Package size={18} style={{ color: 'var(--primary)', flexShrink: 0 }} />
+                      <Package size={18} style={{ color: 'var(--primary-text)', flexShrink: 0 }} />
                       <span>{highlight.featured_title}</span>
                     </div>
                     {highlight.featured_caption && (
@@ -1225,7 +1225,7 @@ const AboutPage = () => {
                       )}
 
                       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                        <div style={{ width: 42, height: 42, borderRadius: '50%', background: 'linear-gradient(135deg, rgba(var(--primary-rgb), 0.15), rgba(var(--primary-rgb), 0.05))', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: '1.1rem' }}>
+                        <div style={{ width: 42, height: 42, borderRadius: '50%', background: 'linear-gradient(135deg, rgba(var(--primary-rgb), 0.15), rgba(var(--primary-rgb), 0.05))', color: 'var(--primary-text)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: '1.1rem' }}>
                           {firstName[0].toUpperCase()}
                         </div>
                         <div>
@@ -1377,7 +1377,7 @@ const AboutPage = () => {
           {/* Brand Column */}
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
-              <Container size={24} style={{ color: 'var(--primary)' }} />
+              <Container size={24} style={{ color: 'var(--primary-text)' }} />
               <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 900, letterSpacing: '-0.3px' }}>{companyName}</h3>
             </div>
             <p style={{ color: 'rgba(255,255,255,0.55)', lineHeight: 1.7, fontSize: '0.9375rem', marginBottom: 24 }}>
@@ -1433,7 +1433,7 @@ const AboutPage = () => {
         <div className="about-footer-bottom">
           <span>&copy; {new Date().getFullYear()} {companyName}. All rights reserved.</span>
           <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ color: 'var(--primary)' }}>{'\u25CF'}</span> System Online
+            <span style={{ color: 'var(--primary-text)' }}>{'\u25CF'}</span> System Online
           </span>
         </div>
       </footer>

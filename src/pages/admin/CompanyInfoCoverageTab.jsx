@@ -78,7 +78,7 @@ const SortableRegion = ({ region, handleEditRegion, setDeleteTarget, handleAddNe
           >
             <GripVertical size={16} />
           </div>
-          <MapPin size={16} style={{ color: 'var(--primary)' }} />
+          <MapPin size={16} style={{ color: 'var(--primary-text)' }} />
           <span>{region.name}</span>
           {muniCount > 0 && (
             <span style={{
@@ -104,7 +104,7 @@ const SortableRegion = ({ region, handleEditRegion, setDeleteTarget, handleAddNe
           </button>
           <button
             className="btn btn-ghost btn-icon btn-sm"
-            style={{ color: 'var(--error)' }}
+            style={{ color: 'var(--error-text)' }}
             onClick={e => { e.stopPropagation(); setDeleteTarget({ type: 'region', id: region.id, name: region.name }); }}
             title="Delete region"
           >
@@ -194,7 +194,7 @@ const SortableMuni = ({ muni, regionId, handleEditMuni, setDeleteTarget }) => {
       <button className="btn-icon" style={{ padding: 4, background: 'none', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer' }} onClick={() => handleEditMuni(muni, regionId)} aria-label={`Edit ${muni.name}`}>
         <Edit2 size={12} />
       </button>
-      <button className="btn-icon" style={{ padding: 4, background: 'none', border: 'none', color: 'var(--error)', cursor: 'pointer' }} onClick={() => setDeleteTarget({ type: 'muni', id: muni.id, regionId, name: muni.name })} aria-label={`Delete ${muni.name}`}>
+      <button className="btn-icon" style={{ padding: 4, background: 'none', border: 'none', color: 'var(--error-text)', cursor: 'pointer' }} onClick={() => setDeleteTarget({ type: 'muni', id: muni.id, regionId, name: muni.name })} aria-label={`Delete ${muni.name}`}>
         <Trash2 size={12} />
       </button>
     </div>

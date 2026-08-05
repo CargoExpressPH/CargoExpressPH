@@ -475,7 +475,7 @@ const AdminOrderDetailPage = () => {
       </div>
       <div className="flex items-center gap-8 text-sm mb-20 flex-wrap">
         <span className="fw-800 text-secondary">{order.origin}</span>
-        <span className="fw-700" style={{ color: 'var(--primary)' }}>➔</span>
+        <span className="fw-700" style={{ color: 'var(--primary-text)' }}>➔</span>
         <span className="fw-800 text-secondary">{order.destination}</span>
         <span className="text-secondary opacity-50">•</span>
         <span className="text-secondary">{order.profiles?.name}</span>
@@ -1010,7 +1010,7 @@ const RejectModal = ({ isOpen, onClose, onConfirm, loading }) => {
           <form onSubmit={handleSubmit}>
             <div className="modal-body">
               {error && (
-                <div style={{ color: 'var(--error)', background: 'var(--error-bg)', border: '1px solid var(--error)', padding: '8px 12px', borderRadius: 8, fontSize: '0.875rem', marginBottom: 12 }}>
+                <div style={{ color: 'var(--error-text)', background: 'var(--error-bg)', border: '1px solid var(--error)', padding: '8px 12px', borderRadius: 8, fontSize: '0.875rem', marginBottom: 12 }}>
                   {error}
                 </div>
               )}

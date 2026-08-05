@@ -64,7 +64,7 @@
   font-size: 1.625rem; font-weight: 900; letter-spacing: -0.025em; line-height: 1;
 }
 .auth-brand-cargo   { color: var(--accent); }
-.auth-brand-express { color: var(--primary); }
+.auth-brand-express { color: var(--primary-text); }
 .auth-brand-sub {
   font-size: 0.875rem; color: var(--text-secondary);
   font-weight: 500; margin-top: -4px;
@@ -73,7 +73,7 @@
 /* Legacy brand (kept for compatibility) */
 .auth-brand h1 { font-size: 2rem; font-weight: 900; letter-spacing: -0.02em; }
 .auth-brand h1 span:first-child { color: var(--accent); }
-.auth-brand h1 span:last-child  { color: var(--primary); }
+.auth-brand h1 span:last-child  { color: var(--primary-text); }
 .auth-brand p { color: var(--text-secondary); font-size: 0.9375rem; margin-top: 4px; }
 
 /* -- Error Banner -- */
@@ -284,7 +284,7 @@
   font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 12px;
 }
 .auth-link {
-  color: var(--primary); font-weight: 700; text-decoration: none;
+  color: var(--primary-text); font-weight: 700; text-decoration: none;
   transition: var(--transition);
 }
 .auth-link:hover { color: var(--primary-dark); text-decoration: underline; }
@@ -296,7 +296,7 @@
   display: flex; align-items: center; gap: 4px;
   font-size: 0.7rem; font-weight: 600; color: var(--text-tertiary);
 }
-.auth-trust-badge svg { color: var(--success); }
+.auth-trust-badge svg { color: var(--success-text); }
 
 /* -- Success card -- */
 .auth-success-card {
@@ -626,7 +626,7 @@
     color: var(--text);
   }
   .auth-mobile-title span:first-child { color: var(--accent); }
-  .auth-mobile-title span:last-child { color: var(--primary); }
+  .auth-mobile-title span:last-child { color: var(--primary-text); }
   
   [data-theme="dark"] .auth-mobile-title span:first-child { color: var(--text); }
 }

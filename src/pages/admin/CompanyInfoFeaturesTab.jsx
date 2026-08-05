@@ -36,7 +36,7 @@ const SortableRow = ({ feat, handleEdit, setDeleteTarget }) => {
         <GripVertical size={16} />
       </td>
       <td data-label="Icon">
-        <div style={{ width: 34, height: 34, borderRadius: 'var(--radius-sm)', background: 'var(--primary-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--primary)' }}>
+        <div style={{ width: 34, height: 34, borderRadius: 'var(--radius-sm)', background: 'var(--primary-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--primary-text)' }}>
           <Ico size={18} />
         </div>
       </td>
@@ -58,7 +58,7 @@ const SortableRow = ({ feat, handleEdit, setDeleteTarget }) => {
           <button
             className="btn btn-ghost btn-icon btn-sm"
             aria-label="Delete feature"
-            style={{ color: 'var(--error)' }}
+            style={{ color: 'var(--error-text)' }}
             onClick={() => setDeleteTarget(feat)}
           >
             <Trash2 size={15} />
@@ -194,7 +194,7 @@ const CompanyInfoFeaturesTab = ({ features, setFeatures }) => {
                       width: 44, height: 44, borderRadius: 'var(--radius-sm)',
                       background: 'var(--primary-bg)', border: '1.5px solid var(--border)',
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      flexShrink: 0, color: 'var(--primary)',
+                      flexShrink: 0, color: 'var(--primary-text)',
                     }}
                   >
                     <PreviewIcon size={22} />

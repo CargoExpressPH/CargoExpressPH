@@ -419,7 +419,7 @@ const OrderDetailPage = () => {
           <h2 className="fw-800">{order.tracking_number}</h2>
           <div className="flex items-center gap-8 mt-4 text-sm">
             <span className="fw-800" style={{ color: 'var(--text)' }}>{order.origin}</span>
-            <span className="fw-700" style={{ color: 'var(--primary)' }}>➔</span>
+            <span className="fw-700" style={{ color: 'var(--primary-text)' }}>➔</span>
             <span className="fw-800" style={{ color: 'var(--text-secondary)' }}>{order.destination}</span>
           </div>
         </div>

@@ -327,7 +327,7 @@ const TrackingPage = ({ embedded = false }) => {
             <Container size={24} color="var(--primary)" />
             <span className="trk-brand-name" style={{ display: 'inline-flex', gap: 4, fontSize: '1.25rem', fontWeight: 900 }}>
               <span style={{ color: 'var(--accent)' }}>CARGO</span>
-              <span style={{ color: 'var(--primary)' }}>EXPRESS</span>
+              <span style={{ color: 'var(--primary-text)' }}>EXPRESS</span>
             </span>
           </Link>
         )}

@@ -67,7 +67,7 @@ const LoadingScreen = () => (
       <Container size={36} color="var(--primary)" />
       <h1>
         <span style={{ color: 'var(--accent)' }}>CARGO</span>
-        <span style={{ color: 'var(--primary)' }}>EXPRESS</span>
+        <span style={{ color: 'var(--primary-text)' }}>EXPRESS</span>
       </h1>
     </div>
     <div className="spinner" />

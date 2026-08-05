@@ -148,7 +148,7 @@ const CompanyInformationPage = () => {
     return (
       <div className="flex items-center justify-center" style={{ minHeight: 300 }}>
         <div style={{ textAlign: 'center', color: 'var(--text-secondary)' }}>
-          <AlertTriangle size={32} style={{ color: 'var(--warning)', marginBottom: 8 }} />
+          <AlertTriangle size={32} style={{ color: 'var(--warning-text)', marginBottom: 8 }} />
           <p>Failed to load company information. Please refresh the page.</p>
         </div>
       </div>

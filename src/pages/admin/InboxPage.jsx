@@ -739,7 +739,7 @@ const InboxPage = () => {
             {loadingList ? (
               <div className="flex-center p-md"><Loader size={24} className="animate-spin text-secondary" /></div>
             ) : errorList ? (
-              <div className="p-md text-center text-sm" style={{ color: 'var(--error)' }}>
+              <div className="p-md text-center text-sm" style={{ color: 'var(--error-text)' }}>
                 <p><strong>Error loading chats</strong></p>
                 <p className="mt-4">{errorList}</p>
                 <button type="button" className="btn btn-ghost btn-sm mt-sm" onClick={() => loadConvs()}>Retry</button>
@@ -861,7 +861,7 @@ const InboxPage = () => {
                           <div className="inbox-conversation-name">{cust.name || 'Unnamed Customer'}</div>
                           <div className="inbox-conv-preview">{cust.email}</div>
                           <div className="inbox-conversation-meta">
-                            <span className="inbox-status-badge" style={{ color: 'var(--primary)', background: 'var(--primary-bg)' }}>
+                            <span className="inbox-status-badge" style={{ color: 'var(--primary-text)', background: 'var(--primary-bg)' }}>
                               <MessageSquare size={10} /> Start chat
                             </span>
                           </div>
@@ -1038,7 +1038,7 @@ const InboxPage = () => {
                     <span className="sr-only">Loading messages</span>
                   </div>
                 ) : errorChat ? (
-                  <div className="p-md text-center text-sm" style={{ color: 'var(--error)' }} role="alert">
+                  <div className="p-md text-center text-sm" style={{ color: 'var(--error-text)' }} role="alert">
                     <p><strong>Error loading messages</strong></p>
                     <p className="mt-4">{errorChat}</p>
                     <button

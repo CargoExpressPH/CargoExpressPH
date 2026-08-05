@@ -53,7 +53,7 @@ const AdminProfilePage = () => {
       </div>
 
       {/* Sign Out */}
-      <button className="btn btn-outline btn-block btn-lg justify-center" onClick={() => setShowLogoutConfirm(true)} style={{ color: 'var(--error)', borderColor: 'var(--error-glow)' }}>
+      <button className="btn btn-outline btn-block btn-lg justify-center" onClick={() => setShowLogoutConfirm(true)} style={{ color: 'var(--error-text)', borderColor: 'var(--error-glow)' }}>
         <LogOut size={18} /> Sign Out
       </button>
     </div>

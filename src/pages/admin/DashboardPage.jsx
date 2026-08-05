@@ -68,7 +68,7 @@ const DashboardPage = () => {
 
   if (error) return (
     <PageTransition>
-      <div className="card text-center" role="alert" style={{ padding: 40, color: 'var(--error)' }}>
+      <div className="card text-center" role="alert" style={{ padding: 40, color: 'var(--error-text)' }}>
         <h3>Error</h3>
         <p>{error}</p>
         <button type="button" className="btn btn-primary mt-md" onClick={loadData}>Retry</button>

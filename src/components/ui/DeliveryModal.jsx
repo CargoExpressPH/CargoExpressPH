@@ -271,7 +271,7 @@ const DeliveryModal = ({ order, onClose, onSave }) => {
 
           {needsPayment && (
             <div className="mb-20" style={{ border: '1px solid var(--border)', borderRadius: 8, padding: 16 }}>
-              <div className="flex items-center gap-8 mb-12" style={{ color: 'var(--error)' }}>
+              <div className="flex items-center gap-8 mb-12" style={{ color: 'var(--error-text)' }}>
                 <AlertTriangle size={16} />
                 <span className="fw-600">Payment Collection Required</span>
               </div>
@@ -370,7 +370,7 @@ const DeliveryModal = ({ order, onClose, onSave }) => {
 
                   {paymentStep === 'generating' && (
                     <div className="flex items-center gap-8 mb-12" style={{ padding: '10px 0' }}>
-                      <Loader size={16} className="animate-spin" style={{ color: 'var(--primary)' }} />
+                      <Loader size={16} className="animate-spin" style={{ color: 'var(--primary-text)' }} />
                       <span className="text-sm">Generating GCash checkout link…</span>
                     </div>
                   )}
