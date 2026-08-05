@@ -19,7 +19,22 @@ const APP_SHELL = [
   '/index.html',
   '/manifest.json',
   '/favicon.svg',
+  '/icons/icon-192.png',
+  '/icons/icon-72.png',
 ];
+
+// Hashed entry bundles (JS + CSS), injected at build time by swVersionPlugin
+// in vite.config.js. Without these the app shell HTML is cached but its scripts
+// are not, so a cold install followed by going offline renders the fallback page
+// instead of the real UI. In dev the placeholder stays unparseable → empty list.
+const PRECACHE_ASSETS = (() => {
+  try {
+    const parsed = JSON.parse('__PRECACHE_ASSETS__');
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (err) {
+    return [];
+  }
+})();
 
 // Offline fallback HTML — displayed when network is unavailable and no cache hit
 const OFFLINE_FALLBACK_HTML = `
@@ -146,12 +161,34 @@ const OFFLINE_FALLBACK_HTML = `
 // ============================================================================
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(STATIC_CACHE)
-      .then((cache) => cache.addAll(APP_SHELL))
-      .then(() => self.skipWaiting())
-      .catch(() => {
-        // Pre-cache failed — app will still work via network
-      })
+    (async () => {
+      try {
+        const cache = await caches.open(STATIC_CACHE);
+        const urls = [...APP_SHELL, ...PRECACHE_ASSETS];
+
+        // Per-item rather than cache.addAll(): addAll rejects the whole batch if
+        // a single request 404s, which would leave the app with no offline shell
+        // at all. One missing asset should not cost us the other 20.
+        const results = await Promise.allSettled(
+          urls.map(async (url) => {
+            // Hashed bundles are immutable; 'reload' avoids a stale HTTP-cache hit
+            const request = new Request(url, { cache: 'reload' });
+            const response = await fetch(request);
+            if (!response || !response.ok) throw new Error(`Precache failed: ${url}`);
+            await cache.put(url, response);
+          })
+        );
+
+        const failed = results.filter((r) => r.status === 'rejected').length;
+        if (failed > 0) {
+          console.warn(`[SW] Precache: ${urls.length - failed}/${urls.length} assets cached`);
+        }
+      } catch (err) {
+        // Pre-cache failed entirely — app will still work via network
+      }
+
+      await self.skipWaiting();
+    })()
   );
 });
 
@@ -259,7 +296,11 @@ async function networkFirst(request) {
 // ============================================================================
 async function staleWhileRevalidate(request, cacheName) {
   const cache = await caches.open(cacheName);
-  const cachedResponse = await cache.match(request);
+
+  // Check this strategy's own cache first, then fall back to any other cache —
+  // precached entry bundles live in STATIC_CACHE but are routed here as generic
+  // static assets, so a same-cache-only lookup would miss them while offline.
+  const cachedResponse = (await cache.match(request)) || (await caches.match(request));
 
   const fetchPromise = fetch(request)
     .then((networkResponse) => {
@@ -269,7 +310,7 @@ async function staleWhileRevalidate(request, cacheName) {
       }
       return networkResponse;
     })
-    .catch(() => cachedResponse);
+    .catch(() => cachedResponse || new Response('', { status: 408, statusText: 'Offline' }));
 
   return cachedResponse || fetchPromise;
 }
@@ -288,7 +329,9 @@ async function cacheFirst(request, cacheName) {
     const networkResponse = await fetch(request);
     if (networkResponse && networkResponse.ok) {
       cache.put(request, networkResponse.clone());
-      trimCache(cacheName, DYNAMIC_CACHE_LIMIT);
+      // Never trim STATIC_CACHE — it holds the precached app shell, and evicting
+      // oldest-first would drop the entry bundles to make room for font files.
+      if (cacheName !== STATIC_CACHE) trimCache(cacheName, DYNAMIC_CACHE_LIMIT);
     }
     return networkResponse;
   } catch (err) {
