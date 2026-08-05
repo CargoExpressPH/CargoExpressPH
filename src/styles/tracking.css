@@ -159,7 +159,7 @@
   width: 64px; height: 64px; border-radius: 50%;
   background: var(--error-bg);
   border: 1px solid var(--error-glow);
-  color: var(--error-fill);
+  color: var(--error-text-strong);
   display: flex; align-items: center; justify-content: center;
   margin: 0 auto 16px;
 }

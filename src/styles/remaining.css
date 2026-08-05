@@ -206,7 +206,7 @@
 
 .notification-delete-btn:hover {
   background: var(--error-bg);
-  color: var(--error-fill);
+  color: var(--error-text-strong);
   transform: scale(1.1);
 }
 
@@ -945,7 +945,7 @@
 .profile-menu-item:hover {
   /* --primary-text (#15803D) is only 4.41:1 on --bg-secondary — the darkest
      primary token still misses AA here, so use the same #166534 as .btn-primary. */
-  background: var(--bg-secondary); color: #166534;
+  background: var(--bg-secondary); color: var(--primary-text-strong);
 }
 .profile-menu-item:last-child { border-bottom: none; }
 .profile-menu-item svg { color: var(--text-tertiary); flex-shrink: 0; }
@@ -2529,7 +2529,7 @@
   height: 44px;
   padding: 0;
   flex-shrink: 0;
-  color: var(--error-fill);
+  color: var(--error-text-strong);
   background: var(--error-bg);
 }
 

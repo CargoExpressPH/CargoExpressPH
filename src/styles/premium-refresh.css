@@ -292,7 +292,7 @@ body {
 .app-layout .stat-card-info .stat-icon { color: var(--info-text); background: var(--info-bg); }
 .app-layout .stat-card-success .stat-icon { color: var(--success-text); background: var(--success-bg); }
 .app-layout .stat-card-warning .stat-icon { color: var(--warning-text); background: var(--warning-bg); }
-.app-layout .stat-card-danger .stat-icon { color: var(--error-fill); background: var(--error-bg); }
+.app-layout .stat-card-danger .stat-icon { color: var(--error-text-strong); background: var(--error-bg); }
 .app-layout .stat-card-accent .stat-icon { color: var(--accent); background: color-mix(in srgb, var(--accent) 15%, transparent); }
 
 .app-layout .stat-card .stat-value {

@@ -56,6 +56,13 @@
   --info-text: #2563EB;          /* 4.62:1 on #fff — passes AA */
   --chart-purple-text: #6D28D9;  /* 7.06:1 on #fff — --chart-purple is 4.23:1 */
 
+  /* Stronger variants for text sitting on a *tinted* surface (--error-bg,
+     --bg-secondary), where the standard -text tokens land at 4.41:1. These MUST
+     stay theme-aware: a fixed dark hex reads fine on a light tint but collapses
+     to ~2.5:1 on the dark-mode equivalent of the same tint. */
+  --error-text-strong: #B91C1C;    /* 5.91:1 on --error-bg */
+  --primary-text-strong: #166534;  /* 6.26:1 on --bg-secondary */
+
   /* -- Solid fills that pass WCAG AA (≥4.5:1) with WHITE text --
      The base --primary/--success/--error are tuned as fills behind icons and
      large text; white body-size text on them measures 3.30:1, 2.54:1 and
@@ -328,6 +335,12 @@
   --error-text: #F87171;
   --info-text: #60A5FA;
   --chart-purple-text: #A78BFA;  /* light purple on the dark surface */
+
+  /* Dark mode: the tinted surfaces are dark, so "stronger" means LIGHTER.
+     Same values as the base -text tokens, which already measure 6.43:1 and
+     10.04:1 on --error-bg / --bg-secondary here. */
+  --error-text-strong: #F87171;
+  --primary-text-strong: #4ADE80;
 
   /* -- Status icon backgrounds (translucent tints — dark mode) -- */
   --primary-icon-bg: rgba(34, 197, 94, 0.18);

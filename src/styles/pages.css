@@ -325,7 +325,7 @@
 }
 .error-boundary-error {
   font-size: 0.75rem;
-  color: var(--error-fill);
+  color: var(--error-text-strong);
   background: var(--error-bg);
   padding: 0.75rem 1rem;
   border-radius: var(--radius-md);

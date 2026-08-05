@@ -194,7 +194,7 @@
 }
 .sidebar-link.danger:hover {
   background: var(--error-bg);
-  color: var(--error-fill);
+  color: var(--error-text-strong);
 }
 .sidebar-link-label {
   flex: 1;
@@ -208,7 +208,8 @@
   height: 18px;
   padding: 0 6px;
   border-radius: 999px;
-  background: linear-gradient(135deg, #EF4444, #DC2626);
+  /* White on #EF4444 is 3.76:1 at 10px/800 — same fix as .admin-notif-badge. */
+  background: linear-gradient(135deg, #DC2626, var(--error-fill));
   color: white;
   display: inline-flex;
   align-items: center;

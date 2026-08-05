@@ -80,7 +80,7 @@
   display: flex; align-items: center; justify-content: center;
   margin: 0 auto 16px;
 }
-.confirm-modal-icon.danger { background: var(--error-bg); color: var(--error-fill); }
+.confirm-modal-icon.danger { background: var(--error-bg); color: var(--error-text-strong); }
 .confirm-modal-icon.warning { background: var(--warning-bg); color: var(--warning-text); }
 .confirm-modal-icon.info { background: var(--info-bg); color: var(--info-text); }
 .confirm-modal-icon.success { background: var(--success-bg); color: var(--success-text); }
