@@ -19,8 +19,11 @@ export const useCustomerChatUnread = (userId) => {
       try {
         const value = await getCustomerUnreadChatCount(userId);
         if (mountedRef.current) setCount(value);
-      } catch {
-        // Keep the last known count on transient errors
+      } catch (err) {
+        // Keep the last known count on transient errors — but say so. A fully
+        // silent catch here is what hid a permanent TypeError in the query and
+        // pinned this badge at 0 without anyone noticing.
+        console.warn('[chat-unread] count failed:', err?.message || err);
       }
     };
 

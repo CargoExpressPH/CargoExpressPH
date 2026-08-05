@@ -1508,14 +1508,23 @@ export const markCustomerMessagesRead = async (conversationId) => {
   if (error) throw error;
 };
 
-// Count unread ADMIN messages across the customer's own conversations
+// Count unread ADMIN messages across the customer's own conversations.
+//
+// The conversation filter is a PostgREST inner-join embed, NOT a nested .in().
+// `.in()` takes an array and does not accept a query builder — passing one made
+// it throw `TypeError: object is not iterable` on every single call. The catch
+// in useCustomerChatUnread swallowed that, so the badge sat at 0 forever and a
+// customer never saw that an admin had replied.
+//
+// The embed resolves via chat_messages_conversation_id_fkey and filters on the
+// joined column, so the whole thing stays one round trip.
 export const getCustomerUnreadChatCount = async (userId) => {
   const { count, error } = await supabase
     .from('chat_messages')
-    .select('id', { count: 'exact', head: true })
+    .select('id, conversations!inner(customer_id)', { count: 'exact', head: true })
     .eq('sender_role', 'admin')
     .eq('is_read', false)
-    .in('conversation_id', supabase.from('conversations').select('id').eq('customer_id', userId));
+    .eq('conversations.customer_id', userId);
   if (error) throw error;
   return count || 0;
 };
