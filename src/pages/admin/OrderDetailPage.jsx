@@ -777,8 +777,12 @@ const AdminOrderDetailPage = () => {
               <h4 className="fw-700 text-sm mb-12 flex items-center gap-8">
                 <CreditCard size={14} /> Payment History
               </h4>
-              <div className="table-responsive admin-payment-table-wrap">
-                <table className="table admin-payment-table">
+              {/* Standard admin table shell — `.table-container` + `.data-table`,
+                  the same pair used by Orders, Customers, Trips and Activity
+                  Logs. `admin-payment-table` remains only as a hook for the
+                  receipt/reference cell, not for table chrome. */}
+              <div className="table-container">
+                <table className="data-table admin-payment-table">
                   <thead>
                     <tr>
                       <th>Date</th>
