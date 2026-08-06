@@ -591,6 +591,10 @@ const LoadingSkeleton = () => (
 );
 
 // â”€â”€â”€ Section anchor IDs and labels â”€â”€â”€
+// Height reserved by the fixed glass nav — anchors must clear it or the section
+// header lands underneath the bar and the click looks like it hit blank space.
+const NAV_OFFSET = 88;
+
 const SECTIONS = [
   { id: 'hero', label: 'Home' },
   { id: 'story', label: 'Our Story' },
@@ -632,7 +636,13 @@ const AboutPage = () => {
   useEffect(() => {
     const handleScroll = () => {
       const y = window.scrollY;
-      setScrolled(y > 50);
+      // The nav sits on the dark hero, so its links are white there. Flip to the
+      // solid/dark treatment only once the nav has actually cleared the hero —
+      // switching at a fixed 50px left dark text on the dark hero (and, on the way
+      // back, white text on the light sections below it).
+      const hero = document.getElementById('hero');
+      const heroBottom = hero ? hero.offsetTop + hero.offsetHeight : 0;
+      setScrolled(y + NAV_OFFSET >= heroBottom);
       setShowBackToTop(y > 400);
       
       // Calculate scroll progress
@@ -788,7 +798,15 @@ const AboutPage = () => {
   // â”€â”€â”€ Section scroll helper â”€â”€â”€
   const scrollToSection = (id) => {
     const el = document.getElementById(id);
-    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (!el) return;
+    if (id === 'hero') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+    // Offset by the fixed nav so the section header lands just under the bar
+    // instead of behind it (which read as scrolling into empty whitespace).
+    const top = el.getBoundingClientRect().top + window.scrollY - NAV_OFFSET;
+    window.scrollTo({ top: Math.max(top, 0), behavior: 'smooth' });
   };
 
   const { info, features, highlights, coverage, feedback } = data;
@@ -1072,6 +1090,17 @@ const AboutPage = () => {
                       />
                     </div>
                   </div>
+                  {citySearchQuery && !coverage.some(region =>
+                    region.municipalities?.some(m => m.name.toLowerCase().includes(citySearchQuery.toLowerCase()))
+                  ) && (
+                    <div className="about-region-card" style={{ textAlign: 'center', padding: '32px 20px' }}>
+                      <Search size={22} style={{ color: 'var(--text-tertiary)', marginBottom: 10 }} aria-hidden="true" />
+                      <p style={{ fontWeight: 700, marginBottom: 4 }}>No municipalities found</p>
+                      <p style={{ color: 'var(--text-secondary)', fontSize: '0.9375rem' }}>
+                        Nothing matches “{citySearchQuery}”. Try a different spelling or a nearby town.
+                      </p>
+                    </div>
+                  )}
                   {coverage.map((region) => {
                     const filteredMunis = region.municipalities?.filter(m => 
                       m.name.toLowerCase().includes(citySearchQuery.toLowerCase())

@@ -230,7 +230,7 @@ const SalesPage = () => {
               <DonutChart
                 size={170}
                 thickness={26}
-                centerLabel={`₱${((s.paidTotal || 0) / 1000).toFixed(0)}k`}
+                centerLabel={`₱${(s.paidTotal || 0) >= 1000 ? ((s.paidTotal || 0) / 1000).toFixed(0) + 'k' : (s.paidTotal || 0)}`}
                 centerSub="Collected"
                 segments={paymentMethods
                   .filter(pm => pm.v > 0)
