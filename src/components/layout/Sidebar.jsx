@@ -2,6 +2,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
+import { getAdminInboxUnreadCount } from '../../lib/database';
 import {
   LayoutDashboard, Package, Truck, Users, BarChart3,
   Megaphone, MessageSquare, LogOut, Container, Mail,
@@ -45,11 +46,10 @@ const Sidebar = ({ isOpen, onClose, isCollapsed, onToggleCollapse }) => {
 
     const loadBadges = async () => {
       const [inboxResult, inquiriesResult] = await Promise.allSettled([
-        supabase
-          .from('chat_messages')
-          .select('id', { count: 'exact', head: true })
-          .eq('sender_role', 'customer')
-          .eq('is_read', false),
+        // Only threads in 'waiting' — a customer message the BOT answered is
+        // not work owed to an admin, and counting it made this badge report
+        // total chat volume instead of the queue depth.
+        getAdminInboxUnreadCount(),
         supabase
           .from('contact_inquiries')
           .select('id', { count: 'exact', head: true })
@@ -59,7 +59,7 @@ const Sidebar = ({ isOpen, onClose, isCollapsed, onToggleCollapse }) => {
       if (!isMounted) return;
 
       setBadges({
-        inbox: inboxResult.status === 'fulfilled' ? inboxResult.value.count || 0 : 0,
+        inbox: inboxResult.status === 'fulfilled' ? inboxResult.value || 0 : 0,
         inquiries: inquiriesResult.status === 'fulfilled' ? inquiriesResult.value.count || 0 : 0,
       });
     };
@@ -86,6 +86,15 @@ const Sidebar = ({ isOpen, onClose, isCollapsed, onToggleCollapse }) => {
         schema: 'public',
         table: 'contact_inquiries',
         filter: 'status=eq.new',
+      }, debouncedLoadBadges)
+      // The inbox count now depends on conversation.status, so a thread
+      // escalating out of 'bot_active' has to refresh it too. Without this the
+      // badge only moved when a message row changed, and an escalation whose
+      // messages were all already written would not appear until a reload.
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'conversations',
       }, debouncedLoadBadges)
       .subscribe();
 

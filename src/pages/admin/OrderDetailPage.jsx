@@ -79,6 +79,16 @@ const safeFormatDateTime = (dateStr) => {
   }
 };
 
+/** 'gcash' → 'GCash', 'paylater' → 'Pay Later', anything else title-cased. */
+const formatPaymentMethod = (method) => {
+  if (!method) return '';
+  const key = String(method).toLowerCase();
+  if (key === 'gcash') return 'GCash';
+  if (key === 'paylater') return 'Pay Later';
+  if (key === 'cash') return 'Cash';
+  return key.charAt(0).toUpperCase() + key.slice(1);
+};
+
 const AdminOrderDetailPage = () => {
   usePageTitle('Order Details');
   const { id } = useParams();
@@ -116,6 +126,26 @@ const AdminOrderDetailPage = () => {
     featured_image_type: 'pickup'
   });
   const [savingFeature, setSavingFeature] = useState(false);
+
+  /**
+   * How this order was ACTUALLY paid, from the ledger.
+   *
+   * `orders.payment_method` holds the method of the most recent payment event
+   * only, so a GCash pickup later settled in cash at the door rendered a bare
+   * "Cash" badge — the same conflation that made the sales report file every
+   * peso under whichever method landed last. The ledger is the sole writer of
+   * `amount_paid`, so it is also the only honest source for this badge.
+   *
+   * Filtered to `paid`/`partial` — the predicate update_order_payment_totals
+   * uses — so a failed or pending attempt never claims to be a method used.
+   */
+  const paidMethods = useMemo(() => {
+    const methods = paymentTransactions
+      .filter(tx => tx.status === 'paid' || tx.status === 'partial')
+      .map(tx => tx.payment_method)
+      .filter(Boolean);
+    return [...new Set(methods)];
+  }, [paymentTransactions]);
 
   // Per-step timestamps for tracking timeline
   const stepTimestamps = useMemo(
@@ -741,7 +771,20 @@ const AdminOrderDetailPage = () => {
           </div>
 
           <div className="flex gap-8 flex-wrap mb-16">
-            {order.payment_method && <span className="badge badge-info text-capitalize">{order.payment_method === 'gcash' ? 'GCash' : order.payment_method === 'paylater' ? 'Pay Later' : 'Cash'}</span>}
+            {/* Ledger first, order column only as a fallback for pre-ledger
+                orders that have no transaction rows to read. */}
+            {paidMethods.length > 1 ? (
+              <span
+                className="badge badge-info"
+                title={`Paid via ${paidMethods.map(formatPaymentMethod).join(' + ')}`}
+              >
+                Mixed Methods: {paidMethods.map(formatPaymentMethod).join(' + ')}
+              </span>
+            ) : (paidMethods[0] || order.payment_method) ? (
+              <span className="badge badge-info">
+                {formatPaymentMethod(paidMethods[0] || order.payment_method)}
+              </span>
+            ) : null}
             {order.payer_type && <span className="badge badge-info text-capitalize">Payer: {order.payer_type}</span>}
             {/* Settlement is shown separately from status: status says where the
                 cargo is, this says where the money is. A delivered order with a
@@ -802,7 +845,7 @@ const AdminOrderDetailPage = () => {
                         </td>
                         <td data-label="Type">{tx.payment_type || 'Additional Payment'}</td>
                         <td data-label="Amount" className="fw-600 text-success">₱{parseFloat(tx.amount || 0).toFixed(2)}</td>
-                        <td data-label="Method" className="text-capitalize">{tx.payment_method === 'gcash' ? 'GCash' : tx.payment_method}</td>
+                        <td data-label="Method">{formatPaymentMethod(tx.payment_method)}</td>
                         <td data-label="Receipt/Ref" className="payment-ref-cell">
                           {tx.transaction_reference && <div className="text-xs">Ref: {tx.transaction_reference}</div>}
                           {tx.receipt_url && <a href={tx.receipt_url} target="_blank" rel="noreferrer" className="text-xs text-primary receipt-link"><Image size={12} /> View Receipt</a>}

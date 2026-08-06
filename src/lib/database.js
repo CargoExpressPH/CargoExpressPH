@@ -1540,7 +1540,10 @@ export const getAdminConversations = async () => {
     });
 
     convs.forEach(c => {
-      c.unread_count = unreadMap[c.id] || 0;
+      // Same rule as the sidebar badge (getAdminInboxUnreadCount): a message
+      // the bot answered is not unread work. Counting it put an unread dot on
+      // rows with nothing owed, so the list and the badge disagreed.
+      c.unread_count = c.status === CONVERSATION_STATUS.WAITING ? (unreadMap[c.id] || 0) : 0;
       c.last_message = lastMsgMap[c.id] || null;
     });
   }
@@ -1604,6 +1607,31 @@ export const getCustomerUnreadChatCount = async (userId) => {
     .eq('sender_role', 'admin')
     .eq('is_read', false)
     .eq('conversations.customer_id', userId);
+  if (error) throw error;
+  return count || 0;
+};
+
+/**
+ * Count unread CUSTOMER messages that are actually owed a human reply.
+ *
+ * Scoped to conversations in 'waiting' — the state the trigger sets when the
+ * customer spoke last AND a human owns the thread. Everything the bot handled
+ * while the conversation sat in 'bot_active' is excluded, which is the whole
+ * point: those messages were answered, just not by a person, and counting them
+ * inflated the inbox badge to the size of total chat traffic. An admin looking
+ * at "23" had no way to know that 20 of them were already resolved.
+ *
+ * Same PostgREST inner-join embed as getCustomerUnreadChatCount — one round
+ * trip, filtered on the joined column. See the note there about why a nested
+ * .in() cannot work.
+ */
+export const getAdminInboxUnreadCount = async () => {
+  const { count, error } = await supabase
+    .from('chat_messages')
+    .select('id, conversations!inner(status)', { count: 'exact', head: true })
+    .eq('sender_role', 'customer')
+    .eq('is_read', false)
+    .eq('conversations.status', CONVERSATION_STATUS.WAITING);
   if (error) throw error;
   return count || 0;
 };
@@ -1997,7 +2025,16 @@ export const recordDeliveryPayment = async (orderId, payload) => {
   return data;
 };
 
-export const recordAdditionalPayment = async (orderId, amount, method, ref, notes, paymentDate = null, receiptUrl = null, skipInsert = false) => {
+/**
+ * Record a counter payment against an existing balance.
+ *
+ * This function is the ONE writer of the activity entry for such a payment.
+ * Callers must not log their own: UnsettledDeliveriesPage used to add a
+ * "Balance Settled" line on top of the "Full Payment Completed" written here,
+ * so a single collection produced two entries that disagreed about what
+ * happened. Pass `source` to record WHERE it was collected from instead.
+ */
+export const recordAdditionalPayment = async (orderId, amount, method, ref, notes, paymentDate = null, receiptUrl = null, skipInsert = false, source = null) => {
   const { data: order } = await supabase.from('orders').select('*').eq('id', orderId).single();
   if (!order) throw new Error('Order not found');
 
@@ -2019,13 +2056,23 @@ export const recordAdditionalPayment = async (orderId, amount, method, ref, note
   const { data: freshOrder, error: fetchErr } = await supabase.from('orders').select('*').eq('id', orderId).single();
   if (fetchErr) throw fetchErr;
 
-  let actionName = 'Additional Payment Recorded';
-  if (freshOrder.remaining_balance <= 0 && previousBalance > 0) actionName = 'Full Payment Completed';
+  // Outstanding is the DERIVED figure, never the stored remaining_balance,
+  // which can lag the ledger write this function just triggered. Reading the
+  // stored column here could name the entry "Additional Payment Recorded" for
+  // a payment that in fact settled the order.
+  const newOutstanding = outstandingBalance(freshOrder);
+  const settled = newOutstanding <= 0 && previousBalance > 0;
+
+  // One entry, one name. "Payment Completed" when this payment cleared the
+  // balance, otherwise "Additional Payment Recorded" — never both.
+  const actionName = settled ? 'Payment Completed' : 'Additional Payment Recorded';
 
   logPayment(actionName, orderId, order.tracking_number, {
     previousValue: { amount_paid: previousPaid, remaining_balance: previousBalance },
-    newValue: { amount_paid: freshOrder.amount_paid, remaining_balance: freshOrder.remaining_balance },
-    details: `Added ₱${amount} via ${method}. Balance is now ₱${freshOrder.remaining_balance}.`
+    newValue: { amount_paid: freshOrder.amount_paid, remaining_balance: newOutstanding },
+    details: `Collected ₱${amount} via ${method}${source ? ` from ${source}` : ''}. ${
+      settled ? 'Balance fully settled.' : `Balance is now ₱${newOutstanding}.`
+    }`,
   });
 
   return { 
