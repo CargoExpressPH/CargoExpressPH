@@ -124,7 +124,8 @@ const RegisterPage = () => {
         if (!isEmailValid(value)) return 'Please enter a valid email address.';
         return '';
       case 'phone':
-        if (value && !isPhoneValid(value)) return 'Mobile number must be 11 digits starting with 09.';
+        if (!value) return 'Mobile Number is required.';
+        if (!isPhoneValid(value)) return 'Mobile number must be 11 digits starting with 09.';
         return '';
       case 'password':
         return getPasswordError(value);
@@ -613,7 +614,7 @@ const RegisterPage = () => {
               {/* Mobile */}
               <div className="form-group">
                 <label className="form-label" htmlFor="reg-phone">
-                  Mobile Number <span className="form-label-hint">(optional)</span>
+                  Mobile Number <span className="required">*</span>
                 </label>
                 <div className="form-input-wrapper">
                   <Phone size={15} className="form-input-icon" aria-hidden="true" />
