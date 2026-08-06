@@ -51,7 +51,7 @@ const formatTime = (ts) => {
 };
 
 // ── Message bubble ─────────────────────────────────────────────────────────────
-const MessageBubble = ({ m, showResolutionPrompt, onVoteYes, onVoteNo, onRetry, onDiscard, actionsDisabled }) => {
+const MessageBubble = ({ m, showResolutionPrompt, onResolve, onEscalate, onRetry, onDiscard, actionsDisabled }) => {
   const isMe    = m.sender_role === 'customer';
   const isBot   = m.sender_role === 'bot';
 
@@ -85,29 +85,28 @@ const MessageBubble = ({ m, showResolutionPrompt, onVoteYes, onVoteNo, onRetry, 
           <div className={`chat-timestamp ${isMe ? 'text-right' : ''}`}>{formatTime(m.created_at)}</div>
         )}
 
-        {/* Quiet inline rating. A boxed "Did I solve your concern? [Yes] [No]"
-            after every single bot answer reads as nagging; two small icons ask
-            the same question without interrupting the conversation. */}
+        {/* Both actions are named for what they DO. The thumbs-up/down pair
+            that used to live here asked the customer to rate the bot, and the
+            only route to a human was hidden behind the 👎 — someone who
+            urgently needs a person has no reason to guess that rating the
+            answer poorly is what summons one. */}
         {isBot && showResolutionPrompt && (
-          <div className="chat-rating">
-            <span className="chat-rating-label">Was this helpful?</span>
+          <div className="chat-resolution">
             <button
               type="button"
-              className="chat-rating-btn"
-              onClick={onVoteYes}
-              aria-label="Yes, this was helpful"
-              title="Yes, this helped"
+              className="chat-resolution-btn is-resolve"
+              onClick={onResolve}
+              disabled={actionsDisabled}
             >
-              👍
+              Yes, this helped
             </button>
             <button
               type="button"
-              className="chat-rating-btn"
-              onClick={onVoteNo}
-              aria-label="No, I need a person"
-              title="No — talk to a person"
+              className="chat-resolution-btn is-escalate"
+              onClick={onEscalate}
+              disabled={actionsDisabled}
             >
-              👎
+              Talk to an Agent
             </button>
           </div>
         )}
@@ -626,8 +625,8 @@ const SupportChatPage = () => {
               <MessageBubble
                 m={m}
                 showResolutionPrompt={isLastBotWithPrompt}
-                onVoteYes={handleResolvedYes}
-                onVoteNo={handleResolvedNo}
+                onResolve={handleResolvedYes}
+                onEscalate={handleResolvedNo}
                 onRetry={handleRetryMessage}
                 onDiscard={handleDiscardMessage}
                 actionsDisabled={sending || botTyping}
