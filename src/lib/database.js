@@ -2251,8 +2251,7 @@ export const getPublicFeedback = async () => {
     orders: {
       featured_on_website: row.featured_on_website,
       featured_image_type: row.featured_image_type,
-      pickup_photos: row.pickup_photos,
-      delivery_photos: row.delivery_photos,
+      featured_photo: row.featured_photo,   // single admin-selected path (replaces pickup/delivery arrays)
       receiver_city: row.receiver_city,
       receiver_province: row.receiver_province,
     },
@@ -2262,11 +2261,10 @@ export const getPublicFeedback = async () => {
 /**
  * Featured delivery gallery for the About page.
  *
- * Goes through the get_featured_deliveries() RPC. The old query relied on an
- * anon RLS policy that granted every column of a featured order — phones,
- * addresses, payment_reference, user_id — not just the ones selected here.
- * tracking_number and updated_at are no longer returned: the page never
- * rendered them, and a tracking number is a lookup key for public tracking.
+ * Goes through the get_featured_deliveries() RPC. The RPC returns a single
+ * `featured_photo` TEXT path (the admin-selected pickup or delivery proof)
+ * instead of the full pickup_photos / delivery_photos JSONB arrays, preventing
+ * enumeration of all proof photos for a featured order via the anon key.
  */
 export const getFeaturedDeliveries = async () => {
   const { data, error } = await supabase.rpc('get_featured_deliveries');

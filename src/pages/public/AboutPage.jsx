@@ -667,13 +667,9 @@ const AboutPage = () => {
         ]);
         const features = info?.features || [];
 
-        // Resolve highlight photos
+        // Resolve highlight photos — RPC now returns a single `featured_photo` path
         const resolvedHighlights = await Promise.all(highlights.map(async (h) => {
-          const path = h.featured_image_type === 'delivery' && h.delivery_photos?.length > 0
-            ? h.delivery_photos[0]
-            : h.pickup_photos?.length > 0
-              ? h.pickup_photos[0]
-              : null;
+          const path = h.featured_photo || null;
           if (!path) return { ...h, resolved_image: null };
           try {
             const urls = await resolvePhotoUrls([path]);
@@ -683,15 +679,11 @@ const AboutPage = () => {
           }
         }));
 
-        // Resolve feedback photos if associated order is featured
+        // Resolve feedback photos — RPC now returns a single `featured_photo` path
         const resolvedFeedback = await Promise.all(feedback.map(async (fb) => {
           const order = fb.orders;
           if (!order || !order.featured_on_website) return { ...fb, resolved_image: null };
-          const path = order.featured_image_type === 'delivery' && order.delivery_photos?.length > 0
-            ? order.delivery_photos[0]
-            : order.pickup_photos?.length > 0
-              ? order.pickup_photos[0]
-              : null;
+          const path = order.featured_photo || null;
           if (!path) return { ...fb, resolved_image: null };
           try {
             const urls = await resolvePhotoUrls([path]);

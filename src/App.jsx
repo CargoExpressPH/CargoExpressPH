@@ -125,17 +125,11 @@ const RootRedirect = () => {
   return <Navigate to={userProfile.role === 'admin' ? '/admin' : '/customer'} replace />;
 };
 
-/** Automatically scrolls to top of page and triggers native View Transitions on route changes */
+/** Automatically scrolls to top of page on route changes */
 const ScrollToTop = () => {
   const { pathname } = useLocation();
   useEffect(() => {
-    if (typeof document !== 'undefined' && document.startViewTransition) {
-      document.startViewTransition(() => {
-        window.scrollTo(0, 0);
-      });
-    } else {
-      window.scrollTo(0, 0);
-    }
+    window.scrollTo(0, 0);
   }, [pathname]);
   return null;
 };

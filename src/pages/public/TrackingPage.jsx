@@ -5,7 +5,7 @@ import { getPublicOrderEvents } from '../../lib/database';
 import { buildStatusTimestamps } from '../../utils/statusTimestamps';
 import {
   Container, Search, Loader, Package, MapPin, ArrowRight,
-  CheckCircle2, XCircle, Clock, Weight, User, Coins,
+  CheckCircle2, XCircle, Clock, Weight, User,
   RefreshCw, AlertTriangle, ShieldAlert, Truck, Calendar, Info, ClipboardCheck, Building2, Bike,
 } from 'lucide-react';
 import { STATUS_TIMELINE, TRACKING_STATUS_TONES, STATUS_ICONS, ORDER_STATUS } from '../../constants/status';
@@ -543,20 +543,8 @@ const TrackingPage = ({ embedded = false }) => {
                 </div>
               </div>
 
-              {/* Shipping cost */}
-              {order.shipping_cost && (
-                <div className="trk-info-tile">
-                  <div className="trk-info-tile-icon">
-                    <Coins size={14} />
-                  </div>
-                  <div>
-                    <p className="trk-info-tile-label">Shipping Cost</p>
-                    <p className="trk-info-tile-value trk-cost">
-                      ₱{parseFloat(order.shipping_cost).toFixed(2)}
-                    </p>
-                  </div>
-                </div>
-              )}
+
+
 
               {/* Booked date */}
               <div className="trk-info-tile">
