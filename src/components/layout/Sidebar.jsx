@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 import {
@@ -33,6 +33,7 @@ const systemNav = [
 const Sidebar = ({ isOpen, onClose, isCollapsed, onToggleCollapse }) => {
   const { logout, userProfile } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [badges, setBadges] = useState({ inbox: 0, inquiries: 0 });
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const profileMenuRef = useRef(null);
@@ -132,8 +133,10 @@ const Sidebar = ({ isOpen, onClose, isCollapsed, onToggleCollapse }) => {
         key={item.to}
         to={item.to}
         end={item.end}
-        isActive={item.matchPaths ? (_, location) => item.matchPaths.includes(location.pathname) : undefined}
-        className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
+        className={({ isActive }) => {
+          const isCustomActive = item.matchPaths ? item.matchPaths.includes(location.pathname) : isActive;
+          return `sidebar-link ${isCustomActive ? 'active' : ''}`;
+        }}
         onClick={onClose}
         data-tooltip={item.label}
         aria-label={`${item.label}${badgeCount > 0 ? `, ${badgeCount} unread items` : ''}`}

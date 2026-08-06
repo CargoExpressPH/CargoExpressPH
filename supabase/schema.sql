@@ -738,6 +738,7 @@ CREATE INDEX IF NOT EXISTS idx_activity_logs_module ON activity_logs(module);
 CREATE INDEX IF NOT EXISTS idx_activity_logs_record_id ON activity_logs(record_id);
 CREATE UNIQUE INDEX IF NOT EXISTS unique_tx_ref ON payment_transactions(transaction_reference) WHERE transaction_reference IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_payment_transactions_order_id ON payment_transactions(order_id);
+CREATE INDEX IF NOT EXISTS idx_payment_transactions_order_method ON payment_transactions(order_id, payment_method);
 
 -- Added 20260803130000 — each backs a query the app already runs.
 CREATE INDEX IF NOT EXISTS idx_profiles_role ON profiles(role);
@@ -1261,12 +1262,25 @@ BEGIN
     NEW.payment_status := public.derive_payment_status(NEW.shipping_cost, NEW.amount_paid);
   END IF;
 
-  -- ── Warehouse dispatch gate (20260804100000) ─────────────────────────────
-  -- Unpaid cargo is held at the destination warehouse and not dispatched for
-  -- doorstep delivery. Freight Collect is exempt (payment is due at the door);
-  -- a recorded Promise Date is the explicit override.
-  -- Placed last so it sees the recomputed remaining_balance above.
+  -- ── Warehouse dispatch gate (20260804100000, 20260806030000) ─────────────
+  -- Placed last so it sees the recomputed weight and remaining_balance above.
   IF NEW.status = 'Out for Delivery' AND OLD.status IS DISTINCT FROM NEW.status THEN
+
+    -- (a) Priced? An unweighed parcel has remaining_balance = 0 because
+    -- nothing was ever BILLED, not because anything was paid. Without this
+    -- check the payment gate below reads that zero as "settled" and dispatches
+    -- cargo that was never charged. Applies to every payer type: freight
+    -- collect governs who pays and when, not whether a price exists, and
+    -- actual_weight is captured at pickup — several statuses earlier.
+    IF COALESCE(NEW.actual_weight, 0) <= 0 THEN
+      RAISE EXCEPTION
+        'Cannot dispatch order % — it has not been weighed, so it has no price yet. Record the actual weight first.',
+        NEW.tracking_number;
+    END IF;
+
+    -- (b) Paid? Unpaid cargo is held at the destination warehouse and not
+    -- dispatched for doorstep delivery. Freight Collect is exempt (payment is
+    -- due at the door); a recorded Promise Date is the explicit override.
     IF COALESCE(NEW.payer_type, 'sender') <> 'receiver'
        AND COALESCE(NEW.remaining_balance, 0) > 0
        AND NEW.promised_payment_date IS NULL
@@ -1416,6 +1430,20 @@ $$;
 
 GRANT EXECUTE ON FUNCTION public.get_public_business_profile() TO anon, authenticated;
 
+-- Collections are bucketed from the payment_transactions ledger grouped by the
+-- LEDGER's own payment_method, never by orders.payment_method — that column
+-- holds the method of the most recent payment event, so an order paid twice by
+-- two different methods would file every peso under the second one
+-- (20260806020000). 'unattributedTotal' surfaces pre-ledger money that has no
+-- method rather than folding it into Cash.
+--
+-- "Outstanding" has ONE definition here (20260806040000): the DERIVED
+-- GREATEST(shipping_cost - amount_paid, 0), never the stored remaining_balance
+-- column, which can lag a ledger write. It is reported at two NAMED scopes —
+-- outstandingTotal (settlement-tracked statuses, reconciles with the Unsettled
+-- Deliveries tab) and outstandingAllOrders (every non-cancelled order).
+-- outstandingStored exists only to make drift visible; never render it as the
+-- outstanding figure.
 CREATE OR REPLACE FUNCTION public.get_sales_summary()
 RETURNS JSONB
 LANGUAGE plpgsql
@@ -1430,21 +1458,73 @@ BEGIN
   END IF;
 
   WITH active_orders AS (
-    SELECT *
-    FROM public.orders
-    WHERE status <> 'Cancelled'
+    SELECT
+      o.*,
+      -- THE definition of what an order owes. Derived, so it cannot lag the
+      -- payment ledger the way the stored remaining_balance column can.
+      GREATEST(COALESCE(o.shipping_cost, 0) - COALESCE(o.amount_paid, 0), 0) AS outstanding,
+      -- Weighed = priced. An unweighed parcel owes nothing only because it has
+      -- not been billed yet; that is not the same as settled.
+      (COALESCE(o.actual_weight, 0) > 0) AS is_priced,
+      (o.status IN ('Picked Up', 'In Transit', 'Arrived at Hub', 'Out for Delivery', 'Delivered')) AS is_tracked
+    FROM public.orders o
+    WHERE o.status <> 'Cancelled'
+  ),
+  ledger AS (
+    SELECT
+      LOWER(COALESCE(NULLIF(TRIM(pt.payment_method), ''), 'unspecified')) AS method,
+      COALESCE(SUM(pt.amount), 0) AS total,
+      COUNT(*) AS payment_count
+    FROM public.payment_transactions pt
+    JOIN active_orders o ON o.id = pt.order_id
+    WHERE pt.payment_status IN ('paid', 'partial')
+    GROUP BY 1
+  ),
+  ledger_rollup AS (
+    SELECT
+      COALESCE(SUM(total) FILTER (WHERE method = 'cash'), 0)     AS cash_total,
+      COALESCE(SUM(total) FILTER (WHERE method = 'gcash'), 0)    AS gcash_total,
+      COALESCE(SUM(total) FILTER (WHERE method = 'paylater'), 0) AS paylater_total,
+      COALESCE(SUM(total), 0)                                    AS ledger_total,
+      COALESCE(
+        jsonb_agg(
+          jsonb_build_object('method', method, 'total', total, 'count', payment_count)
+          ORDER BY total DESC
+        ),
+        '[]'::jsonb
+      ) AS method_totals
+    FROM ledger
+  ),
+  order_rollup AS (
+    SELECT
+      COALESCE(SUM(shipping_cost), 0) AS total_revenue,
+      COALESCE(SUM(amount_paid), 0)   AS paid_total,
+      COALESCE(SUM(outstanding) FILTER (WHERE is_tracked), 0) AS outstanding_tracked,
+      COALESCE(SUM(outstanding), 0)                           AS outstanding_all,
+      COALESCE(SUM(remaining_balance) FILTER (WHERE is_tracked), 0) AS outstanding_stored,
+      COUNT(*) FILTER (WHERE is_tracked AND outstanding > 0.005)    AS unpaid_count,
+      COUNT(*) FILTER (WHERE NOT is_priced)                         AS unpriced_count
+    FROM active_orders
   ),
   summary AS (
     SELECT jsonb_build_object(
-      'totalRevenue', COALESCE(SUM(shipping_cost), 0),
-      'cashTotal', COALESCE(SUM(amount_paid) FILTER (WHERE payment_method = 'cash'), 0),
-      'gcashTotal', COALESCE(SUM(amount_paid) FILTER (WHERE payment_method = 'gcash'), 0),
-      'paylaterTotal', COALESCE(SUM(amount_paid) FILTER (WHERE payment_method = 'paylater'), 0),
-      'paidTotal', COALESCE(SUM(amount_paid), 0),
-      'unpaidTotal', COALESCE(SUM(remaining_balance), 0),
-      'unpaidCount', COUNT(*) FILTER (WHERE payment_status IS NULL OR payment_status IN ('unpaid', 'partial'))
+      'totalRevenue',         o.total_revenue,
+      'cashTotal',            l.cash_total,
+      'gcashTotal',           l.gcash_total,
+      'paylaterTotal',        l.paylater_total,
+      'methodTotals',         l.method_totals,
+      'ledgerTotal',          l.ledger_total,
+      'unattributedTotal',    GREATEST(o.paid_total - l.ledger_total, 0),
+      'paidTotal',            o.paid_total,
+      'outstandingTotal',     o.outstanding_tracked,
+      'outstandingAllOrders', o.outstanding_all,
+      'outstandingStored',    o.outstanding_stored,
+      -- Legacy alias. Kept so a stale bundle mid-deploy still renders.
+      'unpaidTotal',          o.outstanding_all,
+      'unpaidCount',          o.unpaid_count,
+      'unpricedCount',        o.unpriced_count
     ) AS value
-    FROM active_orders
+    FROM order_rollup o, ledger_rollup l
   ),
   monthly AS (
     SELECT COALESCE(jsonb_agg(to_jsonb(m) ORDER BY m.month DESC), '[]'::jsonb) AS value
@@ -1453,7 +1533,7 @@ BEGIN
         TO_CHAR(DATE_TRUNC('month', created_at), 'YYYY-MM') AS month,
         COALESCE(SUM(shipping_cost), 0) AS total_revenue,
         COALESCE(SUM(amount_paid), 0) AS collected,
-        COALESCE(SUM(remaining_balance), 0) AS outstanding
+        COALESCE(SUM(outstanding), 0) AS outstanding
       FROM active_orders
       GROUP BY DATE_TRUNC('month', created_at)
       ORDER BY DATE_TRUNC('month', created_at) DESC
@@ -1463,9 +1543,10 @@ BEGIN
   unpaid AS (
     SELECT COALESCE(jsonb_agg(to_jsonb(u) ORDER BY u.created_at DESC), '[]'::jsonb) AS value
     FROM (
-      SELECT id, tracking_number, created_at, shipping_cost, amount_paid, remaining_balance, payment_status
+      SELECT id, tracking_number, created_at, status, shipping_cost, amount_paid,
+             outstanding AS remaining_balance, payment_status
       FROM active_orders
-      WHERE payment_status IS NULL OR payment_status IN ('unpaid', 'partial')
+      WHERE is_tracked AND outstanding > 0.005
       ORDER BY created_at DESC
       LIMIT 100
     ) u
@@ -1483,6 +1564,7 @@ END;
 $$;
 
 GRANT EXECUTE ON FUNCTION public.get_sales_summary() TO authenticated;
+
 
 -- ============================================================
 -- SERVICE REPORTING (20260804250000)

@@ -23,6 +23,7 @@ import CustomSelect from '../../components/ui/CustomSelect';
 import { MessageSquare, Send, Loader, User, Bot, Clock, CheckCircle, UserCheck, ArrowLeft, Search, AlertCircle, X } from 'lucide-react';
 import usePageTitle from '../../hooks/usePageTitle';
 import { logChat } from '../../lib/activityLog';
+import { renderMarkdown } from '../../lib/markdown';
 
 // ── Status badge config ────────────────────────────────────────────────────────
 // Deliberately sparse. Only two states earn a badge: one that needs the
@@ -631,9 +632,7 @@ const InboxPage = () => {
               )}
 
               <div className={`text-sm ${isAdmin ? `inbox-msg-bubble-admin${m.failed ? ' is-failed' : ''}` : isBot ? 'inbox-msg-bubble-bot' : 'inbox-msg-bubble-customer'}`}>
-                {m.message.split('\n').map((line, j, arr) => (
-                  <span key={j}>{line}{j < arr.length - 1 && <br />}</span>
-                ))}
+                {renderMarkdown(m.message)}
               </div>
               {m.failed ? (
                 <div className="inbox-msg-failed-actions" role="alert">

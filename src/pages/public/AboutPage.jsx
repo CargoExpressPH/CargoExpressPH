@@ -13,7 +13,7 @@ import {
   Container, ArrowUp, Phone, MapPin, Globe, Loader, Send,
   Mail, Clock, Calendar, CheckCircle2,
   Navigation, Award, ChevronRight, ChevronDown, ChevronLeft, X, Play, Building2, TrendingUp, Users, MessageSquare,
-  Star, Package
+  Star, Package, Search
 } from 'lucide-react';
 import { useToast } from '../../hooks/useToast';
 import usePageTitle from '../../hooks/usePageTitle';
@@ -617,6 +617,7 @@ const AboutPage = () => {
   const [lightboxIndex, setLightboxIndex] = useState(-1);
   const [selectedRegionId, setSelectedRegionId] = useState(null);
   const [selectedRating, setSelectedRating] = useState('all');
+  const [citySearchQuery, setCitySearchQuery] = useState('');
   
   const { scrollY } = useScroll();
   const yHero = useTransform(scrollY, [0, 600], [0, 200]);
@@ -1050,28 +1051,73 @@ const AboutPage = () => {
                 </div>
                 
                 <div className="about-coverage-regions">
+                  <div style={{ marginBottom: 16 }}>
+                    <div style={{ position: 'relative' }}>
+                      <Search size={18} style={{ position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)' }} />
+                      <input 
+                        type="text"
+                        placeholder="Search municipalities..."
+                        value={citySearchQuery}
+                        onChange={(e) => setCitySearchQuery(e.target.value)}
+                        style={{
+                          width: '100%',
+                          padding: '14px 16px 14px 44px',
+                          borderRadius: 12,
+                          border: '1px solid var(--border)',
+                          background: 'var(--bg-secondary)',
+                          fontSize: '0.9375rem',
+                          outline: 'none',
+                          color: 'var(--text)'
+                        }}
+                      />
+                    </div>
+                  </div>
                   {coverage.map((region) => {
+                    const filteredMunis = region.municipalities?.filter(m => 
+                      m.name.toLowerCase().includes(citySearchQuery.toLowerCase())
+                    ) || [];
+
+                    if (citySearchQuery && filteredMunis.length === 0) return null;
+
                     const isSelected = selectedRegionId === region.id;
+                    const isExpanded = isSelected || citySearchQuery.length > 0;
+
                     return (
                       <div 
                         key={region.id} 
                         className={`about-region-card ${isSelected ? 'selected' : ''}`}
-                        onClick={() => setSelectedRegionId(isSelected ? null : region.id)}
-                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedRegionId(isSelected ? null : region.id); } }}
+                        onClick={() => setSelectedRegionId(isExpanded && !citySearchQuery ? null : region.id)}
+                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedRegionId(isExpanded && !citySearchQuery ? null : region.id); } }}
                         role="button"
                         tabIndex={0}
-                        aria-pressed={isSelected}
+                        aria-expanded={isExpanded}
+                        style={{ cursor: 'pointer', overflow: 'hidden' }}
                       >
-                        <h4 style={{ fontSize: '1.125rem', fontWeight: 800, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 12 }}>
-                          <MapPin size={18} style={{ color: isSelected ? 'var(--primary)' : 'var(--text-tertiary)', transition: 'color 0.2s' }} /> {region.name}
+                        <h4 style={{ fontSize: '1.125rem', fontWeight: 800, marginBottom: isExpanded ? 16 : 0, display: 'flex', alignItems: 'center', gap: 12, justifyContent: 'space-between', transition: 'margin-bottom 0.2s' }}>
+                          <span style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                            <MapPin size={18} style={{ color: isSelected ? 'var(--primary)' : 'var(--text-tertiary)', transition: 'color 0.2s' }} /> {region.name}
+                          </span>
+                          <ChevronDown size={18} style={{ color: 'var(--text-tertiary)', transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }} />
                         </h4>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                          {region.municipalities?.map(muni => (
-                            <div key={muni.id} className="about-muni-tag">
-                              {muni.name}
-                            </div>
-                          ))}
-                        </div>
+                        
+                        <AnimatePresence initial={false}>
+                          {isExpanded && (
+                            <motion.div 
+                              initial={{ height: 0, opacity: 0 }}
+                              animate={{ height: 'auto', opacity: 1 }}
+                              exit={{ height: 0, opacity: 0 }}
+                              transition={{ duration: 0.2, ease: 'easeInOut' }}
+                            >
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, paddingBottom: 4 }}>
+                                {filteredMunis.map(muni => (
+                                  <div key={muni.id} className="about-muni-tag">
+                                    {muni.name}
+                                  </div>
+                                ))}
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
                       </div>
                     );
                   })}

@@ -12,3 +12,13 @@ deployment.js
 .vercel-old/
 .history/
 .antigravitycli/
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+/playwright/.auth/
+
+# E2E test credentials (real secrets — never commit)
+.env.test

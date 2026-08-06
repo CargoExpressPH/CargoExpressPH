@@ -26,6 +26,11 @@ export const AuthProvider = ({ children }) => {
   // The login() and register() functions handle fetchProfile themselves.
   const isAuthAction = useRef(false);
 
+  // Whose profile is currently loaded. Lets onAuthStateChange tell a real
+  // account switch apart from GoTrue re-emitting SIGNED_IN on a token refresh
+  // or a tab focus, which it does routinely and which must not trigger work.
+  const lastProfileUserId = useRef(null);
+
   useEffect(() => {
     let isMounted = true;
 
@@ -64,10 +69,33 @@ export const AuthProvider = ({ children }) => {
         }
 
         if (session?.user) {
-          setUser(session.user);
-          // USER_UPDATED fires after an email change is confirmed — re-fetch the
-          // profile so the new email is reflected everywhere.
-          if ((event === 'SIGNED_IN' && !isAuthAction.current) || event === 'USER_UPDATED') {
+          // Replace the user object ONLY when the identity actually changed.
+          // GoTrue hands us a fresh object on every token refresh; storing it
+          // unconditionally changes the context value on a timer, re-rendering
+          // every consumer in the app for no semantic change.
+          setUser(prev =>
+            prev && prev.id === session.user.id && prev.email === session.user.email
+              ? prev
+              : session.user
+          );
+
+          // Which events justify re-reading the profile row?
+          //
+          // NOT plain SIGNED_IN. GoTrue re-emits SIGNED_IN on every token
+          // refresh and whenever the tab regains focus — it does not mean "a
+          // user just signed in". Refetching there put a network round trip on
+          // a ~1-minute cadence whose failure path rewrote userProfile, and a
+          // userProfile without a role makes ProtectedRoute redirect. That is
+          // the spontaneous eject out of a half-filled booking form.
+          //
+          // A genuine account switch still refetches, because the id changes.
+          // USER_UPDATED fires after an email change is confirmed.
+          const isDifferentUser = lastProfileUserId.current !== session.user.id;
+          const shouldFetchProfile =
+            event === 'USER_UPDATED' ||
+            (event === 'SIGNED_IN' && !isAuthAction.current && isDifferentUser);
+
+          if (shouldFetchProfile) {
             fetchProfile(session.user.id, isMounted);
           } else if (event !== 'INITIAL_SESSION') {
             // Ensure loading is cleared for TOKEN_REFRESHED or other events.
@@ -103,6 +131,7 @@ export const AuthProvider = ({ children }) => {
       const profile = await Promise.race([profilePromise, timeoutPromise]);
       clearTimeout(timeoutId);
       if (isMounted) {
+        lastProfileUserId.current = userId;
         setUserProfile(profile);
         setLoading(false);
       }
@@ -215,6 +244,7 @@ export const AuthProvider = ({ children }) => {
     }
 
     // Clear local state immediately so user is logged out even if offline
+    lastProfileUserId.current = null;
     setUser(null);
     setUserProfile(null);
     setLoading(false);

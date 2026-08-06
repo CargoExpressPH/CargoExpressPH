@@ -15,6 +15,44 @@ import usePageTitle from '../../hooks/usePageTitle';
 
 const formatCurrency = (val) => `₱${(val || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
+/**
+ * The four headline tiles, declared once at module scope.
+ *
+ * Keyed by `key`, not by array index, and always rendered — every tile is
+ * present on every pass regardless of what a refresh returns. A tile whose
+ * figure is missing shows 0, which is the truthful reading of "the summary
+ * carried no value for it"; it must never disappear, because a vanished
+ * Outstanding tile reads as "nothing is outstanding".
+ */
+/**
+ * `outstandingTotal` — not `unpaidTotal` — is deliberate. Both tabs of this
+ * report now read the SAME derived figure (shipping_cost − amount_paid) over
+ * the SAME population (the five settlement-tracked statuses), so this tile and
+ * the Unsettled Deliveries total reconcile to the peso. The label names the
+ * scope, because a number called "Outstanding" that silently means something
+ * different one tab over is how the two figures diverged in the first place.
+ */
+const STAT_CARDS = [
+  { key: 'totalRevenue', label: 'Total Revenue', field: 'totalRevenue', tone: 'primary', prefix: '₱' },
+  { key: 'collected',    label: 'Collected',     field: 'paidTotal',    tone: 'success', prefix: '₱' },
+  { key: 'outstanding',  label: 'Outstanding (in pipeline)', field: 'outstandingTotal', tone: 'danger', prefix: '₱' },
+  { key: 'unpaidCount',  label: 'Unpaid Orders', field: 'unpaidCount',  tone: 'warning', prefix: '' },
+];
+
+const EMPTY_SUMMARY = {
+  totalRevenue: 0,
+  paidTotal: 0,
+  outstandingTotal: 0,
+  outstandingAllOrders: 0,
+  outstandingStored: 0,
+  unpaidCount: 0,
+  unpricedCount: 0,
+  cashTotal: 0,
+  gcashTotal: 0,
+  paylaterTotal: 0,
+  unattributedTotal: 0,
+};
+
 const SalesPage = () => {
   usePageTitle('Sales');
   const { user, userProfile } = useAuth();
@@ -31,7 +69,17 @@ const SalesPage = () => {
     if (silent) setRefreshing(true); else setLoading(true);
     try {
       const result = await withTimeout(getSalesData());
-      setData(result);
+      // Merge, never replace. A realtime refresh must not be able to blank a
+      // tile: if a payload arrives without `unpaidTotal`/`unpaidCount` (an RPC
+      // fallback, a partial response), the last known figure stays on screen
+      // instead of collapsing to undefined and taking its card with it.
+      setData(prev => ({
+        ...prev,
+        ...result,
+        summary: { ...EMPTY_SUMMARY, ...(prev?.summary || {}), ...(result?.summary || {}) },
+        monthlySales: result?.monthlySales ?? prev?.monthlySales ?? [],
+        unpaidOrders: result?.unpaidOrders ?? prev?.unpaidOrders ?? [],
+      }));
       setLoadedAt(new Date());
     } catch (e) {
       // Keep the last good figures on screen if a background refresh fails.
@@ -88,12 +136,21 @@ const SalesPage = () => {
     </div>
   );
 
-  const s = data?.summary || {};
+  const s = { ...EMPTY_SUMMARY, ...(data?.summary || {}) };
 
+  // Each figure is the sum of the payment_transactions recorded under that
+  // method, not the balance of orders whose last payment used it — an order
+  // picked up on GCash and settled in cash contributes to both.
+  // "Unattributed" is money collected before the ledger became authoritative:
+  // real, but with no method behind it. It is shown rather than absorbed into
+  // Cash, and only when it exists.
   const paymentMethods = [
-    {l:'Cash', v:s.cashTotal || 0, c:'var(--success)'},
-    {l:'GCash', v:s.gcashTotal || 0, c:'var(--info)'},
-    {l:'Pay Later', v:s.paylaterTotal || 0, c:'var(--warning)'}
+    { l: 'Cash', v: s.cashTotal || 0, c: 'var(--success)' },
+    { l: 'GCash', v: s.gcashTotal || 0, c: 'var(--info)' },
+    { l: 'Pay Later', v: s.paylaterTotal || 0, c: 'var(--warning)' },
+    ...((s.unattributedTotal || 0) > 0
+      ? [{ l: 'Unattributed', v: s.unattributedTotal, c: 'var(--text-tertiary)' }]
+      : []),
   ];
 
   const monthlySales = data?.monthlySales || [];
@@ -140,23 +197,29 @@ const SalesPage = () => {
       {/* Stat Cards */}
       <div className="grid grid-4 mb-24">
         {loading ? (
-          Array.from({ length: 4 }, (_, i) => <SkeletonStatCard key={i} />)
+          STAT_CARDS.map(c => <SkeletonStatCard key={c.key} />)
         ) : (
-          [
-            { l: 'Total Revenue', v: s.totalRevenue || 0, tone: 'primary', prefix: '₱' },
-            { l: 'Collected', v: s.paidTotal || 0, tone: 'success', prefix: '₱' },
-            { l: 'Outstanding', v: s.unpaidTotal || 0, tone: 'danger', prefix: '₱' },
-            { l: 'Unpaid Orders', v: s.unpaidCount || 0, tone: 'warning', prefix: '' }
-          ].map((c, i) => (
-            <div key={i} className={`stat-card stat-card-${c.tone} stagger-item`} style={{ animationDelay: `${i * 60}ms` }}>
+          STAT_CARDS.map((c, i) => (
+            <div key={c.key} className={`stat-card stat-card-${c.tone} stagger-item`} style={{ animationDelay: `${i * 60}ms` }}>
               <div className="stat-value">
-                <AnimatedCounter value={c.v} prefix={c.prefix} decimals={0} duration={1200} />
+                <AnimatedCounter value={Number(s[c.field]) || 0} prefix={c.prefix} decimals={0} duration={1200} />
               </div>
-              <div className="stat-label">{c.l}</div>
+              <div className="stat-label">{c.label}</div>
             </div>
           ))
         )}
       </div>
+
+      {/* Reconciliation line. The Outstanding tile is scoped to the pipeline so
+          it matches Unsettled Deliveries exactly; anything owing outside that
+          scope is stated here rather than folded in silently. */}
+      {!loading && data && (s.outstandingAllOrders || 0) - (s.outstandingTotal || 0) > 0.005 && (
+        <div className="text-xs text-tertiary mb-24 no-print">
+          Pipeline figure matches the Unsettled Deliveries tab.
+          A further {formatCurrency((s.outstandingAllOrders || 0) - (s.outstandingTotal || 0))} is
+          outstanding on orders not yet picked up.
+        </div>
+      )}
 
       <div className="grid grid-2 mb-24">
         {/* Payment Methods */}
@@ -169,11 +232,9 @@ const SalesPage = () => {
                 thickness={26}
                 centerLabel={`₱${((s.paidTotal || 0) / 1000).toFixed(0)}k`}
                 centerSub="Collected"
-                segments={[
-                  { label: 'Cash', value: s.cashTotal || 0, color: 'var(--success)' },
-                  { label: 'GCash', value: s.gcashTotal || 0, color: 'var(--info)' },
-                  { label: 'Pay Later', value: s.paylaterTotal || 0, color: 'var(--warning)' },
-                ].filter(seg => seg.value > 0)}
+                segments={paymentMethods
+                  .filter(pm => pm.v > 0)
+                  .map(pm => ({ label: pm.l, value: pm.v, color: pm.c }))}
               />
             )}
           </div>
@@ -219,8 +280,15 @@ const SalesPage = () => {
               <tbody>
                 <tr><td>Total Revenue (billed)</td><td className="num">{formatCurrency(s.totalRevenue)}</td></tr>
                 <tr><td>Total Collected</td><td className="num">{formatCurrency(s.paidTotal)}</td></tr>
-                <tr><td>Outstanding Balance</td><td className="num">{formatCurrency(s.unpaidTotal)}</td></tr>
+                {/* Both scopes are printed. They are different questions, and
+                    naming only one "Outstanding" is what let the Sales and
+                    Unsettled tabs disagree without either being wrong. */}
+                <tr><td>Outstanding — shipments in the pipeline</td><td className="num">{formatCurrency(s.outstandingTotal)}</td></tr>
+                <tr><td>Outstanding — all active orders</td><td className="num">{formatCurrency(s.outstandingAllOrders)}</td></tr>
                 <tr><td>Orders with Unpaid Balance</td><td className="num">{s.unpaidCount || 0}</td></tr>
+                {(s.unpricedCount || 0) > 0 && (
+                  <tr><td>Bookings not yet weighed (no price yet)</td><td className="num">{s.unpricedCount}</td></tr>
+                )}
               </tbody>
             </table>
           </div>

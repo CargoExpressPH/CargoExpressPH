@@ -139,14 +139,29 @@ export const PAYER_TYPES = ['sender', 'receiver'];
  * to produce a good message before the round trip — the database is the
  * authority.
  *
- * @param {Object} order — needs payer_type, remaining_balance, promised_payment_date
+ * @param {Object} order — needs payer_type, actual_weight, shipping_cost,
+ *                         amount_paid, promised_payment_date
  * @returns {{ allowed: boolean, reason?: string }}
  */
 export const canDispatchForDelivery = (order) => {
   if (!order) return { allowed: true };
+
+  // An unweighed parcel has no price — its balance is 0 because nothing was
+  // ever billed, not because anything was paid. Letting that ₱0.00 satisfy the
+  // payment gate is how cargo walks out of the warehouse having never been
+  // charged. Checked BEFORE the freight-collect exemption: collect only says
+  // *who* pays and *when*, it does not excuse an order from having a price,
+  // and weight is captured at pickup, long before dispatch.
+  if (!isOrderPriced(order)) {
+    return {
+      allowed: false,
+      reason: 'This parcel has not been weighed, so it has no price yet. Record the actual weight before dispatching it for delivery.',
+    };
+  }
+
   if ((order.payer_type || 'sender') === 'receiver') return { allowed: true };
 
-  const balance = parseFloat(order.remaining_balance || 0) || 0;
+  const balance = outstandingBalance(order);
   if (balance <= 0) return { allowed: true };
   if (order.promised_payment_date) return { allowed: true };
 
@@ -157,17 +172,71 @@ export const canDispatchForDelivery = (order) => {
 };
 
 /**
+ * isOrderPriced — has this parcel been weighed, and therefore billed?
+ *
+ * `actual_weight` is the single input to the pricing formula and it enters the
+ * system exactly once, from the scale at pickup. Until then `shipping_cost`
+ * and `remaining_balance` are both 0 — and those two zeros mean "not priced
+ * yet", never "paid in full". Every settlement question has to ask this first,
+ * or an unweighed booking reads as a fully settled one.
+ */
+export const isOrderPriced = (order) => {
+  if (!order) return false;
+  return (parseFloat(order.actual_weight || 0) || 0) > 0;
+};
+
+/**
+ * outstandingBalance — THE single client-side definition of "what is owed".
+ *
+ * Derived from `shipping_cost - amount_paid` rather than read from the stored
+ * `remaining_balance` column. Both are maintained by the database, but the
+ * stored copy can lag a ledger write, and two views reading two different
+ * columns is exactly what produced two different "Outstanding" figures in one
+ * report. Mirrors the SQL in get_sales_summary() / get_unsettled_summary().
+ */
+export const outstandingBalance = (order) => {
+  if (!order) return 0;
+  const cost = parseFloat(order.shipping_cost || 0) || 0;
+  const paid = parseFloat(order.amount_paid || 0) || 0;
+  return Math.max(0, Math.round((cost - paid) * 100) / 100);
+};
+
+/**
+ * Settlement state of one order, as three mutually exclusive answers rather
+ * than a boolean. The boolean was the bug: it had no way to say "there is no
+ * money question yet because there is no price yet", so it answered "settled"
+ * and the UI rendered `Unpaid` and `Settled` side by side on the same ₱0 row.
+ *
+ *   'unpriced' — not weighed; no cost exists. Not settled, not owing.
+ *   'settled'  — priced and fully collected (or cancelled).
+ *   'owing'    — priced with a balance outstanding.
+ */
+export const SETTLEMENT_STATE = {
+  UNPRICED: 'unpriced',
+  SETTLED: 'settled',
+  OWING: 'owing',
+};
+
+export const getSettlementState = (order) => {
+  if (!order) return SETTLEMENT_STATE.UNPRICED;
+  if (order.status === ORDER_STATUS.CANCELLED) return SETTLEMENT_STATE.SETTLED;
+  if (!isOrderPriced(order)) return SETTLEMENT_STATE.UNPRICED;
+  return outstandingBalance(order) <= 0 ? SETTLEMENT_STATE.SETTLED : SETTLEMENT_STATE.OWING;
+};
+
+/**
  * isOrderSettled — has the money actually been collected?
  *
  * Deliberately separate from `status`: status answers "where is the cargo",
  * this answers "where is the money". Keeping them independent is what makes
  * "delivered, balance owing, payment promised" representable.
+ *
+ * An UNWEIGHED order is not settled. It has no price, so there is nothing to
+ * have collected — see getSettlementState() when you need to tell "nothing is
+ * owed" apart from "nothing is billed yet".
  */
-export const isOrderSettled = (order) => {
-  if (!order) return false;
-  if (order.status === ORDER_STATUS.CANCELLED) return true;
-  return (parseFloat(order.remaining_balance || 0) || 0) <= 0;
-};
+export const isOrderSettled = (order) =>
+  getSettlementState(order) === SETTLEMENT_STATE.SETTLED;
 
 export const validateStatusTransition = (currentStatus, newStatus, tripId, order = null) => {
   if (currentStatus === ORDER_STATUS.DELIVERED || currentStatus === ORDER_STATUS.CANCELLED) {

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useNavigate, useLocation, useBlocker } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { createOrder, getTrips, getSettings } from '../../lib/database';
@@ -104,6 +104,9 @@ const BookShipmentPage = () => {
       return defaultForm;
     }
   });
+
+  // Guards against a double POST; see handleSubmit.
+  const submittingRef = useRef(false);
 
   const [useRegisteredSender, setUseRegisteredSender] = useState(false);
   const [useRegisteredReceiver, setUseRegisteredReceiver] = useState(false);
@@ -304,6 +307,13 @@ const BookShipmentPage = () => {
   };
 
   const handleSubmit = async () => {
+    // Synchronous re-entry guard. `loading` disables the button, but state
+    // updates are async — two clicks inside the same React batch both pass the
+    // disabled check and fire two createOrder() calls. createOrder is a POST:
+    // a second one is a second booking, not a retry. A ref closes that window
+    // because it is set before any await.
+    if (submittingRef.current) return;
+    submittingRef.current = true;
     setLoading(true);
     // When validation sends the user back to a step, we focus the offending
     // field — and focusing already scrolls it into view. The catch block's
@@ -357,7 +367,10 @@ const BookShipmentPage = () => {
     } catch (err) {
       toast.error(err.message || 'An unexpected error occurred while saving the booking.');
       if (!focusingInvalidField) window.scrollTo({ top: 0, behavior: 'smooth' });
-    } finally { setLoading(false); }
+    } finally {
+      submittingRef.current = false;
+      setLoading(false);
+    }
   };
 
   const renderAddressFields = (prefix) => {
@@ -615,6 +628,24 @@ const BookShipmentPage = () => {
 
   return (
     <div className="page-transition booking-page">
+      {/* Submitting overlay. The disabled button alone was not enough feedback:
+          createOrder() can take many seconds, and if the review step is
+          scrolled the spinner sits off-screen, leaving what looks like a dead
+          page — and an invitation to click again. This covers the viewport, so
+          the wait is visible from anywhere on the page and nothing underneath
+          is clickable while the POST is in flight. */}
+      {loading && (
+        <div className="booking-submitting-overlay" role="alert" aria-live="assertive">
+          <div className="booking-submitting-card">
+            <Loader size={32} className="animate-spin" aria-hidden="true" />
+            <div className="fw-700 mt-12">Submitting your booking…</div>
+            <div className="text-sm text-secondary mt-4">
+              This can take a few moments. Please don’t close or refresh this page.
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* C-1 fix: Navigation blocker modal */}
       <ConfirmModal
         isOpen={blocker.state === 'blocked'}
@@ -833,8 +864,16 @@ const BookShipmentPage = () => {
             <div className="fw-800 text-primary" style={{ fontSize: '2rem' }}>₱{effectivePricePerKilo}/kg</div>
             <div className="text-xs text-tertiary mt-4">Weighed at pickup — you pay for the actual weight, nothing estimated.</div>
           </div>
-          <button type="button" className="btn btn-primary btn-lg w-full justify-center" onClick={handleSubmit} disabled={loading}>
-            {loading ? <Loader size={18} className="animate-spin" /> : 'Confirm Booking'}
+          <button
+            type="button"
+            className="btn btn-primary btn-lg w-full justify-center"
+            onClick={handleSubmit}
+            disabled={loading}
+            aria-busy={loading}
+          >
+            {loading
+              ? <><Loader size={18} className="animate-spin" aria-hidden="true" /> Submitting booking…</>
+              : 'Confirm Booking'}
           </button>
         </div></div>
       )}

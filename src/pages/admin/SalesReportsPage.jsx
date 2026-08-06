@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import SalesPage from './SalesPage';
 import ReportsPage from './ReportsPage';
 import UnsettledDeliveriesPage from './UnsettledDeliveriesPage';
@@ -12,6 +13,12 @@ import ServiceReportsPage from './ServiceReportsPage';
  * times; Reports = period-based operational analytics.
  * The /admin/reports route opens this page with the Reports section active
  * (initialSection="reports").
+ *
+ * The active section lives in the URL (`?tab=unsettled`), not in useState.
+ * Each child owns its own realtime subscription and refetches on a burst of
+ * order changes; anything holding the section in component state is one
+ * remount away from throwing the admin back to Sales Overview mid-triage.
+ * The URL survives remounts, back/forward, and a shared link.
  */
 const SECTIONS = [
   { value: 'sales', label: 'Sales Overview' },
@@ -20,10 +27,24 @@ const SECTIONS = [
   { value: 'reports', label: 'Reports & Analytics' },
 ];
 
+const isSection = (value) => SECTIONS.some(s => s.value === value);
+
 const SalesReportsPage = ({ initialSection }) => {
-  const [section, setSection] = useState(
-    SECTIONS.some(s => s.value === initialSection) ? initialSection : 'sales'
-  );
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const paramSection = searchParams.get('tab');
+  const section = isSection(paramSection)
+    ? paramSection
+    : (isSection(initialSection) ? initialSection : 'sales');
+
+  const selectSection = useCallback((value) => {
+    // replace: switching a tab is not a navigation step worth a Back press.
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      next.set('tab', value);
+      return next;
+    }, { replace: true });
+  }, [setSearchParams]);
 
   return (
     <div className="page-transition">
@@ -34,7 +55,7 @@ const SalesReportsPage = ({ initialSection }) => {
             type="button"
             className={`sales-reports-tab ${section === s.value ? 'active' : ''}`}
             aria-pressed={section === s.value}
-            onClick={() => setSection(s.value)}
+            onClick={() => selectSection(s.value)}
           >
             {s.label}
           </button>

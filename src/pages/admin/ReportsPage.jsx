@@ -340,12 +340,20 @@ const ReportsPage = () => {
                         { label: 'Cash', count: s.cashCount, total: s.cashTotal, color: 'var(--success)' },
                         { label: 'GCash', count: s.gcashCount, total: s.gcashTotal, color: 'var(--info)' },
                         { label: 'Pay Later', count: s.paylaterCount, total: s.paylaterTotal, color: 'var(--warning)' },
-                      ].map((pm, i) => (
-                        <div key={i} className="flex justify-between items-center" style={{ padding: '6px 0', borderBottom: i < 2 ? '1px solid var(--border-light)' : 'none' }}>
+                        // Collected before the ledger became authoritative — no
+                        // method to attribute it to. Shown only when non-zero.
+                        ...((s.unattributedTotal || 0) > 0
+                          ? [{ label: 'Unattributed', count: null, total: s.unattributedTotal, color: 'var(--text-tertiary)' }]
+                          : []),
+                      ].map((pm, i, arr) => (
+                        <div key={pm.label} className="flex justify-between items-center" style={{ padding: '6px 0', borderBottom: i < arr.length - 1 ? '1px solid var(--border-light)' : 'none' }}>
                           <div className="flex items-center gap-8">
                             <div className="w-8 h-8 rounded-full" style={{ background: pm.color }} />
                             <span className="text-sm">{pm.label}</span>
-                            <span className="badge text-secondary" style={{ background: 'var(--bg-secondary)', fontSize: '0.7rem' }}>{pm.count} orders</span>
+                            {/* Payments, not orders — one order can settle across two methods. */}
+                            {pm.count !== null && (
+                              <span className="badge text-secondary" style={{ background: 'var(--bg-secondary)', fontSize: '0.7rem' }}>{pm.count || 0} payments</span>
+                            )}
                           </div>
                           <span className="fw-700 text-sm">{formatCurrency(pm.total)}</span>
                         </div>
@@ -540,12 +548,15 @@ const ReportsPage = () => {
                 <div className="pd-section-title">III. Collections by Payment Method</div>
                 <table className="pd-table">
                   <thead>
-                    <tr><th>Payment Method</th><th className="ctr">Orders</th><th className="num">Amount Collected</th></tr>
+                    <tr><th>Payment Method</th><th className="ctr">Payments</th><th className="num">Amount Collected</th></tr>
                   </thead>
                   <tbody>
-                    <tr><td>Cash</td><td className="ctr">{s.cashCount}</td><td className="num">{formatCurrency(s.cashTotal)}</td></tr>
-                    <tr><td>GCash</td><td className="ctr">{s.gcashCount}</td><td className="num">{formatCurrency(s.gcashTotal)}</td></tr>
-                    <tr><td>Pay Later</td><td className="ctr">{s.paylaterCount}</td><td className="num">{formatCurrency(s.paylaterTotal)}</td></tr>
+                    <tr><td>Cash</td><td className="ctr">{s.cashCount || 0}</td><td className="num">{formatCurrency(s.cashTotal)}</td></tr>
+                    <tr><td>GCash</td><td className="ctr">{s.gcashCount || 0}</td><td className="num">{formatCurrency(s.gcashTotal)}</td></tr>
+                    <tr><td>Pay Later</td><td className="ctr">{s.paylaterCount || 0}</td><td className="num">{formatCurrency(s.paylaterTotal)}</td></tr>
+                    {(s.unattributedTotal || 0) > 0 && (
+                      <tr><td>Unattributed</td><td className="ctr">—</td><td className="num">{formatCurrency(s.unattributedTotal)}</td></tr>
+                    )}
                   </tbody>
                   <tfoot>
                     <tr>
