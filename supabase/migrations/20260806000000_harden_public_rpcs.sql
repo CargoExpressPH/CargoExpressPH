@@ -23,6 +23,8 @@
 -- ------------------------------------------------------------
 -- 1.  get_featured_deliveries — single photo path
 -- ------------------------------------------------------------
+DROP FUNCTION IF EXISTS public.get_featured_deliveries();
+
 CREATE OR REPLACE FUNCTION public.get_featured_deliveries()
 RETURNS TABLE (
   id                  UUID,
@@ -66,6 +68,8 @@ GRANT EXECUTE ON FUNCTION public.get_featured_deliveries() TO anon, authenticate
 -- ------------------------------------------------------------
 -- 2.  get_public_feedback — single photo path
 -- ------------------------------------------------------------
+DROP FUNCTION IF EXISTS public.get_public_feedback();
+
 CREATE OR REPLACE FUNCTION public.get_public_feedback()
 RETURNS TABLE (
   id                  UUID,
