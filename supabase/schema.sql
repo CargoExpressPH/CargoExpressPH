@@ -807,7 +807,7 @@ CREATE TRIGGER chat_messages_guard_insert
 
 
 -- ============================================================
--- CONVERSATION SERVICE STATE (20260804210000, 20260807120000)
+-- CONVERSATION SERVICE STATE (20260804210000, 20260807120000, 20260807140000)
 -- Derived service values are maintained server-side, never written by a
 -- client — same principle as update_order_payment_totals. The auto-reopen
 -- in the customer branch is what structurally prevents a resolved thread
@@ -815,13 +815,13 @@ CREATE TRIGGER chat_messages_guard_insert
 -- A 'bot' message deliberately changes nothing: a bot reply is not a
 -- response for service purposes and must never clear the queue.
 --
--- 'bot_active' is the ONLY status a customer message does not move: the bot
--- keeps the thread it is already handling. 'resolved' reopens to 'waiting'
--- (20260807120000) — a thread a human has touched stays with humans, and the
--- follow-up reaches the admin who resolved it instead of a bot with no
--- history. assigned_admin_id is untouched so it returns to that same admin;
--- `escalated` is left alone because reopening answers "whose turn", not
--- "how urgent".
+-- A customer message on a 'resolved' thread splits on a 12-hour grace window
+-- (20260807140000), because conversations is UNIQUE per customer and that one
+-- row has to serve both cases:
+--   ≤12h  → 'waiting'    a FOLLOW-UP; assigned_admin_id kept so it returns to
+--                        the admin who resolved it
+--   >12h  → 'bot_active' a NEW question; assigned_admin_id and escalated
+--           or NULL      cleared, since the old assignee owned a closed issue
 -- ============================================================
 CREATE OR REPLACE FUNCTION public.maintain_conversation_service_state()
 RETURNS TRIGGER
@@ -830,9 +830,15 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 DECLARE
-  v_status TEXT;
+  v_status      TEXT;
+  v_resolved_at TIMESTAMPTZ;
+  v_next        TEXT;
+  v_new_session BOOLEAN;
 BEGIN
-  SELECT status INTO v_status FROM public.conversations WHERE id = NEW.conversation_id;
+  SELECT status, resolved_at
+    INTO v_status, v_resolved_at
+    FROM public.conversations
+   WHERE id = NEW.conversation_id;
 
   -- Marks this as a SERVER decision so guard_conversation_update lets the
   -- status move through. Transaction-local and cleared immediately; a client
@@ -840,15 +846,30 @@ BEGIN
   PERFORM set_config('app.conversation_service_write', 'on', true);
 
   IF NEW.sender_role = 'customer' THEN
+    v_next := CASE
+                -- The bot keeps the thread it is already handling.
+                WHEN v_status = 'bot_active' THEN 'bot_active'
+                -- Resolved within the grace window → a FOLLOW-UP, to a human.
+                WHEN v_status = 'resolved'
+                     AND v_resolved_at IS NOT NULL
+                     AND v_resolved_at >= now() - INTERVAL '12 hours'
+                  THEN 'waiting'
+                -- Resolved longer ago, or at an unknown time → a NEW session.
+                WHEN v_status = 'resolved' THEN 'bot_active'
+                -- waiting / waiting_customer: already ours, stays ours.
+                ELSE 'waiting'
+              END;
+
+    -- Only the resolved → bot_active hand-off. A thread already in bot_active
+    -- keeps whatever assignment it has.
+    v_new_session := (v_status = 'resolved' AND v_next = 'bot_active');
+
     UPDATE public.conversations
        SET last_customer_message_at = NEW.created_at,
-           status = CASE
-                      -- The bot keeps the thread it is already handling.
-                      WHEN v_status = 'bot_active' THEN 'bot_active'
-                      -- Everything else is our turn, INCLUDING 'resolved'.
-                      ELSE 'waiting'
-                    END,
-           resolved_at = NULL
+           status            = v_next,
+           assigned_admin_id = CASE WHEN v_new_session THEN NULL ELSE assigned_admin_id END,
+           escalated         = CASE WHEN v_new_session THEN FALSE ELSE escalated END,
+           resolved_at       = NULL
      WHERE id = NEW.conversation_id;
 
   ELSIF NEW.sender_role = 'admin' THEN

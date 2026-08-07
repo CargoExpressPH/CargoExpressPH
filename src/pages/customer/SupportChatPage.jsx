@@ -9,6 +9,8 @@ import {
   recordBotOutcome,
   CONVERSATION_STATUS,
   markAdminMessagesRead,
+  getConversationState,
+  isWithinReopenGrace,
 } from '../../lib/database';
 import { getBotReply, BOT_GREETING } from '../../lib/supportChatEngine';
 import {
@@ -123,6 +125,9 @@ const SupportChatPage = () => {
 
   const [conversationId, setConversationId] = useState(null);
   const [convStatus, setConvStatus] = useState(CONVERSATION_STATUS.BOT_ACTIVE);
+  // Drives only the wording of the resolved banner/placeholder — see the note
+  // on REOPEN_GRACE_MS. The trigger owns the routing.
+  const [resolvedAt, setResolvedAt] = useState(null);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(true);
@@ -174,14 +179,18 @@ const SupportChatPage = () => {
   //   Case B — status = 'bot_active' → bot takes over
   //   Case C — 'waiting' | 'waiting_customer' | 'resolved' → no bot
   //
-  // 'resolved' used to return to BOT mode, on the theory that a returning
-  // customer has a new and basic question. It does not survive contact with a
-  // follow-up: the bot answered "I have one more question" with no sight of the
-  // thread it was following up on, while the admin who resolved the ticket was
-  // never told the customer came back — 'bot_active' carries no inbox badge, so
-  // the reply reached nobody. A resolved thread now stays with humans, the
-  // history stays on screen, and the first reply reopens it to 'waiting'
-  // server-side (20260807120000).
+  // 'resolved' splits on the 12-hour grace window (20260807120000), because
+  // conversations is UNIQUE per customer — that one row is both "the ticket you
+  // just closed" and "every question this person will ever ask":
+  //
+  //   resolved ≤12h ago  → human mode. A follow-up must not be answered by a
+  //                        bot that cannot see the thread it is continuing,
+  //                        with the admin never told the customer came back.
+  //   resolved >12h ago  → bot mode. A new question weeks later should not
+  //                        queue for an admin because of a closed ticket.
+  //
+  // The window here only phrases the UI. Which one actually happens is decided
+  // by the trigger and read back after the message is sent.
   //
   const greetingSentRef = useRef(false);
 
@@ -213,12 +222,19 @@ const SupportChatPage = () => {
       if (!isMountedRef.current) return;
 
       const status = conv.status || CONVERSATION_STATUS.BOT_ACTIVE;
+      // A resolved thread outside the grace window behaves as a fresh bot chat:
+      // the customer's next message starts a new session server-side, so the UI
+      // must not promise them an agent.
+      const isStaleResolved =
+        status === CONVERSATION_STATUS.RESOLVED && !isWithinReopenGrace(conv);
+
       setConversationId(conv.id);
       setConvStatus(status);
+      setResolvedAt(conv.resolved_at || null);
       setHasMoreMessages(hasMore);
 
       // ── Route by status ──────────────────────────────────────────────────
-      if (status === CONVERSATION_STATUS.BOT_ACTIVE) {
+      if (status === CONVERSATION_STATUS.BOT_ACTIVE || isStaleResolved) {
         // BOT MODE: chatbot is the first responder
         setIsBotMode(true);
 
@@ -242,10 +258,10 @@ const SupportChatPage = () => {
           }
         }
       } else {
-        // HUMAN MODE: waiting / waiting_customer / resolved — a person owns this
-        // thread. History is displayed as-is and no bot greeting is injected;
-        // for a resolved thread the banner and the composer placeholder say
-        // that replying reopens it.
+        // HUMAN MODE: waiting / waiting_customer / recently resolved — a person
+        // owns this thread. History is displayed as-is and no bot greeting is
+        // injected; for a resolved thread the banner and the composer
+        // placeholder say that replying reopens it.
         setIsBotMode(false);
         setMessages(history || []);
       }
@@ -307,6 +323,9 @@ const SupportChatPage = () => {
         if (!isMountedRef.current) return;
         const newStatus = payload.new.status || CONVERSATION_STATUS.BOT_ACTIVE;
         setConvStatus(newStatus);
+        // Starts the grace window when an admin resolves while the customer is
+        // watching, so the banner they see next is the follow-up one.
+        setResolvedAt(payload.new.resolved_at || null);
         // Only 'bot_active' leaves the bot in charge. An admin resolving the
         // thread while the customer is watching must NOT drop them back into
         // bot mode — the subtitle would claim the assistant is ready to help
@@ -424,24 +443,51 @@ const SupportChatPage = () => {
       return;
     }
 
-    // 2. Reopening a resolved thread. The INSERT above already moved the row to
-    //    'waiting' server-side (maintain_conversation_service_state), keeping
-    //    the previous assigned_admin_id, so there is nothing to PATCH here —
-    //    this only catches the local state up so the customer sees the queue
-    //    banner without waiting for the realtime UPDATE to arrive.
+    // 2. The message just landed on a RESOLVED thread, so the trigger has
+    //    already routed it: 'waiting' if it was resolved inside the 12-hour
+    //    grace window (a follow-up, back to the admin who handled it), or
+    //    'bot_active' if it was resolved longer ago (a new session).
     //
-    //    The bot is NOT consulted. It cannot see the resolved thread this
-    //    message follows up on, and answering anyway is what stranded the
-    //    customer: a contextless reply, and an admin never told they came back.
+    //    We ASK the server which happened rather than recomputing the window
+    //    here. The two clocks can disagree by seconds near the boundary, and
+    //    each way of being wrong strands someone: run the bot on a thread the
+    //    server queued and an admin answers a question already answered; skip
+    //    the bot on a thread the server left in 'bot_active' and the customer
+    //    gets no reply at all while no admin is coming.
+    // Local, not the isBotMode state: a setState in this function is not
+    // visible to the checks below it in the same closure.
+    let botHandlesThisMessage = isBotMode;
+
     if (convStatus === CONVERSATION_STATUS.RESOLVED) {
-      setConvStatus(CONVERSATION_STATUS.WAITING);
-      setIsBotMode(false);
-      setSending(false);
-      return;
+      let routedStatus = CONVERSATION_STATUS.WAITING;
+      try {
+        const state = await getConversationState(conversationId);
+        if (state?.status) routedStatus = state.status;
+        setResolvedAt(state?.resolved_at || null);
+      } catch (err) {
+        // Fall back to the reopen branch: waiting for a person is recoverable,
+        // silence is not.
+        console.warn('[SupportChat] Could not read routed status:', err?.message || err);
+      }
+
+      setConvStatus(routedStatus);
+
+      if (routedStatus !== CONVERSATION_STATUS.BOT_ACTIVE) {
+        // Reopened to a human. Nothing to PATCH — the trigger kept the previous
+        // assigned_admin_id; this only catches local state up so the queue
+        // banner appears without waiting for the realtime UPDATE.
+        setIsBotMode(false);
+        setSending(false);
+        return;
+      }
+
+      // New bot session on an old resolved thread — fall through to the bot.
+      setIsBotMode(true);
+      botHandlesThisMessage = true;
     }
 
     // 3. If NOT in bot mode → admin is handling, nothing more to do
-    if (!isBotMode) {
+    if (!botHandlesThisMessage) {
       setSending(false);
       return;
     }
@@ -574,7 +620,11 @@ const SupportChatPage = () => {
 
   // ── Chat UI ────────────────────────────────────────────────────────────────
   const isWaiting   = convStatus === CONVERSATION_STATUS.WAITING;
-  const isResolved  = convStatus === CONVERSATION_STATUS.RESOLVED;
+  // Only a RECENTLY resolved thread advertises the reopen. Past the grace
+  // window the next message starts a fresh bot session, and a banner promising
+  // the support team would be a promise the trigger will not keep.
+  const isResolved  = convStatus === CONVERSATION_STATUS.RESOLVED &&
+                      isWithinReopenGrace({ resolved_at: resolvedAt });
   // Keep waiting-admin conversations writable so customers can leave details while they wait.
   // A resolved thread stays writable too — that reply is how it reopens.
   const inputDisabled = sending || botTyping;

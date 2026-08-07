@@ -1553,6 +1553,43 @@ export const getAdminConversations = async () => {
   return convs;
 };
 
+/**
+ * Grace window for reopening a resolved conversation, mirroring
+ * 20260807120000_reopen_resolved_conversations.sql.
+ *
+ * DISPLAY ONLY. The trigger decides the actual routing, and the client clock
+ * can disagree with the server's near the boundary — which is why the send path
+ * re-reads the conversation after inserting rather than trusting this figure.
+ * Use it to phrase the UI, never to decide whether the bot runs.
+ */
+export const REOPEN_GRACE_MS = 12 * 60 * 60 * 1000;
+
+/** True if a reply to this resolved thread reads as a follow-up, not a new topic. */
+export const isWithinReopenGrace = (conversation) => {
+  if (!conversation?.resolved_at) return false;
+  const resolvedAt = new Date(conversation.resolved_at).getTime();
+  if (Number.isNaN(resolvedAt)) return false;
+  return Date.now() - resolvedAt <= REOPEN_GRACE_MS;
+};
+
+/**
+ * The conversation's CURRENT server-side state.
+ *
+ * Read after sending into a resolved thread: the trigger has just decided
+ * whether that message reopened the thread to an admin or started a fresh bot
+ * session, and this is how the client learns which without recomputing the
+ * 12-hour rule against a clock that may not match the server's.
+ */
+export const getConversationState = async (conversationId) => {
+  const { data, error } = await supabase
+    .from('conversations')
+    .select('id, status, assigned_admin_id, resolved_at')
+    .eq('id', conversationId)
+    .maybeSingle();
+  if (error) throw error;
+  return data || null;
+};
+
 export const getMessages = async (conversationId) => {
   const { data, error } = await supabase
     .from('chat_messages')

@@ -220,7 +220,7 @@ Every status change is appended to **`order_status_events`** by `log_order_statu
 (`20260803110000`) — an append-only timeline with `changed_by` and an optional note. This is
 what the tracking timeline reads; do not reconstruct history from `orders.updated_at`.
 
-### Conversation service state (`20260804260000`, `20260807120000`)
+### Conversation service state (`20260804260000`, `20260807120000`, `20260807140000`)
 
 `conversations.status` is **derived by trigger** from who spoke last. Four values:
 
@@ -237,16 +237,29 @@ it answers "how urgent", `status` answers "whose turn". Collapsing the two is wh
 the original defect. `bot_resolved` is nullable; NULL means unknown, which is the honest
 default.
 
-**A customer writing into a `resolved` thread reopens it to `waiting`**
-(`20260807120000_reopen_resolved_conversations.sql`), keeping `assigned_admin_id` so it
-returns to the admin who resolved it, clearing `resolved_at`, and leaving `escalated` alone.
-This **reverses** `20260804260000`, which sent them back to `bot_active` on the theory that a
-returning customer has a new and basic question. What actually happened: the bot answered a
-follow-up to a thread it could not see, and because `bot_active` carries no badge and is
-excluded from the inbox unread count, no admin was ever told the customer came back. Only a
-brand-new conversation starts in `bot_active` now — once a human has touched a thread it stays
-with humans. The reopen is server-side on purpose; doing it as a client PATCH after the insert
-is two round trips with a failure window that loses the message.
+**A customer writing into a `resolved` thread splits on a 12-hour grace window**
+(`20260807140000_reopen_grace_window.sql`, refining the unconditional reopen in
+`20260807120000_reopen_resolved_conversations.sql`):
+
+| Resolved | Goes to | Row changes |
+|---|---|---|
+| ≤ 12 h ago | `waiting` — a **follow-up** | `assigned_admin_id` kept, so it returns to the admin who resolved it |
+| > 12 h ago, or `resolved_at` NULL | `bot_active` — a **new session** | `assigned_admin_id` and `escalated` cleared |
+
+The window exists because `conversations.customer_id` is UNIQUE: one row per customer forever,
+so the same row is both "the ticket just closed" and "every question this person will ever
+ask". Reopening unconditionally sent someone asking `magkano per kilo?` three weeks later
+straight into the admin queue; never reopening let the bot answer a follow-up to a thread it
+could not see while, because `bot_active` carries no badge and is excluded from the inbox
+unread count, no admin was ever told the customer came back. `resolved_at` is trustworthy —
+`stamp_conversation_resolved_at` stamps every transition into `resolved` — so a NULL means a
+pre-trigger row, correctly treated as old.
+
+The routing is server-side on purpose: a client PATCH after the insert is two round trips with
+a failure window that loses the message. `SupportChatPage` mirrors the window only to phrase
+its banner, and after sending into a resolved thread it **re-reads the conversation** to learn
+which branch fired rather than recomputing the deadline against a clock that may differ from
+the server's.
 
 ### Consolidations already done — do not reintroduce these tables
 
