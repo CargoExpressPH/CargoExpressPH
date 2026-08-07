@@ -3,18 +3,59 @@ import react from '@vitejs/plugin-react'
 import { readFileSync, writeFileSync } from 'fs'
 import { resolve } from 'path'
 
-// Stamps a unique build version into sw.js so browsers detect new deploys
+// Stamps a unique build version into sw.js so browsers detect new deploys,
+// and injects the list of hashed entry assets so the service worker can
+// precache a bootable app shell during install (not lazily on first fetch).
 function swVersionPlugin() {
+  let precacheAssets = []
+
   return {
     name: 'sw-version-stamp',
+
+    // Walk the entry chunk's STATIC import graph. Route chunks reached only via
+    // dynamic import (lazyWithRetry) are deliberately excluded — precaching all
+    // 77 chunks would pull ~3 MB, including the 985 KB html2pdf bundle that most
+    // sessions never touch. Static imports alone boot the real UI offline.
+    generateBundle(_options, bundle) {
+      const collected = new Set()
+
+      const visit = (fileName) => {
+        if (collected.has(fileName)) return
+        const chunk = bundle[fileName]
+        if (!chunk) return
+        collected.add(fileName)
+
+        // CSS Vite emitted for this chunk
+        for (const css of chunk.viteMetadata?.importedCss || []) collected.add(css)
+        // Static imports only — chunk.dynamicImports is intentionally ignored
+        for (const imported of chunk.imports || []) visit(imported)
+      }
+
+      for (const chunk of Object.values(bundle)) {
+        if (chunk.type === 'chunk' && chunk.isEntry) visit(chunk.fileName)
+      }
+
+      precacheAssets = [...collected].map((file) => `/${file}`)
+    },
+
     closeBundle() {
       const swPath = resolve('dist', 'sw.js')
       try {
         const version = `v${Date.now()}`
         let content = readFileSync(swPath, 'utf-8')
+
         content = content.replace('__BUILD_VERSION__', version)
+        // Replaced as a JSON *string* so sw.js can JSON.parse it — in dev the
+        // placeholder stays a plain string and parses to an empty list.
+        content = content.replace(
+          "'__PRECACHE_ASSETS__'",
+          JSON.stringify(JSON.stringify(precacheAssets)),
+        )
+
         writeFileSync(swPath, content, 'utf-8')
         console.log(`[sw-version] Stamped ${version} into sw.js`)
+        console.log(`[sw-precache] Injected ${precacheAssets.length} entry assets:`)
+        for (const asset of precacheAssets) console.log(`             ${asset}`)
       } catch { /* sw.js not in dist — dev mode, skip */ }
     },
   }

@@ -1,6 +1,6 @@
 import { supabase } from './supabase';
 import { logOrder, logPayment, logChat } from './activityLog';
-import { validateStatusTransition } from '../constants/status';
+import { validateStatusTransition, outstandingBalance } from '../constants/status';
 import { detectPickupLocation } from '../constants/phLocations';
 
 // ==================== HELPER ====================
@@ -548,9 +548,11 @@ export const getTripById = async (tripId) => {
 
   const { data: orders } = await supabase
     .from('orders')
-    // remaining_balance / payment_status back the trip-completion guard and the
-    // settlement column on TripDetailPage.
-    .select('id, tracking_number, sender_name, receiver_name, status, actual_weight, sender_province, sender_city, receiver_province, receiver_city, created_at, remaining_balance, payment_status, promised_payment_date')
+    // shipping_cost + amount_paid are what outstandingBalance() derives from —
+    // the trip-completion guard reads that, not the stored remaining_balance,
+    // so it agrees with the Unsettled tab. remaining_balance is still selected
+    // for the settlement column's stale-value annotation.
+    .select('id, tracking_number, sender_name, receiver_name, status, actual_weight, sender_province, sender_city, receiver_province, receiver_city, created_at, shipping_cost, amount_paid, remaining_balance, payment_status, promised_payment_date')
     .eq('trip_id', tripId)
     .order('created_at', { ascending: true });
 
@@ -817,7 +819,7 @@ export const getCustomerById = async (customerId) => {
   const completedOrders = orders?.filter(o => o.status === 'Delivered').length || 0;
   const pendingOrders = orders?.filter(o => o.status === 'Pending').length || 0;
   const totalSpent = orders?.filter(o => o.status !== 'Cancelled')
-    .reduce((sum, o) => sum + parseFloat(o.shipping_cost || 0), 0) || 0;
+    .reduce((sum, o) => sum + parseFloat(o.amount_paid || 0), 0) || 0;
 
   return {
     customer,
@@ -919,13 +921,35 @@ export const getSalesData = async () => {
     .neq('status', 'Cancelled');
 
   const orders = allOrders || [];
+  // Revenue is what was billed; paidTotal is what was collected. Matches
+  // get_sales_summary() so the fallback and the RPC do not report different
+  // numbers for the same tile.
   const totalRevenue = orders.reduce((sum, o) => sum + parseFloat(o.shipping_cost || 0), 0);
-  const cashTotal = orders.filter(o => o.payment_method === 'cash').reduce((sum, o) => sum + parseFloat(o.amount_paid || 0), 0);
-  const gcashTotal = orders.filter(o => o.payment_method === 'gcash').reduce((sum, o) => sum + parseFloat(o.amount_paid || 0), 0);
-  const paylaterTotal = orders.filter(o => o.payment_method === 'paylater' || o.payment_status === 'partial' || o.payment_status === 'unpaid').reduce((sum, o) => sum + parseFloat(o.amount_paid || 0), 0);
   const paidTotal = orders.reduce((sum, o) => sum + parseFloat(o.amount_paid || 0), 0);
-  const unpaidTotal = orders.reduce((sum, o) => sum + parseFloat(o.remaining_balance || 0), 0);
-  const unpaidOrders = orders.filter(o => !o.payment_status || o.payment_status === 'unpaid' || o.payment_status === 'partial');
+
+  // Collections are split by the LEDGER's payment_method, not the order's —
+  // orders.payment_method only records the most recent payment event, so an
+  // order picked up on GCash and settled in cash would file both payments
+  // under cash. Mirrors get_sales_summary(); see 20260806020000.
+  const orderIds = orders.map(o => o.id);
+  const { methodTotals, ledgerTotal } = await sumTransactionsByMethod(orderIds);
+  const cashTotal = methodTotals.cash || 0;
+  const gcashTotal = methodTotals.gcash || 0;
+  const paylaterTotal = methodTotals.paylater || 0;
+  // ONE definition of "outstanding", derived — never the stored
+  // remaining_balance column, which can lag a ledger write. Reported at two
+  // NAMED scopes so the Sales tab and the Unsettled tab can be reconciled
+  // instead of quietly disagreeing. Mirrors get_sales_summary().
+  const outstandingOf = outstandingBalance;
+  const trackedOrders = orders.filter(o => SETTLEMENT_TRACKED_STATUSES.includes(o.status));
+
+  const outstandingAllOrders = orders.reduce((sum, o) => sum + outstandingOf(o), 0);
+  const outstandingTotal = trackedOrders.reduce((sum, o) => sum + outstandingOf(o), 0);
+  const outstandingStored = trackedOrders.reduce((sum, o) => sum + parseFloat(o.remaining_balance || 0), 0);
+  const unpaidOrders = trackedOrders
+    .filter(o => outstandingOf(o) > 0.005)
+    .map(o => ({ ...o, remaining_balance: outstandingOf(o) }));
+  const unpricedCount = orders.filter(o => !(parseFloat(o.actual_weight || 0) > 0)).length;
 
   // Monthly breakdown
   const monthlyMap = {};
@@ -935,15 +959,70 @@ export const getSalesData = async () => {
     if (!monthlyMap[month]) monthlyMap[month] = { month, total_revenue: 0, collected: 0, outstanding: 0 };
     monthlyMap[month].total_revenue += parseFloat(o.shipping_cost || 0);
     monthlyMap[month].collected += parseFloat(o.amount_paid || 0);
-    monthlyMap[month].outstanding += parseFloat(o.remaining_balance || 0);
+    monthlyMap[month].outstanding += outstandingOf(o);
   });
   const monthlySales = Object.values(monthlyMap).sort((a, b) => b.month.localeCompare(a.month));
 
   return {
-    summary: { totalRevenue, cashTotal, gcashTotal, paylaterTotal, paidTotal, unpaidTotal, unpaidCount: unpaidOrders.length },
+    summary: {
+      totalRevenue,
+      cashTotal,
+      gcashTotal,
+      paylaterTotal,
+      methodTotals: Object.entries(methodTotals).map(([method, total]) => ({ method, total })),
+      ledgerTotal,
+      // Collected money with no ledger row behind it (pre-ledger orders).
+      // Reported, not folded into Cash.
+      unattributedTotal: Math.max(paidTotal - ledgerTotal, 0),
+      paidTotal,
+      outstandingTotal,
+      outstandingAllOrders,
+      outstandingStored,
+      // Legacy alias, kept so a stale bundle mid-deploy still renders.
+      unpaidTotal: outstandingAllOrders,
+      unpaidCount: unpaidOrders.length,
+      unpricedCount,
+    },
     monthlySales,
     unpaidOrders,
   };
+};
+
+/**
+ * Sum payment_transactions for the given orders, grouped by the transaction's
+ * own payment_method. Chunked because the id list goes into a URL `in.()`
+ * filter, and an all-time sales query can carry thousands of order ids.
+ *
+ * Only 'paid'/'partial' rows are counted — the same predicate
+ * update_order_payment_totals uses to derive orders.amount_paid, so the split
+ * reconciles against the total instead of drifting from it.
+ *
+ * @returns {Promise<{ methodTotals: Record<string, number>, ledgerTotal: number, methodCounts: Record<string, number> }>}
+ */
+const sumTransactionsByMethod = async (orderIds) => {
+  const methodTotals = {};
+  const methodCounts = {};
+  let ledgerTotal = 0;
+  if (!orderIds || orderIds.length === 0) return { methodTotals, ledgerTotal, methodCounts };
+
+  const CHUNK = 200;
+  for (let i = 0; i < orderIds.length; i += CHUNK) {
+    const { data } = await supabase
+      .from('payment_transactions')
+      .select('amount, payment_method, payment_status')
+      .in('order_id', orderIds.slice(i, i + CHUNK))
+      .in('payment_status', ['paid', 'partial']);
+
+    (data || []).forEach(t => {
+      const method = (t.payment_method || '').trim().toLowerCase() || 'unspecified';
+      const amount = parseFloat(t.amount || 0);
+      methodTotals[method] = (methodTotals[method] || 0) + amount;
+      methodCounts[method] = (methodCounts[method] || 0) + 1;
+      ledgerTotal += amount;
+    });
+  }
+
+  return { methodTotals, ledgerTotal, methodCounts };
 };
 
 // ==================== UNSETTLED DELIVERIES ====================
@@ -1052,9 +1131,9 @@ export const getUnsettledOrders = async () => {
 export const deriveSettlement = (order, today = null) => {
   const ref = today || (() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; })();
 
-  const cost = parseFloat(order.shipping_cost || 0);
-  const paid = parseFloat(order.amount_paid || 0);
-  const outstanding = Math.max(0, Math.round((cost - paid) * 100) / 100);
+  // Shared with the dispatch gate, the admin badges and get_sales_summary() —
+  // one implementation of "what is owed", so no two views can disagree.
+  const outstanding = outstandingBalance(order);
   const stored = order.remaining_balance == null ? null : parseFloat(order.remaining_balance);
 
   let daysOverdue = 0;
@@ -1098,7 +1177,7 @@ export const summarizeSettlements = (orders = []) => ({
 export const qualifiesAsUnsettled = (order) => {
   if (!order || order.status === 'Cancelled') return false;
   if (!SETTLEMENT_TRACKED_STATUSES.includes(order.status)) return false;
-  return parseFloat(order.shipping_cost || 0) - parseFloat(order.amount_paid || 0) > 0.005;
+  return outstandingBalance(order) > 0.005;
 };
 
 // ==================== SERVICE REPORTING ====================
@@ -1461,7 +1540,10 @@ export const getAdminConversations = async () => {
     });
 
     convs.forEach(c => {
-      c.unread_count = unreadMap[c.id] || 0;
+      // Same rule as the sidebar badge (getAdminInboxUnreadCount): a message
+      // the bot answered is not unread work. Counting it put an unread dot on
+      // rows with nothing owed, so the list and the badge disagreed.
+      c.unread_count = c.status === CONVERSATION_STATUS.WAITING ? (unreadMap[c.id] || 0) : 0;
       c.last_message = lastMsgMap[c.id] || null;
     });
   }
@@ -1469,6 +1551,43 @@ export const getAdminConversations = async () => {
   convs.sort(compareConversations);
 
   return convs;
+};
+
+/**
+ * Grace window for reopening a resolved conversation, mirroring
+ * 20260807120000_reopen_resolved_conversations.sql.
+ *
+ * DISPLAY ONLY. The trigger decides the actual routing, and the client clock
+ * can disagree with the server's near the boundary — which is why the send path
+ * re-reads the conversation after inserting rather than trusting this figure.
+ * Use it to phrase the UI, never to decide whether the bot runs.
+ */
+export const REOPEN_GRACE_MS = 12 * 60 * 60 * 1000;
+
+/** True if a reply to this resolved thread reads as a follow-up, not a new topic. */
+export const isWithinReopenGrace = (conversation) => {
+  if (!conversation?.resolved_at) return false;
+  const resolvedAt = new Date(conversation.resolved_at).getTime();
+  if (Number.isNaN(resolvedAt)) return false;
+  return Date.now() - resolvedAt <= REOPEN_GRACE_MS;
+};
+
+/**
+ * The conversation's CURRENT server-side state.
+ *
+ * Read after sending into a resolved thread: the trigger has just decided
+ * whether that message reopened the thread to an admin or started a fresh bot
+ * session, and this is how the client learns which without recomputing the
+ * 12-hour rule against a clock that may not match the server's.
+ */
+export const getConversationState = async (conversationId) => {
+  const { data, error } = await supabase
+    .from('conversations')
+    .select('id, status, assigned_admin_id, resolved_at')
+    .eq('id', conversationId)
+    .maybeSingle();
+  if (error) throw error;
+  return data || null;
 };
 
 export const getMessages = async (conversationId) => {
@@ -1525,6 +1644,31 @@ export const getCustomerUnreadChatCount = async (userId) => {
     .eq('sender_role', 'admin')
     .eq('is_read', false)
     .eq('conversations.customer_id', userId);
+  if (error) throw error;
+  return count || 0;
+};
+
+/**
+ * Count unread CUSTOMER messages that are actually owed a human reply.
+ *
+ * Scoped to conversations in 'waiting' — the state the trigger sets when the
+ * customer spoke last AND a human owns the thread. Everything the bot handled
+ * while the conversation sat in 'bot_active' is excluded, which is the whole
+ * point: those messages were answered, just not by a person, and counting them
+ * inflated the inbox badge to the size of total chat traffic. An admin looking
+ * at "23" had no way to know that 20 of them were already resolved.
+ *
+ * Same PostgREST inner-join embed as getCustomerUnreadChatCount — one round
+ * trip, filtered on the joined column. See the note there about why a nested
+ * .in() cannot work.
+ */
+export const getAdminInboxUnreadCount = async () => {
+  const { count, error } = await supabase
+    .from('chat_messages')
+    .select('id, conversations!inner(status)', { count: 'exact', head: true })
+    .eq('sender_role', 'customer')
+    .eq('is_read', false)
+    .eq('conversations.status', CONVERSATION_STATUS.WAITING);
   if (error) throw error;
   return count || 0;
 };
@@ -1621,15 +1765,23 @@ export const getReportData = async (period = 'daily', customStart = null, custom
   const cancelled = filtered.filter(o => o.status === 'Cancelled');
   const pending = filtered.filter(o => o.status === 'Pending');
   const inTransit = filtered.filter(o => ['In Transit', 'Picked Up', 'Assigned', 'Arrived at Hub', 'Out for Delivery'].includes(o.status));
-  const totalRevenue = filtered.filter(o => o.status !== 'Cancelled').reduce((s, o) => s + parseFloat(o.shipping_cost || 0), 0);
+  const totalRevenue = filtered.filter(o => o.status !== 'Cancelled').reduce((s, o) => s + parseFloat(o.amount_paid || 0), 0);
   const totalCollected = filtered.reduce((s, o) => s + parseFloat(o.amount_paid || 0), 0);
   const totalOutstanding = filtered.filter(o => o.status !== 'Cancelled').reduce((s, o) => s + parseFloat(o.remaining_balance || 0), 0);
   const totalWeight = filtered.filter(o => o.status !== 'Cancelled').reduce((s, o) => s + parseFloat(o.actual_weight || 0), 0);
 
-  // Payment breakdown
-  const cashOrders = filtered.filter(o => o.payment_method === 'cash');
-  const gcashOrders = filtered.filter(o => o.payment_method === 'gcash');
-  const paylaterOrders = filtered.filter(o => o.payment_method === 'paylater');
+  // Payment breakdown — from the ledger, grouped by each transaction's own
+  // payment_method. orders.payment_method holds only the most recent payment
+  // event, so bucketing the cumulative amount_paid by it misattributes every
+  // order that paid twice by two different methods (see 20260806020000).
+  // Counts are payments, not orders: one order can appear in two buckets.
+  const activeOrders = filtered.filter(o => o.status !== 'Cancelled');
+  const { methodTotals, ledgerTotal, methodCounts } = await sumTransactionsByMethod(
+    activeOrders.map(o => o.id)
+  );
+  // Reconcile against the same population the ledger sum covers, so a
+  // cancelled order's payments cannot masquerade as unattributed money.
+  const collectedOnActiveOrders = activeOrders.reduce((s, o) => s + parseFloat(o.amount_paid || 0), 0);
 
   // Route breakdown
   const routeMap = {};
@@ -1637,7 +1789,7 @@ export const getReportData = async (period = 'daily', customStart = null, custom
     const key = `${o.origin || 'N/A'} → ${o.destination || 'N/A'}`;
     if (!routeMap[key]) routeMap[key] = { route: key, count: 0, revenue: 0, weight: 0 };
     routeMap[key].count++;
-    routeMap[key].revenue += parseFloat(o.shipping_cost || 0);
+    routeMap[key].revenue += parseFloat(o.amount_paid || 0);
     routeMap[key].weight += parseFloat(o.actual_weight || 0);
   });
   const routeBreakdown = Object.values(routeMap).sort((a, b) => b.count - a.count);
@@ -1663,12 +1815,19 @@ export const getReportData = async (period = 'daily', customStart = null, custom
       totalCollected,
       totalOutstanding,
       totalWeight,
-      cashCount: cashOrders.length,
-      cashTotal: cashOrders.reduce((s, o) => s + parseFloat(o.amount_paid || 0), 0),
-      gcashCount: gcashOrders.length,
-      gcashTotal: gcashOrders.reduce((s, o) => s + parseFloat(o.amount_paid || 0), 0),
-      paylaterCount: paylaterOrders.length,
-      paylaterTotal: paylaterOrders.reduce((s, o) => s + parseFloat(o.amount_paid || 0), 0),
+      cashCount: methodCounts.cash || 0,
+      cashTotal: methodTotals.cash || 0,
+      gcashCount: methodCounts.gcash || 0,
+      gcashTotal: methodTotals.gcash || 0,
+      paylaterCount: methodCounts.paylater || 0,
+      paylaterTotal: methodTotals.paylater || 0,
+      methodTotals: Object.entries(methodTotals).map(([method, total]) => ({
+        method,
+        total,
+        count: methodCounts[method] || 0,
+      })),
+      ledgerTotal,
+      unattributedTotal: Math.max(collectedOnActiveOrders - ledgerTotal, 0),
     },
     statusBreakdown: statusMap,
     routeBreakdown,
@@ -1903,7 +2062,16 @@ export const recordDeliveryPayment = async (orderId, payload) => {
   return data;
 };
 
-export const recordAdditionalPayment = async (orderId, amount, method, ref, notes, paymentDate = null, receiptUrl = null, skipInsert = false) => {
+/**
+ * Record a counter payment against an existing balance.
+ *
+ * This function is the ONE writer of the activity entry for such a payment.
+ * Callers must not log their own: UnsettledDeliveriesPage used to add a
+ * "Balance Settled" line on top of the "Full Payment Completed" written here,
+ * so a single collection produced two entries that disagreed about what
+ * happened. Pass `source` to record WHERE it was collected from instead.
+ */
+export const recordAdditionalPayment = async (orderId, amount, method, ref, notes, paymentDate = null, receiptUrl = null, skipInsert = false, source = null) => {
   const { data: order } = await supabase.from('orders').select('*').eq('id', orderId).single();
   if (!order) throw new Error('Order not found');
 
@@ -1925,13 +2093,23 @@ export const recordAdditionalPayment = async (orderId, amount, method, ref, note
   const { data: freshOrder, error: fetchErr } = await supabase.from('orders').select('*').eq('id', orderId).single();
   if (fetchErr) throw fetchErr;
 
-  let actionName = 'Additional Payment Recorded';
-  if (freshOrder.remaining_balance <= 0 && previousBalance > 0) actionName = 'Full Payment Completed';
+  // Outstanding is the DERIVED figure, never the stored remaining_balance,
+  // which can lag the ledger write this function just triggered. Reading the
+  // stored column here could name the entry "Additional Payment Recorded" for
+  // a payment that in fact settled the order.
+  const newOutstanding = outstandingBalance(freshOrder);
+  const settled = newOutstanding <= 0 && previousBalance > 0;
+
+  // One entry, one name. "Payment Completed" when this payment cleared the
+  // balance, otherwise "Additional Payment Recorded" — never both.
+  const actionName = settled ? 'Payment Completed' : 'Additional Payment Recorded';
 
   logPayment(actionName, orderId, order.tracking_number, {
     previousValue: { amount_paid: previousPaid, remaining_balance: previousBalance },
-    newValue: { amount_paid: freshOrder.amount_paid, remaining_balance: freshOrder.remaining_balance },
-    details: `Added ₱${amount} via ${method}. Balance is now ₱${freshOrder.remaining_balance}.`
+    newValue: { amount_paid: freshOrder.amount_paid, remaining_balance: newOutstanding },
+    details: `Collected ₱${amount} via ${method}${source ? ` from ${source}` : ''}. ${
+      settled ? 'Balance fully settled.' : `Balance is now ₱${newOutstanding}.`
+    }`,
   });
 
   return { 
@@ -2251,8 +2429,7 @@ export const getPublicFeedback = async () => {
     orders: {
       featured_on_website: row.featured_on_website,
       featured_image_type: row.featured_image_type,
-      pickup_photos: row.pickup_photos,
-      delivery_photos: row.delivery_photos,
+      featured_photo: row.featured_photo,   // single admin-selected path (replaces pickup/delivery arrays)
       receiver_city: row.receiver_city,
       receiver_province: row.receiver_province,
     },
@@ -2262,11 +2439,10 @@ export const getPublicFeedback = async () => {
 /**
  * Featured delivery gallery for the About page.
  *
- * Goes through the get_featured_deliveries() RPC. The old query relied on an
- * anon RLS policy that granted every column of a featured order — phones,
- * addresses, payment_reference, user_id — not just the ones selected here.
- * tracking_number and updated_at are no longer returned: the page never
- * rendered them, and a tracking number is a lookup key for public tracking.
+ * Goes through the get_featured_deliveries() RPC. The RPC returns a single
+ * `featured_photo` TEXT path (the admin-selected pickup or delivery proof)
+ * instead of the full pickup_photos / delivery_photos JSONB arrays, preventing
+ * enumeration of all proof photos for a featured order via the anon key.
  */
 export const getFeaturedDeliveries = async () => {
   const { data, error } = await supabase.rpc('get_featured_deliveries');

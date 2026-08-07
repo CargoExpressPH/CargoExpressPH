@@ -371,6 +371,13 @@
   width: 100%;
   margin-left: var(--sidebar-width);
   min-height: 100vh;
+  /* Column flex so .page-content can claim the space left under the 64px
+     topbar. Without it the main region is only as tall as its content, and a
+     short page (Sales on a laptop viewport) sits in a box smaller than the
+     window — measurable as a shrunken content rect and off-by-N click
+     coordinates in automation. */
+  display: flex;
+  flex-direction: column;
   transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .sidebar.collapsed ~ .main-content,
@@ -395,8 +402,21 @@
 .page-content {
   width: 100%;
   min-width: 0;
+  /* Fill the remaining column height rather than wrapping tight to content. */
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
   padding: 28px 32px;
   scroll-behavior: smooth;
+}
+
+/* Every admin page roots itself in .page-transition — that element is the real
+   content box, so it takes the full width and height of .page-content and each
+   page measures the same regardless of how much content it happens to have. */
+.page-content > .page-transition {
+  width: 100%;
+  min-width: 0;
+  flex: 1 1 auto;
 }
 .page-content > * {
   scroll-margin-top: 80px;

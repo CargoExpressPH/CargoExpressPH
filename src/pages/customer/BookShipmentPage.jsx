@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useNavigate, useLocation, useBlocker } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { createOrder, getTrips, getSettings } from '../../lib/database';
@@ -13,6 +13,7 @@ import ConfirmModal from '../../components/ui/ConfirmModal';
 import { motion, useReducedMotion } from 'framer-motion';
 import usePageTitle from '../../hooks/usePageTitle';
 import { toTitleCase } from '../../utils/string';
+import { formatPhDate } from '../../utils/datetime';
 
 const luxeEase = [0.22, 1, 0.36, 1];
 
@@ -40,17 +41,19 @@ const validatePhone = (phone) => {
   return null;
 };
 
+// Trip dates render in Asia/Manila regardless of the device zone — see
+// src/utils/datetime.js for why the naive-timestamp path shifted the day.
 const formatBookingTripDate = (value) => {
   if (!value) return 'Date not set';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return 'Date not set';
-  return date.toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' });
+  return formatPhDate(date, { month: 'short', day: 'numeric', year: 'numeric' });
 };
 
 const formatBookingTripOption = (trip) => {
   const date = trip.departure_date ? new Date(trip.departure_date) : null;
   const dateLabel = date && !Number.isNaN(date.getTime())
-    ? date.toLocaleDateString('en-PH', { month: 'short', day: 'numeric' })
+    ? formatPhDate(date, { month: 'short', day: 'numeric', year: undefined })
     : 'Date TBD';
   return `${trip.trip_number} - ${dateLabel}`;
 };
@@ -104,6 +107,9 @@ const BookShipmentPage = () => {
       return defaultForm;
     }
   });
+
+  // Guards against a double POST; see handleSubmit.
+  const submittingRef = useRef(false);
 
   const [useRegisteredSender, setUseRegisteredSender] = useState(false);
   const [useRegisteredReceiver, setUseRegisteredReceiver] = useState(false);
@@ -304,6 +310,13 @@ const BookShipmentPage = () => {
   };
 
   const handleSubmit = async () => {
+    // Synchronous re-entry guard. `loading` disables the button, but state
+    // updates are async — two clicks inside the same React batch both pass the
+    // disabled check and fire two createOrder() calls. createOrder is a POST:
+    // a second one is a second booking, not a retry. A ref closes that window
+    // because it is set before any await.
+    if (submittingRef.current) return;
+    submittingRef.current = true;
     setLoading(true);
     // When validation sends the user back to a step, we focus the offending
     // field — and focusing already scrolls it into view. The catch block's
@@ -357,7 +370,10 @@ const BookShipmentPage = () => {
     } catch (err) {
       toast.error(err.message || 'An unexpected error occurred while saving the booking.');
       if (!focusingInvalidField) window.scrollTo({ top: 0, behavior: 'smooth' });
-    } finally { setLoading(false); }
+    } finally {
+      submittingRef.current = false;
+      setLoading(false);
+    }
   };
 
   const renderAddressFields = (prefix) => {
@@ -380,19 +396,19 @@ const BookShipmentPage = () => {
       : null;
     return (
       <div className="grid grid-2 gap-16">
-        <div className="form-group" style={{ gridColumn: '1 / -1' }}><label className="form-label" htmlFor={id('name')}>Full Name</label><input id={id('name')} className={`form-input ${fc('name')}`} value={form[`${prefix}_name`]} onChange={handleTextChange(`${prefix}_name`)} autoComplete={isSender ? 'name' : 'shipping name'} autoCapitalize="words" required {...a11y('name')} />{errEl('name')}</div>
-        <div className="form-group"><label className="form-label" htmlFor={id('phone')}>Mobile Number</label><input id={id('phone')} className={`form-input ${fc('phone')}`} value={form[`${prefix}_phone`]} onChange={handlePhoneChange(`${prefix}_phone`)} inputMode="numeric" maxLength={11} placeholder="09xxxxxxxxx" autoComplete="tel" required {...a11y('phone')} />{errEl('phone')}</div>
-        <div className="form-group"><label className="form-label" htmlFor={id('facebook')}>Facebook Name</label><input id={id('facebook')} className={`form-input ${fc('facebook')}`} value={form[`${prefix}_facebook`]} onChange={handleTextChange(`${prefix}_facebook`)} placeholder="Your name on Facebook" autoCapitalize="words" required {...a11y('facebook')} />{errEl('facebook')}</div>
-        <div className="form-group"><label className="form-label" htmlFor={id('province')}>Province</label>
+        <div className="form-group" style={{ gridColumn: '1 / -1' }}><label className="form-label" htmlFor={id('name')}>Full Name <span className="required">*</span></label><input id={id('name')} className={`form-input ${fc('name')}`} value={form[`${prefix}_name`]} onChange={handleTextChange(`${prefix}_name`)} autoComplete={isSender ? 'name' : 'shipping name'} autoCapitalize="words" required {...a11y('name')} />{errEl('name')}</div>
+        <div className="form-group"><label className="form-label" htmlFor={id('phone')}>Mobile Number <span className="required">*</span></label><input id={id('phone')} className={`form-input ${fc('phone')}`} value={form[`${prefix}_phone`]} onChange={handlePhoneChange(`${prefix}_phone`)} inputMode="numeric" maxLength={11} placeholder="09xxxxxxxxx" autoComplete="tel" required {...a11y('phone')} />{errEl('phone')}</div>
+        <div className="form-group"><label className="form-label" htmlFor={id('facebook')}>Facebook Name <span className="required">*</span></label><input id={id('facebook')} className={`form-input ${fc('facebook')}`} value={form[`${prefix}_facebook`]} onChange={handleTextChange(`${prefix}_facebook`)} placeholder="Your name on Facebook" autoCapitalize="words" required {...a11y('facebook')} />{errEl('facebook')}</div>
+        <div className="form-group"><label className="form-label" htmlFor={id('province')}>Province <span className="required">*</span></label>
           <CustomSelect id={id('province')} className={`form-select ${fc('province')}`} value={form[`${prefix}_province`]} onChange={e => { u(`${prefix}_province`, e.target.value); u(`${prefix}_city`, ''); }} {...a11y('province')}>
             <option value="">Select Province</option>
             {getProvinces().map(p => <option key={p} value={p}>{p}</option>)}
           </CustomSelect>{errEl('province')}
         </div>
         {isSender && form[`${prefix}_province`] === 'Other Area' && (
-          <div className="form-group"><label className="form-label" htmlFor={id('other_province')}>Exact Province</label><input id={id('other_province')} className={`form-input ${fc('other_province')}`} value={form[`${prefix}_other_province`] || ''} onChange={handleTextChange(`${prefix}_other_province`)} autoCapitalize="words" required {...a11y('other_province')} />{errEl('other_province')}</div>
+          <div className="form-group"><label className="form-label" htmlFor={id('other_province')}>Exact Province <span className="required">*</span></label><input id={id('other_province')} className={`form-input ${fc('other_province')}`} value={form[`${prefix}_other_province`] || ''} onChange={handleTextChange(`${prefix}_other_province`)} autoCapitalize="words" required {...a11y('other_province')} />{errEl('other_province')}</div>
         )}
-        <div className="form-group"><label className="form-label" htmlFor={id('city')}>City / Municipality</label>
+        <div className="form-group"><label className="form-label" htmlFor={id('city')}>City / Municipality <span className="required">*</span></label>
           {isSender && form[`${prefix}_province`] === 'Other Area' ? (
             <input id={id('city')} className={`form-input ${fc('city')}`} value={form[`${prefix}_city`] || ''} onChange={handleTextChange(`${prefix}_city`)} autoCapitalize="words" required {...a11y('city')} />
           ) : (
@@ -403,10 +419,10 @@ const BookShipmentPage = () => {
           )}
           {errEl('city')}
         </div>
-        <div className="form-group"><label className="form-label" htmlFor={id('barangay')}>Barangay</label><input id={id('barangay')} className={`form-input ${fc('barangay')}`} value={form[`${prefix}_barangay`]} onChange={handleTextChange(`${prefix}_barangay`)} autoComplete="address-level3" autoCapitalize="words" required {...a11y('barangay')} />{errEl('barangay')}</div>
-        <div className="form-group"><label className="form-label" htmlFor={id('street')}>Street</label><input id={id('street')} className={`form-input ${fc('street')}`} value={form[`${prefix}_street`]} onChange={handleTextChange(`${prefix}_street`)} autoComplete="address-line1" autoCapitalize="words" required {...a11y('street')} />{errEl('street')}</div>
-        <div className="form-group"><label className="form-label" htmlFor={id('lot-block')}>Lot / Block / Purok</label><input id={id('lot-block')} className={`form-input ${fc('lot_block')}`} value={form[`${prefix}_lot_block`]} onChange={handleTextChange(`${prefix}_lot_block`)} autoComplete="address-line2" autoCapitalize="words" required {...a11y('lot_block')} />{errEl('lot_block')}</div>
-        <div className="form-group"><label className="form-label" htmlFor={id('landmark')}>Landmark</label><input id={id('landmark')} className={`form-input ${fc('landmark')}`} value={form[`${prefix}_landmark`]} onChange={handleTextChange(`${prefix}_landmark`)} placeholder="Near what building/place?" autoCapitalize="words" required {...a11y('landmark')} />{errEl('landmark')}</div>
+        <div className="form-group"><label className="form-label" htmlFor={id('barangay')}>Barangay <span className="required">*</span></label><input id={id('barangay')} className={`form-input ${fc('barangay')}`} value={form[`${prefix}_barangay`]} onChange={handleTextChange(`${prefix}_barangay`)} autoComplete="address-level3" autoCapitalize="words" required {...a11y('barangay')} />{errEl('barangay')}</div>
+        <div className="form-group"><label className="form-label" htmlFor={id('street')}>Street <span className="required">*</span></label><input id={id('street')} className={`form-input ${fc('street')}`} value={form[`${prefix}_street`]} onChange={handleTextChange(`${prefix}_street`)} autoComplete="address-line1" autoCapitalize="words" required {...a11y('street')} />{errEl('street')}</div>
+        <div className="form-group"><label className="form-label" htmlFor={id('lot-block')}>Lot / Block / Purok <span className="required">*</span></label><input id={id('lot-block')} className={`form-input ${fc('lot_block')}`} value={form[`${prefix}_lot_block`]} onChange={handleTextChange(`${prefix}_lot_block`)} autoComplete="address-line2" autoCapitalize="words" required {...a11y('lot_block')} />{errEl('lot_block')}</div>
+        <div className="form-group"><label className="form-label" htmlFor={id('landmark')}>Landmark <span className="required">*</span></label><input id={id('landmark')} className={`form-input ${fc('landmark')}`} value={form[`${prefix}_landmark`]} onChange={handleTextChange(`${prefix}_landmark`)} placeholder="Near what building/place?" autoCapitalize="words" required {...a11y('landmark')} />{errEl('landmark')}</div>
         {isSender && form[`${prefix}_province`] === 'Other Area' && (
           <div className="alert alert-warning mt-md" style={{ gridColumn: '1 / -1' }}>
             <AlertTriangle size={16} style={{display:'inline', marginRight: '8px', verticalAlign: 'middle'}}/>
@@ -615,6 +631,24 @@ const BookShipmentPage = () => {
 
   return (
     <div className="page-transition booking-page">
+      {/* Submitting overlay. The disabled button alone was not enough feedback:
+          createOrder() can take many seconds, and if the review step is
+          scrolled the spinner sits off-screen, leaving what looks like a dead
+          page — and an invitation to click again. This covers the viewport, so
+          the wait is visible from anywhere on the page and nothing underneath
+          is clickable while the POST is in flight. */}
+      {loading && (
+        <div className="booking-submitting-overlay" role="alert" aria-live="assertive">
+          <div className="booking-submitting-card">
+            <Loader size={32} className="animate-spin" aria-hidden="true" />
+            <div className="fw-700 mt-12">Submitting your booking…</div>
+            <div className="text-sm text-secondary mt-4">
+              This can take a few moments. Please don’t close or refresh this page.
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* C-1 fix: Navigation blocker modal */}
       <ConfirmModal
         isOpen={blocker.state === 'blocked'}
@@ -833,8 +867,16 @@ const BookShipmentPage = () => {
             <div className="fw-800 text-primary" style={{ fontSize: '2rem' }}>₱{effectivePricePerKilo}/kg</div>
             <div className="text-xs text-tertiary mt-4">Weighed at pickup — you pay for the actual weight, nothing estimated.</div>
           </div>
-          <button type="button" className="btn btn-primary btn-lg w-full justify-center" onClick={handleSubmit} disabled={loading}>
-            {loading ? <Loader size={18} className="animate-spin" /> : 'Confirm Booking'}
+          <button
+            type="button"
+            className="btn btn-primary btn-lg w-full justify-center"
+            onClick={handleSubmit}
+            disabled={loading}
+            aria-busy={loading}
+          >
+            {loading
+              ? <><Loader size={18} className="animate-spin" aria-hidden="true" /> Submitting booking…</>
+              : 'Confirm Booking'}
           </button>
         </div></div>
       )}

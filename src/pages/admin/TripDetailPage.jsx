@@ -11,6 +11,7 @@ import EmptyState from '../../components/ui/EmptyState';
 import { useToast } from '../../hooks/useToast';
 import usePageTitle from '../../hooks/usePageTitle';
 import { logTrip } from '../../lib/activityLog';
+import { outstandingBalance } from '../../constants/status';
 
 const TripDetailPage = () => {
   usePageTitle('Trip Details');
@@ -71,7 +72,9 @@ const TripDetailPage = () => {
       }
       // A trip cannot be completed while any order still owes money. Mirrors
       // the guard_trip_completion trigger; the database is the authority.
-      const unsettled = (orders || []).filter(o => o.status !== 'Cancelled' && parseFloat(o.remaining_balance || 0) > 0);
+      // Uses the shared derived balance so this check, the Unsettled tab and
+      // the Sales totals cannot disagree about which orders still owe.
+      const unsettled = (orders || []).filter(o => o.status !== 'Cancelled' && outstandingBalance(o) > 0);
       if (unsettled.length > 0) {
         toast.error(`${unsettled.length} order(s) still have an unpaid balance: ${unsettled.slice(0, 3).map(o => o.tracking_number).join(', ')}${unsettled.length > 3 ? '…' : ''}`);
         setConfirmAction(null);
@@ -112,7 +115,7 @@ const TripDetailPage = () => {
       toast.error('All assigned orders must be delivered or cancelled before completing this trip.');
       return;
     }
-    const unsettled = orders.filter(o => o.status !== 'Cancelled' && parseFloat(o.remaining_balance || 0) > 0);
+    const unsettled = orders.filter(o => o.status !== 'Cancelled' && outstandingBalance(o) > 0);
     if (unsettled.length > 0) {
       toast.error(`Cannot complete: ${unsettled.length} order(s) still have an unpaid balance: ${unsettled.slice(0, 3).map(o => o.tracking_number).join(', ')}${unsettled.length > 3 ? '…' : ''}`);
       return;

@@ -34,6 +34,33 @@ const AdditionalPaymentModal = ({ order, remainingBalance, onClose, onSave }) =>
 
   const receiptInputRef = useRef(null);
 
+  /**
+   * Amount validation, evaluated on every render rather than only on submit.
+   * The balance is the ceiling the database enforces, so the field must say so
+   * while the admin is still typing — a green border on ₱1000 against a ₱600
+   * balance tells them the entry is good right up until it is rejected.
+   */
+  const amountValue = parseFloat(form.amount);
+  const amountEntered = form.amount !== '' && form.amount !== null;
+  let amountError = null;
+  if (amountEntered) {
+    if (Number.isNaN(amountValue)) {
+      amountError = 'Enter a valid amount.';
+    } else if (amountValue <= 0) {
+      amountError = 'Amount must be greater than ₱0.';
+    } else if (amountValue > remainingBalance) {
+      amountError = `Amount cannot exceed the ₱${remainingBalance.toFixed(2)} remaining balance.`;
+    }
+  }
+  const amountValid = amountEntered && !amountError;
+
+  // GCash QR generated and no manual reference typed: the footer button only
+  // dismisses the modal — the webhook records the payment, not this form.
+  const isDoneStep =
+    form.payment_method === 'gcash' &&
+    paymentStep === 'waiting' &&
+    !form.payment_reference;
+
   const handleProceedToGCash = async () => {
     try {
       setPaymentStep('generating');
@@ -101,9 +128,18 @@ const AdditionalPaymentModal = ({ order, remainingBalance, onClose, onSave }) =>
 
   const handleSave = async () => {
     setError(null);
+
+    // QR hand-off: PayMongo's webhook writes the transaction. Inserting one
+    // here too would double-count the payment. Nothing to validate, nothing
+    // to save — just close.
+    if (isDoneStep) {
+      onClose();
+      return;
+    }
+
     const amount = parseFloat(form.amount || 0);
-    if (amount <= 0 || amount > remainingBalance) {
-      setError(`Amount must be between ₱1 and ₱${remainingBalance}`);
+    if (amountError || !amountValid) {
+      setError(amountError || `Amount must be between ₱1 and ₱${remainingBalance.toFixed(2)}`);
       return;
     }
 
@@ -131,23 +167,8 @@ const AdditionalPaymentModal = ({ order, remainingBalance, onClose, onSave }) =>
       }
       setUploadProgress('Saving...');
 
-      // Passed arguments matching the onSave signature expected by the parent.
-      // Parent might need update to accept extra parameters (date, receipt)
-      // For now we pass them as additional arguments.
-      // onSave signature in OrderDetailPage: (amount, method, ref, notes, date, receiptUrl)
-      // For PayMongo QR, we pass a special reference 'PAYMONGO_PENDING' so the parent knows not to mark it as fully paid yet.
-      // Wait, OrderDetailPage's handleSaveAdditionalPayment expects a transaction_reference.
-      // We'll pass the sourceId if it's PayMongo, but we need to ensure the parent handles it.
-      // Since it's 'waiting', we don't want the frontend to insert into payment_transactions directly!
-      // But the frontend `handleSaveAdditionalPayment` blindly calls `addPaymentTransaction`.
-      // If we insert into `payment_transactions` with status 'paid', it's wrong!
-      // So if it's 'waiting', we MUST return from the modal with a flag or status 'unpaid' / 'pending'.
-      // Actually, if we just let the webhook handle it, we can just close the modal without inserting anything!
-      if (form.payment_method === 'gcash' && paymentStep === 'waiting' && !form.payment_reference) {
-        onClose();
-        return; // Don't call onSave, the webhook will insert the transaction and update the order
-      }
-
+      // onSave signature in OrderDetailPage:
+      //   (amount, method, reference, notes, date, receiptUrl)
       await onSave(
         amount, 
         form.payment_method, 
@@ -190,12 +211,20 @@ const AdditionalPaymentModal = ({ order, remainingBalance, onClose, onSave }) =>
               <input
                 id="ap-amount"
                 type="number"
-                className="form-input"
+                className={`form-input ${amountError ? 'field-invalid' : amountValid ? 'field-valid' : ''}`}
                 value={form.amount}
                 onChange={e => setForm(p => ({ ...p, amount: e.target.value }))}
                 max={remainingBalance}
                 min="1"
+                step="0.01"
+                aria-invalid={amountError ? 'true' : 'false'}
+                aria-describedby={amountError ? 'ap-amount-error' : undefined}
               />
+              {amountError && (
+                <div className="field-error-inline" id="ap-amount-error" role="alert">
+                  <AlertTriangle size={13} aria-hidden="true" /> {amountError}
+                </div>
+              )}
             </div>
 
             <div className="form-group">
@@ -224,7 +253,7 @@ const AdditionalPaymentModal = ({ order, remainingBalance, onClose, onSave }) =>
                       type="button"
                       className="btn btn-primary btn-sm w-full justify-center"
                       onClick={handleProceedToGCash}
-                      disabled={parseFloat(form.amount || 0) <= 0}
+                      disabled={!amountValid}
                     >
                       <CreditCard size={14} className="mr-6" /> Process via PayMongo
                     </button>
@@ -332,8 +361,18 @@ const AdditionalPaymentModal = ({ order, remainingBalance, onClose, onSave }) =>
           
           <div className="modal-footer">
             <button className="btn btn-outline" onClick={onClose} disabled={saving || paymentStep === 'generating'}>Cancel</button>
-            <button className="btn btn-primary" onClick={handleSave} disabled={saving || (form.payment_method === 'gcash' && paymentStep !== 'waiting' && !(form.payment_reference && form.payment_reference.trim()))}>
-              {saving ? <><Loader size={16} className="animate-spin" /> {uploadProgress || 'Saving...'}</> : <><CheckCircle size={16} /> {paymentStep === 'waiting' && !form.payment_reference ? 'Done' : 'Record Payment'}</>}
+            {/* `isDoneStep` is the QR hand-off: nothing is being recorded, the
+                webhook will. Amount validity is irrelevant to closing it. */}
+            <button
+              className="btn btn-primary"
+              onClick={handleSave}
+              disabled={
+                saving ||
+                (!isDoneStep && !amountValid) ||
+                (form.payment_method === 'gcash' && paymentStep !== 'waiting' && !(form.payment_reference && form.payment_reference.trim()))
+              }
+            >
+              {saving ? <><Loader size={16} className="animate-spin" /> {uploadProgress || 'Saving...'}</> : <><CheckCircle size={16} /> {isDoneStep ? 'Done' : 'Record Payment'}</>}
             </button>
           </div>
         </div>

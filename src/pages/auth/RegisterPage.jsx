@@ -112,12 +112,20 @@ const RegisterPage = () => {
         if (!value.trim()) return 'Full name is required.';
         if (value.trim().length < 2) return 'Full name must be at least 2 characters.';
         return '';
+      // Required here to match the booking wizard, which rejects an empty
+      // Facebook Name on both the sender and receiver steps. Labelling it
+      // "(optional)" at registration and mandatory at booking was the same
+      // field asking two different questions.
+      case 'facebook_name':
+        if (!value.trim()) return 'Facebook Name is required.';
+        return '';
       case 'email':
         if (!value.trim()) return 'Email address is required.';
         if (!isEmailValid(value)) return 'Please enter a valid email address.';
         return '';
       case 'phone':
-        if (value && !isPhoneValid(value)) return 'Mobile number must be 11 digits starting with 09.';
+        if (!value) return 'Mobile Number is required.';
+        if (!isPhoneValid(value)) return 'Mobile number must be 11 digits starting with 09.';
         return '';
       case 'password':
         return getPasswordError(value);
@@ -153,6 +161,9 @@ const RegisterPage = () => {
     const errors = {};
     const nameErr = validateSingleField('name', currentForm.name, currentForm);
     if (nameErr) errors.name = nameErr;
+
+    const fbErr = validateSingleField('facebook_name', currentForm.facebook_name, currentForm);
+    if (fbErr) errors.facebook_name = fbErr;
 
     const emailErr = validateSingleField('email', currentForm.email, currentForm);
     if (emailErr) errors.email = emailErr;
@@ -199,6 +210,7 @@ const RegisterPage = () => {
 
     const fieldIdMap = {
       name: 'reg-name',
+      facebook_name: 'reg-facebook',
       email: 'reg-email',
       phone: 'reg-phone',
       password: 'reg-password',
@@ -517,7 +529,7 @@ const RegisterPage = () => {
               {/* Full Name */}
               <div className="form-group">
                 <label className="form-label" htmlFor="reg-name">
-                  Full Name
+                  Full Name <span className="required">*</span>
                 </label>
                 <div className="form-input-wrapper">
                   <User size={15} className="form-input-icon" aria-hidden="true" />
@@ -546,26 +558,33 @@ const RegisterPage = () => {
               {/* Facebook Name */}
               <div className="form-group">
                 <label className="form-label" htmlFor="reg-facebook">
-                  Facebook Name <span className="form-label-hint">(optional)</span>
+                  Facebook Name <span className="required">*</span>
                 </label>
                 <div className="form-input-wrapper">
                   <MessageSquare size={15} className="form-input-icon" aria-hidden="true" />
                   <input
                     id="reg-facebook"
-                    className="form-input form-input-icon-left"
+                    className={`form-input form-input-icon-left ${fieldErrors.facebook_name ? 'error' : ''}`}
                     placeholder="Your Facebook display name"
                     value={form.facebook_name}
                     onChange={e => update('facebook_name', e.target.value)}
                     onBlur={() => handleBlur('facebook_name')}
+                    required
                     autoComplete="nickname"
+                    aria-required="true"
+                    aria-invalid={!!fieldErrors.facebook_name}
+                    aria-describedby={fieldErrors.facebook_name ? 'reg-facebook-error' : undefined}
                   />
                 </div>
+                {fieldErrors.facebook_name && (
+                  <p id="reg-facebook-error" className="form-error" role="alert">{fieldErrors.facebook_name}</p>
+                )}
               </div>
 
               {/* Email */}
               <div className="form-group">
                 <label className="form-label" htmlFor="reg-email">
-                  Email Address
+                  Email Address <span className="required">*</span>
                 </label>
                 <div className="form-input-wrapper">
                   <Mail size={15} className="form-input-icon" aria-hidden="true" />
@@ -595,7 +614,7 @@ const RegisterPage = () => {
               {/* Mobile */}
               <div className="form-group">
                 <label className="form-label" htmlFor="reg-phone">
-                  Mobile Number <span className="form-label-hint">(optional)</span>
+                  Mobile Number <span className="required">*</span>
                 </label>
                 <div className="form-input-wrapper">
                   <Phone size={15} className="form-input-icon" aria-hidden="true" />
@@ -628,7 +647,7 @@ const RegisterPage = () => {
               {/* Password */}
               <div className="form-group">
                 <div className="login-pw-header">
-                  <label className="form-label" htmlFor="reg-password">Password</label>
+                  <label className="form-label" htmlFor="reg-password">Password <span className="required">*</span></label>
                   {capsLockOn && (
                     <span className="caps-warning" style={{ fontSize: '0.72rem', color: 'var(--warning-text)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 3 }}>
                       <AlertTriangle size={11} /> Caps Lock ON
@@ -706,7 +725,7 @@ const RegisterPage = () => {
               {/* Confirm Password */}
               <div className="form-group">
                 <label className="form-label" htmlFor="reg-confirm-password">
-                  Confirm Password
+                  Confirm Password <span className="required">*</span>
                 </label>
                 <div className="form-input-wrapper">
                   <Lock size={15} className="form-input-icon" aria-hidden="true" />
@@ -766,7 +785,7 @@ const RegisterPage = () => {
               {/* Province */}
               <div className="form-group">
                 <label className="form-label" htmlFor="reg-province">
-                  Province
+                  Province <span className="required">*</span>
                 </label>
                 <div className="form-input-wrapper">
                   <MapPin size={15} className="form-input-icon" aria-hidden="true" />
@@ -794,7 +813,7 @@ const RegisterPage = () => {
 
               {/* City */}
               <div className="form-group">
-                <label className="form-label" htmlFor="reg-city">City / Municipality</label>
+                <label className="form-label" htmlFor="reg-city">City / Municipality <span className="required">*</span></label>
                 <div className="form-input-wrapper">
                   <Landmark size={15} className="form-input-icon" aria-hidden="true" />
                   <CustomSelect
@@ -819,7 +838,7 @@ const RegisterPage = () => {
 
               {/* Barangay */}
               <div className="form-group">
-                <label className="form-label" htmlFor="reg-barangay">Barangay</label>
+                <label className="form-label" htmlFor="reg-barangay">Barangay <span className="required">*</span></label>
                 <div className="form-input-wrapper">
                   <Home size={15} className="form-input-icon" aria-hidden="true" />
                   <input
@@ -843,7 +862,7 @@ const RegisterPage = () => {
 
               {/* Street */}
               <div className="form-group">
-                <label className="form-label" htmlFor="reg-street">Street</label>
+                <label className="form-label" htmlFor="reg-street">Street <span className="required">*</span></label>
                 <div className="form-input-wrapper">
                   <MapPin size={15} className="form-input-icon" aria-hidden="true" />
                   <input
@@ -867,7 +886,7 @@ const RegisterPage = () => {
 
               {/* Lot/Block */}
               <div className="form-group">
-                <label className="form-label" htmlFor="reg-lot">Lot / Block / Purok</label>
+                <label className="form-label" htmlFor="reg-lot">Lot / Block / Purok <span className="required">*</span></label>
                 <div className="form-input-wrapper">
                   <Home size={15} className="form-input-icon" aria-hidden="true" />
                   <input
@@ -890,7 +909,7 @@ const RegisterPage = () => {
 
               {/* Landmark */}
               <div className="form-group">
-                <label className="form-label" htmlFor="reg-landmark">Landmark</label>
+                <label className="form-label" htmlFor="reg-landmark">Landmark <span className="required">*</span></label>
                 <div className="form-input-wrapper">
                   <Navigation size={15} className="form-input-icon" aria-hidden="true" />
                   <input

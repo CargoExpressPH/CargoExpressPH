@@ -565,50 +565,50 @@
 .chat-typing-dots span:nth-child(2) { animation-delay: 0.2s; }
 .chat-typing-dots span:nth-child(3) { animation-delay: 0.4s; }
 
-/* --- HYBRID CHAT — Resolution Prompt (Yes / No) ------------------------ */
+/* --- HYBRID CHAT — Resolution Prompt ----------------------------------- */
 
-/* Quiet inline rating (client direction: the boxed Yes/No felt naggy after
-   every bot answer). Reads as a footnote to the message, not a demand. */
-.chat-rating {
+/* Two named actions, not a rating. The 👍/👎 pair this replaces asked the
+   customer to grade the bot and buried the only route to a human behind the
+   thumbs-down; the labels now say what each button does. Wraps because
+   "Talk to an Agent" does not fit beside its sibling on a 320px screen. */
+.chat-resolution {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 2px;
-  margin-top: 4px;
-  /* No group opacity. It faded the label to 4.00:1 in light / 4.46:1 in dark,
-     both under the 4.5:1 AA floor for 11px text. The token is already muted
-     enough to read as a footnote without dimming it further. */
+  gap: 8px;
+  margin-top: 8px;
 }
-.chat-rating-label {
-  font-size: 0.7rem;
-  color: var(--text-tertiary);
-  margin-right: 6px;
-}
-.chat-rating-btn {
-  background: none;
-  border: none;
-  /* 44x44 tap target, matching .customer-nav-icon-btn and .admin-card-action.
-     Was ~22x18, failing WCAG 2.5.8 (24px) and both platform guidelines — on a
-     control where the negative choice escalates to a human with no undo.
-     The glyph stays small, so this reads no heavier; it just gains a
-     thumb-sized hit area. */
-  min-width: 44px;
+.chat-resolution-btn {
+  /* 44px min tap target, matching .customer-nav-icon-btn and
+     .admin-card-action — the escalate side has no undo. */
   min-height: 44px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 0;
+  padding: 0 14px;
+  border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  font-size: 1rem;
+  background: var(--surface);
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+  font-weight: 600;
   line-height: 1;
   cursor: pointer;
   transition: var(--transition-fast);
 }
-.chat-rating-btn:hover { background: var(--bg-secondary); transform: scale(1.15); }
-.chat-rating-btn:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+.chat-resolution-btn:hover:not(:disabled) { background: var(--bg-secondary); }
+.chat-resolution-btn:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+.chat-resolution-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
-@media (prefers-reduced-motion: reduce) {
-  .chat-rating-btn:hover { transform: none; }
+/* The escalate action carries the emphasis: it is the one a customer hunts for
+   when the bot has not helped. */
+.chat-resolution-btn.is-escalate {
+  /* border stays on the vibrant token (non-text, 3:1); the label is body-size
+     text and needs the AA variant — --primary is 3.30:1 here. */
+  border-color: var(--primary);
+  color: var(--primary-text);
 }
+.chat-resolution-btn.is-escalate:hover:not(:disabled) { background: var(--primary-bg); }
 
 /* --- HYBRID CHAT — Status Banners -------------------------------------- */
 

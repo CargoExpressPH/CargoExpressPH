@@ -20,7 +20,8 @@ import { SkeletonText } from '../../components/ui/SkeletonLoader';
 import ErrorBoundarySection from '../../components/ui/ErrorBoundarySection';
 import CustomSelect from '../../components/ui/CustomSelect';
 import {
-  STATUS_FLOW, STATUS_TIMELINE, validateStatusTransition, isOrderSettled,
+  STATUS_FLOW, STATUS_TIMELINE, validateStatusTransition,
+  getSettlementState, SETTLEMENT_STATE, outstandingBalance,
   PAYMENT_METHODS, PAYMENT_STATUSES, ORDER_STATUS
 } from '../../constants/status';
 import {
@@ -78,6 +79,16 @@ const safeFormatDateTime = (dateStr) => {
   }
 };
 
+/** 'gcash' → 'GCash', 'paylater' → 'Pay Later', anything else title-cased. */
+const formatPaymentMethod = (method) => {
+  if (!method) return '';
+  const key = String(method).toLowerCase();
+  if (key === 'gcash') return 'GCash';
+  if (key === 'paylater') return 'Pay Later';
+  if (key === 'cash') return 'Cash';
+  return key.charAt(0).toUpperCase() + key.slice(1);
+};
+
 const AdminOrderDetailPage = () => {
   usePageTitle('Order Details');
   const { id } = useParams();
@@ -115,6 +126,26 @@ const AdminOrderDetailPage = () => {
     featured_image_type: 'pickup'
   });
   const [savingFeature, setSavingFeature] = useState(false);
+
+  /**
+   * How this order was ACTUALLY paid, from the ledger.
+   *
+   * `orders.payment_method` holds the method of the most recent payment event
+   * only, so a GCash pickup later settled in cash at the door rendered a bare
+   * "Cash" badge — the same conflation that made the sales report file every
+   * peso under whichever method landed last. The ledger is the sole writer of
+   * `amount_paid`, so it is also the only honest source for this badge.
+   *
+   * Filtered to `paid`/`partial` — the predicate update_order_payment_totals
+   * uses — so a failed or pending attempt never claims to be a method used.
+   */
+  const paidMethods = useMemo(() => {
+    const methods = paymentTransactions
+      .filter(tx => tx.status === 'paid' || tx.status === 'partial')
+      .map(tx => tx.payment_method)
+      .filter(Boolean);
+    return [...new Set(methods)];
+  }, [paymentTransactions]);
 
   // Per-step timestamps for tracking timeline
   const stepTimestamps = useMemo(
@@ -445,6 +476,11 @@ const AdminOrderDetailPage = () => {
   const isOverpaid = computedRemainingBalance < 0;
   const pickupPricePerKilo = ratePerKg;
 
+  // 'unpriced' | 'settled' | 'owing'. Read from the shared helper so this page,
+  // the dispatch gate, and the Unsettled list all answer the money question the
+  // same way — an unweighed parcel is none of paid, unpaid, or settled.
+  const settlementState = getSettlementState(order);
+
   // The estimate-vs-actual discrepancy warning is gone with the estimate:
   // there is no longer a customer-declared figure to disagree with.
   const actualWeightVal = parseFloat(order.actual_weight) || 0;
@@ -735,15 +771,39 @@ const AdminOrderDetailPage = () => {
           </div>
 
           <div className="flex gap-8 flex-wrap mb-16">
-            {order.payment_method && <span className="badge badge-info text-capitalize">{order.payment_method === 'gcash' ? 'GCash' : order.payment_method === 'paylater' ? 'Pay Later' : 'Cash'}</span>}
+            {/* Ledger first, order column only as a fallback for pre-ledger
+                orders that have no transaction rows to read. */}
+            {paidMethods.length > 1 ? (
+              <span
+                className="badge badge-info"
+                title={`Paid via ${paidMethods.map(formatPaymentMethod).join(' + ')}`}
+              >
+                Mixed Methods: {paidMethods.map(formatPaymentMethod).join(' + ')}
+              </span>
+            ) : (paidMethods[0] || order.payment_method) ? (
+              <span className="badge badge-info">
+                {formatPaymentMethod(paidMethods[0] || order.payment_method)}
+              </span>
+            ) : null}
             {order.payer_type && <span className="badge badge-info text-capitalize">Payer: {order.payer_type}</span>}
-            {order.payment_status && <span className={`badge ${order.payment_status === 'paid' ? 'badge-success' : order.payment_status === 'partial' ? 'badge-warning' : 'badge-error'} text-capitalize`}>{order.payment_status}</span>}
             {/* Settlement is shown separately from status: status says where the
                 cargo is, this says where the money is. A delivered order with a
-                balance owing is a real, valid state. */}
-            {isOrderSettled(order)
-              ? <span className="badge badge-success">Settled</span>
-              : <span className="badge badge-error">Unsettled — ₱{(parseFloat(order.remaining_balance || 0) || 0).toFixed(2)} owing</span>}
+                balance owing is a real, valid state.
+
+                An UNWEIGHED order has neither. It shows one badge saying so —
+                not `Unpaid` next to `Settled`, which is what a ₱0 balance on an
+                unpriced parcel used to render. Nothing is owed and nothing is
+                collected because nothing has been billed. */}
+            {settlementState === SETTLEMENT_STATE.UNPRICED ? (
+              <span className="badge badge-warning">Not yet weighed — no price</span>
+            ) : (
+              <>
+                {order.payment_status && <span className={`badge ${order.payment_status === 'paid' ? 'badge-success' : order.payment_status === 'partial' ? 'badge-warning' : 'badge-error'} text-capitalize`}>{order.payment_status}</span>}
+                {settlementState === SETTLEMENT_STATE.SETTLED
+                  ? <span className="badge badge-success">Settled</span>
+                  : <span className="badge badge-error">Unsettled — ₱{outstandingBalance(order).toFixed(2)} owing</span>}
+              </>
+            )}
             {order.promised_payment_date && <span className="badge badge-warning">Promised: {safeFormatDate(order.promised_payment_date)}</span>}
           </div>
 
@@ -760,8 +820,12 @@ const AdminOrderDetailPage = () => {
               <h4 className="fw-700 text-sm mb-12 flex items-center gap-8">
                 <CreditCard size={14} /> Payment History
               </h4>
-              <div className="table-responsive admin-payment-table-wrap">
-                <table className="table admin-payment-table">
+              {/* Standard admin table shell — `.table-container` + `.data-table`,
+                  the same pair used by Orders, Customers, Trips and Activity
+                  Logs. `admin-payment-table` remains only as a hook for the
+                  receipt/reference cell, not for table chrome. */}
+              <div className="table-container">
+                <table className="data-table admin-payment-table">
                   <thead>
                     <tr>
                       <th>Date</th>
@@ -781,7 +845,7 @@ const AdminOrderDetailPage = () => {
                         </td>
                         <td data-label="Type">{tx.payment_type || 'Additional Payment'}</td>
                         <td data-label="Amount" className="fw-600 text-success">₱{parseFloat(tx.amount || 0).toFixed(2)}</td>
-                        <td data-label="Method" className="text-capitalize">{tx.payment_method === 'gcash' ? 'GCash' : tx.payment_method}</td>
+                        <td data-label="Method">{formatPaymentMethod(tx.payment_method)}</td>
                         <td data-label="Receipt/Ref" className="payment-ref-cell">
                           {tx.transaction_reference && <div className="text-xs">Ref: {tx.transaction_reference}</div>}
                           {tx.receipt_url && <a href={tx.receipt_url} target="_blank" rel="noreferrer" className="text-xs text-primary receipt-link"><Image size={12} /> View Receipt</a>}

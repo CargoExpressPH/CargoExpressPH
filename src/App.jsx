@@ -1,5 +1,6 @@
 import { Suspense, useEffect } from 'react';
 import { lazyWithRetry } from './lib/lazyWithRetry';
+import PageLoader from './components/ui/PageLoader';
 import { createBrowserRouter, RouterProvider, Navigate, Outlet, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
@@ -75,26 +76,23 @@ const LoadingScreen = () => (
   </div>
 );
 
-/** Lightweight page-level suspense fallback (inside layouts) */
-const PageLoader = () => (
-  <div style={{
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    minHeight: '40vh',
-  }}>
-    <div className="spinner" />
-  </div>
-);
-
 // ─── Route Guards ───────────────────────────────────────────────────────────
 
+/**
+ * `loading` flips true again after boot — a re-login, a profile refresh. Once
+ * we already hold a valid profile for the required role, honouring that flip
+ * would swap the whole authenticated subtree for <LoadingScreen/>, unmounting
+ * whatever page the user is on and destroying its state: a half-filled booking
+ * wizard included. The loading screen is for the FIRST resolve only, when
+ * there is genuinely nothing to show. After that, keep rendering what we have.
+ */
 const ProtectedRoute = ({ children, requiredRole }) => {
   const { user, userProfile, loading } = useAuth();
-  if (loading) return <LoadingScreen />;
+  const hasUsableProfile = !!(user && userProfile && (!requiredRole || userProfile.role === requiredRole));
+  if (loading && !hasUsableProfile) return <LoadingScreen />;
   if (!user) return <Navigate to="/login" replace />;
   if (!userProfile) return <Navigate to="/login" replace />;
-  
+
   if (requiredRole && userProfile.role !== requiredRole) {
     // If role is null/undefined (profile fetch failed), send to login
     // instead of redirecting to a role-based route that also rejects null,
@@ -125,17 +123,11 @@ const RootRedirect = () => {
   return <Navigate to={userProfile.role === 'admin' ? '/admin' : '/customer'} replace />;
 };
 
-/** Automatically scrolls to top of page and triggers native View Transitions on route changes */
+/** Automatically scrolls to top of page on route changes */
 const ScrollToTop = () => {
   const { pathname } = useLocation();
   useEffect(() => {
-    if (typeof document !== 'undefined' && document.startViewTransition) {
-      document.startViewTransition(() => {
-        window.scrollTo(0, 0);
-      });
-    } else {
-      window.scrollTo(0, 0);
-    }
+    window.scrollTo(0, 0);
   }, [pathname]);
   return null;
 };

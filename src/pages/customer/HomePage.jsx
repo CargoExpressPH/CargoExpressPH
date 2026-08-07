@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import usePageTitle from '../../hooks/usePageTitle';
 import { getAnnouncementCategoryInfo } from '../../lib/announcements';
+import { formatPhDate } from '../../utils/datetime';
 
 const HomePage = () => {
   usePageTitle('Home');
@@ -66,10 +67,9 @@ const HomePage = () => {
     return { text: 'Good Evening', icon: Moon };
   };
 
-  const fmtDate = (iso) => {
-    if (!iso) return '—';
-    return new Date(iso).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' });
-  };
+  // Pinned to Asia/Manila — an ETA stored as 6:00 PM PH time must not render as
+  // the following day just because the viewer's machine is on another zone.
+  const fmtDate = (iso) => formatPhDate(iso, { month: 'short', day: 'numeric', year: 'numeric' });
 
   // Track shipment — navigates to tracking page with query
   const handleTrack = (e) => {

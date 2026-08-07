@@ -6,7 +6,7 @@ import {
 } from '../../lib/database';
 import { useAuth } from '../../contexts/AuthContext';
 import useRealtimeOrders from '../../hooks/useRealtimeOrders';
-import { logPayment, logActivity } from '../../lib/activityLog';
+import { logActivity } from '../../lib/activityLog';
 import { SkeletonStatCard, SkeletonTableRow } from '../../components/ui/SkeletonLoader';
 import StatusBadge from '../../components/ui/StatusBadge';
 import EmptyState from '../../components/ui/EmptyState';
@@ -232,10 +232,14 @@ const UnsettledDeliveriesPage = () => {
 
   const handleRecordPayment = async (amount, method, ref, notes, date, receiptUrl) => {
     const order = payingOrder;
-    await recordAdditionalPayment(order.id, amount, method, ref, notes, date, receiptUrl);
-    logPayment('Balance Settled', order.id, order.tracking_number, {
-      details: `${formatCurrency(amount)} collected via ${method} from the unsettled deliveries list`,
-    });
+    // No logPayment() here — recordAdditionalPayment writes the single activity
+    // entry, naming it from whether this payment actually settled the balance.
+    // A second "Balance Settled" line from this page is what made one
+    // collection appear twice in the audit log.
+    await recordAdditionalPayment(
+      order.id, amount, method, ref, notes, date, receiptUrl, false,
+      'the unsettled deliveries list',
+    );
     setPayingOrder(null);
     // Silent: the realtime patch usually lands first anyway, and a skeleton
     // flash right after a successful collection looks like something failed.

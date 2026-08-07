@@ -7,6 +7,7 @@ import EmptyState from '../../components/ui/EmptyState';
 import { Calendar, Truck, AlertCircle, ChevronRight, RefreshCw } from 'lucide-react';
 import usePageTitle from '../../hooks/usePageTitle';
 import PullToRefresh from '../../components/ui/PullToRefresh';
+import { formatPhDate } from '../../utils/datetime';
 
 // Max ms to wait before showing an error instead of an infinite spinner.
 const LOAD_TIMEOUT_MS = 15000;
@@ -24,10 +25,11 @@ const formatTripDate = (value) => {
   if (!value) return { month: 'TBD', day: '--', full: 'Date not set' };
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return { month: 'TBD', day: '--', full: 'Date not set' };
+  // Asia/Manila, not the viewer's zone — see src/utils/datetime.js.
   return {
-    month: date.toLocaleDateString('en-PH', { month: 'short' }).toUpperCase(),
-    day: date.toLocaleDateString('en-PH', { day: 'numeric' }),
-    full: date.toLocaleDateString('en-PH', { month: 'long', day: 'numeric', year: 'numeric' }),
+    month: formatPhDate(date, { month: 'short', day: undefined, year: undefined }).toUpperCase(),
+    day: formatPhDate(date, { day: 'numeric', month: undefined, year: undefined }),
+    full: formatPhDate(date, { month: 'long', day: 'numeric', year: 'numeric' }),
   };
 };
 

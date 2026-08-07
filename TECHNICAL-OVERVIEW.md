@@ -3,8 +3,10 @@
 **System title:** CargoExpress PH — Web-Based Cargo Delivery Booking and Tracking System
 **Business domain:** Door-to-door sea cargo delivery on the Manila ⇄ Bohol route
 **Architecture pattern:** Serverless Single-Page Application (SPA) with a Backend-as-a-Service (BaaS) core
-**Document generated:** 2 August 2026
-**Basis:** Direct analysis of the project source tree (`/Users/beasarong/Downloads/CargoExpressPH-main`)
+**Document revised:** 5 August 2026
+**Basis:** Direct analysis of the project source tree — `package.json`, `vite.config.js`,
+`supabase/schema.sql`, the 63 files in `supabase/migrations/`, `database_design.md`, and the
+full `src/` tree.
 
 ---
 
@@ -18,7 +20,7 @@ Progressive Web App (PWA). It replaces the traditional three-tier
 ┌──────────────────────────────────────────────────────────────────┐
 │  CLIENT TIER — React 19 SPA (PWA, served as static files)        │
 │  • React Router v7 route tree, lazy-loaded per page              │
-│  • Service Worker: offline cache + background push               │
+│  • Service Worker: offline precache + background push            │
 │  Hosted on: Vercel (static CDN + SPA rewrite)                    │
 └──────────────────────┬───────────────────────────────────────────┘
                        │  HTTPS / WebSocket
@@ -28,7 +30,7 @@ Progressive Web App (PWA). It replaces the traditional three-tier
 │  • PostgREST auto-generated REST API                             │
 │  • GoTrue Authentication (JWT)                                   │
 │  • Realtime (WebSocket / logical replication)                    │
-│  • Storage (S3-compatible object store)                          │
+│  • Storage (S3-compatible object store, private bucket)          │
 │  • Edge Functions (Deno) — privileged server-side logic          │
 └──────────────────────┬───────────────────────────────────────────┘
                        │
@@ -48,12 +50,26 @@ authorization is enforced *inside the database* using Row Level Security (RLS) p
 require secrets or privileges the browser must never hold — payment capture, push notification
 signing, and cross-cloud writes — and those are implemented as five Supabase Edge Functions.
 
-> **Documentation note.** The repository's `CLAUDE.md` describes the stack as
-> React Native (Expo) + Node.js/Express + MySQL + Firebase Auth/Firestore. **That file is
-> outdated and does not describe the current system.** The actual implementation, verified
-> against `package.json`, `vite.config.js`, `supabase/schema.sql`, and the full `src/` tree,
-> is React 19 (web) + Supabase (PostgreSQL) + Firebase Cloud Messaging (push only).
-> Thesis documentation should follow the present document, not `CLAUDE.md`.
+### 1.1 What changed since the 2 August 2026 revision
+
+This document previously carried a note stating that `CLAUDE.md` described a React Native /
+Express / MySQL stack. **That note is withdrawn** — `CLAUDE.md` was corrected and now agrees
+with this document. Both files are maintained against the same source tree.
+
+Substantive system changes since the last revision:
+
+| Area | Change |
+|---|---|
+| Schema | 14 → **16 tables**; `order_status_events` added; migrations 38 → **63** |
+| Booking | Customer-declared weight **removed** — a new booking now has no price until an admin weighs the parcel |
+| Order history | Append-only `order_status_events` timeline replaces inference from `updated_at` |
+| Payments | Atomic pickup/delivery payment RPCs; the ledger is now the sole writer of order totals |
+| Settlement | Warehouse-hold rules enforced in the database, with a Freight Collect exemption |
+| Customer service | Conversation state machine rebuilt around four derived states |
+| Reporting | New `get_service_summary()` RPC and Customer Service reporting section |
+| Storage | `cargo-photos` taken **fully private**; reads now require signed URLs |
+| Realtime | Publication membership asserted by migration rather than assumed |
+| PWA | `beforeinstallprompt` install banner, manifest screenshots, build-time asset precaching |
 
 ---
 
@@ -88,6 +104,7 @@ custom CSS organised into 24 stylesheets, with a design-token layer in
 | `browser-image-compression` | ^2.0.2 | Compresses proof-of-delivery photos before upload (max 0.8 MB, 1200 px) |
 | `@supabase/supabase-js` | ^2.104.1 | Backend SDK (data, auth, realtime, storage, functions) |
 | `firebase` | ^12.16.0 | Cloud Messaging client SDK (push only) |
+| `dotenv` | ^17.4.2 | Environment loading for build/CLI scripts |
 
 ### 2.3 Application state management
 
@@ -96,13 +113,33 @@ built-in primitives:
 
 - **`AuthContext`** (`src/contexts/AuthContext.jsx`) — session, user profile, role flags
   (`isAdmin` / `isCustomer`), and the `login` / `register` / `logout` / `resetPassword` /
-  `changePassword` / `refreshProfile` operations.
+  `changePassword` / `changeEmail` / `refreshProfile` operations.
 - **`ThemeContext`** (`src/contexts/ThemeContext.jsx`) — light/dark theme, persisted to
   `localStorage` under `cargoexpress_theme` and applied pre-paint by an inline script in
   `index.html` to eliminate flash-of-wrong-theme.
 - **`ToastProvider`** (`src/hooks/useToast.jsx`) — application-wide notification toasts.
 - Page-local state via `useState` / `useEffect`, with data fetched on mount through the
   `src/lib/database.js` data-access layer.
+
+Seven custom hooks encapsulate cross-cutting behaviour:
+
+| Hook | Responsibility |
+|---|---|
+| `useToast` | Toast queue and provider |
+| `usePushNotification` | Dual-path push subscription (FCM / iOS Web Push) |
+| `useCustomerChatUnread` | Customer-side unread badge, realtime-driven |
+| `useRealtimeOrders` | **Debounced batch** subscription to `orders` changes |
+| `useNetworkRecovery` | Refetch coordination after connectivity returns |
+| `usePageTitle` | Document title per route |
+| `useScrollLock` | iOS-safe background scroll lock for modals |
+
+`useRealtimeOrders` batches deliberately. A single admin action fans out into many row updates
+— assigning a trip touches every order on it, and a trip status cascade rewrites the whole
+manifest — while PayMongo webhooks arrive in bursts when several customers pay together.
+One callback per event would hammer the database and make tables flicker.
+
+`useScrollLock` pins the body with `position: fixed` and restores the scroll offset, because
+iOS Safari ignores `overflow: hidden` on `<body>`.
 
 ### 2.4 Routing and access control
 
@@ -118,9 +155,12 @@ Route groups:
 
 - **Public** — `/track` (guest tracking), `/about` (public marketing page)
 - **Auth** — `/login`, `/register`, `/forgot-password`, `/reset-password` (eagerly loaded)
-- **Customer** — 14 routes under `/customer`
-- **Admin** — 17 routes under `/admin`
+- **Customer** — 15 routes under `/customer`
+- **Admin** — 19 routes under `/admin`
 - **Fallback** — `*` → 404 page
+
+Two pages in `src/pages/shared/` — `ChangePasswordPage` and `ChangeEmailPage` — are mounted
+under **both** role subtrees rather than duplicated.
 
 Note that the guards are a **user-experience** control only. The authoritative access control
 is the RLS policy set in PostgreSQL (§6.3); a user who bypasses the client guard still cannot
@@ -134,37 +174,67 @@ read or write rows the database refuses to release.
    (`import { Truck } from 'lucide-react'`) into direct per-icon ESM imports
    (`import Truck from 'lucide-react/dist/esm/icons/truck.mjs'`), preventing the entire icon
    library from entering the bundle.
-2. **`swVersionPlugin`** — stamps a build timestamp into `dist/sw.js` at `closeBundle`,
-   replacing the `__BUILD_VERSION__` placeholder so browsers reliably detect new deployments
-   and invalidate stale caches.
+2. **`swVersionPlugin`** — a two-job build hook (§2.6).
 3. **Manual chunking** — `vendor-react` (react, react-dom, react-router-dom) and
    `vendor-supabase` are split into separately-cacheable chunks.
 
 Additionally, every page component is code-split via `lazyWithRetry`
 (`src/lib/lazyWithRetry.js`), a wrapper around `React.lazy` that retries a failed dynamic
 import — this recovers the app when a chunk request fails after a redeploy invalidates the
-previous build's asset hashes.
+previous build's asset hashes. A production build emits 77 chunks totalling ~3 MB, of which
+the boot path is four files (~1.2 MB).
 
 ### 2.6 Progressive Web App layer
 
+The PWA layer is **hand-authored**. The project uses no `vite-plugin-pwa`, no Workbox, no
+`next-pwa`, and no CRA service worker; the same specification is implemented directly.
+
 | Element | File | Function |
 |---|---|---|
-| Manifest | `public/manifest.json` | Installability, icons (72→512 px, incl. maskable), theme colours |
-| Service worker | `public/sw.js` | Offline caching + push receipt + notification click routing |
+| Manifest | `public/manifest.json` | Installability: name, short_name, start_url, `display: standalone`, theme/background colour, 10 icons (72→512 px, incl. 2 maskable), 6 screenshots, 2 shortcuts |
+| Service worker | `public/sw.js` | Precache, offline caching, push receipt, notification click routing |
+| Registration | `index.html` | Automatic on `window.load`, scope `/`, hourly `registration.update()` |
 | FCM worker | `public/firebase-messaging-sw.js` | Background FCM message handling |
-| iOS install prompt | `src/components/ui/IosInstallBanner.jsx` | Guides iOS users through Add-to-Home-Screen (required for iOS web push) |
+| Install prompt — Android/Windows/macOS | `src/components/ui/InstallAppBanner.jsx` | Captures `beforeinstallprompt`, presents in-app install UI |
+| Install prompt — iOS | `src/components/ui/IosInstallBanner.jsx` | Guides Add-to-Home-Screen (required for iOS web push) |
 
-The service worker maintains three versioned caches — `static`, `dynamic` (limit 80 entries),
-and `images` (limit 60 entries) — and routes requests by type:
+**Caching architecture.** Three versioned caches — `static`, `dynamic` (limit 80 entries),
+and `images` (limit 60 entries) — with requests routed by type:
 
-- **Navigation requests** → network-first, falling back to cached `/index.html` (SPA shell)
-- **Images** → stale-while-revalidate
-- **Static assets (JS/CSS)** → cache-first
-- **Other** → stale-while-revalidate with cache trimming
+| Request class | Strategy |
+|---|---|
+| Supabase / API calls | Network-first; returns a 503 JSON envelope offline |
+| Navigation requests | Network-first → cached response → cached `/index.html` → inline offline page |
+| Images | Stale-while-revalidate (dedicated cache) |
+| Google Fonts | Cache-first (immutable) |
+| Other static assets | Stale-while-revalidate |
+
+**Build-time precaching.** `swVersionPlugin` walks the entry chunk's *static* import graph in
+`generateBundle` and injects the resulting hashed filenames into the `__PRECACHE_ASSETS__`
+placeholder in `sw.js`, alongside a `__BUILD_VERSION__` timestamp. The service worker caches
+that list during `install`, so a cold install followed by disconnection renders the real UI
+rather than the offline fallback.
+
+Route chunks reached only through dynamic import are deliberately excluded — precaching all 77
+would pull ~3 MB including a 985 KB PDF-export bundle most sessions never load. Precaching is
+per-item (`Promise.allSettled`) rather than `cache.addAll`, so one missing asset cannot void
+the entire offline shell.
+
+**Installability status.** All Chromium install criteria are satisfied: HTTPS, a valid
+manifest, 192 px and 512 px icons whose real dimensions match their declarations, a registered
+service worker, and a `fetch` handler. The app installs on Android, Windows, and macOS; iOS
+requires the manual Add-to-Home-Screen flow, which is an Apple platform limitation.
+
+**Known limitation, stated deliberately.** Offline support covers the *application shell*, not
+business data — API calls return an offline envelope rather than stale cached records. This is
+a correctness choice: displaying a stale shipment status or payment balance would be worse
+than displaying none. Background Sync is not implemented.
 
 `vercel.json` sends `Cache-Control: no-cache, no-store, must-revalidate` for `/sw.js` so the
-worker itself is never served stale, and applies an SPA rewrite (`/(.*)` → `/index.html`) so
-deep links resolve client-side.
+worker itself is never served stale, sets `Service-Worker-Allowed: /`, and applies an SPA
+rewrite (`/(.*)` → `/index.html`) so deep links resolve client-side. It also sets HSTS,
+`X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, a `frame-ancestors 'none'` CSP,
+and a restrictive `Permissions-Policy`.
 
 ---
 
@@ -178,52 +248,45 @@ Supabase, which provides:
 | Supabase component | Underlying technology | Role in CargoExpress PH |
 |---|---|---|
 | Database | PostgreSQL 15+ | System of record; also the authorization engine |
-| REST API | PostgREST | Auto-generated CRUD + RPC endpoints from the schema |
+| REST API | PostgREST | Auto-generated CRUD + RPC endpoints over the schema |
 | Auth | GoTrue | Email/password identity, JWT issuance, password reset |
-| Realtime | Elixir/Phoenix over logical replication | WebSocket change streams |
-| Storage | S3-compatible object store | Proof photos and company assets |
-| Functions | Deno Edge Runtime | Privileged server-side logic (§3.2) |
-
-Business logic that would conventionally live in a controller layer is instead implemented as
-**PostgreSQL trigger functions and RPCs** (§6.4) — pricing, tracking-number generation, order
-status transitions, payment total recalculation, and trip reassignment all execute inside the
-database. This makes the rules unbypassable regardless of which client issues the request.
+| Realtime | Elixir/Phoenix over logical replication | WebSocket change streams, RLS-filtered |
+| Storage | S3-compatible object store | Proof photos, company assets |
+| Edge Functions | Deno runtime | The privileged server tier |
 
 ### 3.2 Supabase Edge Functions (the server tier)
 
-Five Deno-runtime functions in `supabase/functions/` handle everything that requires secrets
-or elevated privileges:
+Five functions, each deployed independently. JWT verification is declared per function in
+`supabase/config.toml`:
 
-| Function | Trigger | Responsibility | Secrets used |
-|---|---|---|---|
-| `paymongo-create-payment` | Called by SPA (`supabase.functions.invoke`) | Registers a payment attempt, captures a chargeable PayMongo source, polls source status, and reconciles the order | `PAYMONGO_SECRET_KEY`, `SUPABASE_SERVICE_ROLE_KEY` |
-| `paymongo-webhook` | HTTP POST from PayMongo | Verifies HMAC-SHA256 signature, handles `source.chargeable` and `payment.paid` events, self-heals stuck payments | `PAYMONGO_SECRET_KEY`, `PAYMONGO_WEBHOOK_SECRET`, `SUPABASE_SERVICE_ROLE_KEY` |
-| `send-push` | Called by SPA on notification creation | Sends push via FCM HTTP v1 (Android/Chrome/desktop) **and** raw Web Push RFC 8030/8291/8292 (iOS 16.4+ PWA); logs delivery attempts; prunes stale tokens | `FIREBASE_SERVICE_ACCOUNT_B64`, `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` |
-| `store-photo-fallback` | Called on Storage failure | Writes a size-capped (700 KB) data-URL copy of a photo into Firestore as a redundancy path | `FIREBASE_SERVICE_ACCOUNT_B64` |
-| `get-photo-fallback` | Called on Storage read failure | Retrieves the Firestore fallback copy | `FIREBASE_SERVICE_ACCOUNT_B64` |
+| Function | `verify_jwt` | Responsibility |
+|---|---|---|
+| `paymongo-create-payment` | `true` | Registers a payment source, polls status, captures with the secret key, triggers reconciliation |
+| `paymongo-webhook` | `false` | Receives PayMongo callbacks; authenticates by HMAC signature instead of JWT |
+| `send-push` | `true` | Dual-protocol push delivery (§7.3) |
+| `store-photo-fallback` | — | Writes a data-URL photo copy to Firestore when Storage fails |
+| `get-photo-fallback` | — | Reads a fallback photo back |
 
-Both PayMongo functions authenticate the caller's JWT, then verify authorization explicitly:
-the caller must be an admin **or** the owner of the order being paid for
-(`paymongo-create-payment/index.ts`, lines 200–214). Only after that check does the function
-escalate to the service-role client.
+The webhook is the sole public entry point by necessity — PayMongo cannot present a user JWT.
+It compensates with HMAC-SHA256 verification performed *before* the body is parsed.
+
+These functions exist for exactly one reason: they hold secrets. `PAYMONGO_SECRET_KEY`,
+`PAYMONGO_WEBHOOK_SECRET`, `SUPABASE_SERVICE_ROLE_KEY`, `FIREBASE_SERVICE_ACCOUNT_B64`, and
+the VAPID key pair never reach the browser.
 
 ### 3.3 Client-side resilience layer
 
-`src/lib/supabase.js` wraps the Supabase client with production hardening that is
-methodologically significant:
+`src/lib/supabase.js` wraps the official SDK with production hardening:
 
-- **Selective retry.** A custom `fetchWithRetry` retries with exponential backoff (1 s → 2 s →
-  4 s) on 5xx and 429 responses — **but only for idempotent `GET` requests.** Writes (`POST`,
-  `PATCH`, `PUT`, `DELETE`) are never retried, because a network failure occurring *after* the
-  server has committed a write would otherwise produce duplicate bookings or duplicate
-  payments.
-- **15-second timeout** via `AbortController`, linked to any caller-supplied abort signal.
-- **`cache: 'no-store'`** forced on all PostgREST `GET` requests, preventing browsers from
-  serving stale rows in newly opened tabs.
-- **Custom token-refresh lock.** Uses `navigator.locks` when available, with an in-memory
-  mutex fallback for HTTP contexts (local development) where the Lock Manager API is disabled,
-  eliminating a concurrent-refresh race condition.
-- **Realtime backoff** — reconnection delay `min(tries × 2000 + 1000, 15000)` ms.
+- **15-second request timeout** on every call, so a hung socket surfaces as an error instead
+  of an indefinite spinner.
+- **`fetchWithRetry` retries `GET` only.** Retrying a write would duplicate a booking or a
+  payment. This asymmetry is intentional and load-bearing.
+- **`cache: 'no-store'`** to defeat intermediate caches on authenticated reads.
+- **A custom token-refresh lock**, preventing concurrent refresh storms across tabs.
+
+`src/lib/database.js` is the single data-access boundary — roughly 97 exported functions, each
+wrapped in `withTimeout()`. Pages never call `supabase.from(...)` directly.
 
 ---
 
@@ -231,81 +294,160 @@ methodologically significant:
 
 ### 4.1 Engine
 
-**PostgreSQL**, managed by Supabase. Schema of record: `supabase/schema.sql` (1,462 lines),
-with 38 incremental migrations in `supabase/migrations/` spanning 24 May – 2 August 2026,
-documenting the schema's evolution — useful as an appendix showing iterative development.
+PostgreSQL, managed by Supabase. `supabase/schema.sql` holds the complete DDL — tables, RLS
+policies, functions, triggers, and indexes. `supabase/migrations/` holds 63 timestamped
+incremental migrations forming the change history. `database_design.md` carries the ERD and
+per-column documentation for thesis presentation.
+
+Applied migrations are never edited; changes are additive files, mirrored into `schema.sql`.
 
 ### 4.2 Entity model
 
-Fourteen tables:
+**16 tables.**
 
-| # | Table | Purpose | Key relationships |
-|---|---|---|---|
-| 1 | `profiles` | User records; extends `auth.users` | PK = `auth.users.id`; `role ∈ {admin, customer}` |
-| 2 | `trips` | Van/vessel trips with capacity and pricing | `created_by → profiles` |
-| 3 | `orders` | Bookings/shipments — the central entity | `user_id → profiles`, `trip_id → trips` (nullable) |
-| 4 | `announcements` | Admin broadcast messages | `author_id → profiles` |
-| 5 | `notifications` | Per-user in-app notifications | `user_id → profiles` |
-| 6 | `user_device_tokens` | FCM/Web Push subscriptions per device | `user_id → profiles`; `token` UNIQUE |
-| 7 | `notification_delivery_attempts` | Push delivery audit (`sent`/`failed`/`skipped`) | → `notifications`, `profiles`, `user_device_tokens` |
-| 8 | `conversations` | Support threads — **one per customer** (UNIQUE) | `customer_id → profiles` |
-| 9 | `chat_messages` | Messages within a conversation | `conversation_id → conversations`, `sender_id → profiles` |
-| 10 | `contact_inquiries` | Public contact-form submissions | none (anonymous) |
-| 11 | `company_information` | Singleton CMS row (branding, pricing, coverage, features) | fixed UUID `…0001` |
-| 12 | `activity_logs` | Audit trail across 6 modules | `admin_id → profiles`; 7-day retention |
-| 13 | `customer_feedback` | Ratings 1–5, one per order (UNIQUE) | `order_id`, `customer_id` |
-| 14 | `payment_transactions` | Ledger of individual payments | `order_id → orders`, `admin_id → profiles` |
-| 15 | `payment_attempts` | PayMongo reconciliation state machine | `source_id` UNIQUE, `payment_id` UNIQUE, `order_id → orders` |
+| Table | Purpose |
+|---|---|
+| `profiles` | User records, 1:1 with `auth.users`; carries `role` |
+| `trips` | Scheduled voyages with capacity (kg) and optional per-trip pricing |
+| `orders` | The booking aggregate — parties, cargo, status, money |
+| `order_status_events` | Append-only status-change timeline |
+| `payment_transactions` | The payment **ledger** — the only writer of order totals |
+| `payment_attempts` | PayMongo gateway attempts, pre-reconciliation |
+| `conversations` | One support thread per customer (UNIQUE on `customer_id`) |
+| `chat_messages` | Messages within a thread |
+| `contact_inquiries` | Public contact-form submissions |
+| `notifications` | In-app notification feed |
+| `user_device_tokens` | Push tokens (FCM tokens and `webpush:`-prefixed subscriptions) |
+| `notification_delivery_attempts` | Per-device push delivery outcomes |
+| `announcements` | Admin-published announcements |
+| `company_information` | Singleton configuration row |
+| `customer_feedback` | Post-delivery ratings (UNIQUE on `order_id`) |
+| `activity_logs` | Admin audit trail, 7-day retention |
 
-### 4.3 Denormalisation decisions
+Consolidations already performed — these tables must not be reintroduced:
 
-Three deliberate consolidations are recorded in the migrations and are worth defending in a
-thesis methodology chapter:
+- `global_settings` → `company_information.default_price_per_kg`
+- `coverage_regions` + `coverage_municipalities` → `company_information.coverage` (JSONB)
+- Company features → `company_information.features` (JSONB)
+- Chatbot analytics, FAQ, and visitor-assistant tables → dropped entirely
 
-1. **`global_settings` → merged into `company_information.default_price_per_kg`**
-   (`20260715000000_consolidate_tables.sql`) — eliminates a table that only ever held one
-   meaningful value, giving a single source of truth for pricing.
-2. **`coverage_regions` + `coverage_municipalities` → `company_information.coverage` (JSONB)**
-   — coverage areas are read as a whole tree and never queried relationally, so a nested JSONB
-   document removes two tables and a join without loss of function.
-3. **`company_information.features` (JSONB)** — same rationale for the marketing feature list.
+`company_information` is a singleton with the fixed id
+`00000000-0000-0000-0000-000000000001`.
 
-Additional JSONB columns on `orders` — `pickup_photos`, `delivery_photos`,
-`reassignment_history` — store append-only arrays that are always read with the parent row.
+### 4.3 Denormalisation and deprecation decisions
+
+- `orders` stores sender/receiver details **inline** rather than referencing `profiles`. A
+  booking is a historical document; if a customer later edits their profile, the waybill must
+  not retroactively change.
+- `orders.amount_paid`, `remaining_balance`, and `payment_status` are **derived columns**,
+  maintained by trigger from the `payment_transactions` ledger. They exist so that list views
+  and reports avoid an aggregate per row.
+- `reassignment_history` (JSONB) logs trip reassignments inline on the order.
+- Columns prefixed `_deprecated_` (`orders._deprecated_payment_date`,
+  `orders._deprecated_receipt_url`, `trips._deprecated_available_slots`) are retained for
+  historical rows but are dead — they must not be read or populated
+  (`20260803150000_deprecate_dead_columns.sql`).
 
 ### 4.4 Domain state machines
 
-**Order lifecycle** (`src/constants/status.js`, enforced by a `CHECK` constraint):
+**Order status** — sequential, defined in `src/constants/status.js` and enforced server-side:
 
 ```
 Pending Review → Pending → Assigned → Picked Up → In Transit
     → Arrived at Hub → Out for Delivery → Delivered
-                    (Cancelled — terminal, reachable from any state)
+Cancelled — terminal, reachable from any state
 ```
 
-**Trip lifecycle:** `scheduled → in_progress → arrived → completed`, plus `cancelled`.
+`In Transit` and `Arrived at Hub` require an assigned trip. Every transition is appended to
+`order_status_events` with `changed_at`, `changed_by`, and an optional note.
 
-Trip status changes cascade to orders via `TRIP_TO_ORDER_STATUS`:
-`in_progress → In Transit`, `arrived → Arrived at Hub`, `cancelled → Cancelled`
-(`bulkUpdateOrdersStatusByTrip` in `src/lib/database.js`).
+**Trip status** cascades to its orders:
 
-**Payment status:** `unpaid → partial → paid`, recomputed by trigger (§6.4) rather than set
-directly by any client.
+| Trip status | Order effect |
+|---|---|
+| `scheduled` | — |
+| `in_progress` | → `In Transit` |
+| `arrived` | → `Arrived at Hub` |
+| `completed` | Blocked while any order still owes money |
+| `cancelled` | → `Cancelled` |
 
-### 4.5 Indexing
+**Conversation service state** — four values, all *derived by trigger* from who spoke last
+except `resolved`:
 
-Fifteen indexes cover the hot query paths: `orders(user_id)`, `orders(trip_id)`,
-`orders(status)`, `orders(tracking_number)`, `notifications(user_id)`, `trips(status)`,
-`conversations(customer_id)`, `chat_messages(conversation_id)`,
-`chat_messages(created_at)`, `contact_inquiries(created_at)`,
-`user_device_tokens(user_id)`, four on `activity_logs`, three on `payment_attempts`, and a
-composite on `notification_delivery_attempts(notification_id, attempted_at DESC)`.
+| Status | Meaning |
+|---|---|
+| `bot_active` | Bot handling — a new chat, or a customer returning to a resolved thread |
+| `waiting` | The customer spoke last — our turn; this is the queue |
+| `waiting_customer` | An admin spoke last — their turn |
+| `resolved` | An admin said so |
 
-A **partial unique index** enforces payment idempotency:
-```sql
-CREATE UNIQUE INDEX unique_tx_ref ON payment_transactions(transaction_reference)
-  WHERE transaction_reference IS NOT NULL;
-```
+A fifth value, `open`, was deleted in `20260804260000`: once every admin reply implies
+"waiting on the customer", `open` described nothing that `assigned_admin_id` did not already
+say. `escalated` is modelled as a **flag, not a state** — it answers "how urgent" while
+`status` answers "whose turn". Conflating the two produced the original defect this migration
+repaired. `bot_resolved` is nullable, and NULL means *unknown* rather than *false*.
+
+### 4.5 Pricing and the removal of customer-declared weight
+
+`orders.package_weight` — the customer's "estimated weight" — was removed in
+`20260805130000_remove_package_weight.sql`. Weight now enters the system exactly once, from
+the scale at pickup, as `actual_weight`.
+
+The consequence is significant and is documented rather than hidden: **a newly created booking
+has no price.** `shipping_cost` and `remaining_balance` are zero until an admin weighs the
+parcel, because weight was the only quantity in the pricing formula. This is by design — a
+customer-supplied estimate was precisely what generated the billing disputes the change
+removes — but it means the booking confirmation can no longer quote a figure, and trip
+capacity (`current_trip_weight`) counts only parcels that have actually been weighed.
+
+Pricing resolution: `global_price_per_kilo()` reads
+`company_information.default_price_per_kg` (fallback ₱70); `effective_trip_price(trip_id)`
+prefers a trip's own `price_per_kg` when set.
+
+Tracking numbers follow `CE-YYYYMMDD-NNNN`, generated by
+`generate_order_tracking_number()`.
+
+### 4.6 Settlement rules
+
+Codified in `20260804100000_settlement_guards.sql` and mirrored client-side in
+`canDispatchForDelivery()`:
+
+1. Cargo always travels to the destination warehouse, paid or not.
+2. An **unpaid** shipment is **held** at the warehouse — not dispatched for doorstep delivery
+   until the balance is settled.
+3. An admin may override by recording a **promise date**; the override is logged.
+4. **Freight Collect (`payer_type = 'receiver'`) is exempt.** Payment is due at the door, so a
+   COD order is unpaid by definition until delivery; gating it would deadlock it in the
+   warehouse permanently.
+5. A trip cannot be completed while any of its orders still owes money.
+
+`Delivered` is deliberately **not** gated on payment. `orders.status` answers "where is the
+cargo"; `payment_status` answers "where is the money". Keeping the two independent is what
+makes the real state "delivered, balance owing, payment promised" representable. Gating
+`Delivered` would strand such a parcel at `Out for Delivery` and show the customer a tracking
+timeline that contradicts the box in their hands.
+
+### 4.7 Indexing
+
+29 indexes in `schema.sql`, targeting the actual access paths:
+
+- **Foreign-key traversals** — `idx_orders_user_id`, `idx_orders_trip_id`,
+  `idx_chat_messages_conversation_id`, `idx_order_status_events_order_id`,
+  `idx_payment_transactions_order_id`, `idx_payment_attempts_order_id`
+- **Filtered list views** — `idx_orders_status`, `idx_trips_status`,
+  `idx_contact_inquiries_status`, `idx_payment_attempts_status`, `idx_profiles_role`
+- **Sort keys** — `idx_orders_created_at`, `idx_trips_departure_date`,
+  `idx_activity_logs_created_at`, `idx_contact_inquiries_created_at`
+- **Partial indexes for badge counts** — `idx_notifications_user_unread`,
+  `idx_chat_messages_unread`, `idx_orders_featured`
+- **Full-text search** — `chat_messages_message_trgm_idx`, a trigram index supporting
+  `search_conversation_messages()`
+- **Correctness, not performance** — `unique_tx_ref`, a partial unique index on
+  `payment_transactions.transaction_reference` that makes duplicate reconciliation impossible
+
+Additional constraints and indexes were consolidated in
+`20260803130000_constraints_and_indexes.sql`, including a trip date-ordering constraint
+(`20260803131000`).
 
 ---
 
@@ -313,69 +455,64 @@ CREATE UNIQUE INDEX unique_tx_ref ON payment_transactions(transaction_reference)
 
 ### 5.1 Primary — Supabase Storage
 
-| Property | Value |
-|---|---|
-| Bucket | `cargo-photos` (configurable via `VITE_SUPABASE_PHOTOS_BUCKET`) |
-| Visibility | **Private** (`public = FALSE`) |
-| Size limit | 5,242,880 bytes (5 MB) per object, enforced by the bucket |
-| Allowed MIME types | `image/jpeg`, `image/png`, `image/webp` |
-| Cache control | `31536000` (1 year) on upload |
+Bucket `cargo-photos`: **private**, 5 MB per object, `image/jpeg | png | webp` only.
+Overridable via `VITE_SUPABASE_PHOTOS_BUCKET`.
 
-**Client-side pipeline** (`src/lib/storage.js`):
+Upload pipeline (`src/lib/storage.js`):
 
-1. Validate MIME type against the whitelist and reject sources over 10 MB.
-2. Compress with `browser-image-compression` — target ≤ 0.8 MB, max dimension 1200 px,
-   normalised to JPEG, executed in a Web Worker so the UI thread is not blocked. On
-   compression failure the original file is used rather than aborting the upload.
-3. Upload to a structured, human-readable path with `upsert: true`.
-4. Return a **storage descriptor object** (`{type, bucket, path, content_type, size_bytes,
-   created_at}`) rather than a URL — the descriptor is what is persisted into the `orders`
-   JSONB columns, so URLs can be re-derived if the access model changes.
+```
+validate MIME + ≤10 MB
+      ↓
+compress  (browser-image-compression: ≤0.8 MB, 1200 px, JPEG, Web Worker)
+      ↓
+upload    (upsert: true)
+      ↓
+return a DESCRIPTOR, not a URL
+```
 
-**Path convention:**
+```js
+{ type: 'supabase_storage', bucket, path, content_type, size_bytes, created_at }
+```
+
+Descriptors — not URLs — are what get persisted into `orders.pickup_photos` and
+`delivery_photos` (JSONB). Rendering calls `resolvePhotoUrl()` / `resolvePhotoUrls()`, which
+mint a **signed URL with a 1-hour TTL**, falling back to a public URL only for buckets that
+remain public. Storing a descriptor rather than a URL is what allowed the bucket to be taken
+private later without rewriting historical rows.
+
+Path convention:
 
 ```
 pickup-proofs/CE-20260802-1234/pickup-1.jpg
 delivery-proofs/CE-20260802-1234/delivery-1.jpg
 receipts/CE-20260802-1234/receipt-1.jpg
-gallery/gallery-1754110000000.jpg          ← company assets (no order context)
-hero/hero-1754110000000.jpg
+gallery/gallery-<ts>.jpg          ← company assets, no order context
 ```
-
-Folder segments are sanitised to `[a-zA-Z0-9._-]` and truncated to 60 characters.
 
 ### 5.2 Storage access policies
 
-```sql
--- Admins: full control over the bucket
-CREATE POLICY "Admins manage cargo photos" ON storage.objects
-  FOR ALL TO authenticated
-  USING (bucket_id = 'cargo-photos' AND public.is_admin());
+The bucket was taken fully private in `20260804200000_lock_cargo_photos.sql`, completing a
+transition staged one migration earlier. The `/object/public/` endpoint no longer serves it.
 
--- Customers: read only the photos belonging to their own orders
-CREATE POLICY "Users read own cargo photos" ON storage.objects
-  FOR SELECT TO authenticated
-  USING (
-    bucket_id = 'cargo-photos'
-    AND EXISTS (SELECT 1 FROM public.orders o
-                WHERE o.id = public.safe_uuid((storage.foldername(name))[2])
-                  AND o.user_id = auth.uid())
-  );
-```
+The reasoning is worth recording: object paths embed the tracking number, and tracking numbers
+follow the predictable pattern `CE-YYYYMMDD-NNNN`. A public bucket therefore made every proof
+photo and payment receipt in the system enumerable by anyone who could guess a date and a
+counter.
 
-The customer policy parses the order identifier out of the object path and joins it against
-`orders`. `public.safe_uuid()` is a helper that returns `NULL` instead of raising when the path
-segment is not a valid UUID — without it, a malformed object name would abort policy
-evaluation with a cast error.
+After the migration, shipment evidence is readable only by:
+
+- an **admin** session (`Admins manage cargo photos`);
+- the **owning customer** (`Users read own cargo photos`), which resolves the order from the
+  path segment via `public.safe_uuid()`;
+- a **signed URL** minted for a photo the business explicitly featured publicly — the carve-out
+  required by `get_featured_deliveries()`.
 
 ### 5.3 Secondary — Firestore fallback
 
-If a Storage write fails, the SPA calls the `store-photo-fallback` Edge Function, which writes
-a base64 data-URL copy (capped at 700 KB) into Cloud Firestore; `get-photo-fallback` retrieves
-it. Firebase service-account credentials live only in Edge Function secrets and never reach
-the browser. This provides delivery-evidence redundancy across two independent cloud providers
-— defensible in a thesis as a data-durability measure for legally significant proof-of-delivery
-images.
+If a Storage write fails, `store-photo-fallback` writes a ≤700 KB data-URL copy of the image
+into Firestore, and `get-photo-fallback` reads it back. Firebase service-account credentials
+live in Edge Function secrets and never reach the browser. This is the only use of Firestore
+in the system — it is not a primary datastore.
 
 ---
 
@@ -383,119 +520,91 @@ images.
 
 ### 6.1 Identity provider
 
-**Supabase Auth (GoTrue)** — email and password. Firebase Authentication is **not** used
-anywhere in the system; the Firebase SDK is present solely for Cloud Messaging.
-
-Session handling (`src/lib/supabase.js`):
-
-| Setting | Value | Effect |
-|---|---|---|
-| `persistSession` | `true` | Session survives reloads (localStorage, `sb-` prefixed keys) |
-| `autoRefreshToken` | `true` | JWT refreshed before expiry |
-| `detectSessionInUrl` | `true` | Handles password-reset and magic-link callbacks |
-| `lock` | custom | Prevents concurrent-refresh races (§3.3) |
+Supabase Auth (GoTrue), email + password, JWT-based. There are **no OAuth providers and no
+Firebase Auth**. A `handle_new_user` trigger creates the matching `profiles` row on signup,
+and `sync_auth_email_to_profile` keeps `profiles.email` consistent when a user changes their
+GoTrue email.
 
 ### 6.2 Authentication flows
 
-| Flow | Implementation |
-|---|---|
-| **Registration** | `supabase.auth.signUp()` → `createProfile()` inserts the `profiles` row with normalised structured address fields → profile fetched into context |
-| **Login** | `signInWithPassword()` → profile fetched; **if the profile fetch fails the session is signed out**, preventing a half-authenticated state |
-| **Logout** | Deletes this device's push token, clears React state, removes only `sb-*` localStorage keys (preserving PWA cache, theme, and drafts), then `signOut()` |
-| **Password reset** | `resetPasswordForEmail()` with an origin-aware redirect to `/reset-password` |
-| **Password change** | `auth.updateUser({ password })` |
+`AuthContext` implements several deliberate behaviours that must be preserved:
 
-Defensive details worth citing: `fetchProfile` races the request against a 15-second timeout
-and, on transient failure, **preserves an existing valid profile** rather than downgrading the
-user to a role-less placeholder — this prevents a network blip from ejecting an admin
-mid-session. An `isAuthAction` ref suppresses the duplicate profile fetch that
-`onAuthStateChange` would otherwise trigger during an explicit login or registration.
+- **Login signs the user out if the profile fetch fails.** There is no half-authenticated
+  state in which a session exists without a known role.
+- **`fetchProfile` races a 15-second timeout and retains an existing valid profile** on
+  transient failure, rather than downgrading the user to a role-less placeholder that would
+  bounce them out of their own dashboard.
+- **An `isAuthAction` ref suppresses the duplicate profile fetch** that `onAuthStateChange`
+  would otherwise trigger immediately after an explicit login.
+- **Logout deletes this device's push token** and clears only `sb-*` localStorage keys, so
+  unrelated preferences (theme, dismissed banners) survive.
 
 ### 6.3 Authorization — Row Level Security
 
-RLS is enabled on all 14 application tables. Two `SECURITY DEFINER` helpers underpin the
-policy set:
+RLS is enabled on all 16 tables, with **54 policies** in `schema.sql`. `public.is_admin()` is
+the shared privilege helper.
 
-```sql
-CREATE FUNCTION public.is_admin() RETURNS BOOLEAN
-LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
-  SELECT COALESCE((SELECT role = 'admin' FROM public.profiles WHERE id = auth.uid()), FALSE);
-$$;
-```
+| Table | Policy summary |
+|---|---|
+| `profiles` | Own read/update; admins read/update all; insert restricted to self |
+| `orders` | Own read; admins full; anonymous read limited to `featured_on_website = true` |
+| `order_status_events` | Own order's events; public timeline only via RPC |
+| `trips`, `announcements`, `company_information` | Public read, admin write |
+| `chat_messages` | Participants only; customers may flip `is_read` on **admin** messages only |
+| `conversations` | Customer sees own; admins insert/update; customer updates constrained |
+| `contact_inquiries` | Anonymous INSERT (the public form); admin read/update/delete |
+| `notifications` | Own read/update/insert/delete; admins read and insert |
+| `user_device_tokens` | Own full control; admins may insert |
+| `customer_feedback` | Customer inserts and reads own; admins manage all |
+| `payment_transactions` | Admins insert/select; customers read their own |
+| `payment_attempts` | Admin only; the reconcile RPC is granted to `service_role` alone |
+| `activity_logs` | Admin read; insert guarded by trigger; users may insert their own |
+| `storage.objects` | Five policies implementing §5.2 |
 
-Representative policy matrix:
+Customer order INSERT is **value-constrained, not merely ownership-constrained**: the status
+must be `Pending` or `Assigned`, and the weight, payment, and photo fields must be empty. A
+customer cannot self-insert a paid, delivered order.
 
-| Table | Customer | Admin | Anonymous |
-|---|---|---|---|
-| `profiles` | read/update own | read/update all | — |
-| `trips` | read all | full control | read all |
-| `orders` | read own; insert own (constrained) | full control | read only `featured_on_website = true` |
-| `notifications` | read/update/delete own | read all; insert any | — |
-| `conversations` | read/insert/update own | read/insert/update all | — |
-| `chat_messages` | read/insert in own conversation; may set `is_read` on admin messages only | full control | — |
-| `contact_inquiries` | insert | read/update | **insert** (public form) |
-| `company_information` | read | full control | read |
-| `activity_logs` | insert own (`admin_id = auth.uid()`) | read/insert | — |
-| `customer_feedback` | insert/read own | full control | read non-hidden |
-| `payment_transactions` | read own (via order ownership) | full control | — |
-| `payment_attempts` | — | full control | — |
-
-The customer **INSERT** policy on `orders` is unusually strict — it constrains not just row
-ownership but the initial values of price-sensitive columns:
-
-```sql
-CREATE POLICY "Users can create own orders" ON orders
-  FOR INSERT WITH CHECK (
-    user_id = auth.uid()
-    AND status IN ('Pending', 'Assigned')
-    AND actual_weight IS NULL
-    AND payment_method IS NULL
-    AND payment_status = 'unpaid'
-    AND amount_paid = 0
-    AND pickup_photos = '[]'::jsonb
-    AND delivery_photos = '[]'::jsonb
-  );
-```
-
-A customer therefore cannot self-declare an order as paid, pre-set a weight, or fabricate proof
-photos at creation time.
+Function execute privileges were audited and tightened in
+`20260804190000_function_privileges.sql`; blanket `GRANT EXECUTE ... TO public` is not the
+default.
 
 ### 6.4 Server-side guards (database triggers)
 
-| Trigger / function | Fires | Guarantee enforced |
-|---|---|---|
-| `guard_profile_write` | BEFORE INSERT/UPDATE on `profiles` | Non-admins are forced to `role = 'customer'`; on update, `id`, `email`, `role`, `created_at` are reverted to their old values — **privilege escalation is structurally impossible** |
-| `prepare_order_insert` | BEFORE INSERT on `orders` | Rejects creating orders for another user; requires weight > 0; server-generates the tracking number; nulls all payment/weight/photo fields; resolves origin/destination from the trip; computes `shipping_cost = weight × price` |
-| `guard_order_update` | BEFORE UPDATE on `orders` | Re-derives origin/destination from the trip and recomputes `shipping_cost` and `remaining_balance` whenever weight, trip, or amount paid changes |
-| `guard_chat_message_insert` | BEFORE INSERT on `chat_messages` | Overwrites `sender_id` with `auth.uid()` and `sender_role` with the sender's real role — a client cannot impersonate an admin in chat |
-| `update_order_payment_totals` | AFTER INSERT/UPDATE/DELETE on `payment_transactions` | Recomputes `amount_paid`, `remaining_balance`, and `payment_status` from the transaction ledger — payment state is always derived, never asserted |
-| `log_customer_chat_message` | AFTER INSERT on `chat_messages` | Writes an audit entry distinguishing conversation start from reply |
-| `update_updated_at` | BEFORE UPDATE (4 tables) | Maintains `updated_at` |
+Authorization that RLS cannot express — value coercion, derivation, and cross-row invariants —
+lives in triggers:
 
-**Pricing is computed exclusively server-side.** `global_price_per_kilo()` reads
-`company_information.default_price_per_kg` (default 70 if absent);
-`effective_trip_price(trip_id)` prefers a trip-specific `price_per_kg` and falls back to the
-global rate. The client's own price calculation in `createOrder` is display-only — the trigger
-overwrites it.
+| Trigger function | Guarantee |
+|---|---|
+| `guard_profile_write` | Non-admins forced to `role='customer'`; `id`/`email`/`role`/`created_at` reverted on update |
+| `prepare_order_insert` | Server-generates the tracking number, nulls payment/weight/photo fields, computes `shipping_cost` |
+| `guard_order_update` | Recomputes `shipping_cost` and `remaining_balance` on weight/trip/payment change; enforces the warehouse hold |
+| `guard_trip_completion` | Blocks completion while any order on the trip owes money |
+| `guard_chat_message_insert` | Overwrites `sender_id`/`sender_role` from `auth.uid()` — impersonation is impossible |
+| `guard_conversation_update` | Restricts which conversation fields a client may change |
+| `guard_activity_log_insert` | Prevents forged audit entries |
+| `maintain_conversation_service_state` | Derives `conversations.status` from the last message |
+| `stamp_conversation_resolved_at` / `stamp_inquiry_service_state` | Stamp service timestamps |
+| `log_order_status_event` | Appends to `order_status_events` on every status change |
+| `update_order_payment_totals` | Derives `amount_paid` / `remaining_balance` / `payment_status` from the ledger |
 
-Tracking numbers are generated by `generate_order_tracking_number()`, which loops on the
-format `CE-YYYYMMDD-NNNN` until it finds an unused value, guaranteeing uniqueness under
-concurrency.
+The consistent principle: **a client-supplied price, weight, status, or payment amount is
+never trusted.** If a rule is not in a trigger or an RLS policy, it is not enforced.
 
 ### 6.5 Public-data protection
 
-Anonymous tracking is served by a `SECURITY DEFINER` RPC, not by table access:
+Anonymous surfaces are served by purpose-built RPCs rather than widened table grants:
 
-```sql
-CREATE FUNCTION public.track_order_public(p_tracking_number TEXT) RETURNS TABLE (...)
-```
+| RPC | Exposes |
+|---|---|
+| `track_order_public()` | Masked tracking result. `mask_name()` renders "Juan Dela Cruz" as "Juan C."; phone, address, and payment fields are never returned |
+| `get_public_order_events()` | Status timeline for a tracked order |
+| `get_public_business_profile()` | Only the contact details intended to be public |
+| `get_featured_deliveries()` | Orders explicitly flagged `featured_on_website` |
+| `get_public_feedback()` | Non-hidden customer feedback |
 
-It returns status, route, weight, cost, and an estimated delivery date derived from
-`trips.arrival_date`, but **never** phone numbers, addresses, or payment fields. Sender and
-receiver names are passed through `mask_name()`, which collapses "Juan Dela Cruz" to
-"Juan C." — a documented privacy control aligned with the Philippine Data Privacy Act
-(RA 10173). Similarly, `get_public_business_profile()` exposes only the intended public
-contact fields from the singleton company row.
+Public tracking was further hardened in `20260723120000_harden_public_tracking.sql`, and the
+broader policy set in `20260723181500_harden_rls_policies.sql`.
 
 ---
 
@@ -503,77 +612,70 @@ contact fields from the singleton company row.
 
 ### 7.1 Mechanism
 
-Supabase Realtime streams PostgreSQL logical-replication events to subscribed browsers over
-WebSocket. Five tables are published:
+Supabase Realtime streams PostgreSQL logical-replication events over WebSockets. Crucially,
+**Realtime respects RLS** — a subscriber receives only rows they are permitted to read, so the
+change stream cannot be used to bypass the policy set.
 
-```sql
-ALTER PUBLICATION supabase_realtime ADD TABLE conversations;
-ALTER PUBLICATION supabase_realtime ADD TABLE chat_messages;
-ALTER PUBLICATION supabase_realtime ADD TABLE notifications;
-ALTER PUBLICATION supabase_realtime ADD TABLE orders;
-ALTER PUBLICATION supabase_realtime ADD TABLE contact_inquiries;
-```
+Published tables: `orders`, `conversations`, `chat_messages`, `notifications`,
+`contact_inquiries`.
 
-Realtime respects RLS: a subscriber receives only those change events whose rows they are
-permitted to read.
+Publication membership is asserted idempotently by
+`20260805140000_enable_realtime_publications.sql`. Before that migration, the publication was
+configured through the Supabase dashboard but never captured in SQL — meaning a database
+rebuilt from `schema.sql` alone would have had subscriptions that connected successfully and
+then silently never fired.
 
 ### 7.2 Subscription inventory
 
-| Channel | Location | Table(s) | Purpose |
-|---|---|---|---|
-| `chat_hybrid_{conversationId}` | `src/pages/customer/SupportChatPage.jsx` | `chat_messages`, `conversations` | Live customer chat + escalation state |
-| `chat_admin_{conversationId}` | `src/pages/admin/InboxPage.jsx` | `chat_messages` | Live admin side of the active thread |
-| `admin_conversations_insert` / `_update` | `src/pages/admin/InboxPage.jsx` | `conversations` | New threads and status changes appear without refresh |
-| `admin_chat_messages_all` | `src/pages/admin/InboxPage.jsx` | `chat_messages` | Global unread indicator across all threads |
-| `notifications_{userId}` | `src/pages/customer/NotificationsPage.jsx` | `notifications` | Live notification list |
-| `notif_badge_{userId}` | `src/components/layout/CustomerLayout.jsx` | `notifications`, `chat_messages` | Customer navigation badges |
-| `admin_notif_badge_{userId}` | `src/components/layout/AdminLayout.jsx` | 3 subscriptions | Admin navigation badges |
-| `admin_notif_panel_{userId}` | `src/components/ui/AdminNotificationCenter.jsx` | `notifications` | Live notification dropdown |
-| `admin_sidebar_badges` | `src/components/layout/Sidebar.jsx` | 2 subscriptions | Sidebar counters (orders, inquiries) |
-| — | `src/hooks/useCustomerChatUnread.js` | `chat_messages` × 2 | Reusable unread-count hook |
+| Location | Watches |
+|---|---|
+| `SupportChatPage` | Own conversation + messages |
+| Admin `InboxPage` | Four channels: conversations, messages, assignment, inquiries |
+| Customer `NotificationsPage` | Own notifications |
+| `CustomerLayout` / `AdminLayout` | Badge counts, service-worker messages |
+| `AdminNotificationCenter`, `Sidebar` | Notification and queue badges |
+| `useCustomerChatUnread` | Unread admin messages |
+| `useRealtimeOrders` | `orders`, debounced into batches |
 
-Channel names are namespaced per user where the data is per-user, avoiding cross-user
-subscription collisions in shared browser sessions.
+Per-user channels are namespaced with the user id (`notif_badge_${user.id}`) and every
+subscription unsubscribes on unmount.
 
 ### 7.3 Push notifications (out-of-app realtime)
 
-The `send-push` Edge Function implements **dual-protocol** delivery, which is the key technical
-detail: Firebase's FCM JavaScript SDK does not work in an iOS Safari PWA, so iOS is served by
-raw Web Push instead.
+`send-push` is **dual-protocol**, and both paths are required:
 
-| Platform | Protocol | Implementation |
+| Path | Target | Mechanism |
 |---|---|---|
-| Android, Chrome, desktop | FCM HTTP v1 | Service-account JWT (RS256, signed via WebCrypto) exchanged for an OAuth2 access token, then `POST /v1/projects/{id}/messages:send` |
-| iOS 16.4+ (installed PWA) | Web Push (RFC 8030/8291/8292) | VAPID-signed requests using P-256 keys held as Edge Function secrets |
+| FCM HTTP v1 | Android, Chrome, desktop | Firebase service-account JWT |
+| Web Push (RFC 8030/8291/8292) | iOS 16.4+ installed PWAs | Raw VAPID-signed payloads |
 
-Supporting infrastructure:
+Apple does not support the Firebase Messaging JS SDK in Safari, so an FCM-only implementation
+would silently exclude every iPhone user. `usePushNotification` routes by platform: an
+installed iOS PWA subscribes through `PushManager` and stores the subscription with a
+`webpush:` prefix, which `send-push` uses to select the delivery protocol; every other
+platform receives an FCM token. iOS Safari that is *not* installed is refused explicitly
+rather than falling through to FCM, because Apple requires Home Screen installation before
+Web Push is available.
 
-- `user_device_tokens` — one row per device, `token` UNIQUE; tokens are refreshed if older
-  than 12 hours (`refreshFCMTokenIfNeeded`) and deleted on logout so a device is never left
-  bound to a previous account.
-- `notification_delivery_attempts` — records `sent` / `failed` / `skipped` per device with the
-  provider message ID or error, giving an auditable delivery log.
-- Stale-token pruning — tokens rejected by the provider are removed automatically.
-- Foreground messages are intercepted by `onForegroundMessage` and rendered as in-app toasts
-  rather than OS notifications; the service worker's `push` and `notificationclick` handlers
-  cover the background case and deep-link into the relevant page.
+Tokens live in `user_device_tokens` (refreshed when older than 12 hours, deleted on logout).
+Every delivery outcome is written to `notification_delivery_attempts`, and stale tokens are
+pruned — the operational hardening added in `20260711190000`.
 
 ### 7.4 Support chat and the rule-based assistant
 
-`src/lib/supportChatEngine.js` (474 lines) is a **deterministic, database-aware chatbot** — not
-an LLM integration. It runs inside the authenticated session and can safely query the signed-in
-customer's own records. Its structure:
+`src/lib/supportChatEngine.js` is a **regex-based** assistant. There is no LLM and no
+third-party chatbot service. It runs authenticated and queries only the signed-in customer's
+own orders, so it can answer "where is my parcel" without any privileged data access.
 
-- **Escalation patterns** — ~20 regular expressions (complaint, damaged, refund, lost package,
-  urgent, "talk to a human", supervisor, …) that bypass the bot entirely and set the
-  conversation to await an admin.
-- **Intent matchers** — regex-keyed handlers for greeting, booking status, payment details,
-  tracking, delivery process, and related queries, each of which queries Supabase for the
-  user's actual orders/payments and answers with real data.
+Roughly 20 escalation patterns — complaint, damaged, refund, lost, urgent, "talk to a human",
+and similar — bypass the bot entirely and hand the thread to an admin. Bot outcomes are
+captured in `conversations.bot_resolved`, and `auto_resolve_stale_conversations()` closes
+threads that go quiet.
 
-Conversations are one-per-customer (UNIQUE constraint), with a `status` field supporting
-`open` / `waiting` / closed states so the admin inbox can distinguish bot-handled threads from
-those needing human attention.
+Admin-side search is served by `search_conversation_messages()`
+(`20260805100000_search_conversations_rpc.sql`), backed by the trigram index on
+`chat_messages.message`, so the inbox can search message *contents* rather than only
+participant names.
 
 ---
 
@@ -581,96 +683,102 @@ those needing human attention.
 
 ### 8.1 Provider and methods
 
-**PayMongo** (`https://api.paymongo.com/v1`) — a Philippine payment gateway — provides GCash
-e-wallet payments. Three payment methods exist in the domain model
-(`orders.payment_method`):
+PayMongo, GCash channel. Three order payment methods:
 
-| Method | Handling |
+| Method | Behaviour |
 |---|---|
 | `cash` | Recorded manually by an admin at pickup or delivery |
-| `gcash` | Processed online through PayMongo |
-| `paylater` | Deferred payment with a `promised_payment_date`, optionally with a downpayment |
+| `gcash` | Online, via the PayMongo source/capture flow |
+| `paylater` | Deferred, with a `promised_payment_date` |
+
+`orders.payment_preference` records what the customer *requested* at booking (default
+`'unspecified'`); `payment_method` records what actually happened.
 
 ### 8.2 Key-splitting model
 
+This is the system's core payment-security property:
+
 | Key | Location | Capability |
 |---|---|---|
-| `VITE_PAYMONGO_PUBLIC_KEY` | Browser (`.env`) | Create a payment *source* and read its status only |
-| `PAYMONGO_SECRET_KEY` | Edge Function secret | Capture payments (move money) |
-| `PAYMONGO_WEBHOOK_SECRET` | Edge Function secret | Verify webhook authenticity |
+| `VITE_PAYMONGO_PUBLIC_KEY` | Browser bundle | Create a source; read its status |
+| `PAYMONGO_SECRET_KEY` | Edge Function secret | **Capture** payments |
+| `PAYMONGO_WEBHOOK_SECRET` | Edge Function secret | Verify webhook signatures |
 
-The browser can *initiate* a payment but can never *capture* one. This separation is the
-central security property of the payment design.
+The browser can *initiate* a payment but can never *capture* one. Compromising the client
+bundle yields no ability to move money.
 
 ### 8.3 Transaction flow
 
 ```
- 1. Client   createGCashSource()  ──► PayMongo /v1/sources        [public key]
-                                      returns sourceId + checkout_url
- 2. Client   registerSource()     ──► Edge Fn (action:'register')
-                                      INSERT payment_attempts (status='pending')
- 3. User     redirected to GCash, authorises payment
- 4a. PayMongo ──webhook──► paymongo-webhook  (source.chargeable)
-      verify HMAC-SHA256 ► capture ► reconcile RPC
- 4b. User returns to app ► pollPaymentStatus() ──► Edge Fn (action:'poll')
-      read source status ► capture if chargeable ► reconcile RPC
- 5. reconcile_paymongo_payment_attempt()  [SECURITY DEFINER, row-locked]
-      UPDATE orders  SET payment_status, amount_paid, remaining_balance,
-                         payment_reference, status='Picked Up'
-      UPDATE payment_attempts SET status='reconciled'
+1. Browser  createGCashSource()          → PayMongo /v1/sources   [public key]
+2. Browser  registerSource()             → Edge Fn; INSERT payment_attempts (pending)
+3. User authorises in the GCash app
+4a. PayMongo webhook → paymongo-webhook  → verify HMAC → capture → reconcile
+4b. User returns    → pollPaymentStatus() → Edge Fn 'poll' → capture → reconcile
+5. reconcile_paymongo_payment_attempt()   [SECURITY DEFINER, SELECT … FOR UPDATE]
+       updates orders + payment_attempts, sets order status 'Picked Up'
 ```
 
-Paths 4a and 4b are **redundant and idempotent** — whichever completes first wins, and the
-other detects the reconciled state and returns the existing result. This is the system's
-answer to the classic mobile-payment failure mode where the user closes the browser before
-being redirected back.
+Paths 4a and 4b are **redundant and idempotent** — whichever arrives first completes the
+payment. This is a deliberate response to the most common real-world failure: the customer
+closing the browser before the redirect returns.
 
-### 8.4 Idempotency and correctness controls
+### 8.4 Counter payments and ledger atomicity
 
-1. **Row-level locking** — the reconciliation RPC uses `SELECT … FOR UPDATE` on both the
-   payment attempt and the order, serialising concurrent webhook and poll reconciliations.
-2. **Unique constraints** — `payment_attempts.source_id` and `payment_attempts.payment_id` are
-   both UNIQUE; `payment_transactions.transaction_reference` has a partial unique index.
-3. **Duplicate-payment guard** — reconciliation is refused if the order is already fully paid
-   under a *different* payment reference, while partial and unpaid orders remain open to
-   further payments.
-4. **No write retries** — the client fetch wrapper never retries non-idempotent methods (§3.3).
-5. **Orphan recovery** — if a PayMongo capture succeeded but the database reconciliation
-   failed, the attempt retains a `payment_id` with a non-`reconciled` status; the next
-   invocation detects this and re-runs reconciliation instead of double-charging.
-6. **Self-healing** — when a capture returns "not chargeable", the function re-queries the
-   PayMongo source; if the source is in fact `paid`, it reconciles directly using a synthetic
-   `auto_{sourceId}` reference.
-7. **Webhook signature verification** — HMAC-SHA256 over `{timestamp}.{rawBody}`, compared
-   against both the test (`te`) and live (`li`) signature components using a constant-time
-   comparison, before any parsing of the payload.
+`record_pickup_payment()` and `record_delivery_payment()`
+(`20260803100000_atomic_order_payment.sql`) are the only correct way to take a manual payment.
 
-### 8.5 Payment state machine
+Before this migration, the admin flow issued two separate round trips: an `UPDATE orders`
+carrying client-computed totals, followed by an `INSERT payment_transactions` whose trigger
+recomputed the same three columns. If the insert failed — for example on a unique-reference
+collision from a retry or a webhook race — the order was left **marked paid with zero backing
+ledger rows**, and because `get_sales_summary()` sums `orders.amount_paid`, the drift
+propagated silently into revenue reporting.
 
-`payment_attempts.status`: `pending → chargeable → reconciled`, with `failed` as an error state
-carrying `last_error`.
+The RPCs collapse this into one transaction that writes order *metadata* only; the ledger
+trigger derives the money columns. The internal ordering is load-bearing:
 
-`orders.payment_status` is **never written directly by a client**. It is derived by the
-`update_order_payment_totals` trigger from the `payment_transactions` ledger:
+1. `UPDATE orders` → fires `guard_order_update`, recomputing `shipping_cost` from the new
+   `actual_weight`.
+2. `INSERT payment_transactions` → fires `update_order_payment_totals`, which **reads** that
+   `shipping_cost` to derive the remaining balance.
 
-```
-total_paid = Σ payment_transactions.amount WHERE payment_status IN ('paid','partial')
-remaining  = max(0, shipping_cost − total_paid)
-status     = remaining ≤ 0 ? 'paid' : total_paid > 0 ? 'partial' : 'unpaid'
-```
+Reversing the two steps would derive the balance from a stale cost.
 
-Pay-later reconciliation is treated distinctly: the paid amount is a downpayment measured
-against `estimated_cost`, so a balance may legitimately remain and the order is marked
-`partial`. A full payment marks the order `paid` with `remaining_balance = 0`.
+### 8.5 Idempotency and correctness controls
 
-### 8.6 Financial reporting
+- Row locks (`SELECT … FOR UPDATE`) inside the reconcile RPC
+- UNIQUE constraints on `source_id` and `payment_id`; partial unique index on
+  `payment_transactions.transaction_reference`
+- **Duplicate-payment guard** — refuses only when the order is already fully paid under a
+  *different* reference, so a genuine retry is not blocked
+- **Orphan recovery** — `payment_id` present but status ≠ `reconciled` triggers
+  re-reconciliation, never a re-charge
+- **Self-healing** — on a "not chargeable" response, the source is re-queried; if PayMongo
+  reports `paid`, it reconciles under `auto_{sourceId}`
+- **Webhook verification** — HMAC-SHA256 over `{t}.{rawBody}`, constant-time comparison,
+  performed before the body is parsed
 
-`get_sales_summary()` — an admin-gated (`RAISE EXCEPTION` if not `is_admin()`)
-`SECURITY DEFINER` RPC — returns a single JSONB payload containing: total revenue, per-method
-collection totals (cash/GCash/pay-later), paid and unpaid totals, unpaid count, a 24-month
-revenue series, and the 100 most recent unpaid or partially paid orders. Cancelled orders are
-excluded from all aggregates. Computing this in one round trip avoids shipping the full order
-table to the browser for client-side aggregation.
+### 8.6 Payment state machine
+
+`payment_attempts.status`: `pending → chargeable → reconciled`, with `failed` carrying
+`last_error`.
+
+`orders.payment_status` (`unpaid` / `partial` / `paid`) is **derived** by
+`derive_payment_status` from the ledger and is never written directly by a client. Re-weighing
+a delivered order recomputes it (`20260805120000_payment_status_on_weight_edit.sql`), so a
+"Paid" badge cannot go stale after the shipping cost changes.
+
+### 8.7 Financial and service reporting
+
+| RPC | Returns |
+|---|---|
+| `get_sales_summary()` | Admin-gated: totals, per-method breakdown, 24-month series, and up to 100 unpaid/partial orders in a single round trip |
+| `get_service_summary()` | Customer-service equivalent: queue counts across the four conversation states, response times, bot outcomes, inquiry volume |
+
+Both are exposed through the admin **Sales & Reports** screen, which is a tab shell
+(`SalesReportsPage`) composing four sections: Sales Overview, Unsettled Deliveries, Customer
+Service, and Reports & Analytics.
 
 ---
 
@@ -678,73 +786,46 @@ table to the browser for client-side aggregation.
 
 ### 9.1 Auto-generated REST API (PostgREST)
 
-Every table is exposed at `{SUPABASE_URL}/rest/v1/{table}` with filtering, ordering,
-pagination, and embedded-resource syntax. Access is governed entirely by RLS. The SPA never
-calls these endpoints directly — all access is funnelled through
-**`src/lib/database.js` (1,875 lines, ~80 exported functions)**, the data-access layer.
-
-Representative groupings:
-
-| Domain | Functions |
-|---|---|
-| Profiles | `getProfile`, `getAdminProfile`, `updateProfile`, `createProfile` |
-| Orders | `createOrder`, `getOrders`, `getOrderById`, `updateOrder`, `cancelOwnOrder`, `deleteOrder`, `getPendingGrouped` |
-| Trips | `createTrip`, `getTrips`, `getTripById`, `updateTrip`, `deleteTrip`, `reassignTrip`, `getTripReassignments`, `bulkUpdateOrdersStatusByTrip` |
-| Notifications | `getNotifications`, `markNotificationRead`, `markAllNotificationsRead`, `deleteNotification`, `deleteAllNotifications`, `getUnreadNotificationCount`, `createNotification`, `createAdminNotification` |
-| Chat | `getOrCreateConversation`, `getAdminConversations`, `getMessages`, `getMessagesPage`, `sendMessage`, `markCustomerMessagesRead`, `markAdminMessagesRead`, `assignConversation`, `closeConversation`, `reopenConversation`, `setConversationWaitingAdmin` |
-| Payments | `createPaymentAttempt`, `recordPaymentTransaction`, `recordAdditionalPayment`, `getPaymentTransactions`, `getPaymentTransactionsBatch` |
-| Analytics | `getDashboardStats`, `getVanCapacity`, `getSalesData`, `getReportData` |
-| CMS | `getCompanyInformation`, `updateCompanyInformation`, coverage/feature CRUD and ordering |
-| Feedback | `submitFeedback`, `checkIfFeedbackExists`, `getPublicFeedback`, `getAdminFeedback`, `updateFeedbackVisibility` |
-| Audit | `getActivityLogs`, `getActivityLogsByRecord` |
-
-All calls are wrapped in `withTimeout(promise, 60000)`, so no request can hang the UI
-indefinitely.
+Every table is reachable at `/rest/v1/{table}` with filtering, ordering, pagination, and
+embedded resource expansion. Access is governed entirely by RLS, so the same URL returns
+different rows for different callers. All client access is funnelled through
+`src/lib/database.js`.
 
 ### 9.2 Database RPC endpoints (`/rest/v1/rpc/{name}`)
 
-| RPC | Caller | Access | Purpose |
-|---|---|---|---|
-| `track_order_public` | Tracking page | `anon`, `authenticated` | Privacy-masked public tracking |
-| `get_public_business_profile` | About page | `anon`, `authenticated` | Public contact details |
-| `cancel_own_pending_order` | Customer | `authenticated` | Cancel only one's own `Pending` order |
-| `reassign_trip` | Admin | `authenticated` (admin-checked internally) | Move an order to another trip with an audited reason |
-| `get_sales_summary` | Admin | `authenticated` (admin-checked internally) | Aggregated financial report |
-| `create_admin_notifications_rpc` | System | `authenticated` | Fan-out a notification to every admin |
-| `reconcile_paymongo_payment_attempt` | Edge Functions | **`service_role` only** | Atomic payment reconciliation |
+Selected endpoints of architectural significance:
 
-The last is granted exclusively to `service_role` — no browser-held key can invoke it.
+| RPC | Purpose |
+|---|---|
+| `track_order_public` | Anonymous, masked tracking |
+| `get_public_order_events` | Public status timeline |
+| `get_public_business_profile` | Public contact details |
+| `get_featured_deliveries`, `get_public_feedback` | Public marketing content |
+| `cancel_own_pending_order` | Customer self-service cancellation |
+| `record_pickup_payment`, `record_delivery_payment` | Atomic counter payments |
+| `reconcile_paymongo_payment_attempt` | Gateway reconciliation (`service_role` only) |
+| `get_sales_summary`, `get_service_summary` | Aggregated reporting |
+| `search_conversation_messages` | Trigram-backed inbox search |
+| `reassign_trip` | Trip reassignment with history logging |
+| `create_admin_notifications_rpc` | Fan-out notification creation |
+| `purge_old_activity_logs`, `auto_resolve_stale_conversations` | Retention and housekeeping |
 
 ### 9.3 Edge Function endpoints
 
-`{SUPABASE_URL}/functions/v1/{name}`
-
-| Endpoint | Method | Auth | Body |
-|---|---|---|---|
-| `paymongo-create-payment` | POST | Bearer JWT + owner/admin check | `{sourceId, amount, description, orderUpdate, action: 'register'\|'capture'\|'poll'}` |
-| `paymongo-webhook` | POST | HMAC signature | PayMongo event payload |
-| `send-push` | POST | Bearer JWT | `{userId, title, body, url}` |
-| `store-photo-fallback` | POST | Bearer JWT | `{orderId, photoIndex, dataUrl}` |
-| `get-photo-fallback` | POST | Bearer JWT | `{orderId, photoIndex}` |
+`/functions/v1/{name}` — the five functions listed in §3.2.
 
 ### 9.4 Third-party APIs consumed
 
-| API | Consumed by | Purpose |
+| Service | Endpoints | Auth |
 |---|---|---|
-| PayMongo `/v1/sources` | Browser (public key) | Create GCash source |
-| PayMongo `/v1/payments` | Edge Functions (secret key) | Capture payment |
-| PayMongo `/v1/sources/{id}` | Edge Functions | Verify source status |
-| Google OAuth2 `/token` | Edge Functions | Service-account JWT → access token |
-| FCM HTTP v1 `messages:send` | `send-push` | Android/Chrome/desktop push |
-| Web Push endpoints | `send-push` | iOS PWA push |
-| Firestore REST API | photo-fallback functions | Redundant photo storage |
-| Google Fonts | Browser | Inter typeface |
+| PayMongo | `/v1/sources`, `/v1/payments` | Public key (browser) / secret key (Edge) |
+| Firebase FCM | HTTP v1 send API | Service-account JWT (Edge) |
+| Web Push | Endpoint URLs from the subscription | VAPID signature (Edge) |
+| Firestore | REST API | Service account (Edge) |
 
 ### 9.5 Realtime API
 
-WebSocket at `{SUPABASE_URL}/realtime/v1`, consumed through
-`supabase.channel(name).on('postgres_changes', {event, schema, table, filter}, cb).subscribe()`.
-See §7.2 for the full subscription inventory.
+WebSocket channels over `/realtime/v1`, subscribed through `supabase-js`, filtered by RLS.
 
 ---
 
@@ -752,191 +833,175 @@ See §7.2 for the full subscription inventory.
 
 ```
 CargoExpressPH-main/
+├── index.html                  SPA entry; PWA meta, theme bootstrap, SW registration
+├── package.json                Dependencies and scripts
+├── vite.config.js              Build config + 2 custom plugins
+├── vercel.json                 SPA rewrite, security headers, SW cache policy
+├── database_design.md          ERD + per-column documentation
+├── CLAUDE.md                   Engineering operating rules
+├── TECHNICAL-OVERVIEW.md       This document
 │
-├── index.html                     SPA entry; pre-paint theme script; SW registration
-├── package.json                   Dependencies and scripts (dev/build/test/check/preview)
-├── vite.config.js                 Build config + 2 custom plugins + manual chunking
-├── vercel.json                    SPA rewrite + cache headers for sw.js / manifest.json
-├── .env / .env.local              Environment variables (VITE_* → client; git-ignored)
-├── CLAUDE.md                      ⚠ Outdated stack description — see §1 note
-├── ui-ux-audit.md                 UI/UX audit findings (29 KB)
-│
-├── public/                        Static assets served verbatim
-│   ├── manifest.json              PWA manifest
-│   ├── sw.js                      Service worker: 3 caches, 4 strategies, push handling
-│   ├── firebase-messaging-sw.js   FCM background message worker
-│   ├── favicon.svg
-│   ├── cargo-hero.png, "Manila and Bohol.png"
-│   └── icons/                     10 PWA icons (72–512 px, incl. 2 maskable)
-│
-├── scripts/                       Quality gates (run by `npm test`)
-│   ├── smoke-check.mjs            Build/import smoke test
-│   └── axe-lint.mjs               Accessibility linting
+├── public/
+│   ├── manifest.json           Web App Manifest
+│   ├── sw.js                   Service worker
+│   ├── firebase-messaging-sw.js
+│   ├── icons/                  10 PWA icons (72→512, incl. maskable)
+│   └── screenshots/            Install-dialog screenshots (+ capture spec)
 │
 ├── src/
-│   ├── main.jsx                   React root
-│   ├── App.jsx                    Router, route guards, lazy imports, provider tree
-│   │
-│   ├── pages/                     53 route components
-│   │   ├── auth/       (4)        Login, Register, ForgotPassword, ResetPassword
-│   │   ├── customer/  (13)        Home, Orders, OrderDetail, BookShipment, Trips,
-│   │   │                          Notifications, Profile, PersonalInfo, ChangePassword,
-│   │   │                          SupportChat, PaymentMethods, HelpGuidelines, AboutVersion
-│   │   ├── admin/     (20)        Dashboard, Orders, OrderDetail, Trips, CreateTrip,
-│   │   │                          TripDetail, Customers, CustomerDetail, Sales,
-│   │   │                          SalesReports, Reports, Announcements, Inbox,
-│   │   │                          ContactInquiries, ActivityLogs, CompanyInformation
-│   │   │                          (+2 tabs), Feedback, Profile
-│   │   └── public/     (3)        Tracking, About, NotFound
-│   │
+│   ├── main.jsx                React root — StrictMode + ErrorBoundary
+│   ├── App.jsx                 Router, guards, lazy route imports
+│   ├── pages/
+│   │   ├── auth/       (4)     Login, Register, ForgotPassword, ResetPassword
+│   │   ├── customer/  (12)     Home, Orders, OrderDetail, BookShipment, Trips,
+│   │   │                       Notifications, Profile, PersonalInfo, SupportChat,
+│   │   │                       PaymentMethods, HelpGuidelines, AboutVersion
+│   │   ├── admin/     (22)     Dashboard, Orders, OrderDetail, Trips, TripDetail,
+│   │   │                       CreateTrip, Customers, CustomerDetail, Inbox,
+│   │   │                       ContactInquiries, Announcements, ActivityLogs,
+│   │   │                       CompanyInformation (+2 tabs), Feedback, Profile,
+│   │   │                       SalesReports (+4 sections)
+│   │   ├── shared/     (2)     ChangePassword, ChangeEmail — mounted under both roles
+│   │   └── public/     (3)     Tracking, About, NotFound
 │   ├── components/
-│   │   ├── layout/     (3)        AdminLayout, CustomerLayout, Sidebar
-│   │   └── ui/        (31)        Modals (Pickup, Delivery, TripAssign, TripReassign,
-│   │                              AdditionalPayment, Confirm, Onboarding), charts
-│   │                              (Donut, MiniBar, AnimatedCounter), feedback
-│   │                              (Skeleton, EmptyState, 3 error boundaries),
-│   │                              navigation (CommandPalette, Breadcrumb, Pagination),
-│   │                              domain widgets (CapacityTracker, TrackingTimeline,
-│   │                              StatusBadge, PrintDocument), a11y (FocusTrap),
-│   │                              mobile (PullToRefresh, IosInstallBanner)
-│   │
-│   ├── contexts/       (2)        AuthContext (session + profile + role)
-│   │                              ThemeContext (light/dark, localStorage-backed)
-│   │
-│   ├── hooks/          (5)        useToast, usePushNotification, useCustomerChatUnread,
-│   │                              useNetworkRecovery, usePageTitle
-│   │
-│   ├── lib/           (14)        Integration & data layer
-│   │   ├── supabase.js            Hardened client (retry, timeout, lock, no-store)
-│   │   ├── database.js            ~80 data-access functions (1,875 lines)
-│   │   ├── storage.js             Upload pipeline, path builder, URL resolution
-│   │   ├── paymongo.js            GCash source creation, capture, polling
-│   │   ├── firebase.js            Firebase app init (FCM only)
-│   │   ├── firebase-messaging.js  Token lifecycle, foreground listener
-│   │   ├── supportChatEngine.js   Rule-based, DB-aware support bot (474 lines)
-│   │   ├── activityLog.js         Audit-trail writer
-│   │   ├── announcements.js       Announcement helpers
-│   │   ├── exportPdf.js           html2pdf wrapper
-│   │   ├── address.js             PH address normalisation / composition
-│   │   ├── lazyWithRetry.js       Chunk-load-failure-tolerant React.lazy
-│   │   └── featureIcons.js        Icon name → component map
-│   │
-│   ├── constants/      (2)        status.js (order/trip state machines)
-│   │                              phLocations.js (Philippine provinces/cities)
-│   │
-│   ├── utils/          (3)        password.js (strength), string.js,
-│   │                              statusTimestamps.js
-│   │
-│   └── styles/        (24)        tokens.css (design tokens) + base, components,
-│                                  layout-admin, layout-customer, pages, responsive,
-│                                  auth, tracking, charts, data, feedback, validation,
-│                                  animations-utils, print-document, viewport-hardening,
-│                                  premium-refresh, admin-modern-refresh,
-│                                  customer-mobile-refresh, …
+│   │   ├── layout/     (3)     AdminLayout, CustomerLayout, Sidebar
+│   │   └── ui/        (33)     Modals, charts, skeletons, error boundaries,
+│   │                           StatusBadge, TrackingTimeline, CapacityTracker,
+│   │                           CommandPalette, InstallAppBanner, IosInstallBanner …
+│   ├── contexts/       (2)     AuthContext, ThemeContext
+│   ├── hooks/          (7)     See §2.3
+│   ├── lib/           (13)     Integration and data layer
+│   ├── constants/      (2)     status.js (state machines + settlement rules), phLocations.js
+│   ├── utils/          (3)     password.js, string.js, statusTimestamps.js
+│   └── styles/        (24)     tokens.css drives light/dark theming
 │
 ├── supabase/
-│   ├── schema.sql                 Complete DDL: 14 tables, RLS, triggers, RPCs (1,462 lines)
-│   ├── config.toml                Supabase CLI project config
-│   ├── migrations/     (38)       Incremental schema history, 24 May – 2 Aug 2026
-│   └── functions/       (5)       Deno Edge Functions
-│       ├── paymongo-create-payment/index.ts   (398 lines)
-│       ├── paymongo-webhook/index.ts          (265 lines)
-│       ├── send-push/index.ts                 (412 lines)
-│       ├── store-photo-fallback/index.ts      (167 lines)
-│       └── get-photo-fallback/index.ts        (132 lines)
+│   ├── schema.sql              Full DDL — 16 tables, 54 policies, triggers, RPCs, 29 indexes
+│   ├── config.toml             Per-function verify_jwt declarations
+│   ├── migrations/    (63)     Timestamped change history
+│   └── functions/      (5)     Deno Edge Functions
 │
-└── dist/                          Vite production build output (generated)
+├── scripts/
+│   ├── smoke-check.mjs         Architectural invariant checks
+│   └── axe-lint.mjs            Static accessibility linting
+│
+└── docs/                       Design studies and diagnostic SQL
 ```
+
+Note that `SalesPage`, `UnsettledDeliveriesPage`, `ServiceReportsPage`, `ReportsPage`,
+`CompanyInfoCoverageTab`, and `CompanyInfoFeaturesTab` are **sections composed into parent
+pages**, not independently routed screens.
 
 ### Layering summary
 
-| Layer | Location | Responsibility |
-|---|---|---|
-| Presentation | `pages/`, `components/`, `styles/` | Rendering and user interaction |
-| Application state | `contexts/`, `hooks/` | Cross-cutting client state |
-| Data access | `lib/database.js`, `lib/storage.js`, `lib/paymongo.js` | All backend communication |
-| Integration | `lib/supabase.js`, `lib/firebase*.js` | SDK configuration and hardening |
-| Domain rules (client) | `constants/`, `utils/` | Status machines, validation, formatting |
-| Domain rules (authoritative) | `supabase/schema.sql` triggers + RLS | Enforced rules that no client can bypass |
-| Privileged services | `supabase/functions/` | Secret-holding operations |
+```
+pages/ + components/     ← rendering only
+        ↓
+hooks/ + contexts/       ← client state and subscriptions
+        ↓
+lib/database.js          ← the single data-access boundary
+        ↓
+lib/supabase.js          ← hardened transport (timeout, GET-only retry)
+        ↓
+PostgREST / GoTrue / Realtime / Storage
+        ↓
+PostgreSQL — RLS + triggers = the authorization and business-rule engine
+```
+
+Each layer may call only the layer beneath it. The rule that pages never call
+`supabase.from(...)` directly is enforced by convention and reviewed in `CLAUDE.md`.
 
 ---
 
 ## 11. Environment Configuration
 
-| Variable | Scope | Purpose |
-|---|---|---|
-| `VITE_APP_URL` | Client | Canonical app URL (password-reset redirect fallback) |
-| `VITE_SUPABASE_URL` | Client | Supabase project endpoint |
-| `VITE_SUPABASE_ANON_KEY` | Client | Anonymous key — safe to expose; RLS is the real gate |
-| `VITE_SUPABASE_PHOTOS_BUCKET` | Client | Storage bucket name |
-| `VITE_FIREBASE_*` (5) | Client | FCM configuration |
-| `VITE_FIREBASE_VAPID_KEY` | Client | Web Push public key |
-| `VITE_PAYMONGO_PUBLIC_KEY` | Client | Source creation only |
-| `PAYMONGO_SECRET_KEY` | **Edge secret** | Payment capture |
-| `PAYMONGO_WEBHOOK_SECRET` | **Edge secret** | Webhook HMAC verification |
-| `SUPABASE_SERVICE_ROLE_KEY` | **Edge secret** | Full database access, bypassing RLS |
-| `FIREBASE_SERVICE_ACCOUNT_B64` | **Edge secret** | FCM v1 and Firestore authentication |
-| `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` | **Edge secrets** | Web Push signing |
+**Client variables** (`VITE_`-prefixed — inlined into the bundle at build time, therefore
+**never secret**):
 
-The `VITE_` prefix is the boundary: Vite inlines those values into the client bundle, so they
-must contain nothing privileged. Everything capable of moving money, sending push on the
-project's behalf, or bypassing RLS is held exclusively as an Edge Function secret.
+`VITE_APP_URL`, `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`,
+`VITE_SUPABASE_PHOTOS_BUCKET`, `VITE_FIREBASE_*` (5 values), `VITE_FIREBASE_VAPID_KEY`,
+`VITE_VAPID_PUBLIC_KEY`, `VITE_PAYMONGO_PUBLIC_KEY`.
+
+**Edge Function secrets** (server-side only):
+
+`PAYMONGO_SECRET_KEY`, `PAYMONGO_WEBHOOK_SECRET`, `SUPABASE_SERVICE_ROLE_KEY`,
+`FIREBASE_SERVICE_ACCOUNT_B64`, `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`.
+
+`.env` additionally holds `SUPABASE_PERSONAL_ACCESS_TOKEN` for Supabase CLI use. It is
+gitignored and must never be referenced from client code.
+
+The anon key is *designed* to be public — it identifies the project, and RLS is what protects
+the data. This is why widening a table's anon policy is treated as a serious change (§6.5).
 
 ---
 
 ## 12. Development Workflow
 
 ```bash
-npm run dev       # Vite dev server, port 5173, auto-opens
-npm run build     # Production build → dist/ (SW version stamped)
-npm run preview   # Serve the production build locally
-npm test          # smoke-check.mjs + axe-lint.mjs (accessibility)
-npm run check     # test + build — the full pre-deployment gate
+npm run dev       # Vite dev server on :5173, auto-opens
+npm run build     # → dist/, stamps build version + precache list into sw.js
+npm run preview   # serve the production build locally
+npm test          # smoke-check.mjs + axe-lint.mjs
+npm run check     # test + build — the pre-deploy gate
 ```
 
-**Deployment:** Vercel. `vercel.json` supplies the SPA rewrite and cache headers.
-**Database migrations:** Supabase CLI, applying files from `supabase/migrations/` in
-timestamp order.
+Deployment is to Vercel as static assets. Database changes are applied with the Supabase CLI
+from `supabase/migrations/` in timestamp order.
+
+### Enforced invariants
+
+`npm test` is not a unit-test suite; it is an **architectural guard**. It fails the build if a
+developer:
+
+- deletes `src/lib/{supabase,storage,database}.js`, `supabase/schema.sql`, or any Edge Function;
+- removes any of `track_order_public`, `cancel_own_pending_order`,
+  `get_public_business_profile`, `get_sales_summary`, `cargo-photos`, `guard_profile_write`,
+  `prepare_order_insert`, or `guard_order_update` from `schema.sql`;
+- removes the selected-trip booking safeguards from `database.js` (`assertTripCapacity`, the
+  "Selected trip is no longer available" error, `finalStatus = 'Assigned'`);
+- reintroduces a silent trip-downgrade fallback (any `skip auto-assignment` text);
+- ships JSX with a missing `alt`, an unlabelled `button`/`a`/`input`, an empty `aria-label`,
+  or duplicate `id`s within one file.
+
+Encoding these as executable checks means the architectural decisions in this document cannot
+be silently reverted by a later change.
 
 ---
 
 ## 13. Architectural Characteristics for Thesis Discussion
 
-**Defence-in-depth authorization.** Three independent layers must all agree before a
-privileged action succeeds: React route guards (UX), RLS policies (row visibility), and
-`SECURITY DEFINER` triggers (field-level invariants). The system's central claim is that a
-malicious client holding a valid customer JWT still cannot escalate to admin, alter a price,
-mark an order paid, or impersonate an admin in chat — every one of those is blocked in the
-database, not the browser.
+**Database-enforced authorization.** The system's most defensible property is that
+authorization is not implemented in application code at all. RLS policies and `SECURITY
+DEFINER` triggers mean a bypassed React guard, a crafted `fetch`, or a stolen anon key still
+cannot read or write a row the database refuses to release. The client is treated as
+fundamentally untrusted.
 
-**Trusted computation placement.** Money amounts, tracking numbers, order status transitions,
-and payment totals are all *computed* server-side and *displayed* client-side. The client's
-own arithmetic is presentational; the trigger's result is authoritative.
+**Derived state over stored state.** Order payment totals, order status history, and
+conversation service state are all *derived* by triggers rather than written by clients. Each
+of these replaced an earlier design where the client computed the value, and each replacement
+was prompted by a specific observed defect — payment drift into revenue reporting, history
+inferred from `updated_at`, and a conversation state that conflated urgency with turn-taking.
 
-**Idempotency under unreliable networks.** The system is designed for Philippine mobile
-conditions: writes are never auto-retried, payment reconciliation is dual-path and row-locked,
-chunk loads retry on failure, and profile fetches degrade gracefully rather than logging the
-user out.
+**Honest absence over plausible defaults.** Several design decisions deliberately leave values
+empty rather than filling them with estimates: an unweighed parcel has no price, an unanswered
+conversation has no response time, and `bot_resolved` is NULL when unknown. The removal of
+customer-declared weight is the clearest instance — it costs the booking confirmation a quoted
+figure, and that cost was accepted because a fabricated estimate was the source of real
+billing disputes.
 
-**Cross-provider redundancy.** Proof-of-delivery photos — the legally significant artefacts in
-a cargo business — are stored primarily in Supabase Storage with an automatic Firestore
-fallback, so a single provider outage cannot destroy delivery evidence.
+**Idempotency as a first-class concern.** The payment system assumes messages arrive twice, out
+of order, or not at all. Redundant webhook and polling paths, row-level locking, unique
+constraints on gateway identifiers, orphan recovery, and self-healing reconciliation are all
+responses to the observation that a user closing their browser mid-payment is the normal case,
+not the exception.
 
-**Platform-constraint engineering.** The dual-protocol push implementation exists because
-Apple does not support the FCM JavaScript SDK in Safari PWAs; the project implements raw
-VAPID-signed Web Push alongside FCM specifically so iOS users are not excluded.
+**Progressive enhancement across hostile platforms.** The dual-protocol push implementation
+exists because Apple does not support the FCM JS SDK in Safari; the iOS install banner exists
+because Apple provides no install prompt; `useScrollLock` exists because iOS ignores
+`overflow: hidden`. The system treats platform divergence as a requirement rather than a bug.
 
-**Privacy by design.** Public tracking is served by a masked, field-restricted RPC rather than
-by loosening table permissions, keeping personally identifiable information out of anonymous
-responses in line with RA 10173.
-
-**Progressive enhancement.** Full functionality online; cached shell and assets offline; the
-app continues to function with service workers, Firebase, or push permission entirely
-unavailable — each integration degrades silently rather than failing the application.
-
----
-
-*Prepared from direct source analysis. All file paths, line references, table definitions,
-policy names, and function signatures cited above were verified against the repository at
-`/Users/beasarong/Downloads/CargoExpressPH-main` on 2 August 2026.*
+**Documented trade-offs.** Offline support covers the application shell but not business data,
+trip capacity checking was removed intentionally so admins can overbook, and `Delivered` is not
+gated on payment. Each is a considered decision with a recorded rationale rather than an
+oversight — and each is documented at the point in the code where a future developer would be
+tempted to "fix" it.

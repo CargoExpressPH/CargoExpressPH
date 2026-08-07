@@ -3,9 +3,10 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { getPublicOrderEvents } from '../../lib/database';
 import { buildStatusTimestamps } from '../../utils/statusTimestamps';
+import { formatPhDate, formatPhDateTime } from '../../utils/datetime';
 import {
   Container, Search, Loader, Package, MapPin, ArrowRight,
-  CheckCircle2, XCircle, Clock, Weight, User, Coins,
+  CheckCircle2, XCircle, Clock, Weight, User,
   RefreshCw, AlertTriangle, ShieldAlert, Truck, Calendar, Info, ClipboardCheck, Building2, Bike,
 } from 'lucide-react';
 import { STATUS_TIMELINE, TRACKING_STATUS_TONES, STATUS_ICONS, ORDER_STATUS } from '../../constants/status';
@@ -30,14 +31,11 @@ const getStatusIcon = (status) =>
   (status && ICON_COMPONENTS[STATUS_ICONS[status]]) || Package;
 
 /* ── Date helpers (locale unified to en-PH everywhere) ──────────────── */
-const PH_LOCALE = 'en-PH';
-const formatDate = (iso, withTime = false) => {
-  if (!iso) return '—';
-  const opts = { year: 'numeric', month: 'short', day: 'numeric' };
-  if (withTime) { opts.hour = '2-digit'; opts.minute = '2-digit'; }
-  try { return new Date(iso).toLocaleDateString(PH_LOCALE, opts); }
-  catch { return new Date(iso).toLocaleDateString(undefined, opts); }
-};
+// Zone is pinned to Asia/Manila, not left to the viewer's machine: the ETA is a
+// PH wall-clock time, and an evening departure rendered in a western zone rolled
+// back (or forward) a calendar day. See src/utils/datetime.js.
+const formatDate = (iso, withTime = false) =>
+  withTime ? formatPhDateTime(iso) : formatPhDate(iso);
 
 /* Auto-refresh cadence while the result is visible and the tab is focused.
    45s — frequent enough to feel "live", gentle on the anon RPC. */
@@ -543,20 +541,8 @@ const TrackingPage = ({ embedded = false }) => {
                 </div>
               </div>
 
-              {/* Shipping cost */}
-              {order.shipping_cost && (
-                <div className="trk-info-tile">
-                  <div className="trk-info-tile-icon">
-                    <Coins size={14} />
-                  </div>
-                  <div>
-                    <p className="trk-info-tile-label">Shipping Cost</p>
-                    <p className="trk-info-tile-value trk-cost">
-                      ₱{parseFloat(order.shipping_cost).toFixed(2)}
-                    </p>
-                  </div>
-                </div>
-              )}
+
+
 
               {/* Booked date */}
               <div className="trk-info-tile">

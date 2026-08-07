@@ -13,7 +13,7 @@ import {
   Container, ArrowUp, Phone, MapPin, Globe, Loader, Send,
   Mail, Clock, Calendar, CheckCircle2,
   Navigation, Award, ChevronRight, ChevronDown, ChevronLeft, X, Play, Building2, TrendingUp, Users, MessageSquare,
-  Star, Package
+  Star, Package, Search
 } from 'lucide-react';
 import { useToast } from '../../hooks/useToast';
 import usePageTitle from '../../hooks/usePageTitle';
@@ -591,6 +591,10 @@ const LoadingSkeleton = () => (
 );
 
 // â”€â”€â”€ Section anchor IDs and labels â”€â”€â”€
+// Height reserved by the fixed glass nav — anchors must clear it or the section
+// header lands underneath the bar and the click looks like it hit blank space.
+const NAV_OFFSET = 88;
+
 const SECTIONS = [
   { id: 'hero', label: 'Home' },
   { id: 'story', label: 'Our Story' },
@@ -617,6 +621,7 @@ const AboutPage = () => {
   const [lightboxIndex, setLightboxIndex] = useState(-1);
   const [selectedRegionId, setSelectedRegionId] = useState(null);
   const [selectedRating, setSelectedRating] = useState('all');
+  const [citySearchQuery, setCitySearchQuery] = useState('');
   
   const { scrollY } = useScroll();
   const yHero = useTransform(scrollY, [0, 600], [0, 200]);
@@ -631,7 +636,13 @@ const AboutPage = () => {
   useEffect(() => {
     const handleScroll = () => {
       const y = window.scrollY;
-      setScrolled(y > 50);
+      // The nav sits on the dark hero, so its links are white there. Flip to the
+      // solid/dark treatment only once the nav has actually cleared the hero —
+      // switching at a fixed 50px left dark text on the dark hero (and, on the way
+      // back, white text on the light sections below it).
+      const hero = document.getElementById('hero');
+      const heroBottom = hero ? hero.offsetTop + hero.offsetHeight : 0;
+      setScrolled(y + NAV_OFFSET >= heroBottom);
       setShowBackToTop(y > 400);
       
       // Calculate scroll progress
@@ -667,13 +678,9 @@ const AboutPage = () => {
         ]);
         const features = info?.features || [];
 
-        // Resolve highlight photos
+        // Resolve highlight photos — RPC now returns a single `featured_photo` path
         const resolvedHighlights = await Promise.all(highlights.map(async (h) => {
-          const path = h.featured_image_type === 'delivery' && h.delivery_photos?.length > 0
-            ? h.delivery_photos[0]
-            : h.pickup_photos?.length > 0
-              ? h.pickup_photos[0]
-              : null;
+          const path = h.featured_photo || null;
           if (!path) return { ...h, resolved_image: null };
           try {
             const urls = await resolvePhotoUrls([path]);
@@ -683,15 +690,11 @@ const AboutPage = () => {
           }
         }));
 
-        // Resolve feedback photos if associated order is featured
+        // Resolve feedback photos — RPC now returns a single `featured_photo` path
         const resolvedFeedback = await Promise.all(feedback.map(async (fb) => {
           const order = fb.orders;
           if (!order || !order.featured_on_website) return { ...fb, resolved_image: null };
-          const path = order.featured_image_type === 'delivery' && order.delivery_photos?.length > 0
-            ? order.delivery_photos[0]
-            : order.pickup_photos?.length > 0
-              ? order.pickup_photos[0]
-              : null;
+          const path = order.featured_photo || null;
           if (!path) return { ...fb, resolved_image: null };
           try {
             const urls = await resolvePhotoUrls([path]);
@@ -795,7 +798,15 @@ const AboutPage = () => {
   // â”€â”€â”€ Section scroll helper â”€â”€â”€
   const scrollToSection = (id) => {
     const el = document.getElementById(id);
-    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (!el) return;
+    if (id === 'hero') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+    // Offset by the fixed nav so the section header lands just under the bar
+    // instead of behind it (which read as scrolling into empty whitespace).
+    const top = el.getBoundingClientRect().top + window.scrollY - NAV_OFFSET;
+    window.scrollTo({ top: Math.max(top, 0), behavior: 'smooth' });
   };
 
   const { info, features, highlights, coverage, feedback } = data;
@@ -1058,28 +1069,84 @@ const AboutPage = () => {
                 </div>
                 
                 <div className="about-coverage-regions">
+                  <div style={{ marginBottom: 16 }}>
+                    <div style={{ position: 'relative' }}>
+                      <Search size={18} style={{ position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)' }} />
+                      <input 
+                        type="text"
+                        placeholder="Search municipalities..."
+                        value={citySearchQuery}
+                        onChange={(e) => setCitySearchQuery(e.target.value)}
+                        style={{
+                          width: '100%',
+                          padding: '14px 16px 14px 44px',
+                          borderRadius: 12,
+                          border: '1px solid var(--border)',
+                          background: 'var(--bg-secondary)',
+                          fontSize: '0.9375rem',
+                          outline: 'none',
+                          color: 'var(--text)'
+                        }}
+                      />
+                    </div>
+                  </div>
+                  {citySearchQuery && !coverage.some(region =>
+                    region.municipalities?.some(m => m.name.toLowerCase().includes(citySearchQuery.toLowerCase()))
+                  ) && (
+                    <div className="about-region-card" style={{ textAlign: 'center', padding: '32px 20px' }}>
+                      <Search size={22} style={{ color: 'var(--text-tertiary)', marginBottom: 10 }} aria-hidden="true" />
+                      <p style={{ fontWeight: 700, marginBottom: 4 }}>No municipalities found</p>
+                      <p style={{ color: 'var(--text-secondary)', fontSize: '0.9375rem' }}>
+                        Nothing matches “{citySearchQuery}”. Try a different spelling or a nearby town.
+                      </p>
+                    </div>
+                  )}
                   {coverage.map((region) => {
+                    const filteredMunis = region.municipalities?.filter(m => 
+                      m.name.toLowerCase().includes(citySearchQuery.toLowerCase())
+                    ) || [];
+
+                    if (citySearchQuery && filteredMunis.length === 0) return null;
+
                     const isSelected = selectedRegionId === region.id;
+                    const isExpanded = isSelected || citySearchQuery.length > 0;
+
                     return (
                       <div 
                         key={region.id} 
                         className={`about-region-card ${isSelected ? 'selected' : ''}`}
-                        onClick={() => setSelectedRegionId(isSelected ? null : region.id)}
-                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedRegionId(isSelected ? null : region.id); } }}
+                        onClick={() => setSelectedRegionId(isExpanded && !citySearchQuery ? null : region.id)}
+                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedRegionId(isExpanded && !citySearchQuery ? null : region.id); } }}
                         role="button"
                         tabIndex={0}
-                        aria-pressed={isSelected}
+                        aria-expanded={isExpanded}
+                        style={{ cursor: 'pointer', overflow: 'hidden' }}
                       >
-                        <h4 style={{ fontSize: '1.125rem', fontWeight: 800, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 12 }}>
-                          <MapPin size={18} style={{ color: isSelected ? 'var(--primary)' : 'var(--text-tertiary)', transition: 'color 0.2s' }} /> {region.name}
+                        <h4 style={{ fontSize: '1.125rem', fontWeight: 800, marginBottom: isExpanded ? 16 : 0, display: 'flex', alignItems: 'center', gap: 12, justifyContent: 'space-between', transition: 'margin-bottom 0.2s' }}>
+                          <span style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                            <MapPin size={18} style={{ color: isSelected ? 'var(--primary)' : 'var(--text-tertiary)', transition: 'color 0.2s' }} /> {region.name}
+                          </span>
+                          <ChevronDown size={18} style={{ color: 'var(--text-tertiary)', transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }} />
                         </h4>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                          {region.municipalities?.map(muni => (
-                            <div key={muni.id} className="about-muni-tag">
-                              {muni.name}
-                            </div>
-                          ))}
-                        </div>
+                        
+                        <AnimatePresence initial={false}>
+                          {isExpanded && (
+                            <motion.div 
+                              initial={{ height: 0, opacity: 0 }}
+                              animate={{ height: 'auto', opacity: 1 }}
+                              exit={{ height: 0, opacity: 0 }}
+                              transition={{ duration: 0.2, ease: 'easeInOut' }}
+                            >
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, paddingBottom: 4 }}>
+                                {filteredMunis.map(muni => (
+                                  <div key={muni.id} className="about-muni-tag">
+                                    {muni.name}
+                                  </div>
+                                ))}
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
                       </div>
                     );
                   })}

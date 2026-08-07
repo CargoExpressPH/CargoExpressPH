@@ -2,10 +2,11 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createTrip } from '../../lib/database';
 import { ROUTES } from '../../constants/phLocations';
-import { ArrowLeft, Calendar, Loader, Truck, DollarSign, Package, FileText, Lightbulb, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Calendar, Loader, Truck, Package, FileText, Lightbulb, AlertTriangle } from 'lucide-react';
 import { useToast } from '../../hooks/useToast';
 import usePageTitle from '../../hooks/usePageTitle';
 import { logTrip } from '../../lib/activityLog';
+import { phLocalInputToISO } from '../../utils/datetime';
 
 const CreateTripPage = () => {
   usePageTitle('Create Trip');
@@ -71,7 +72,12 @@ const CreateTripPage = () => {
     try {
       const result = await createTrip({
         ...form,
-        arrival_date: form.arrival_date ? form.arrival_date : null,
+        // Stamp +08:00 before the insert. The datetime-local inputs are naive,
+        // and TIMESTAMPTZ would otherwise resolve them in the database server's
+        // zone (UTC) — the 8-hour shift that pushed a 6:00 PM ETA onto the next
+        // calendar day for customers. See src/utils/datetime.js.
+        departure_date: phLocalInputToISO(form.departure_date),
+        arrival_date: form.arrival_date ? phLocalInputToISO(form.arrival_date) : null,
         capacity:     Number(form.capacity),
         price_per_kg: Number(form.price_per_kg),
       });
@@ -174,7 +180,7 @@ const CreateTripPage = () => {
               <div className="form-group">
                 <label className="form-label" htmlFor="trip-price-per-kg">Amount per Kilo (₱)</label>
                 <div className="relative">
-                  <DollarSign size={16} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)', pointerEvents: 'none' }} />
+                  <span aria-hidden="true" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)', pointerEvents: 'none', fontSize: 15, lineHeight: 1 }}>₱</span>
                   <input id="trip-price-per-kg" type="number" className={`form-input ${fieldErrors.price_per_kg ? 'field-invalid' : ''}`} value={form.price_per_kg} onChange={e => u('price_per_kg', e.target.value)} placeholder="e.g. 70" min="0.01" step="0.01" style={{ paddingLeft: 34 }} required aria-invalid={fieldErrors.price_per_kg ? 'true' : undefined} aria-describedby={fieldErrors.price_per_kg ? 'trip-price-error trip-price-helper' : 'trip-price-helper'} />
                 </div>
                 {fieldErrors.price_per_kg && <div className="field-error-inline" id="trip-price-error" role="alert"><AlertTriangle size={12} aria-hidden="true" />{fieldErrors.price_per_kg}</div>}

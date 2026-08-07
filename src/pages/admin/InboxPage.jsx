@@ -23,17 +23,32 @@ import CustomSelect from '../../components/ui/CustomSelect';
 import { MessageSquare, Send, Loader, User, Bot, Clock, CheckCircle, UserCheck, ArrowLeft, Search, AlertCircle, X } from 'lucide-react';
 import usePageTitle from '../../hooks/usePageTitle';
 import { logChat } from '../../lib/activityLog';
+import { renderMarkdown } from '../../lib/markdown';
 
 // ── Status badge config ────────────────────────────────────────────────────────
-// Deliberately sparse. Only two states earn a badge: one that needs the
-// admin's attention, and one that says this thread is finished. A row with
-// no badge is a row with nothing to do — silence is the signal.
+// Three of the four states earn a badge. `waiting_customer` was previously
+// blank on the theory that a row with nothing to do should stay silent, but
+// blank is ambiguous in a list: it reads the same as `bot_active`, so an
+// answered thread and one the bot is still holding looked identical. The blue
+// pill says which — the row still needs no action, it just no longer lies
+// about why. `bot_active` remains the one unbadged state: the bot is mid-flight
+// and nothing is owed by anyone.
 const STATUS_BADGE = {
-  waiting:  { text: 'Waiting',  color: 'var(--warning-text)' },
-  resolved: { text: 'Resolved', color: 'var(--text-tertiary)' },
+  waiting:          { text: 'Waiting',       color: 'var(--warning-text)' },
+  waiting_customer: { text: 'Awaiting Reply', color: 'var(--info-text)' },
+  resolved:         { text: 'Resolved',      color: 'var(--text-tertiary)' },
 };
 
 const WAITING_ALERT_HOURS = 24;
+
+/**
+ * Does a NEW customer message arriving on a thread in `status` make it our turn?
+ *
+ * Mirrors maintain_conversation_service_state as amended by 20260807120000:
+ * 'bot_active' keeps the thread the bot is handling, and every other status —
+ * including 'resolved', which now reopens — lands in 'waiting'.
+ */
+const becomesOurTurn = (status) => status !== CONVERSATION_STATUS.BOT_ACTIVE;
 
 /** How long this customer has been waiting on us, in hours. */
 const waitingHours = (conv) => {
@@ -219,6 +234,20 @@ const InboxPage = () => {
         if (activeConvRef.current?.id === payload.new.id) {
           setActiveConv(prev => ({ ...prev, ...patch }));
         }
+        // A thread escalating out of 'bot_active' brings its whole bot-phase
+        // backlog into scope at once — those messages were never counted, so
+        // the row needs its count from the server rather than an increment.
+        //
+        // This fires for any update landing in 'waiting', not just the
+        // transition into it: no REPLICA IDENTITY FULL is set on
+        // conversations, so payload.old carries the primary key only and
+        // cannot tell us the previous status. The refetch is debounced and
+        // idempotent, so the extra calls are cheap; guessing from a missing
+        // payload.old would not be.
+        if (payload.new.status === CONVERSATION_STATUS.WAITING) {
+          clearTimeout(timeoutId);
+          timeoutId = setTimeout(() => loadConvs(), 1500);
+        }
       })
       .subscribe();
 
@@ -242,7 +271,16 @@ const InboxPage = () => {
               created_at: msg.created_at,
               sender_role: msg.sender_role,
             },
-            unread_count: msg.sender_role === 'customer'
+            // Only a thread that is OUR turn accrues unread work. A customer
+            // message arriving while the bot still holds the thread is being
+            // answered by the bot, and counting it is what inflated this list
+            // to total chat volume.
+            //
+            // The test is on the status BEFORE this message, via the same rule
+            // the trigger applies. Testing the post-trigger status instead
+            // would depend on whether the conversations UPDATE event beat this
+            // INSERT — it is not ordered, so the count would drift.
+            unread_count: msg.sender_role === 'customer' && becomesOurTurn(c.status)
               ? (isActive ? 0 : (c.unread_count || 0) + 1)
               : (c.unread_count || 0),
           };
@@ -631,9 +669,7 @@ const InboxPage = () => {
               )}
 
               <div className={`text-sm ${isAdmin ? `inbox-msg-bubble-admin${m.failed ? ' is-failed' : ''}` : isBot ? 'inbox-msg-bubble-bot' : 'inbox-msg-bubble-customer'}`}>
-                {m.message.split('\n').map((line, j, arr) => (
-                  <span key={j}>{line}{j < arr.length - 1 && <br />}</span>
-                ))}
+                {renderMarkdown(m.message)}
               </div>
               {m.failed ? (
                 <div className="inbox-msg-failed-actions" role="alert">

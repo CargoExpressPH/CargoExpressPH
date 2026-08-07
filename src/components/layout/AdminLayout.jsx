@@ -5,6 +5,7 @@ import ErrorBoundary from '../ui/ErrorBoundary';
 import PageTransition from '../ui/PageTransition';
 import CommandPalette from '../ui/CommandPalette';
 import AdminNotificationCenter from '../ui/AdminNotificationCenter';
+import InstallAppBanner from '../ui/InstallAppBanner';
 import { Menu, Container, Search, Bell } from 'lucide-react';
 import ThemeToggle from '../ui/ThemeToggle';
 import { useAuth } from '../../contexts/AuthContext';
@@ -179,6 +180,7 @@ const AdminLayout = () => {
   return (
     <div className={`app-layout${sidebarCollapsed ? ' sidebar-collapsed' : ''}${sidebarOpen ? ' sidebar-drawer-open' : ''}`}>
       <a href="#admin-main-content" className="skip-link">Skip to main content</a>
+      <InstallAppBanner />
       <Sidebar
         isOpen={sidebarOpen}
         onClose={closeSidebar}
