@@ -593,13 +593,40 @@ const INTENTS = [
       /\bpresyo\s*(sa|ug|og)\s*(kilo|padala)\b/i,
     ],
     handler: async () => {
+      // Read live, never hardcoded: this is the same figure the pricing trigger
+      // uses (company_information.default_price_per_kg, fallback 70 to match
+      // global_price_per_kilo()). A number typed into this string would drift
+      // the moment an admin changes the rate.
       let pricePerKg = 70;
       try {
         const { data } = await supabase.from('company_information').select('default_price_per_kg').single();
         if (data?.default_price_per_kg) pricePerKg = parseFloat(data.default_price_per_kg);
       } catch { /* use default */ }
+
+      // No peso figure or percentage for the bulky charge. The admin sets it per
+      // parcel when they see the actual size, and quoting a number the system
+      // cannot compute would be a promise the bot has no way to keep.
       return {
-        text: `💰 Our current shipping rate is ₱${pricePerKg.toFixed(2)} per kilogram.\n\nFor example:\n• 5 kg = ₱${(5 * pricePerKg).toFixed(2)}\n• 10 kg = ₱${(10 * pricePerKg).toFixed(2)}\n• 20 kg = ₱${(20 * pricePerKg).toFixed(2)}\n\nPayment is made upon pickup.`,
+        text: [
+          `💰 Standard rate: ₱${pricePerKg.toFixed(2)} per kilogram.`,
+          '',
+          'For normal items — boxes, luggage, balikbayan boxes — kilo lang ang basehan:',
+          `• 5 kg = ₱${(5 * pricePerKg).toFixed(2)}`,
+          `• 10 kg = ₱${(10 * pricePerKg).toFixed(2)}`,
+          `• 20 kg = ₱${(20 * pricePerKg).toFixed(2)}`,
+          '',
+          'This is our standard rate. Some trips have their own rate depending on the route, so your final fee follows the trip your parcel is booked on.',
+          '',
+          '📦 Bulky items (space charge)',
+          '',
+          'For items that are large but light — appliances, cabinets, plastic drawers, malalaking plastic boxes — our admin adds a small extra charge on top of the per-kilo rate.',
+          '',
+          'Ganito po kasi: masikip sa van. Kahit magaan, malaki ang kinakain nila sa espasyo, kaya konti na lang ang kasyang iba pang padala. Kaya may dagdag na bayad para sa espasyong nauubos.',
+          '',
+          'The exact amount depends on the actual size, so our admin computes it when they weigh and measure your parcel at pickup — and they will tell you the total before you pay.',
+          '',
+          'Payment is made upon pickup.',
+        ].join('\n'),
         askResolved: true,
       };
     },
