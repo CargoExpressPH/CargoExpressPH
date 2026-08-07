@@ -13,7 +13,7 @@ import {
 import { getBotReply, BOT_GREETING } from '../../lib/supportChatEngine';
 import {
   Send, Bot, Loader, MessageSquare, AlertTriangle,
-  RefreshCw, Clock, User, AlertCircle,
+  RefreshCw, Clock, User, AlertCircle, CheckCircle2,
 } from 'lucide-react';
 import EmptyState from '../../components/ui/EmptyState';
 import { useToast } from '../../hooks/useToast';
@@ -171,13 +171,17 @@ const SupportChatPage = () => {
   // Conversation lifecycle routing (status-based, NOT message-count-based):
   //
   //   Case A — no conversation exists → create (status='bot_active') → bot greets
-  //   Case B — status = 'bot_active' or 'resolved' → bot takes over
-  //   Case C — 'waiting' | 'waiting_customer' → admin mode, no bot
+  //   Case B — status = 'bot_active' → bot takes over
+  //   Case C — 'waiting' | 'waiting_customer' | 'resolved' → no bot
   //
-  // 'resolved' returns to BOT mode by client direction: a customer coming back
-  // to a finished thread usually has a NEW and often basic question, so the
-  // bot gets first crack and escalates if it cannot help. The trigger moves
-  // the row back to 'bot_active' on their first message.
+  // 'resolved' used to return to BOT mode, on the theory that a returning
+  // customer has a new and basic question. It does not survive contact with a
+  // follow-up: the bot answered "I have one more question" with no sight of the
+  // thread it was following up on, while the admin who resolved the ticket was
+  // never told the customer came back — 'bot_active' carries no inbox badge, so
+  // the reply reached nobody. A resolved thread now stays with humans, the
+  // history stays on screen, and the first reply reopens it to 'waiting'
+  // server-side (20260807120000).
   //
   const greetingSentRef = useRef(false);
 
@@ -214,7 +218,7 @@ const SupportChatPage = () => {
       setHasMoreMessages(hasMore);
 
       // ── Route by status ──────────────────────────────────────────────────
-      if (status === CONVERSATION_STATUS.BOT_ACTIVE || status === CONVERSATION_STATUS.RESOLVED) {
+      if (status === CONVERSATION_STATUS.BOT_ACTIVE) {
         // BOT MODE: chatbot is the first responder
         setIsBotMode(true);
 
@@ -238,8 +242,10 @@ const SupportChatPage = () => {
           }
         }
       } else {
-        // ADMIN MODE: waiting / waiting_customer — a person owns this thread
-        // Admin is handling — display history, no bot responses
+        // HUMAN MODE: waiting / waiting_customer / resolved — a person owns this
+        // thread. History is displayed as-is and no bot greeting is injected;
+        // for a resolved thread the banner and the composer placeholder say
+        // that replying reopens it.
         setIsBotMode(false);
         setMessages(history || []);
       }
@@ -301,10 +307,12 @@ const SupportChatPage = () => {
         if (!isMountedRef.current) return;
         const newStatus = payload.new.status || CONVERSATION_STATUS.BOT_ACTIVE;
         setConvStatus(newStatus);
-        // waiting / waiting_customer mean a person owns the thread now.
-        // bot_active and resolved both leave the bot in charge.
-        if (newStatus === CONVERSATION_STATUS.WAITING ||
-            newStatus === CONVERSATION_STATUS.WAITING_CUSTOMER) {
+        // Only 'bot_active' leaves the bot in charge. An admin resolving the
+        // thread while the customer is watching must NOT drop them back into
+        // bot mode — the subtitle would claim the assistant is ready to help
+        // and the next reply would be answered by a bot that cannot see the
+        // conversation it is continuing.
+        if (newStatus !== CONVERSATION_STATUS.BOT_ACTIVE) {
           setIsBotMode(false);
           setPendingResolutionId(null);
         }
@@ -416,13 +424,29 @@ const SupportChatPage = () => {
       return;
     }
 
-    // 2. If NOT in bot mode → admin is handling, nothing more to do
+    // 2. Reopening a resolved thread. The INSERT above already moved the row to
+    //    'waiting' server-side (maintain_conversation_service_state), keeping
+    //    the previous assigned_admin_id, so there is nothing to PATCH here —
+    //    this only catches the local state up so the customer sees the queue
+    //    banner without waiting for the realtime UPDATE to arrive.
+    //
+    //    The bot is NOT consulted. It cannot see the resolved thread this
+    //    message follows up on, and answering anyway is what stranded the
+    //    customer: a contextless reply, and an admin never told they came back.
+    if (convStatus === CONVERSATION_STATUS.RESOLVED) {
+      setConvStatus(CONVERSATION_STATUS.WAITING);
+      setIsBotMode(false);
+      setSending(false);
+      return;
+    }
+
+    // 3. If NOT in bot mode → admin is handling, nothing more to do
     if (!isBotMode) {
       setSending(false);
       return;
     }
 
-    // 3. Bot processes the message — a bot failure is non-fatal (toast only)
+    // 4. Bot processes the message — a bot failure is non-fatal (toast only)
     setBotTyping(true);
     setSending(false);
 
@@ -550,7 +574,9 @@ const SupportChatPage = () => {
 
   // ── Chat UI ────────────────────────────────────────────────────────────────
   const isWaiting   = convStatus === CONVERSATION_STATUS.WAITING;
+  const isResolved  = convStatus === CONVERSATION_STATUS.RESOLVED;
   // Keep waiting-admin conversations writable so customers can leave details while they wait.
+  // A resolved thread stays writable too — that reply is how it reopens.
   const inputDisabled = sending || botTyping;
 
   return (
@@ -563,9 +589,11 @@ const SupportChatPage = () => {
           Support Chat
         </h2>
         <p className="text-secondary text-sm">
-          {isBotMode
-            ? 'Our virtual assistant is ready to help you 24/7.'
-            : 'You are connected to our support team.'}
+          {isResolved
+            ? 'This conversation was marked resolved by our support team.'
+            : isBotMode
+              ? 'Our virtual assistant is ready to help you 24/7.'
+              : 'You are connected to our support team.'}
         </p>
       </div>
 
@@ -574,6 +602,16 @@ const SupportChatPage = () => {
         <div className="chat-waiting-banner" role="status">
           <Clock size={16} />
           <span>Connecting you to a support agent. You can keep adding details here while you wait.</span>
+        </div>
+      )}
+
+      {/* Resolved banner. Says what replying will DO, because the composer stays
+          enabled and a resolved thread that silently accepts messages is how the
+          customer ended up talking to nobody. */}
+      {isResolved && (
+        <div className="chat-resolved-banner" role="status">
+          <CheckCircle2 size={16} aria-hidden="true" />
+          <span>This conversation was resolved. Replying will reopen it and bring back our support team.</span>
         </div>
       )}
 
@@ -661,6 +699,7 @@ const SupportChatPage = () => {
           className="form-input flex-1"
           placeholder={
             isWaiting  ? 'Leave more details for the support agent...' :
+            isResolved ? 'Reply to reopen this conversation…' :
             botTyping  ? 'Assistant is typing…' :
             isBotMode  ? 'Ask me anything about your shipment…' :
                          'Type your message…'

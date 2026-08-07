@@ -807,13 +807,21 @@ CREATE TRIGGER chat_messages_guard_insert
 
 
 -- ============================================================
--- CONVERSATION SERVICE STATE (20260804210000)
+-- CONVERSATION SERVICE STATE (20260804210000, 20260807120000)
 -- Derived service values are maintained server-side, never written by a
 -- client — same principle as update_order_payment_totals. The auto-reopen
 -- in the customer branch is what structurally prevents a resolved thread
 -- from burying a customer who writes again.
 -- A 'bot' message deliberately changes nothing: a bot reply is not a
 -- response for service purposes and must never clear the queue.
+--
+-- 'bot_active' is the ONLY status a customer message does not move: the bot
+-- keeps the thread it is already handling. 'resolved' reopens to 'waiting'
+-- (20260807120000) — a thread a human has touched stays with humans, and the
+-- follow-up reaches the admin who resolved it instead of a bot with no
+-- history. assigned_admin_id is untouched so it returns to that same admin;
+-- `escalated` is left alone because reopening answers "whose turn", not
+-- "how urgent".
 -- ============================================================
 CREATE OR REPLACE FUNCTION public.maintain_conversation_service_state()
 RETURNS TRIGGER
@@ -835,8 +843,9 @@ BEGIN
     UPDATE public.conversations
        SET last_customer_message_at = NEW.created_at,
            status = CASE
+                      -- The bot keeps the thread it is already handling.
                       WHEN v_status = 'bot_active' THEN 'bot_active'
-                      WHEN v_status = 'resolved'   THEN 'bot_active'
+                      -- Everything else is our turn, INCLUDING 'resolved'.
                       ELSE 'waiting'
                     END,
            resolved_at = NULL

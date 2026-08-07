@@ -41,14 +41,14 @@ const STATUS_BADGE = {
 
 const WAITING_ALERT_HOURS = 24;
 
-// Statuses from which a NEW customer message becomes our turn. Mirrors
-// maintain_conversation_service_state (20260804260000): 'bot_active' keeps the
-// thread it is handling and 'resolved' hands a returning customer back to the
-// bot, so neither owes an admin a reply.
-const OUR_TURN_AFTER_CUSTOMER_MSG = new Set([
-  CONVERSATION_STATUS.WAITING,
-  CONVERSATION_STATUS.WAITING_CUSTOMER,
-]);
+/**
+ * Does a NEW customer message arriving on a thread in `status` make it our turn?
+ *
+ * Mirrors maintain_conversation_service_state as amended by 20260807120000:
+ * 'bot_active' keeps the thread the bot is handling, and every other status —
+ * including 'resolved', which now reopens — lands in 'waiting'.
+ */
+const becomesOurTurn = (status) => status !== CONVERSATION_STATUS.BOT_ACTIVE;
 
 /** How long this customer has been waiting on us, in hours. */
 const waitingHours = (conv) => {
@@ -276,14 +276,11 @@ const InboxPage = () => {
             // answered by the bot, and counting it is what inflated this list
             // to total chat volume.
             //
-            // The test is on the status BEFORE this message, mirroring
-            // maintain_conversation_service_state: from 'waiting' or
-            // 'waiting_customer' a customer message lands in 'waiting' (ours),
-            // while 'bot_active' and 'resolved' both stay/return to
-            // 'bot_active' (the bot's). Testing for the post-trigger status
-            // instead would depend on whether the conversations UPDATE event
-            // beat this INSERT — it is not ordered, so the count would drift.
-            unread_count: msg.sender_role === 'customer' && OUR_TURN_AFTER_CUSTOMER_MSG.has(c.status)
+            // The test is on the status BEFORE this message, via the same rule
+            // the trigger applies. Testing the post-trigger status instead
+            // would depend on whether the conversations UPDATE event beat this
+            // INSERT — it is not ordered, so the count would drift.
+            unread_count: msg.sender_role === 'customer' && becomesOurTurn(c.status)
               ? (isActive ? 0 : (c.unread_count || 0) + 1)
               : (c.unread_count || 0),
           };
