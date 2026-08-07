@@ -320,7 +320,7 @@ const HomePage = () => {
                         {new Date(a.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
                       </span>
                     </div>
-                    <div className="fw-700 text-base mb-6" style={{ color: 'var(--text-primary)', lineHeight: 1.35 }}>
+                    <div className="fw-700 text-base mb-6" style={{ color: 'var(--text)', lineHeight: 1.35 }}>
                       {a.title}
                     </div>
                     <div className="text-sm text-secondary" style={{ lineHeight: 1.5 }}>

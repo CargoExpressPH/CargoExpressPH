@@ -912,7 +912,7 @@ const RegisterPage = () => {
               </div>
 
               {/* Terms note */}
-              <div className="reg-address-note" style={{ background: 'var(--surface-hover)', borderColor: 'var(--border)' }}>
+              <div className="reg-address-note" style={{ background: 'var(--bg-secondary)', borderColor: 'var(--border)' }}>
                 <ShieldCheck size={14} style={{ color: 'var(--primary-text)', marginTop: 2 }} />
                 <p style={{ color: 'var(--text-secondary)', fontSize: '0.78rem' }}>
                   By creating an account, you agree to CargoExpress PH's Terms of Service and Privacy Policy.

@@ -51,7 +51,7 @@
 .btn-success:hover { background: #065F46; transform: translateY(-1px); }
 
 .btn-warning { background: var(--warning); color: #0F172A; font-weight: 700; }
-.btn-warning:hover { background: var(--warning-dark); color: #FFFFFF; }
+.btn-warning:hover { background: var(--warning-fill); color: #FFFFFF; }
 
 .btn-alert-action {
   background: var(--surface);

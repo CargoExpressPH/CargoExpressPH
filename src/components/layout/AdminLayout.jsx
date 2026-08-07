@@ -250,7 +250,7 @@ const AdminLayout = () => {
             </div>
           </div>
         </header>
-        <PageTransition as="main" id="admin-main-content" className="page-content">
+        <PageTransition as="main" id="admin-main-content" className="page-content" tabIndex={-1}>
           <ErrorBoundary>
             <Outlet />
           </ErrorBoundary>

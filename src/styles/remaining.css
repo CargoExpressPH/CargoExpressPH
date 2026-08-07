@@ -533,7 +533,7 @@
   cursor: pointer;
   transition: var(--transition-fast);
   border-radius: 999px;
-  background: var(--primary);
+  background: var(--primary-fill);
   color: #FFFFFF;
 }
 
@@ -1108,7 +1108,7 @@
 }
 
 .btn-resolve-success {
-  background: #10B981;
+  background: var(--success-fill);
   color: white;
   border: none;
 }

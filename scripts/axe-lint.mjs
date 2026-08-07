@@ -275,6 +275,14 @@ function checkFile(file) {
   }
 }
 
+// Replace /* ... */ comment bodies with spaces, preserving newlines and total
+// length so reported line numbers stay accurate. Shared syntax in CSS and JS.
+// Line comments are left alone on purpose — blanking from "//" to end-of-line
+// would also blank the tail of any line containing a URL such as https://.
+function blankBlockComments(s) {
+  return s.replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, ' '));
+}
+
 // Build an index of byte offsets at the start of each line, for line lookup.
 function buildLineIndex(s) {
   const idx = [0];
@@ -292,6 +300,65 @@ function lineAt(lineIndex, offset) {
   return ans;
 }
 
+// 7. Every var(--token) used WITHOUT a fallback must resolve to a token that
+//    is actually defined in src/styles/*.css.
+//
+//    This failure mode is invisible at runtime and silent in every build: an
+//    undefined custom property makes the declaration "invalid at computed-value
+//    time", so `color` quietly inherits and `background`/`box-shadow` quietly
+//    become transparent/none. It shipped a booking overlay with a transparent
+//    card and near-black text on a dark scrim, an over-capacity meter whose
+//    fill vanished exactly when it mattered, and an install prompt whose
+//    heading rendered at 1.10:1 against its own card — all only in light mode,
+//    which is why review in dark mode never caught them.
+//
+//    `var(--x, fallback)` is deliberately NOT flagged: a fallback is a
+//    conscious choice and degrades predictably.
+function checkTokenReferences() {
+  const styleDir = 'src/styles';
+  const cssFiles = readdirSync(styleDir)
+    .filter(f => extname(f) === '.css')
+    .map(f => join(styleDir, f));
+
+  // Collect every custom property DEFINED anywhere in the stylesheets.
+  const defined = new Set();
+  for (const f of cssFiles) {
+    for (const m of readFileSync(f, 'utf8').matchAll(/(^|[;{\s])(--[a-zA-Z0-9-]+)\s*:/g)) {
+      defined.add(m[2]);
+    }
+  }
+
+  // Scan stylesheets AND JSX (inline style={{ ... }} uses var() too).
+  const consumers = [...cssFiles, ...walk(ROOT)];
+  for (const f of consumers) {
+    const source = blankBlockComments(readFileSync(f, 'utf8'));
+    const lineIdx = buildLineIndex(source);
+    // var(--name) with no comma before the closing paren === no fallback.
+    for (const m of source.matchAll(/var\(\s*(--[a-zA-Z0-9-]+)\s*\)/g)) {
+      const name = m[1];
+      if (defined.has(name)) continue;
+      // A nested fallback — var(--defined, var(--undefined)) — is reachable only
+      // if the outer token is missing, which this same rule already catches.
+      // Don't double-report it as if it were a bare reference.
+      if (source.lastIndexOf('var(', m.index - 1) !== -1) {
+        const before = source.slice(0, m.index);
+        const openParens = (before.match(/var\(/g) || []).length;
+        const tail = before.slice(before.lastIndexOf('var('));
+        if (openParens > 0 && tail.includes(',') && !tail.includes(')')) continue;
+      }
+      violations.push({
+        file: f.replace(/\\/g, '/'),
+        line: lineAt(lineIdx, m.index),
+        tag: '(token)',
+        rule: 'undefined-css-token',
+        msg: `var(${name}) has no fallback and ${name} is not defined in src/styles/*.css. `
+           + `The declaration will be dropped at computed-value time — text inherits, `
+           + `backgrounds go transparent. Define the token or use an existing one.`,
+      });
+    }
+  }
+}
+
 // ── Run ─────────────────────────────────────────────────────────────────
 const files = walk(ROOT);
 for (const f of files) {
@@ -300,6 +367,11 @@ for (const f of files) {
     // Never crash the whole test run on a single unreadable file; report it.
     violations.push({ file: f, line: 0, tag: '(parse)', rule: 'parse-error', msg: err.message });
   }
+}
+
+try { checkTokenReferences(); }
+catch (err) {
+  violations.push({ file: 'src/styles', line: 0, tag: '(token)', rule: 'parse-error', msg: err.message });
 }
 
 if (violations.length > 0) {

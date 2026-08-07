@@ -183,13 +183,13 @@ const TripReassignModal = ({ order, onClose, onReassign }) => {
                     <div className="flex items-center justify-between text-xs text-secondary mt-8">
                       <span>{new Date(trip.departure_date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
                       <div className="flex items-center gap-6">
-                        <span style={{ color: exceedsCapacity ? 'var(--danger)' : 'inherit' }}>
+                        <span style={{ color: exceedsCapacity ? 'var(--error-text)' : 'inherit' }}>
                           {(trip.current_weight || 0).toFixed(1)} / {trip.capacity || '∞'} kg
                         </span>
                         <div style={{ width: 40, height: 4, background: 'var(--border)', borderRadius: 2, overflow: 'hidden' }}>
                           <div style={{ 
                             height: '100%', 
-                            background: exceedsCapacity ? 'var(--danger)' : capPct > 80 ? 'var(--warning)' : 'var(--success)',
+                            background: exceedsCapacity ? 'var(--error)' : capPct > 80 ? 'var(--warning)' : 'var(--success)',
                             width: `${Math.min(100, capPct)}%`
                           }} />
                         </div>
@@ -197,7 +197,7 @@ const TripReassignModal = ({ order, onClose, onReassign }) => {
                     </div>
 
                     {exceedsCapacity && (
-                      <div className="text-xs mt-6 flex items-center gap-4" style={{ color: 'var(--danger)' }}>
+                      <div className="text-xs mt-6 flex items-center gap-4" style={{ color: 'var(--error-text)' }}>
                         <AlertTriangle size={12} />
                         Overloads trip by {overloadWeight.toFixed(1)} kg
                       </div>

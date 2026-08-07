@@ -416,7 +416,7 @@ const OrderDetailPage = () => {
       {/* Header */}
       <div className="customer-order-detail-header flex items-center justify-between animate-slide-up mb-20">
         <div>
-          <h2 className="fw-800">{order.tracking_number}</h2>
+          <h1 className="fw-800">{order.tracking_number}</h1>
           <div className="flex items-center gap-8 mt-4 text-sm">
             <span className="fw-800" style={{ color: 'var(--text)' }}>{order.origin}</span>
             <span className="fw-700" style={{ color: 'var(--primary-text)' }}>➔</span>

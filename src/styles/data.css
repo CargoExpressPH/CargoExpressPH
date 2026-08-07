@@ -256,6 +256,10 @@
 .customer-order-detail-header > div {
   min-width: 0;
 }
+/* h1 as well as h2: the tracking number was promoted to the page's <h1>, and
+   both the clamp() sizing above and this overflow-wrap are what keep a long
+   CE-YYYYMMDD-NNNN from overflowing a 320px screen. */
+.customer-order-detail-header h1,
 .customer-order-detail-header h2,
 .customer-order-detail-header p {
   overflow-wrap: anywhere;

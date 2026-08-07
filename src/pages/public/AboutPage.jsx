@@ -828,7 +828,7 @@ const AboutPage = () => {
   return (
     <MotionConfig reducedMotion="user">
     <div className="public-about-page" style={{ background: 'var(--bg-gradient, var(--bg))', color: 'var(--text)', minHeight: '100vh', fontFamily: 'Inter, system-ui, sans-serif' }}>
-      <a href="#main-content" className="skip-link">Skip to main content</a>
+      <a href="#hero" className="skip-link">Skip to main content</a>
 
       {/* â• â• â•  Scroll Progress Bar â• â• â•  */}
       <div className="about-scroll-progress" style={{ width: `${scrollProgress}%` }} />
@@ -867,7 +867,7 @@ const AboutPage = () => {
       </nav>
 
       {/* â•â•â• 2. Hero Section â•â•â• */}
-      <section id="hero" className="about-hero">
+      <section id="hero" className="about-hero" tabIndex={-1}>
         <motion.div 
           style={{ 
             position: 'absolute', inset: 0,

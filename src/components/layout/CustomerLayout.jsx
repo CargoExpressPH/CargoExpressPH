@@ -313,7 +313,7 @@ const CustomerLayout = () => {
       </header>
 
       {/* ─── Page Content ─── */}
-      <PageTransition as="main" id="customer-main-content" className="customer-main" key={location.pathname}>
+      <PageTransition as="main" id="customer-main-content" className="customer-main" key={location.pathname} tabIndex={-1}>
         <ErrorBoundary>
           <Outlet />
         </ErrorBoundary>

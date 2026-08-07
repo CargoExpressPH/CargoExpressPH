@@ -97,7 +97,7 @@ const ResetPasswordPage = () => {
           <div className="auth-success-icon">
             <CheckCircle2 size={48} />
           </div>
-          <h2 className="auth-success-title">Password Updated!</h2>
+          <h1 className="auth-success-title">Password Updated!</h1>
           <p className="auth-success-sub">
             Your new password is set. Redirecting you to sign in…
           </p>
@@ -136,7 +136,7 @@ const ResetPasswordPage = () => {
             <div className="fp-hero-icon fp-hero-icon-lock">
               <Lock size={26} />
             </div>
-            <h2 className="fp-title">Set New Password</h2>
+            <h1 className="fp-title">Set New Password</h1>
             <p className="fp-subtitle">
               Choose a strong password to keep your account secure.
             </p>

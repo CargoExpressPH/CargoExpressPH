@@ -304,7 +304,7 @@ const TrackingPage = ({ embedded = false }) => {
     && order?.status !== ORDER_STATUS.CANCELLED;
 
   return (
-    <main id="main-content" className={`trk-page${embedded ? ' trk-page--embedded' : ''}`}>
+    <main id="main-content" tabIndex={-1} className={`trk-page${embedded ? ' trk-page--embedded' : ''}`}>
       {!embedded && (
         <a href="#main-content" className="skip-link">
           Skip to main content

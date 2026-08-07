@@ -888,7 +888,7 @@ body:has(:is(.customer-layout-v2, .trk-page, .public-about-page, .contact-page, 
   border-radius: 28px;
   border-color: var(--customer-line);
   background: var(--customer-panel-solid);
-  box-shadow: var(--customer-shadow-deep);
+  box-shadow: var(--shadow-xl);
 }
 
 .notification-modal-close {
@@ -913,6 +913,7 @@ body:has(:is(.customer-layout-v2, .trk-page, .public-about-page, .contact-page, 
   box-shadow: var(--customer-shadow-soft);
 }
 
+.customer-order-detail-header h1,
 .customer-order-detail-header h2 {
   color: var(--customer-ink);
   font-size: clamp(1.25rem, 5vw, 1.8rem);
@@ -1387,7 +1388,7 @@ input:checked + .toggle-slider:before {
 
 .customer-layout-v2 .support-chat-page .chat-send-btn {
   border-radius: 999px;
-  background: var(--customer-green);
+  background: var(--primary-fill);
   color: #FFFFFF;
   box-shadow: 0 12px 24px rgba(18, 138, 90, 0.24);
 }

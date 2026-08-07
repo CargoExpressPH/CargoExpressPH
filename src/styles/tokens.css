@@ -70,9 +70,10 @@
      white text sits directly on a coloured fill (badges, pills, step nodes,
      active pagination). Deliberately NOT overridden in dark mode: the contrast
      that matters here is against the white text on top, not the page behind. */
-  --primary-fill: #15803D;   /* white on this = 4.58:1 */
-  --success-fill: #047857;   /* white on this = 5.31:1 */
-  --error-fill:   #B91C1C;   /* white on this = 6.38:1 */
+  --primary-fill: #15803D;   /* white on this = 5.02:1 */
+  --success-fill: #047857;   /* white on this = 5.48:1 */
+  --error-fill:   #B91C1C;   /* white on this = 6.47:1 */
+  --warning-fill: #B45309;   /* white on this = 5.02:1 — --warning-dark is 3.19:1 */
 
   /* -- Status icon backgrounds (translucent tints for tracking banner/tiles) -- */
   --primary-icon-bg: rgba(22, 163, 74, 0.12);
