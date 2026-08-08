@@ -3,7 +3,7 @@ import { X, XCircle, Camera, Loader, Scale, CreditCard, Calendar, Upload, Trash2
 import FocusTrap from './FocusTrap';
 import AmountInput from './AmountInput';
 import useScrollLock from '../../hooks/useScrollLock';
-import { sanitizeAmount, parseAmount } from '../../utils/currencyInput';
+import { sanitizeAmount, parseAmount, formatAmount } from '../../utils/currencyInput';
 import { uploadMultiplePhotos, uploadPhoto } from '../../lib/storage';
 import QRCode from 'react-qr-code';
 import { createGCashSource, registerSource, pollPaymentStatus } from '../../lib/paymongo';
@@ -51,6 +51,9 @@ const PickupModal = ({ order, onClose, onSave, pricePerKilo = 70 }) => {
   // Non-error feedback (e.g. "checkout cancelled") — an error-styled banner
   // would misread as a failure when nothing failed.
   const [notice, setNotice] = useState('');
+  // Set only by a blocked submit, so the amount field is flagged in place
+  // alongside the banner. Cleared as soon as any figure it depends on changes.
+  const [shortfallBlocked, setShortfallBlocked] = useState(false);
 
   const fileInputRef = useRef(null);
   const receiptInputRef = useRef(null);
@@ -96,6 +99,22 @@ const PickupModal = ({ order, onClose, onSave, pricePerKilo = 70 }) => {
   const hasManualReference = Boolean(form.payment_reference && form.payment_reference.trim());
   const gcashUnresolved =
     isPrepaid && form.payment_method === 'gcash' && !paymentConfirmed && !hasManualReference;
+
+  // PayMongo already wrote the ledger row for this order, so the amount field
+  // is not what was charged and must not be validated as if it were.
+  const settledByPayMongo = form.payment_method === 'gcash' && Boolean(paymentConfirmed);
+
+  // What "Full Payment" is claiming, in pesos. Blank means "charge the
+  // estimate", which is by definition the full amount.
+  const collectedNow = form.amount_paid === ''
+    ? estimatedCost
+    : (parseAmount(form.amount_paid) || 0);
+  // Checked at submit rather than while typing: every prefix of a full amount
+  // ("8", "86", "860" against ₱8,600) is a shortfall, so a live check would
+  // hold the field red through the entire entry it is meant to accept.
+  const fullPaymentShortfall =
+    isPrepaid && !isPayLater && !settledByPayMongo
+    && estimatedCost > 0 && collectedNow + 0.01 < estimatedCost;
 
   const handleProceedToGCash = async () => {
     try {
@@ -289,6 +308,7 @@ const PickupModal = ({ order, onClose, onSave, pricePerKilo = 70 }) => {
 
   const handleSubmit = async () => {
     setError('');
+    setShortfallBlocked(false);
 
     if (!form.actual_weight || parseFloat(form.actual_weight) <= 0) {
       setError('Please enter the actual weight');
@@ -325,6 +345,21 @@ const PickupModal = ({ order, onClose, onSave, pricePerKilo = 70 }) => {
       }
       if (isPayLater && !form.promised_payment_date) {
         setError('Please set a promised payment date for Pay Later');
+        return;
+      }
+      // ── "Full Payment" has to actually be full ────────────────────────────
+      // The label is a claim about the money, not just a mode: Full Payment is
+      // the one branch that records no promised_payment_date. Accepting ₱8,400
+      // against an ₱8,600 total here books a shortfall that nobody has
+      // committed to a date for — it reads as settled on the counter while the
+      // ledger quietly carries a balance. Pay Later is where a part-payment
+      // belongs, precisely because it demands that date.
+      if (fullPaymentShortfall) {
+        setShortfallBlocked(true);
+        setError(
+          `Amount entered is less than the ₱${formatAmount(estimatedCost.toFixed(2))} total cost. `
+          + 'Enter the exact full amount, or switch Payment Type to Pay Later to record a part-payment.'
+        );
         return;
       }
     }
@@ -365,8 +400,8 @@ const PickupModal = ({ order, onClose, onSave, pricePerKilo = 70 }) => {
       //
       // Keyed on paymentConfirmed — proof the money landed — not on "a QR is
       // on screen", which was true of unpaid checkouts too.
+      // (Derived above, next to the GCash gate that shares the condition.)
       // ─────────────────────────────────────────────────────────────────────
-      const settledByPayMongo = form.payment_method === 'gcash' && Boolean(paymentConfirmed);
 
       // Order metadata. amount_paid / remaining_balance / payment_status are
       // deliberately absent — the payment_transactions ledger owns them and
@@ -475,7 +510,7 @@ const PickupModal = ({ order, onClose, onSave, pricePerKilo = 70 }) => {
               className="form-input"
               placeholder="Enter actual weight after weighing"
               value={form.actual_weight}
-              onChange={e => setForm(p => ({ ...p, actual_weight: e.target.value }))}
+              onChange={e => { setShortfallBlocked(false); setForm(p => ({ ...p, actual_weight: e.target.value })); }}
               step="0.1" min="0.1"
             />
             {form.actual_weight && (
@@ -543,7 +578,7 @@ const PickupModal = ({ order, onClose, onSave, pricePerKilo = 70 }) => {
                 <button
                   key={t} type="button"
                   className={`btn ${form.payment_type === t ? 'btn-primary' : 'btn-outline'} btn-sm flex-1 justify-center text-capitalize`}
-                  onClick={() => setForm(p => ({ ...p, payment_type: t }))}
+                  onClick={() => { setShortfallBlocked(false); setForm(p => ({ ...p, payment_type: t })); }}
                 >
                   {t === 'full' ? 'Full Payment' : 'Pay Later'}
                 </button>
@@ -572,16 +607,17 @@ const PickupModal = ({ order, onClose, onSave, pricePerKilo = 70 }) => {
             <label className="form-label" htmlFor="pu-amount-paid">{isPayLater ? 'Downpayment (₱) (Optional)' : 'Amount Received (₱) *'}</label>
             <AmountInput
               id="pu-amount-paid"
-              className={`form-input ${amountError ? 'field-invalid' : ''}`}
-              placeholder={isPayLater ? '0.00' : estimatedCost.toFixed(2)}
+              className={`form-input ${amountError || shortfallBlocked ? 'field-invalid' : ''}`}
+              placeholder={isPayLater ? '0.00' : formatAmount(estimatedCost.toFixed(2))}
               value={form.amount_paid}
-              onValueChange={v => setForm(p => ({ ...p, amount_paid: v }))}
-              aria-invalid={amountError ? 'true' : undefined}
-              aria-describedby={amountError ? 'pu-amount-paid-error' : undefined}
+              onValueChange={v => { setShortfallBlocked(false); setForm(p => ({ ...p, amount_paid: v })); }}
+              aria-invalid={amountError || shortfallBlocked ? 'true' : undefined}
+              aria-describedby={amountError || shortfallBlocked ? 'pu-amount-paid-error' : undefined}
             />
-            {amountError && (
+            {(amountError || shortfallBlocked) && (
               <div className="field-error-inline" id="pu-amount-paid-error" role="alert">
-                <AlertTriangle size={13} aria-hidden="true" /> {amountError}
+                <AlertTriangle size={13} aria-hidden="true" />{' '}
+                {amountError || `Short of the ₱${formatAmount(estimatedCost.toFixed(2))} total.`}
               </div>
             )}
           </div>
