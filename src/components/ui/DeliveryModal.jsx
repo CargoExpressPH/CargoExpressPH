@@ -3,7 +3,7 @@ import { X, Camera, Loader, Package, CreditCard, CheckCircle, Smartphone, AlertT
 import FocusTrap from './FocusTrap';
 import AmountInput from './AmountInput';
 import useScrollLock from '../../hooks/useScrollLock';
-import { sanitizeAmount, parseAmount } from '../../utils/currencyInput';
+import { sanitizeAmount, parseAmount, formatAmount } from '../../utils/currencyInput';
 import { uploadMultiplePhotos, uploadPhoto } from '../../lib/storage';
 import QRCode from 'react-qr-code';
 import { createGCashSource, registerSource } from '../../lib/paymongo';
@@ -20,6 +20,10 @@ const DeliveryModal = ({ order, onClose, onSave }) => {
   const needsPayment = !isPaid && balance > 0;
 
   const [form, setForm] = useState({
+    // Mirrors PickupModal: the admin states the intent first, and the rest of
+    // the section follows from it. Defaults to 'full' because the amount field
+    // is seeded with the whole balance.
+    payment_type: 'full',
     // Stored unformatted; AmountInput adds the thousands separators for display.
     amount_paid: needsPayment ? sanitizeAmount(balance) : '0',
     payment_method: needsPayment ? 'cash' : '',
@@ -27,6 +31,10 @@ const DeliveryModal = ({ order, onClose, onSave }) => {
     payment_date: new Date().toISOString().split('T')[0],
     promised_payment_date: order?.promised_payment_date || '',
   });
+  // Set only by a blocked submit; cleared by anything that changes the answer.
+  const [shortfallBlocked, setShortfallBlocked] = useState(false);
+
+  const isPayLater = needsPayment && form.payment_type === 'paylater';
 
   // How much is actually being collected at the door, and what is left after.
   // The modal used to hardcode the full balance, so "the receiver cannot pay
@@ -41,7 +49,18 @@ const DeliveryModal = ({ order, onClose, onSave }) => {
   // Business rule: goods may be handed over with money still owing, but only
   // against a recorded Promise Date. The driver is standing there — that is
   // the moment to ask "when can you pay?", not a week later at reconciliation.
-  const needsPromiseDate = needsPayment && balanceAfter > 0;
+  //
+  // Now gated on Pay Later as well, because Full Payment can no longer leave a
+  // balance — the shortfall block below rejects it. The two branches together
+  // still cover every way cargo can be handed over owing money, which is the
+  // invariant that matters: there is no path to a balance without a date.
+  const needsPromiseDate = isPayLater && balanceAfter > 0;
+
+  // Same rule as PickupModal, against remaining_balance instead of the total
+  // cost. Checked at submit, not per keystroke: every prefix of a full amount
+  // is a shortfall, so a live check would fight the admin typing it.
+  const fullPaymentShortfall =
+    needsPayment && !isPayLater && collectedNow + 0.01 < balance;
 
   const [photos, setPhotos] = useState([]);
   const [photoPreviews, setPhotoPreviews] = useState([]);
@@ -65,7 +84,13 @@ const DeliveryModal = ({ order, onClose, onSave }) => {
     try {
       setPaymentStep('generating');
       setError('');
-      if (balance <= 0) {
+      // Charge what is being collected, not always the whole balance. Under
+      // Full Payment those are the same figure; under Pay Later they are not,
+      // and billing the full balance for a part-payment the admin just typed
+      // would take money the receiver did not agree to hand over.
+      // Mirrors PickupModal, which charges the typed amount for Pay Later.
+      const amount = isPayLater ? collectedNow : balance;
+      if (amount <= 0) {
         setError('Payment amount must be greater than 0.');
         setPaymentStep('setup');
         return;
@@ -74,9 +99,9 @@ const DeliveryModal = ({ order, onClose, onSave }) => {
         name: order.receiver_name,
         phone: order.receiver_phone,
       };
-      
-      const source = await createGCashSource(balance, `CargoExpress - ${order.tracking_number} Delivery`, billing, true);
-      await registerSource(source.sourceId, balance, { orderId: order.id, payerType: 'receiver' });
+
+      const source = await createGCashSource(amount, `CargoExpress - ${order.tracking_number} Delivery`, billing, true);
+      await registerSource(source.sourceId, amount, { orderId: order.id, payerType: 'receiver' });
       
       setPaymongoSourceId(source.sourceId);
       setCheckoutUrl(source.checkoutUrl);
@@ -140,7 +165,8 @@ const DeliveryModal = ({ order, onClose, onSave }) => {
 
   const handleSubmit = async () => {
     setError('');
-    
+    setShortfallBlocked(false);
+
     if (photos.length === 0) {
       setError('At least 1 delivery proof photo is required');
       return;
@@ -166,6 +192,18 @@ const DeliveryModal = ({ order, onClose, onSave }) => {
 
     if (collectedNow > balance + 0.01) {
       setError(`Amount collected cannot exceed the ₱${balance.toFixed(2)} balance.`);
+      return;
+    }
+
+    // "Full Payment" is a claim about the money. Accepting less under that
+    // label hands the cargo over with a balance nobody has put a date against —
+    // Pay Later is the branch that asks for one.
+    if (fullPaymentShortfall) {
+      setShortfallBlocked(true);
+      setError(
+        `Amount entered is short of the full ₱${formatAmount(balance.toFixed(2))} balance. `
+        + 'Enter the exact amount, or switch Payment Type to Pay Later to record a part-payment.'
+      );
       return;
     }
 
@@ -289,30 +327,62 @@ const DeliveryModal = ({ order, onClose, onSave }) => {
                 <span className="fw-600">Payment Collection Required</span>
               </div>
               
+              {/* Payment Type — same control, same labels, same order as
+                  PickupModal, so the sender's and receiver's collection
+                  screens read identically. */}
+              <div className="form-group mb-12">
+                <label className="form-label">
+                  <CreditCard size={14} className="inline mr-6" />
+                  Payment Type *
+                </label>
+                <div className="pickup-segment-row flex gap-8">
+                  {['full', 'paylater'].map(t => (
+                    <button
+                      key={t} type="button"
+                      className={`btn ${form.payment_type === t ? 'btn-primary' : 'btn-outline'} btn-sm flex-1 justify-center text-capitalize`}
+                      onClick={() => {
+                        setShortfallBlocked(false);
+                        setForm(p => ({
+                          ...p,
+                          payment_type: t,
+                          // Choosing Full Payment means the whole balance, so
+                          // the field says so rather than leaving a stale
+                          // part-amount under a label that contradicts it.
+                          amount_paid: t === 'full' ? sanitizeAmount(balance) : p.amount_paid,
+                        }));
+                      }}
+                    >
+                      {t === 'full' ? 'Full Payment' : 'Pay Later'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               {/* How much is actually being collected right now. */}
               <div className="form-group mb-12">
                 <label className="form-label" htmlFor="dm-amount-collected">Amount Collected (₱) *</label>
                 <div className="flex gap-8">
                   <AmountInput
                     id="dm-amount-collected"
-                    className={`form-input flex-1 ${amountError ? 'field-invalid' : ''}`}
+                    className={`form-input flex-1 ${amountError || shortfallBlocked ? 'field-invalid' : ''}`}
                     value={form.amount_paid}
-                    onValueChange={v => setForm(p => ({ ...p, amount_paid: v }))}
+                    onValueChange={v => { setShortfallBlocked(false); setForm(p => ({ ...p, amount_paid: v })); }}
                     placeholder="0.00"
-                    aria-invalid={amountError ? 'true' : undefined}
-                    aria-describedby={amountError ? 'dm-amount-collected-error' : undefined}
+                    aria-invalid={amountError || shortfallBlocked ? 'true' : undefined}
+                    aria-describedby={amountError || shortfallBlocked ? 'dm-amount-collected-error' : undefined}
                   />
                   <button
                     type="button"
                     className="btn btn-outline btn-sm"
-                    onClick={() => setForm(p => ({ ...p, amount_paid: sanitizeAmount(balance) }))}
+                    onClick={() => { setShortfallBlocked(false); setForm(p => ({ ...p, amount_paid: sanitizeAmount(balance) })); }}
                   >
-                    Collect full ₱{balance.toFixed(2)}
+                    Collect full ₱{formatAmount(balance.toFixed(2))}
                   </button>
                 </div>
-                {amountError && (
+                {(amountError || shortfallBlocked) && (
                   <div className="field-error-inline" id="dm-amount-collected-error" role="alert">
-                    <AlertTriangle size={13} aria-hidden="true" /> {amountError}
+                    <AlertTriangle size={13} aria-hidden="true" />{' '}
+                    {amountError || `Short of the ₱${formatAmount(balance.toFixed(2))} balance.`}
                   </div>
                 )}
                 <div className="text-xs mt-4" style={{ color: balanceAfter > 0 ? 'var(--warning-dark)' : 'var(--success)' }}>
@@ -339,15 +409,19 @@ const DeliveryModal = ({ order, onClose, onSave }) => {
               </div>
               )}
 
-              {/* Promise Date — required whenever cargo is handed over with a balance. */}
-              {needsPromiseDate && (
+              {/* Promise Date — shown as soon as Pay Later is chosen, so the
+                  consequence of the choice is visible before the amount is
+                  edited. Required only once an amount is actually left owing:
+                  a Pay Later that ends up settling in full has nothing to
+                  promise, and demanding a date for ₱0 would be noise. */}
+              {isPayLater && (
                 <div className="mb-12" style={{ background: 'var(--warning-bg)', borderRadius: 8, padding: 14, border: '1px solid var(--warning)' }}>
                   <div className="mb-8" style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--warning-dark)' }}>
                     <AlertTriangle size={14} className="inline mr-6" /> Promise to Pay
                   </div>
                   <div className="form-group mb-0">
                     <label className="form-label" htmlFor="dm-promised-date">
-                      <Calendar size={14} className="inline mr-6" /> Promise Date *
+                      <Calendar size={14} className="inline mr-6" /> Promise Date {needsPromiseDate ? '*' : '(Optional)'}
                     </label>
                     <input
                       id="dm-promised-date"
@@ -359,8 +433,12 @@ const DeliveryModal = ({ order, onClose, onSave }) => {
                     />
                   </div>
                   <div className="text-xs mt-8" style={{ color: 'var(--warning-dark)' }}>
-                    The cargo may be handed over, but ₱{balanceAfter.toFixed(2)} remains owing.
-                    This order will stay unsettled and its trip cannot be completed until it is paid.
+                    {needsPromiseDate
+                      ? <>
+                          The cargo may be handed over, but ₱{formatAmount(balanceAfter.toFixed(2))} remains owing.
+                          This order will stay unsettled and its trip cannot be completed until it is paid.
+                        </>
+                      : <>The amount entered covers the full balance, so nothing will be left owing.</>}
                   </div>
                 </div>
               )}
@@ -376,7 +454,7 @@ const DeliveryModal = ({ order, onClose, onSave }) => {
                         type="button"
                         className="btn btn-primary btn-sm w-full justify-center"
                         onClick={handleProceedToGCash}
-                        disabled={balance <= 0}
+                        disabled={collectedNow <= 0}
                       >
                         <CreditCard size={14} className="mr-6" /> Process via PayMongo
                       </button>
