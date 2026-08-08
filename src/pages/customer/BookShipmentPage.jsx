@@ -801,8 +801,9 @@ const BookShipmentPage = () => {
         <div className="card animate-fade-in"><div className="card-body">
           <h3 className="fw-700 mb-16"><Package size={18} className="inline mr-8" />Package Details</h3>
           <div className="form-group">
-            <label className="form-label" htmlFor="package-description">What are you sending?</label>
-            <input id="package-description" className="form-input" value={form.package_description} onChange={e => u('package_description', e.target.value)} placeholder="e.g. Documents, 2 boxes of clothes, small appliance" aria-describedby="package-description-helper" />
+            <label className="form-label" htmlFor="package-description">What are you sending? <span className="text-danger">*</span></label>
+            <input id="package-description" className={`form-input ${fieldErrors.package_description ? 'error' : ''}`} value={form.package_description} onChange={e => { u('package_description', e.target.value); setFieldErrors(prev => ({...prev, package_description: false})); }} placeholder="e.g. Documents, 2 boxes of clothes, small appliance" aria-describedby="package-description-helper" />
+            {fieldErrors.package_description && <div className="text-danger text-xs mt-4">Package description is required.</div>}
             <p id="package-description-helper" className="text-xs text-secondary mt-4">Describe your items. We weigh the parcel at pickup and the exact cost is confirmed then.</p>
           </div>
           <div className="form-group"><label className="form-label" htmlFor="payer-type">Who Pays?</label>
@@ -836,7 +837,16 @@ const BookShipmentPage = () => {
             <div className="text-xs text-tertiary">Your total is calculated when we weigh your parcel at pickup.</div>
           </div>
 
-          <button type="button" className="btn btn-primary btn-lg w-full justify-center" onClick={() => setStep(5)}>Review Booking</button>
+          <button type="button" className="btn btn-primary btn-lg w-full justify-center" onClick={() => {
+            if (!form.package_description || !form.package_description.trim()) {
+              setFieldErrors({ package_description: true });
+              toast.error('Please describe what you are sending.');
+              focusFirstInvalid();
+              return;
+            }
+            setFieldErrors({});
+            setStep(5);
+          }}>Review Booking</button>
         </div></div>
       )}
 
