@@ -857,7 +857,7 @@ BEGIN
                 -- Resolved within the grace window → a FOLLOW-UP, to a human.
                 WHEN v_status = 'resolved'
                      AND v_resolved_at IS NOT NULL
-                     AND v_resolved_at >= now() - INTERVAL '12 hours'
+                     AND v_resolved_at >= now() - INTERVAL '15 seconds'
                   THEN 'waiting'
                 -- Resolved longer ago, or at an unknown time → a NEW session.
                 WHEN v_status = 'resolved' THEN 'bot_active'
