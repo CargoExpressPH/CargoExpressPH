@@ -60,6 +60,59 @@ export const TRIP_TO_ORDER_STATUS = {
   [TRIP_STATUS.CANCELLED]: ORDER_STATUS.CANCELLED,
 };
 
+/**
+ * Order statuses the TRIP owns.
+ *
+ * These are written by the trip lifecycle cascade for every order on the trip
+ * at once — the cargo is on one vehicle, so "it has departed" and "it has
+ * arrived" are facts about the vehicle, not about any single parcel. Advancing
+ * one order into them by hand desynchronises it from the trip it is physically
+ * sitting on.
+ *
+ * Cancelled is excluded: the trip cascades it, but cancelling a single order is
+ * also a legitimate standalone act, so it is not trip-owned.
+ *
+ * Everything after arrival is per-order on purpose — Out for Delivery and
+ * Delivered are last-mile events that happen to one parcel at one door.
+ */
+export const TRIP_CONTROLLED_STATUSES = [
+  ORDER_STATUS.IN_TRANSIT,
+  ORDER_STATUS.ARRIVED_HUB,
+];
+
+/**
+ * Is this order's next step the trip's to take, rather than an admin's?
+ *
+ * True only while the order is actually attached to a trip. An order with no
+ * trip has no cascade coming for it, so hiding its advance button would strand
+ * it with no way forward at all.
+ */
+export const isTripControlledAdvance = (order) => {
+  if (!order?.trip_id) return false;
+  const next = STATUS_FLOW[order.status];
+  return Boolean(next) && TRIP_CONTROLLED_STATUSES.includes(next);
+};
+
+/**
+ * Statuses at which the cargo is already loaded and moving. Past this line the
+ * parcel is in the network — on a vehicle, in a hub, or on a doorstep run — and
+ * "cancel" no longer describes anything that can physically happen. Unwinding
+ * it is a return or a refund, which is a different act with different money.
+ */
+export const IN_NETWORK_STATUSES = [
+  ORDER_STATUS.IN_TRANSIT,
+  ORDER_STATUS.ARRIVED_HUB,
+  ORDER_STATUS.OUT_FOR_DELIVERY,
+  ORDER_STATUS.DELIVERED,
+];
+
+/** Can this order still be cancelled outright? */
+export const canCancelOrder = (order) => {
+  if (!order?.status) return false;
+  if (order.status === ORDER_STATUS.CANCELLED) return false;
+  return !IN_NETWORK_STATUSES.includes(order.status);
+};
+
 // Status color mapping using theme variables
 export const STATUS_COLORS = {
   [ORDER_STATUS.PENDING_REVIEW]: { bg: 'var(--warning-bg)', text: 'var(--warning-dark)', border: 'var(--warning)' },

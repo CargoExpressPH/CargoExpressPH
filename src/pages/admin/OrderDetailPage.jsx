@@ -23,7 +23,8 @@ import MessageCustomerButton from '../../components/ui/MessageCustomerButton';
 import {
   STATUS_FLOW, STATUS_TIMELINE, validateStatusTransition,
   getSettlementState, SETTLEMENT_STATE, outstandingBalance,
-  PAYMENT_METHODS, PAYMENT_STATUSES, ORDER_STATUS
+  PAYMENT_METHODS, PAYMENT_STATUSES, ORDER_STATUS,
+  isTripControlledAdvance, canCancelOrder
 } from '../../constants/status';
 import {
   ArrowLeft, Check, Package, CreditCard, User, Phone, MapPin,
@@ -234,6 +235,13 @@ const AdminOrderDetailPage = () => {
   const handleStatusAdvance = async () => {
     const next = STATUS_FLOW[order.status];
     if (!next) return;
+    // The button is hidden for these, but a hidden button is a hint and this is
+    // the enforcement point — realtime can land a trip cascade between render
+    // and click.
+    if (isTripControlledAdvance(order)) {
+      toast.error(`"${next}" is set by the trip for every order aboard. Update the trip instead.`);
+      return;
+    }
     if (next === ORDER_STATUS.PICKED_UP) { 
       if (!order.trip_id) {
         toast.error("This booking must be assigned to a trip before pickup can be processed.");
@@ -315,6 +323,11 @@ const AdminOrderDetailPage = () => {
   };
 
   const handleCancel = async () => {
+    if (!canCancelOrder(order)) {
+      setShowCancelConfirm(false);
+      toast.error(`An order that is "${order.status}" is already in the network and cannot be cancelled.`);
+      return;
+    }
     try {
       await updateOrder(id, { status: 'Cancelled' });
       logOrder('Order Cancelled', id, order.tracking_number, { previousValue: { status: order.status }, newValue: { status: 'Cancelled' } });
@@ -458,6 +471,22 @@ const AdminOrderDetailPage = () => {
 
   const nextStatus = STATUS_FLOW[order.status];
   const isTerminal = order.status === 'Delivered' || order.status === 'Cancelled';
+
+  // ── Who owns the next move ───────────────────────────────────────────────
+  // Once an order is on a trip, "departed" and "arrived at the hub" are facts
+  // about the vehicle, and TripDetailPage writes them to every order aboard at
+  // once. Offering the same step here per order let one parcel be marched ahead
+  // of the truck it is sitting in, and the trip's later bulk update then wrote
+  // over it. The trip is the single writer for those two steps.
+  //
+  // This generalises the hand-written "Picked Up → In Transit" exclusion that
+  // used to sit inline in the JSX; "In Transit → Arrived at Hub" was the case
+  // it missed.
+  const tripOwnsNextStep = isTripControlledAdvance(order);
+  // Out for Delivery and Delivered stay manual — they are last-mile events for
+  // one parcel at one door, and Out for Delivery carries the settlement gate.
+  const showAdvanceButton = Boolean(nextStatus) && !tripOwnsNextStep;
+  const showCancelButton = canCancelOrder(order);
   const needsTrip = order.status === 'Pending' && !order.trip_id;
   const hasPhotos = resolvedPickupPhotos.length > 0;
   const canReassignTrip = order.trip_id && [ORDER_STATUS.PENDING, ORDER_STATUS.ASSIGNED].includes(order.status);
@@ -562,24 +591,47 @@ const AdminOrderDetailPage = () => {
       )}
 
       {/* Status Action Bar */}
-      {(!isTerminal && order.service_area_status !== 'for_review') && (
+      {(!isTerminal && order.service_area_status !== 'for_review'
+        && (needsTrip || showAdvanceButton || showCancelButton || tripOwnsNextStep)) && (
         <div className="card admin-section-card admin-action-card stagger-item mb-16" style={{ animationDelay: '60ms' }}>
           <div className="card-body">
+            {/* Says where the missing button went. Without this the bar just
+                empties out and the step looks broken rather than delegated. */}
+            {tripOwnsNextStep && (
+              <div className="flex items-start gap-8 text-sm text-secondary mb-12">
+                <Truck size={16} aria-hidden="true" style={{ flexShrink: 0, marginTop: 2 }} />
+                <span>
+                  This order moves with its trip. <strong>{nextStatus}</strong> is set for every
+                  order aboard when the trip is updated.
+                </span>
+              </div>
+            )}
             <div className="admin-action-group">
+            {tripOwnsNextStep && (
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => navigate(`/admin/trips/${order.trip_id}`)}
+              >
+                <Truck size={16} /> Open {order.trips?.trip_number || 'Trip'}
+              </button>
+            )}
             {needsTrip && (
               <button type="button" className="btn btn-secondary" onClick={() => setShowTripModal(true)}>
                 <Truck size={16} /> Assign to Trip
               </button>
             )}
-            {nextStatus && !(order.status === 'Picked Up' && nextStatus === 'In Transit') && (
+            {showAdvanceButton && (
               <button type="button" className="btn btn-primary" onClick={handleStatusAdvance} disabled={saving}>
                 {saving ? <Loader size={16} className="animate-spin" /> : <Check size={16} />}
                 {nextStatus === 'Picked Up' ? 'Process Pickup' : `Advance to "${nextStatus}"`}
               </button>
             )}
-            <button type="button" className="btn btn-danger btn-sm" onClick={() => setShowCancelConfirm(true)} disabled={saving}>
-              Cancel Order
-            </button>
+            {showCancelButton && (
+              <button type="button" className="btn btn-danger btn-sm" onClick={() => setShowCancelConfirm(true)} disabled={saving}>
+                Cancel Order
+              </button>
+            )}
             </div>
           </div>
         </div>
