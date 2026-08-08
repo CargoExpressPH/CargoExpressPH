@@ -9,18 +9,15 @@ import {
   markCustomerMessagesRead,
   sendMessage,
   withTimeout,
-  assignConversation,
   resolveConversation,
   getOrCreateConversation,
   compareConversations,
-  reassignConversation,
   getAdminProfiles,
   searchConversationMessages,
   CONVERSATION_STATUS,
 } from '../../lib/database';
 import EmptyState from '../../components/ui/EmptyState';
-import CustomSelect from '../../components/ui/CustomSelect';
-import { MessageSquare, Send, Loader, User, Bot, Clock, CheckCircle, UserCheck, ArrowLeft, Search, AlertCircle, X } from 'lucide-react';
+import { MessageSquare, Send, Loader, User, Bot, Clock, CheckCircle, ArrowLeft, Search, AlertCircle, X } from 'lucide-react';
 import usePageTitle from '../../hooks/usePageTitle';
 import { logChat } from '../../lib/activityLog';
 import { renderMarkdown } from '../../lib/markdown';
@@ -65,16 +62,13 @@ const formatWait = (hours) => {
   return `waiting ${days} day${days === 1 ? '' : 's'}`;
 };
 
-const ConvStatusBadge = ({ status, assignedAdmin }) => {
+const ConvStatusBadge = ({ status }) => {
   const cfg = STATUS_BADGE[status];
-  if (!cfg) return assignedAdmin
-    ? <span className="inbox-status-quiet">{assignedAdmin}</span>
-    : null;
+  if (!cfg) return null;
   return (
     <span className="inbox-status-badge" style={{ color: cfg.color }}>
       <span className="inbox-status-dot" aria-hidden="true" />
       {cfg.text}
-      {assignedAdmin && <span style={{ marginLeft: 4, opacity: 0.8 }}>· {assignedAdmin}</span>}
     </span>
   );
 };
@@ -122,8 +116,8 @@ const InboxPage = () => {
   const [hasMoreMessages, setHasMoreMessages] = useState(false);
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [messageMatches, setMessageMatches] = useState(new Map());
-  const [admins, setAdmins] = useState([]);
-  const [reassigning, setReassigning] = useState(false);
+  // id → display name, for attributing admin replies. See adminName().
+  const [adminNames, setAdminNames] = useState(() => new Map());
 
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
@@ -168,36 +162,23 @@ const InboxPage = () => {
     }
   };
 
-  // Admin roster for the reassign control. Fetched once; a handover is rare
-  // enough that it does not need to stay live.
+  // Admin roster, fetched once, purely to put a name on each reply. The
+  // paginated history embeds profiles:sender_id(name), but a realtime INSERT
+  // and the row sendMessage returns carry sender_id alone — so without this
+  // map a reply arriving live from the other admin would read "Admin".
   useEffect(() => {
-    getAdminProfiles().then(setAdmins).catch(() => setAdmins([]));
+    getAdminProfiles()
+      .then(list => setAdminNames(new Map(list.map(a => [a.id, a.name || a.email]))))
+      .catch(() => setAdminNames(new Map()));
   }, []);
 
-  const handleReassign = async (adminId) => {
-    if (!activeConv) return;
-    setReassigning(true);
-    try {
-      await reassignConversation(activeConv.id, adminId);
-      const target = admins.find(a => a.id === adminId);
-      logChat('Conversation Reassigned', activeConv.id, activeConv.profiles?.name || 'Customer', {
-        details: adminId
-          ? `Reassigned to ${target?.name || target?.email || 'another admin'}.`
-          : 'Returned to the unassigned pool.',
-      });
-      setActiveConv(prev => ({
-        ...prev,
-        assigned_admin_id: adminId || null,
-        assigned_admin: target ? { name: target.name } : null,
-      }));
-      toast.success(adminId ? `Reassigned to ${target?.name || 'admin'}.` : 'Returned to the pool.');
-      loadConvs();
-    } catch {
-      toast.error('Failed to reassign conversation.');
-    } finally {
-      setReassigning(false);
-    }
-  };
+  /** Who sent this admin message. Embed first, roster second, then a shrug. */
+  const adminName = (m) =>
+    m.profiles?.name || adminNames.get(m.sender_id) || 'Admin';
+
+  /** Sidebar preview prefix for an admin reply: 'You' only if it was you. */
+  const previewSender = (m) =>
+    m.sender_id === user?.id ? 'You' : (adminNames.get(m.sender_id) || 'Admin');
 
   useEffect(() => {
     const targetUserId = location.state?.contactUserId;
@@ -221,7 +202,6 @@ const InboxPage = () => {
         // showing a stale age after a live update.
         const patch = {
           status: payload.new.status,
-          assigned_admin_id: payload.new.assigned_admin_id,
           escalated: payload.new.escalated,
           first_response_at: payload.new.first_response_at,
           last_customer_message_at: payload.new.last_customer_message_at,
@@ -270,6 +250,7 @@ const InboxPage = () => {
               message: msg.message,
               created_at: msg.created_at,
               sender_role: msg.sender_role,
+              sender_id: msg.sender_id,   // names the admin in the preview
             },
             // Only a thread that is OUR turn accrues unread work. A customer
             // message arriving while the bot still holds the thread is being
@@ -521,27 +502,20 @@ const InboxPage = () => {
     if (!text || !activeConv || !user) return;
     setSending(true);
 
-    // Taking an unassigned conversation out of the queue, or picking up one
-    // the bot was handling, both count as accepting it.
-    const isFirstAdminReply =
-      (activeConv.status === CONVERSATION_STATUS.WAITING ||
-       activeConv.status === CONVERSATION_STATUS.BOT_ACTIVE) &&
-      !activeConv.assigned_admin_id;
+    // A reply moves the thread off the queue whoever sends it — there is no
+    // claim to make first (20260808150000). The status move to
+    // 'waiting_customer' is the trigger's; this mirrors it locally so the
+    // queue line and the waiting banner do not lag a round trip behind.
+    const leavesTheQueue =
+      activeConv.status === CONVERSATION_STATUS.WAITING ||
+      activeConv.status === CONVERSATION_STATUS.BOT_ACTIVE;
 
     try {
       const newMsg = await sendMessage(activeConv.id, user.id, 'admin', text);
 
-      // Auto-assign on first admin reply. The status move to 'waiting_customer'
-      // is done by the maintain_conversation_service_state trigger; this
-      // mirrors it locally so the UI does not lag a round trip behind.
-      if (isFirstAdminReply) {
-        await assignConversation(activeConv.id);
-        logChat('Conversation Assigned', activeConv.id, activeConv.profiles?.name || 'Customer', {
-          details: `Admin ${user.email} accepted conversation with ${activeConv.profiles?.name || 'Customer'}.`,
-        });
-        // Refresh so UI shows assigned status
-        setActiveConv(prev => ({ ...prev, status: CONVERSATION_STATUS.WAITING_CUSTOMER, assigned_admin_id: user.id }));
-        activeConvRef.current = { ...activeConvRef.current, status: CONVERSATION_STATUS.WAITING_CUSTOMER, assigned_admin_id: user.id };
+      if (leavesTheQueue) {
+        setActiveConv(prev => ({ ...prev, status: CONVERSATION_STATUS.WAITING_CUSTOMER }));
+        activeConvRef.current = { ...activeConvRef.current, status: CONVERSATION_STATUS.WAITING_CUSTOMER };
         loadConvs();
       }
 
@@ -585,26 +559,18 @@ const InboxPage = () => {
     setMessages(prev => prev.filter(m => m.id !== failedMsg.id));
   };
 
-  // ── Status change (assign / close / reopen) ────────────────────────────────
-  const handleStatusChange = async (newStatus) => {
+  // ── Resolve ────────────────────────────────────────────────────────────────
+  // The only status an admin sets by hand; every other value is derived from
+  // who spoke last. The 'assigned' branch went with the shared inbox.
+  const handleResolve = async () => {
     if (!activeConv) return;
     try {
-      if (newStatus === 'assigned') {
-        await assignConversation(activeConv.id);
-        logChat('Conversation Assigned', activeConv.id, activeConv.profiles?.name || 'Customer', {
-          details: `Conversation manually assigned to ${user.email}.`,
-        });
-        toast.success('Conversation assigned to you.');
-        // Claiming does not change whose turn it is — replying does.
-        setActiveConv(prev => ({ ...prev, assigned_admin_id: user.id }));
-      } else if (newStatus === CONVERSATION_STATUS.RESOLVED) {
-        await resolveConversation(activeConv.id);
-        logChat('Conversation Resolved', activeConv.id, activeConv.profiles?.name || 'Customer', {
-          details: `Conversation marked as resolved.`,
-        });
-        toast.success('Resolved. The bot handles them if they write again.');
-        setActiveConv(prev => ({ ...prev, status: CONVERSATION_STATUS.RESOLVED }));
-      }
+      await resolveConversation(activeConv.id);
+      logChat('Conversation Resolved', activeConv.id, activeConv.profiles?.name || 'Customer', {
+        details: `Conversation marked as resolved.`,
+      });
+      toast.success('Resolved. The bot handles them if they write again.');
+      setActiveConv(prev => ({ ...prev, status: CONVERSATION_STATUS.RESOLVED }));
       loadConvs();
     } catch {
       toast.error('Failed to update conversation status.');
@@ -657,6 +623,16 @@ const InboxPage = () => {
             )}
 
             <div className="inbox-message-stack">
+              {/* Who replied. The shared inbox removed the one place that
+                  said which admin was handling a thread, so each reply now
+                  carries its own author — otherwise a two-person team reads
+                  a mixed thread as one anonymous voice. The customer still
+                  sees "Admin"; this label is admin-side only. */}
+              {isAdmin && !m.failed && (
+                <div className="inbox-msg-sender-label is-admin">
+                  {adminName(m)}{m.sender_id === user?.id ? ' (you)' : ''}
+                </div>
+              )}
               {isBot && (
                 <div className="inbox-msg-sender-label">
                   <Bot size={11} aria-hidden="true" /> CargoExpress Assistant
@@ -845,7 +821,9 @@ const InboxPage = () => {
                         </div>
                       ) : conv.last_message?.message ? (
                         <div className="inbox-conv-preview">
-                          {conv.last_message.sender_role === 'admin' ? 'You: ' : conv.last_message.sender_role === 'bot' ? 'Bot: ' : ''}
+                          {conv.last_message.sender_role === 'admin'
+                            ? `${previewSender(conv.last_message)}: `
+                            : conv.last_message.sender_role === 'bot' ? 'Bot: ' : ''}
                           {conv.last_message.message}
                         </div>
                       ) : searching ? (
@@ -853,10 +831,7 @@ const InboxPage = () => {
                       ) : null}
 
                       <div className="inbox-conversation-meta">
-                        <ConvStatusBadge
-                          status={conv.status}
-                          assignedAdmin={conv.assigned_admin?.name}
-                        />
+                        <ConvStatusBadge status={conv.status} />
                         {isWaiting && (
                           <span className={`inbox-wait-age ${waitHrs >= WAITING_ALERT_HOURS ? 'overdue' : ''}`}>
                             {formatWait(waitHrs)}
@@ -939,48 +914,8 @@ const InboxPage = () => {
                     </div>
                     <div className="text-secondary inbox-chat-user-sub">
                       <span className="truncate inbox-chat-user-email">{activeConv.profiles?.email}</span>
-                      <ConvStatusBadge
-                        status={activeConv.status}
-                        assignedAdmin={activeConv.assigned_admin?.name}
-                      />
+                      <ConvStatusBadge status={activeConv.status} />
                     </div>
-                    {activeConv.assigned_admin_id && (
-                      <div className="text-tertiary inbox-chat-user-assigned">
-                        <UserCheck size={11} aria-hidden="true" />
-                        <label htmlFor="inbox-reassign" className="sr-only">Reassign this conversation</label>
-                        {/* Hidden on mobile to give the select room; the icon
-                            plus the sr-only label above still carry the meaning. */}
-                        <span className="inbox-assigned-label">Assigned to</span>
-                        {/* A handover path. Assignment used to be one-way, so a
-                            conversation owned by someone on leave was stuck. */}
-                        {/* CustomSelect, not a native <select>, so this matches
-                            every other dropdown in the admin UI (Activity Logs,
-                            Customers, Feedback). A native select hands off to
-                            the OS picker — a centred dialog on Android, a wheel
-                            on iOS — which read as a different app. It also
-                            renders a <button>, and iOS never focus-zooms a
-                            button, so the auto-zoom problem cannot recur. */}
-                        <CustomSelect
-                          id="inbox-reassign"
-                          className="form-control inbox-reassign-select"
-                          value={activeConv.assigned_admin_id || ''}
-                          disabled={reassigning}
-                          onChange={e => handleReassign(e.target.value || null)}
-                        >
-                          {admins.length === 0 && (
-                            <option value={activeConv.assigned_admin_id}>
-                              {activeConv.assigned_admin?.name || 'Assigned'}
-                            </option>
-                          )}
-                          {admins.map(a => (
-                            <option key={a.id} value={a.id}>
-                              {a.id === user?.id ? `${a.name || a.email} (me)` : (a.name || a.email)}
-                            </option>
-                          ))}
-                          <option value="">— Unassign —</option>
-                        </CustomSelect>
-                      </div>
-                    )}
                   </div>
                 </div>
 
@@ -993,16 +928,9 @@ const InboxPage = () => {
                   {/* ── Desktop: full labelled buttons ── */}
                   <div className="inbox-actions-desktop">
                     {activeConv.status !== CONVERSATION_STATUS.RESOLVED && (
-                      <>
-                        {!activeConv.assigned_admin_id && (
-                          <button type="button" className="btn btn-outline btn-sm" onClick={() => handleStatusChange('assigned')}>
-                            Assign to Me
-                          </button>
-                        )}
-                        <button type="button" className="btn btn-resolve-success btn-sm gap-4 flex items-center" onClick={() => handleStatusChange(CONVERSATION_STATUS.RESOLVED)}>
-                          <CheckCircle size={14} /> Resolve
-                        </button>
-                      </>
+                      <button type="button" className="btn btn-resolve-success btn-sm gap-4 flex items-center" onClick={handleResolve}>
+                        <CheckCircle size={14} /> Resolve
+                      </button>
                     )}
                     <button
                       type="button"
@@ -1015,28 +943,15 @@ const InboxPage = () => {
                     </button>
                   </div>
 
-                  {/* ── Mobile: two direct icon actions, no hidden menu ──
-                       An overflow menu holding one situational item costs more
-                       than it gives. The header's ✕ is omitted here because the
-                       back arrow already does exactly the same thing; on desktop
-                       there is no back arrow, so ✕ stays in the group above. */}
-                  {activeConv.status !== CONVERSATION_STATUS.RESOLVED && !activeConv.assigned_admin_id && (
-                    <button
-                      type="button"
-                      className="inbox-assign-quick"
-                      onClick={() => handleStatusChange('assigned')}
-                      aria-label="Assign this conversation to me"
-                      title="Assign to me"
-                    >
-                      <UserCheck size={18} aria-hidden="true" />
-                    </button>
-                  )}
-
+                  {/* ── Mobile: one direct icon action, no hidden menu ──
+                       The header's ✕ is omitted here because the back arrow
+                       already does exactly the same thing; on desktop there is
+                       no back arrow, so ✕ stays in the group above. */}
                   {activeConv.status !== CONVERSATION_STATUS.RESOLVED && (
                     <button
                       type="button"
                       className="inbox-resolve-quick"
-                      onClick={() => handleStatusChange(CONVERSATION_STATUS.RESOLVED)}
+                      onClick={handleResolve}
                       aria-label="Resolve conversation"
                       title="Resolve"
                     >
@@ -1053,7 +968,7 @@ const InboxPage = () => {
                   <span>
                     This customer is <strong>waiting for your response</strong>
                     {waitingHours(activeConv) >= 1 && <> — {formatWait(waitingHours(activeConv))}</>}.
-                    Reply to auto-assign this conversation to you.
+                    Anyone on the team can reply.
                   </span>
                 </div>
               )}

@@ -144,7 +144,11 @@ const ServiceReportsPage = () => {
             { l: 'Waiting on us', v: q.waiting ?? 0, tone: (q.waiting > 0 ? 'warning' : 'success') },
             { l: `Waiting over 24h`, v: q.waitingOver24h ?? 0, tone: (q.waitingOver24h > 0 ? 'danger' : 'success') },
             { l: 'Awaiting customer', v: q.waitingCustomer ?? 0, tone: 'primary' },
-            { l: 'Unassigned', v: q.unassigned ?? 0, tone: (q.unassigned > 0 ? 'warning' : 'success') },
+            // Was 'Unassigned'. Support chat became a shared inbox in
+            // 20260808150000, so no thread has an owner to lack and the RPC
+            // stopped returning the figure. Escalations take the slot: it is
+            // the other "needs attention" signal the queue carries.
+            { l: 'Escalated', v: q.escalated ?? 0, tone: (q.escalated > 0 ? 'warning' : 'success') },
           ].map((c, i) => (
             <div key={i} className={`stat-card stat-card-${c.tone} stagger-item`} style={{ animationDelay: `${i * 60}ms` }}>
               <div className="stat-value">{c.v}</div>

@@ -1386,7 +1386,7 @@ export const getOrCreateConversation = async (customerId) => {
   // the snowballing duplicate-conversation bug.
   let { data: convRows, error } = await supabase
     .from('conversations')
-    .select('*, assigned_admin:assigned_admin_id(name)')
+    .select('*')
     .eq('customer_id', customerId)
     .order('created_at', { ascending: true })
     .limit(1);
@@ -1492,9 +1492,7 @@ export const getAdminConversations = async () => {
       first_response_at,
       last_customer_message_at,
       resolved_at,
-      assigned_admin_id,
-      profiles:customer_id (id, name, email),
-      assigned_admin:assigned_admin_id (name)
+      profiles:customer_id (id, name, email)
     `)
     .order('created_at', { ascending: true });
   if (error) throw error;
@@ -1522,7 +1520,10 @@ export const getAdminConversations = async () => {
         .eq('is_read', false),
       supabase
         .from('chat_messages')
-        .select('conversation_id, message, created_at, sender_role')
+        // sender_id rides along so the sidebar preview can say WHICH admin
+        // replied. In a shared inbox (20260808150000) a flat "You:" on every
+        // admin line is wrong for whichever admin did not send it.
+        .select('conversation_id, message, created_at, sender_role, sender_id')
         .in('conversation_id', convIds)
         .order('created_at', { ascending: false })
     ]);
@@ -1583,7 +1584,7 @@ export const isWithinReopenGrace = (conversation) => {
 export const getConversationState = async (conversationId) => {
   const { data, error } = await supabase
     .from('conversations')
-    .select('id, status, assigned_admin_id, resolved_at')
+    .select('id, status, resolved_at')
     .eq('id', conversationId)
     .maybeSingle();
   if (error) throw error;
@@ -2154,45 +2155,25 @@ export const getPaymentTransactionsBatch = async (orderIds) => {
 
 // ==================== CHAT EXTENSIONS ====================
 
-export const assignConversation = async (conversationId) => {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('Not authenticated');
-  // Ownership only. Claiming a conversation does not change whose turn it is —
-  // it is still ours until we actually reply, and the reply is what moves the
-  // state. This used to also force 'open', which quietly emptied the queue
-  // before anyone had answered.
-  const { error } = await supabase
-    .from('conversations')
-    .update({ assigned_admin_id: user.id })
-    .eq('id', conversationId);
-  if (error) throw error;
-};
-
-/** Hand a conversation back to the pool without resolving it. */
-export const unassignConversation = async (conversationId) => {
-  const { error } = await supabase
-    .from('conversations')
-    .update({ assigned_admin_id: null })
-    .eq('id', conversationId);
-  if (error) throw error;
-};
+// Conversation ASSIGNMENT is gone (20260808150000). `assignConversation`,
+// `unassignConversation` and `reassignConversation` all wrote
+// conversations.assigned_admin_id, a column that no longer exists — support
+// chat is a shared inbox and any admin may reply to any thread at any time.
+// Who said what is read from chat_messages.sender_id, which is where it has
+// always been; the inbox names the sender of each reply.
 
 /**
- * Move a conversation to a different admin.
+ * Admin roster, as an id → name lookup for attributing chat replies.
  *
- * Assignment used to be one-way — set on first reply, with no way to hand
- * over. That is survivable with two admins and a real problem at three:
- * a conversation assigned to someone on leave had no recovery path.
+ * It used to populate the reassign dropdown. It survives that control's
+ * removal because a message row only carries `sender_id`: the paginated
+ * history embeds `profiles:sender_id (name)`, but a realtime INSERT payload
+ * and the row returned by `sendMessage` do not, so a reply arriving live from
+ * another admin would render nameless. Fetching the roster once is cheaper
+ * than re-reading each message with its embed.
+ *
+ * Admin-gated by RLS on profiles.
  */
-export const reassignConversation = async (conversationId, adminId) => {
-  const { error } = await supabase
-    .from('conversations')
-    .update({ assigned_admin_id: adminId || null })
-    .eq('id', conversationId);
-  if (error) throw error;
-};
-
-/** Admin roster for the reassign control. Admin-gated by RLS on profiles. */
 export const getAdminProfiles = async () => {
   const { data, error } = await supabase
     .from('profiles')

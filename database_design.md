@@ -13,7 +13,6 @@ erDiagram
     profiles ||--o{ notifications : "receives"
     profiles ||--o{ user_device_tokens : "owns"
     profiles ||--o{ conversations : "participates (customer)"
-    profiles ||--o{ conversations : "assigned to (admin)"
     profiles ||--o{ chat_messages : "sends"
     profiles ||--o{ contact_inquiries : "assigned to (admin)"
     profiles ||--o{ activity_logs : "performs (admin)"
@@ -157,7 +156,6 @@ erDiagram
         uuid customer_id FK
         timestamp_with_time_zone created_at
         text status
-        uuid assigned_admin_id FK
         boolean escalated
         timestamp_with_time_zone first_response_at
         timestamp_with_time_zone last_customer_message_at
@@ -445,7 +443,6 @@ erDiagram
 | customer_id | uuid | Stores the identifier of the customer who owns the conversation. |
 | created_at | timestamp with time zone | Records the date and time when the conversation started. |
 | status | text | Indicates the current state of the chat determining whose turn it is to reply. |
-| assigned_admin_id | uuid | Stores the identifier of the admin handling the conversation. |
 | escalated | boolean | Indicates whether the conversation requires urgent human attention. |
 | first_response_at | timestamp with time zone | Records the date and time when the first admin response was sent. |
 | last_customer_message_at | timestamp with time zone | Records the date and time of the last message sent by the customer. |

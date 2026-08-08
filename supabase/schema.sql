@@ -183,7 +183,7 @@ CREATE TABLE IF NOT EXISTS conversations (
   --   waiting_customer an admin spoke last — their turn
   --   resolved         an admin said so
   -- 'open' was deleted: once every admin reply means "waiting on the
-  -- customer", it described nothing assigned_admin_id did not already say.
+  -- customer", it described nothing the assignment did not already say.
   status TEXT DEFAULT 'bot_active'
     CHECK (status IN ('bot_active', 'waiting', 'waiting_customer', 'resolved')),
   -- A FLAG, not a state: 'escalated' answers "how urgent", status answers
@@ -192,10 +192,13 @@ CREATE TABLE IF NOT EXISTS conversations (
   first_response_at TIMESTAMPTZ DEFAULT NULL,
   last_customer_message_at TIMESTAMPTZ DEFAULT NULL,
   resolved_at TIMESTAMPTZ DEFAULT NULL,
-  bot_resolved BOOLEAN DEFAULT NULL,   -- NULL = unknown, the honest default
-  -- FK added in 20260622000000; schema.sql previously omitted it, which broke
-  -- the PostgREST embed assigned_admin:assigned_admin_id(name) on rebuild.
-  assigned_admin_id UUID DEFAULT NULL REFERENCES profiles(id) ON DELETE SET NULL
+  bot_resolved BOOLEAN DEFAULT NULL    -- NULL = unknown, the honest default
+  -- `assigned_admin_id` was DROPPED in 20260808150000. Support chat is a
+  -- SHARED inbox: any admin may reply to any thread at any time, and no reply
+  -- locks the thread to whoever sent it. Attribution lives where it always
+  -- did — chat_messages.sender_id — so the admin UI names the sender of each
+  -- reply instead of naming an owner of the whole conversation.
+  -- (contact_inquiries keeps its own assigned_admin_id; only chat is shared.)
 );
 
 
@@ -807,7 +810,8 @@ CREATE TRIGGER chat_messages_guard_insert
 
 
 -- ============================================================
--- CONVERSATION SERVICE STATE (20260804210000, 20260807120000, 20260807140000)
+-- CONVERSATION SERVICE STATE
+-- (20260804210000, 20260807120000, 20260807140000, 20260808150000)
 -- Derived service values are maintained server-side, never written by a
 -- client — same principle as update_order_payment_totals. The auto-reopen
 -- in the customer branch is what structurally prevents a resolved thread
@@ -818,10 +822,11 @@ CREATE TRIGGER chat_messages_guard_insert
 -- A customer message on a 'resolved' thread splits on a 12-hour grace window
 -- (20260807140000), because conversations is UNIQUE per customer and that one
 -- row has to serve both cases:
---   ≤12h  → 'waiting'    a FOLLOW-UP; assigned_admin_id kept so it returns to
---                        the admin who resolved it
---   >12h  → 'bot_active' a NEW question; assigned_admin_id and escalated
---           or NULL      cleared, since the old assignee owned a closed issue
+--   ≤12h  → 'waiting'    a FOLLOW-UP, straight to the shared admin queue
+--   >12h  → 'bot_active' a NEW question; `escalated` is cleared, since the
+--           or NULL      urgency belonged to the issue that was closed
+-- Since 20260808150000 there is no assignment to carry or clear — the inbox
+-- is shared, so a reopened thread simply returns to the queue everyone reads.
 -- ============================================================
 CREATE OR REPLACE FUNCTION public.maintain_conversation_service_state()
 RETURNS TRIGGER
@@ -860,16 +865,14 @@ BEGIN
                 ELSE 'waiting'
               END;
 
-    -- Only the resolved → bot_active hand-off. A thread already in bot_active
-    -- keeps whatever assignment it has.
+    -- Only the resolved → bot_active hand-off.
     v_new_session := (v_status = 'resolved' AND v_next = 'bot_active');
 
     UPDATE public.conversations
        SET last_customer_message_at = NEW.created_at,
-           status            = v_next,
-           assigned_admin_id = CASE WHEN v_new_session THEN NULL ELSE assigned_admin_id END,
-           escalated         = CASE WHEN v_new_session THEN FALSE ELSE escalated END,
-           resolved_at       = NULL
+           status      = v_next,
+           escalated   = CASE WHEN v_new_session THEN FALSE ELSE escalated END,
+           resolved_at = NULL
      WHERE id = NEW.conversation_id;
 
   ELSIF NEW.sender_role = 'admin' THEN
@@ -893,8 +896,8 @@ CREATE TRIGGER chat_messages_maintain_service_state
 
 -- Bounds what a CUSTOMER may write to their own conversation. The RLS policy
 -- has USING but no WITH CHECK, so without this a customer could set their own
--- status (hiding from or jumping the admin queue), point the conversation at
--- an admin, or forge first_response_at into the service report.
+-- status (hiding from or jumping the admin queue) or forge first_response_at
+-- into the service report.
 -- Allowed: bot_resolved (only they know it), escalated -> TRUE, and
 -- status -> 'waiting' (asking for a human). Everything else reverts to OLD.
 -- Runs BEFORE stamp_conversation_resolved_at — alphabetical trigger order,
@@ -920,7 +923,6 @@ BEGIN
   NEW.id                       := OLD.id;
   NEW.customer_id              := OLD.customer_id;
   NEW.created_at               := OLD.created_at;
-  NEW.assigned_admin_id        := OLD.assigned_admin_id;
   NEW.first_response_at        := OLD.first_response_at;
   NEW.last_customer_message_at := OLD.last_customer_message_at;
   NEW.resolved_at              := OLD.resolved_at;
@@ -1652,9 +1654,9 @@ BEGIN
       'waitingCustomer',  COUNT(*) FILTER (WHERE status = 'waiting_customer'),
       'resolved',         COUNT(*) FILTER (WHERE status = 'resolved'),
       'escalated',        COUNT(*) FILTER (WHERE escalated),
-      'unassigned',       COUNT(*) FILTER (
-                            WHERE status IN ('waiting', 'waiting_customer')
-                              AND assigned_admin_id IS NULL),
+      -- No 'unassigned' since 20260808150000: a shared inbox has no unowned
+      -- threads, so the question no longer applies. Reporting a constant 0
+      -- would have read as an answer instead of an absence.
       'waitingOver24h',   COUNT(*) FILTER (
                             WHERE status = 'waiting'
                               AND COALESCE(last_customer_message_at, created_at) < now() - interval '24 hours'),

@@ -220,7 +220,7 @@ Every status change is appended to **`order_status_events`** by `log_order_statu
 (`20260803110000`) — an append-only timeline with `changed_by` and an optional note. This is
 what the tracking timeline reads; do not reconstruct history from `orders.updated_at`.
 
-### Conversation service state (`20260804260000`, `20260807120000`, `20260807140000`)
+### Conversation service state (`20260804260000`, `20260807120000`, `20260807140000`, `20260808150000`)
 
 `conversations.status` is **derived by trigger** from who spoke last. Four values:
 
@@ -232,7 +232,7 @@ what the tracking timeline reads; do not reconstruct history from `orders.update
 | `resolved` | An admin said so — the only human-set value |
 
 `'open'` was deleted: once every admin reply means "waiting on the customer", it described
-nothing `assigned_admin_id` did not already say. `escalated` is a **flag, not a state** —
+nothing the assignment did not already say. `escalated` is a **flag, not a state** —
 it answers "how urgent", `status` answers "whose turn". Collapsing the two is what produced
 the original defect. `bot_resolved` is nullable; NULL means unknown, which is the honest
 default.
@@ -241,10 +241,10 @@ default.
 (`20260807140000_reopen_grace_window.sql`, refining the unconditional reopen in
 `20260807120000_reopen_resolved_conversations.sql`):
 
-| Resolved | Goes to | Row changes |
-|---|---|---|
-| ≤ 12 h ago | `waiting` — a **follow-up** | `assigned_admin_id` kept, so it returns to the admin who resolved it |
-| > 12 h ago, or `resolved_at` NULL | `bot_active` — a **new session** | `assigned_admin_id` and `escalated` cleared |
+| Resolved | Goes to |
+|---|---|
+| ≤ 12 h ago | `waiting` — a **follow-up**, straight back to the queue |
+| > 12 h ago, or `resolved_at` NULL | `bot_active` — a **new session**; `escalated` cleared |
 
 The window exists because `conversations.customer_id` is UNIQUE: one row per customer forever,
 so the same row is both "the ticket just closed" and "every question this person will ever
@@ -254,6 +254,17 @@ could not see while, because `bot_active` carries no badge and is excluded from 
 unread count, no admin was ever told the customer came back. `resolved_at` is trustworthy —
 `stamp_conversation_resolved_at` stamps every transition into `resolved` — so a NULL means a
 pre-trigger row, correctly treated as old.
+
+**Support chat is a shared inbox** (`20260808150000`): `conversations.assigned_admin_id` was
+dropped, so no thread has an owner and no reply locks one. Ownership was introduced so someone
+was answerable and two admins could not answer at once; on a two-person team the auto-claim on
+first reply meant the lock was applied by the act of helping, and a thread another admin had
+opened read as "not mine". What was actually wanted was attribution, and attribution was
+already in `chat_messages.sender_id` — so the admin inbox names the author of each reply
+instead of naming an owner of the thread. The customer still sees an anonymous "Admin".
+`contact_inquiries.assigned_admin_id` is untouched; only chat is shared. `get_service_summary()`
+therefore no longer returns `queue.unassigned` — a shared inbox has no unowned threads, and a
+constant 0 would have read as an answer rather than an absence.
 
 The routing is server-side on purpose: a client PATCH after the insert is two round trips with
 a failure window that loses the message. `SupportChatPage` mirrors the window only to phrase

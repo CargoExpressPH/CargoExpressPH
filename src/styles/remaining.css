@@ -820,6 +820,15 @@
   padding-left: 4px;
 }
 .inbox-msg-sender-label svg { flex-shrink: 0; }
+/* Admin bubbles sit on the right, so their author label follows them there.
+   `display:flex` (not inline-flex) is what lets justify-content move it. */
+.inbox-msg-sender-label.is-admin {
+  display: flex;
+  justify-content: flex-end;
+  padding-right: 4px;
+  padding-left: 0;
+  font-weight: 600;
+}
 
 .inbox-msg-timestamp {
   font-size: 0.6875rem;
@@ -874,14 +883,6 @@
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
-}
-
-.inbox-chat-user-assigned {
-  font-size: 0.75rem;
-  margin-top: 2px;
-  display: flex;
-  align-items: center;
-  gap: 4px;
 }
 
 .inbox-avatar-initials {
@@ -1313,10 +1314,6 @@
     display: none;
   }
 
-  .inbox-assigned-label {
-    display: none;
-  }
-
   /* Wrap to a second line rather than clipping. A customer's name is the most
      important thing in this header, so truncating it is the worst outcome;
      two lines covers every realistic name down to 320px. */
@@ -1347,11 +1344,6 @@
   .inbox-textarea {
     font-size: 16px;
   }
-
-  /* NOTE: the .inbox-reassign-select overrides are NOT here. Its base rule
-     lives further down this same file, so a declaration here would lose the
-     cascade (equal specificity, later source wins). See the coarse-pointer
-     block directly after that base rule instead. */
 
   /* Global form controls sit at 0.9375rem (15px) — also under the iOS
      threshold, so every form in the admin and customer apps zooms on focus.
@@ -3280,82 +3272,6 @@
   }
 }
 
-/* --- INBOX — Reassign control (Phase 1c) ------------------------------- */
-/* Assignment used to be one-way: set on first reply, no way to hand over.
-   A conversation owned by someone on leave had no recovery path. */
-/* Applied to the CustomSelect trigger (a <button>) on top of .form-control,
-   so it inherits the same look as every other dropdown in the admin UI, then
-   trimmed down for this metadata row.
-
-   SCOPED TO THE PARENT ON PURPOSE. .form-control re-asserts `min-height: 44px`
-   inside a `@media (max-width: 480px)` block that sits LATER in the bundle than
-   this file. At equal specificity that later rule wins on source order, so an
-   unscoped `.inbox-reassign-select` silently lost on exactly the phone sizes
-   this is meant to fix. The descendant selector (0,2,0) beats `.form-control`
-   (0,1,0) regardless of order. */
-.inbox-chat-user-assigned .inbox-reassign-select {
-  min-height: 30px;
-  padding: 4px 10px;
-  font-size: 0.75rem;
-  gap: 6px;
-}
-
-/* CustomSelect's root is width:100% by default. Inline-sized here on desktop,
-   full width on touch. */
-.inbox-chat-user-assigned .custom-select-root {
-  width: auto;
-  min-width: 0;
-  flex: 0 1 220px;
-}
-.inbox-reassign-select:hover:not(:disabled) {
-  border-color: var(--primary);
-  color: var(--text);
-}
-.inbox-reassign-select:disabled { opacity: 0.6; cursor: wait; }
-
-/* Touch devices. Must live AFTER the base rule above — a media query adds no
-   specificity, so placing this with the other coarse-pointer overrides higher
-   in this file would lose to `font-size: 0.7rem` on source order alone.
-
-   At 0.7rem (11.2px) iOS Safari auto-zooms the page on tap and does not zoom
-   back out, and `padding: 1px 4px` produced a ~14px tall target. Desktop keeps
-   the compact styling; it is a fine-pointer device and unaffected. */
-@media (hover: none) and (pointer: coarse) {
-  /* Compact on touch too. This control sits in a 0.75rem metadata row, and at
-     44px/16px it dominated the header and pushed it to three tall rows.
-
-     The 16px floor existed only to stop iOS auto-zoom on the old native
-     <select>. CustomSelect renders a <button>, and Safari only auto-zooms
-     text-entry controls, so that constraint no longer applies here.
-
-     32px still clears the WCAG 2.5.8 (AA) 24px minimum. It is under Apple's
-     44pt guideline, which is aimed at primary actions — reassigning a
-     conversation is a rare handover, not something an admin taps often.
-
-     Scoped to the parent for the same reason as the base rule above: it must
-     outrank .form-control's `min-height: 44px` at <=480px, which ships after
-     this file and would otherwise win on source order. */
-  .inbox-chat-user-assigned .inbox-reassign-select {
-    min-height: 32px;
-    padding: 5px 10px;
-    font-size: 0.8125rem;
-    gap: 6px;
-  }
-
-  /* basis 0, not a fixed width: a basis wider than the line makes a flex item
-     wrap before it shrinks, which would drop the control onto a row of its own
-     at 320px. With basis 0 it absorbs whatever width is left. */
-  .inbox-chat-user-assigned .custom-select-root {
-    flex: 1 1 0;
-  }
-
-  /* Let "Assigned to [control]" wrap rather than crushing it on a 360px screen. */
-  .inbox-chat-user-assigned {
-    flex-wrap: wrap;
-    row-gap: 6px;
-  }
-}
-
 /* --- CONTACT INQUIRIES — responsive -----------------------------------
    The page previously relied on inline fixed sizes (maxWidth: 280 on the
    message cell, ml-auto on the modal's action group) which do not survive
@@ -3444,12 +3360,6 @@
 }
 .inbox-show-resolved input { cursor: pointer; margin: 0; }
 
-/* Assignee shown without the weight of a status pill. */
-.inbox-status-quiet {
-  font-size: 0.68rem;
-  color: var(--text-tertiary);
-}
-
 /* --- INBOX — Close the open conversation ------------------------------- */
 /* The back arrow is mobile-only, so on desktop opening a chat was a one-way
    door — particularly wrong for an empty thread you decided not to send. */
@@ -3493,28 +3403,10 @@
   flex-wrap: wrap;
 }
 
-/* Mobile-only controls, hidden on desktop. */
-.inbox-resolve-quick,
-.inbox-assign-quick {
+/* Mobile-only control, hidden on desktop. */
+.inbox-resolve-quick {
   display: none;
 }
-
-.inbox-assign-quick {
-  align-items: center;
-  justify-content: center;
-  width: 44px;
-  height: 44px;
-  padding: 0;
-  border: none;
-  border-radius: var(--radius-sm);
-  background: var(--primary-bg);
-  color: var(--primary-text);
-  cursor: pointer;
-  flex-shrink: 0;
-  transition: var(--transition-fast);
-}
-.inbox-assign-quick:hover { background: color-mix(in srgb, var(--primary) 18%, var(--surface)); }
-.inbox-assign-quick:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 
 .inbox-resolve-quick {
   align-items: center;
@@ -3535,8 +3427,7 @@
 
 @media (max-width: 768px) {
   .inbox-actions-desktop { display: none; }
-  .inbox-resolve-quick,
-  .inbox-assign-quick { display: flex; }
+  .inbox-resolve-quick { display: flex; }
 
   /* Email stays visible. It was hidden while an overflow menu owned this space,
      which left no way to see a customer's email on a phone at all. With the

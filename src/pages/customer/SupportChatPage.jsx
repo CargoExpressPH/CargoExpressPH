@@ -473,9 +473,10 @@ const SupportChatPage = () => {
       setConvStatus(routedStatus);
 
       if (routedStatus !== CONVERSATION_STATUS.BOT_ACTIVE) {
-        // Reopened to a human. Nothing to PATCH — the trigger kept the previous
-        // assigned_admin_id; this only catches local state up so the queue
-        // banner appears without waiting for the realtime UPDATE.
+        // Reopened to a human. Nothing to PATCH — the trigger has already put
+        // the thread back in the shared admin queue; this only catches local
+        // state up so the banner appears without waiting for the realtime
+        // UPDATE.
         setIsBotMode(false);
         setSending(false);
         return;
