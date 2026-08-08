@@ -6,6 +6,7 @@ import AnimatedCounter from '../../components/ui/AnimatedCounter';
 import { SkeletonStatCard, SkeletonText } from '../../components/ui/SkeletonLoader';
 import { ArrowLeft, User, Mail, Phone, MapPin, Package, DollarSign, CheckCircle, Clock } from 'lucide-react';
 import EmptyState from '../../components/ui/EmptyState';
+import MessageCustomerButton from '../../components/ui/MessageCustomerButton';
 import Breadcrumb from '../../components/ui/Breadcrumb';
 import usePageTitle from '../../hooks/usePageTitle';
 
@@ -70,6 +71,13 @@ const CustomerDetailPage = () => {
           <h2 className="fw-800 mt-8">{customer.name}</h2>
           <div className="text-sm text-secondary">{customer.email} • {customer.phone || '—'}</div>
           <div className="text-xs text-tertiary mt-4">{[customer.address_province,customer.address_city].filter(Boolean).join(', ')||'No address'}</div>
+          {/* Not in the brief's four pages, but this is the one screen that is
+              ABOUT a customer — an admin who wants to talk to someone looks
+              here first. Same component, same route as the order-level
+              shortcuts. */}
+          <div className="mt-8">
+            <MessageCustomerButton customerId={customer.id} customerName={customer.name} showLabel />
+          </div>
         </div>
       </div>
       <div className="grid grid-4 mb-16">

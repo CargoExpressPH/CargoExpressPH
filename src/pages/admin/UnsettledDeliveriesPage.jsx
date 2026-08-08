@@ -14,6 +14,7 @@ import Pagination from '../../components/ui/Pagination';
 import ResponsiveFilterControls from '../../components/ui/ResponsiveFilterControls';
 import AdditionalPaymentModal from '../../components/ui/AdditionalPaymentModal';
 import PrintDocument from '../../components/ui/PrintDocument';
+import MessageCustomerButton from '../../components/ui/MessageCustomerButton';
 import { exportPrintDocumentToPdf } from '../../lib/exportPdf';
 import { CheckCircle, Wallet, Printer, Download, Loader, RefreshCw } from 'lucide-react';
 import { useToast } from '../../hooks/useToast';
@@ -435,7 +436,17 @@ const UnsettledDeliveriesPage = () => {
                         <div className="text-xs text-tertiary">{o.origin} → {o.destination}</div>
                       </td>
                       <td data-label="Customer">
-                        <div>{o.profiles?.name || o.sender_name}</div>
+                        {/* Chasing a balance is the case where an admin most
+                            often needs to talk to the customer, so the shortcut
+                            sits on the name itself. Icon only — the column is
+                            narrow and the row already has a labelled action. */}
+                        <div className="flex items-center gap-4">
+                          <span>{o.profiles?.name || o.sender_name}</span>
+                          <MessageCustomerButton
+                            customerId={o.user_id}
+                            customerName={o.profiles?.name || o.sender_name}
+                          />
+                        </div>
                         <div className="text-xs text-tertiary">
                           {(o.payer_type || 'sender') === 'receiver' ? `Receiver pays · ${o.receiver_name}` : 'Sender pays'}
                         </div>

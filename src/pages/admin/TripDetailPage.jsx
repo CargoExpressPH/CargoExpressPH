@@ -8,6 +8,7 @@ import { ArrowLeft, Play, Flag, CheckCircle, XCircle, Loader, Clock, ArrowRight,
 import CapacityTracker from '../../components/ui/CapacityTracker';
 import Breadcrumb from '../../components/ui/Breadcrumb';
 import EmptyState from '../../components/ui/EmptyState';
+import MessageCustomerButton from '../../components/ui/MessageCustomerButton';
 import { useToast } from '../../hooks/useToast';
 import usePageTitle from '../../hooks/usePageTitle';
 import { logTrip } from '../../lib/activityLog';
@@ -211,9 +212,18 @@ const TripDetailPage = () => {
                       <StatusBadge status={o.status} size="sm" />
                     </td>
                     <td data-label="Action">
-                      <Link to={`/admin/orders/${o.id}`} className="btn btn-primary btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                        View Details
-                      </Link>
+                      <div className="flex items-center gap-4">
+                        <Link to={`/admin/orders/${o.id}`} className="btn btn-primary btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                          View Details
+                        </Link>
+                        {/* This table lists addresses rather than the booker,
+                            so the control carries the customer's name in its
+                            accessible label instead of beside it. */}
+                        <MessageCustomerButton
+                          customerId={o.user_id}
+                          customerName={o.profiles?.name}
+                        />
+                      </div>
                     </td>
                   </tr>
                 ))}

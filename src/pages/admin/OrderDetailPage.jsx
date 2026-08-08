@@ -19,6 +19,7 @@ import FocusTrap from '../../components/ui/FocusTrap';
 import { SkeletonText } from '../../components/ui/SkeletonLoader';
 import ErrorBoundarySection from '../../components/ui/ErrorBoundarySection';
 import CustomSelect from '../../components/ui/CustomSelect';
+import MessageCustomerButton from '../../components/ui/MessageCustomerButton';
 import {
   STATUS_FLOW, STATUS_TIMELINE, validateStatusTransition,
   getSettlementState, SETTLEMENT_STATE, outstandingBalance,
@@ -515,6 +516,14 @@ const AdminOrderDetailPage = () => {
         <span className="fw-800 text-secondary">{order.destination}</span>
         <span className="text-secondary opacity-50">•</span>
         <span className="text-secondary">{order.profiles?.name}</span>
+        {/* The customer who booked this — `orders.user_id`; there is no
+            customer_id column. Labelled here because this row has the space
+            and it is the entry point an admin reaches for most often. */}
+        <MessageCustomerButton
+          customerId={order.user_id}
+          customerName={order.profiles?.name}
+          showLabel
+        />
       </div>
 
       {/* Out of Coverage Review Action Bar */}
@@ -540,7 +549,10 @@ const AdminOrderDetailPage = () => {
                 try {
                   logOrder('Customer Contacted', id, order.tracking_number, { details: 'Admin contacted the customer regarding special pickup request.' });
                 } catch(e) {}
-                navigate('/admin/inbox', { state: { contactUserId: order.user_id } });
+                // Same route as MessageCustomerButton. This used to pass
+                // router state, which InboxPage no longer reads — one
+                // mechanism, and a URL that survives a reload.
+                navigate(`/admin/inbox?customerId=${encodeURIComponent(order.user_id)}`);
               }}>
                 <Phone size={16} /> Contact Customer
               </button>

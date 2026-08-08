@@ -3466,3 +3466,38 @@
   font-style: normal;
   color: var(--text-tertiary);
 }
+
+/* --- MESSAGE CUSTOMER — inline action ---------------------------------
+   Sits beside a customer's name in a metadata row or a dense table cell, so
+   .btn's 44px floor and 20px side padding are both too heavy: at 44px it
+   outweighs the name it belongs to, and in the Unsettled table it forced the
+   row taller than every other cell.
+
+   28px is under Apple's 44pt guideline and deliberately so — that figure is
+   aimed at primary actions, and this is a secondary shortcut that always sits
+   next to a link to the same customer. It clears the WCAG 2.5.8 (AA) 24px
+   minimum, which is the requirement that actually applies.
+
+   Coarse pointers get 32px back; see the touch block below. */
+.message-customer-btn {
+  min-height: 28px;
+  padding: 4px 8px;
+  gap: 5px;
+  font-size: 0.75rem;
+  border-radius: var(--radius-xs);
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+  vertical-align: middle;
+}
+.message-customer-btn:hover {
+  background: var(--primary-bg);
+  color: var(--primary-text);
+}
+.message-customer-btn svg { flex-shrink: 0; }
+
+@media (hover: none) and (pointer: coarse) {
+  .message-customer-btn {
+    min-height: 32px;
+    padding: 6px 10px;
+  }
+}

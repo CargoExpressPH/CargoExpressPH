@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../hooks/useToast';
 import { supabase } from '../../lib/supabase';
@@ -96,7 +96,8 @@ const InboxPage = () => {
   usePageTitle('Inbox');
   const { user } = useAuth();
   const toast = useToast();
-  const location = useLocation();
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
 
   const [conversations, setConversations] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -180,9 +181,20 @@ const InboxPage = () => {
   const previewSender = (m) =>
     m.sender_id === user?.id ? 'You' : (adminNames.get(m.sender_id) || 'Admin');
 
+  // ── Deep link: /admin/inbox?customerId=… ───────────────────────────────────
+  // How every "Message customer" shortcut in the admin app arrives here.
+  //
+  // Read once, before any effect, so the subscription effect below knows not
+  // to fire its own initial load — otherwise a deep link costs two list
+  // fetches and the sidebar visibly re-sorts under the admin. A ref, not
+  // state: the value is consumed on mount and must not survive the strip.
+  const deepLinkAtMount = useRef(searchParams.get('customerId'));
+
   useEffect(() => {
-    const targetUserId = location.state?.contactUserId;
-    loadConvs(targetUserId);
+    // Mount-only. The channels below must NOT be torn down and rebuilt when
+    // the deep-link param is stripped, which is exactly what keying this
+    // effect on the URL would do.
+    loadConvs(deepLinkAtMount.current || undefined);
 
     let timeoutId;
 
@@ -275,7 +287,31 @@ const InboxPage = () => {
       supabase.removeChannel(updateChannel);
       supabase.removeChannel(msgChannel);
     };
-  }, [location.state?.contactUserId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Opens the requested customer's thread, then clears the param.
+  //
+  // Stripping matters: without it the request is pinned to the history entry,
+  // so every later re-render, reload or back-navigation onto this page yanks
+  // the admin out of whatever thread they had moved to. `replace` keeps it out
+  // of the history stack for the same reason.
+  //
+  // The mount case is already handled above — this covers a param arriving on
+  // an inbox that is ALREADY open, which is what happens when the admin uses
+  // a shortcut, comes back, and uses another one for a different customer.
+  useEffect(() => {
+    const customerId = searchParams.get('customerId');
+    if (!customerId) return;
+
+    // loadConvs creates the conversation when the customer has never chatted,
+    // then selects it — the whole find-or-create flow lives there, so an
+    // admin-initiated first contact and a reply to an existing thread take
+    // exactly the same path.
+    if (customerId !== deepLinkAtMount.current) loadConvs(customerId);
+    deepLinkAtMount.current = null;
+
+    navigate('/admin/inbox', { replace: true });
+  }, [searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Keep known conversation ids available to realtime handlers
   useEffect(() => {

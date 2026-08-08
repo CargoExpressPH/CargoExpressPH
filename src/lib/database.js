@@ -552,7 +552,10 @@ export const getTripById = async (tripId) => {
     // the trip-completion guard reads that, not the stored remaining_balance,
     // so it agrees with the Unsettled tab. remaining_balance is still selected
     // for the settlement column's stale-value annotation.
-    .select('id, tracking_number, sender_name, receiver_name, status, actual_weight, sender_province, sender_city, receiver_province, receiver_city, created_at, shipping_cost, amount_paid, remaining_balance, payment_status, promised_payment_date')
+    // user_id + the profiles embed back the "Message customer" shortcut on
+    // each row. The trip's order table shows addresses, not the booker, so
+    // without the embed there is no name to put on the control.
+    .select('id, tracking_number, sender_name, receiver_name, user_id, status, actual_weight, sender_province, sender_city, receiver_province, receiver_city, created_at, shipping_cost, amount_paid, remaining_balance, payment_status, promised_payment_date, profiles:user_id (name)')
     .eq('trip_id', tripId)
     .order('created_at', { ascending: true });
 
