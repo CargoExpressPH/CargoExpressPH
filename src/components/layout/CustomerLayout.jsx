@@ -160,21 +160,51 @@ const CustomerLayout = () => {
     toast.info(msg.body || msg.title);
   }, [toast]);
 
-  const { enablePush } = usePushNotification(user?.id, handleForegroundPush);
+  const {
+    enablePush,
+    permissionState,
+    isIosDevice,
+    isIosInstalled,
+    iosPushSupported,
+  } = usePushNotification(user?.id, handleForegroundPush);
 
-  useEffect(() => {
-    if (!user) return;
-    if (sessionStorage.getItem('push_asked')) return;
+  // Soft prompt, shown instead of calling Notification.requestPermission() on a
+  // timer. Safari only honours a permission request that originates in a user
+  // gesture; fired from setTimeout it does not merely fail, on several iOS
+  // versions it resolves as "denied" — and iOS gives no in-app way back from
+  // denied, so a single silent auto-prompt could permanently kill push for that
+  // user. Chrome likewise penalises gestureless prompts with a quieter UI.
+  // The Enable button below supplies the gesture.
+  const [pushPromptDismissed, setPushPromptDismissed] = useState(
+    () => { try { return localStorage.getItem('push_prompt_dismissed') === '1'; } catch { return false; } }
+  );
+  const [pushPromptBusy, setPushPromptBusy] = useState(false);
 
-    // Delay the permission prompt so it doesn't fire during initial render
-    const timer = setTimeout(() => {
-      enablePush().finally(() => {
-        sessionStorage.setItem('push_asked', '1');
-      });
-    }, 4000);
+  const dismissPushPrompt = useCallback(() => {
+    setPushPromptDismissed(true);
+    try { localStorage.setItem('push_prompt_dismissed', '1'); } catch { /* private mode */ }
+  }, []);
 
-    return () => clearTimeout(timer);
-  }, [user, enablePush]);
+  const handleEnablePush = useCallback(async () => {
+    setPushPromptBusy(true);
+    try {
+      const result = await enablePush();
+      if (result?.success) toast.success('Notifications on — we’ll keep you posted.');
+      else if (result?.reason === 'denied') toast.error('Permission denied. You can turn it on in your device settings.');
+      else toast.error('Could not enable notifications. You can try again from Profile.');
+    } finally {
+      setPushPromptBusy(false);
+      dismissPushPrompt();
+    }
+  }, [enablePush, toast, dismissPushPrompt]);
+
+  // Only offer it where it can actually succeed: never in an iOS browser tab
+  // (Web Push needs the installed PWA) and never below iOS 16.4.
+  const canShowPushPrompt =
+    !!user &&
+    permissionState === 'default' &&
+    !pushPromptDismissed &&
+    (!isIosDevice || (isIosInstalled && iosPushSupported));
 
   // Foreground push from SW message bus (sw.js PUSH_NOTIFICATION event)
   useEffect(() => {
@@ -313,6 +343,42 @@ const CustomerLayout = () => {
           </div>
         </div>
       </header>
+
+      {/* ─── Push soft prompt ───
+          Deliberately a button, not an automatic request: the browser prompt is
+          only raised from this click, which is the user gesture Safari requires. */}
+      {canShowPushPrompt && (
+        <div className="customer-main" style={{ paddingBottom: 0 }}>
+          <div className="alert-banner alert-banner-info push-prompt-banner" role="region" aria-label="Notification settings">
+            <Bell size={18} aria-hidden="true" />
+            <div className="push-prompt-copy">
+              <div className="fw-700">Get shipment updates</div>
+              <div className="text-sm text-secondary">
+                Know the moment your cargo is picked up, in transit, and delivered.
+              </div>
+            </div>
+            <div className="push-prompt-actions flex items-center gap-8">
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                onClick={dismissPushPrompt}
+                disabled={pushPromptBusy}
+              >
+                Not now
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary btn-sm"
+                onClick={handleEnablePush}
+                disabled={pushPromptBusy}
+                aria-busy={pushPromptBusy}
+              >
+                {pushPromptBusy ? 'Enabling…' : 'Enable'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ─── Page Content ─── */}
       <PageTransition as="main" id="customer-main-content" className="customer-main" key={location.pathname} tabIndex={-1}>

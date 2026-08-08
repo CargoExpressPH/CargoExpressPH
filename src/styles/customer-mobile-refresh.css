@@ -1821,3 +1821,34 @@ body:has(textarea:focus) .support-chat-page {
   border-radius: 50%;
   background: var(--customer-green);
 }
+
+/* ── Push soft prompt ──────────────────────────────────────────────────────
+   .alert-banner is a shared, non-wrapping flex row used across the app, so the
+   wrapping behaviour is scoped to this banner rather than changed there. The
+   copy needs min-width:0 or the flex item refuses to shrink below its text and
+   pushes the buttons off a 320px screen. */
+.push-prompt-banner {
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+
+.push-prompt-copy {
+  flex: 1 1 200px;
+  min-width: 0;
+}
+
+.push-prompt-actions {
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+/* Below this the copy and the buttons cannot share a line legibly, so the
+   actions drop to their own row instead of squeezing the text to two words. */
+@media (max-width: 480px) {
+  .push-prompt-actions {
+    width: 100%;
+    justify-content: flex-end;
+    margin-left: 0;
+    margin-top: 4px;
+  }
+}
