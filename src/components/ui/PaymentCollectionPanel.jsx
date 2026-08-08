@@ -430,10 +430,10 @@ const PaymentCollectionPanel = ({
       {/* Amount */}
       <div className="form-group">
         <label className="form-label" htmlFor="pcp-amount">{amountLabel}</label>
-        <div className="flex gap-8">
+        <div>
           <AmountInput
             id="pcp-amount"
-            className={`form-input flex-1 ${d.amountError || value.shortfallBlocked ? 'field-invalid' : ''}`}
+            className={`form-input flex-1 w-full ${d.amountError || value.shortfallBlocked ? 'field-invalid' : ''}`}
             placeholder={d.isPayLater ? '0.00' : expectedText}
             value={value.amount}
             disabled={disabled}
@@ -441,14 +441,6 @@ const PaymentCollectionPanel = ({
             aria-invalid={d.amountError || value.shortfallBlocked ? 'true' : undefined}
             aria-describedby={d.amountError || value.shortfallBlocked ? 'pcp-amount-error' : undefined}
           />
-          {d.expected > 0 && (
-            <button
-              type="button" className="btn btn-outline btn-sm" disabled={disabled}
-              onClick={() => patch({ amount: sanitizeAmount(d.expected), shortfallBlocked: false })}
-            >
-              Collect full ₱{expectedText}
-            </button>
-          )}
         </div>
         {(d.amountError || value.shortfallBlocked) && (
           <div className="field-error-inline" id="pcp-amount-error" role="alert">
