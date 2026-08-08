@@ -6,6 +6,7 @@ import { SkeletonText } from '../../components/ui/SkeletonLoader';
 import EmptyState from '../../components/ui/EmptyState';
 import CustomSelect from '../../components/ui/CustomSelect';
 import usePageTitle from '../../hooks/usePageTitle';
+import { useToast } from '../../hooks/useToast';
 import {
   ClipboardList, Search, Filter, ChevronLeft, ChevronRight,
   Download, Package, Truck, CreditCard, MessageSquare, Shield, Settings,
@@ -50,6 +51,12 @@ const formatDate = (iso) => {
 
 const ActivityLogsPage = () => {
   usePageTitle('Activity Logs');
+  // Destructured, not the whole toast object: ToastProvider builds its context
+  // value inline, so `useToast()` returns a NEW object on every toast render.
+  // Putting that in loadLogs' dep array would recreate the callback, refire the
+  // effect, and loop — fetch fails, toast, refetch, fails. `error` itself is
+  // useCallback'd with stable deps, so it is safe to depend on.
+  const { error: showError } = useToast();
 
   const [logs, setLogs] = useState([]);
   const [total, setTotal] = useState(0);
@@ -97,10 +104,14 @@ const ActivityLogsPage = () => {
       setTotal(result.total);
     } catch (err) {
       console.error('Failed to load activity logs:', err);
+      // Without this the table just renders empty, which is indistinguishable
+      // from "no activity matched your filters" — the one reading an audit log
+      // is the last person who should be guessing whether it actually loaded.
+      showError('Could not load activity logs. Check your connection and try again.');
     } finally {
       setLoading(false);
     }
-  }, [module, actionFilter, adminId, dateFrom, dateTo, search, page]);
+  }, [module, actionFilter, adminId, dateFrom, dateTo, search, page, showError]);
 
   useEffect(() => {
     setPage(1);

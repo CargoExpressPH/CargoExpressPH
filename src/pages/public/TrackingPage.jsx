@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { STATUS_TIMELINE, TRACKING_STATUS_TONES, STATUS_ICONS, ORDER_STATUS } from '../../constants/status';
 import TrackingTimeline from '../../components/ui/TrackingTimeline';
+import { SkeletonText } from '../../components/ui/SkeletonLoader';
 import usePageTitle from '../../hooks/usePageTitle';
 
 /* ── Status icon resolver ─────────────────────────────────────────────
@@ -420,9 +421,29 @@ const TrackingPage = ({ embedded = false }) => {
         </div>
       )}
 
+      {/* ══════════ LOADING ══════════
+          Until now the result area stayed blank while the lookup was in flight,
+          so the page appeared to do nothing after submit. This is a public page
+          reached from a tracking link, often by someone who is not a user and
+          is already anxious about a parcel — silence is the wrong answer. */}
+      {loading && (
+        <div className="trk-card animate-slide-up" aria-hidden="true">
+          <div style={{ padding: 20 }}>
+            {/* lines={1} is explicit: SkeletonText defaults to 3. */}
+            <SkeletonText lines={1} width="45%" />
+            <div style={{ marginTop: 20 }}><SkeletonText lines={3} /></div>
+            <div style={{ marginTop: 24 }}><SkeletonText lines={1} width="70%" /></div>
+          </div>
+        </div>
+      )}
+      {/* Screen readers get the status as text rather than a decorative shape. */}
+      <div className="sr-only" role="status" aria-live="polite">
+        {loading ? 'Looking up your shipment…' : ''}
+      </div>
+
       {/* ══════════ RESULT CARD ══════════ */}
       {order && !loading && (
-        <div className="trk-card animate-slide-up" role="main">
+        <div className="trk-card animate-slide-up">
 
           {/* ── Status Banner ── */}
           <div
