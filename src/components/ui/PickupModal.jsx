@@ -1,7 +1,9 @@
 import { useState, useRef, useEffect } from 'react';
 import { X, XCircle, Camera, Loader, Scale, CreditCard, Calendar, Upload, Trash2, Package, AlertTriangle, CheckCircle, FileText, ExternalLink, RefreshCw } from 'lucide-react';
 import FocusTrap from './FocusTrap';
+import AmountInput from './AmountInput';
 import useScrollLock from '../../hooks/useScrollLock';
+import { sanitizeAmount, parseAmount } from '../../utils/currencyInput';
 import { uploadMultiplePhotos, uploadPhoto } from '../../lib/storage';
 import QRCode from 'react-qr-code';
 import { createGCashSource, registerSource, pollPaymentStatus } from '../../lib/paymongo';
@@ -18,7 +20,8 @@ const PickupModal = ({ order, onClose, onSave, pricePerKilo = 70 }) => {
     actual_weight: order?.actual_weight || '',
     payment_type: (order?.payment_status === 'partial' || order?.payment_status === 'unpaid' || order?.payment_method === 'paylater') ? 'paylater' : 'full',
     payment_method: (order?.payment_method === 'paylater') ? '' : (order?.payment_method || ''),
-    amount_paid: order?.amount_paid || '',
+    // Stored unformatted; AmountInput adds the thousands separators for display.
+    amount_paid: sanitizeAmount(order?.amount_paid ?? ''),
     payer_type: order?.payer_type || 'sender',
     promised_payment_date: order?.promised_payment_date || '',
     payment_reference: '',
@@ -68,8 +71,16 @@ const PickupModal = ({ order, onClose, onSave, pricePerKilo = 70 }) => {
   const isPrepaid = form.payer_type === 'sender';
   const isPayLater = isPrepaid && form.payment_type === 'paylater';
   const estimatedCost = parseFloat(form.actual_weight || 0) * pricePerKilo;
-  const amountPaid = parseFloat(form.amount_paid || 0);
+  const amountPaid = parseAmount(form.amount_paid) || 0;
   const remainingBalance = Math.max(0, estimatedCost - amountPaid);
+
+  // The field cannot produce a negative or malformed value on its own, so this
+  // only ever fires on a paste or an autofill. It is kept because a disabled
+  // button is a hint and this is the enforcement point.
+  const amountEntered = form.amount_paid !== '';
+  const amountError = amountEntered && !(parseAmount(form.amount_paid) >= 0)
+    ? 'Enter a valid amount of ₱0 or more.'
+    : null;
 
   // ── GCash settlement gate ────────────────────────────────────────────────
   // A live PayMongo checkout is an OPEN question: the customer may still be
@@ -91,7 +102,7 @@ const PickupModal = ({ order, onClose, onSave, pricePerKilo = 70 }) => {
       setPaymentStep('generating');
       setError('');
       setNotice('');
-      const amount = isPayLater ? parseFloat(form.amount_paid || 0) : estimatedCost;
+      const amount = isPayLater ? (parseAmount(form.amount_paid) || 0) : estimatedCost;
       if (amount <= 0) {
         setError('Payment amount must be greater than 0.');
         setPaymentStep('setup');
@@ -286,6 +297,10 @@ const PickupModal = ({ order, onClose, onSave, pricePerKilo = 70 }) => {
     // Payment validation applies to Prepaid only. On a Collect shipment there is
     // nobody here to pay, so demanding a payment method would be nonsensical.
     if (isPrepaid) {
+      if (amountError) {
+        setError(amountError);
+        return;
+      }
       if (!form.payment_method) {
         setError('Please select a payment method');
         return;
@@ -374,7 +389,7 @@ const PickupModal = ({ order, onClose, onSave, pricePerKilo = 70 }) => {
         // How much is actually being collected right now.
         //   pay-later  → whatever the admin typed (may be 0 = nothing down)
         //   full       → the typed amount, or the full estimate if left blank
-        let collected = parseFloat(form.amount_paid || 0);
+        let collected = (parseAmount(form.amount_paid) || 0);
         if (!isPayLater && !form.amount_paid && form.amount_paid !== '0') {
           collected = estimatedCost;
         }
@@ -555,15 +570,20 @@ const PickupModal = ({ order, onClose, onSave, pricePerKilo = 70 }) => {
           {/* Amount Paid */}
           <div className="form-group">
             <label className="form-label" htmlFor="pu-amount-paid">{isPayLater ? 'Downpayment (₱) (Optional)' : 'Amount Received (₱) *'}</label>
-            <input
+            <AmountInput
               id="pu-amount-paid"
-              type="number"
-              className="form-input"
-              placeholder={isPayLater ? "0.00" : estimatedCost.toFixed(2)}
+              className={`form-input ${amountError ? 'field-invalid' : ''}`}
+              placeholder={isPayLater ? '0.00' : estimatedCost.toFixed(2)}
               value={form.amount_paid}
-              onChange={e => setForm(p => ({ ...p, amount_paid: e.target.value }))}
-              min="0"
+              onValueChange={v => setForm(p => ({ ...p, amount_paid: v }))}
+              aria-invalid={amountError ? 'true' : undefined}
+              aria-describedby={amountError ? 'pu-amount-paid-error' : undefined}
             />
+            {amountError && (
+              <div className="field-error-inline" id="pu-amount-paid-error" role="alert">
+                <AlertTriangle size={13} aria-hidden="true" /> {amountError}
+              </div>
+            )}
           </div>
 
           {/* GCash Payment Flow */}
@@ -578,7 +598,7 @@ const PickupModal = ({ order, onClose, onSave, pricePerKilo = 70 }) => {
                     type="button"
                     className="btn btn-primary btn-sm w-full justify-center"
                     onClick={handleProceedToGCash}
-                    disabled={(!isPayLater && estimatedCost <= 0) || (isPayLater && parseFloat(form.amount_paid || 0) <= 0)}
+                    disabled={(!isPayLater && estimatedCost <= 0) || (isPayLater && (parseAmount(form.amount_paid) || 0) <= 0)}
                   >
                     <CreditCard size={14} className="mr-6" /> Process via PayMongo
                   </button>

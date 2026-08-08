@@ -1,7 +1,9 @@
 import { useState, useRef, useEffect } from 'react';
 import { X, Camera, Loader, Package, CreditCard, CheckCircle, Smartphone, AlertTriangle, Trash2, FileText, Upload, Calendar } from 'lucide-react';
 import FocusTrap from './FocusTrap';
+import AmountInput from './AmountInput';
 import useScrollLock from '../../hooks/useScrollLock';
+import { sanitizeAmount, parseAmount } from '../../utils/currencyInput';
 import { uploadMultiplePhotos, uploadPhoto } from '../../lib/storage';
 import QRCode from 'react-qr-code';
 import { createGCashSource, registerSource } from '../../lib/paymongo';
@@ -18,7 +20,8 @@ const DeliveryModal = ({ order, onClose, onSave }) => {
   const needsPayment = !isPaid && balance > 0;
 
   const [form, setForm] = useState({
-    amount_paid: needsPayment ? balance.toString() : '0',
+    // Stored unformatted; AmountInput adds the thousands separators for display.
+    amount_paid: needsPayment ? sanitizeAmount(balance) : '0',
     payment_method: needsPayment ? 'cash' : '',
     payment_reference: '',
     payment_date: new Date().toISOString().split('T')[0],
@@ -28,7 +31,12 @@ const DeliveryModal = ({ order, onClose, onSave }) => {
   // How much is actually being collected at the door, and what is left after.
   // The modal used to hardcode the full balance, so "the receiver cannot pay
   // right now" had no representation at all.
-  const collectedNow = needsPayment ? (parseFloat(form.amount_paid || 0) || 0) : 0;
+  const collectedNow = needsPayment ? (parseAmount(form.amount_paid) || 0) : 0;
+  // Only reachable by paste or autofill — the field itself refuses a minus
+  // sign — but it is what blocks submission, so it is checked, not assumed.
+  const amountError = needsPayment && form.amount_paid !== '' && !(parseAmount(form.amount_paid) >= 0)
+    ? 'Enter a valid amount of ₱0 or more.'
+    : null;
   const balanceAfter = Math.max(0, Math.round((balance - collectedNow) * 100) / 100);
   // Business rule: goods may be handed over with money still owing, but only
   // against a recorded Promise Date. The driver is standing there — that is
@@ -135,6 +143,11 @@ const DeliveryModal = ({ order, onClose, onSave }) => {
     
     if (photos.length === 0) {
       setError('At least 1 delivery proof photo is required');
+      return;
+    }
+
+    if (amountError) {
+      setError(amountError);
       return;
     }
 
@@ -280,25 +293,28 @@ const DeliveryModal = ({ order, onClose, onSave }) => {
               <div className="form-group mb-12">
                 <label className="form-label" htmlFor="dm-amount-collected">Amount Collected (₱) *</label>
                 <div className="flex gap-8">
-                  <input
+                  <AmountInput
                     id="dm-amount-collected"
-                    type="number"
-                    className="form-input flex-1"
+                    className={`form-input flex-1 ${amountError ? 'field-invalid' : ''}`}
                     value={form.amount_paid}
-                    onChange={e => setForm(p => ({ ...p, amount_paid: e.target.value }))}
-                    min="0"
-                    max={balance}
-                    step="0.01"
+                    onValueChange={v => setForm(p => ({ ...p, amount_paid: v }))}
                     placeholder="0.00"
+                    aria-invalid={amountError ? 'true' : undefined}
+                    aria-describedby={amountError ? 'dm-amount-collected-error' : undefined}
                   />
                   <button
                     type="button"
                     className="btn btn-outline btn-sm"
-                    onClick={() => setForm(p => ({ ...p, amount_paid: balance.toString() }))}
+                    onClick={() => setForm(p => ({ ...p, amount_paid: sanitizeAmount(balance) }))}
                   >
                     Collect full ₱{balance.toFixed(2)}
                   </button>
                 </div>
+                {amountError && (
+                  <div className="field-error-inline" id="dm-amount-collected-error" role="alert">
+                    <AlertTriangle size={13} aria-hidden="true" /> {amountError}
+                  </div>
+                )}
                 <div className="text-xs mt-4" style={{ color: balanceAfter > 0 ? 'var(--warning-dark)' : 'var(--success)' }}>
                   {balanceAfter > 0
                     ? `₱${balanceAfter.toFixed(2)} will still be owing after this.`
@@ -484,7 +500,7 @@ const DeliveryModal = ({ order, onClose, onSave }) => {
 
         <div className="modal-footer">
           <button className="btn btn-outline" onClick={onClose} disabled={saving || paymentStep === 'generating'}>Cancel</button>
-          <button className="btn btn-primary" onClick={handleSubmit} disabled={saving || (needsPayment && collectedNow > 0 && form.payment_method === 'gcash' && paymentStep !== 'waiting' && !(form.payment_reference && form.payment_reference.trim()))}>
+          <button className="btn btn-primary" onClick={handleSubmit} disabled={saving || Boolean(amountError) || (needsPayment && collectedNow > 0 && form.payment_method === 'gcash' && paymentStep !== 'waiting' && !(form.payment_reference && form.payment_reference.trim()))}>
             {saving ? <><Loader size={16} className="animate-spin" /> {uploadProgress || 'Processing...'}</> : <><CheckCircle size={16} /> Complete Delivery</>}
           </button>
         </div>

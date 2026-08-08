@@ -1,7 +1,9 @@
 import { useState, useRef, useEffect } from 'react';
 import { X, Loader, Smartphone, AlertTriangle, CreditCard, FileText, Trash2, CheckCircle } from 'lucide-react';
 import FocusTrap from './FocusTrap';
+import AmountInput from './AmountInput';
 import useScrollLock from '../../hooks/useScrollLock';
+import { sanitizeAmount, parseAmount } from '../../utils/currencyInput';
 import { uploadPhoto } from '../../lib/storage';
 import QRCode from 'react-qr-code';
 import { createGCashSource, registerSource } from '../../lib/paymongo';
@@ -13,7 +15,8 @@ const AdditionalPaymentModal = ({ order, remainingBalance, onClose, onSave }) =>
   useScrollLock(true); // mounted only while open
 
   const [form, setForm] = useState({
-    amount: remainingBalance.toString(),
+    // Stored unformatted; AmountInput adds the thousands separators for display.
+    amount: sanitizeAmount(remainingBalance),
     payment_method: 'cash',
     notes: '',
     payment_reference: '',
@@ -40,7 +43,7 @@ const AdditionalPaymentModal = ({ order, remainingBalance, onClose, onSave }) =>
    * while the admin is still typing — a green border on ₱1000 against a ₱600
    * balance tells them the entry is good right up until it is rejected.
    */
-  const amountValue = parseFloat(form.amount);
+  const amountValue = parseAmount(form.amount);
   const amountEntered = form.amount !== '' && form.amount !== null;
   let amountError = null;
   if (amountEntered) {
@@ -65,7 +68,7 @@ const AdditionalPaymentModal = ({ order, remainingBalance, onClose, onSave }) =>
     try {
       setPaymentStep('generating');
       setError('');
-      const amount = parseFloat(form.amount || 0);
+      const amount = (parseAmount(form.amount) || 0);
       if (amount <= 0) {
         setError('Payment amount must be greater than 0.');
         setPaymentStep('setup');
@@ -137,7 +140,7 @@ const AdditionalPaymentModal = ({ order, remainingBalance, onClose, onSave }) =>
       return;
     }
 
-    const amount = parseFloat(form.amount || 0);
+    const amount = (parseAmount(form.amount) || 0);
     if (amountError || !amountValid) {
       setError(amountError || `Amount must be between ₱1 and ₱${remainingBalance.toFixed(2)}`);
       return;
@@ -208,15 +211,11 @@ const AdditionalPaymentModal = ({ order, remainingBalance, onClose, onSave }) =>
 
             <div className="form-group">
               <label className="form-label" htmlFor="ap-amount">Amount to Pay (₱) *</label>
-              <input
+              <AmountInput
                 id="ap-amount"
-                type="number"
                 className={`form-input ${amountError ? 'field-invalid' : amountValid ? 'field-valid' : ''}`}
                 value={form.amount}
-                onChange={e => setForm(p => ({ ...p, amount: e.target.value }))}
-                max={remainingBalance}
-                min="1"
-                step="0.01"
+                onValueChange={v => setForm(p => ({ ...p, amount: v }))}
                 aria-invalid={amountError ? 'true' : 'false'}
                 aria-describedby={amountError ? 'ap-amount-error' : undefined}
               />
