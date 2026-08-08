@@ -34,13 +34,19 @@ function getPushStatusLabel({
   isIosInstalled,
   iosPushSupported,
 }) {
-  if (!pushSupported) return 'Not supported on this browser';
-  if (permissionState === 'denied') return 'Blocked (Enable in device settings)';
+  // iOS is checked FIRST, before the generic capability test. Safari does not
+  // expose window.Notification at all in a browser tab — the API appears only
+  // once the PWA is installed to the Home Screen. So `pushSupported` is false
+  // on every iPhone in Safari, and testing it first told the user their browser
+  // could not do this, when in fact one action away it can. The dead end was
+  // being shown to precisely the users who had the shortest path to success.
   if (isIosDevice && !isIosInstalled) {
     return iosPushSupported
-      ? 'Install app to Home Screen to enable push'
-      : 'Requires iOS 16.4+ and Home Screen install';
+      ? 'Add to Home Screen to enable push'
+      : 'Requires iOS 16.4 or later, then Add to Home Screen';
   }
+  if (!pushSupported) return 'Not supported on this browser';
+  if (permissionState === 'denied') return 'Blocked (Enable in device settings)';
   if (isSubscribed) return 'Enabled on this device';
   return 'Disabled (Click to enable)';
 }
