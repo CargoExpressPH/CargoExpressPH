@@ -47,5 +47,11 @@
 /* Final mobile viewport and tap-readability hardening */
 @import './viewport-hardening.css';
 
+/* Phone-width density: tile, heading, card-padding and gap sizing.
+   MUST stay last of the screen layers — it exists to outrank the refresh
+   files above, which re-assert desktop values under .app-layout /
+   .customer-layout-v2 and beat every earlier mobile rule on specificity. */
+@import './mobile-density.css';
+
 /* Formal bond-paper print documents (Reports & Sales) */
 @import './print-document.css';

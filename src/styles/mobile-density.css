@@ -1,0 +1,312 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   MOBILE DENSITY — final layer
+   ═══════════════════════════════════════════════════════════════════════
+
+   Phone-width sizing for tiles, headings, card padding and gaps.
+
+   WHY THIS IS A SEPARATE FILE, IMPORTED LAST
+   Mobile rules already existed in responsive.css and remaining.css, and most
+   of them never applied. Both files are imported BEFORE premium-refresh.css,
+   admin-modern-refresh.css and customer-mobile-refresh.css, which re-assert
+   the same properties under `.app-layout …` / `.customer-layout-v2 …`. Those
+   selectors carry one more class, so they win on specificity no matter what
+   the media query says. Measured before this file existed: `.stat-card
+   .stat-value` was declared at 1.75rem (≤768px), 1.5rem (≤480px) and
+   1.375rem (≤360px), and the computed value on a 390px phone was 24.8px —
+   the 1.55rem desktop figure from premium-refresh.css. Three mobile rules,
+   none of them reaching the screen.
+
+   Adding a fourth override in one of those earlier files would have lost the
+   same way. So the density rules live here, in one place, imported after
+   every file that could outrank them, at matching specificity. When you add
+   a rule here, match the specificity of the one you are overriding —
+   `.app-layout .stat-card .stat-value`, not `.stat-value`.
+
+   NOT CHANGED, DELIBERATELY:
+   - `.btn` is 46px tall and stays there; WCAG 2.5.8 wants 24px, Apple wants
+     44pt, and it already clears both.
+   - The topbar's 38–40px icon buttons and the 28px `.message-customer-btn`
+     are deliberate exceptions with their own rationale at their definitions.
+     A blanket 44px floor here would undo both and re-break the header.
+   - `.grid-4:has(.stat-card)` becoming TWO columns at ≤640px, not one.
+     Four full-width tiles at 118px each is 520px of stat cards before the
+     page starts — the 2×2 is what makes the dashboard fit.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+
+/* ── 1. TYPOGRAPHY ──────────────────────────────────────────────────────
+   Set on the TOKENS, not on h1/h2/h3.
+
+   base.css reads `var(--font-h1-fluid, …)`, so redefining the token on :root
+   reaches every heading in both dashboards through inheritance — no selector
+   to out-specify, and any future `.app-layout h2` rule inherits the smaller
+   value too instead of silently reverting it.
+
+   The clamp floors are what actually apply on a phone: at 390px the vw term
+   in each expression is far below the floor, so h1 computed to exactly its
+   1.5rem minimum on every phone regardless of width. Lowering the floor is
+   therefore the only thing that moves these at all. */
+@media (max-width: 768px) {
+  :root {
+    --font-h1-fluid: clamp(1.3125rem, 2.5vw + 0.5rem, 1.75rem);
+    --font-h2-fluid: clamp(1.0625rem, 1.8vw + 0.4rem, 1.375rem);
+    --font-h3-fluid: clamp(0.9375rem, 1.2vw + 0.3rem, 1.125rem);
+  }
+}
+
+@media (max-width: 400px) {
+  :root {
+    --font-h1-fluid: 1.1875rem;
+    --font-h2-fluid: 1rem;
+    --font-h3-fluid: 0.9063rem;
+  }
+}
+
+/* The admin page title sets its own size (clamp floor 1.55rem), so the tokens
+   above do not reach it. */
+@media (max-width: 768px) {
+  .app-layout .admin-page-title {
+    font-size: 1.3rem;
+    gap: 8px;
+  }
+}
+
+@media (max-width: 400px) {
+  .app-layout .admin-page-title {
+    font-size: 1.175rem;
+  }
+}
+
+
+/* ── 2. STAT TILES ──────────────────────────────────────────────────────
+   The headline complaint. Two selectors per rule on purpose:
+
+   `.app-layout .stat-card` (0,3,0) catches tiles anywhere — including the
+   ones in `.grid-2` / `.grid-3`, which the existing ≤640px block misses
+   entirely because it is scoped to `.grid-4:has(.stat-card)`. Measured, a
+   loose tile kept 18px/20px padding at every width while its grid-4 sibling
+   was already down to 16px.
+
+   The second selector repeats that ≤640px shape at (0,4,0) so this file
+   beats it rather than tying with it. A tie would be resolved by source
+   order in our favour anyway, but only by accident of import position. */
+@media (max-width: 768px) {
+  .app-layout .stat-card .stat-value,
+  .app-layout .grid-4:has(.stat-card) .stat-card .stat-value {
+    font-size: 1.3rem;
+    line-height: 1.1;
+  }
+
+  .app-layout .stat-card,
+  .app-layout .grid-4:has(.stat-card) .stat-card,
+  /* Icon-less tiles are a SEPARATE shape in premium-refresh.css — a flex
+     column at (0,4,0) via :not(:has(.stat-icon)) — and it is what the Sales
+     and Service report pages actually render. Without this selector those
+     pages kept 18px/20px padding at every width while the icon tiles on the
+     dashboard shrank around them. */
+  .app-layout .stat-card:not(:has(.stat-icon)) {
+    min-height: 100px;
+    padding: 16px;
+    border-radius: 20px;
+    column-gap: 12px;
+  }
+
+  .app-layout .stat-card .stat-label,
+  .app-layout .grid-4:has(.stat-card) .stat-card .stat-label {
+    font-size: 0.72rem;
+    line-height: 1.25;
+  }
+}
+
+@media (max-width: 400px) {
+  .app-layout .stat-card .stat-value,
+  .app-layout .grid-4:has(.stat-card) .stat-card .stat-value {
+    font-size: 1.15rem;
+  }
+
+  .app-layout .stat-card,
+  .app-layout .grid-4:has(.stat-card) .stat-card,
+  .app-layout .stat-card:not(:has(.stat-icon)) {
+    min-height: 86px;
+    padding: 13px;
+    border-radius: 18px;
+    column-gap: 10px;
+  }
+
+  .app-layout .stat-card .stat-icon,
+  .app-layout .grid-4:has(.stat-card) .stat-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 12px;
+  }
+
+  .app-layout .stat-card .stat-label,
+  .app-layout .grid-4:has(.stat-card) .stat-card .stat-label {
+    /* 11.2px. Not smaller — this is the only text saying what the number
+       above it means, and the tile has already given up a third of its
+       height at this breakpoint. */
+    font-size: 0.7rem;
+  }
+}
+
+
+/* Tile PAIRS stay side-by-side.
+   responsive.css collapses .grid-2 to a single column at ≤768px, which is
+   right for content cards and wrong for stat tiles: two numbers as short as
+   "96%" and "4" each took a full-width band, costing more vertical space than
+   the card above them. `.grid-4` was already exempted at ≤640px for the same
+   reason.
+
+   Scoped with :has(.stat-card) so ordinary two-column content — forms, card
+   pairs — keeps collapsing to one column as before.
+
+   `.grid-3` is deliberately NOT here. Three tiles across a 390px screen is
+   ~115px each, which is the squeeze this rule set out to avoid; a grid-3 of
+   tiles should collapse like any other content. (No admin page renders one
+   today — every stat row is a grid-4 — so this is a guard, not a fix.) */
+@media (max-width: 768px) {
+  .app-layout .grid-2:has(.stat-card) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+
+/* ── 3. CARDS ───────────────────────────────────────────────────────────
+   `.card-header` was the worst offender measured: 16px/32px at EVERY width,
+   with no mobile rule anywhere in the codebase. On a 390px screen that is
+   64px of horizontal padding — a sixth of the viewport — around a 15px
+   heading. */
+@media (max-width: 768px) {
+  .card-header,
+  .app-layout .card-header,
+  .customer-layout-v2 .card-header {
+    padding: 12px 16px;
+  }
+
+  .app-layout .card-body {
+    padding: 16px;
+  }
+
+  .customer-layout-v2 .card-body {
+    padding: 16px;
+  }
+
+  .card-body {
+    padding: var(--space-md);
+  }
+}
+
+@media (max-width: 400px) {
+  .card-header,
+  .app-layout .card-header,
+  .customer-layout-v2 .card-header {
+    padding: 11px 14px;
+  }
+
+  .app-layout .card-body,
+  .customer-layout-v2 .card-body,
+  .card-body {
+    padding: 14px;
+  }
+}
+
+
+/* ── 4. GAPS AND MARGINS ────────────────────────────────────────────────
+   responsive.css sets `.grid { gap: 16px }` at ≤768px. That is one class,
+   and it is imported AFTER animations-utils.css — so it also beat every
+   explicit `.gap-8` / `.gap-12` a page had asked for, quietly making tight
+   grids LOOSER on mobile than on desktop. Measured: `.grid.gap-12` computed
+   to 16px at 390px.
+
+   Restoring the small utilities and capping the large ones gives the rule
+   the direction it was meant to have: on a phone, no gap utility produces
+   more space than it does on a desktop, and several produce less. */
+@media (max-width: 768px) {
+  .grid.gap-2  { gap: 2px; }
+  .grid.gap-4  { gap: 4px; }
+  .grid.gap-6  { gap: 6px; }
+  .grid.gap-8  { gap: 8px; }
+  .grid.gap-10 { gap: 10px; }
+  .grid.gap-12 { gap: 12px; }
+
+  .grid.gap-20,
+  .grid.gap-24,
+  .grid.gap-32,
+  .grid.gap-lg,
+  .grid.gap-xl { gap: 16px; }
+
+  /* Section rhythm. 24px between every block is most of the scroll on a
+     phone; 16px still reads as a separation. */
+  .app-layout .mb-24,
+  .customer-layout-v2 .mb-24 { margin-bottom: 16px; }
+
+  .app-layout .mt-24,
+  .customer-layout-v2 .mt-24 { margin-top: 16px; }
+
+  .app-layout .mb-20,
+  .customer-layout-v2 .mb-20 { margin-bottom: 14px; }
+}
+
+@media (max-width: 400px) {
+  .grid { gap: 12px; }
+
+  .grid.gap-20,
+  .grid.gap-24,
+  .grid.gap-32,
+  .grid.gap-lg,
+  .grid.gap-xl { gap: 12px; }
+
+  .app-layout .page-content,
+  .customer-layout-v2 .page-content { padding: 14px; }
+}
+
+
+/* ── 5. CUSTOMER HOME SNAPSHOT ──────────────────────────────────────────
+   The three pills on the customer dashboard — Total orders / Active now /
+   Delivered orders.
+
+   These are `.customer-snapshot-pill`, not `.stat-card`, and they live in
+   `.customer-layout-v2`, so none of the tile rules above reach them. They
+   were pinned to three columns by a `!important` in viewport-hardening.css
+   at every width down to 320px; see the note left at that rule.
+
+   Approach A (wrap), not horizontal scroll. Three items is too few to earn a
+   swipe: a scroller hides a third of the content behind a gesture with no
+   affordance saying it is there, and "Delivered orders" — the one most likely
+   to be off-screen — is the count people check least often but should still
+   see. Two columns with the odd one spanning the full row keeps all three
+   visible, gives each pill ~170px instead of ~115px, and costs one extra row
+   of height.
+
+   The breakpoint is 520px rather than 480px because that is where three
+   across actually stops fitting: at 520px each pill is ~156px, at 480px it is
+   ~143px, and by 430px — a large phone — it is ~128px for a value, an icon
+   and a two-word label. 520px is also already a breakpoint in
+   customer-mobile-refresh.css, so this does not add a new one to the file. */
+@media (max-width: 520px) {
+  .customer-layout-v2 .customer-home-snapshot {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  /* An odd LAST pill takes the whole row, so the layout reads as 2 + 1 rather
+     than 2 + a half-empty cell. Written against position, not a count, so it
+     still holds if a fourth pill is ever added (2 + 2, nothing spans). */
+  .customer-layout-v2 .customer-home-snapshot > :last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
+
+  /* The pills were squeezed to 68px tall and 10px of side padding to survive
+     three-across. With the room back, they can breathe. */
+  .customer-layout-v2 .customer-snapshot-pill {
+    min-height: 72px;
+    padding: 13px 16px;
+  }
+
+  .customer-layout-v2 .customer-snapshot-value {
+    font-size: 1.15rem;
+  }
+
+  .customer-layout-v2 .customer-snapshot-label {
+    font-size: 0.72rem;
+  }
+}

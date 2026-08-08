@@ -140,8 +140,14 @@
   justify-content: center;
 }
 
+/* The column count moved to mobile-density.css (§5).
+   This rule used to pin THREE columns here with !important, at every width
+   down to 320px. That beat customer-mobile-refresh.css's own
+   `@media (max-width: 374px) { grid-template-columns: 1fr }` fallback, so the
+   narrow-screen case it was written for could never fire and the three pills
+   were squeezed into ~115px each on a 390px phone. Alignment and gap stay;
+   the column rule belongs with the other responsive sizing. */
 .customer-layout-v2 .customer-home-snapshot {
-  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
   align-items: stretch;
   gap: 8px;
 }
