@@ -9,6 +9,8 @@ import { useToast } from '../../hooks/useToast';
 import usePageTitle from '../../hooks/usePageTitle';
 import InfoTooltip from '../../components/ui/InfoTooltip';
 import { ANNOUNCEMENT_CATEGORIES, getAnnouncementCategoryInfo } from '../../lib/announcements';
+import useFieldErrors from '../../hooks/useFieldErrors';
+import FieldError, { fieldAttrs, invalidClass } from '../../components/ui/FieldError';
 
 const CategoryDropdown = ({ value, onChange }) => {
   const [open, setOpen] = useState(false);
@@ -166,6 +168,7 @@ const AnnouncementsPage = () => {
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({ title: '', content: '', category: 'auto' });
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const { errors, validate, clearError, clearAll } = useFieldErrors();
   const [deleting, setDeleting] = useState(false);
   const toast = useToast();
 
@@ -185,9 +188,23 @@ const AnnouncementsPage = () => {
 
   const handleCreate = async () => {
     let finalTitle = form.title.trim();
-    if (!finalTitle || !form.content.trim()) { toast.warning('Please fill in both title and content.'); return; }
-    if (finalTitle.length > 100) { toast.warning('Title must be 100 characters or less.'); return; }
-    if (form.content.trim().length > 1500) { toast.warning('Content must be 1500 characters or less.'); return; }
+
+    // The length rules are belt-and-braces: maxLength on both controls already
+    // stops the user reaching these figures. They stay because the cap is a
+    // presentation detail and the rule is the actual constraint.
+    const ok = validate({
+      title: !finalTitle
+        ? 'Please enter a title — this is what customers see first.'
+        : finalTitle.length > 100
+          ? 'Title must be 100 characters or less.'
+          : null,
+      content: !form.content.trim()
+        ? 'Please write the announcement content.'
+        : form.content.trim().length > 1500
+          ? 'Content must be 1500 characters or less.'
+          : null,
+    });
+    if (!ok) return;
 
     // Prepend designated emoji tag if explicit category selected and not already in title
     const selectedCategory = ANNOUNCEMENT_CATEGORIES.find(c => c.value === form.category);
@@ -203,6 +220,7 @@ const AnnouncementsPage = () => {
       }));
       setForm({ title: '', content: '', category: 'auto' });
       setShowForm(false);
+      clearAll();
       logAnnouncement('Announcement Published', null, finalTitle, { details: `Published announcement: ${finalTitle}` });
       await load();
       toast.success('Announcement published!');
@@ -236,14 +254,14 @@ const AnnouncementsPage = () => {
           <h1 className="admin-page-title">Announcements</h1>
           <p className="admin-page-subtitle">Publish operational updates customers can see in their dashboard.</p>
         </div>
-        <button type="button" className="btn btn-primary" onClick={()=>setShowForm(!showForm)}><Plus size={16}/> New</button>
+        <button type="button" className="btn btn-primary" onClick={()=>{ setShowForm(!showForm); clearAll(); }}><Plus size={16}/> New</button>
       </div>
 
       {showForm && (
         <div className="card animate-scale-in mb-16" style={{ overflow: 'visible' }}><div className="card-body">
           <div className="form-group mb-16">
             <label className="form-label inline-flex items-center">
-              Category Tag *
+              Category Tag
               <InfoTooltip text="Choose an explicit category tag for this announcement, or select Auto-Detect for smart keyword matching." />
             </label>
             <CategoryDropdown
@@ -255,15 +273,17 @@ const AnnouncementsPage = () => {
             <label className="form-label inline-flex items-center" htmlFor="announcement-title">
               Title * (Max 100 characters)
             </label>
-            <input id="announcement-title" className="form-input" value={form.title} onChange={e=>setForm(p=>({...p,title:e.target.value}))} maxLength={100} required />
+            <input id="announcement-title" className={`form-input ${invalidClass('title', errors)}`} value={form.title} onChange={e=>{setForm(p=>({...p,title:e.target.value})); clearError('title');}} maxLength={100} required {...fieldAttrs('title', errors)} />
+            <FieldError name="title" errors={errors} />
           </div>
           <div className="form-group">
             <label className="form-label" htmlFor="announcement-content">Content * (Max 1500 characters)</label>
-            <textarea id="announcement-content" className="form-textarea" value={form.content} onChange={e=>setForm(p=>({...p,content:e.target.value}))} maxLength={1500} required />
+            <textarea id="announcement-content" className={`form-textarea ${invalidClass('content', errors)}`} value={form.content} onChange={e=>{setForm(p=>({...p,content:e.target.value})); clearError('content');}} maxLength={1500} required {...fieldAttrs('content', errors)} />
+            <FieldError name="content" errors={errors} />
           </div>
           <div className="admin-form-actions">
             <button type="button" className="btn btn-primary" onClick={handleCreate} disabled={saving}>{saving?<Loader size={16} className="animate-spin"/>:'Publish'}</button>
-            <button type="button" className="btn btn-ghost" onClick={()=>setShowForm(false)}>Cancel</button>
+            <button type="button" className="btn btn-ghost" onClick={()=>{ setShowForm(false); clearAll(); }}>Cancel</button>
           </div>
         </div></div>
       )}
