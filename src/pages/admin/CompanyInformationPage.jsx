@@ -17,7 +17,7 @@ import CompanyInfoFeaturesTab from './CompanyInfoFeaturesTab';
 import CompanyInfoCoverageTab from './CompanyInfoCoverageTab';
 import usePageTitle from '../../hooks/usePageTitle';
 import useFieldErrors from '../../hooks/useFieldErrors';
-import FieldError, { errorId, fieldAttrs, invalidClass } from '../../components/ui/FieldError';
+import FieldError, { fieldAttrs, invalidClass } from '../../components/ui/FieldError';
 
 const TABS = [
   { id: 'basic',    label: 'Basic Info',      icon: Building2 },

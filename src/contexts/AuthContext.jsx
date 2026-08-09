@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { disableNotificationsForDevice } from '../lib/firebase-messaging';
-import { buildProfileAddress, normalizeProfileAddressFields } from '../lib/address';
+import { normalizeProfileAddressFields } from '../lib/address';
 import { getProfile, createProfile } from '../lib/database';
 import useNetworkRecovery from '../hooks/useNetworkRecovery';
 
@@ -198,7 +198,6 @@ export const AuthProvider = ({ children }) => {
       if (error) throw error;
 
       const normalizedAddress = normalizeProfileAddressFields(profileData);
-      const combinedAddress = buildProfileAddress(normalizedAddress);
 
       await createProfile({
         id: data.user.id,
@@ -207,7 +206,6 @@ export const AuthProvider = ({ children }) => {
         facebook_name: profileData.facebook_name || null,
         phone: profileData.phone || null,
         role: 'customer',
-        address: combinedAddress || null,
         address_lot_block: normalizedAddress.address_lot_block || null,
         address_street: normalizedAddress.address_street || null,
         address_barangay: normalizedAddress.address_barangay || null,

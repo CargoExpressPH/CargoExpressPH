@@ -33,6 +33,9 @@ const RUNTIME_DEFINED = new Set([
   // Set by JS on the element before use; the 50% fallbacks are the resting state.
   '--ripple-x',
   '--ripple-y',
+  // Injected as an inline style by BrandLogo (src/components/ui/BrandLogo.jsx)
+  // so responsive rules can still override it; the 40px fallbacks are the rest.
+  '--brand-logo-size',
 ]);
 
 /**

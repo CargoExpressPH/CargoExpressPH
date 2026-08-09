@@ -802,8 +802,8 @@ const BookShipmentPage = () => {
           <h3 className="fw-700 mb-16"><Package size={18} className="inline mr-8" />Package Details</h3>
           <div className="form-group">
             <label className="form-label" htmlFor="package-description">What are you sending? <span className="text-danger">*</span></label>
-            <input id="package-description" className={`form-input ${fieldErrors.package_description ? 'field-invalid' : ''}`} value={form.package_description} onChange={e => { u('package_description', e.target.value); setFieldErrors(prev => ({...prev, package_description: false})); }} placeholder="e.g. Documents, 2 boxes of clothes, small appliance" aria-describedby="package-description-helper" />
-            {fieldErrors.package_description && <div className="text-danger text-xs mt-4">Package description is required.</div>}
+            <input id="package-description" className={`form-input ${fieldErrors.package_description ? 'field-invalid' : ''}`} value={form.package_description} onChange={e => { u('package_description', e.target.value); setFieldErrors(prev => ({...prev, package_description: false})); }} placeholder="e.g. Documents, 2 boxes of clothes, small appliance" aria-invalid={fieldErrors.package_description ? 'true' : undefined} aria-describedby={fieldErrors.package_description ? 'package-description-error package-description-helper' : 'package-description-helper'} />
+            {fieldErrors.package_description && <div className="field-error-inline" id="package-description-error" role="alert"><AlertTriangle size={12} aria-hidden="true" />Package description is required.</div>}
             <p id="package-description-helper" className="text-xs text-secondary mt-4">Describe your items. We weigh the parcel at pickup and the exact cost is confirmed then.</p>
           </div>
           <div className="form-group"><label className="form-label" htmlFor="payer-type">Who Pays?</label>

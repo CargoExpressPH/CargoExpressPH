@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { useNavigate, useBlocker } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { buildProfileAddress, normalizeProfileAddressFields } from '../../lib/address';
+import { normalizeProfileAddressFields } from '../../lib/address';
 import { supabase } from '../../lib/supabase';
 import { PH_LOCATIONS, VALID_PROVINCES } from '../../constants/phLocations';
 import {
@@ -98,7 +98,6 @@ const PersonalInfoPage = () => {
     setLoading(true);
     try {
       const normalizedAddress = normalizeProfileAddressFields(form);
-      const combinedAddress = buildProfileAddress(normalizedAddress);
 
       const { error: updateError } = await supabase
         .from('profiles')

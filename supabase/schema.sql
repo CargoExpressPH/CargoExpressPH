@@ -22,11 +22,6 @@ CREATE TABLE IF NOT EXISTS profiles (
   -- Contact & social
   facebook_name TEXT DEFAULT NULL,
   address_landmark TEXT DEFAULT NULL,
-  -- Pre-joined single-line address built by buildProfileAddress() from the
-  -- address_* columns above, which remain the source of truth. Restored in
-  -- 20260805120000_profiles_add_address.sql after 20260802000000 dropped it,
-  -- because the client still writes it on register and profile save.
-  address TEXT DEFAULT NULL,
   -- Timestamps
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
@@ -222,7 +217,7 @@ CREATE TABLE IF NOT EXISTS contact_inquiries (
   -- Legacy polymorphic column: held a phone OR an email OR "phone | email".
   -- Still dual-written this release; normalized into the two columns below by
   -- 20260803140000_contact_inquiries_normalize.sql.
-  phone TEXT DEFAULT NULL,
+  phone TEXT NOT NULL,
   contact_phone TEXT DEFAULT NULL,
   contact_email TEXT DEFAULT NULL,
   message TEXT NOT NULL,
@@ -366,7 +361,7 @@ CREATE TABLE IF NOT EXISTS customer_feedback (
 CREATE TABLE IF NOT EXISTS payment_transactions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   order_id UUID NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
-  amount NUMERIC NOT NULL,
+  amount NUMERIC(10,2) NOT NULL,
   payment_method TEXT NOT NULL,
   transaction_reference TEXT DEFAULT NULL,
   payment_status TEXT NOT NULL,
@@ -727,8 +722,7 @@ CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status);
 CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id);
 CREATE INDEX IF NOT EXISTS idx_trips_status ON trips(status);
 -- idx_conversations_customer_id removed (20260803130000): duplicate of UNIQUE
-CREATE INDEX IF NOT EXISTS idx_chat_messages_conversation_id ON chat_messages(conversation_id);
--- idx_chat_messages_conv_id removed (duplicate of idx_chat_messages_conversation_id)
+CREATE INDEX IF NOT EXISTS idx_chat_messages_conv_id ON chat_messages(conversation_id);
 CREATE INDEX IF NOT EXISTS idx_chat_messages_created_at ON chat_messages(created_at);
 CREATE INDEX IF NOT EXISTS idx_contact_inquiries_created_at ON contact_inquiries(created_at);
 -- idx_profiles_fcm_token removed (fcm_token column dropped; tokens now in user_device_tokens)
