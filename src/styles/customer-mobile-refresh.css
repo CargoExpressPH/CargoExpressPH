@@ -1885,3 +1885,29 @@ body:has(textarea:focus) .support-chat-page {
     min-height: 0;
   }
 }
+
+/* ── Home stat pills: three across on phones ─────────────────────────────────
+   mobile-density.css puts them in a 2-column grid and spans the odd last pill
+   across the full row, which renders as two cards then one wide orphan. Three
+   equal columns keeps the row balanced. Appended last so it wins the cascade. */
+@media (max-width: 520px) {
+  .customer-layout-v2 .customer-home-snapshot {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .customer-layout-v2 .customer-home-snapshot > :last-child:nth-child(odd) {
+    grid-column: auto;
+  }
+}
+
+/* ── Home stat pills: three across on phones ─────────────────────────────────
+   mobile-density.css puts them in a 2-column grid and spans the odd last pill
+   across the whole row, which renders as two cards plus one wide orphan.
+   Three equal columns keeps the row balanced. Appended last so it wins. */
+@media (max-width: 520px) {
+  .customer-layout-v2 .customer-home-snapshot {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .customer-layout-v2 .customer-home-snapshot > :last-child:nth-child(odd) {
+    grid-column: auto;
+  }
+}
