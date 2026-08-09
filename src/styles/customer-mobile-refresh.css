@@ -1750,6 +1750,15 @@ input:checked + .toggle-slider:before {
     overflow-wrap: anywhere;
   }
 
+  /* Multi-line values stack and stay right-aligned under their label. Without
+     the wrapper these were separate flex items and rendered as two columns. */
+  .customer-payment-history-table td .cell-stack {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2px;
+  }
+
   .customer-payment-history-table td:last-child {
     border-bottom: none ;
     padding-bottom: 0 ;

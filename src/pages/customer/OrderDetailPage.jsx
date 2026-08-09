@@ -707,8 +707,13 @@ const OrderDetailPage = () => {
                         <td data-label="Amount" className="fw-600 text-success">₱{parseFloat(tx.amount).toFixed(2)}</td>
                         <td data-label="Method" className="text-capitalize">{tx.payment_method === 'gcash' ? 'GCash' : tx.payment_method}</td>
                         <td data-label="Ref/Notes">
-                          {tx.transaction_reference && <div className="text-xs">Ref: {tx.transaction_reference}</div>}
-                          {tx.notes && <div className="text-xs text-tertiary">{tx.notes}</div>}
+                          {/* Wrapped: on mobile the cell is a flex row, so two
+                              sibling divs sat side by side as two narrow
+                              columns. One wrapper keeps them stacked. */}
+                          <div className="cell-stack">
+                            {tx.transaction_reference && <div className="text-xs">Ref: {tx.transaction_reference}</div>}
+                            {tx.notes && <div className="text-xs text-tertiary">{tx.notes}</div>}
+                          </div>
                         </td>
                         <td data-label="Recorded By">{tx.admin_name || 'System'}</td>
                       </tr>
