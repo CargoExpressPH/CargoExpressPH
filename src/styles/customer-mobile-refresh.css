@@ -1721,13 +1721,33 @@ input:checked + .toggle-slider:before {
 
   .customer-payment-history-table td {
     display: flex ;
-    align-items: center;
+    /* Values can wrap to more than one line (PayMongo references are ~30
+       characters with no spaces), so top-align them against their label
+       rather than centring a two-line value against a one-line label. */
+    align-items: flex-start;
     justify-content: space-between;
+    gap: 12px;
     padding: 0 0 6px 0 ;
     border-bottom: 1px solid var(--customer-line) ;
     border-bottom: 1px solid color-mix(in srgb, var(--customer-line) 40%, transparent) ;
     font-size: 0.8125rem;
     text-align: right ;
+    /* `pay_AF5gLbFUtAGwauryXa6LfzLp` is a single unbreakable token. Without an
+       explicit break opportunity it overflowed the card and was clipped. */
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  /* The label must keep its width; the value must be allowed to shrink. A flex
+     item defaults to min-width:auto, which is what let the reference push past
+     the card edge instead of wrapping inside it. */
+  .customer-payment-history-table td[data-label]::before {
+    flex: 0 0 auto;
+  }
+
+  .customer-payment-history-table td > * {
+    min-width: 0;
+    overflow-wrap: anywhere;
   }
 
   .customer-payment-history-table td:last-child {
