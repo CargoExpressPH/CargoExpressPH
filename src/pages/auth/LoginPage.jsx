@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import usePageTitle from '../../hooks/usePageTitle';
 import { logAuth } from '../../lib/activityLog';
+import FieldError from '../../components/ui/FieldError';
 
 // ── Error mapper ─────────────────────────────────────────────────────────────
 const INVALID_CREDENTIALS_ERROR = 'Incorrect password or email.';
@@ -271,7 +272,7 @@ const LoginPage = () => {
                 <input
                   id="login-email"
                   type="email"
-                  className={`form-input form-input-icon-left ${emailHasError ? 'error' : ''}`}
+                  className={`form-input form-input-icon-left ${emailHasError ? 'field-invalid' : ''}`}
                   placeholder="your@email.com"
                   value={email}
                   onChange={handleEmailChange}
@@ -283,7 +284,7 @@ const LoginPage = () => {
                 />
               </div>
               {fieldErrors.email && (
-                <p className="form-error" id="login-email-error">{fieldErrors.email}</p>
+                <FieldError id="login-email-error" message={fieldErrors.email} />
               )}
             </div>
 
@@ -300,7 +301,7 @@ const LoginPage = () => {
                 <input
                   id="login-password"
                   type={showPassword ? 'text' : 'password'}
-                  className={`form-input form-input-icon-left form-input-icon-right ${passwordHasError ? 'error' : ''}`}
+                  className={`form-input form-input-icon-left form-input-icon-right ${passwordHasError ? 'field-invalid' : ''}`}
                   placeholder="Enter your password"
                   value={password}
                   onChange={handlePasswordChange}
@@ -321,7 +322,7 @@ const LoginPage = () => {
                 </button>
               </div>
               {fieldErrors.password && (
-                <p className="form-error" id="login-password-error">{fieldErrors.password}</p>
+                <FieldError id="login-password-error" message={fieldErrors.password} />
               )}
             </div>
 

@@ -13,6 +13,8 @@ import { STATUS_TIMELINE, TRACKING_STATUS_TONES, STATUS_ICONS, ORDER_STATUS } fr
 import TrackingTimeline from '../../components/ui/TrackingTimeline';
 import { SkeletonText } from '../../components/ui/SkeletonLoader';
 import usePageTitle from '../../hooks/usePageTitle';
+import useFieldErrors from '../../hooks/useFieldErrors';
+import FieldError, { invalidClass } from '../../components/ui/FieldError';
 
 /* ── Status icon resolver ─────────────────────────────────────────────
    Complete coverage for every ORDER_STATUS value — previously only 4 of
@@ -93,6 +95,7 @@ const TrackingPage = ({ embedded = false }) => {
   const [loading, setLoading] = useState(false);
   const [error,   setError]   = useState('');
   const [searched, setSearched] = useState(false);
+  const { errors, validate, clearError } = useFieldErrors();
   const [statusEvents, setStatusEvents] = useState([]);
   const [lastRefreshed, setLastRefreshed] = useState(null);
   const [isRateLimited, setIsRateLimited] = useState(false);
@@ -270,7 +273,10 @@ const TrackingPage = ({ embedded = false }) => {
     e.preventDefault();
     if (isRateLimitedRef.current) return;
     const tn = trackingNumber.trim().toUpperCase();
-    if (!tn) return;
+    // An empty search used to be refused by a disabled button, which never said
+    // a tracking number was what it wanted. The "Shipment Not Found" card below
+    // is a result, not a validation message, so this is reported at the field.
+    if (!validate({ tracking_number: !tn ? 'Enter a tracking number to search.' : null })) return;
     activeQueryRef.current = tn;
     fetchOrder(tn);
   };
@@ -341,11 +347,12 @@ const TrackingPage = ({ embedded = false }) => {
           <input
             id="tracking-input"
             type="text"
-            className="trk-search-input"
+            className={`trk-search-input ${invalidClass('tracking_number', errors)}`}
             placeholder="Enter tracking number (e.g. CE-20240101-001)"
             value={trackingNumber}
             onChange={e => {
               setTrackingNumber(e.target.value.toUpperCase());
+              clearError('tracking_number');
               // Typing may clear a normal "not found" error, but never lifts
               // an active rate-limit cooldown (that would defeat the purpose).
               if (!isRateLimitedRef.current && error && error !== RATE_LIMIT_USER_MSG) {
@@ -355,8 +362,12 @@ const TrackingPage = ({ embedded = false }) => {
             aria-label="Tracking number"
             autoComplete="off"
             spellCheck="false"
-            aria-invalid={Boolean(error && !isRateLimited)}
-            aria-describedby={isRateLimited ? 'trk-rate-limit-status' : undefined}
+            aria-invalid={Boolean(errors.tracking_number) || Boolean(error && !isRateLimited)}
+            aria-describedby={
+              errors.tracking_number ? 'tracking_number-error'
+              : isRateLimited ? 'trk-rate-limit-status'
+              : undefined
+            }
           />
           {trackingNumber && !loading && (
             <button
@@ -371,7 +382,7 @@ const TrackingPage = ({ embedded = false }) => {
           <button
             type="submit"
             className="trk-search-btn"
-            disabled={loading || isRateLimited || !trackingNumber.trim()}
+            disabled={loading || isRateLimited}
             aria-label={isRateLimited ? `Rate limited. Retry in ${retryAfterSeconds}s` : 'Track shipment'}
             aria-busy={loading}
           >
@@ -381,6 +392,7 @@ const TrackingPage = ({ embedded = false }) => {
             }
           </button>
         </div>
+        <FieldError name="tracking_number" errors={errors} />
       </form>
 
       {/* ══════════ RATE LIMIT CARD ══════════

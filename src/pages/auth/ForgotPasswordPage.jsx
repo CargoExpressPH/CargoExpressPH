@@ -7,6 +7,8 @@ import {
   Ship, DollarSign, Search, Zap, Package,
 } from 'lucide-react';
 import usePageTitle from '../../hooks/usePageTitle';
+import useFieldErrors from '../../hooks/useFieldErrors';
+import FieldError, { fieldAttrs, invalidClass } from '../../components/ui/FieldError';
 
 /* ══════════════════════════════════════════════════════════════════════════
    ForgotPasswordPage — World-Class Premium Redesign
@@ -18,6 +20,7 @@ const ForgotPasswordPage = () => {
   const [error,     setError]     = useState('');
   const [loading,   setLoading]   = useState(false);
   const [countdown, setCountdown] = useState(0);
+  const { errors, validate, clearError } = useFieldErrors();
   const { resetPassword } = useAuth();
   const timerRef  = useRef(null);
 
@@ -43,10 +46,16 @@ const ForgotPasswordPage = () => {
     
     const emailTrimmed = email.trim();
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(emailTrimmed)) {
-      setError('Please enter a valid email address (e.g. name@domain.com).');
-      return;
-    }
+    // Reported at the field rather than in the banner above the form: the
+    // banner is for what the server said, the field for what the form can see.
+    const ok = validate({
+      email: !emailTrimmed
+        ? 'Please enter your email address.'
+        : !emailRegex.test(emailTrimmed)
+          ? 'Please enter a valid email address (e.g. name@domain.com).'
+          : null,
+    });
+    if (!ok) return;
 
     setLoading(true);
     try {
@@ -178,21 +187,25 @@ const ForgotPasswordPage = () => {
                   <input
                     id="forgot-email"
                     type="email"
-                    className="form-input form-input-icon-left"
+                    className={`form-input form-input-icon-left ${invalidClass('email', errors)}`}
                     placeholder="you@email.com"
                     value={email}
-                    onChange={e => setEmail(e.target.value)}
+                    onChange={e => { setEmail(e.target.value); clearError('email'); }}
                     required
                     autoComplete="email"
                     aria-required="true"
+                    {...fieldAttrs('email', errors)}
                   />
                 </div>
+                <FieldError name="email" errors={errors} />
               </div>
 
+              {/* Enabled while empty on purpose — submitting is how the user
+                  asks what is missing, and a dead button answers nothing. */}
               <button
                 type="submit"
                 className="auth-submit-btn"
-                disabled={loading || !email.trim()}
+                disabled={loading}
                 aria-busy={loading}
               >
                 {loading

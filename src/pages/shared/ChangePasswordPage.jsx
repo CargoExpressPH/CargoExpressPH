@@ -10,6 +10,8 @@ import { useToast } from '../../hooks/useToast';
 import ConfirmModal from '../../components/ui/ConfirmModal';
 import usePageTitle from '../../hooks/usePageTitle';
 import { getPasswordStrength } from '../../utils/password';
+import useFieldErrors from '../../hooks/useFieldErrors';
+import FieldError, { fieldAttrs, invalidClass } from '../../components/ui/FieldError';
 
 const ChangePasswordPage = () => {
   usePageTitle('Change Password');
@@ -28,6 +30,8 @@ const ChangePasswordPage = () => {
   const [showConfirm,      setShowConfirm]      = useState(false);
   const [loading,          setLoading]          = useState(false);
 
+  const { errors, validate, clearError, setError: setFieldError } = useFieldErrors();
+
   const pwStrength = getPasswordStrength(password);
 
   const checks = {
@@ -37,6 +41,17 @@ const ChangePasswordPage = () => {
     number:    /[0-9]/.test(password),
   };
   const allChecks = Object.values(checks).every(Boolean);
+
+  // The mismatch is worth saying while typing; the empty case is not, because
+  // an untouched confirm field is not yet a mistake. Submit-time errors take
+  // precedence — they explain this attempt.
+  const confirmShown = {
+    ...(confirmPassword && password !== confirmPassword
+      ? { confirm_password: "Passwords don't match." }
+      : {}),
+    ...errors,
+  };
+  const confirmError = confirmShown.confirm_password;
 
   // Block navigation when the form has unsaved input
   const isFormDirty = useCallback(
@@ -50,9 +65,22 @@ const ChangePasswordPage = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!user?.email) { toast.error('You are not logged in.'); return; }
-    if (!currentPassword) { toast.error('Please enter your current password.'); return; }
-    if (!allChecks) { toast.error('Password does not meet all requirements.'); return; }
-    if (password !== confirmPassword) { toast.error('Passwords do not match.'); return; }
+
+    const ok = validate({
+      current_password: !currentPassword ? 'Please enter your current password.' : null,
+      new_password: !password
+        ? 'Please enter a new password.'
+        : !allChecks
+          ? 'Password does not meet all the requirements listed below.'
+          : null,
+      confirm_password: !confirmPassword
+        ? 'Please repeat your new password.'
+        : password !== confirmPassword
+          ? "Passwords don't match."
+          : null,
+    });
+    if (!ok) return;
+
     setLoading(true);
     try {
       // 1) Verify the current password before allowing a change
@@ -61,7 +89,9 @@ const ChangePasswordPage = () => {
         password: currentPassword,
       });
       if (verifyError) {
-        toast.error('Current password is incorrect.');
+        // Attributable to a specific field, so it is reported at that field
+        // rather than in a toast the user must map back to an input themselves.
+        setFieldError('current_password', 'Current password is incorrect.');
         return;
       }
       // 2) Update to the new password
@@ -116,13 +146,14 @@ const ChangePasswordPage = () => {
               <input
                 id="change-current-password"
                 type={showCurrent ? 'text' : 'password'}
-                className="form-input form-input-icon-left form-input-icon-right"
+                className={`form-input form-input-icon-left form-input-icon-right ${invalidClass('current_password', errors)}`}
                 placeholder="Enter your current password"
                 value={currentPassword}
-                onChange={e => setCurrentPassword(e.target.value)}
+                onChange={e => { setCurrentPassword(e.target.value); clearError('current_password'); }}
                 required
                 autoComplete="current-password"
                 aria-required="true"
+                {...fieldAttrs('current_password', errors)}
               />
               <button
                 type="button"
@@ -134,6 +165,7 @@ const ChangePasswordPage = () => {
                 {showCurrent ? <EyeOff size={15} /> : <Eye size={15} />}
               </button>
             </div>
+            <FieldError name="current_password" errors={errors} />
           </div>
 
           {/* New Password */}
@@ -144,15 +176,15 @@ const ChangePasswordPage = () => {
               <input
                 id="change-new-password"
                 type={showPassword ? 'text' : 'password'}
-                className="form-input form-input-icon-left form-input-icon-right"
+                className={`form-input form-input-icon-left form-input-icon-right ${invalidClass('new_password', errors)}`}
                 placeholder="Min. 8 characters"
                 value={password}
-                onChange={e => setPassword(e.target.value)}
+                onChange={e => { setPassword(e.target.value); clearError('new_password'); }}
                 required
                 minLength={8}
                 autoComplete="new-password"
                 aria-required="true"
-                aria-describedby="change-pw-strength"
+                {...fieldAttrs('new_password', errors, 'change-pw-strength')}
               />
               <button
                 type="button"
@@ -164,6 +196,7 @@ const ChangePasswordPage = () => {
                 {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
               </button>
             </div>
+            <FieldError name="new_password" errors={errors} />
 
             {password && (
               <div className="pw-strength-wrap" id="change-pw-strength" aria-live="polite">
@@ -215,15 +248,16 @@ const ChangePasswordPage = () => {
                 id="change-confirm-password"
                 type={showConfirm ? 'text' : 'password'}
                 className={`form-input form-input-icon-left form-input-icon-right ${
-                  confirmPassword && confirmPassword === password ? 'success' :
-                  confirmPassword && confirmPassword !== password ? 'error' : ''
+                  confirmError ? 'field-invalid' :
+                  confirmPassword && confirmPassword === password ? 'success' : ''
                 }`}
                 placeholder="Repeat new password"
                 value={confirmPassword}
-                onChange={e => setConfirmPassword(e.target.value)}
+                onChange={e => { setConfirmPassword(e.target.value); clearError('confirm_password'); }}
                 required
                 autoComplete="new-password"
                 aria-required="true"
+                {...fieldAttrs('confirm_password', confirmShown)}
               />
               <button
                 type="button"
@@ -235,10 +269,8 @@ const ChangePasswordPage = () => {
                 {showConfirm ? <EyeOff size={15} /> : <Eye size={15} />}
               </button>
             </div>
-            {confirmPassword && password !== confirmPassword && (
-              <p className="form-error">Passwords don't match</p>
-            )}
-            {confirmPassword && password === confirmPassword && allChecks && (
+            <FieldError name="confirm_password" errors={confirmShown} />
+            {!confirmError && confirmPassword && password === confirmPassword && allChecks && (
               <p className="rp-match-ok">
                 <CheckCircle2 size={13} /> Passwords match
               </p>
@@ -250,7 +282,7 @@ const ChangePasswordPage = () => {
             type="button"
             className="btn btn-primary btn-lg w-full justify-center mt-8"
             onClick={handleSubmit}
-            disabled={loading || !allChecks || password !== confirmPassword}
+            disabled={loading}
           >
             {loading
               ? <><Loader size={18} className="animate-spin" /> Updating...</>

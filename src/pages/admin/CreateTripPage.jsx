@@ -2,18 +2,20 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createTrip } from '../../lib/database';
 import { ROUTES } from '../../constants/phLocations';
-import { ArrowLeft, Calendar, Loader, Truck, Package, FileText, Lightbulb, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Calendar, Loader, Truck, Package, FileText, Lightbulb } from 'lucide-react';
 import { useToast } from '../../hooks/useToast';
 import usePageTitle from '../../hooks/usePageTitle';
 import { logTrip } from '../../lib/activityLog';
 import { phLocalInputToISO } from '../../utils/datetime';
+import useFieldErrors from '../../hooks/useFieldErrors';
+import FieldError, { errorId, fieldAttrs, invalidClass } from '../../components/ui/FieldError';
 
 const CreateTripPage = () => {
   usePageTitle('Create Trip');
   const navigate = useNavigate();
   const toast = useToast();
   const [loading, setLoading] = useState(false);
-  const [fieldErrors, setFieldErrors] = useState({});
+  const { errors: fieldErrors, validate, clearError } = useFieldErrors();
   const [form, setForm] = useState({
     origin: '', destination: '',
     departure_date: '', arrival_date: '',
@@ -24,49 +26,43 @@ const CreateTripPage = () => {
 
   const u = (k, v) => {
     setForm(p => ({ ...p, [k]: v }));
-    if (fieldErrors[k]) setFieldErrors(p => { const n = { ...p }; delete n[k]; return n; });
+    clearError(k);
   };
 
   const handleRouteSelect = (route) => {
     u('origin', route.origin);
     u('destination', route.destination);
-    if (fieldErrors.route) setFieldErrors(p => { const n = { ...p }; delete n.route; return n; });
+    clearError('route');
   };
 
-  const validateForm = () => {
-    const errs = {};
-    if (!form.origin || !form.destination) {
-      errs.route = 'Route selection is required.';
-    }
-    if (!form.departure_date) {
-      errs.departure_date = 'Departure date is required.';
-    } else if (new Date(form.departure_date) < new Date()) {
-      errs.departure_date = 'Departure date cannot be in the past.';
-    }
-    if (form.arrival_date && form.departure_date && new Date(form.arrival_date) <= new Date(form.departure_date)) {
-      errs.arrival_date = 'Estimated arrival date must be after departure date.';
-    }
-    if (!form.capacity) {
-      errs.capacity = 'Capacity is required.';
-    } else if (isNaN(Number(form.capacity)) || Number(form.capacity) <= 0) {
-      errs.capacity = 'Capacity must be a positive number.';
-    }
-    if (!form.price_per_kg) {
-      errs.price_per_kg = 'Amount per kilo is required.';
-    } else if (isNaN(Number(form.price_per_kg)) || Number(form.price_per_kg) <= 0) {
-      errs.price_per_kg = 'Amount per kilo must be a positive number.';
-    }
-    return errs;
-  };
+  const buildRules = () => ({
+    route: (!form.origin || !form.destination) ? 'Please select a route.' : null,
+    departure_date: !form.departure_date
+      ? 'Departure date is required.'
+      : new Date(form.departure_date) < new Date()
+        ? 'Departure date cannot be in the past.'
+        : null,
+    arrival_date: (form.arrival_date && form.departure_date
+      && new Date(form.arrival_date) <= new Date(form.departure_date))
+      ? 'Estimated arrival date must be after departure date.'
+      : null,
+    capacity: !form.capacity
+      ? 'Capacity is required.'
+      : (isNaN(Number(form.capacity)) || Number(form.capacity) <= 0)
+        ? 'Capacity must be a positive number.'
+        : null,
+    price_per_kg: !form.price_per_kg
+      ? 'Amount per kilo is required.'
+      : (isNaN(Number(form.price_per_kg)) || Number(form.price_per_kg) <= 0)
+        ? 'Amount per kilo must be a positive number.'
+        : null,
+  });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const errs = validateForm();
-    if (Object.keys(errs).length > 0) {
-      setFieldErrors(errs);
-      toast.error('Please fix the validation errors on the form.');
-      return;
-    }
+    // No toast: every one of these rules names a field, and the field says so
+    // itself. A toast on top would be the same news delivered twice.
+    if (!validate(buildRules())) return;
 
     setLoading(true);
     try {
@@ -105,7 +101,7 @@ const CreateTripPage = () => {
         </div>
       </div>
 
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit} noValidate>
 
         {/* ── Route ─────────────────────────────────────── */}
         <div className="card stagger-item mb-16" style={{ animationDelay: '0ms' }}>
@@ -113,7 +109,14 @@ const CreateTripPage = () => {
             <h3 className="fw-700 mb-16 flex items-center gap-8">
               <Truck size={18} color="var(--primary)" aria-hidden="true" /> Route
             </h3>
-            <div className="admin-route-options">
+            <div
+              className={`admin-route-options ${fieldErrors.route ? 'field-group-invalid' : ''}`}
+              role="group"
+              aria-label="Route"
+              aria-invalid={fieldErrors.route ? 'true' : undefined}
+              aria-describedby={fieldErrors.route ? errorId('route') : undefined}
+              tabIndex={fieldErrors.route ? -1 : undefined}
+            >
               {ROUTES.map(r => (
                 <button
                   type="button" key={r.label}
@@ -134,12 +137,7 @@ const CreateTripPage = () => {
                 </button>
               ))}
             </div>
-            {fieldErrors.route && (
-              <div className="field-error-inline" role="alert" style={{ marginTop: 12 }}>
-                <AlertTriangle size={12} aria-hidden="true" />
-                {fieldErrors.route}
-              </div>
-            )}
+            <FieldError name="route" errors={fieldErrors} />
           </div>
         </div>
 
@@ -153,12 +151,12 @@ const CreateTripPage = () => {
               <div className="form-group">
                 <label className="form-label" htmlFor="trip-departure-date">Departure Date & Time</label>
                 <input id="trip-departure-date" type="datetime-local" className={`form-input ${fieldErrors.departure_date ? 'field-invalid' : ''}`} value={form.departure_date} onChange={e => u('departure_date', e.target.value)} required aria-invalid={fieldErrors.departure_date ? 'true' : undefined} aria-describedby={fieldErrors.departure_date ? 'trip-departure-date-error' : undefined} />
-                {fieldErrors.departure_date && <div className="field-error-inline" id="trip-departure-date-error" role="alert"><AlertTriangle size={12} aria-hidden="true" />{fieldErrors.departure_date}</div>}
+                <FieldError name="departure_date" errors={fieldErrors} id="trip-departure-date-error" />
               </div>
               <div className="form-group">
                 <label className="form-label" htmlFor="trip-arrival-date">Estimated Arrival Date & Time</label>
                 <input id="trip-arrival-date" type="datetime-local" className={`form-input ${fieldErrors.arrival_date ? 'field-invalid' : ''}`} value={form.arrival_date} onChange={e => u('arrival_date', e.target.value)} aria-invalid={fieldErrors.arrival_date ? 'true' : undefined} aria-describedby={fieldErrors.arrival_date ? 'trip-arrival-date-error' : undefined} />
-                {fieldErrors.arrival_date && <div className="field-error-inline" id="trip-arrival-date-error" role="alert"><AlertTriangle size={12} aria-hidden="true" />{fieldErrors.arrival_date}</div>}
+                <FieldError name="arrival_date" errors={fieldErrors} id="trip-arrival-date-error" />
               </div>
             </div>
           </div>
@@ -174,7 +172,7 @@ const CreateTripPage = () => {
               <div className="form-group">
                 <label className="form-label" htmlFor="trip-capacity">Capacity (kg)</label>
                 <input id="trip-capacity" type="number" className={`form-input ${fieldErrors.capacity ? 'field-invalid' : ''}`} value={form.capacity} onChange={e => u('capacity', e.target.value)} placeholder="e.g. 1000" min="1" step="1" required aria-invalid={fieldErrors.capacity ? 'true' : undefined} aria-describedby={fieldErrors.capacity ? 'trip-capacity-error trip-capacity-helper' : 'trip-capacity-helper'} />
-                {fieldErrors.capacity && <div className="field-error-inline" id="trip-capacity-error" role="alert"><AlertTriangle size={12} aria-hidden="true" />{fieldErrors.capacity}</div>}
+                <FieldError name="capacity" errors={fieldErrors} id="trip-capacity-error" />
                 <p id="trip-capacity-helper" className="text-xs text-tertiary mt-4">Maximum total cargo weight for this trip.</p>
               </div>
               <div className="form-group">
@@ -183,7 +181,7 @@ const CreateTripPage = () => {
                   <span aria-hidden="true" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)', pointerEvents: 'none', fontSize: 15, lineHeight: 1 }}>₱</span>
                   <input id="trip-price-per-kg" type="number" className={`form-input ${fieldErrors.price_per_kg ? 'field-invalid' : ''}`} value={form.price_per_kg} onChange={e => u('price_per_kg', e.target.value)} placeholder="e.g. 70" min="0.01" step="0.01" style={{ paddingLeft: 34 }} required aria-invalid={fieldErrors.price_per_kg ? 'true' : undefined} aria-describedby={fieldErrors.price_per_kg ? 'trip-price-error trip-price-helper' : 'trip-price-helper'} />
                 </div>
-                {fieldErrors.price_per_kg && <div className="field-error-inline" id="trip-price-error" role="alert"><AlertTriangle size={12} aria-hidden="true" />{fieldErrors.price_per_kg}</div>}
+                <FieldError name="price_per_kg" errors={fieldErrors} id="trip-price-error" />
                 <p id="trip-price-helper" className="text-xs text-tertiary mt-4">Cost per kilogram for bookings on this trip.</p>
               </div>
             </div>
@@ -210,7 +208,7 @@ const CreateTripPage = () => {
         </div>
 
         <div className="admin-form-actions">
-          <button type="submit" className="btn btn-primary btn-lg admin-form-submit" disabled={loading || !routeSelected} style={{ minWidth: 180 }}>
+          <button type="submit" className="btn btn-primary btn-lg admin-form-submit" disabled={loading} style={{ minWidth: 180 }}>
             {loading ? <><Loader size={18} className="animate-spin" /> Creating...</> : <><Truck size={18} /> Create Trip</>}
           </button>
         </div>

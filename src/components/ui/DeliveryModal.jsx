@@ -2,6 +2,8 @@ import { useState, useRef, useEffect } from 'react';
 import { X, Camera, Loader, Package, CheckCircle, Trash2, Upload } from 'lucide-react';
 import FocusTrap from './FocusTrap';
 import useScrollLock from '../../hooks/useScrollLock';
+import useFieldErrors from '../../hooks/useFieldErrors';
+import FieldError, { errorId } from './FieldError';
 import { sanitizeAmount, formatAmount } from '../../utils/currencyInput';
 import { uploadMultiplePhotos, uploadPhoto } from '../../lib/storage';
 import PaymentCollectionPanel, {
@@ -9,6 +11,7 @@ import PaymentCollectionPanel, {
   derivePaymentCollection,
   validatePaymentCollection,
   buildPaymentSubmission,
+  PAYMENT_FIELDS,
 } from './PaymentCollectionPanel';
 
 /**
@@ -40,6 +43,10 @@ const DeliveryModal = ({ order, onClose, onSave }) => {
   const [saving, setSaving] = useState(false);
   const [uploadProgress, setUploadProgress] = useState('');
   const [error, setError] = useState('');
+
+  // Same split as PickupModal: attributable problems go to their control, the
+  // banner keeps only what belongs to no field.
+  const { errors, validate, clearError, setError: setFieldError, containerRef } = useFieldErrors();
 
   const fileInputRef = useRef(null);
 
@@ -76,10 +83,15 @@ const DeliveryModal = ({ order, onClose, onSave }) => {
     const newFiles = Array.from(e.target.files || []);
     const total = photos.length + newFiles.length;
     if (total > 3) {
-      setError('Maximum 3 delivery photos allowed');
+      setFieldError('delivery_photos', 'Maximum 3 delivery photos allowed.');
       return;
     }
     const validFiles = newFiles.filter(f => ['image/jpeg', 'image/png', 'image/webp'].includes(f.type));
+    if (validFiles.length < newFiles.length) {
+      setFieldError('delivery_photos', 'Only JPG, PNG, and WebP images are allowed.');
+    } else if (validFiles.length) {
+      clearError('delivery_photos');
+    }
     setPhotos(prev => [...prev, ...validFiles]);
     validFiles.forEach(file => {
       const reader = new FileReader();
@@ -99,18 +111,24 @@ const DeliveryModal = ({ order, onClose, onSave }) => {
     setError('');
     setPayment(p => ({ ...p, shortfallBlocked: false }));
 
-    if (photos.length === 0) {
-      setError('At least 1 delivery proof photo is required');
-      return;
+    const rules = {
+      delivery_photos: photos.length === 0
+        ? 'Attach at least 1 photo as proof of delivery.'
+        : null,
+    };
+
+    let flagShortfall = false;
+    if (needsPayment) {
+      const result = validatePaymentCollection(payment, paymentConfig);
+      if (result.error) {
+        rules[result.field || PAYMENT_FIELDS.amount] = result.error;
+        flagShortfall = result.flagShortfall;
+      }
     }
 
-    if (needsPayment) {
-      const { error: paymentError, flagShortfall } = validatePaymentCollection(payment, paymentConfig);
-      if (paymentError) {
-        if (flagShortfall) setPayment(p => ({ ...p, shortfallBlocked: true }));
-        setError(paymentError);
-        return;
-      }
+    if (!validate(rules)) {
+      if (flagShortfall) setPayment(p => ({ ...p, shortfallBlocked: true }));
+      return;
     }
 
     setSaving(true);
@@ -175,7 +193,7 @@ const DeliveryModal = ({ order, onClose, onSave }) => {
           <button type="button" className="btn-icon btn-ghost" onClick={onClose} aria-label="Close delivery modal"><X size={20} aria-hidden="true" /></button>
         </div>
 
-        <div className="modal-body modal-body-scroll">
+        <div className="modal-body modal-body-scroll" ref={containerRef}>
           <div className="pickup-summary-card summary-card-secondary flex justify-between items-center mb-20">
             <div>
               <div className="fw-700 text-accent">{order.tracking_number}</div>
@@ -207,16 +225,25 @@ const DeliveryModal = ({ order, onClose, onSave }) => {
                 setValue={setPayment}
                 config={paymentConfig}
                 disabled={saving}
+                errors={errors}
+                clearError={clearError}
               />
             </div>
           )}
 
           <div className="form-group mb-0">
-            <label className="form-label">
+            <label className="form-label" id="delivery-photos-label">
               <Camera size={14} className="inline mr-6" />
               Delivery Proof Photos * (1-3)
             </label>
-            <div className="flex gap-10 flex-wrap mt-8">
+            <div
+              className={`flex gap-10 flex-wrap mt-8 ${errors.delivery_photos ? 'field-group-invalid' : ''}`}
+              role="group"
+              aria-labelledby="delivery-photos-label"
+              aria-invalid={errors.delivery_photos ? 'true' : undefined}
+              aria-describedby={errors.delivery_photos ? errorId('delivery_photos') : undefined}
+              tabIndex={errors.delivery_photos ? -1 : undefined}
+            >
               {photoPreviews.map((preview, i) => (
                 <div key={i} className="relative overflow-hidden" style={{ width: 90, height: 90, borderRadius: 8, border: '2px solid var(--border)' }}>
                   <img src={preview} alt={`Photo ${i + 1}`} className="w-full h-full" style={{ objectFit: 'cover' }} />
@@ -238,6 +265,7 @@ const DeliveryModal = ({ order, onClose, onSave }) => {
                 </button>
               )}
             </div>
+            <FieldError name="delivery_photos" errors={errors} />
             <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={handlePhotoAdd} style={{ display: 'none' }} />
           </div>
         </div>

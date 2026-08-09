@@ -5,6 +5,8 @@ import { Plus, Trash2, Edit2, Save, Loader, Star, X, GripVertical } from 'lucide
 import { getFeatureIcon } from '../../lib/featureIcons';
 import { useToast } from '../../hooks/useToast';
 import ConfirmModal from '../../components/ui/ConfirmModal';
+import useFieldErrors from '../../hooks/useFieldErrors';
+import FieldError, { fieldAttrs, invalidClass } from '../../components/ui/FieldError';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { SortableContext, arrayMove, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -73,6 +75,7 @@ const CompanyInfoFeaturesTab = ({ features, setFeatures }) => {
   const toast = useToast();
   const [editingId, setEditingId] = useState(null);
   const [formData, setFormData] = useState({ icon: 'Star', title: '', description: '' });
+  const { errors, validate, clearError, clearAll } = useFieldErrors();
   const [saving, setSaving] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
@@ -101,25 +104,36 @@ const CompanyInfoFeaturesTab = ({ features, setFeatures }) => {
     }
   };
 
+  // One editor is reused for every row, so its errors must not survive being
+  // pointed at a different feature.
   const handleEdit = (feat) => {
     setEditingId(feat.id);
     setFormData({ icon: feat.icon, title: feat.title, description: feat.description });
     setShowIconPicker(false);
+    clearAll();
   };
 
   const handleAddNew = () => {
     setEditingId('new');
     setFormData({ icon: 'Star', title: '', description: '' });
     setShowIconPicker(false);
+    clearAll();
   };
 
   const handleCancel = () => {
     setEditingId(null);
     setShowIconPicker(false);
+    clearAll();
   };
 
   const handleSave = async () => {
-    if (!formData.title || !formData.description) return toast.error('Title and description are required.');
+    const ok = validate({
+      title: !formData.title?.trim() ? 'Please enter a title for this feature.' : null,
+      description: !formData.description?.trim()
+        ? 'Please enter a description — it is shown under the title on the public page.'
+        : null,
+    });
+    if (!ok) return;
     
     try {
       setSaving(true);
@@ -264,25 +278,29 @@ const CompanyInfoFeaturesTab = ({ features, setFeatures }) => {
                 <label className="form-label" htmlFor="feature-title">Title <span className="required">*</span></label>
                 <input
                   id="feature-title"
-                  className="form-input"
+                  className={`form-input ${invalidClass('title', errors)}`}
                   value={formData.title}
-                  onChange={e => setFormData({ ...formData, title: e.target.value })}
+                  onChange={e => { setFormData({ ...formData, title: e.target.value }); clearError('title'); }}
                   placeholder="e.g. Fast & Reliable"
                   autoFocus
+                  {...fieldAttrs('title', errors)}
                 />
+                <FieldError name="title" errors={errors} />
               </div>
 
               {/* Description */}
               <div className="form-group" style={{ marginBottom: 0, gridColumn: '1 / -1' }}>
-                <label className="form-label" htmlFor="feature-description">Description</label>
+                <label className="form-label" htmlFor="feature-description">Description <span className="required">*</span></label>
                 <textarea
                   id="feature-description"
-                  className="form-textarea"
+                  className={`form-textarea ${invalidClass('description', errors)}`}
                   rows={2}
                   value={formData.description || ''}
-                  onChange={e => setFormData({ ...formData, description: e.target.value })}
+                  onChange={e => { setFormData({ ...formData, description: e.target.value }); clearError('description'); }}
                   placeholder="Short description shown below the feature title..."
+                  {...fieldAttrs('description', errors)}
                 />
+                <FieldError name="description" errors={errors} />
               </div>
 
 

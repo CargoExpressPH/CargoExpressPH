@@ -8,6 +8,8 @@ import {
 } from 'lucide-react';
 import usePageTitle from '../../hooks/usePageTitle';
 import { getPasswordStrength } from '../../utils/password';
+import useFieldErrors from '../../hooks/useFieldErrors';
+import FieldError, { fieldAttrs, invalidClass } from '../../components/ui/FieldError';
 
 /* ══════════════════════════════════════════════════════════════════════════
    ResetPasswordPage — World-Class Premium Redesign
@@ -41,11 +43,35 @@ const ResetPasswordPage = () => {
   };
   const allChecks = Object.values(checks).every(Boolean);
 
+  const { errors, validate, clearError } = useFieldErrors();
+
+  // Mismatch is worth flagging while typing; an untouched confirm field is not
+  // yet a mistake. Submit-time errors win — they explain this attempt.
+  const shownErrors = {
+    ...(confirmPassword && password !== confirmPassword
+      ? { confirm_password: "Passwords don't match." }
+      : {}),
+    ...errors,
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    if (!allChecks)               return setError('Password does not meet all requirements.');
-    if (password !== confirmPassword) return setError('Passwords do not match.');
+
+    const ok = validate({
+      password: !password
+        ? 'Please enter a new password.'
+        : !allChecks
+          ? 'Password does not meet all the requirements listed below.'
+          : null,
+      confirm_password: !confirmPassword
+        ? 'Please repeat your new password.'
+        : password !== confirmPassword
+          ? "Passwords don't match."
+          : null,
+    });
+    if (!ok) return;
+
     setLoading(true);
     try {
       const result = await changePassword(password);
@@ -161,15 +187,15 @@ const ResetPasswordPage = () => {
                 <input
                   id="reset-password"
                   type={showPassword ? 'text' : 'password'}
-                  className="form-input form-input-icon-left form-input-icon-right"
+                  className={`form-input form-input-icon-left form-input-icon-right ${invalidClass('password', errors)}`}
                   placeholder="Min. 8 characters"
                   value={password}
-                  onChange={e => setPassword(e.target.value)}
+                  onChange={e => { setPassword(e.target.value); clearError('password'); }}
                   required
                   minLength={8}
                   autoComplete="new-password"
                   aria-required="true"
-                  aria-describedby="rp-strength"
+                  {...fieldAttrs('password', errors, 'rp-strength')}
                 />
                 <button
                   type="button"
@@ -181,6 +207,7 @@ const ResetPasswordPage = () => {
                   {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
                 </button>
               </div>
+              <FieldError name="password" errors={errors} />
 
               {/* Strength meter */}
               {password && (
@@ -236,15 +263,16 @@ const ResetPasswordPage = () => {
                   id="reset-confirm-password"
                   type={showConfirm ? 'text' : 'password'}
                   className={`form-input form-input-icon-left form-input-icon-right ${
-                    confirmPassword && confirmPassword === password ? 'success' :
-                    confirmPassword && confirmPassword !== password ? 'error' : ''
+                    shownErrors.confirm_password ? 'field-invalid' :
+                    confirmPassword && confirmPassword === password ? 'success' : ''
                   }`}
                   placeholder="Repeat new password"
                   value={confirmPassword}
-                  onChange={e => setConfirmPassword(e.target.value)}
+                  onChange={e => { setConfirmPassword(e.target.value); clearError('confirm_password'); }}
                   required
                   autoComplete="new-password"
                   aria-required="true"
+                  {...fieldAttrs('confirm_password', shownErrors)}
                 />
                 <button
                   type="button"
@@ -256,10 +284,8 @@ const ResetPasswordPage = () => {
                   {showConfirm ? <EyeOff size={15} /> : <Eye size={15} />}
                 </button>
               </div>
-              {confirmPassword && password !== confirmPassword && (
-                <p className="form-error">Passwords don't match</p>
-              )}
-              {confirmPassword && password === confirmPassword && allChecks && (
+              <FieldError name="confirm_password" errors={shownErrors} />
+              {!shownErrors.confirm_password && confirmPassword && password === confirmPassword && allChecks && (
                 <p className="rp-match-ok">
                   <CheckCircle2 size={13} /> Passwords match
                 </p>
@@ -269,7 +295,7 @@ const ResetPasswordPage = () => {
             <button
               type="submit"
               className="auth-submit-btn"
-              disabled={loading || !allChecks || password !== confirmPassword}
+              disabled={loading}
               aria-busy={loading}
             >
               {loading

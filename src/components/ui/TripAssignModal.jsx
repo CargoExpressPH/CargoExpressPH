@@ -3,6 +3,8 @@ import { getTrips } from '../../lib/database';
 import { X, Truck, Loader, MapPin, AlertTriangle } from 'lucide-react';
 import FocusTrap from './FocusTrap';
 import useScrollLock from '../../hooks/useScrollLock';
+import useFieldErrors from '../../hooks/useFieldErrors';
+import FieldError, { errorId } from './FieldError';
 
 /**
  * TripAssignModal — Assign an order to an available trip
@@ -15,6 +17,7 @@ const TripAssignModal = ({ order, onClose, onAssign }) => {
   const [loading, setLoading] = useState(true);
   const [selectedTrip, setSelectedTrip] = useState(null);
   const [saving, setSaving] = useState(false);
+  const { errors, validate, clearError, containerRef } = useFieldErrors();
 
   useEffect(() => {
     loadTrips();
@@ -36,7 +39,11 @@ const TripAssignModal = ({ order, onClose, onAssign }) => {
   };
 
   const handleAssign = async () => {
-    if (!selectedTrip) return;
+    // The confirm button used to be disabled until a trip was picked, which
+    // silently refused the click without ever saying a trip was what was
+    // missing. It is enabled now and rejects out loud, like every other form.
+    if (!validate({ trip: !selectedTrip ? 'Please select a trip to assign this order to.' : null })) return;
+
     setSaving(true);
     try {
       await onAssign(selectedTrip.id);
@@ -66,7 +73,7 @@ const TripAssignModal = ({ order, onClose, onAssign }) => {
           <button className="btn-icon btn-ghost" onClick={onClose} aria-label="Close trip assignment modal"><X size={20} aria-hidden="true" /></button>
         </div>
 
-        <div className="modal-body">
+        <div className="modal-body" ref={containerRef}>
           <div id="trip-assign-desc" className="text-secondary mb-16" style={{
             background: 'var(--bg)', borderRadius: 8, padding: 12,
             fontSize: '0.8125rem',
@@ -86,7 +93,14 @@ const TripAssignModal = ({ order, onClose, onAssign }) => {
               <p className="text-xs mt-4">Create a trip with matching origin/destination first</p>
             </div>
           ) : (
-            <div className="flex flex-col gap-8">
+            <div
+              className={`flex flex-col gap-8 ${errors.trip ? 'field-group-invalid' : ''}`}
+              role="group"
+              aria-label="Available trips"
+              aria-invalid={errors.trip ? 'true' : undefined}
+              aria-describedby={errors.trip ? errorId('trip') : undefined}
+              tabIndex={errors.trip ? -1 : undefined}
+            >
               {trips.map(trip => {
                 const isSelected = selectedTrip?.id === trip.id;
                 const capPct = trip.capacity > 0 ? (trip.current_weight / trip.capacity) * 100 : 0;
@@ -99,7 +113,7 @@ const TripAssignModal = ({ order, onClose, onAssign }) => {
                   <button
                     type="button"
                     key={trip.id}
-                    onClick={() => setSelectedTrip(trip)}
+                    onClick={() => { setSelectedTrip(trip); clearError('trip'); }}
                     aria-pressed={isSelected}
                     aria-label={`Select trip ${trip.trip_number}, ${trip.status}, ${(trip.current_weight || 0).toFixed(1)} of ${trip.capacity} kilograms used`}
                     style={{
@@ -148,6 +162,8 @@ const TripAssignModal = ({ order, onClose, onAssign }) => {
               })}
             </div>
           )}
+
+          <FieldError name="trip" errors={errors} />
         </div>
 
         <div className="modal-footer">
@@ -155,7 +171,7 @@ const TripAssignModal = ({ order, onClose, onAssign }) => {
           <button
             className="btn btn-primary"
             onClick={handleAssign}
-            disabled={!selectedTrip || saving}
+            disabled={saving || trips.length === 0}
           >
             {saving ? <Loader size={16} className="animate-spin" /> : null}
             Assign to {selectedTrip?.trip_number || 'Trip'}

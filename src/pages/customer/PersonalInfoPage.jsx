@@ -13,6 +13,7 @@ import CustomSelect from '../../components/ui/CustomSelect';
 import FocusTrap from '../../components/ui/FocusTrap';
 import usePageTitle from '../../hooks/usePageTitle';
 import { toTitleCase } from '../../utils/string';
+import FieldError from '../../components/ui/FieldError';
 
 const validatePhone = (phone) => {
   const val = (phone || '').trim();
@@ -165,7 +166,7 @@ const PersonalInfoPage = () => {
               <User size={15} className="form-input-icon" />
               <input
                 id="profile-name"
-                className={`form-input form-input-icon-left ${fieldErrors.name ? 'error' : ''}`}
+                className={`form-input form-input-icon-left ${fieldErrors.name ? 'field-invalid' : ''}`}
                 placeholder="Juan Dela Cruz"
                 value={form.name}
                 onChange={handleTitleCase('name')}
@@ -173,7 +174,7 @@ const PersonalInfoPage = () => {
                 aria-describedby={fieldErrors.name ? 'profile-name-error' : undefined}
               />
             </div>
-            {fieldErrors.name && <p className="form-error" id="profile-name-error" role="alert">{fieldErrors.name}</p>}
+            {fieldErrors.name && <FieldError id="profile-name-error" message={fieldErrors.name} />}
           </div>
 
           {/* Facebook Name */}
@@ -183,7 +184,7 @@ const PersonalInfoPage = () => {
               <MessageSquare size={15} className="form-input-icon" />
               <input
                 id="profile-facebook-name"
-                className={`form-input form-input-icon-left ${fieldErrors.facebook_name ? 'error' : ''}`}
+                className={`form-input form-input-icon-left ${fieldErrors.facebook_name ? 'field-invalid' : ''}`}
                 placeholder="Juan Dela Cruz on FB"
                 value={form.facebook_name}
                 onChange={e => setField('facebook_name', e.target.value)}
@@ -191,7 +192,7 @@ const PersonalInfoPage = () => {
                 aria-describedby={fieldErrors.facebook_name ? 'profile-facebook-name-error' : undefined}
               />
             </div>
-            {fieldErrors.facebook_name && <p className="form-error" id="profile-facebook-name-error" role="alert">{fieldErrors.facebook_name}</p>}
+            {fieldErrors.facebook_name && <FieldError id="profile-facebook-name-error" message={fieldErrors.facebook_name} />}
           </div>
 
           {/* Mobile Number */}
@@ -201,7 +202,7 @@ const PersonalInfoPage = () => {
               <Phone size={15} className="form-input-icon" />
               <input
                 id="profile-phone"
-                className={`form-input form-input-icon-left ${fieldErrors.phone ? 'error' : ''}`}
+                className={`form-input form-input-icon-left ${fieldErrors.phone ? 'field-invalid' : ''}`}
                 placeholder="09xxxxxxxxx"
                 value={form.phone}
                 onChange={handlePhone}
@@ -212,7 +213,7 @@ const PersonalInfoPage = () => {
               />
             </div>
             {fieldErrors.phone
-              ? <p className="form-error" id="profile-phone-error" role="alert">{fieldErrors.phone}</p>
+              ? <FieldError id="profile-phone-error" message={fieldErrors.phone} />
               : <p className="form-helper" id="profile-phone-helper">Must start with 09 and be exactly 11 digits</p>
             }
           </div>
@@ -288,7 +289,7 @@ const PersonalInfoPage = () => {
               <Hash size={15} className="form-input-icon" />
               <input
                 id="profile-lot-block"
-                className={`form-input form-input-icon-left ${fieldErrors.address_lot_block ? 'error' : ''}`}
+                className={`form-input form-input-icon-left ${fieldErrors.address_lot_block ? 'field-invalid' : ''}`}
                 placeholder="e.g. Lot 12, Block 5"
                 value={form.address_lot_block}
                 onChange={handleTitleCase('address_lot_block')}
@@ -296,7 +297,7 @@ const PersonalInfoPage = () => {
                 aria-describedby={fieldErrors.address_lot_block ? 'profile-lot-block-error' : undefined}
               />
             </div>
-            {fieldErrors.address_lot_block && <p className="form-error" id="profile-lot-block-error" role="alert">{fieldErrors.address_lot_block}</p>}
+            {fieldErrors.address_lot_block && <FieldError id="profile-lot-block-error" message={fieldErrors.address_lot_block} />}
           </div>
 
           {/* Landmark */}
@@ -306,7 +307,7 @@ const PersonalInfoPage = () => {
               <Navigation size={15} className="form-input-icon" />
               <input
                 id="profile-landmark"
-                className={`form-input form-input-icon-left ${fieldErrors.address_landmark ? 'error' : ''}`}
+                className={`form-input form-input-icon-left ${fieldErrors.address_landmark ? 'field-invalid' : ''}`}
                 placeholder="e.g. Near Sari-sari Store"
                 value={form.address_landmark}
                 onChange={handleTitleCase('address_landmark')}
@@ -314,7 +315,7 @@ const PersonalInfoPage = () => {
                 aria-describedby={fieldErrors.address_landmark ? 'profile-landmark-error' : undefined}
               />
             </div>
-            {fieldErrors.address_landmark && <p className="form-error" id="profile-landmark-error" role="alert">{fieldErrors.address_landmark}</p>}
+            {fieldErrors.address_landmark && <FieldError id="profile-landmark-error" message={fieldErrors.address_landmark} />}
           </div>
 
           {/* Save */}

@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import QRCode from 'react-qr-code';
 import AmountInput from './AmountInput';
+import FieldError, { errorId, fieldAttrs, invalidClass } from './FieldError';
 import { sanitizeAmount, parseAmount, formatAmount } from '../../utils/currencyInput';
 import { createGCashSource, registerSource, pollPaymentStatus } from '../../lib/paymongo';
 import { supabase } from '../../lib/supabase';
@@ -121,29 +122,53 @@ export const derivePaymentCollection = (value, config) => {
 };
 
 /**
+ * Field names this panel owns. Parents merge the failing one into their own
+ * field-error map and pass the map back down as `errors`, so a rejected
+ * collection marks the control that caused it rather than only printing a
+ * sentence at the top of the modal.
+ */
+export const PAYMENT_FIELDS = {
+  amount: 'payment_amount',
+  method: 'payment_method',
+  date: 'payment_date',
+  promise: 'promised_payment_date',
+};
+
+/**
  * The single set of rules for whether a collection may be submitted.
- * Returns `{ error, flagShortfall }` — null error means it may.
+ * Returns `{ error, field, flagShortfall }` — null error means it may.
+ *
+ * `field` names the control at fault. It is part of the contract rather than
+ * something the parent infers from the message text, because the message is
+ * prose that gets reworded and a substring match against prose is a bug
+ * waiting for a copy edit.
  */
 export const validatePaymentCollection = (value, config) => {
   const d = derivePaymentCollection(value, config);
   const noun = config?.expectedNoun || 'total';
+  const F = PAYMENT_FIELDS;
 
-  if (d.amountError) return { error: d.amountError, flagShortfall: false };
+  if (d.amountError) return { error: d.amountError, field: F.amount, flagShortfall: false };
 
   if (d.exceedsExpected) {
     return {
       error: `Amount collected cannot exceed the ₱${formatAmount(d.expected.toFixed(2))} ${noun}.`,
+      field: F.amount,
       flagShortfall: false,
     };
   }
 
   if (d.requiresMethod && !value.payment_method) {
-    return { error: 'Please select a payment method', flagShortfall: false };
+    return { error: 'Please select a payment method', field: F.method, flagShortfall: false };
   }
 
   if (value.payment_method === 'gcash' && d.requiresMethod) {
     if (value.paymentStep === 'generating') {
-      return { error: 'Wait for the GCash checkout link to finish generating.', flagShortfall: false };
+      return {
+        error: 'Wait for the GCash checkout link to finish generating.',
+        field: F.method,
+        flagShortfall: false,
+      };
     }
     // Same gate as the disabled confirm button, restated because a disabled
     // button is a hint, not an enforcement point.
@@ -152,11 +177,16 @@ export const validatePaymentCollection = (value, config) => {
         error: value.paymentStep === 'waiting'
           ? 'This GCash payment has not been confirmed yet. Wait for it to go through, or cancel the checkout and record the payment another way.'
           : 'Please generate a GCash QR or enter a manual reference number.',
+        field: F.method,
         flagShortfall: false,
       };
     }
     if (d.hasManualReference && !value.payment_date) {
-      return { error: 'Please set the payment date for manual reference', flagShortfall: false };
+      return {
+        error: 'Please set the payment date for manual reference',
+        field: F.date,
+        flagShortfall: false,
+      };
     }
   }
 
@@ -164,6 +194,7 @@ export const validatePaymentCollection = (value, config) => {
     return {
       error: `Amount entered is less than the ₱${formatAmount(d.expected.toFixed(2))} ${noun}. `
         + 'Enter the exact full amount, or switch Payment Type to Pay Later to record a part-payment.',
+      field: F.amount,
       flagShortfall: true,
     };
   }
@@ -172,11 +203,12 @@ export const validatePaymentCollection = (value, config) => {
     return {
       error: `₱${formatAmount(d.outstandingAfter.toFixed(2))} will still be owing. `
         + 'Record a Promise Date before releasing the cargo.',
+      field: F.promise,
       flagShortfall: false,
     };
   }
 
-  return { error: null, flagShortfall: false };
+  return { error: null, field: null, flagShortfall: false };
 };
 
 /**
@@ -225,6 +257,11 @@ const PaymentCollectionPanel = ({
   setValue,
   config,
   disabled = false,
+  // Field-error map owned by the parent modal, keyed by PAYMENT_FIELDS. The
+  // panel only reads it — the parent runs validatePaymentCollection at submit
+  // and decides what to do with the result.
+  errors = {},
+  clearError = () => {},
 }) => {
   // Purely visual and only meaningful while the request is in flight, so it
   // stays local rather than joining the state the parent submits.
@@ -390,6 +427,11 @@ const PaymentCollectionPanel = ({
     ? (config.amountLabels?.paylater || 'Downpayment (₱) (Optional)')
     : (config.amountLabels?.full || 'Amount Received (₱) *');
 
+  const F = PAYMENT_FIELDS;
+  // `shortfallBlocked` predates the shared error map and is still what a
+  // blocked submit sets, so both routes to a red amount field are honoured.
+  const amountInvalid = Boolean(d.amountError || value.shortfallBlocked || errors[F.amount]);
+
   return (
     <>
       {value.notice && (
@@ -433,21 +475,24 @@ const PaymentCollectionPanel = ({
         <div>
           <AmountInput
             id="pcp-amount"
-            className={`form-input flex-1 w-full ${d.amountError || value.shortfallBlocked ? 'field-invalid' : ''}`}
+            className={`form-input flex-1 w-full ${amountInvalid ? 'field-invalid' : ''}`}
             placeholder={d.isPayLater ? '0.00' : expectedText}
             value={value.amount}
             disabled={disabled}
-            onValueChange={v => patch({ amount: v, shortfallBlocked: false })}
-            aria-invalid={d.amountError || value.shortfallBlocked ? 'true' : undefined}
-            aria-describedby={d.amountError || value.shortfallBlocked ? 'pcp-amount-error' : undefined}
+            onValueChange={v => {
+              patch({ amount: v, shortfallBlocked: false });
+              clearError(F.amount);
+            }}
+            aria-invalid={amountInvalid ? 'true' : undefined}
+            aria-describedby={amountInvalid ? errorId(F.amount) : undefined}
           />
         </div>
-        {(d.amountError || value.shortfallBlocked) && (
-          <div className="field-error-inline" id="pcp-amount-error" role="alert">
-            <AlertTriangle size={13} aria-hidden="true" />{' '}
-            {d.amountError || `Short of the ₱${expectedText} ${noun}.`}
-          </div>
-        )}
+        <FieldError
+          name={F.amount}
+          message={amountInvalid
+            ? (errors[F.amount] || d.amountError || `Short of the ₱${expectedText} ${noun}.`)
+            : null}
+        />
         {d.expected > 0 && (
           <div className="text-xs mt-4" style={{ color: d.outstandingAfter > 0 ? 'var(--warning-dark)' : 'var(--success)' }}>
             {d.outstandingAfter > 0
@@ -457,20 +502,31 @@ const PaymentCollectionPanel = ({
         )}
       </div>
 
-      {/* Payment Method */}
+      {/* Payment Method — a segmented control, so the red boundary goes round
+          the group; there is no single input to outline. */}
       <div className="form-group">
-        <label className="form-label">Payment Method {d.requiresMethod ? '*' : '(Optional)'}</label>
-        <div className="pickup-segment-row flex gap-8">
+        <label className="form-label" id="pcp-method-label">
+          Payment Method {d.requiresMethod ? '*' : '(Optional)'}
+        </label>
+        <div
+          className={`pickup-segment-row flex gap-8 ${errors[F.method] ? 'field-group-invalid' : ''}`}
+          role="group"
+          aria-labelledby="pcp-method-label"
+          aria-invalid={errors[F.method] ? 'true' : undefined}
+          aria-describedby={errors[F.method] ? errorId(F.method) : undefined}
+          tabIndex={errors[F.method] ? -1 : undefined}
+        >
           {['cash', 'gcash'].map(m => (
             <button
               key={m} type="button" disabled={disabled}
               className={`btn ${value.payment_method === m ? 'btn-secondary' : 'btn-outline'} btn-sm flex-1 justify-center text-capitalize`}
-              onClick={() => patch({ payment_method: m })}
+              onClick={() => { patch({ payment_method: m }); clearError(F.method); }}
             >
               {m === 'gcash' ? 'GCash' : 'Cash'}
             </button>
           ))}
         </div>
+        <FieldError name={F.method} errors={errors} />
       </div>
 
       {/* GCash */}
@@ -619,12 +675,14 @@ const PaymentCollectionPanel = ({
             <input
               id="pcp-payment-date"
               type="date"
-              className="form-input"
+              className={`form-input ${invalidClass(F.date, errors)}`}
               value={value.payment_date}
               disabled={disabled}
-              onChange={e => patch({ payment_date: e.target.value })}
+              onChange={e => { patch({ payment_date: e.target.value }); clearError(F.date); }}
               max={today()}
+              {...fieldAttrs(F.date, errors)}
             />
+            <FieldError name={F.date} errors={errors} />
           </div>
 
           <div className="form-group mb-0">
@@ -682,12 +740,14 @@ const PaymentCollectionPanel = ({
             <input
               id="pcp-promised-date"
               type="date"
-              className="form-input"
+              className={`form-input ${invalidClass(F.promise, errors)}`}
               value={value.promised_payment_date}
               disabled={disabled}
-              onChange={e => patch({ promised_payment_date: e.target.value })}
+              onChange={e => { patch({ promised_payment_date: e.target.value }); clearError(F.promise); }}
               min={today()}
+              {...fieldAttrs(F.promise, errors)}
             />
+            <FieldError name={F.promise} errors={errors} />
           </div>
           <div className="text-xs mt-8" style={{ color: 'var(--warning-dark)' }}>
             {d.needsPromiseDate

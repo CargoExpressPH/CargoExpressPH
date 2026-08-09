@@ -1,8 +1,11 @@
 /* ── Inline Validation ───────────────────────────────────────────────── */
 
+/* The canonical inline validation message. Rendered by <FieldError/> — see
+   src/components/ui/FieldError.jsx. `.form-error` in components.css is the
+   legacy spelling and is kept pixel-identical to this. */
 .field-error-inline {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 4px;
   color: var(--error-text);
   font-size: 0.78rem;
@@ -11,9 +14,48 @@
   animation: slideDown 0.2s ease;
 }
 
+/* The icon is a real element, so it must not shrink or ride up when the
+   message wraps to a second line. */
+.field-error-inline > svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
 .form-input.field-invalid,
 .form-select.field-invalid,
-.form-control.field-invalid {
+.form-textarea.field-invalid,
+.form-control.field-invalid,
+/* The public About page styles its inputs independently of the form-* system. */
+.about-premium-input.field-invalid,
+.trk-search-input.field-invalid {
+  border-color: var(--error) !important;
+  box-shadow: 0 0 0 3px var(--error-glow) !important;
+}
+
+/* An invalid control that has focus must not be ringed in the primary (green)
+   colour — the app's global :focus-visible outline. useFieldErrors focuses the
+   first invalid field on submit, so without this the very field being reported
+   as wrong is the one wearing the success colour. */
+.field-invalid:focus-visible,
+.field-group-invalid:focus-visible,
+.field-invalid:focus,
+.field-group-invalid:focus {
+  outline-color: var(--error) !important;
+}
+
+/* Some required inputs are not a single control — a proof-photo picker, a
+   segmented "who pays" control, a trip list. They get the same red boundary
+   drawn around the group, so "which field" is answered the same way whether
+   the field is a text box or a choice. */
+.field-group-invalid {
+  border: 1px solid var(--error) !important;
+  box-shadow: 0 0 0 3px var(--error-glow);
+  border-radius: 8px;
+  padding: 10px;
+}
+
+/* A CustomSelect renders its own button rather than a <select>. */
+.custom-select-trigger.field-invalid {
   border-color: var(--error) !important;
   box-shadow: 0 0 0 3px var(--error-glow) !important;
 }

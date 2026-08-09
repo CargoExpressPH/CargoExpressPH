@@ -16,6 +16,8 @@ import { SkeletonText } from '../../components/ui/SkeletonLoader';
 import CompanyInfoFeaturesTab from './CompanyInfoFeaturesTab';
 import CompanyInfoCoverageTab from './CompanyInfoCoverageTab';
 import usePageTitle from '../../hooks/usePageTitle';
+import useFieldErrors from '../../hooks/useFieldErrors';
+import FieldError, { errorId, fieldAttrs, invalidClass } from '../../components/ui/FieldError';
 
 const TABS = [
   { id: 'basic',    label: 'Basic Info',      icon: Building2 },
@@ -26,6 +28,21 @@ const TABS = [
 ];
 
 const SIMPLE_TABS = ['basic', 'contact', 'pricing'];
+
+/**
+ * Which tab each validated field lives under. Save is a single button for the
+ * whole record, so a rejected save has to be able to reveal the field it is
+ * complaining about — otherwise the message names a control that is not on
+ * screen.
+ */
+const FIELD_TAB = {
+  name: 'basic',
+  website: 'contact',
+  email: 'contact',
+  facebook: 'contact',
+  messenger: 'contact',
+  default_price_per_kg: 'pricing',
+};
 
 const getEmptyCompanyInfo = () => ({
   name: '', short_description: '', long_description: '', story: '',
@@ -40,6 +57,7 @@ const CompanyInformationPage = () => {
   usePageTitle('Company Information');
   const toast = useToast();
   const [activeTab, setActiveTab] = useState('basic');
+  const { errors, validate, clearError } = useFieldErrors();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploadingField, setUploadingField] = useState(null); // which field is uploading
@@ -76,7 +94,57 @@ const CompanyInformationPage = () => {
 
   const isDirty = SIMPLE_TABS.includes(activeTab) && companyInfo && savedInfo !== JSON.stringify(companyInfo);
 
+  /**
+   * What this page must not save.
+   *
+   * These are the fields that reach a customer or a price. The company name and
+   * the per-kilo rate are load-bearing — the rate feeds `global_price_per_kilo()`
+   * and therefore every unpriced order — while the contact fields are the ones
+   * a customer is asked to act on, so a malformed one is worse than a blank one.
+   * Everything else on this page is descriptive copy and stays optional.
+   *
+   * The database remains the authority; this exists to name the field before
+   * the round trip rather than to replace the check.
+   */
+  const validateCompanyInfo = () => {
+    const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const urlish = (v) => /^https?:\/\/.+/i.test(v.trim());
+    const price = Number(companyInfo?.default_price_per_kg);
+
+    const optionalUrl = (field, label) => {
+      const v = companyInfo?.[field];
+      return v && !urlish(v) ? `${label} must start with http:// or https://` : null;
+    };
+
+    return {
+      name: !companyInfo?.name?.trim() ? 'Company name is required.' : null,
+      email: !companyInfo?.email?.trim()
+        ? 'A contact email is required — customers are told to write to it.'
+        : !emailRe.test(companyInfo.email.trim())
+          ? 'Please enter a valid email address.'
+          : null,
+      default_price_per_kg: !(price > 0)
+        ? 'Enter a price per kilogram greater than ₱0. Every unpriced order is costed from it.'
+        : null,
+      website: optionalUrl('website', 'Website'),
+      facebook: optionalUrl('facebook', 'Facebook link'),
+      messenger: optionalUrl('messenger', 'Messenger link'),
+    };
+  };
+
   const handleSave = async () => {
+    const failures = validateCompanyInfo();
+
+    // The offending field may be under a tab that is not open — a red border on
+    // a control nobody can see is not a report. Switch to the first tab that
+    // has a problem before showing anything.
+    const firstBad = Object.keys(failures).find(k => failures[k]);
+    if (firstBad) {
+      const tabOf = FIELD_TAB[firstBad];
+      if (tabOf && tabOf !== activeTab) setActiveTab(tabOf);
+    }
+    if (!validate(failures)) return;
+
     try {
       setSaving(true);
       await updateCompanyInformation(companyInfo);
@@ -93,6 +161,7 @@ const CompanyInformationPage = () => {
 
   const handleInfoChange = (field, value) => {
     setCompanyInfo(prev => ({ ...prev, [field]: value }));
+    clearError(field);
   };
 
   const handleImageUpload = async (e, fieldName) => {
@@ -258,11 +327,15 @@ const CompanyInformationPage = () => {
                 <div className="grid grid-2" style={{ gap: 16 }}>
                   <div className="form-group">
                     <label className="form-label" htmlFor="company-name">Company Name</label>
-                    <input id="company-name" className="form-input" value={companyInfo.name || ''} onChange={e => handleInfoChange('name', e.target.value)} placeholder="e.g. CargoExpress PH" />
+                    <input id="company-name" className={`form-input ${invalidClass('name', errors)}`} value={companyInfo.name || ''} onChange={e => handleInfoChange('name', e.target.value)} placeholder="e.g. CargoExpress PH" {...fieldAttrs('name', errors)} />
+                    <FieldError name="name" errors={errors} />
                   </div>
                   <div className="form-group">
                     <label className="form-label" htmlFor="company-website">Website URL</label>
-                    <input id="company-website" className="form-input" type="url" value={companyInfo.website || ''} onChange={e => handleInfoChange('website', e.target.value)} placeholder="https://..." />
+                    {/* Same underlying field as the Contact tab's Website box,
+                        so it carries its own error-node id — one id per DOM. */}
+                    <input id="company-website" className={`form-input ${invalidClass('website', errors)}`} type="url" value={companyInfo.website || ''} onChange={e => handleInfoChange('website', e.target.value)} placeholder="https://..." aria-invalid={errors.website ? 'true' : undefined} aria-describedby={errors.website ? 'company-website-basic-error' : undefined} />
+                    <FieldError name="website" errors={errors} id="company-website-basic-error" />
                   </div>
                 </div>
                 <div className="form-group">
@@ -407,22 +480,26 @@ const CompanyInformationPage = () => {
                 <div className="grid grid-2" style={{ gap: 16 }}>
                   <div className="form-group">
                     <label className="form-label" htmlFor="company-email">Email Address</label>
-                    <input id="company-email" className="form-input" type="email" value={companyInfo.email || ''} onChange={e => handleInfoChange('email', e.target.value)} placeholder="info@cargoexpress.ph" />
+                    <input id="company-email" className={`form-input ${invalidClass('email', errors)}`} type="email" value={companyInfo.email || ''} onChange={e => handleInfoChange('email', e.target.value)} placeholder="info@cargoexpress.ph" {...fieldAttrs('email', errors)} />
+                    <FieldError name="email" errors={errors} />
                   </div>
                   <div className="form-group">
                     <label className="form-label" htmlFor="company-facebook">Facebook Page URL</label>
-                    <input id="company-facebook" className="form-input" type="url" value={companyInfo.facebook || ''} onChange={e => handleInfoChange('facebook', e.target.value)} placeholder="https://facebook.com/..." />
+                    <input id="company-facebook" className={`form-input ${invalidClass('facebook', errors)}`} type="url" value={companyInfo.facebook || ''} onChange={e => handleInfoChange('facebook', e.target.value)} placeholder="https://facebook.com/..." {...fieldAttrs('facebook', errors)} />
+                    <FieldError name="facebook" errors={errors} />
                   </div>
                   <div className="form-group" style={{ marginBottom: 0 }}>
                     <label className="form-label" htmlFor="company-messenger">Messenger Link</label>
-                    <input id="company-messenger" className="form-input" type="url" value={companyInfo.messenger || ''} onChange={e => handleInfoChange('messenger', e.target.value)} placeholder="https://m.me/..." />
+                    <input id="company-messenger" className={`form-input ${invalidClass('messenger', errors)}`} type="url" value={companyInfo.messenger || ''} onChange={e => handleInfoChange('messenger', e.target.value)} placeholder="https://m.me/..." {...fieldAttrs('messenger', errors)} />
+                    <FieldError name="messenger" errors={errors} />
                   </div>
                   <div className="form-group" style={{ marginBottom: 0 }}>
                     {/* NOTE: this edits the same companyInfo.website field as the
                         "Website URL" input in the Business Details card above.
                         Distinct id so the labels stay unambiguous. */}
                     <label className="form-label" htmlFor="company-website-online">Website</label>
-                    <input id="company-website-online" className="form-input" type="url" value={companyInfo.website || ''} onChange={e => handleInfoChange('website', e.target.value)} placeholder="https://..." />
+                    <input id="company-website-online" className={`form-input ${invalidClass('website', errors)}`} type="url" value={companyInfo.website || ''} onChange={e => handleInfoChange('website', e.target.value)} placeholder="https://..." {...fieldAttrs('website', errors)} />
+                    <FieldError name="website" errors={errors} />
                   </div>
                 </div>
               </div>
@@ -462,15 +539,17 @@ const CompanyInformationPage = () => {
                   <input
                     id="settings-price-per-kilo"
                     type="number"
-                    className="form-input form-input-icon-left"
+                    className={`form-input form-input-icon-left ${invalidClass('default_price_per_kg', errors)}`}
                     value={companyInfo.default_price_per_kg || ''}
                     onChange={e => handleInfoChange('default_price_per_kg', parseFloat(e.target.value) || 0)}
                     min="0"
                     step="0.01"
                     placeholder="70.00"
+                    {...fieldAttrs('default_price_per_kg', errors, 'settings-price-helper')}
                   />
                 </div>
-                <p className="form-helper mt-6">
+                <FieldError name="default_price_per_kg" errors={errors} />
+                <p className="form-helper mt-6" id="settings-price-helper">
                   Used to calculate shipping costs for all orders by default.
                 </p>
               </div>

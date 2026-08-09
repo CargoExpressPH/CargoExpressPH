@@ -7,6 +7,8 @@ import {
 import { useToast } from '../../hooks/useToast';
 import ConfirmModal from '../../components/ui/ConfirmModal';
 import usePageTitle from '../../hooks/usePageTitle';
+import useFieldErrors from '../../hooks/useFieldErrors';
+import FieldError, { fieldAttrs, invalidClass } from '../../components/ui/FieldError';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -36,20 +38,52 @@ const ChangeEmailPage = () => {
     return isFormDirty() && currentLocation.pathname !== nextLocation.pathname;
   });
 
+  const { errors, validate, clearError } = useFieldErrors();
+
   const newEmailTrimmed = newEmail.trim();
   const confirmTrimmed = confirmEmail.trim();
   const validEmail = EMAIL_RE.test(newEmailTrimmed);
   const isDifferent = newEmailTrimmed.toLowerCase() !== currentEmail.toLowerCase();
   const emailsMatch = newEmailTrimmed === confirmTrimmed;
-  const canSubmit = validEmail && isDifferent && emailsMatch && Boolean(currentPassword) && !loading;
+
+  /**
+   * Problems visible while typing — only ever on a field the user has already
+   * put something in, because telling someone their empty field is invalid
+   * before they have reached it is noise. The empty-required case is the
+   * submit-time half, below.
+   */
+  const liveErrors = {
+    new_email: newEmail && !validEmail
+      ? 'Please enter a valid email address.'
+      : newEmail && !isDifferent
+        ? 'New email must be different from your current email.'
+        : null,
+    confirm_email: confirmEmail && !emailsMatch ? "Emails don't match." : null,
+  };
+  // A submit-time error outranks the live one: it is the more specific answer
+  // to why this particular attempt was rejected.
+  const shownErrors = { ...liveErrors, ...errors };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!currentEmail) { toast.error('You are not logged in.'); return; }
-    if (!validEmail) { toast.error('Please enter a valid email address.'); return; }
-    if (!isDifferent) { toast.error('New email must be different from your current email.'); return; }
-    if (!emailsMatch) { toast.error('Emails do not match.'); return; }
-    if (!currentPassword) { toast.error('Please enter your current password.'); return; }
+
+    const ok = validate({
+      new_email: !newEmailTrimmed
+        ? 'Please enter your new email address.'
+        : !validEmail
+          ? 'Please enter a valid email address.'
+          : !isDifferent
+            ? 'New email must be different from your current email.'
+            : null,
+      confirm_email: !confirmTrimmed
+        ? 'Please confirm your new email address.'
+        : !emailsMatch
+          ? "Emails don't match."
+          : null,
+      current_password: !currentPassword ? 'Please enter your current password.' : null,
+    });
+    if (!ok) return;
 
     setLoading(true);
     try {
@@ -176,28 +210,23 @@ const ChangeEmailPage = () => {
                     id="change-new-email"
                     type="email"
                     className={`form-input form-input-icon-left ${
-                      newEmail && (!validEmail || !isDifferent) ? 'error' :
+                      shownErrors.new_email ? invalidClass('new_email', shownErrors) :
                       newEmail && validEmail && isDifferent ? 'success' : ''
                     }`}
                     placeholder="newemail@example.com"
                     value={newEmail}
-                    onChange={e => setNewEmail(e.target.value)}
+                    onChange={e => { setNewEmail(e.target.value); clearError('new_email'); }}
                     autoComplete="email"
                     autoCapitalize="none"
                     spellCheck="false"
                     aria-required="true"
-                    aria-describedby="change-new-email-msg"
+                    {...fieldAttrs('new_email', shownErrors)}
                   />
                 </div>
-                <div id="change-new-email-msg">
-                  {newEmail && !validEmail && <p className="form-error">Please enter a valid email address.</p>}
-                  {newEmail && validEmail && !isDifferent && (
-                    <p className="form-error">New email must be different from your current email.</p>
-                  )}
-                  {newEmail && validEmail && isDifferent && (
-                    <p className="rp-match-ok">Looks good ΓÇö confirmation link will be sent here.</p>
-                  )}
-                </div>
+                <FieldError name="new_email" errors={shownErrors} />
+                {!shownErrors.new_email && newEmail && validEmail && isDifferent && (
+                  <p className="rp-match-ok">Looks good — confirmation link will be sent here.</p>
+                )}
               </div>
 
               {/* Confirm New Email */}
@@ -209,22 +238,21 @@ const ChangeEmailPage = () => {
                     id="change-confirm-email"
                     type="email"
                     className={`form-input form-input-icon-left ${
-                      confirmEmail && !emailsMatch ? 'error' :
+                      shownErrors.confirm_email ? invalidClass('confirm_email', shownErrors) :
                       confirmEmail && emailsMatch && validEmail && isDifferent ? 'success' : ''
                     }`}
                     placeholder="Repeat new email"
                     value={confirmEmail}
-                    onChange={e => setConfirmEmail(e.target.value)}
+                    onChange={e => { setConfirmEmail(e.target.value); clearError('confirm_email'); }}
                     autoComplete="off"
                     autoCapitalize="none"
                     spellCheck="false"
                     aria-required="true"
+                    {...fieldAttrs('confirm_email', shownErrors)}
                   />
                 </div>
-                {confirmEmail && !emailsMatch && (
-                  <p className="form-error">Emails don't match</p>
-                )}
-                {confirmEmail && emailsMatch && validEmail && isDifferent && (
+                <FieldError name="confirm_email" errors={shownErrors} />
+                {!shownErrors.confirm_email && confirmEmail && emailsMatch && validEmail && isDifferent && (
                   <p className="rp-match-ok">
                     <CheckCircle2 size={13} /> Emails match
                   </p>
@@ -239,12 +267,13 @@ const ChangeEmailPage = () => {
                   <input
                     id="change-email-password"
                     type={showPassword ? 'text' : 'password'}
-                    className="form-input form-input-icon-left form-input-icon-right"
+                    className={`form-input form-input-icon-left form-input-icon-right ${invalidClass('current_password', shownErrors)}`}
                     placeholder="Enter your current password"
                     value={currentPassword}
-                    onChange={e => setCurrentPassword(e.target.value)}
+                    onChange={e => { setCurrentPassword(e.target.value); clearError('current_password'); }}
                     autoComplete="current-password"
                     aria-required="true"
+                    {...fieldAttrs('current_password', shownErrors, 'change-email-password-helper')}
                   />
                   <button
                     type="button"
@@ -256,15 +285,19 @@ const ChangeEmailPage = () => {
                     {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
                   </button>
                 </div>
-                <p className="form-helper">For your security, we verify your password before any change.</p>
+                <FieldError name="current_password" errors={shownErrors} />
+                <p className="form-helper" id="change-email-password-helper">
+                  For your security, we verify your password before any change.
+                </p>
               </div>
 
-              {/* Submit */}
+              {/* Submit — enabled even when incomplete, so pressing it reports
+                  what is missing instead of doing nothing. */}
               <button
                 type="button"
                 className="btn btn-primary btn-lg w-full justify-center mt-8"
                 onClick={handleSubmit}
-                disabled={!canSubmit}
+                disabled={loading}
               >
                 {loading
                   ? <><Loader size={18} className="animate-spin" /> Sending confirmation...</>

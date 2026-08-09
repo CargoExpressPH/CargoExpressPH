@@ -2,6 +2,8 @@ import { useState, useRef, useEffect } from 'react';
 import { X, Camera, Loader, Scale, CreditCard, Upload, Trash2, Package, CheckCircle } from 'lucide-react';
 import FocusTrap from './FocusTrap';
 import useScrollLock from '../../hooks/useScrollLock';
+import useFieldErrors from '../../hooks/useFieldErrors';
+import FieldError, { errorId, fieldAttrs, invalidClass } from './FieldError';
 import { sanitizeAmount, formatAmount } from '../../utils/currencyInput';
 import { uploadMultiplePhotos, uploadPhoto } from '../../lib/storage';
 import PaymentCollectionPanel, {
@@ -9,6 +11,7 @@ import PaymentCollectionPanel, {
   derivePaymentCollection,
   validatePaymentCollection,
   buildPaymentSubmission,
+  PAYMENT_FIELDS,
 } from './PaymentCollectionPanel';
 
 /**
@@ -41,6 +44,11 @@ const PickupModal = ({ order, onClose, onSave, pricePerKilo = 70 }) => {
   const [saving, setSaving] = useState(false);
   const [uploadProgress, setUploadProgress] = useState('');
   const [error, setError] = useState('');
+
+  // Field-level validation. The banner above still carries errors that belong
+  // to no single field (an upload that failed, a PayMongo refusal); anything
+  // attributable to a control is reported at that control instead.
+  const { errors, validate, clearError, setError: setFieldError, containerRef } = useFieldErrors();
 
   const fileInputRef = useRef(null);
 
@@ -94,18 +102,20 @@ const PickupModal = ({ order, onClose, onSave, pricePerKilo = 70 }) => {
     const newFiles = Array.from(e.target.files || []);
     const total = photos.length + newFiles.length;
     if (total > 3) {
-      setError('Maximum 3 pickup photos allowed');
+      // Belongs to the picker, not to the modal — report it there.
+      setFieldError('pickup_photos', 'Maximum 3 pickup photos allowed.');
       return;
     }
 
     const validFiles = newFiles.filter(f => {
       if (!['image/jpeg', 'image/png', 'image/webp'].includes(f.type)) {
-        setError('Only JPG, PNG, and WebP images allowed');
+        setFieldError('pickup_photos', 'Only JPG, PNG, and WebP images are allowed.');
         return false;
       }
       return true;
     });
 
+    if (validFiles.length) clearError('pickup_photos');
     setPhotos(prev => [...prev, ...validFiles]);
 
     validFiles.forEach(file => {
@@ -129,24 +139,31 @@ const PickupModal = ({ order, onClose, onSave, pricePerKilo = 70 }) => {
     setError('');
     setPayment(p => ({ ...p, shortfallBlocked: false }));
 
-    if (!form.actual_weight || parseFloat(form.actual_weight) <= 0) {
-      setError('Please enter the actual weight');
-      return;
-    }
+    // Every rule is evaluated before anything is reported, so a submit that is
+    // wrong in three places says so once. The old sequence returned on the
+    // first failure, which walked the admin through the same modal three times.
+    const rules = {
+      actual_weight: (!form.actual_weight || parseFloat(form.actual_weight) <= 0)
+        ? 'Enter the weight from the scale. The price is computed from it, so the parcel cannot be priced without it.'
+        : null,
+      pickup_photos: photos.length === 0
+        ? 'Attach at least 1 photo of the parcel as pickup proof.'
+        : null,
+    };
 
     // Payment validation applies to Prepaid only. On a Collect shipment there is
     // nobody here to pay, so demanding a payment method would be nonsensical.
+    let flagShortfall = false;
     if (isPrepaid) {
-      const { error: paymentError, flagShortfall } = validatePaymentCollection(payment, paymentConfig);
-      if (paymentError) {
-        if (flagShortfall) setPayment(p => ({ ...p, shortfallBlocked: true }));
-        setError(paymentError);
-        return;
+      const result = validatePaymentCollection(payment, paymentConfig);
+      if (result.error) {
+        rules[result.field || PAYMENT_FIELDS.amount] = result.error;
+        flagShortfall = result.flagShortfall;
       }
     }
 
-    if (photos.length === 0) {
-      setError('At least 1 pickup proof photo is required');
+    if (!validate(rules)) {
+      if (flagShortfall) setPayment(p => ({ ...p, shortfallBlocked: true }));
       return;
     }
 
@@ -211,7 +228,7 @@ const PickupModal = ({ order, onClose, onSave, pricePerKilo = 70 }) => {
           <button type="button" className="btn-icon btn-ghost" onClick={onClose} aria-label="Close pickup modal"><X size={20} aria-hidden="true" /></button>
         </div>
 
-        <div className="modal-body" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
+        <div className="modal-body" ref={containerRef} style={{ maxHeight: '70vh', overflowY: 'auto' }}>
           {/* Order summary */}
           <div className="pickup-summary-card flex justify-between items-center mb-20" style={{
             background: 'var(--bg-secondary)', borderRadius: 8, padding: 14,
@@ -245,15 +262,18 @@ const PickupModal = ({ order, onClose, onSave, pricePerKilo = 70 }) => {
             <input
               id="pickup-actual-weight"
               type="number"
-              className="form-input"
+              className={`form-input ${invalidClass('actual_weight', errors)}`}
               placeholder="Enter actual weight after weighing"
               value={form.actual_weight}
               onChange={e => {
                 setPayment(p => ({ ...p, shortfallBlocked: false }));
                 setForm(p => ({ ...p, actual_weight: e.target.value }));
+                clearError('actual_weight');
               }}
               step="0.1" min="0.1"
+              {...fieldAttrs('actual_weight', errors)}
             />
+            <FieldError name="actual_weight" errors={errors} />
             {form.actual_weight && (
               <div className="text-xs text-success mt-4">
                 Estimated cost: ₱{formatAmount(estimatedCost.toFixed(2))}
@@ -313,16 +333,25 @@ const PickupModal = ({ order, onClose, onSave, pricePerKilo = 70 }) => {
               setValue={setPayment}
               config={paymentConfig}
               disabled={saving}
+              errors={errors}
+              clearError={clearError}
             />
           )}
 
           {/* Pickup Proofs */}
           <div className="form-group mt-16 mb-0">
-            <label className="form-label">
+            <label className="form-label" id="pickup-photos-label">
               <Camera size={14} className="inline mr-6" />
               Pickup Proof Photos * (1-3)
             </label>
-            <div className="flex gap-10 flex-wrap mt-8">
+            <div
+              className={`flex gap-10 flex-wrap mt-8 ${errors.pickup_photos ? 'field-group-invalid' : ''}`}
+              role="group"
+              aria-labelledby="pickup-photos-label"
+              aria-invalid={errors.pickup_photos ? 'true' : undefined}
+              aria-describedby={errors.pickup_photos ? errorId('pickup_photos') : undefined}
+              tabIndex={errors.pickup_photos ? -1 : undefined}
+            >
               {photoPreviews.map((preview, i) => (
                 <div key={i} className="relative overflow-hidden" style={{ width: 90, height: 90, borderRadius: 8, border: '2px solid var(--border)' }}>
                   <img src={preview} alt={`Photo ${i + 1}`} className="w-full h-full" style={{ objectFit: 'cover' }} />
@@ -344,6 +373,7 @@ const PickupModal = ({ order, onClose, onSave, pricePerKilo = 70 }) => {
                 </button>
               )}
             </div>
+            <FieldError name="pickup_photos" errors={errors} />
             <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={handlePhotoAdd} style={{ display: 'none' }} />
           </div>
         </div>

@@ -19,6 +19,8 @@ import { useToast } from '../../hooks/useToast';
 import usePageTitle from '../../hooks/usePageTitle';
 import FocusTrap from '../../components/ui/FocusTrap';
 import useScrollLock from '../../hooks/useScrollLock';
+import useFieldErrors from '../../hooks/useFieldErrors';
+import FieldError, { fieldAttrs, invalidClass } from '../../components/ui/FieldError';
 import { motion, useScroll, useTransform, AnimatePresence, MotionConfig } from 'framer-motion';
 
 // â”€â”€â”€ Lightbox Component (with prev/next navigation) â”€â”€â”€
@@ -617,6 +619,7 @@ const AboutPage = () => {
   const [scrollProgress, setScrollProgress] = useState(0);
   const [activeSection, setActiveSection] = useState('hero');
   const [form, setForm] = useState({ name: '', phone: '', message: '' });
+  const { errors, validate, clearError } = useFieldErrors();
   const [loading, setLoading] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(-1);
   const [selectedRegionId, setSelectedRegionId] = useState(null);
@@ -733,33 +736,35 @@ const AboutPage = () => {
     return digits;
   };
 
+  /**
+   * The contact field takes either a mobile number or an email, so its rule
+   * has to decide which the visitor meant before it can say what is wrong
+   * with it. Returns the message, or null when it is acceptable.
+   */
+  const contactFieldError = (contact) => {
+    if (!contact) return 'Enter a mobile number or an email address so we can reply.';
+    if (contact.includes('@')) {
+      return EMAIL_RE.test(contact) ? null : 'Please enter a valid email address.';
+    }
+    if (!/\d/.test(contact)) return 'Please enter a valid mobile number or email address.';
+    return PHONE_RE.test(normalizePhone(contact))
+      ? null
+      : 'Mobile number must be exactly 11 digits and start with 09.';
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.name.trim()) { toast.error('Name is required.'); return; }
+
     const contact = form.phone.trim();
-    if (!contact) {
-      toast.error('Please enter a mobile number or email.');
-      return;
-    }
+    const ok = validate({
+      name: !form.name.trim() ? 'Please enter your name.' : null,
+      phone: contactFieldError(contact),
+      message: !form.message.trim() ? 'Please write your message.' : null,
+    });
+    if (!ok) return;
+
     const isEmail = contact.includes('@');
-    const hasDigits = /\d/.test(contact);
-    let storedContact = contact;
-    if (isEmail) {
-      if (!EMAIL_RE.test(contact)) {
-        toast.error('Please enter a valid email address.');
-        return;
-      }
-    } else if (!hasDigits) {
-      toast.error('Please enter a valid mobile number or email address.');
-      return;
-    } else {
-      storedContact = normalizePhone(contact);
-      if (!PHONE_RE.test(storedContact)) {
-        toast.error('Phone must be exactly 11 digits and start with 09.');
-        return;
-      }
-    }
-    if (!form.message.trim()) { toast.error('Message is required.'); return; }
+    const storedContact = isEmail ? contact : normalizePhone(contact);
 
     setLoading(true);
     try {
@@ -1379,41 +1384,50 @@ const AboutPage = () => {
               {/* Right: Form */}
               <div className="about-contact-form">
                 <h3 style={{ fontSize: 'clamp(1.35rem, 3vw, 1.75rem)', fontWeight: 800, marginBottom: 24, color: 'var(--text)' }}>Send a Message</h3>
-                <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                {/* noValidate, as every other form in the app is: the browser's
+                    native bubble would otherwise intercept the submit and this
+                    form's own inline errors would never render. */}
+                <form onSubmit={handleSubmit} noValidate style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
                   <div>
                     <label htmlFor="contact-name" style={{ display: 'block', fontWeight: 700, fontSize: '0.875rem', marginBottom: 8, color: 'var(--text-secondary)' }}>Full Name</label>
                     <input 
                       id="contact-name"
-                      className="about-premium-input"
-                      placeholder="Juan Dela Cruz" 
-                      value={form.name} 
-                      onChange={e => setForm(p => ({ ...p, name: e.target.value }))} 
-                      required 
+                      className={`about-premium-input ${invalidClass('name', errors)}`}
+                      placeholder="Juan Dela Cruz"
+                      value={form.name}
+                      onChange={e => { setForm(p => ({ ...p, name: e.target.value })); clearError('name'); }}
+                      required
+                      {...fieldAttrs('name', errors)}
                     />
+                    <FieldError name="name" errors={errors} />
                   </div>
                   <div>
                     <label htmlFor="contact-phone" style={{ display: 'block', fontWeight: 700, fontSize: '0.875rem', marginBottom: 8, color: 'var(--text-secondary)' }}>Mobile Number or Email</label>
                     <input
                       id="contact-phone"
                       type="text"
-                      className="about-premium-input"
+                      className={`about-premium-input ${invalidClass('phone', errors)}`}
                       placeholder="Mobile Number or Email"
                       maxLength={60}
                       value={form.phone}
-                      onChange={handleContactInput}
+                      onChange={e => { handleContactInput(e); clearError('phone'); }}
+                      {...fieldAttrs('phone', errors)}
                     />
+                    <FieldError name="phone" errors={errors} />
                   </div>
                   <div>
                     <label htmlFor="contact-message" style={{ display: 'block', fontWeight: 700, fontSize: '0.875rem', marginBottom: 8, color: 'var(--text-secondary)' }}>Message</label>
                     <textarea 
                       id="contact-message"
                       style={{ minHeight: 120, resize: 'vertical' }}
-                      className="about-premium-input"
-                      placeholder="How can we help you?" 
-                      value={form.message} 
-                      onChange={e => setForm(p => ({ ...p, message: e.target.value }))} 
-                      required 
+                      className={`about-premium-input ${invalidClass('message', errors)}`}
+                      placeholder="How can we help you?"
+                      value={form.message}
+                      onChange={e => { setForm(p => ({ ...p, message: e.target.value })); clearError('message'); }}
+                      required
+                      {...fieldAttrs('message', errors)}
                     />
+                    <FieldError name="message" errors={errors} />
                   </div>
                   <button 
                     type="submit" 

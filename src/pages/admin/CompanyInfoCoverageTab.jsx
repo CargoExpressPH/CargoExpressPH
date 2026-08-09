@@ -4,6 +4,8 @@ import { logCompany } from '../../lib/activityLog';
 import { Plus, Trash2, Edit2, Save, Loader, MapPin, X, GripVertical, ChevronDown } from 'lucide-react';
 import { useToast } from '../../hooks/useToast';
 import ConfirmModal from '../../components/ui/ConfirmModal';
+import useFieldErrors from '../../hooks/useFieldErrors';
+import FieldError, { fieldAttrs, invalidClass } from '../../components/ui/FieldError';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { SortableContext, arrayMove, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -210,6 +212,7 @@ const CompanyInfoCoverageTab = ({ coverageAreas, setCoverageAreas }) => {
 
   const [editingMuni, setEditingMuni] = useState(null);
   const [muniForm, setMuniForm] = useState({ region_id: '', name: '' });
+  const { errors, validate, clearError, clearAll } = useFieldErrors();
   const [savingMuni, setSavingMuni] = useState(false);
 
   const [deleteTarget, setDeleteTarget] = useState(null);
@@ -255,20 +258,24 @@ const CompanyInfoCoverageTab = ({ coverageAreas, setCoverageAreas }) => {
   };
 
   // Region Handlers
+  // The region and municipality editors share one error map, and both are
+  // reused across rows, so opening either one starts clean.
   const handleEditRegion = (region) => {
     setEditingRegion(region.id);
     setRegionForm({ name: region.name });
     setEditingMuni(null);
+    clearAll();
   };
-  
+
   const handleAddNewRegion = () => {
     setEditingRegion('new');
     setRegionForm({ name: '' });
     setEditingMuni(null);
+    clearAll();
   };
   
   const handleSaveRegion = async () => {
-    if (!regionForm.name.trim()) { toast.error('Region name is required'); return; }
+    if (!validate({ region_name: !regionForm.name.trim() ? 'Please enter a region name.' : null })) return;
     try {
       setSavingRegion(true);
       const data = { ...regionForm };
@@ -303,16 +310,18 @@ const CompanyInfoCoverageTab = ({ coverageAreas, setCoverageAreas }) => {
     setEditingMuni(muni.id);
     setMuniForm({ name: muni.name, region_id: regionId });
     setEditingRegion(null);
+    clearAll();
   };
-  
+
   const handleAddNewMuni = (regionId) => {
     setEditingMuni('new');
     setMuniForm({ region_id: regionId, name: '' });
     setEditingRegion(null);
+    clearAll();
   };
   
   const handleSaveMuni = async () => {
-    if (!muniForm.name.trim()) { toast.error('Municipality name is required'); return; }
+    if (!validate({ muni_name: !muniForm.name.trim() ? 'Please enter a municipality name.' : null })) return;
     try {
       setSavingMuni(true);
       const data = { ...muniForm };
@@ -405,12 +414,14 @@ const CompanyInfoCoverageTab = ({ coverageAreas, setCoverageAreas }) => {
               <label className="form-label" htmlFor="coverage-region-name">Region Name <span className="required">*</span></label>
               <input
                 id="coverage-region-name"
-                className="form-input"
+                className={`form-input ${invalidClass('region_name', errors)}`}
                 value={regionForm.name}
-                onChange={e => setRegionForm({...regionForm, name: e.target.value})}
+                onChange={e => { setRegionForm({...regionForm, name: e.target.value}); clearError('region_name'); }}
                 placeholder="e.g. Metro Manila"
                 autoFocus
+                {...fieldAttrs('region_name', errors)}
               />
+              <FieldError name="region_name" errors={errors} />
             </div>
             <div className="flex justify-end gap-8" style={{ marginTop: 16 }}>
               <button className="btn btn-ghost btn-sm" onClick={() => setEditingRegion(null)}><X size={14} /> Cancel</button>
@@ -431,12 +442,14 @@ const CompanyInfoCoverageTab = ({ coverageAreas, setCoverageAreas }) => {
               <label className="form-label" htmlFor="coverage-muni-name">Municipality Name <span className="required">*</span></label>
               <input
                 id="coverage-muni-name"
-                className="form-input"
+                className={`form-input ${invalidClass('muni_name', errors)}`}
                 value={muniForm.name}
-                onChange={e => setMuniForm({...muniForm, name: e.target.value})}
+                onChange={e => { setMuniForm({...muniForm, name: e.target.value}); clearError('muni_name'); }}
                 placeholder="e.g. Quezon City"
                 autoFocus
+                {...fieldAttrs('muni_name', errors)}
               />
+              <FieldError name="muni_name" errors={errors} />
             </div>
             <div className="flex justify-end gap-8" style={{ marginTop: 16 }}>
               <button className="btn btn-ghost btn-sm" onClick={() => setEditingMuni(null)}><X size={14} /> Cancel</button>

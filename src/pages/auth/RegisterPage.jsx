@@ -13,6 +13,7 @@ import CustomSelect from '../../components/ui/CustomSelect';
 import usePageTitle from '../../hooks/usePageTitle';
 import { toTitleCase } from '../../utils/string';
 import { getPasswordStrength } from '../../utils/password';
+import FieldError from '../../components/ui/FieldError';
 
 /* ── Helpers ──────────────────────────────────────────────────────────── */
 
@@ -535,7 +536,7 @@ const RegisterPage = () => {
                   <User size={15} className="form-input-icon" aria-hidden="true" />
                   <input
                     id="reg-name"
-                    className={`form-input form-input-icon-left ${fieldErrors.name ? 'error' : touchedFields.name && form.name.trim().length >= 2 ? 'success' : ''}`}
+                    className={`form-input form-input-icon-left ${fieldErrors.name ? 'field-invalid' : touchedFields.name && form.name.trim().length >= 2 ? 'success' : ''}`}
                     placeholder="Juan Dela Cruz"
                     value={form.name}
                     onChange={handleTitleCase('name')}
@@ -551,7 +552,7 @@ const RegisterPage = () => {
                   )}
                 </div>
                 {fieldErrors.name && (
-                  <p id="reg-name-error" className="form-error" role="alert">{fieldErrors.name}</p>
+                  <FieldError id="reg-name-error" message={fieldErrors.name} />
                 )}
               </div>
 
@@ -564,7 +565,7 @@ const RegisterPage = () => {
                   <MessageSquare size={15} className="form-input-icon" aria-hidden="true" />
                   <input
                     id="reg-facebook"
-                    className={`form-input form-input-icon-left ${fieldErrors.facebook_name ? 'error' : ''}`}
+                    className={`form-input form-input-icon-left ${fieldErrors.facebook_name ? 'field-invalid' : ''}`}
                     placeholder="Your Facebook display name"
                     value={form.facebook_name}
                     onChange={e => update('facebook_name', e.target.value)}
@@ -577,7 +578,7 @@ const RegisterPage = () => {
                   />
                 </div>
                 {fieldErrors.facebook_name && (
-                  <p id="reg-facebook-error" className="form-error" role="alert">{fieldErrors.facebook_name}</p>
+                  <FieldError id="reg-facebook-error" message={fieldErrors.facebook_name} />
                 )}
               </div>
 
@@ -591,7 +592,7 @@ const RegisterPage = () => {
                   <input
                     id="reg-email"
                     type="email"
-                    className={`form-input form-input-icon-left ${fieldErrors.email ? 'error' : isEmailValid(form.email) ? 'success' : ''}`}
+                    className={`form-input form-input-icon-left ${fieldErrors.email ? 'field-invalid' : isEmailValid(form.email) ? 'success' : ''}`}
                     placeholder="you@email.com"
                     value={form.email}
                     onChange={e => update('email', e.target.value)}
@@ -607,7 +608,7 @@ const RegisterPage = () => {
                   )}
                 </div>
                 {fieldErrors.email && (
-                  <p id="reg-email-error" className="form-error" role="alert">{fieldErrors.email}</p>
+                  <FieldError id="reg-email-error" message={fieldErrors.email} />
                 )}
               </div>
 
@@ -620,7 +621,7 @@ const RegisterPage = () => {
                   <Phone size={15} className="form-input-icon" aria-hidden="true" />
                   <input
                     id="reg-phone"
-                    className={`form-input form-input-icon-left ${fieldErrors.phone ? 'error' : form.phone.length === 11 && isPhoneValid(form.phone) ? 'success' : ''}`}
+                    className={`form-input form-input-icon-left ${fieldErrors.phone ? 'field-invalid' : form.phone.length === 11 && isPhoneValid(form.phone) ? 'success' : ''}`}
                     placeholder="09xxxxxxxxx"
                     value={form.phone}
                     onChange={handlePhone}
@@ -637,7 +638,7 @@ const RegisterPage = () => {
                 </div>
                 <div className="form-meta-row" id="reg-phone-hint">
                   {fieldErrors.phone
-                    ? <span id="reg-phone-error" className="form-error" role="alert">{fieldErrors.phone}</span>
+                    ? <FieldError id="reg-phone-error" message={fieldErrors.phone} />
                     : <span className="form-helper">Philippine mobile number (09xxxxxxxxx)</span>
                   }
                   <span className="form-char-count">{form.phone.length}/11</span>
@@ -659,7 +660,7 @@ const RegisterPage = () => {
                   <input
                     id="reg-password"
                     type={showPw ? 'text' : 'password'}
-                    className={`form-input form-input-icon-left form-input-icon-right ${fieldErrors.password ? 'error' : form.password && !getPasswordError(form.password) ? 'success' : ''}`}
+                    className={`form-input form-input-icon-left form-input-icon-right ${fieldErrors.password ? 'field-invalid' : form.password && !getPasswordError(form.password) ? 'success' : ''}`}
                     placeholder="Min. 8 characters"
                     value={form.password}
                     onChange={e => update('password', e.target.value)}
@@ -683,7 +684,7 @@ const RegisterPage = () => {
                   </button>
                 </div>
                 {fieldErrors.password && (
-                  <p id="reg-password-error" className="form-error" role="alert">{fieldErrors.password}</p>
+                  <FieldError id="reg-password-error" message={fieldErrors.password} />
                 )}
 
                 {/* Strength meter */}
@@ -733,7 +734,7 @@ const RegisterPage = () => {
                     id="reg-confirm-password"
                     type={showConfirmPw ? 'text' : 'password'}
                     className={`form-input form-input-icon-left form-input-icon-right ${
-                      fieldErrors.confirmPassword ? 'error' :
+                      fieldErrors.confirmPassword ? 'field-invalid' :
                       form.confirmPassword && form.confirmPassword === form.password ? 'success' : ''
                     }`}
                     placeholder="Repeat password"
@@ -759,7 +760,7 @@ const RegisterPage = () => {
                   </button>
                 </div>
                 {fieldErrors.confirmPassword && (
-                  <p id="reg-confirm-password-error" className="form-error" role="alert">{fieldErrors.confirmPassword}</p>
+                  <FieldError id="reg-confirm-password-error" message={fieldErrors.confirmPassword} />
                 )}
               </div>
 
@@ -791,7 +792,7 @@ const RegisterPage = () => {
                   <MapPin size={15} className="form-input-icon" aria-hidden="true" />
                   <CustomSelect
                     id="reg-province"
-                    className={`form-select form-input-icon-left ${fieldErrors.address_province ? 'error' : form.address_province ? 'success' : ''}`}
+                    className={`form-select form-input-icon-left ${fieldErrors.address_province ? 'field-invalid' : form.address_province ? 'success' : ''}`}
                     value={form.address_province}
                     onChange={e => {
                       update('address_province', e.target.value);
@@ -807,7 +808,7 @@ const RegisterPage = () => {
                   </CustomSelect>
                 </div>
                 {fieldErrors.address_province && (
-                  <p id="reg-province-error" className="form-error" role="alert">{fieldErrors.address_province}</p>
+                  <FieldError id="reg-province-error" message={fieldErrors.address_province} />
                 )}
               </div>
 
@@ -818,7 +819,7 @@ const RegisterPage = () => {
                   <Landmark size={15} className="form-input-icon" aria-hidden="true" />
                   <CustomSelect
                     id="reg-city"
-                    className={`form-select form-input-icon-left ${fieldErrors.address_city ? 'error' : form.address_city ? 'success' : ''}`}
+                    className={`form-select form-input-icon-left ${fieldErrors.address_city ? 'field-invalid' : form.address_city ? 'success' : ''}`}
                     value={form.address_city}
                     onChange={e => update('address_city', e.target.value)}
                     autoComplete="address-level2"
@@ -832,7 +833,7 @@ const RegisterPage = () => {
                   </CustomSelect>
                 </div>
                 {fieldErrors.address_city && (
-                  <p id="reg-city-error" className="form-error" role="alert">{fieldErrors.address_city}</p>
+                  <FieldError id="reg-city-error" message={fieldErrors.address_city} />
                 )}
               </div>
 
@@ -843,7 +844,7 @@ const RegisterPage = () => {
                   <Home size={15} className="form-input-icon" aria-hidden="true" />
                   <input
                     id="reg-barangay"
-                    className={`form-input form-input-icon-left ${fieldErrors.address_barangay ? 'error' : touchedFields.address_barangay && form.address_barangay.trim() ? 'success' : ''}`}
+                    className={`form-input form-input-icon-left ${fieldErrors.address_barangay ? 'field-invalid' : touchedFields.address_barangay && form.address_barangay.trim() ? 'success' : ''}`}
                     placeholder="e.g. Barangay Poblacion"
                     value={form.address_barangay}
                     onChange={handleTitleCase('address_barangay')}
@@ -856,7 +857,7 @@ const RegisterPage = () => {
                   />
                 </div>
                 {fieldErrors.address_barangay && (
-                  <p id="reg-barangay-error" className="form-error" role="alert">{fieldErrors.address_barangay}</p>
+                  <FieldError id="reg-barangay-error" message={fieldErrors.address_barangay} />
                 )}
               </div>
 
@@ -867,7 +868,7 @@ const RegisterPage = () => {
                   <MapPin size={15} className="form-input-icon" aria-hidden="true" />
                   <input
                     id="reg-street"
-                    className={`form-input form-input-icon-left ${fieldErrors.address_street ? 'error' : touchedFields.address_street && form.address_street.trim() ? 'success' : ''}`}
+                    className={`form-input form-input-icon-left ${fieldErrors.address_street ? 'field-invalid' : touchedFields.address_street && form.address_street.trim() ? 'success' : ''}`}
                     placeholder="e.g. Rizal Street"
                     value={form.address_street}
                     onChange={handleTitleCase('address_street')}
@@ -880,7 +881,7 @@ const RegisterPage = () => {
                   />
                 </div>
                 {fieldErrors.address_street && (
-                  <p id="reg-street-error" className="form-error" role="alert">{fieldErrors.address_street}</p>
+                  <FieldError id="reg-street-error" message={fieldErrors.address_street} />
                 )}
               </div>
 
@@ -891,7 +892,7 @@ const RegisterPage = () => {
                   <Home size={15} className="form-input-icon" aria-hidden="true" />
                   <input
                     id="reg-lot"
-                    className={`form-input form-input-icon-left ${fieldErrors.address_lot_block ? 'error' : touchedFields.address_lot_block && form.address_lot_block.trim() ? 'success' : ''}`}
+                    className={`form-input form-input-icon-left ${fieldErrors.address_lot_block ? 'field-invalid' : touchedFields.address_lot_block && form.address_lot_block.trim() ? 'success' : ''}`}
                     placeholder="e.g. Lot 12, Block 5"
                     value={form.address_lot_block}
                     onChange={handleTitleCase('address_lot_block')}
@@ -903,7 +904,7 @@ const RegisterPage = () => {
                   />
                 </div>
                 {fieldErrors.address_lot_block && (
-                  <p id="reg-lot-error" className="form-error" role="alert">{fieldErrors.address_lot_block}</p>
+                  <FieldError id="reg-lot-error" message={fieldErrors.address_lot_block} />
                 )}
               </div>
 
@@ -914,7 +915,7 @@ const RegisterPage = () => {
                   <Navigation size={15} className="form-input-icon" aria-hidden="true" />
                   <input
                     id="reg-landmark"
-                    className={`form-input form-input-icon-left ${fieldErrors.address_landmark ? 'error' : touchedFields.address_landmark && form.address_landmark.trim() ? 'success' : ''}`}
+                    className={`form-input form-input-icon-left ${fieldErrors.address_landmark ? 'field-invalid' : touchedFields.address_landmark && form.address_landmark.trim() ? 'success' : ''}`}
                     placeholder="e.g. Near Sari-sari Store, Beside Church"
                     value={form.address_landmark}
                     onChange={handleTitleCase('address_landmark')}
@@ -926,7 +927,7 @@ const RegisterPage = () => {
                   />
                 </div>
                 {fieldErrors.address_landmark && (
-                  <p id="reg-landmark-error" className="form-error" role="alert">{fieldErrors.address_landmark}</p>
+                  <FieldError id="reg-landmark-error" message={fieldErrors.address_landmark} />
                 )}
               </div>
 
