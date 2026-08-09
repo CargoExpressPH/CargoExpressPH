@@ -913,7 +913,7 @@ const AdminOrderDetailPage = () => {
                         <td data-label="Receipt/Ref" className="payment-ref-cell">
                           {tx.transaction_reference && <div className="text-xs">Ref: {tx.transaction_reference}</div>}
                           {tx.receipt_url && <a href={tx.receipt_url} target="_blank" rel="noreferrer" className="text-xs text-primary receipt-link"><Image size={12} /> View Receipt</a>}
-                          {!tx.transaction_reference && !tx.receipt_url && <span className="text-xs text-tertiary">—</span>}
+                          {tx.notes && <div className="text-xs text-tertiary mt-4">{tx.notes}</div>}
                         </td>
                         <td data-label="Admin">{tx.admin_name || 'System'}</td>
                       </tr>
