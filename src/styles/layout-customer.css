@@ -329,8 +329,12 @@
     scroll-padding-bottom: calc(144px + env(safe-area-inset-bottom, 0px));
   }
   .customer-main:has(.support-chat-page) {
-    padding-bottom: calc(94px + env(safe-area-inset-bottom, 0px));
-    scroll-padding-bottom: calc(94px + env(safe-area-inset-bottom, 0px));
+    /* Clears the floating tab bar (~89px incl. its own bottom padding). Kept in
+       step with .support-chat-page's height below: the two must sum to
+       navbar 66 + main padding-top 16 + page height + this = 100dvh exactly,
+       or the page scrolls and the composer drifts under the bar. */
+    padding-bottom: calc(104px + env(safe-area-inset-bottom, 0px));
+    scroll-padding-bottom: calc(104px + env(safe-area-inset-bottom, 0px));
   }
 }
 @media (min-width: 900px) {

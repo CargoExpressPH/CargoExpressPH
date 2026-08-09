@@ -752,7 +752,7 @@ const SupportChatPage = () => {
             isWaiting  ? 'Leave more details for the support agent...' :
             isResolved ? 'Reply to reopen this conversation…' :
             botTyping  ? 'Assistant is typing…' :
-            isBotMode  ? 'Ask me anything about your shipment…' :
+            isBotMode  ? 'Ask about your shipment…' :
                          'Type your message…'
           }
           aria-label="Type your support message"

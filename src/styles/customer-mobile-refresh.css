@@ -1396,6 +1396,11 @@ input:checked + .toggle-slider:before {
 }
 
 .support-chat-messages {
+  /* See remaining.css: a flex item defaults to min-height:auto and refuses to
+     shrink below its content, which pushed the chat column past its height and
+     scrolled the composer under the tab bar. Re-asserted here because this
+     file loads after remaining.css. */
+  min-height: 0;
   border-color: var(--customer-line);
   border-radius: 28px;
   background: var(--customer-panel-solid);
@@ -1459,7 +1464,7 @@ input:checked + .toggle-slider:before {
 }
 
 .customer-main:has(.support-chat-page) {
-  padding-bottom: calc(94px + var(--customer-safe-bottom)) ;
+  padding-bottom: calc(104px + var(--customer-safe-bottom)) ;
   scroll-padding-bottom: calc(94px + var(--customer-safe-bottom)) ;
 }
 
@@ -1534,8 +1539,16 @@ input:checked + .toggle-slider:before {
   }
 
   .support-chat-page {
-    min-height: calc(100dvh - 176px - var(--customer-safe-bottom));
-    height: calc(100dvh - 176px - var(--customer-safe-bottom));
+    /* 186 = navbar 66 + .customer-main padding-top 16 + padding-bottom 104.
+       Must stay in step with .customer-main:has(.support-chat-page) in
+       layout-customer.css; if the two stop summing to 100dvh the page gains a
+       scroll and the composer slides under the bottom tab bar. */
+    min-height: calc(100dvh - 186px - var(--customer-safe-bottom));
+    height: calc(100dvh - 186px - var(--customer-safe-bottom));
+    /* The column is a fixed-height viewport for the message list. Without this
+       an overflowing child still grew the page, and that scroll is what slid
+       the composer under the floating tab bar. */
+    overflow: hidden;
   }
 
   .booking-trip-preview {
@@ -1850,5 +1863,25 @@ body:has(textarea:focus) .support-chat-page {
     justify-content: flex-end;
     margin-left: 0;
     margin-top: 4px;
+  }
+}
+
+/* ── Support chat: bound the column to the viewport ──────────────────────────
+   The base rule (height: calc(100vh - 160px)) was winning over the mobile
+   override, so the column rendered 684px tall inside a viewport that only had
+   658px for it. The extra height scrolled the page, and that scroll is what
+   slid the message composer underneath the floating bottom tab bar.
+
+   186 = navbar 66 + .customer-main padding-top 16 + padding-bottom 104.
+   Appended last, and scoped with .customer-layout-v2, so it beats both the
+   base rule and the earlier mobile block whichever way the cascade falls. */
+@media (max-width: 899.98px) {
+  .customer-layout-v2 .support-chat-page {
+    min-height: calc(100dvh - 186px - var(--customer-safe-bottom));
+    height: calc(100dvh - 186px - var(--customer-safe-bottom));
+    overflow: hidden;
+  }
+  .customer-layout-v2 .support-chat-messages {
+    min-height: 0;
   }
 }

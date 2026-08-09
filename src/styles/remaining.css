@@ -388,6 +388,12 @@
 
 .support-chat-messages {
   flex: 1;
+  /* Required. A flex item defaults to min-height:auto, which refuses to shrink
+     below its content — so this list pushed .support-chat-page past its
+     declared height, the whole page scrolled "a little", and that scroll slid
+     the composer underneath the floating bottom tab bar. min-height:0 lets the
+     item shrink so the list scrolls internally and the composer stays put. */
+  min-height: 0;
   overflow-y: auto;
   margin-bottom: 12px;
   background: var(--bg);
