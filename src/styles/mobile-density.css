@@ -284,15 +284,11 @@
    and a two-word label. 520px is also already a breakpoint in
    customer-mobile-refresh.css, so this does not add a new one to the file. */
 @media (max-width: 520px) {
+  /* Three pills, three columns. The previous 2-column grid spanned the odd
+     last pill across the full row, which rendered as two cards plus one wide
+     orphan and read as a layout bug rather than a choice. */
   .customer-layout-v2 .customer-home-snapshot {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  /* An odd LAST pill takes the whole row, so the layout reads as 2 + 1 rather
-     than 2 + a half-empty cell. Written against position, not a count, so it
-     still holds if a fourth pill is ever added (2 + 2, nothing spans). */
-  .customer-layout-v2 .customer-home-snapshot > :last-child:nth-child(odd) {
-    grid-column: 1 / -1;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   /* The pills were squeezed to 68px tall and 10px of side padding to survive
