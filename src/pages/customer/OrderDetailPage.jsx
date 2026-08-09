@@ -711,8 +711,9 @@ const OrderDetailPage = () => {
                               sibling divs sat side by side as two narrow
                               columns. One wrapper keeps them stacked. */}
                           <div className="cell-stack">
-                            {tx.transaction_reference && <div className="text-xs">Ref: {tx.transaction_reference}</div>}
-                            {tx.notes && <div className="text-xs text-tertiary">{tx.notes}</div>}
+                            {tx.transaction_reference
+                              ? <div className="text-xs">Ref: {tx.transaction_reference}</div>
+                              : <span className="text-xs text-tertiary">—</span>}
                           </div>
                         </td>
                         <td data-label="Recorded By">{tx.admin_name || 'System'}</td>
