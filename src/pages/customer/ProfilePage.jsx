@@ -171,7 +171,7 @@ const ProfilePage = () => {
                 <h2 className="profile-user-name">{userProfile?.name || 'User'}</h2>
                 <span
                   className={`profile-tier-badge${isProfileComplete ? '' : ' incomplete'}`}
-                  style={isProfileComplete ? undefined : { background: 'var(--warning-bg)', color: 'var(--warning-dark)' }}
+                  style={isProfileComplete ? undefined : { background: 'var(--warning-bg)', color: 'var(--warning-text)' }}
                 >
                   <CheckCircle2 size={11} style={{ marginRight: 2 }} /> {isProfileComplete ? 'Profile complete' : 'Action needed'}
                 </span>
