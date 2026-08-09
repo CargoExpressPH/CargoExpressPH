@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
@@ -152,7 +153,10 @@ const SwipeableNotificationCard = ({ notification, onRead, onDelete, onClick, in
 // ── Confirmation Modal ─────────────────────────────────────────────────────
 const ConfirmModal = ({ open, title, message, confirmLabel, onConfirm, onCancel, loading }) => {
   if (!open) return null;
-  return (
+  // Portalled to <body>: rendered in place it sits inside <PageTransition>,
+  // whose framer-motion transform makes it a stacking context, so the fixed
+  // overlay was confined there and the bottom tab bar painted over it.
+  return createPortal(
     <FocusTrap active={open}>
     <div className="notification-modal-overlay" onClick={onCancel} role="dialog" aria-modal="true" aria-labelledby="notif-confirm-title">
       <div className="notification-modal" onClick={e => e.stopPropagation()}>
@@ -175,7 +179,8 @@ const ConfirmModal = ({ open, title, message, confirmLabel, onConfirm, onCancel,
         </div>
       </div>
     </div>
-    </FocusTrap>
+    </FocusTrap>,
+    document.body
   );
 };
 

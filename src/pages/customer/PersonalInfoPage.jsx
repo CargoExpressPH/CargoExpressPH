@@ -5,12 +5,12 @@ import { buildProfileAddress, normalizeProfileAddressFields } from '../../lib/ad
 import { supabase } from '../../lib/supabase';
 import { PH_LOCATIONS, VALID_PROVINCES } from '../../constants/phLocations';
 import {
-  ArrowLeft, Loader, Save, AlertTriangle,
+  ArrowLeft, Loader, Save,
   User, Phone, MapPin, Home, Hash, MessageSquare, Map, Building, Navigation,
 } from 'lucide-react';
 import { useToast } from '../../hooks/useToast';
 import CustomSelect from '../../components/ui/CustomSelect';
-import FocusTrap from '../../components/ui/FocusTrap';
+import ConfirmModal from '../../components/ui/ConfirmModal';
 import usePageTitle from '../../hooks/usePageTitle';
 import { toTitleCase } from '../../utils/string';
 import FieldError from '../../components/ui/FieldError';
@@ -134,22 +134,23 @@ const PersonalInfoPage = () => {
 
   return (
     <div className="animate-slide-up customer-personal-info-page">
-      {/* C-4 fix: Unsaved changes guard modal */}
-      {blocker.state === 'blocked' && (
-        <FocusTrap active>
-        <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="blocker-modal-title" style={{ position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }}>
-          <div className="card" style={{ maxWidth: 400, width: '90%', padding: 24, textAlign: 'center' }}>
-            <AlertTriangle size={32} color="var(--warning)" style={{ marginBottom: 12 }} aria-hidden="true" />
-            <h3 id="blocker-modal-title" className="fw-700 mb-8">Discard unsaved changes?</h3>
-            <p className="text-sm text-secondary mb-20">You have unsaved changes to your personal information. If you leave now, your changes will be lost.</p>
-            <div className="flex gap-12 justify-center">
-              <button type="button" className="btn btn-outline" onClick={() => blocker.reset()}>Stay</button>
-              <button type="button" className="btn btn-primary" style={{ background: 'var(--error)' }} onClick={() => blocker.proceed()}>Discard</button>
-            </div>
-          </div>
-        </div>
-        </FocusTrap>
-      )}
+      {/* Unsaved-changes guard. Uses the shared ConfirmModal rather than a
+          hand-rolled overlay: the local copy rendered in place, so it was
+          trapped inside <PageTransition>'s stacking context and the bottom tab
+          bar painted over its buttons on mobile. It had also drifted visually —
+          a warning-orange icon and a btn-primary with an inline red background,
+          against ConfirmModal's danger styling on the identical prompt in
+          ChangePasswordPage. */}
+      <ConfirmModal
+        isOpen={blocker.state === 'blocked'}
+        onClose={() => blocker.reset()}
+        onConfirm={() => blocker.proceed()}
+        title="Discard unsaved changes?"
+        message="You have unsaved changes to your personal information. If you leave now, your changes will be lost."
+        confirmLabel="Discard"
+        cancelLabel="Stay"
+        variant="danger"
+      />
 
       <button type="button" onClick={() => navigate(-1)} className="btn btn-ghost customer-back-action mb-16">
         <ArrowLeft size={18} /> Back

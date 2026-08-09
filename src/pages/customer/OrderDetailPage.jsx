@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { getOrderById, cancelOwnOrder, createNotification, getPaymentTransactions, submitFeedback, checkIfFeedbackExists, getOrderStatusEvents } from '../../lib/database';
 import { buildStatusTimestamps } from '../../utils/statusTimestamps';
@@ -731,8 +732,10 @@ const OrderDetailPage = () => {
         <ImageLightbox images={lightboxImages} initialIndex={lightboxIndex} onClose={() => setLightboxIndex(-1)} />
       )}
 
-      {/* Feedback Modal */}
-      {showFeedbackModal && (
+      {/* Feedback Modal — portalled to <body>. In place it renders inside
+          <PageTransition>, whose framer-motion transform creates a stacking
+          context, trapping the fixed overlay beneath the bottom tab bar. */}
+      {showFeedbackModal && createPortal(
         <FocusTrap active={showFeedbackModal}>
           <div 
             role="dialog"
@@ -798,7 +801,8 @@ const OrderDetailPage = () => {
               </div>
             </div>
           </div>
-        </FocusTrap>
+        </FocusTrap>,
+        document.body
       )}
     </div>
   );

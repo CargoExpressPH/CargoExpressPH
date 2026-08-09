@@ -14,8 +14,11 @@
 | UX-07 contrast (4 sites) | **Fixed** — all four pages re-scan clean under axe |
 | UX-08 "Loading module…" / "Van Capacity" | **Fixed** |
 | Undefined-token guard | **Added** — `scripts/token-lint.mjs`, wired into `npm test` |
+| **UX-15 (new)** bottom nav painted over modals | **Fixed** — modals portalled out of the page stacking context |
+| **UX-16 (new)** two different discard modals | **Fixed** — PersonalInfoPage now uses the shared `ConfirmModal` |
 | UX-02, UX-03, UX-04, UX-05, UX-06, UX-09 – UX-13 | Open — deferred as higher-regression-risk |
 | **UX-14 (new)** admin Reports contrast | Open — see below |
+| **UX-17 (new)** Back button bypasses the unsaved-changes guard | Open — see below |
 
 ### UX-14 — Medium — Reports page: text on tinted surfaces fails AA
 
@@ -33,6 +36,69 @@ This is the same class as UX-07 and the token set already anticipates it — `--
 (5.91:1) and `--primary-text-strong` (documented 6.26:1 on `--bg-secondary`) exist for exactly this.
 It was **not** fixed here because `.text-primary` is a global utility class used well beyond this
 page, so changing it has a wide blast radius and needs visual review rather than a token swap.
+
+### UX-15 — High — The bottom tab bar painted over modals, covering their buttons — **FIXED**
+
+Reported from a real phone. On `/customer/personal-info`, the discard prompt's **Stay** and
+**Discard** buttons were covered by the floating bottom nav, so the dialog could not be actioned.
+
+Not a z-index-value problem, which is why it is easy to misdiagnose: the overlay already declared
+`z-index: 9999` and the nav only `var(--z-sticky)` = `200`.
+
+```
+CustomerLayout.jsx:384   <PageTransition as="main" className="customer-main">   ← modal renders in here
+CustomerLayout.jsx:391   <nav className="customer-bottom-nav">                  ← later sibling, z-index 200
+
+PageTransition.jsx       pageVariants animate `y`  →  framer applies `transform`
+                         →  .customer-main becomes a STACKING CONTEXT
+```
+
+Once `.customer-main` is a stacking context, everything inside it is painted as one unit at that
+element's level in the root stacking order. The nav, a later sibling with a positive z-index, is
+painted after it. No z-index on the overlay can escape — `9999` is only compared against siblings
+*inside* `.customer-main`.
+
+Fixed by rendering the overlays into `document.body` with `createPortal`, which puts them back in
+the root stacking context where their z-index means what it says. Events still bubble through the
+React tree, so `onClose`, `FocusTrap` and the scroll lock are unaffected.
+
+Portalled: `ConfirmModal` (used by **13 pages**), `ImageLightbox`, the notifications delete
+confirm, and the delivery-feedback modal.
+
+Verified by hit-testing the centre of each button with `document.elementFromPoint`: both actions
+report **TAPPABLE at 143×44** in light and dark, on `/customer/personal-info` and
+`/customer/change-password`, and on an admin confirm.
+
+### UX-16 — Medium — Two different discard modals for the same prompt — **FIXED**
+
+`ChangePasswordPage` used the shared `ConfirmModal`; `PersonalInfoPage` hand-rolled its own for the
+identical question. The local copy had drifted:
+
+| | Shared `ConfirmModal` | Hand-rolled copy |
+|---|---|---|
+| Icon | danger red `#B91C1C` | warning **orange** `var(--warning)` |
+| Confirm button | `btn btn-danger` | `btn btn-primary` + inline `background: var(--error)` |
+| Escape to close | yes | no |
+| Scroll lock | yes | no |
+
+Replaced with the shared component, so the two screens are now identical by construction.
+
+### UX-17 — Medium — The Back button bypasses the unsaved-changes guard
+
+Found while building the repro for UX-15. Editing a field and then tapping **Back** navigates away
+**silently, losing the edits** — no discard prompt.
+
+```
+PersonalInfoPage.jsx   <button onClick={() => navigate(-1)} className="customer-back-action">
+```
+
+`useBlocker` intercepts the push navigation from a bottom-nav tap (verified — the prompt appears and
+the URL stays put), but `navigate(-1)` is a POP and goes straight through. Reproduced: field edited
+to "Maria Santos EDITED", tap Back, URL becomes `/customer` with no prompt and the edit discarded.
+
+**Not fixed here.** The obvious repair — pointing Back at an explicit route so it becomes a push —
+changes navigation semantics, and the guard belongs in one place rather than in each Back handler.
+Worth deciding deliberately.
 
 ---
 

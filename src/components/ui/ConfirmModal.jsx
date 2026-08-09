@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { AlertTriangle, Info, CheckCircle, Loader, LogOut } from 'lucide-react';
 import FocusTrap from './FocusTrap';
 import useScrollLock from '../../hooks/useScrollLock';
@@ -86,7 +87,17 @@ const ConfirmModal = ({
     }
   };
 
-  return (
+  // Rendered into <body>, NOT in place. `position: fixed` is only relative to
+  // the viewport while no ancestor is transformed — and every page here sits
+  // inside <PageTransition>, a framer-motion element whose variants animate `y`.
+  // That transform makes it a stacking context, so an in-place overlay is
+  // confined to it and paints *below* `.customer-bottom-nav`, a later sibling
+  // at z-index 200. No z-index on the overlay can escape that: on mobile the
+  // tab bar covered the modal's own Stay/Discard buttons. Portalling to body
+  // puts the overlay back in the root stacking context, where its z-index means
+  // what it says. Events still bubble through the React tree, so onClose,
+  // FocusTrap and the scroll lock are unaffected.
+  return createPortal(
     <FocusTrap active={isOpen}>
       <div
         className="modal-overlay"
@@ -136,7 +147,8 @@ const ConfirmModal = ({
           </div>
         </div>
       </div>
-    </FocusTrap>
+    </FocusTrap>,
+    document.body
   );
 };
 

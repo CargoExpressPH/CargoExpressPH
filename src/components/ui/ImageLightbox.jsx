@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { X, ZoomIn, ZoomOut, RotateCw, ChevronLeft, ChevronRight } from 'lucide-react';
 import FocusTrap from './FocusTrap';
 import useScrollLock from '../../hooks/useScrollLock';
@@ -142,7 +143,10 @@ const ImageLightbox = ({ images = [], initialIndex = 0, onClose }) => {
 
   if (!images.length) return null;
 
-  return (
+  // Portalled to <body>: rendered in place it sits inside <PageTransition>,
+  // whose framer-motion transform makes it a stacking context, so the fixed
+  // overlay was confined there and the bottom tab bar painted over it.
+  return createPortal((
     <FocusTrap active>
     <div
       className="lightbox-overlay"
@@ -231,7 +235,7 @@ const ImageLightbox = ({ images = [], initialIndex = 0, onClose }) => {
       )}
     </div>
     </FocusTrap>
-  );
+  ), document.body);
 };
 
 export default ImageLightbox;
