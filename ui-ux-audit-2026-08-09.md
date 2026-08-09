@@ -18,10 +18,12 @@ larger teams. What holds it back is not the visual design — it is that the des
 holes (a colour token that was never defined ships invisible text to production), and the UI layer
 quietly violates a data-correctness rule `CLAUDE.md` states three separate times.
 
-**Is it production-ready?** Yes, after two fixes:
+**Is it production-ready?** Yes, after one fix:
 
-- **UX-01** makes the PWA install prompt unreadable for every light-mode user.
-- **UX-02** prints `₱0.00` for parcels that have no price yet, in six places.
+- **UX-01** (High) makes the PWA install prompt unreadable for every light-mode user.
+- **UX-02** (Medium) prints `₱0.00` for parcels that have no price yet, in six places. Strongly
+  recommended alongside it, but the booking flow already explains the pricing model well, so this is
+  a consistency defect rather than a trust one.
 
 Both are small, well-understood changes. Neither requires redesign.
 
@@ -35,7 +37,7 @@ Both are small, well-understood changes. Neither requires redesign.
 | Accessibility | 7.0 | 26 of 34 routes clean under axe, but 6 rules fail and 4 contrast pairs miss AA |
 | UX writing | 6.5 | Mixed casing; "Loading module…"; "Van Capacity" |
 | Design-system maturity | 6.0 | 748 inline styles, 84 `!important`, 5 override layers, ~15 breakpoints |
-| Domain correctness in the UI | 5.5 | The "₱0 is not a price" invariant is bypassed on six render sites |
+| Domain correctness in the UI | 6.5 | Booking flow explains "priced at pickup" well; the list and report surfaces then print ₱0.00 |
 
 ---
 
@@ -140,11 +142,29 @@ references absent from `tokens.css` — this class of bug is silent by construct
 
 ---
 
-### UX-02 — High — Unpriced parcels display "₱0.00"
+### UX-02 — Medium — Unpriced parcels display "₱0.00" on every surface except the one that explains why
 
-`CLAUDE.md`: *"₱0 means 'not priced yet', never 'paid'… Anything answering a money question must ask
-`actual_weight > 0` first."* The helpers built for this — `isOrderPriced()` and `getSettlementState()`
-— are **imported by exactly one file**, `admin/OrderDetailPage.jsx`.
+> *Severity revised from High to Medium after review.*
+
+The zero is **correct data**: weight enters the system once, from the scale at pickup, so a new
+booking genuinely has no price. And the booking flow says so, three times, well:
+
+```
+BookShipmentPage.jsx:807  "We weigh the parcel at pickup and the exact cost is confirmed then."
+BookShipmentPage.jsx:837  "Your total is calculated when we weigh your parcel at pickup."
+BookShipmentPage.jsx:878  "Weighed at pickup — you pay for the actual weight, nothing estimated."
+```
+
+That is good UX writing and it defuses the trust problem at the moment of booking. What remains is a
+**consistency** defect: the explanation lives only inside the booking wizard. It is gone by the time
+the customer opens their order list three days later, where the price slot shows a bare `₱0.00` in
+the same green treatment as a real fare — and it was never present on the admin tables and revenue
+reports at all.
+
+`CLAUDE.md` is explicit that the *display* is the problem, not the data: *"₱0 means 'not priced yet',
+never 'paid'… Anything answering a money question must ask `actual_weight > 0` first."* The helpers
+built for this — `isOrderPriced()` and `getSettlementState()` — are **imported by exactly one file**,
+`admin/OrderDetailPage.jsx`.
 
 Two adjacent lines give the same row both treatments:
 
@@ -165,12 +185,14 @@ admin/OrdersPage.jsx:154           admin/CustomerDetailPage.jsx:106
 admin/SalesPage.jsx:369-371        admin/ReportsPage.jsx:462, 617
 ```
 
-The customer-facing case is worse: a customer sees ₱0.00 on a fresh booking, then is billed ₱4,650.
-The documentation notes customer-supplied estimates were removed because they *"generated the billing
-disputes"*; a false zero re-creates the same expectation by another route.
+The sharper residual risk is on the admin side, where `₱0.00` sits in revenue columns on Sales and
+Reports and is visually indistinguishable from a genuinely settled or zero-rated order. That is the
+ambiguity `CLAUDE.md` records as having already shipped real defects — unweighed cargo passing the
+dispatch gate, and `Unpaid` rendering beside `Settled` on the same row.
 
 **Fix:** route every money render through `getSettlementState()` and print `—` or "Priced at pickup"
-for the `unpriced` state. Adoption, not new logic.
+for the `unpriced` state — matching the treatment weight already gets, and carrying the booking
+flow's existing explanation forward to the screens that show the result. Adoption, not new logic.
 
 ---
 
@@ -384,7 +406,7 @@ the customer nav says **Orders**.
 ## 5. Recommended order of work
 
 1. **Fix the invisible install prompt** — six `var(--text-primary,…)` → `var(--text)`. *(UX-01, minutes)*
-2. **Stop printing ₱0.00 for unpriced parcels** — six render sites through `getSettlementState()`. *(UX-02, hours)*
+2. **Stop printing ₱0.00 for unpriced parcels** — six render sites through `getSettlementState()`, so the list and report screens match the booking flow's own explanation. *(UX-02, hours)*
 3. **Add a CI guard for undefined design tokens** — the check that would have caught UX-01; `npm test` is already well-placed to host it. *(minutes)*
 4. **Land the four contrast one-liners and the timeline nesting** — zero known contrast failures, clears 22 of the 28 genuine axe nodes. *(UX-04, UX-07)*
 5. **Correct heading structure and both nested-interactive controls.** *(UX-05, UX-06)*
