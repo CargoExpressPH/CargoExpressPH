@@ -2,13 +2,14 @@ import { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import {
-  Container, Eye, EyeOff,
+  Eye, EyeOff,
   Ship, Package, DollarSign, Search, Zap, AlertTriangle,
   Mail, Lock,
 } from 'lucide-react';
 import usePageTitle from '../../hooks/usePageTitle';
 import { logAuth } from '../../lib/activityLog';
 import FieldError from '../../components/ui/FieldError';
+import { BrandLogo, BrandWordmark } from '../../components/ui/BrandLogo';
 
 // ── Error mapper ─────────────────────────────────────────────────────────────
 const INVALID_CREDENTIALS_ERROR = 'Incorrect password or email.';
@@ -186,11 +187,8 @@ const LoginPage = () => {
       <div className="login-left-panel">
         <div className="login-left-content">
           <div className="login-brand">
-            <Container size={28} color="var(--primary)" />
-            <h1>
-              <span>CARGO</span>
-              <span className="brand-accent">EXPRESS</span>
-            </h1>
+            <BrandLogo size={44} decorative />
+            <h1><BrandWordmark tone="on-dark" /></h1>
           </div>
 
           {/* Tagline */}
@@ -230,7 +228,7 @@ const LoginPage = () => {
 
         {/* Bottom attribution */}
         <div className="login-left-footer">
-          <div>© {new Date().getFullYear()} CargoExpress PH. All rights reserved.</div>
+          <div>© {new Date().getFullYear()} Cargo Express PH. All rights reserved.</div>
         </div>
       </div>
 
@@ -244,11 +242,8 @@ const LoginPage = () => {
         <div className="login-form-container animate-slide-up">
 
           <div className="login-mobile-brand" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Container size={20} color="var(--primary)" />
-            <span style={{ display: 'inline-flex', gap: 4, fontWeight: 900, fontSize: '1.25rem' }}>
-              <span className="text-accent">CARGO</span>
-              <span className="text-primary">EXPRESS</span>
-            </span>
+            <BrandLogo size={32} decorative />
+            <BrandWordmark />
           </div>
 
           <div className="login-form-header">

@@ -1,5 +1,5 @@
 -- ============================================================
--- CargoExpress PH — Complete Supabase PostgreSQL Schema
+-- Cargo Express PH — Complete Supabase PostgreSQL Schema
 -- Single source-of-truth for the entire database.
 -- Matches the LIVE database as of 2026-07-11
 -- Run this in: Supabase Dashboard → SQL Editor → New Query

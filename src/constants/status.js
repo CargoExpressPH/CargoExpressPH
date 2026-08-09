@@ -1,4 +1,4 @@
-// CargoExpress PH Order Status System
+// Cargo Express PH Order Status System
 // Mirrors the original backend's sequential status flow
 
 export const ORDER_STATUS = {

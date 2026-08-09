@@ -6,7 +6,8 @@ import PageTransition from '../ui/PageTransition';
 import CommandPalette from '../ui/CommandPalette';
 import AdminNotificationCenter from '../ui/AdminNotificationCenter';
 import InstallAppBanner from '../ui/InstallAppBanner';
-import { Menu, Container, Search, Bell } from 'lucide-react';
+import { Menu, Search, Bell } from 'lucide-react';
+import BrandLockup from '../ui/BrandLogo';
 import ThemeToggle from '../ui/ThemeToggle';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
@@ -201,11 +202,7 @@ const AdminLayout = () => {
               <Menu size={20} aria-hidden="true" />
             </button>
             <div className="topbar-title">
-              <Container size={22} color="var(--primary)" className="topbar-logo-icon" aria-hidden="true" />
-              <span>
-                <span className="text-accent">CARGO</span>
-                <span className="text-primary">EXPRESS</span>
-              </span>
+              <BrandLockup size={34} className="topbar-brand" />
             </div>
           </div>
           <div className="topbar-actions">

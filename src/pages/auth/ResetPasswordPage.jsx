@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import {
-  Container, Lock, Loader, CheckCircle2,
+  Lock, Loader, CheckCircle2,
   Eye, EyeOff, ShieldCheck, AlertTriangle, Check,
   ArrowLeft,
 } from 'lucide-react';
@@ -10,6 +10,7 @@ import usePageTitle from '../../hooks/usePageTitle';
 import { getPasswordStrength } from '../../utils/password';
 import useFieldErrors from '../../hooks/useFieldErrors';
 import FieldError, { fieldAttrs, invalidClass } from '../../components/ui/FieldError';
+import { BrandLogo, BrandWordmark } from '../../components/ui/BrandLogo';
 
 /* ══════════════════════════════════════════════════════════════════════════
    ResetPasswordPage — World-Class Premium Redesign
@@ -95,11 +96,8 @@ const ResetPasswordPage = () => {
         <div className="auth-orb auth-orb-2" aria-hidden="true" />
         <div className="auth-card rp-loading-card">
           <div className="auth-brand" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 8, justifyContent: 'center' }}>
-            <Container size={22} color="var(--primary)" />
-            <div className="auth-brand-text" style={{ display: 'inline-flex', gap: 4, fontSize: '1.5rem', fontWeight: 900 }}>
-              <span className="text-accent">CARGO</span>
-              <span className="text-primary">EXPRESS</span>
-            </div>
+            <BrandLogo size={34} decorative />
+            <div className="auth-brand-text"><BrandWordmark /></div>
           </div>
           <div className="rp-verifying">
             <div className="rp-verifying-spinner">
@@ -148,11 +146,8 @@ const ResetPasswordPage = () => {
       <div className="auth-card fp-card">
 
         <div className="auth-brand" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 8, justifyContent: 'center' }}>
-          <Container size={22} color="var(--primary)" />
-          <div className="auth-brand-text" style={{ display: 'inline-flex', gap: 4, fontSize: '1.5rem', fontWeight: 900 }}>
-            <span className="text-accent">CARGO</span>
-            <span className="text-primary">EXPRESS</span>
-          </div>
+          <BrandLogo size={34} decorative />
+          <div className="auth-brand-text"><BrandWordmark /></div>
         </div>
 
         <div className="animate-slide-up">

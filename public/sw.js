@@ -1,5 +1,5 @@
 // ============================================================================
-// CargoExpress PH — Service Worker v1.0.0
+// Cargo Express PH — Service Worker v1.0.0
 // Premium PWA Service Worker with offline support, smart caching strategies,
 // and optimized performance for cargo delivery booking & tracking.
 // ============================================================================
@@ -44,7 +44,7 @@ const OFFLINE_FALLBACK_HTML = `
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#16A34A">
-  <title>CargoExpress PH — Offline</title>
+  <title>Cargo Express PH — Offline</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -142,7 +142,7 @@ const OFFLINE_FALLBACK_HTML = `
       </svg>
     </div>
     <h1>You're Offline</h1>
-    <p>It looks like you've lost your internet connection. Please check your network and try again to continue using CargoExpress PH.</p>
+    <p>It looks like you've lost your internet connection. Please check your network and try again to continue using Cargo Express PH.</p>
     <button class="retry-btn" onclick="window.location.reload()">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <polyline points="23 4 23 10 17 10"/>
@@ -150,7 +150,7 @@ const OFFLINE_FALLBACK_HTML = `
       </svg>
       Try Again
     </button>
-    <div class="brand">CARGOEXPRESS PH</div>
+    <div class="brand">CARGO EXPRESS PH</div>
   </div>
 </body>
 </html>
@@ -467,7 +467,7 @@ self.addEventListener('push', (event) => {
     data = event.data?.json() || {};
   } catch (e) {
     data = {
-      title: 'CargoExpress PH',
+      title: 'Cargo Express PH',
       body: event.data?.text() || 'You have a new update',
     };
   }
@@ -478,7 +478,7 @@ self.addEventListener('push', (event) => {
     notif.title ||
     data.title ||
     nestedData.title ||
-    'CargoExpress PH';
+    'Cargo Express PH';
   const body =
     notif.body ||
     data.body ||

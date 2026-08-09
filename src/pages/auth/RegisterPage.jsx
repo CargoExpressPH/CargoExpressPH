@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { normalizeProfileAddressFields } from '../../lib/address';
 import {
-  Container, Eye, EyeOff, Loader, Check, ArrowRight, ArrowLeft,
+  Eye, EyeOff, Loader, Check, ArrowRight, ArrowLeft,
   AlertTriangle, User, Mail, Phone, Lock, MapPin, MessageSquare,
   Home, Landmark, CheckCircle2, Ship, DollarSign, Search,
   Zap, Package, Navigation, ShieldCheck,
@@ -14,6 +14,7 @@ import usePageTitle from '../../hooks/usePageTitle';
 import { toTitleCase } from '../../utils/string';
 import { getPasswordStrength } from '../../utils/password';
 import FieldError from '../../components/ui/FieldError';
+import { BrandLogo, BrandWordmark } from '../../components/ui/BrandLogo';
 
 /* ── Helpers ──────────────────────────────────────────────────────────── */
 
@@ -392,7 +393,7 @@ const RegisterPage = () => {
             <CheckCircle2 size={48} />
           </div>
           <h2 className="auth-success-title">Account Created!</h2>
-          <p className="auth-success-sub">Welcome to CargoExpress PH. Redirecting you now…</p>
+          <p className="auth-success-sub">Welcome to Cargo Express PH. Redirecting you now…</p>
           <div className="auth-success-loader">
             <div className="auth-success-bar" />
           </div>
@@ -415,10 +416,9 @@ const RegisterPage = () => {
       <div className="login-left-panel" aria-hidden="true">
         <div className="login-left-content">
           <div className="login-brand" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <Container size={28} color="var(--primary)" />
-            <h1 style={{ display: 'flex', gap: 4, margin: 0, fontSize: '2rem', fontWeight: 900 }}>
-              <span style={{ color: '#fff' }}>CARGO</span>
-              <span style={{ color: 'var(--primary-text)' }}>EXPRESS</span>
+            <BrandLogo size={48} decorative />
+            <h1 style={{ margin: 0, fontSize: '2rem', fontWeight: 900 }}>
+              <BrandWordmark tone="on-dark" />
             </h1>
           </div>
 
@@ -455,7 +455,7 @@ const RegisterPage = () => {
         </div>
 
         <div className="login-left-footer">
-          <div>© {new Date().getFullYear()} CargoExpress PH. All rights reserved.</div>
+          <div>© {new Date().getFullYear()} Cargo Express PH. All rights reserved.</div>
         </div>
       </div>
 
@@ -464,11 +464,8 @@ const RegisterPage = () => {
         <div className="login-form-container wide-form animate-slide-up">
 
           <div className="login-mobile-brand" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Container size={20} color="var(--primary)" />
-            <span style={{ display: 'inline-flex', gap: 4, fontWeight: 900, fontSize: '1.25rem' }}>
-              <span className="text-accent">CARGO</span>
-              <span className="text-primary">EXPRESS</span>
-            </span>
+            <BrandLogo size={32} decorative />
+            <BrandWordmark />
           </div>
 
           <div className="login-form-header">
@@ -935,7 +932,7 @@ const RegisterPage = () => {
               <div className="reg-address-note" style={{ background: 'var(--bg-secondary)', borderColor: 'var(--border)' }}>
                 <ShieldCheck size={14} style={{ color: 'var(--primary-text)', marginTop: 2 }} />
                 <p style={{ color: 'var(--text-secondary)', fontSize: '0.78rem' }}>
-                  By creating an account, you agree to CargoExpress PH's Terms of Service and Privacy Policy.
+                  By creating an account, you agree to Cargo Express PH's Terms of Service and Privacy Policy.
                 </p>
               </div>
 

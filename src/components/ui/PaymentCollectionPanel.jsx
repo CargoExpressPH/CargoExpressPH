@@ -292,7 +292,7 @@ const PaymentCollectionPanel = ({
       }
       const source = await createGCashSource(
         amount,
-        `CargoExpress - ${order.tracking_number} ${config.purpose}`,
+        `Cargo Express PH - ${order.tracking_number} ${config.purpose}`,
         config.billing,
         true,
       );

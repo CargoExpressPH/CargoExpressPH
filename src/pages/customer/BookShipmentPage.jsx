@@ -332,7 +332,7 @@ const BookShipmentPage = () => {
       if (!validation.valid) throw new Error(validation.error);
       
       if (form.sender_province === 'Other Area' && selectedRoute.destination !== 'Bohol') {
-        throw new Error('CargoExpress PH currently delivers to Bohol destinations only.');
+        throw new Error('Cargo Express PH currently delivers to Bohol destinations only.');
       }
       
       const fullSenderAddress = buildFullAddress({ lotBlock: form.sender_lot_block, street: form.sender_street, barangay: form.sender_barangay, city: form.sender_city, province: form.sender_province === 'Other Area' ? form.sender_other_province : form.sender_province, landmark: form.sender_landmark });
@@ -426,7 +426,7 @@ const BookShipmentPage = () => {
         {isSender && form[`${prefix}_province`] === 'Other Area' && (
           <div className="alert alert-warning mt-md" style={{ gridColumn: '1 / -1' }}>
             <AlertTriangle size={16} style={{display:'inline', marginRight: '8px', verticalAlign: 'middle'}}/>
-            Your pickup location is outside our standard service coverage area. CargoExpress PH may still accommodate your request depending on operational availability. Our team will review your booking and contact you if additional arrangements are required.
+            Your pickup location is outside our standard service coverage area. Cargo Express PH may still accommodate your request depending on operational availability. Our team will review your booking and contact you if additional arrangements are required.
           </div>
         )}
       </div>
@@ -694,7 +694,7 @@ const BookShipmentPage = () => {
           <h3 className="fw-700 mb-16"><MapPin size={18} className="inline mr-8" />Select Route</h3>
           <div className="alert-banner alert-banner-info mb-16" style={{ fontSize: '0.8125rem' }}>
             <Info size={14} aria-hidden="true" />
-            <span><strong>Coverage Area:</strong> CargoExpress PH currently operates routes to and from <strong>Bohol only</strong>. Select a route below to view specific province rules.</span>
+            <span><strong>Coverage Area:</strong> Cargo Express PH currently operates routes to and from <strong>Bohol only</strong>. Select a route below to view specific province rules.</span>
           </div>
           {preTripId && (
             <div className="alert-banner alert-banner-success mb-16">

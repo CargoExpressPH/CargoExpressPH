@@ -34,7 +34,7 @@ const prefersReducedMotion = () =>
 // Welcome-back greeting (shown when customer returns to a CLOSED conversation)
 const BOT_WELCOME_BACK = `Welcome back! 👋
 
-I'm CargoExpress Assistant.
+I'm Cargo Express Assistant.
 
 How can I help you today?`;
 
@@ -67,7 +67,7 @@ const MessageBubble = ({ m, showResolutionPrompt, onResolve, onEscalate, onRetry
         </div>
       )}
       <div className="support-message-stack">
-        {isBot && <div className="chat-sender-label bot-label"><Bot size={11} aria-hidden="true" /> CargoExpress Assistant</div>}
+        {isBot && <div className="chat-sender-label bot-label"><Bot size={11} aria-hidden="true" /> Cargo Express Assistant</div>}
         {m.sender_role === 'admin' && <div className="chat-sender-label admin-label"><User size={11} aria-hidden="true" /> {resolvedAdminName}</div>}
 
         <div className={`support-message-bubble ${isMe ? 'user-bubble' : isBot ? 'bot-bubble' : 'admin-bubble'}${m.failed ? ' is-failed' : ''}`}>
@@ -557,7 +557,7 @@ const SupportChatPage = () => {
     // write must never cost the customer their reply.
     void recordBotOutcome(conversationId, true).catch(() => {});
     const msg = await insertBotMessage(
-      `Thank you for contacting CargoExpress PH! 😊\n\nHave a great day! If you have another concern in the future, feel free to message us anytime.`,
+      `Thank you for contacting Cargo Express PH! 😊\n\nHave a great day! If you have another concern in the future, feel free to message us anytime.`,
       conversationId
     );
     if (msg) setMessages(prev => prev.some(m => m.id === msg.id) ? prev : [...prev, msg]);
@@ -729,7 +729,7 @@ const SupportChatPage = () => {
           <div className="support-message-row is-admin" role="status" aria-label="Assistant is typing">
             <div className="chat-avatar bot-avatar"><Bot size={12} /></div>
             <div className="support-message-stack">
-              <div className="chat-sender-label bot-label"><Bot size={11} aria-hidden="true" /> CargoExpress Assistant</div>
+              <div className="chat-sender-label bot-label"><Bot size={11} aria-hidden="true" /> Cargo Express Assistant</div>
               <div className="chat-typing-dots"><span /><span /><span /></div>
             </div>
           </div>

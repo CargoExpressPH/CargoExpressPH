@@ -2,13 +2,14 @@ import { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import {
-  Container, Mail, Loader,
+  Mail, Loader,
   ArrowLeft, Send, AlertTriangle, RefreshCw, Inbox,
   Ship, DollarSign, Search, Zap, Package,
 } from 'lucide-react';
 import usePageTitle from '../../hooks/usePageTitle';
 import useFieldErrors from '../../hooks/useFieldErrors';
 import FieldError, { fieldAttrs, invalidClass } from '../../components/ui/FieldError';
+import { BrandLogo, BrandWordmark } from '../../components/ui/BrandLogo';
 
 /* ══════════════════════════════════════════════════════════════════════════
    ForgotPasswordPage — World-Class Premium Redesign
@@ -99,10 +100,9 @@ const ForgotPasswordPage = () => {
       <div className="login-left-panel" aria-hidden="true">
         <div className="login-left-content">
           <div className="login-brand" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <Container size={28} color="var(--primary)" />
-            <h1 style={{ display: 'flex', gap: 4, margin: 0, fontSize: '2rem', fontWeight: 900 }}>
-              <span style={{ color: '#fff' }}>CARGO</span>
-              <span style={{ color: 'var(--primary-text)' }}>EXPRESS</span>
+            <BrandLogo size={48} decorative />
+            <h1 style={{ margin: 0, fontSize: '2rem', fontWeight: 900 }}>
+              <BrandWordmark tone="on-dark" />
             </h1>
           </div>
 
@@ -139,7 +139,7 @@ const ForgotPasswordPage = () => {
         </div>
 
         <div className="login-left-footer">
-          <div>© {new Date().getFullYear()} CargoExpress PH. All rights reserved.</div>
+          <div>© {new Date().getFullYear()} Cargo Express PH. All rights reserved.</div>
         </div>
       </div>
 
@@ -148,11 +148,8 @@ const ForgotPasswordPage = () => {
         <div className="login-form-container animate-slide-up">
 
           <div className="login-mobile-brand" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Container size={20} color="var(--primary)" />
-            <span style={{ display: 'inline-flex', gap: 4, fontWeight: 900, fontSize: '1.25rem' }}>
-              <span className="text-accent">CARGO</span>
-              <span className="text-primary">EXPRESS</span>
-            </span>
+            <BrandLogo size={32} decorative />
+            <BrandWordmark />
           </div>
 
         {/* ── Send state ── */}

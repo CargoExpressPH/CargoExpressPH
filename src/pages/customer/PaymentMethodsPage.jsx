@@ -138,7 +138,7 @@ const PaymentMethodsPage = () => {
 
       <div className="alert-banner alert-banner-info mb-16">
         <CheckCircle2 size={16} />
-        CargoExpress PH does not store card or wallet credentials in your profile. Payments are recorded per order for traceability.
+        Cargo Express PH does not store card or wallet credentials in your profile. Payments are recorded per order for traceability.
       </div>
 
       {loading ? (

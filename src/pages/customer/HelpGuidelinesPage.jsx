@@ -54,7 +54,7 @@ const guidelineSections = [
     items: [
       'Do not ship illegal goods, hazardous chemicals, weapons, or undocumented regulated items.',
       'Perishable or fragile items may require special approval and packaging.',
-      'CargoExpress PH may refuse cargo that cannot be safely transported.',
+      'Cargo Express PH may refuse cargo that cannot be safely transported.',
     ],
   },
   {
@@ -123,7 +123,7 @@ const HelpGuidelinesPage = () => {
             <HelpCircle size={24} aria-hidden="true" /> Help & Guidelines
           </h1>
           <p className="text-sm text-secondary mt-4">
-            Shipping rules, handling reminders, and answers maintained by the CargoExpress PH team.
+            Shipping rules, handling reminders, and answers maintained by the Cargo Express PH team.
           </p>
         </div>
       </div>

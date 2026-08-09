@@ -24,7 +24,7 @@ const messaging = firebase.messaging();
 messaging.onBackgroundMessage((payload) => {
   const notif  = payload.notification || {};
   const data   = payload.data         || {};
-  const title  = notif.title || 'CargoExpress PH';
+  const title  = notif.title || 'Cargo Express PH';
   const body   = notif.body  || 'You have a new update';
   const url    = data.url    || notif.click_action || '/customer/notifications';
 

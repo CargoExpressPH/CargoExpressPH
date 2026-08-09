@@ -10,7 +10,7 @@ import {
 import { resolvePhotoUrls } from '../../lib/storage';
 import { getFeatureIcon } from '../../lib/featureIcons';
 import {
-  Container, ArrowUp, Phone, MapPin, Globe, Loader, Send,
+  ArrowUp, Phone, MapPin, Globe, Loader, Send,
   Mail, Clock, Calendar, CheckCircle2,
   Navigation, Award, ChevronRight, ChevronDown, ChevronLeft, X, Play, Building2, TrendingUp, Users, MessageSquare,
   Star, Package, Search
@@ -22,6 +22,7 @@ import useScrollLock from '../../hooks/useScrollLock';
 import useFieldErrors from '../../hooks/useFieldErrors';
 import FieldError, { fieldAttrs, invalidClass } from '../../components/ui/FieldError';
 import { motion, useScroll, useTransform, AnimatePresence, MotionConfig } from 'framer-motion';
+import { BrandLogo, BrandWordmark } from '../../components/ui/BrandLogo';
 
 // â”€â”€â”€ Lightbox Component (with prev/next navigation) â”€â”€â”€
 const Lightbox = ({ images, currentIndex, onClose, onNavigate }) => {
@@ -825,7 +826,7 @@ const AboutPage = () => {
   // â”€â”€â”€ Loading state â”€â”€â”€
   if (fetching) return <LoadingSkeleton />;
 
-  const companyName = info?.name || 'CargoExpress PH';
+  const companyName = info?.name || 'Cargo Express PH';
   const heroImage = info?.hero_image_url || 'https://images.unsplash.com/photo-1586528116311-ad8ed3891db8?auto=format&fit=crop&q=80&w=2000';
 
   // Framer motion variants for staggered children
@@ -853,10 +854,9 @@ const AboutPage = () => {
       <nav className={`about-glass-nav ${scrolled ? 'scrolled' : ''}`}>
         <div className="about-nav-container">
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <Container size={24} style={{ color: scrolled ? 'var(--primary)' : '#fff', transition: 'color 0.3s' }} />
-            <h1 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 900, letterSpacing: '-0.5px', display: 'flex', gap: 2 }}>
-              <span style={{ color: scrolled ? 'var(--text)' : '#fff', transition: 'color 0.3s' }}>CARGO</span>
-              <span style={{ color: scrolled ? 'var(--primary)' : 'var(--primary-light)', transition: 'color 0.3s' }}>EXPRESS</span>
+            <BrandLogo size={36} decorative />
+            <h1 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 900 }}>
+              <BrandWordmark tone={scrolled ? 'default' : 'on-dark'} />
             </h1>
           </div>
 
@@ -949,7 +949,7 @@ const AboutPage = () => {
           <div className="about-grid-2">
             <div>
               <h2 style={{ fontSize: 'clamp(2rem, 4vw, 3rem)', fontWeight: 800, marginBottom: 24, letterSpacing: '-1px' }}>
-                About <span className="about-text-gradient">CargoExpress PH</span>.
+                About <span className="about-text-gradient">Cargo Express PH</span>.
               </h2>
               <p style={{ fontSize: '1.125rem', color: 'var(--text-secondary)', lineHeight: 1.8, marginBottom: 8, whiteSpace: 'pre-wrap' }}>
                 {info?.long_description || 'We are a dedicated logistics provider ensuring safe and timely delivery of your cargo.'}
@@ -1015,7 +1015,7 @@ const AboutPage = () => {
           >
             <div style={{ textAlign: 'center', marginBottom: 48 }}>
               <div className="about-section-label">Why Choose Us</div>
-              <h2 className="about-section-title">The CargoExpress Advantage</h2>
+              <h2 className="about-section-title">The Cargo Express Advantage</h2>
             </div>
             
             <motion.div 
@@ -1458,7 +1458,7 @@ const AboutPage = () => {
           {/* Brand Column */}
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
-              <Container size={24} style={{ color: 'var(--primary-text)' }} />
+              <BrandLogo size={34} decorative />
               <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 900, letterSpacing: '-0.3px' }}>{companyName}</h3>
             </div>
             <p style={{ color: 'rgba(255,255,255,0.55)', lineHeight: 1.7, fontSize: '0.9375rem', marginBottom: 24 }}>

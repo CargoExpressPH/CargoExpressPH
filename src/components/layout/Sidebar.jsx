@@ -5,10 +5,11 @@ import { supabase } from '../../lib/supabase';
 import { getAdminInboxUnreadCount } from '../../lib/database';
 import {
   LayoutDashboard, Package, Truck, Users, BarChart3,
-  Megaphone, MessageSquare, LogOut, Container, Mail,
+  Megaphone, MessageSquare, LogOut, Mail,
   ChevronsLeft, ArrowLeft, ClipboardList, Building, ChevronUp, User
 } from 'lucide-react';
 import ConfirmModal from '../ui/ConfirmModal';
+import { BrandLogo, BrandWordmark } from '../ui/BrandLogo';
 import { logAuth } from '../../lib/activityLog';
 
 const mainNav = [
@@ -181,8 +182,12 @@ const Sidebar = ({ isOpen, onClose, isCollapsed, onToggleCollapse }) => {
         </button>
 
         <div className="sidebar-brand">
-          <Container size={28} color="var(--primary)" aria-hidden="true" />
-          <h1>CARGO<span>EXPRESS</span></h1>
+          {/* The mark sits OUTSIDE the h1 on purpose: `.sidebar.collapsed
+              .sidebar-brand h1` collapses the heading to zero width, and that is
+              exactly what should happen to the words — but not to the badge,
+              which is the only brand cue left when the rail is collapsed. */}
+          <BrandLogo size={36} decorative />
+          <h1><BrandWordmark /></h1>
           <button
             className="sidebar-drawer-close-btn"
             type="button"

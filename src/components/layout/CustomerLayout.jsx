@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Outlet, NavLink, useNavigate, Link, useLocation } from 'react-router-dom';
-import { Bell, User, Container, LogOut, MessageSquare, Package, MapPin, Plus, Home, ChevronRight } from 'lucide-react';
+import { Bell, User, LogOut, MessageSquare, Package, MapPin, Plus, Home, ChevronRight } from 'lucide-react';
+import BrandLockup from '../ui/BrandLogo';
 import ThemeToggle from '../ui/ThemeToggle';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
@@ -251,11 +252,7 @@ const CustomerLayout = () => {
         <div className="customer-navbar-inner">
           {/* Left: Logo */}
           <Link to="/customer" className="customer-navbar-logo">
-            <Container size={24} color="var(--primary)" />
-            <span className="customer-navbar-brand">
-              <span className="text-accent">CARGO</span>
-              <span className="text-primary">EXPRESS</span>
-            </span>
+            <BrandLockup size={40} />
           </Link>
 
           {/* Center: Desktop Nav Links */}

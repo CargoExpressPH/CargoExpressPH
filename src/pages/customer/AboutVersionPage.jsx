@@ -85,7 +85,7 @@ const AboutVersionPage = () => {
             <Info size={18} />
           </div>
           <div className="flex-1">
-            <div className="text-xs text-tertiary">CargoExpress PH Customer Portal</div>
+            <div className="text-xs text-tertiary">Cargo Express PH Customer Portal</div>
             <div className="text-xl fw-800">Version {APP_VERSION}</div>
           </div>
           <span className="badge badge-success">Active</span>
@@ -114,12 +114,12 @@ const AboutVersionPage = () => {
       <div className="card card-body mb-16">
         <div className="flex items-center gap-8 mb-12">
           <Building2 size={18} className="text-primary" />
-          <div className="fw-800">{companyInfo?.name || 'CargoExpress PH'}</div>
+          <div className="fw-800">{companyInfo?.name || 'Cargo Express PH'}</div>
         </div>
         <p className="text-sm text-secondary m-0">
           {loading
             ? 'Loading company information...'
-            : companyInfo?.short_description || companyInfo?.long_description || 'CargoExpress PH connects customers with cargo delivery service between supported routes.'}
+            : companyInfo?.short_description || companyInfo?.long_description || 'Cargo Express PH connects customers with cargo delivery service between supported routes.'}
         </p>
         <button type="button" className="btn btn-outline w-full justify-center mt-12" onClick={() => navigate('/about')}>
           <Globe size={16} /> View Public About Page

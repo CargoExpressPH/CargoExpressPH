@@ -5,7 +5,6 @@ import { createBrowserRouter, RouterProvider, Navigate, Outlet, useLocation } fr
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { ToastProvider } from './hooks/useToast';
-import { Container } from 'lucide-react';
 
 // Layouts — eagerly loaded (always needed)
 import AdminLayout from './components/layout/AdminLayout';
@@ -16,6 +15,7 @@ import LoginPage from './pages/auth/LoginPage';
 import RegisterPage from './pages/auth/RegisterPage';
 import ForgotPasswordPage from './pages/auth/ForgotPasswordPage';
 import ResetPasswordPage from './pages/auth/ResetPasswordPage';
+import { BrandLogo, BrandWordmark } from './components/ui/BrandLogo';
 
 // ─── Lazy-loaded Pages ─────────────────────────────────────────────────────
 // Each page is loaded on-demand only when the user navigates to it.
@@ -65,14 +65,11 @@ const NotFoundPage = lazyWithRetry(() => import('./pages/public/NotFoundPage'));
 const LoadingScreen = () => (
   <div className="loading-screen">
     <div className="loading-brand animate-scale-in">
-      <Container size={36} color="var(--primary)" />
-      <h1>
-        <span style={{ color: 'var(--accent)' }}>CARGO</span>
-        <span style={{ color: 'var(--primary-text)' }}>EXPRESS</span>
-      </h1>
+      <BrandLogo size={44} decorative />
+      <h1><BrandWordmark /></h1>
     </div>
     <div className="spinner" />
-    <p>Loading CargoExpress PH...</p>
+    <p>Loading Cargo Express PH...</p>
   </div>
 );
 

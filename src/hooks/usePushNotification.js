@@ -255,7 +255,7 @@ export function usePushNotification(userId, onMsg) {
       const notif = payload.notification || {};
       const data  = payload.data         || {};
       onMsg({
-        title: notif.title || 'CargoExpress PH',
+        title: notif.title || 'Cargo Express PH',
         body:  notif.body  || 'You have a new update',
         url:   data.url    || '/customer/notifications',
       });

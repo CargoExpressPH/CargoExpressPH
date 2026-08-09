@@ -1,4 +1,4 @@
-This directory holds PWA icons for CargoExpress PH.
+This directory holds PWA icons for Cargo Express PH.
 
 Required icon files:
 - icon-72.png    (72x72)

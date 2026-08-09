@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 
-const BASE_TITLE = 'CargoExpress PH';
+const BASE_TITLE = 'Cargo Express PH';
 
 /**
  * Sets the document title and OpenGraph/Twitter meta tags for the current page.

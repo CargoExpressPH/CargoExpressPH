@@ -327,7 +327,7 @@ const CompanyInformationPage = () => {
                 <div className="grid grid-2" style={{ gap: 16 }}>
                   <div className="form-group">
                     <label className="form-label" htmlFor="company-name">Company Name</label>
-                    <input id="company-name" className={`form-input ${invalidClass('name', errors)}`} value={companyInfo.name || ''} onChange={e => handleInfoChange('name', e.target.value)} placeholder="e.g. CargoExpress PH" {...fieldAttrs('name', errors)} />
+                    <input id="company-name" className={`form-input ${invalidClass('name', errors)}`} value={companyInfo.name || ''} onChange={e => handleInfoChange('name', e.target.value)} placeholder="e.g. Cargo Express PH" {...fieldAttrs('name', errors)} />
                     <FieldError name="name" errors={errors} />
                   </div>
                   <div className="form-group">

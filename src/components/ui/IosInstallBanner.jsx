@@ -79,7 +79,7 @@ export default function IosInstallBanner() {
       {/* Banner card — slides up from bottom */}
       <div
         role="dialog"
-        aria-label="Install CargoExpress PH"
+        aria-label="Install Cargo Express PH"
         style={{
           position: 'fixed',
           bottom: 0,
@@ -147,7 +147,7 @@ export default function IosInstallBanner() {
                 </div>
                 <div>
                   <h2 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700, color: 'var(--text)' }}>
-                    Install CargoExpress PH
+                    Install Cargo Express PH
                   </h2>
                   <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary, #94a3b8)', marginTop: 2 }}>
                     Get the full app experience on iPhone

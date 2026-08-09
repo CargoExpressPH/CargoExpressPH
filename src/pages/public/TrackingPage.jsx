@@ -5,7 +5,7 @@ import { getPublicOrderEvents } from '../../lib/database';
 import { buildStatusTimestamps } from '../../utils/statusTimestamps';
 import { formatPhDate, formatPhDateTime } from '../../utils/datetime';
 import {
-  Container, Search, Loader, Package, MapPin, ArrowRight,
+  Search, Loader, Package, MapPin, ArrowRight,
   CheckCircle2, XCircle, Clock, Weight, User,
   RefreshCw, AlertTriangle, ShieldAlert, Truck, Calendar, Info, ClipboardCheck, Building2, Bike,
 } from 'lucide-react';
@@ -15,6 +15,7 @@ import { SkeletonText } from '../../components/ui/SkeletonLoader';
 import usePageTitle from '../../hooks/usePageTitle';
 import useFieldErrors from '../../hooks/useFieldErrors';
 import FieldError, { invalidClass } from '../../components/ui/FieldError';
+import BrandLockup from '../../components/ui/BrandLogo';
 
 /* ── Status icon resolver ─────────────────────────────────────────────
    Complete coverage for every ORDER_STATUS value — previously only 4 of
@@ -328,12 +329,8 @@ const TrackingPage = ({ embedded = false }) => {
       {/* ══════════ HEADER ══════════ */}
       <header className="trk-header animate-fade-in">
         {!embedded && (
-          <Link to="/login" className="trk-brand" aria-label="CargoExpress Home" style={{ display: 'inline-flex', alignItems: 'center', gap: 10, textDecoration: 'none' }}>
-            <Container size={24} color="var(--primary)" />
-            <span className="trk-brand-name" style={{ display: 'inline-flex', gap: 4, fontSize: '1.25rem', fontWeight: 900 }}>
-              <span style={{ color: 'var(--accent)' }}>CARGO</span>
-              <span style={{ color: 'var(--primary-text)' }}>EXPRESS</span>
-            </span>
+          <Link to="/login" className="trk-brand" aria-label="Cargo Express PH home" style={{ textDecoration: 'none' }}>
+            <BrandLockup size={36} />
           </Link>
         )}
         <h1 className="trk-headline">Track Your Shipment</h1>
@@ -616,7 +613,7 @@ const TrackingPage = ({ embedded = false }) => {
           </div>
           <h3 className="trk-empty-title">Enter Your Tracking Number</h3>
           <p className="trk-empty-sub">
-            Paste or type your CargoExpress PH tracking number above to get live shipment updates.
+            Paste or type your Cargo Express PH tracking number above to get live shipment updates.
           </p>
           <div className="trk-empty-tips">
             <div className="trk-empty-tip">
@@ -625,7 +622,7 @@ const TrackingPage = ({ embedded = false }) => {
             </div>
             <div className="trk-empty-tip">
               <Package size={14} color="var(--primary)" style={{ flexShrink: 0 }} aria-hidden="true" />
-              <span>Contact CargoExpress PH staff if you need help locating it</span>
+              <span>Contact Cargo Express PH staff if you need help locating it</span>
             </div>
           </div>
         </div>
@@ -635,7 +632,7 @@ const TrackingPage = ({ embedded = false }) => {
       {!embedded && (
       <footer className="trk-footer">
         <p>Have an account? <Link to="/login" className="trk-footer-link">Sign In</Link></p>
-        <p className="trk-footer-copy">© {new Date().getFullYear()} CargoExpress PH</p>
+        <p className="trk-footer-copy">© {new Date().getFullYear()} Cargo Express PH</p>
       </footer>
       )}
     </main>
