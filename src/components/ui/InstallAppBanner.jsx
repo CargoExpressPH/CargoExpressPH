@@ -123,7 +123,7 @@ export default function InstallAppBanner() {
           zIndex: 9999,
           background: 'var(--surface, #1e293b)',
           boxShadow: '0 -8px 40px rgba(0,0,0,0.4)',
-          border: '1px solid rgba(255,255,255,0.08)',
+          border: '1px solid var(--border)',
           animation: 'installSlideUp 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)',
         }}
       >
@@ -135,7 +135,7 @@ export default function InstallAppBanner() {
               position: 'absolute',
               top: 4,
               right: 20,
-              background: 'rgba(255,255,255,0.08)',
+              background: 'var(--bg-secondary)',
               border: 'none',
               borderRadius: '50%',
               width: 32,
@@ -166,7 +166,7 @@ export default function InstallAppBanner() {
               <Download size={26} color="#fff" />
             </div>
             <div>
-              <h2 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary, #f1f5f9)' }}>
+              <h2 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700, color: 'var(--text)' }}>
                 Install CargoExpress PH
               </h2>
               <p style={{ margin: '2px 0 0', fontSize: '0.8rem', color: 'var(--text-secondary, #94a3b8)' }}>
@@ -187,8 +187,8 @@ export default function InstallAppBanner() {
                 borderRadius: 10,
                 border: '1px solid rgba(22,163,74,0.15)',
               }}>
-                <Icon size={18} color="#16A34A" style={{ flexShrink: 0 }} />
-                <span style={{ fontSize: '0.85rem', color: 'var(--text-primary, #f1f5f9)', fontWeight: 500 }}>
+                <Icon size={18} color="var(--primary-text)" aria-hidden="true" style={{ flexShrink: 0 }} />
+                <span style={{ fontSize: '0.85rem', color: 'var(--text)', fontWeight: 500 }}>
                   {label}
                 </span>
               </div>
@@ -265,7 +265,7 @@ export default function InstallAppBanner() {
             bottom: 24px;
             width: 380px;
             border-radius: 20px;
-            border-bottom: 1px solid rgba(255,255,255,0.08);
+            border-bottom: 1px solid var(--border);
             animation: installSlideUp 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
           }
         }

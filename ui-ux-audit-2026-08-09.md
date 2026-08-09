@@ -6,6 +6,34 @@
 > Companion to `ui-ux-audit.md` (2026-08-01), not a replacement. That audit was code-evidence only;
 > this one rendered the running application.
 
+## Status
+
+| Finding | State |
+|---|---|
+| UX-01 install prompt invisible text | **Fixed** — verified 1.10:1 → 17.85:1 light, 15.08:1 dark |
+| UX-07 contrast (4 sites) | **Fixed** — all four pages re-scan clean under axe |
+| UX-08 "Loading module…" / "Van Capacity" | **Fixed** |
+| Undefined-token guard | **Added** — `scripts/token-lint.mjs`, wired into `npm test` |
+| UX-02, UX-03, UX-04, UX-05, UX-06, UX-09 – UX-13 | Open — deferred as higher-regression-risk |
+| **UX-14 (new)** admin Reports contrast | Open — see below |
+
+### UX-14 — Medium — Reports page: text on tinted surfaces fails AA
+
+Surfaced only after this audit's fixes, because a 7-second settle lets the report tables finish
+loading; earlier scans caught the page while it was still showing skeletons. **Pre-existing — not
+introduced by the fixes above** (`ReportsPage.jsx` untouched, and none of these tokens changed).
+
+| Element | Pair | Ratio |
+|---|---|---:|
+| `.report-financial-value.text-error` | `--error-text` `#DC2626` on `--bg-secondary` `#EBF1F6` | **4.24** |
+| `.text-primary` (Tracking # cells) | `--primary-text` `#15803D` on `--bg-secondary` `#EBF1F6` | **4.40** |
+| inline `badge` | `--success-dark` `#059669` on `--success-bg` `#ECFDF5` | **3.57** |
+
+This is the same class as UX-07 and the token set already anticipates it — `--error-text-strong`
+(5.91:1) and `--primary-text-strong` (documented 6.26:1 on `--bg-secondary`) exist for exactly this.
+It was **not** fixed here because `.text-primary` is a global utility class used well beyond this
+page, so changing it has a wide blast radius and needs visual review rather than a token swap.
+
 ---
 
 ## 1. Verdict

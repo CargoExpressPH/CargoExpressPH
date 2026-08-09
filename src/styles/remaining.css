@@ -618,7 +618,7 @@
   margin-bottom: 12px;
   border-radius: var(--radius-sm);
   background: var(--warning-bg);
-  color: var(--warning-dark);
+  color: var(--warning-text);
   border: 1px solid var(--border-light);
   font-size: 0.875rem; font-weight: 500;
   animation: slideDown 0.3s ease;
@@ -3228,7 +3228,7 @@
   align-items: flex-start;
   gap: 10px;
   background: var(--info-bg);
-  border: 1px solid var(--info-glow, rgba(59, 130, 246, 0.2));
+  border: 1px solid var(--info-glow);
   border-radius: var(--radius-md);
   padding: 12px 14px;
   font-size: 0.8rem;

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, Share, PlusSquare, Bell, Smartphone } from 'lucide-react';
+import { X, Share, PlusSquare, Bell, Smartphone, Zap, Package, AlertTriangle, ArrowDown } from 'lucide-react';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 const isIos = () => /iphone|ipad|ipod/i.test(window.navigator.userAgent);
@@ -91,7 +91,7 @@ export default function IosInstallBanner() {
           padding: '0 0 env(safe-area-inset-bottom, 16px)',
           boxShadow: '0 -8px 40px rgba(0,0,0,0.4)',
           animation: 'slideUp 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)',
-          border: '1px solid rgba(255,255,255,0.08)',
+          border: '1px solid var(--border)',
           borderBottom: 'none',
         }}
       >
@@ -100,7 +100,7 @@ export default function IosInstallBanner() {
           <div style={{
             width: 40, height: 4,
             borderRadius: 2,
-            background: 'rgba(255,255,255,0.2)',
+            background: 'var(--border-hover)',
           }} />
         </div>
 
@@ -113,7 +113,7 @@ export default function IosInstallBanner() {
               position: 'absolute',
               top: 20,
               right: 20,
-              background: 'rgba(255,255,255,0.08)',
+              background: 'var(--bg-secondary)',
               border: 'none',
               borderRadius: '50%',
               width: 32,
@@ -146,7 +146,7 @@ export default function IosInstallBanner() {
                   <Smartphone size={26} color="#fff" />
                 </div>
                 <div>
-                  <h2 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary, #f1f5f9)' }}>
+                  <h2 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700, color: 'var(--text)' }}>
                     Install CargoExpress PH
                   </h2>
                   <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary, #94a3b8)', marginTop: 2 }}>
@@ -158,21 +158,24 @@ export default function IosInstallBanner() {
               {/* Feature pills */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
                 {[
-                  { icon: Bell, label: pushSupported ? '🔔 Push notifications for shipment updates' : '📦 Faster loading & offline access' },
-                  { icon: null, label: '⚡ Lightning-fast app-like experience' },
-                  { icon: null, label: '📱 Works from your Home Screen like a native app' },
-                ].map((item, i) => (
-                  <div key={i} style={{
+                  pushSupported
+                    ? { icon: Bell, label: 'Push notifications for shipment updates' }
+                    : { icon: Package, label: 'Faster loading & offline access' },
+                  { icon: Zap, label: 'Lightning-fast app-like experience' },
+                  { icon: Smartphone, label: 'Works from your Home Screen like a native app' },
+                ].map(({ icon: Icon, label }) => (
+                  <div key={label} style={{
                     display: 'flex',
                     alignItems: 'center',
-                    gap: 10,
+                    gap: 12,
                     padding: '10px 14px',
                     background: 'rgba(22,163,74,0.08)',
                     borderRadius: 10,
                     border: '1px solid rgba(22,163,74,0.15)',
                   }}>
-                    <span style={{ fontSize: '0.875rem', color: 'var(--text-primary, #f1f5f9)', fontWeight: 500 }}>
-                      {item.label}
+                    <Icon size={18} color="var(--primary-text)" aria-hidden="true" style={{ flexShrink: 0 }} />
+                    <span style={{ fontSize: '0.875rem', color: 'var(--text)', fontWeight: 500 }}>
+                      {label}
                     </span>
                   </div>
                 ))}
@@ -186,10 +189,14 @@ export default function IosInstallBanner() {
                   border: '1px solid rgba(234,179,8,0.2)',
                   marginBottom: 20,
                   fontSize: '0.8rem',
-                  color: '#fbbf24',
+                  color: 'var(--warning-text)',
                   lineHeight: 1.5,
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: 8,
                 }}>
-                  ⚠️ <strong>iOS requires installation</strong> before push notifications can be enabled — this is an Apple requirement.
+                  <AlertTriangle size={16} aria-hidden="true" style={{ flexShrink: 0, marginTop: 2 }} />
+                  <span><strong>iOS requires installation</strong> before push notifications can be enabled — this is an Apple requirement.</span>
                 </div>
               )}
 
@@ -236,7 +243,7 @@ export default function IosInstallBanner() {
           ) : (
             // ── Step 2: How to install ───────────────────────────────────
             <>
-              <h2 style={{ margin: '0 0 6px', fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary, #f1f5f9)', paddingRight: 36 }}>
+              <h2 style={{ margin: '0 0 6px', fontSize: '1rem', fontWeight: 700, color: 'var(--text)', paddingRight: 36 }}>
                 How to Install on iPhone
               </h2>
               <p style={{ margin: '0 0 20px', fontSize: '0.8rem', color: 'var(--text-secondary, #94a3b8)' }}>
@@ -249,7 +256,7 @@ export default function IosInstallBanner() {
                     step: 1,
                     icon: <Share size={22} color="#3b82f6" />,
                     title: 'Tap the Share button',
-                    desc: 'Tap the share icon (□↑) at the bottom of Safari',
+                    desc: 'Tap the Share icon at the bottom of Safari',
                     bg: 'rgba(59,130,246,0.1)',
                     border: 'rgba(59,130,246,0.2)',
                   },
@@ -283,7 +290,7 @@ export default function IosInstallBanner() {
                       width: 38,
                       height: 38,
                       borderRadius: 10,
-                      background: 'rgba(0,0,0,0.2)',
+                      background: 'var(--bg-secondary)',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
@@ -292,7 +299,7 @@ export default function IosInstallBanner() {
                       {item.icon}
                     </div>
                     <div>
-                      <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary, #f1f5f9)', marginBottom: 2 }}>
+                      <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text)', marginBottom: 2 }}>
                         Step {item.step}: {item.title}
                       </div>
                       <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary, #94a3b8)', lineHeight: 1.5 }}>
@@ -305,14 +312,14 @@ export default function IosInstallBanner() {
 
               {/* Animated arrow pointing down toward Safari's share button */}
               <div style={{
-                textAlign: 'center',
+                display: 'flex',
+                justifyContent: 'center',
                 padding: '8px',
                 marginBottom: 16,
                 animation: 'bounce 1.5s infinite',
-                color: '#3b82f6',
-                fontSize: '1.5rem',
+                color: 'var(--info-text)',
               }}>
-                ↓
+                <ArrowDown size={24} aria-hidden="true" />
               </div>
 
               <button
@@ -320,9 +327,9 @@ export default function IosInstallBanner() {
                 style={{
                   width: '100%',
                   padding: '13px',
-                  background: 'rgba(255,255,255,0.06)',
-                  color: 'var(--text-secondary, #94a3b8)',
-                  border: '1px solid rgba(255,255,255,0.1)',
+                  background: 'var(--bg-secondary)',
+                  color: 'var(--text-secondary)',
+                  border: '1px solid var(--border)',
                   borderRadius: 14,
                   fontSize: '0.875rem',
                   fontWeight: 600,

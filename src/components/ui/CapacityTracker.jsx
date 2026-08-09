@@ -37,7 +37,7 @@ const CapacityTracker = ({ currentWeight = 0, maxCapacity = 1000, tripNumber = '
           <div className="flex items-center gap-6">
             <Truck size={14} color="var(--text-secondary)" />
             <span className="text-sm fw-700">
-              Van Capacity
+              Trip Capacity
             </span>
             {tripNumber && (
               <span className="rounded-full text-xs text-tertiary fw-600" style={{
@@ -64,7 +64,7 @@ const CapacityTracker = ({ currentWeight = 0, maxCapacity = 1000, tripNumber = '
         aria-valuenow={Math.round(percent)}
         aria-valuemin={0}
         aria-valuemax={100}
-        aria-label={`Van capacity: ${percent.toFixed(1)}% used, status ${status}`}
+        aria-label={`Trip capacity: ${percent.toFixed(1)}% used, status ${status}`}
         style={{ height: 14, borderRadius: 7, background: 'var(--bg-secondary)' }}
       >
         <div

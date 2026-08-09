@@ -135,10 +135,10 @@ const DashboardPage = () => {
       </ErrorBoundarySection>
 
       <div className="grid grid-2 mb-24">
-        {/* Van Capacity */}
+        {/* Trip Capacity */}
         <ErrorBoundarySection message="Capacity info unavailable.">
           <StaggerItem className="card admin-section-card" delay={240}>
-          <div className="card-header"><h3><Gauge size={16} className="inline mr-8" />Van Capacity</h3></div>
+          <div className="card-header"><h3><Gauge size={16} className="inline mr-8" />Trip Capacity</h3></div>
           <div className="card-body">
             {loading ? (
               <div className="p-20">
