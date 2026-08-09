@@ -106,7 +106,7 @@ const PersonalInfoPage = () => {
           name:              form.name.trim(),
           facebook_name:     form.facebook_name.trim(),
           phone:             form.phone || null,
-          address:           combinedAddress || null,
+
           address_province:  normalizedAddress.address_province || null,
           address_city:      normalizedAddress.address_city || null,
           address_barangay:  normalizedAddress.address_barangay || null,
