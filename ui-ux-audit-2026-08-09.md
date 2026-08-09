@@ -18,7 +18,7 @@
 | **UX-16 (new)** two different discard modals | **Fixed** — PersonalInfoPage now uses the shared `ConfirmModal` |
 | UX-02, UX-03, UX-04, UX-05, UX-06, UX-09 – UX-13 | Open — deferred as higher-regression-risk |
 | **UX-14 (new)** admin Reports contrast | Open — see below |
-| **UX-17 (new)** Back button bypasses the unsaved-changes guard | Open — see below |
+| ~~UX-17 Back button bypasses the guard~~ | **WITHDRAWN — not a bug.** See below |
 
 ### UX-14 — Medium — Reports page: text on tinted surfaces fails AA
 
@@ -83,22 +83,30 @@ identical question. The local copy had drifted:
 
 Replaced with the shared component, so the two screens are now identical by construction.
 
-### UX-17 — Medium — The Back button bypasses the unsaved-changes guard
+### ~~UX-17 — The Back button bypasses the unsaved-changes guard~~ — WITHDRAWN, NOT A BUG
 
-Found while building the repro for UX-15. Editing a field and then tapping **Back** navigates away
-**silently, losing the edits** — no discard prompt.
+**This finding was wrong and is retracted.** It is kept here rather than deleted because the mistake
+is instructive.
+
+The original claim was that tapping **Back** on a dirty form navigated away with no prompt. That came
+from a test harness that reached the page with `page.goto('/customer/personal-info')` — a **full
+document load**. Going back from such an entry leaves the document altogether, which React Router
+cannot intercept by design (only `beforeunload` can). No real user reaches the page that way.
+
+Re-tested with a journey that is client-side throughout — one initial load at `/login`, then
+in-app navigation to Profile and on to Personal Information:
 
 ```
-PersonalInfoPage.jsx   <button onClick={() => navigate(-1)} className="customer-back-action">
+CASE A — in-app Back button (navigate(-1))     guard shown: YES   url holds at /customer/personal-info
+CASE B — browser / hardware back gesture       guard shown: YES   url holds at /customer/personal-info
 ```
 
-`useBlocker` intercepts the push navigation from a bottom-nav tap (verified — the prompt appears and
-the URL stays put), but `navigate(-1)` is a POP and goes straight through. Reproduced: field edited
-to "Maria Santos EDITED", tap Back, URL becomes `/customer` with no prompt and the edit discarded.
+**The guard works correctly in both cases.** `useBlocker` does intercept POP navigations here.
 
-**Not fixed here.** The obvious repair — pointing Back at an explicit route so it becomes a push —
-changes navigation semantics, and the guard belongs in one place rather than in each Back handler.
-Worth deciding deliberately.
+The lesson generalises to the rest of this audit: a harness that reaches a screen differently from a
+real user can manufacture a defect that does not exist. This is the same failure mode as the
+animation-timing false positives recorded in §2 — and, as there, the fix is to reproduce the user's
+actual path before believing the result.
 
 ---
 
