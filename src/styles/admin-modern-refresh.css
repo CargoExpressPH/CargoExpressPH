@@ -91,13 +91,13 @@
 /* --admin-green aliases --primary, which is 3.30:1 on the white sidebar. The
    wordmark renders at 13.4px, so it is body-size text needing 4.5:1 — use the
    AA text token, which stays theme-aware (#15803D light / #4ADE80 dark). */
-.app-layout .sidebar-brand h1 {
+.app-layout .sidebar-brand .sidebar-brand-wordmark {
   color: var(--primary-text);
   font-weight: 900;
   letter-spacing: 0;
 }
 
-.app-layout .sidebar-brand h1 span {
+.app-layout .sidebar-brand .sidebar-brand-wordmark span {
   color: var(--primary-text);
   font-weight: 900;
 }
@@ -394,6 +394,7 @@
 .admin-notif-item-content {
   flex: 1;
   min-width: 0;
+  cursor: pointer;
 }
 .admin-notif-item-title {
   font-size: 0.8125rem;

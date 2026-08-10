@@ -53,11 +53,10 @@ const TrackingTimeline = ({ currentStatus, compact = false, stepTimestamps = nul
 
   return (
     <ol
-      className={`status-timeline ${compact ? 'status-timeline-compact' : ''}`}
+      className={`status-timeline status-timeline-track ${compact ? 'status-timeline-compact' : ''}`}
       aria-label="Shipment status timeline"
     >
-      <div className="status-timeline-track">
-        {STATUS_TIMELINE.map((status, index) => {
+      {STATUS_TIMELINE.map((status, index) => {
           const isCompleted = !isCancelled && index < currentIdx;
           const isActive = !isCancelled && index === currentIdx;
           const StepIcon = STEP_ICONS[status] || Package;
@@ -100,7 +99,6 @@ const TrackingTimeline = ({ currentStatus, compact = false, stepTimestamps = nul
             </li>
           );
         })}
-      </div>
     </ol>
   );
 };

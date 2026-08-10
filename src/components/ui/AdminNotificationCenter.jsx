@@ -262,7 +262,6 @@ const AdminNotificationCenter = ({ isOpen, onClose, anchorRef }) => {
                     <div
                       key={notif.id}
                       className={`admin-notif-item ${!notif.is_read ? 'unread' : ''}`}
-                      onClick={() => handleNotifClick(notif)}
                       style={{ animationDelay: `${idx * 30}ms` }}
                     >
                       <div className="admin-notif-item-icon" style={{ background: mapping.bg, color: mapping.color }}>
@@ -273,8 +272,8 @@ const AdminNotificationCenter = ({ isOpen, onClose, anchorRef }) => {
                         role="button"
                         tabIndex={0}
                         aria-label={`Open notification: ${notif.title}`}
-                        onClick={(e) => { e.stopPropagation(); handleNotifClick(notif); }}
-                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); handleNotifClick(notif); } }}
+                        onClick={() => handleNotifClick(notif)}
+                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleNotifClick(notif); } }}
                       >
                         <div className="admin-notif-item-title">{notif.title}</div>
                         <div className="admin-notif-item-msg">{notif.message}</div>

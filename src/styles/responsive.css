@@ -29,7 +29,7 @@
     transform: translateX(0);
     box-shadow: 16px 0 40px rgba(2, 8, 23, 0.28);
   }
-  .sidebar.collapsed .sidebar-brand h1,
+  .sidebar.collapsed .sidebar-brand .sidebar-brand-wordmark,
   .sidebar.collapsed .sidebar-section-label,
   .sidebar.collapsed .sidebar-link-label,
   .sidebar.collapsed .sidebar-count-badge,

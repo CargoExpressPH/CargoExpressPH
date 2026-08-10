@@ -182,12 +182,13 @@ const Sidebar = ({ isOpen, onClose, isCollapsed, onToggleCollapse }) => {
         </button>
 
         <div className="sidebar-brand">
-          {/* The mark sits OUTSIDE the h1 on purpose: `.sidebar.collapsed
-              .sidebar-brand h1` collapses the heading to zero width, and that is
-              exactly what should happen to the words — but not to the badge,
-              which is the only brand cue left when the rail is collapsed. */}
+          {/* The mark sits OUTSIDE the wordmark on purpose: `.sidebar.collapsed
+              .sidebar-brand .sidebar-brand-wordmark` collapses the heading to
+              zero width, and that is exactly what should happen to the words —
+              but not to the badge, which is the only brand cue left when the
+              rail is collapsed. */}
           <BrandLogo size={36} decorative />
-          <h1><BrandWordmark /></h1>
+          <p className="sidebar-brand-wordmark"><BrandWordmark /></p>
           <button
             className="sidebar-drawer-close-btn"
             type="button"

@@ -474,7 +474,7 @@ const RegisterPage = () => {
           </div>
 
         {/* ── Interactive Step Progress Bar ── */}
-        <div className="reg-step-bar" role="progressbar" aria-valuenow={step} aria-valuemin={1} aria-valuemax={2}>
+        <div className="reg-step-bar" role="group" aria-label="Registration steps">
           {STEPS.map((s, idx) => (
             <div key={s.id} className="reg-step-item">
               <button
