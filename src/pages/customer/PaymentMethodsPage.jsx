@@ -10,6 +10,7 @@ import { getOrders, getPaymentTransactionsBatch } from '../../lib/database';
 import EmptyState from '../../components/ui/EmptyState';
 import { useToast } from '../../hooks/useToast';
 import usePageTitle from '../../hooks/usePageTitle';
+import { outstandingBalance } from '../../constants/status';
 
 const formatMoney = (value) =>
   `PHP ${Number(value || 0).toLocaleString('en-PH', {
@@ -108,13 +109,13 @@ const PaymentMethodsPage = () => {
   const summary = useMemo(() => {
     const activeOrders = orders.filter(order => order.status !== 'Cancelled');
     const outstandingOrders = activeOrders
-      .filter(order => Number(order.remaining_balance || 0) > 0)
-      .sort((a, b) => Number(b.remaining_balance || 0) - Number(a.remaining_balance || 0));
+      .filter(order => outstandingBalance(order) > 0)
+      .sort((a, b) => outstandingBalance(b) - outstandingBalance(a));
 
     return {
       activeCount: activeOrders.length,
       outstandingOrders,
-      outstandingTotal: outstandingOrders.reduce((sum, order) => sum + Number(order.remaining_balance || 0), 0),
+      outstandingTotal: outstandingOrders.reduce((sum, order) => sum + outstandingBalance(order), 0),
       paidTotal: activeOrders.reduce((sum, order) => sum + Number(order.amount_paid || 0), 0),
     };
   }, [orders]);
@@ -202,7 +203,7 @@ const PaymentMethodsPage = () => {
                     </div>
                     <div className="text-right">
                       <div className="text-xs text-tertiary">Balance</div>
-                      <div className="fw-800 text-error">{formatMoney(order.remaining_balance)}</div>
+                      <div className="fw-800 text-error">{formatMoney(outstandingBalance(order))}</div>
                     </div>
                   </div>
                   <button

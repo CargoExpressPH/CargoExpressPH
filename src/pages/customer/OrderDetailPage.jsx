@@ -15,6 +15,7 @@ import { SkeletonOrderCard, SkeletonText } from '../../components/ui/SkeletonLoa
 import { ArrowLeft, MapPin, User, Phone, Package, CreditCard, Truck, Camera, Image, XCircle, Loader, AlertTriangle, Check } from 'lucide-react';
 import { useToast } from '../../hooks/useToast';
 import usePageTitle from '../../hooks/usePageTitle';
+import { outstandingBalance, getSettlementState, isOrderPriced, SETTLEMENT_STATE } from '../../constants/status';
 
 // Max time (ms) to wait for data before giving up and showing an error.
 const LOAD_TIMEOUT_MS = 15000;
@@ -328,7 +329,7 @@ const OrderDetailPage = () => {
 
   const handlePayNow = async () => {
     if (processingPayment) return;
-    const balance = parseFloat(order.remaining_balance || 0);
+    const balance = outstandingBalance(order);
     if (balance <= 0) return;
 
     setProcessingPayment(true);
@@ -407,6 +408,8 @@ const OrderDetailPage = () => {
   const isCancelled = order.status === 'Cancelled';
   const canCancel = order.status === 'Pending';
   const hasPhotos = resolvedPickupPhotos.length > 0;
+  const balance = outstandingBalance(order);
+  const settlementState = getSettlementState(order);
 
   return (
     <div className="page-transition customer-order-detail-screen">
@@ -596,7 +599,7 @@ const OrderDetailPage = () => {
           <div className="customer-payment-summary mb-20">
             <div className="text-center">
               <div className="text-xs text-tertiary">Shipping Cost</div>
-              <div className="text-sm font-bold text-primary">₱{parseFloat(order.shipping_cost || 0).toFixed(2)}</div>
+              <div className="text-sm font-bold text-primary">{isOrderPriced(order) ? `₱${parseFloat(order.shipping_cost || 0).toFixed(2)}` : '—'}</div>
             </div>
             <div className="text-center">
               <div className="text-xs text-tertiary">Paid</div>
@@ -604,9 +607,13 @@ const OrderDetailPage = () => {
             </div>
             <div className="text-center">
               <div className="text-xs text-tertiary">Balance</div>
-              <div className={`text-sm font-bold ${parseFloat(order.remaining_balance || 0) > 0 ? 'text-error' : 'text-success'}`}>
-                ₱{parseFloat(order.remaining_balance || 0).toFixed(2)}
-              </div>
+              {settlementState === SETTLEMENT_STATE.UNPRICED ? (
+                <div className="text-sm font-bold text-tertiary">—</div>
+              ) : (
+                <div className={`text-sm font-bold ${settlementState === SETTLEMENT_STATE.OWING ? 'text-error' : 'text-success'}`}>
+                  ₱{balance.toFixed(2)}
+                </div>
+              )}
             </div>
           </div>
           <div className="grid grid-2 gap-8">
@@ -633,7 +640,6 @@ const OrderDetailPage = () => {
 
           {/* Payment Button — Business Logic Enforcement */}
           {(() => {
-            const balance = parseFloat(order.remaining_balance || 0);
             const hasWeight = parseFloat(order.actual_weight || 0) > 0;
             const isPayableStatus = PAYABLE_STATUSES.includes(order.status);
             const canPay = balance > 0 && !isCancelled && isPayableStatus && hasWeight;
@@ -665,7 +671,7 @@ const OrderDetailPage = () => {
               );
             }
 
-            if (balance > 0 && !isCancelled && isEarlyStatus) {
+            if ((balance > 0 || !isOrderPriced(order)) && !isCancelled && isEarlyStatus) {
               return (
                 <div className="mt-16">
                   <div className="alert-banner alert-banner-info py-10 px-12" style={{ fontSize: '0.8125rem', borderRadius: '8px' }}>

@@ -17,6 +17,7 @@ import {
 import usePageTitle from '../../hooks/usePageTitle';
 import { getAnnouncementCategoryInfo } from '../../lib/announcements';
 import { formatPhDate } from '../../utils/datetime';
+import { isOrderPriced } from '../../constants/status';
 
 const HomePage = () => {
   usePageTitle('Home');
@@ -274,7 +275,9 @@ const HomePage = () => {
                   </div>
                   <div className="customer-list-card-footer">
                     <span>To: {order.receiver_name || 'Receiver'}</span>
-                    <span className="customer-list-card-price">₱{parseFloat(order.shipping_cost || 0).toFixed(2)}</span>
+                    <span className="customer-list-card-price">
+                      {isOrderPriced(order) ? `₱${parseFloat(order.shipping_cost || 0).toFixed(2)}` : 'Priced at pickup'}
+                    </span>
                   </div>
                 </div>
               </Link>

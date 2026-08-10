@@ -11,7 +11,7 @@ import PullToRefresh from '../../components/ui/PullToRefresh';
 import ResponsiveFilterControls from '../../components/ui/ResponsiveFilterControls';
 import { Search, Package, AlertCircle, MapPin, ChevronRight } from 'lucide-react';
 import usePageTitle from '../../hooks/usePageTitle';
-import { VALID_STATUSES } from '../../constants/status';
+import { VALID_STATUSES, isOrderPriced } from '../../constants/status';
 
 const tabs = ['All', ...VALID_STATUSES];
 
@@ -153,7 +153,9 @@ const OrdersPage = () => {
                 </div>
                 <div className="customer-list-card-footer">
                   <span>To: {order.receiver_name || 'Receiver'}</span>
-                  <span className="customer-list-card-price">₱{parseFloat(order.shipping_cost || 0).toFixed(2)}</span>
+                  <span className="customer-list-card-price">
+                    {isOrderPriced(order) ? `₱${parseFloat(order.shipping_cost || 0).toFixed(2)}` : 'Priced at pickup'}
+                  </span>
                 </div>
               </div>
             </Link>
