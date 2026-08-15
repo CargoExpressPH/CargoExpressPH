@@ -559,10 +559,10 @@ const AdminOrderDetailPage = () => {
       {order.service_area_status === 'for_review' && (
         <div className="card admin-section-card admin-action-card stagger-item mb-16" style={{ animationDelay: '60ms', borderColor: 'var(--warning)', background: 'var(--warning-bg)' }}>
           <div className="card-body">
-            <h3 className="flex items-center gap-8 mb-12" style={{ color: 'var(--warning-dark)' }}>
+            <h3 className="flex items-center gap-8 mb-12" style={{ color: 'var(--warning-text)' }}>
               <AlertTriangle size={20} /> Out of Coverage Pickup Review
             </h3>
-            <p className="text-sm mb-16" style={{ color: 'var(--warning-dark)' }}>
+            <p className="text-sm mb-16" style={{ color: 'var(--warning-text)' }}>
               This pickup location is outside standard coverage: <strong>{order.sender_address}</strong>.<br />
               Please review feasibility and choose an action.
             </p>
@@ -656,7 +656,7 @@ const AdminOrderDetailPage = () => {
 
       {/* Trip Warning */}
       {needsTrip && (
-        <div className="alert-banner alert-banner-error" style={{ background: 'var(--warning-bg)', color: 'var(--warning-dark)', borderColor: 'var(--warning)' }}>
+        <div className="alert-banner alert-banner-error" style={{ background: 'var(--warning-bg)', color: 'var(--warning-text)', borderColor: 'var(--warning)' }}>
           <span className="flex items-center gap-10">
             <AlertTriangle size={18} />
             This order has not been assigned to a trip yet. Assign it before advancing status.

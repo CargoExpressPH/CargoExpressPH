@@ -417,9 +417,9 @@ const RegisterPage = () => {
         <div className="login-left-content">
           <div className="login-brand" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <BrandLogo size={48} decorative />
-            <h1 style={{ margin: 0, fontSize: '2rem', fontWeight: 900 }}>
+            <div style={{ margin: 0, fontSize: '2rem', fontWeight: 900 }}>
               <BrandWordmark tone="on-dark" />
-            </h1>
+            </div>
           </div>
 
           <h2 className="login-tagline">
@@ -469,7 +469,7 @@ const RegisterPage = () => {
           </div>
 
           <div className="login-form-header">
-            <h2 className="login-form-title">Create Account</h2>
+            <h1 className="login-form-title">Create Account</h1>
             <p className="login-form-sub">Sign up for free and manage your cargo deliveries.</p>
           </div>
 

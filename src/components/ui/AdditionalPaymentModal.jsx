@@ -197,7 +197,7 @@ const AdditionalPaymentModal = ({ order, remainingBalance, onClose, onSave }) =>
           
           <div className="modal-body" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
             {error && (
-              <div className="mb-16 p-12 text-sm" style={{ background: 'var(--error-bg)', color: 'var(--error-dark)', borderRadius: 8, border: '1px solid var(--error)' }}>
+              <div className="mb-16 p-12 text-sm" style={{ background: 'var(--error-bg)', color: 'var(--error-text-strong)', borderRadius: 8, border: '1px solid var(--error)' }}>
                 {error}
               </div>
             )}

@@ -78,7 +78,7 @@ const ResponsiveFilterControls = ({
 
   return (
     <div className={`responsive-filter ${className}`.trim()} ref={rootRef}>
-      <div className={`${desktopClassName} responsive-filter-tabs`.trim()} role="tablist" aria-label={ariaLabel}>
+      <div className={`${desktopClassName} responsive-filter-tabs`.trim()} role="group" aria-label={ariaLabel}>
         {options.map(option => {
           const active = value === option.value;
           const Icon = option.icon;
@@ -87,8 +87,7 @@ const ResponsiveFilterControls = ({
             <button
               key={option.value}
               type="button"
-              role="tab"
-              aria-selected={active}
+              aria-pressed={active}
               className={getButtonClassName(option, active)}
               onClick={() => onChange(option.value)}
               style={option.style}

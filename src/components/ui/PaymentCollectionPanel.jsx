@@ -494,7 +494,7 @@ const PaymentCollectionPanel = ({
             : null}
         />
         {d.expected > 0 && (
-          <div className="text-xs mt-4" style={{ color: d.outstandingAfter > 0 ? 'var(--warning-dark)' : 'var(--success)' }}>
+          <div className="text-xs mt-4" style={{ color: d.outstandingAfter > 0 ? 'var(--warning-text)' : 'var(--success-text)' }}>
             {d.outstandingAfter > 0
               ? `₱${formatAmount(d.outstandingAfter.toFixed(2))} will still be owing after this.`
               : 'This settles the order in full.'}
@@ -562,11 +562,11 @@ const PaymentCollectionPanel = ({
             <div className="mb-12" style={{ background: 'var(--success-bg)', borderRadius: 8, padding: 14, border: '1px solid var(--success)' }}>
               <div className="flex items-center gap-8 mb-12">
                 <CheckCircle size={20} style={{ color: 'var(--success-text)' }} aria-hidden="true" />
-                <span className="text-sm fw-700" style={{ color: 'var(--success-dark)' }}>
+                <span className="text-sm fw-700" style={{ color: 'var(--success-text)' }}>
                   Payment received — ₱{formatAmount(value.confirmed.received.toFixed(2))}
                 </span>
               </div>
-              <div className="text-xs" style={{ color: 'var(--success-dark)', lineHeight: 1.8 }}>
+              <div className="text-xs" style={{ color: 'var(--success-text)', lineHeight: 1.8 }}>
                 <div className="flex justify-between">
                   <span>Total paid</span><strong>₱{formatAmount(value.confirmed.amountPaid.toFixed(2))}</strong>
                 </div>
@@ -729,7 +729,7 @@ const PaymentCollectionPanel = ({
           amount is actually left owing. */}
       {d.isPayLater && (
         <div className="mb-16" style={{ background: 'var(--warning-bg)', borderRadius: 8, padding: 14, border: '1px solid var(--warning)' }}>
-          <div className="mb-8" style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--warning-dark)' }}>
+          <div className="mb-8" style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--warning-text)' }}>
             <AlertTriangle size={14} className="inline mr-6" /> Promise to Pay
           </div>
           <div className="form-group mb-0">
@@ -749,7 +749,7 @@ const PaymentCollectionPanel = ({
             />
             <FieldError name={F.promise} errors={errors} />
           </div>
-          <div className="text-xs mt-8" style={{ color: 'var(--warning-dark)' }}>
+          <div className="text-xs mt-8" style={{ color: 'var(--warning-text)' }}>
             {d.needsPromiseDate
               ? `The cargo may be released, but ₱${formatAmount(d.outstandingAfter.toFixed(2))} remains owing. `
                 + 'This order stays unsettled and its trip cannot be completed until it is paid.'

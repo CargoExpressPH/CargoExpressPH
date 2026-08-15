@@ -35,18 +35,22 @@ const FocusTrap = ({ children, active = true }) => {
       '[tabindex]:not([tabindex="-1"])',
     ].join(', ');
 
-    const focusableElements = trapElement.querySelectorAll(focusableSelectors);
-    if (focusableElements.length > 0) {
+    const getVisibleFocusable = () =>
+      Array.from(trapElement.querySelectorAll(focusableSelectors))
+        .filter((element) => element.getClientRects().length > 0);
+
+    const visibleFocusable = getVisibleFocusable();
+    if (visibleFocusable.length > 0) {
       // Small delay to ensure the DOM is ready
       requestAnimationFrame(() => {
-        focusableElements[0].focus();
+        visibleFocusable[0].focus();
       });
     }
 
     const handleKeyDown = (e) => {
       if (e.key !== 'Tab') return;
 
-      const focusable = trapElement.querySelectorAll(focusableSelectors);
+      const focusable = getVisibleFocusable();
       if (focusable.length === 0) return;
 
       const firstElement = focusable[0];

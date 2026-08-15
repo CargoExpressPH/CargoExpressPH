@@ -11,15 +11,15 @@
   flex-shrink: 0;
 }
 .alert-banner-success {
-  background: var(--success-bg); color: var(--success-dark);
+  background: var(--success-bg); color: var(--success-text);
   border: 1px solid rgba(var(--success-rgb), 0.35);
 }
 .alert-banner-error {
-  background: var(--error-bg); color: var(--error-dark);
+  background: var(--error-bg); color: var(--error-text-strong);
   border: 1px solid rgba(var(--error-rgb), 0.35);
 }
 .alert-banner-warning {
-  background: var(--warning-bg); color: var(--warning-dark);
+  background: var(--warning-bg); color: var(--warning-text);
   border: 1px solid rgba(var(--warning-rgb), 0.35);
 }
 .alert-banner-info {
@@ -635,7 +635,7 @@
   margin-bottom: 12px;
   border-radius: var(--radius-sm);
   background: var(--success-bg);
-  color: var(--success-dark);
+  color: var(--success-text);
   border: 1px solid var(--border-light);
   font-size: 0.875rem; font-weight: 500;
   animation: slideDown 0.3s ease;
@@ -1592,6 +1592,9 @@
   color: var(--text);
 }
 
+.report-financial-value.text-error { color: var(--error-text-strong); }
+.report-table td.text-primary { color: var(--primary-text-strong); }
+
 /* -- Reports page responsive -- */
 @media (max-width: 768px) {
   .report-custom-range {
@@ -2532,7 +2535,7 @@
 }
 
 .admin-card-action:hover {
-  color: var(--error-dark);
+  color: var(--error-text-strong);
   /* Theme-aware tint. A hardcoded light pink here rendered the icon at
      1.55:1 in dark mode (light text on a light background). */
   background: color-mix(in srgb, var(--error) 18%, var(--surface));

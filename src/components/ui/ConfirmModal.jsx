@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useId, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { AlertTriangle, Info, CheckCircle, Loader, LogOut } from 'lucide-react';
 import FocusTrap from './FocusTrap';
@@ -48,6 +48,8 @@ const ConfirmModal = ({
   const confirmLabel = confirmLabelProp || confirmText || 'Confirm';
   const modalRef = useRef(null);
   const cancelRef = useRef(null);
+  const titleId = useId();
+  const messageId = useId();
 
   // Escape key handler — uses document-level listener so it works
   // regardless of focus state (the onKeyDown on div was unreliable)
@@ -104,8 +106,8 @@ const ConfirmModal = ({
         onClick={handleOverlayClick}
         role="dialog"
         aria-modal="true"
-        aria-labelledby="confirm-modal-title"
-        aria-describedby="confirm-modal-message"
+        aria-labelledby={titleId}
+        aria-describedby={messageId}
       >
         <div
           className="confirm-modal"
@@ -117,11 +119,11 @@ const ConfirmModal = ({
             <Icon size={28} strokeWidth={2} />
           </div>
 
-          <h3 id="confirm-modal-title" className="confirm-modal-title">
+          <h3 id={titleId} className="confirm-modal-title">
             {title}
           </h3>
 
-          <p id="confirm-modal-message" className="confirm-modal-message">
+          <p id={messageId} className="confirm-modal-message">
             {message}
           </p>
 

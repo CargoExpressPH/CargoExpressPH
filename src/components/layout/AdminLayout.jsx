@@ -4,6 +4,7 @@ import Sidebar from './Sidebar';
 import ErrorBoundary from '../ui/ErrorBoundary';
 import PageTransition from '../ui/PageTransition';
 import CommandPalette from '../ui/CommandPalette';
+import FocusTrap from '../ui/FocusTrap';
 import AdminNotificationCenter from '../ui/AdminNotificationCenter';
 import InstallAppBanner from '../ui/InstallAppBanner';
 import { Menu, Search, Bell } from 'lucide-react';
@@ -17,6 +18,7 @@ import { useToast } from '../../hooks/useToast';
 
 const COLLAPSE_KEY = 'sidebar_collapsed';
 const DRAWER_QUERY = '(max-width: 1024px)';
+const IS_MAC = typeof navigator !== 'undefined' && /Mac|iPhone|iPad|iPod/.test(navigator.userAgent);
 
 const AdminLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -27,6 +29,7 @@ const AdminLayout = () => {
   const [notifOpen, setNotifOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const bellRef = useRef(null);
+  const menuButtonRef = useRef(null);
   const { user, userProfile } = useAuth();
   const toast = useToast();
 
@@ -163,6 +166,7 @@ const AdminLayout = () => {
     return () => {
       document.body.style.overflow = previousOverflow;
       document.removeEventListener('keydown', handleKeyDown);
+      if (menuButtonRef.current) menuButtonRef.current.focus();
     };
   }, [sidebarOpen]);
 
@@ -182,18 +186,21 @@ const AdminLayout = () => {
     <div className={`app-layout${sidebarCollapsed ? ' sidebar-collapsed' : ''}${sidebarOpen ? ' sidebar-drawer-open' : ''}`}>
       <a href="#admin-main-content" className="skip-link">Skip to main content</a>
       <InstallAppBanner />
-      <Sidebar
-        isOpen={sidebarOpen}
-        onClose={closeSidebar}
-        isCollapsed={sidebarCollapsed}
-        onToggleCollapse={toggleCollapse}
-      />
-      <div className="main-content">
+      <FocusTrap active={sidebarOpen}>
+        <Sidebar
+          isOpen={sidebarOpen}
+          onClose={closeSidebar}
+          isCollapsed={sidebarCollapsed}
+          onToggleCollapse={toggleCollapse}
+        />
+      </FocusTrap>
+      <div className="main-content" aria-hidden={sidebarOpen || undefined} inert={sidebarOpen || undefined}>
         <header className="topbar">
           <div className="flex items-center gap-12">
             <button
               className="btn-icon btn-ghost mobile-menu-toggle"
               type="button"
+              ref={menuButtonRef}
               onClick={() => setSidebarOpen(true)}
               aria-label="Open admin navigation"
               aria-controls="admin-sidebar"
@@ -212,13 +219,13 @@ const AdminLayout = () => {
               className="btn-icon btn-ghost gap-6 text-tertiary topbar-command-btn"
               type="button"
               onClick={() => setCmdPaletteOpen(true)}
-              title="Search (Ctrl+K)"
+              title={IS_MAC ? 'Search (Cmd+K)' : 'Search (Ctrl+K)'}
               aria-label="Open command palette"
               style={{ fontSize: '0.8125rem' }}
             >
               <Search size={17} aria-hidden="true" />
               <kbd className="topbar-command-kbd">
-                Ctrl K
+                {IS_MAC ? 'Cmd K' : 'Ctrl K'}
               </kbd>
             </button>
 

@@ -268,7 +268,7 @@ const CompanyInformationPage = () => {
             marginBottom: 16,
           }}
         >
-          <div className="flex items-center gap-8" style={{ color: 'var(--warning-dark)', fontSize: '0.875rem', fontWeight: 600 }}>
+          <div className="flex items-center gap-8" style={{ color: 'var(--warning-text)', fontSize: '0.875rem', fontWeight: 600 }}>
             <AlertTriangle size={16} />
             You have unsaved changes on this tab. Click "Save Changes" to apply them.
           </div>

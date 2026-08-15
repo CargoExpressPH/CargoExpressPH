@@ -55,7 +55,7 @@
 
 .btn-alert-action {
   background: var(--surface);
-  color: var(--success-dark);
+  color: var(--success-text);
   border: 1px solid var(--border);
   box-shadow: var(--shadow-sm);
 }
@@ -327,7 +327,8 @@ input[type="datetime-local"]:hover::-webkit-calendar-picker-indicator {
 }
 
 .custom-select-option:hover,
-.custom-select-option:focus-visible {
+.custom-select-option:focus-visible,
+.custom-select-option.highlighted {
   background: var(--bg-secondary);
   outline: none;
 }

@@ -98,7 +98,7 @@ const ToastItem = ({ toast, onRemove }) => {
   return (
     <div
       className={`toast toast-${type} ${isHovered ? 'toast-hovered' : ''}`}
-      role="alert"
+      role={type === 'error' ? 'alert' : 'status'}
       aria-atomic="true"
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
@@ -126,7 +126,7 @@ const ToastItem = ({ toast, onRemove }) => {
 const ToastContainer = ({ toasts, onRemove }) => {
   if (!toasts.length) return null;
   return (
-    <div className="toast-container" role="region" aria-label="Notifications" aria-live="polite">
+    <div className="toast-container" role="region" aria-label="Notifications">
       {toasts.map(t => (
         <ToastItem key={t.id} toast={t} onRemove={onRemove} />
       ))}

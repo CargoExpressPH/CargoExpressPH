@@ -20,6 +20,7 @@ const CustomSelect = ({
   const [open, setOpen] = useState(false);
   const [menuPlacement, setMenuPlacement] = useState('bottom');
   const [menuMaxHeight, setMenuMaxHeight] = useState(null);
+  const [highlightedIndex, setHighlightedIndex] = useState(0);
   const generatedId = useId();
   const listboxId = `${generatedId}-listbox`;
   const rootRef = useRef(null);
@@ -54,6 +55,7 @@ const CustomSelect = ({
 
   const openMenu = () => {
     updateMenuPlacement();
+    setHighlightedIndex(selectedIndex);
     setOpen(true);
   };
 
@@ -96,12 +98,12 @@ const CustomSelect = ({
 
   const moveSelection = (direction) => {
     if (!options.length) return;
-    let nextIndex = selectedIndex;
+    let nextIndex = highlightedIndex;
 
     for (let i = 0; i < options.length; i += 1) {
       nextIndex = (nextIndex + direction + options.length) % options.length;
       if (!options[nextIndex].disabled) {
-        emitChange(options[nextIndex].value);
+        setHighlightedIndex(nextIndex);
         return;
       }
     }
@@ -118,7 +120,14 @@ const CustomSelect = ({
       open ? moveSelection(-1) : openMenu();
     } else if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault();
-      open ? setOpen(false) : openMenu();
+      if (open) {
+        const option = options[highlightedIndex];
+        if (option && !option.disabled) emitChange(option.value);
+      } else {
+        openMenu();
+      }
+    } else if (event.key === 'Tab') {
+      if (open) setOpen(false);
     }
   };
 
@@ -132,6 +141,7 @@ const CustomSelect = ({
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-controls={listboxId}
+        aria-activedescendant={open && options[highlightedIndex] ? `${listboxId}-option-${highlightedIndex}` : undefined}
         disabled={disabled}
         onClick={() => (open ? setOpen(false) : openMenu())}
         onKeyDown={handleKeyDown}
@@ -151,16 +161,19 @@ const CustomSelect = ({
           aria-label={ariaLabel}
           style={menuMaxHeight ? { maxHeight: `${menuMaxHeight}px` } : undefined}
         >
-          {options.map(option => {
+          {options.map((option, index) => {
             const active = String(option.value) === String(value);
 
             return (
               <button
                 key={`${option.value}-${option.label}`}
                 type="button"
+                id={`${listboxId}-option-${index}`}
                 role="option"
                 aria-selected={active}
-                className={`custom-select-option ${active ? 'active' : ''}`.trim()}
+                tabIndex={-1}
+                onMouseEnter={() => setHighlightedIndex(index)}
+                className={`custom-select-option ${active ? 'active' : ''} ${highlightedIndex === index ? 'highlighted' : ''}`.trim()}
                 disabled={option.disabled}
                 onClick={() => emitChange(option.value)}
               >

@@ -194,7 +194,7 @@
   width: 68px; height: 68px; border-radius: 50%;
   background: rgba(var(--warning-rgb), 0.12);
   border: 1px solid rgba(var(--warning-rgb), 0.3);
-  color: var(--warning-dark);
+  color: var(--warning-text);
   display: flex; align-items: center; justify-content: center;
   margin: 0 auto 16px;
 }

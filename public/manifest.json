@@ -76,21 +76,21 @@
   "screenshots": [
     {
       "src": "/screenshots/wide-1-dashboard.png",
-      "sizes": "1280x720",
+      "sizes": "2560x1440",
       "type": "image/png",
       "form_factor": "wide",
       "label": "Track every shipment from one dashboard"
     },
     {
       "src": "/screenshots/wide-2-booking.png",
-      "sizes": "1280x720",
+      "sizes": "2560x1440",
       "type": "image/png",
       "form_factor": "wide",
       "label": "Book a Manila to Bohol delivery in a few steps"
     },
     {
       "src": "/screenshots/wide-3-tracking.png",
-      "sizes": "1280x720",
+      "sizes": "2560x1440",
       "type": "image/png",
       "form_factor": "wide",
       "label": "Follow your cargo through every status update"

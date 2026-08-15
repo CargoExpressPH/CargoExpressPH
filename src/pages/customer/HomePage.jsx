@@ -299,7 +299,7 @@ const HomePage = () => {
             return (
               <StaggerItem key={a.id} className="mb-12" delay={(index + 4) * 60}>
                 <div
-                  className="card card-interactive customer-announcement-card"
+                  className="card customer-announcement-card"
                   style={{
                     transition: 'transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease',
                   }}

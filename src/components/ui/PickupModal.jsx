@@ -246,7 +246,7 @@ const PickupModal = ({ order, onClose, onSave, pricePerKilo = 70 }) => {
 
           {error && (
             <div style={{
-              background: 'var(--error-bg)', color: 'var(--error-dark)', padding: '10px 14px',
+              background: 'var(--error-bg)', color: 'var(--error-text-strong)', padding: '10px 14px',
               borderRadius: 8, fontSize: '0.8125rem', marginBottom: 16, border: '1px solid var(--error)',
             }} role="alert">
               {error}

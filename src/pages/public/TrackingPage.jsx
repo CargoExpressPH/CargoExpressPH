@@ -309,8 +309,10 @@ const TrackingPage = ({ embedded = false }) => {
     && order?.status !== ORDER_STATUS.DELIVERED
     && order?.status !== ORDER_STATUS.CANCELLED;
 
+  const RootTag = embedded ? 'div' : 'main';
+
   return (
-    <main id="main-content" tabIndex={-1} className={`trk-page${embedded ? ' trk-page--embedded' : ''}`}>
+    <RootTag id="main-content" tabIndex={-1} className={`trk-page${embedded ? ' trk-page--embedded' : ''}`}>
       {!embedded && (
         <a href="#main-content" className="skip-link">
           Skip to main content
@@ -635,7 +637,7 @@ const TrackingPage = ({ embedded = false }) => {
         <p className="trk-footer-copy">© {new Date().getFullYear()} Cargo Express PH</p>
       </footer>
       )}
-    </main>
+    </RootTag>
   );
 };
 

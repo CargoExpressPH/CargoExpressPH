@@ -351,7 +351,7 @@ const UnsettledDeliveriesPage = () => {
         <div
           className="mb-16 no-print"
           style={{
-            background: 'var(--error-bg)', color: 'var(--error-dark)', border: '1px solid var(--error)',
+            background: 'var(--error-bg)', color: 'var(--error-text-strong)', border: '1px solid var(--error)',
             borderRadius: 8, padding: '10px 14px', fontSize: '0.8125rem',
           }}
           role="status"

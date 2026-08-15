@@ -318,7 +318,7 @@
 
 /* Error box */
 .login-error-box {
-  background: var(--error-bg); color: var(--error-dark);
+  background: var(--error-bg); color: var(--error-text-strong);
   padding: 12px 14px; border-radius: var(--radius-md);
   font-size: 0.875rem; margin-bottom: 18px;
   border: 1px solid #FECACA;
@@ -754,7 +754,7 @@
 
 /* Auth Error Box */
 .auth-error-box {
-  background: var(--error-bg); color: var(--error-dark);
+  background: var(--error-bg); color: var(--error-text-strong);
   padding: 12px 14px; border-radius: var(--radius-sm);
   font-size: 0.875rem; margin-bottom: 18px;
   border: 1px solid #FECACA;

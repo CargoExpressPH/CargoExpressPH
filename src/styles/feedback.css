@@ -156,7 +156,7 @@
   color: var(--success-text);
 }
 .toast-success .toast-type-label {
-  color: var(--success-dark);
+  color: var(--success-text);
 }
 
 .toast-error {
@@ -182,7 +182,7 @@
   color: var(--warning-text);
 }
 .toast-warning .toast-type-label {
-  color: var(--warning-dark);
+  color: var(--warning-text);
 }
 
 .toast-info {

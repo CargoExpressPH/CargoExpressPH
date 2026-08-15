@@ -79,7 +79,7 @@
 /* -- Error Banner -- */
 .auth-error-banner {
   display: flex; align-items: flex-start; gap: 8px;
-  background: var(--error-bg); color: var(--error-dark);
+  background: var(--error-bg); color: var(--error-text-strong);
   border: 1px solid #FECACA; border-radius: var(--radius-md);
   padding: 11px 14px; font-size: 0.8375rem; font-weight: 500;
   margin-bottom: 18px; line-height: 1.45;

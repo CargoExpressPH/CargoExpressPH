@@ -85,7 +85,7 @@ const DashboardPage = () => {
   const totalOrders = stats?.totalOrders || 0;
   const knownOrderSegments = [
     { label: 'Pending', value: stats?.pendingOrders || 0, color: 'var(--warning)' },
-    { label: 'Picked Up', value: stats?.pickedUp || 0, color: 'var(--chart-1)' },
+    { label: 'Picked Up', value: stats?.pickedUp || 0, color: 'var(--primary-text)' },
     { label: 'In Transit', value: stats?.inTransit || 0, color: 'var(--info)' },
     { label: 'Delivered', value: stats?.delivered || 0, color: 'var(--success)' },
   ];
