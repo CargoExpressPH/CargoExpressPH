@@ -1771,7 +1771,7 @@ export const getReportData = async (period = 'daily', customStart = null, custom
   const inTransit = filtered.filter(o => ['In Transit', 'Picked Up', 'Assigned', 'Arrived at Hub', 'Out for Delivery'].includes(o.status));
   const totalRevenue = filtered.filter(o => o.status !== 'Cancelled').reduce((s, o) => s + parseFloat(o.amount_paid || 0), 0);
   const totalCollected = filtered.reduce((s, o) => s + parseFloat(o.amount_paid || 0), 0);
-  const totalOutstanding = filtered.filter(o => o.status !== 'Cancelled').reduce((s, o) => s + parseFloat(o.remaining_balance || 0), 0);
+  const totalOutstanding = filtered.filter(o => o.status !== 'Cancelled').reduce((s, o) => s + outstandingBalance(o), 0);
   const totalWeight = filtered.filter(o => o.status !== 'Cancelled').reduce((s, o) => s + parseFloat(o.actual_weight || 0), 0);
 
   // Payment breakdown — from the ledger, grouped by each transaction's own

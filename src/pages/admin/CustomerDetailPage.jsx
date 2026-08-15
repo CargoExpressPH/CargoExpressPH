@@ -9,6 +9,7 @@ import EmptyState from '../../components/ui/EmptyState';
 import MessageCustomerButton from '../../components/ui/MessageCustomerButton';
 import Breadcrumb from '../../components/ui/Breadcrumb';
 import usePageTitle from '../../hooks/usePageTitle';
+import { isOrderPriced } from '../../constants/status';
 
 const CustomerDetailPage = () => {
   usePageTitle('Customer Details');
@@ -103,7 +104,7 @@ const CustomerDetailPage = () => {
             <tbody>
               {orders.map(o=>(
                 <tr key={o.id}><td data-label="Tracking" className="fw-600">{o.tracking_number}</td><td data-label="Route" className="text-sm">{o.origin} → {o.destination}</td>
-                <td data-label="Cost">₱{parseFloat(o.shipping_cost||0).toFixed(2)}</td><td data-label="Status"><StatusBadge status={o.status} size="sm"/></td>
+                <td data-label="Cost">{isOrderPriced(o) ? `₱${parseFloat(o.shipping_cost || 0).toFixed(2)}` : '—'}</td><td data-label="Status"><StatusBadge status={o.status} size="sm"/></td>
                 <td data-label="Date" className="text-xs text-secondary">{new Date(o.created_at).toLocaleDateString()}</td></tr>
               ))}
               {orders.length === 0 && (

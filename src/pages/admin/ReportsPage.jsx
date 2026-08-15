@@ -17,6 +17,7 @@ import {
   Filter, RefreshCw, Clock, CreditCard, Loader, AlertTriangle, Download
 } from 'lucide-react';
 import usePageTitle from '../../hooks/usePageTitle';
+import { isOrderPriced } from '../../constants/status';
 
 const PERIODS = [
   { key: 'daily', label: 'Daily', icon: Clock },
@@ -459,7 +460,7 @@ const ReportsPage = () => {
                               {formatWeight(parseFloat(order.actual_weight || 0))}
                             </td>
                             <td data-label="Amount" className="text-right fw-600" style={{ fontSize: '0.85rem' }}>
-                              {formatCurrency(parseFloat(order.shipping_cost || 0))}
+                              {isOrderPriced(order) ? formatCurrency(parseFloat(order.shipping_cost || 0)) : '—'}
                             </td>
                             <td data-label="Payment">
                               <span className="badge text-capitalize" style={{
@@ -614,7 +615,7 @@ const ReportsPage = () => {
                         <td>{order.origin || '—'} → {order.destination || '—'}</td>
                         <td>{order.status}</td>
                         <td className="num">{formatWeight(parseFloat(order.actual_weight || 0))}</td>
-                        <td className="num">{formatCurrency(parseFloat(order.shipping_cost || 0))}</td>
+                        <td className="num">{isOrderPriced(order) ? formatCurrency(parseFloat(order.shipping_cost || 0)) : '—'}</td>
                         <td className="ctr" style={{ textTransform: 'capitalize' }}>{order.payment_method || '—'}</td>
                         <td>{formatDate(order.created_at)}</td>
                       </tr>

@@ -820,16 +820,16 @@ const AdminOrderDetailPage = () => {
           <div className="admin-payment-summary">
             <div className="text-center">
               <div className="text-xs text-tertiary" style={{ marginBottom: 2 }}>Shipping Cost</div>
-              <div className="text-lg fw-800 text-primary">₱{computedShippingCost.toFixed(2)}</div>
+              <div className="text-lg fw-800 text-primary">{settlementState === SETTLEMENT_STATE.UNPRICED ? '—' : `₱${computedShippingCost.toFixed(2)}`}</div>
             </div>
             <div className="text-center">
               <div className="text-xs text-tertiary" style={{ marginBottom: 2 }}>Amount Paid</div>
-              <div className="text-lg fw-800 text-success">₱{computedAmountPaid.toFixed(2)}</div>
+              <div className="text-lg fw-800 text-success">{settlementState === SETTLEMENT_STATE.UNPRICED ? '—' : `₱${computedAmountPaid.toFixed(2)}`}</div>
             </div>
             <div className="text-center">
               <div className="text-xs text-tertiary" style={{ marginBottom: 2 }}>{isOverpaid ? 'Overpaid' : 'Balance'}</div>
-              <div className={`text-lg fw-800 ${isOverpaid ? 'text-warning' : computedRemainingBalance > 0 ? 'text-error' : 'text-success'}`}>
-                {isOverpaid ? `+₱${Math.abs(computedRemainingBalance).toFixed(2)}` : `₱${computedRemainingBalance.toFixed(2)}`}
+              <div className={`text-lg fw-800 ${settlementState === SETTLEMENT_STATE.UNPRICED ? 'text-tertiary' : isOverpaid ? 'text-warning' : computedRemainingBalance > 0 ? 'text-error' : 'text-success'}`}>
+                {settlementState === SETTLEMENT_STATE.UNPRICED ? '—' : isOverpaid ? `+₱${Math.abs(computedRemainingBalance).toFixed(2)}` : `₱${computedRemainingBalance.toFixed(2)}`}
               </div>
             </div>
           </div>
