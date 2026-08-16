@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import {
   CreditCard, Calendar, AlertTriangle, CheckCircle, XCircle,
-  Loader, RefreshCw, FileText, Trash2,
+  Loader, RefreshCw, FileText, Trash2, ExternalLink,
 } from 'lucide-react';
 import QRCode from 'react-qr-code';
 import AmountInput from './AmountInput';
@@ -591,13 +591,33 @@ const PaymentCollectionPanel = ({
 
           {/* Waiting for the customer */}
           {value.paymentStep === 'waiting' && !value.confirmed && value.checkoutUrl && (
-            <div className="mb-12" style={{ background: 'var(--info-bg)', borderRadius: 8, padding: 12, border: '1px solid var(--info)' }}>
-              <div className="flex flex-col items-center gap-8 mb-16">
-                <div style={{ background: 'white', padding: 8, borderRadius: 8 }}>
-                  <QRCode value={value.checkoutUrl} size={150} />
-                </div>
-                <span className="text-sm fw-600" style={{ color: 'var(--info-dark)' }}>Scan to Pay via GCash</span>
+            <div className="mb-12" style={{ background: 'var(--info-bg)', borderRadius: 12, padding: 14, border: '1px solid var(--info)' }}>
+              <div className="flex items-center justify-between mb-16">
+                <span
+                  style={{
+                    background: '#007DFE', color: '#FFFFFF', borderRadius: 6,
+                    padding: '3px 10px', fontWeight: 700, fontSize: '0.8125rem',
+                    letterSpacing: 0.5,
+                  }}
+                >
+                  GCash
+                </span>
+                <span className="text-sm fw-700" style={{ color: 'var(--info-dark)' }}>
+                  ₱{formatAmount((value.payment_type === 'paylater' ? d.collected : d.expected).toFixed(2))} via GCash
+                </span>
               </div>
+
+              <div className="flex flex-col items-center gap-8 mb-16">
+                <div style={{ background: 'white', padding: 10, borderRadius: 12 }}>
+                  <QRCode value={value.checkoutUrl} size={160} />
+                </div>
+              </div>
+
+              <ol className="mb-16" style={{ margin: 0, paddingLeft: 18, fontSize: '0.8125rem', lineHeight: 1.9, color: 'var(--text-secondary)' }}>
+                <li>Scan the QR, or tap <strong>Open GCash</strong> for the checkout page</li>
+                <li>Approve the payment in the GCash app</li>
+                <li>Done — this panel updates by itself the moment the payment lands</li>
+              </ol>
 
               <div className="flex items-center justify-center gap-8 mb-16" role="status" aria-live="polite">
                 <Loader size={14} className="animate-spin" style={{ color: 'var(--info-dark)' }} aria-hidden="true" />
@@ -606,12 +626,14 @@ const PaymentCollectionPanel = ({
                 </span>
               </div>
 
-              <div className="text-xs text-tertiary mb-16" style={{ textAlign: 'center' }}>
-                This updates by itself the moment the payment goes through — even if the
-                customer pays on their own phone. Keep this open, or check manually below.
-              </div>
-
               <div className="flex gap-8 mb-8">
+                <button
+                  type="button"
+                  className="btn btn-primary btn-sm flex-1 justify-center"
+                  onClick={() => window.open(value.checkoutUrl, '_blank', 'noopener')}
+                >
+                  <ExternalLink size={14} className="mr-6" aria-hidden="true" /> Open GCash
+                </button>
                 <button
                   type="button"
                   className="btn btn-outline btn-sm flex-1 justify-center"

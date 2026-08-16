@@ -1,9 +1,9 @@
 import { useState, useRef, useEffect } from 'react';
-import { X, Loader, Smartphone, AlertTriangle, CreditCard, FileText, Trash2, CheckCircle } from 'lucide-react';
+import { X, Loader, Smartphone, AlertTriangle, CreditCard, FileText, Trash2, CheckCircle, ExternalLink } from 'lucide-react';
 import FocusTrap from './FocusTrap';
 import AmountInput from './AmountInput';
 import useScrollLock from '../../hooks/useScrollLock';
-import { sanitizeAmount, parseAmount } from '../../utils/currencyInput';
+import { sanitizeAmount, parseAmount, formatAmount } from '../../utils/currencyInput';
 import { uploadPhoto } from '../../lib/storage';
 import QRCode from 'react-qr-code';
 import { createGCashSource, registerSource } from '../../lib/paymongo';
@@ -268,25 +268,52 @@ const AdditionalPaymentModal = ({ order, remainingBalance, onClose, onSave }) =>
                 )}
 
                 {paymentStep === 'waiting' && checkoutUrl && (
-                  <div className="mb-12" style={{ background: 'var(--info-bg)', borderRadius: 8, padding: 12, border: '1px solid var(--info)' }}>
+                  <div className="mb-12" style={{ background: 'var(--info-bg)', borderRadius: 12, padding: 14, border: '1px solid var(--info)' }}>
+                    <div className="flex items-center justify-between mb-16">
+                      <span
+                        style={{
+                          background: '#007DFE', color: '#FFFFFF', borderRadius: 6,
+                          padding: '3px 10px', fontWeight: 700, fontSize: '0.8125rem',
+                          letterSpacing: 0.5,
+                        }}
+                      >
+                        GCash
+                      </span>
+                      <span className="text-sm fw-700" style={{ color: 'var(--info-dark)' }}>
+                        ₱{formatAmount((parseAmount(form.amount) || 0).toFixed(2))} via GCash
+                      </span>
+                    </div>
+
                     <div className="flex flex-col items-center gap-8 mb-16">
-                      <div style={{ background: 'white', padding: 8, borderRadius: 8 }}>
-                        <QRCode value={checkoutUrl} size={150} />
+                      <div style={{ background: 'white', padding: 10, borderRadius: 12 }}>
+                        <QRCode value={checkoutUrl} size={160} />
                       </div>
-                      <span className="text-sm fw-600" style={{ color: 'var(--info-dark)' }}>Scan to Pay via GCash</span>
                     </div>
-                    <div className="text-xs text-tertiary mb-16" style={{ textAlign: 'center' }}>
-                      Payment link generated. The payment will be automatically recorded once the customer completes the transaction. You can now close this window.
+
+                    <ol className="mb-16" style={{ margin: 0, paddingLeft: 18, fontSize: '0.8125rem', lineHeight: 1.9, color: 'var(--text-secondary)' }}>
+                      <li>Scan the QR, or tap <strong>Open GCash</strong> for the checkout page</li>
+                      <li>Approve the payment in the GCash app</li>
+                      <li>Done — this window updates by itself the moment the payment lands</li>
+                    </ol>
+
+                    <div className="flex gap-8">
+                      <button
+                        type="button"
+                        className="btn btn-primary btn-sm flex-1 justify-center"
+                        onClick={() => window.open(checkoutUrl, '_blank', 'noopener')}
+                      >
+                        <ExternalLink size={14} className="mr-6" aria-hidden="true" /> Open GCash
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-outline btn-sm flex-1 justify-center"
+                        onClick={() => {
+                          navigator.clipboard.writeText(checkoutUrl);
+                        }}
+                      >
+                        Copy Payment Link
+                      </button>
                     </div>
-                    <button
-                      type="button"
-                      className="btn btn-outline btn-sm w-full justify-center"
-                      onClick={() => {
-                        navigator.clipboard.writeText(checkoutUrl);
-                      }}
-                    >
-                      Copy Payment Link
-                    </button>
                   </div>
                 )}
 
