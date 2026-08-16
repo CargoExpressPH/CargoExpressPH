@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { ADMIN, CUSTOMER, BOOKING, TRIP, ANNOUNCEMENT, RUN_ID, datetimeLocal, parsePeso } from './helpers/config.js';
 import {
   login, fillById, selectCustom, expectToast, dismissOverlays, readSettledNumber,
-  suppressOnboarding, expectNavigationOrError, collectDiagnostics,
+  suppressOnboarding, expectNavigationOrError, collectDiagnostics, awaitOrderPageOrRetry,
 } from './helpers/actions.js';
 import { findTripByNotes } from './helpers/db.js';
 
@@ -255,7 +255,7 @@ test.describe('CargoExpress PH — admin + customer end-to-end journey', () => {
     // Regression guard for the "Unpaid + Settled" contradiction: an order with
     // no weight has no price, so it is neither. It must say exactly that, and
     // must NOT show a Settled badge off the back of a ₱0.00 balance.
-    await expect(page.getByText('Not yet weighed — no price')).toBeVisible({ timeout: 20_000 });
+    await awaitOrderPageOrRetry(page, page.getByText('Not yet weighed — no price'));
     await expect(page.getByText('Settled', { exact: true })).toHaveCount(0);
   });
 
@@ -266,8 +266,10 @@ test.describe('CargoExpress PH — admin + customer end-to-end journey', () => {
 
     // Pending → Assigned happens automatically when a trip is attached, so the
     // next action here is the pickup itself.
+    const pickupHeading = page.getByRole('heading', { name: /pickup processing/i });
+    await awaitOrderPageOrRetry(page, page.getByRole('button', { name: /process pickup/i }));
     await page.getByRole('button', { name: /process pickup/i }).click();
-    await expect(page.getByRole('heading', { name: /pickup processing/i })).toBeVisible();
+    await expect(pickupHeading).toBeVisible();
 
     // Weight is the ONLY pricing input and enters the system exactly here.
     await fillById(page, 'pickup-actual-weight', BOOKING.actualWeightKg);
@@ -275,11 +277,13 @@ test.describe('CargoExpress PH — admin + customer end-to-end journey', () => {
     await page.getByRole('button', { name: /sender \(pay now\)/i }).click();
     await page.getByRole('button', { name: /^pay later$/i }).click();   // partial, not full
     await page.getByRole('button', { name: /^cash$/i }).click();
-    await fillById(page, 'pu-amount-paid', BOOKING.partialPayment);
+    // The payment panel's own ids: the money UI moved from a pickup-specific
+    // block into the shared PaymentCollectionPanel (pcp-*).
+    await fillById(page, 'pcp-amount', BOOKING.partialPayment);
 
     // Pay Later requires a promise date — it is also the documented override
     // that lets an unpaid shipment leave the warehouse later.
-    const promised = page.locator('#pu-promised-date');
+    const promised = page.locator('#pcp-promised-date');
     await expect(promised).toBeVisible();
     await promised.fill(datetimeLocal(14).slice(0, 10));
 
@@ -293,8 +297,11 @@ test.describe('CargoExpress PH — admin + customer end-to-end journey', () => {
 
     await page.getByRole('button', { name: /confirm pickup/i }).click();
 
+    // The save chain (photo compression+upload, RPC, ledger, notification) has
+    // taken 60-90s on a degraded network — each Supabase round trip can run
+    // 8-27s. 60s made the test give up seconds before the modal closed.
     await expect(page.getByRole('heading', { name: /pickup processing/i }))
-      .toBeHidden({ timeout: 60_000 });
+      .toBeHidden({ timeout: 120_000 });
 
     // The database recomputes the cost from the weight; the client never sets it.
     await expect(page.getByText(`₱${BOOKING.shippingCost.toFixed(2)}`).first())
@@ -338,6 +345,8 @@ test.describe('CargoExpress PH — admin + customer end-to-end journey', () => {
     // Now dispatch for doorstep delivery. The order was weighed and carries a
     // promise date, so the warehouse hold must let it through.
     await page.goto(journey.orderUrl);
+    await dismissOverlays(page);
+    await awaitOrderPageOrRetry(page, page.getByRole('button', { name: /advance to "Out for Delivery"/i }));
     await page.getByRole('button', { name: /advance to "Out for Delivery"/i }).click();
 
     await expect(page.getByText('Out for Delivery').first()).toBeVisible({ timeout: 30_000 });

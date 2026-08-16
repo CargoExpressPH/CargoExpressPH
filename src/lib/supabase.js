@@ -26,7 +26,10 @@ const fetchWithRetry = async (url, options = {}, retries = 3, backoff = 1000) =>
   const method = (options.method || 'GET').toUpperCase();
   const isIdempotent = method === 'GET';
 
-  const timeoutMs = 15000; // 15 seconds timeout
+  const timeoutMs = 60000; // 60 seconds timeout — 15s aborted slow-but-working
+  // connections with a cryptic "signal is aborted without reason" toast;
+  // a hard abort with no retry is a guaranteed login failure on slow mobile
+  // networks (the primary target market).
   try {
     const controller = new AbortController();
     const id = setTimeout(() => controller.abort(), timeoutMs);
@@ -47,8 +50,12 @@ const fetchWithRetry = async (url, options = {}, retries = 3, backoff = 1000) =>
     }
     return response;
   } catch (error) {
-    // Retry only for idempotent GETs with retries remaining (not user-aborted)
-    if (isIdempotent && retries > 0 && error.name !== 'AbortError') {
+    // Retry only for idempotent GETs with retries remaining. A timed-out GET
+    // is safe to retry — the request may not have reached the server, and even
+    // if it did, a GET has no side effects. A timed-out write is NOT retried:
+    // the server may have applied it, and replaying it would duplicate the
+    // booking or the payment.
+    if (isIdempotent && retries > 0) {
       // Retry with exponential backoff
       await new Promise(resolve => setTimeout(resolve, backoff));
       // Exponential backoff: 1s, 2s, 4s

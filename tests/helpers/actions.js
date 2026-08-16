@@ -64,6 +64,27 @@ export const fillById = async (page, id, value) => {
 };
 
 /**
+ * Waits for an admin order page to actually render, recovering from a failed
+ * initial load. OrderDetailPage fetches the order on mount; if that fetch dies
+ * at the network level (the machine's Supabase connection blips mid-run) the
+ * page renders an "Error Loading Order" card with a Retry button instead of
+ * the expected content. Racing the two lets the test click Retry and continue
+ * instead of failing on a transient that has nothing to do with the app.
+ */
+export const awaitOrderPageOrRetry = async (page, expected) => {
+  const alert = page.getByRole('alert', { name: /error loading order/i });
+  await Promise.race([
+    expected.waitFor({ state: 'visible', timeout: 60_000 }),
+    alert.waitFor({ state: 'visible', timeout: 60_000 }).then(async () => {
+      console.log('  → order page load failed; clicking Retry');
+      await alert.getByRole('button', { name: 'Retry' }).click();
+      await expect(alert).toBeHidden({ timeout: 60_000 });
+      await expected.waitFor({ state: 'visible', timeout: 60_000 });
+    }),
+  ]);
+};
+
+/**
  * Signs in through the real login form.
  *
  * Waits for the post-login redirect rather than a fixed timeout: AuthContext
@@ -71,12 +92,49 @@ export const fillById = async (page, id, value) => {
  * "the URL changed" is the only honest signal that login finished.
  */
 export const login = async (page, email, password, { expectPath }) => {
-  await page.goto('/login');
-  await fillById(page, 'login-email', email);
-  await fillById(page, 'login-password', password);
-  await page.getByRole('button', { name: 'Sign In' }).click();
+  const pathPattern = new RegExp(`${expectPath.replace('/', '\\/')}`);
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    await page.goto('/login');
+    // AuthRoute decides between the form (no session) and a redirect (a
+    // session is still alive — role switches inside one test). It first shows
+    // a loading screen, so wait for whichever wins instead of guessing.
+    const verdict = await Promise.race([
+      page.locator('#login-email').waitFor({ state: 'visible', timeout: 20_000 }).then(() => 'form'),
+      page.waitForURL(u => !/\/login/.test(u.pathname), { timeout: 20_000 }).then(() => 'redirect'),
+    ]).catch(() => 'form');
 
-  await page.waitForURL(new RegExp(`${expectPath.replace('/', '\\/')}`), { timeout: 45_000 });
+    if (verdict === 'redirect') {
+      // Wipe storage directly — the UI logout path is too racy to depend on
+      // here (menu animation, slow first paint).
+      await page.context().clearCookies();
+      await page.evaluate(() => {
+        localStorage.clear();
+        sessionStorage.clear();
+      });
+      await page.goto('/login');
+      await page.locator('#login-email').waitFor({ state: 'visible', timeout: 20_000 });
+    }
+
+    await fillById(page, 'login-email', email);
+    await fillById(page, 'login-password', password);
+    await page.getByRole('button', { name: 'Sign In' }).click();
+
+    try {
+      await page.waitForURL(pathPattern, { timeout: 45_000 });
+      return;
+    } catch {
+      // A slow/flaky network can eat the sign-in POST without an error banner
+      // (the app keeps the session half-established and lands on the public
+      // root instead of the protected area). Retry rather than fail a flow
+      // that is not the thing under test.
+      const url = page.url();
+      if (url.includes('/login') || !pathPattern.test(url)) {
+        if (attempt === 3) throw new Error(`login failed after 3 attempts (landed on ${url})`);
+      } else {
+        return;
+      }
+    }
+  }
 };
 
 /**

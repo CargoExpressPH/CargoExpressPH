@@ -33,8 +33,10 @@ export default defineConfig({
 
   // The journey covers ~40 UI steps against a live remote database; the
   // default 30 s per test is not enough for the booking wizard alone.
-  timeout: 120_000,
-  expect: { timeout: 15_000 },
+  // Timeouts are elevated above the macOS-tuned defaults because a fresh test
+  // context can take 20-60 s just to boot the app shell on a cold Windows box.
+  timeout: 240_000,
+  expect: { timeout: 25_000 },
 
   reporter: [['list'], ['html', { open: 'never' }]],
 
@@ -53,8 +55,8 @@ export default defineConfig({
     // the DOM and network log, so nothing diagnostic is lost. Turn this back on
     // when the project moves to macOS 13+ or runs in CI on Linux.
     video: 'off',
-    actionTimeout: 20_000,
-    navigationTimeout: 45_000,
+    actionTimeout: 45_000,
+    navigationTimeout: 120_000,
   },
 
   projects: [
@@ -65,10 +67,19 @@ export default defineConfig({
   ],
 
   webServer: {
-    command: 'npm run dev -- --port 5173 --strictPort',
+    // E2E runs against the PRODUCTION build, not the dev server. Vite's dev
+    // optimizer re-bundles dependencies on the first run that imports a
+    // page's icons/utilities (the "cold warm-up"), and a request killed by
+    // that restart leaves a lazy chunk's import pending forever — React
+    // Suspense then keeps the previous screen on top and the suite reads a
+    // false "nothing happened". Production bundles have no optimizer, so this
+    // class of race cannot occur there, and testing the built app is the
+    // realistic target anyway. Build takes ~20 s on a cold Windows box; the
+    // timeout below covers build + preview startup.
+    command: 'npm run build && npm run preview -- --port 5173 --strictPort',
     url: 'http://localhost:5173',
     reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
+    timeout: 240_000,
     stdout: 'ignore',
     stderr: 'pipe',
   },

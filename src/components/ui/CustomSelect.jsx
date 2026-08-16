@@ -81,13 +81,11 @@ const CustomSelect = ({
     document.addEventListener('pointerdown', closeOnOutsidePointer);
     document.addEventListener('keydown', closeOnEscape);
     window.addEventListener('resize', repositionMenu);
-    window.addEventListener('scroll', repositionMenu, true);
 
     return () => {
       document.removeEventListener('pointerdown', closeOnOutsidePointer);
       document.removeEventListener('keydown', closeOnEscape);
       window.removeEventListener('resize', repositionMenu);
-      window.removeEventListener('scroll', repositionMenu, true);
     };
   }, [open, options.length]);
 

@@ -1,10 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, BookOpen, CheckCircle2, HelpCircle, MessageCircle,
   PackageCheck, Search, ShieldAlert, Truck,
 } from 'lucide-react';
-import { supabase } from '../../lib/supabase';
 import EmptyState from '../../components/ui/EmptyState';
 import usePageTitle from '../../hooks/usePageTitle';
 
@@ -71,39 +70,11 @@ const guidelineSections = [
 const HelpGuidelinesPage = () => {
   usePageTitle('Help & Guidelines');
   const navigate = useNavigate();
-  const [faqs, setFaqs] = useState(fallbackFaqs);
   const [search, setSearch] = useState('');
-  const [loadingFaqs, setLoadingFaqs] = useState(true);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    const loadFaqs = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('chat_faqs')
-          .select('id, title, answer, category, status, is_active, priority, created_at')
-          .eq('is_active', true)
-          .order('created_at', { ascending: false })
-          .limit(25);
-
-        if (error) throw error;
-        const published = (data || []).filter(faq => !faq.status || faq.status === 'published');
-        if (isMounted && published.length > 0) setFaqs(published);
-      } catch (err) {
-        if (isMounted) setFaqs(fallbackFaqs);
-      } finally {
-        if (isMounted) setLoadingFaqs(false);
-      }
-    };
-
-    loadFaqs();
-    return () => { isMounted = false; };
-  }, []);
 
   const filteredFaqs = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return faqs;
+    if (!q) return fallbackFaqs;
     return faqs.filter(faq =>
       faq.title?.toLowerCase().includes(q) ||
       faq.answer?.toLowerCase().includes(q) ||
@@ -172,7 +143,6 @@ const HelpGuidelinesPage = () => {
             onChange={e => setSearch(e.target.value)}
           />
         </div>
-        {loadingFaqs && <p className="form-helper">Loading published FAQs...</p>}
       </div>
 
       {filteredFaqs.length === 0 ? (

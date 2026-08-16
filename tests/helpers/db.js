@@ -192,6 +192,52 @@ export const tryDispatch = async (orderId) => {
   return db.from('orders').update({ status: 'Out for Delivery' }).eq('id', orderId).select();
 };
 
+/**
+ * Builds an order that sits at 'Assigned' on a trip — the shape a booked
+ * parcel takes before pickup. Inserted through the customer's own INSERT
+ * policy (server-generated tracking number, nulled weight) and advanced to
+ * 'Assigned' as the admin, exactly like the dispatch-gate fixture.
+ */
+export const seedAssignedOrder = async ({ userId, customerEmail, tripId, runId }) => {
+  const asCustomer = await customerClient(customerEmail);
+  const asAdmin = await adminClient();
+
+  const { data: inserted, error: insertError } = await asCustomer
+    .from('orders')
+    .insert({
+      user_id: userId,
+      origin: 'Manila',
+      destination: 'Bohol',
+      sender_name: 'Cancel Fixture Sender',
+      sender_phone: '09170000003',
+      sender_address: 'Taft Avenue, Malate, Manila, Metro Manila',
+      sender_city: 'Manila',
+      sender_province: 'Metro Manila',
+      receiver_name: 'Cancel Fixture Receiver',
+      receiver_phone: '09170000004',
+      receiver_address: 'Gallares Street, Cogon, Tagbilaran City, Bohol',
+      receiver_city: 'Tagbilaran City',
+      receiver_province: 'Bohol',
+      package_description: `E2E cancellation fixture ${runId}`,
+      payer_type: 'sender',
+      status: 'Pending',
+    })
+    .select()
+    .single();
+
+  if (insertError) throw new Error(`seedAssignedOrder insert: ${insertError.message}`);
+
+  const { data: advanced, error: updateError } = await asAdmin
+    .from('orders')
+    .update({ trip_id: tripId, status: 'Assigned' })
+    .eq('id', inserted.id)
+    .select()
+    .single();
+
+  if (updateError) throw new Error(`seedAssignedOrder advance: ${updateError.message}`);
+  return advanced;
+};
+
 export const deleteOrder = async (orderId) => {
   const db = await adminClient();
   await db.from('orders').delete().eq('id', orderId);

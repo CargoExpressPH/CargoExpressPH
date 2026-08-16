@@ -1274,16 +1274,25 @@ export const updateSettings = async (key, value) => {
 
 // ==================== NOTIFICATIONS HELPER ====================
 export const createNotification = async (userId, title, message, type = 'general', referenceId = null) => {
-  const { error } = await supabase
-    .from('notifications')
-    .insert({
-      user_id: userId,
-      title,
-      message,
-      type,
-      reference_id: referenceId,
-    });
-  // Notification insert error is non-critical
+  try {
+    const { error } = await supabase
+      .from('notifications')
+      .insert({
+        user_id: userId,
+        title,
+        message,
+        type,
+        reference_id: referenceId,
+      });
+    // Insert error is non-critical — the ledger/order write that spawned this
+    // notification has already succeeded, and a failed notice must not roll
+    // the user's action back.
+  } catch {
+    // Network-level failure is non-critical for the same reason. Every caller
+    // AWAITS this function before closing a modal or finishing a cascade, so
+    // a rejected fetch here would block the pickup/delivery/status operation
+    // for a notice nobody is waiting on.
+  }
 
   // Fire-and-forget: send push notification via Edge Function
   // Non-blocking — never slows down the UI even if it fails
