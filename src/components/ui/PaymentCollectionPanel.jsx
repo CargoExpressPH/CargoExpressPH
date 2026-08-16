@@ -295,6 +295,7 @@ const PaymentCollectionPanel = ({
         `Cargo Express PH - ${order.tracking_number} ${config.purpose}`,
         config.billing,
         true,
+        order.id,
       );
       await registerSource(source.sourceId, amount, {
         orderId: order.id,

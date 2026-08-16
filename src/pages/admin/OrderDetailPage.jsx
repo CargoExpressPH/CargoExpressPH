@@ -1,6 +1,7 @@
-import { useState, useEffect, useMemo } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { getOrderById, updateOrder, createNotification, getTripReassignments, reassignTrip, getActivityLogsByRecord, getPaymentTransactions, recordAdditionalPayment, recordPickupPayment, recordDeliveryPayment, getOrderStatusEvents, reviewOrderCancellation } from '../../lib/database';
+import { useState, useEffect, useMemo, useRef } from 'react';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { getOrderById, updateOrder, createNotification, getTripReassignments, reassignTrip, getActivityLogsByRecord, getPaymentTransactions, recordAdditionalPayment, recordPickupPayment, recordDeliveryPayment, getOrderStatusEvents, reviewOrderCancellation, getLatestPaymentAttemptByOrder } from '../../lib/database';
+import { pollPaymentStatus } from '../../lib/paymongo';
 import { logOrder, logPayment } from '../../lib/activityLog';
 import { buildStatusTimestamps } from '../../utils/statusTimestamps';
 import { resolvePhotoUrls, deletePhoto } from '../../lib/storage';
@@ -161,6 +162,37 @@ const AdminOrderDetailPage = () => {
     let isMounted = true;
     loadOrder(isMounted);
     return () => { isMounted = false; };
+  }, [id]);
+
+  /**
+   * The GCash return path. PayMongo redirects the customer back to
+   * `/admin/orders/:id?payment=success` after authorizing. Nothing polls there,
+   * so a payment could sit as `pending` forever if the admin had already closed
+   * the panel — this reconciles the latest attempt on arrival and says so.
+   */
+  const [searchParams] = useSearchParams();
+  const checkedReturnRef = useRef(false);
+  useEffect(() => {
+    if (checkedReturnRef.current) return;
+    if (searchParams.get('payment') !== 'success') return;
+    checkedReturnRef.current = true;
+    (async () => {
+      try {
+        const attempt = await getLatestPaymentAttemptByOrder(id);
+        if (attempt?.source_id && attempt.status !== 'reconciled') {
+          const res = await pollPaymentStatus(attempt.source_id, id);
+          if (res.orderReconciled || res.status === 'paid') {
+            toast.success('GCash payment received — recorded automatically.');
+          } else {
+            toast.info('GCash payment is still processing. Check again in a moment.');
+          }
+        }
+      } catch {
+        // The open panel polls on its own and the webhook covers the rest.
+      }
+      navigate(`/admin/orders/${id}`, { replace: true });
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   useEffect(() => {

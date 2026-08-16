@@ -1438,6 +1438,19 @@ export const createPaymentAttempt = async (attempt) => {
   return data;
 };
 
+/** Latest PayMongo attempt for an order — the source the return path should poll. */
+export const getLatestPaymentAttemptByOrder = async (orderId) => {
+  const { data, error } = await supabase
+    .from('payment_attempts')
+    .select('id, source_id, status, amount')
+    .eq('order_id', orderId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+};
+
 // ==================== CHAT SUPPORT ====================
 export const getOrCreateConversation = async (customerId) => {
   // Try to find existing — use .limit(1) instead of .single() to avoid
