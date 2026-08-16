@@ -300,7 +300,7 @@ const AdditionalPaymentModal = ({ order, remainingBalance, onClose, onSave }) =>
                       <button
                         type="button"
                         className="btn btn-primary btn-sm flex-1 justify-center"
-                        onClick={() => window.open(checkoutUrl, '_blank', 'noopener')}
+                        onClick={() => { window.location.href = checkoutUrl; }}
                       >
                         <ExternalLink size={14} className="mr-6" aria-hidden="true" /> Open GCash
                       </button>

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { getOrderById, requestOrderCancellation, getPaymentTransactions, submitFeedback, checkIfFeedbackExists, getOrderStatusEvents } from '../../lib/database';
+import { getOrderById, requestOrderCancellation, getPaymentTransactions, submitFeedback, checkIfFeedbackExists, getOrderStatusEvents, getLatestPaymentAttemptByOrder } from '../../lib/database';
 import { buildStatusTimestamps } from '../../utils/statusTimestamps';
 import { resolvePhotoUrls } from '../../lib/storage';
 import { useAuth } from '../../contexts/AuthContext';
@@ -173,9 +173,27 @@ const OrderDetailPage = () => {
     if (paymentResult === 'success') {
       const storedSourceId = localStorage.getItem(`pending_payment_${id}`);
       if (!storedSourceId) {
-        // No stored source — just reload the order and hope the webhook did its job
-        toast.info('Verifying payment status...');
-        setTimeout(() => loadOrder(), 2000);
+        // No stored source — the app may have been reinstalled or cleared.
+        // Fall back to the latest attempt in the database before giving up.
+        setVerifyingPayment(true);
+        const fallback = async () => {
+          try {
+            const attempt = await getLatestPaymentAttemptByOrder(id);
+            if (attempt?.source_id && attempt.status !== 'reconciled') {
+              const result = await pollPaymentStatus(attempt.source_id, id);
+              if (result.orderReconciled) {
+                toast.success('Payment confirmed! Your order has been updated.');
+                await loadOrder();
+                return;
+              }
+            }
+          } catch {
+            // The webhook is the safety net here.
+          }
+          toast.info('Verifying payment status...');
+          setTimeout(() => loadOrder(), 2000);
+        };
+        fallback().finally(() => { if (isMountedRef.current) setVerifyingPayment(false); });
         return;
       }
 

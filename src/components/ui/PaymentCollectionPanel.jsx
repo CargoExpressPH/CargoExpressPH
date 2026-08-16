@@ -631,7 +631,7 @@ const PaymentCollectionPanel = ({
                 <button
                   type="button"
                   className="btn btn-primary btn-sm flex-1 justify-center"
-                  onClick={() => window.open(value.checkoutUrl, '_blank', 'noopener')}
+                  onClick={() => { window.location.href = value.checkoutUrl; }}
                 >
                   <ExternalLink size={14} className="mr-6" aria-hidden="true" /> Open GCash
                 </button>

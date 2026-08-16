@@ -165,33 +165,47 @@ const AdminOrderDetailPage = () => {
   }, [id]);
 
   /**
-   * The GCash return path. PayMongo redirects the customer back to
-   * `/admin/orders/:id?payment=success` after authorizing. Nothing polls there,
-   * so a payment could sit as `pending` forever if the admin had already closed
-   * the panel — this reconciles the latest attempt on arrival and says so.
+   * The GCash return path. PayMongo redirects the admin back to
+   * `/admin/orders/:id?payment=success` (or `failed`) after the customer
+   * authorizes. Same-window navigation is used everywhere — browser, desktop
+   * and installed PWA alike — so this is where the payment gets reconciled.
    */
   const [searchParams] = useSearchParams();
   const checkedReturnRef = useRef(false);
   useEffect(() => {
-    if (checkedReturnRef.current) return;
-    if (searchParams.get('payment') !== 'success') return;
+    const paymentResult = searchParams.get('payment');
+    if (!paymentResult || checkedReturnRef.current) return;
     checkedReturnRef.current = true;
-    (async () => {
+    navigate(`/admin/orders/${id}`, { replace: true });
+
+    if (paymentResult === 'failed') {
+      toast.error('GCash payment was not completed. You can try again.');
+      return;
+    }
+
+    const verify = async () => {
       try {
         const attempt = await getLatestPaymentAttemptByOrder(id);
-        if (attempt?.source_id && attempt.status !== 'reconciled') {
-          const res = await pollPaymentStatus(attempt.source_id, id);
-          if (res.orderReconciled || res.status === 'paid') {
-            toast.success('GCash payment received — recorded automatically.');
-          } else {
-            toast.info('GCash payment is still processing. Check again in a moment.');
-          }
+        if (!attempt?.source_id || attempt.status === 'reconciled') return;
+        const result = await pollPaymentStatus(attempt.source_id, id);
+        if (result.orderReconciled || result.status === 'paid') {
+          toast.success('GCash payment received — recorded automatically.');
+          await loadOrder();
+          return;
         }
+        await new Promise(r => setTimeout(r, 3000));
+        const retry = await pollPaymentStatus(attempt.source_id, id);
+        if (retry.orderReconciled || retry.status === 'paid') {
+          toast.success('GCash payment received — recorded automatically.');
+        } else {
+          toast.info('GCash payment is still processing. Check again in a moment.');
+        }
+        await loadOrder();
       } catch {
-        // The open panel polls on its own and the webhook covers the rest.
+        await loadOrder();
       }
-      navigate(`/admin/orders/${id}`, { replace: true });
-    })();
+    };
+    verify();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
