@@ -33,7 +33,7 @@ const CustPersonalInfoPage = lazyWithRetry(() => import('./pages/customer/Person
 const ChangePasswordPage = lazyWithRetry(() => import('./pages/shared/ChangePasswordPage'));
 const ChangeEmailPage = lazyWithRetry(() => import('./pages/shared/ChangeEmailPage'));
 const SupportChatPage = lazyWithRetry(() => import('./pages/customer/SupportChatPage'));
-const PaymentMethodsPage = lazyWithRetry(() => import('./pages/customer/PaymentMethodsPage'));
+const PaymentHistoryPage = lazyWithRetry(() => import('./pages/customer/PaymentHistoryPage'));
 const HelpGuidelinesPage = lazyWithRetry(() => import('./pages/customer/HelpGuidelinesPage'));
 const AboutVersionPage = lazyWithRetry(() => import('./pages/customer/AboutVersionPage'));
 
@@ -172,7 +172,12 @@ const router = createBrowserRouter([
           { path: 'change-password', element: <Suspense fallback={<PageLoader />}><ChangePasswordPage /></Suspense> },
           { path: 'change-email', element: <Suspense fallback={<PageLoader />}><ChangeEmailPage /></Suspense> },
           { path: 'support', element: <Suspense fallback={<PageLoader />}><SupportChatPage /></Suspense> },
-          { path: 'payment-methods', element: <Suspense fallback={<PageLoader />}><PaymentMethodsPage /></Suspense> },
+          { path: 'payments', element: <Suspense fallback={<PageLoader />}><PaymentHistoryPage /></Suspense> },
+          // The page was 'payment-methods' until it was renamed to Payment
+          // History. Kept as a redirect because the old path is in browser
+          // history, in the PWA's cached shell and in any link a customer
+          // saved — dropping it would 404 them rather than move them.
+          { path: 'payment-methods', element: <Navigate to="/customer/payments" replace /> },
           { path: 'help-guidelines', element: <Suspense fallback={<PageLoader />}><HelpGuidelinesPage /></Suspense> },
           { path: 'about-version', element: <Suspense fallback={<PageLoader />}><AboutVersionPage /></Suspense> },
         ],

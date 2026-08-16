@@ -263,13 +263,13 @@ const ProfilePage = () => {
             </div>
             <ChevronRight size={16} color="var(--text-tertiary)" />
           </button>
-          <button type="button" onClick={() => navigate('/customer/payment-methods')} className="profile-menu-item">
+          <button type="button" onClick={() => navigate('/customer/payments')} className="profile-menu-item">
             <div className="profile-menu-icon-wrap success">
               <CreditCard size={18} />
             </div>
             <div className="flex-1 text-left">
-              <div className="text-sm font-bold">Payment Methods</div>
-              <div className="text-xs text-secondary">Review payment options, balances, and history</div>
+              <div className="text-sm font-bold">Payment History</div>
+              <div className="text-xs text-secondary">Your payments, open balances, and receipts</div>
             </div>
             <ChevronRight size={16} color="var(--text-tertiary)" />
           </button>

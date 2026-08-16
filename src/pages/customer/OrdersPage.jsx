@@ -11,9 +11,12 @@ import PullToRefresh from '../../components/ui/PullToRefresh';
 import ResponsiveFilterControls from '../../components/ui/ResponsiveFilterControls';
 import { Search, Package, AlertCircle, MapPin, ChevronRight } from 'lucide-react';
 import usePageTitle from '../../hooks/usePageTitle';
-import { VALID_STATUSES, isOrderPriced } from '../../constants/status';
+import { CUSTOMER_ORDER_FILTERS, isOrderPriced } from '../../constants/status';
 
-const tabs = ['All', ...VALID_STATUSES];
+// One chip per GROUP, not one per internal status. See CUSTOMER_ORDER_FILTERS.
+const filterOptions = CUSTOMER_ORDER_FILTERS.map(f => ({ value: f.value, label: f.label }));
+const statusesFor = (value) =>
+  CUSTOMER_ORDER_FILTERS.find(f => f.value === value)?.statuses ?? null;
 
 const fmtDate = (iso) => {
   if (!iso) return '—';
@@ -27,7 +30,7 @@ const OrdersPage = () => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [activeTab, setActiveTab] = useState('All');
+  const [activeTab, setActiveTab] = useState('all');
   const [search, setSearch] = useState('');
 
   const refreshOrders = useCallback(() => {
@@ -57,8 +60,10 @@ const OrdersPage = () => {
     }
   };
 
+  const activeStatuses = statusesFor(activeTab);
+
   const filtered = orders.filter(o => {
-    if (activeTab !== 'All' && o.status !== activeTab) return false;
+    if (activeStatuses && !activeStatuses.includes(o.status)) return false;
     if (search) {
       const q = search.toLowerCase();
       const matchTracking = o.tracking_number?.toLowerCase().includes(q);
@@ -92,7 +97,7 @@ const OrdersPage = () => {
       </StaggerItem>
       <StaggerItem className="mb-16" delay={60}>
         <ResponsiveFilterControls
-          options={tabs.map(t => ({ value: t, label: t }))}
+          options={filterOptions}
           value={activeTab}
           onChange={setActiveTab}
           ariaLabel="Order status filters"
@@ -121,10 +126,10 @@ const OrdersPage = () => {
         <div className="animate-scale-in">
           <EmptyState
             icon={Package}
-            title={search || activeTab !== 'All' ? 'No orders found' : 'No Orders Yet'}
-            description={search || activeTab !== 'All' ? 'Try adjusting your search or filter criteria.' : 'Book your first shipment to get started!'}
-            actionLabel={!search && activeTab === 'All' ? 'Book Shipment' : undefined}
-            onAction={!search && activeTab === 'All' ? () => navigate('/customer/book') : undefined}
+            title={search || activeTab !== 'all' ? 'No orders found' : 'No Orders Yet'}
+            description={search || activeTab !== 'all' ? 'Try adjusting your search or filter criteria.' : 'Book your first shipment to get started!'}
+            actionLabel={!search && activeTab === 'all' ? 'Book Shipment' : undefined}
+            onAction={!search && activeTab === 'all' ? () => navigate('/customer/book') : undefined}
           />
         </div>
       ) : (

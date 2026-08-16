@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 import { disableNotificationsForDevice } from '../lib/firebase-messaging';
 import { normalizeProfileAddressFields } from '../lib/address';
 import { getProfile, createProfile } from '../lib/database';
+import { logAuth } from '../lib/activityLog';
 import useNetworkRecovery from '../hooks/useNetworkRecovery';
 
 const AuthContext = createContext({});
@@ -235,6 +236,20 @@ export const AuthProvider = ({ children }) => {
   const logout = useCallback(async () => {
     const signedInUserId = user?.id;
 
+    // Logged HERE, not at a button. There are two ways out — the sidebar and
+    // the profile page — and only the sidebar was logging it, so half of every
+    // admin's sessions ended with no record. This is the one funnel both go
+    // through, and it fires while the session still exists: after signOut()
+    // there is no auth.uid() for guard_activity_log_insert to attribute the
+    // row to, and the insert would be dropped.
+    if (signedInUserId) {
+      logAuth(userProfile?.role === 'admin' ? 'Admin Logged Out' : 'User Logged Out', {
+        recordId: signedInUserId,
+        recordRef: userProfile?.name || user?.email || null,
+        details: 'Session ended.',
+      });
+    }
+
     // A browser token must not remain associated with an account after logout.
     // This avoids token conflicts when a different account signs in on this device.
     if (signedInUserId) {
@@ -264,7 +279,7 @@ export const AuthProvider = ({ children }) => {
     }
     
     return { success: true };
-  }, [user]);
+  }, [user, userProfile]);
 
   const resetPassword = useCallback(async (email) => {
     try {

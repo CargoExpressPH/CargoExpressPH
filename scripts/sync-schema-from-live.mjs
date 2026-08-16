@@ -6,7 +6,7 @@
  * supabase/schema.sql.  Uses the Management API **read-only** query
  * endpoint — absolutely nothing is written to the live database.
  *
- * Requirements: supabase_PAT in .env, Node ≥ 18 (native fetch).
+ * Requirements: SUPABASE_PERSONAL_ACCESS_TOKEN in .env, Node ≥ 18 (native fetch).
  */
 
 // Corporate/network proxy does SSL inspection — same workaround as deployment.js
@@ -34,8 +34,20 @@ function loadEnv() {
 }
 loadEnv();
 
-const PAT = process.env.supabase_PAT;
-if (!PAT) { console.error('❌  supabase_PAT not found in .env'); process.exit(1); }
+// The token variable is SUPABASE_PERSONAL_ACCESS_TOKEN — the name .env has
+// always used. This script read `supabase_PAT`, a name that exists nowhere in
+// the project, so it exited on line 1 every time it was run.
+//
+// SUPABASE_ACCESS_TOKEN is accepted as a second name because that is what the
+// Supabase CLI itself reads, so a shell or CI job already exported for `npx
+// supabase` can run this with no .env at all.
+const PAT = process.env.SUPABASE_PERSONAL_ACCESS_TOKEN || process.env.SUPABASE_ACCESS_TOKEN;
+if (!PAT) {
+  console.error('❌  No access token found.');
+  console.error('    Set SUPABASE_PERSONAL_ACCESS_TOKEN in .env (or export SUPABASE_ACCESS_TOKEN).');
+  console.error('    Generate one at https://supabase.com/dashboard/account/tokens');
+  process.exit(1);
+}
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || '';
 const refMatch = SUPABASE_URL.match(/https:\/\/([a-z0-9]+)\.supabase\.co/);
@@ -703,7 +715,7 @@ async function main() {
 main().catch(err => {
   console.error('\n❌ Error:', err.message);
   if (err.message.includes('401') || err.message.includes('403')) {
-    console.error('   → Check that supabase_PAT in .env is valid and has not expired.');
+    console.error('   → Check that SUPABASE_PERSONAL_ACCESS_TOKEN in .env is valid and has not expired.');
   }
   process.exit(1);
 });

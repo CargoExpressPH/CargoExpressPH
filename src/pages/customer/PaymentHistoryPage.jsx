@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, AlertTriangle, Banknote, CalendarClock, CheckCircle2,
-  CreditCard, ExternalLink, Loader, MessageCircle, Package, Receipt,
+  ExternalLink, Loader, MessageCircle, Package, Receipt,
   Smartphone,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
@@ -12,8 +12,12 @@ import { useToast } from '../../hooks/useToast';
 import usePageTitle from '../../hooks/usePageTitle';
 import { outstandingBalance } from '../../constants/status';
 
+// Peso sign, like every other money figure in the app. This page was the one
+// place still printing a bare currency CODE ("PHP 1,200.00") instead of the ₱
+// the rest of the product uses — the odd one out on the only screen a customer
+// opens specifically to read amounts.
 const formatMoney = (value) =>
-  `PHP ${Number(value || 0).toLocaleString('en-PH', {
+  `₱${Number(value || 0).toLocaleString('en-PH', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })}`;
@@ -55,8 +59,8 @@ const paymentOptions = [
   },
 ];
 
-const PaymentMethodsPage = () => {
-  usePageTitle('Payment Methods');
+const PaymentHistoryPage = () => {
+  usePageTitle('Payment History');
   const { user } = useAuth();
   const navigate = useNavigate();
   const toast = useToast();
@@ -121,7 +125,7 @@ const PaymentMethodsPage = () => {
   }, [orders]);
 
   return (
-    <div className="page-transition customer-payment-methods-page">
+    <div className="page-transition customer-payment-history-page">
       <button type="button" onClick={() => navigate(-1)} className="btn btn-ghost customer-back-action mb-16">
         <ArrowLeft size={18} /> Back
       </button>
@@ -129,10 +133,10 @@ const PaymentMethodsPage = () => {
       <div className="customer-page-heading mb-20">
         <div>
           <h1 className="fw-800 flex items-center gap-8">
-            <CreditCard size={24} aria-hidden="true" /> Payment Methods
+            <Receipt size={24} aria-hidden="true" /> Payment History
           </h1>
           <p className="text-sm text-secondary mt-4">
-            Review accepted payment options, open balances, and recent receipts.
+            Every payment recorded on your shipments, plus anything still owing.
           </p>
         </div>
       </div>
@@ -167,19 +171,6 @@ const PaymentMethodsPage = () => {
               <div className="text-xs text-tertiary">Active Orders</div>
               <div className="text-xl fw-800 text-accent mt-4">{summary.activeCount}</div>
             </div>
-          </div>
-
-          <h3 className="profile-section-title">Accepted Options</h3>
-          <div className="grid grid-3 gap-12 mb-16">
-            {paymentOptions.map(option => (
-              <div className="card card-body" key={option.title}>
-                <div className={`profile-menu-icon-wrap ${option.tone} mb-12`}>
-                  <option.icon size={18} />
-                </div>
-                <div className="fw-800 mb-6">{option.title}</div>
-                <p className="text-sm text-secondary m-0">{option.detail}</p>
-              </div>
-            ))}
           </div>
 
           <h3 className="profile-section-title">Open Balances</h3>
@@ -218,7 +209,7 @@ const PaymentMethodsPage = () => {
             </div>
           )}
 
-          <h3 className="profile-section-title">Recent Payment History</h3>
+          <h3 className="profile-section-title">Recent Payments</h3>
           {transactions.length === 0 ? (
             <div className="card card-body text-sm text-secondary">
               No payment receipts have been recorded yet.
@@ -250,6 +241,22 @@ const PaymentMethodsPage = () => {
             </div>
           )}
 
+          {/* Reference, not the headline. The page is a record of what was
+              paid; how to pay is the smaller question, so it sits below the
+              ledger rather than above it. */}
+          <h3 className="profile-section-title mt-16">Accepted Payment Options</h3>
+          <div className="grid grid-3 gap-12 mb-16">
+            {paymentOptions.map(option => (
+              <div className="card card-body" key={option.title}>
+                <div className={`profile-menu-icon-wrap ${option.tone} mb-12`}>
+                  <option.icon size={18} />
+                </div>
+                <div className="fw-800 mb-6">{option.title}</div>
+                <p className="text-sm text-secondary m-0">{option.detail}</p>
+              </div>
+            ))}
+          </div>
+
           <div className="grid grid-2 gap-12 mt-16">
             <button type="button" className="btn btn-primary justify-center" onClick={() => navigate('/customer/orders')}>
               <Package size={16} /> View All Orders
@@ -264,4 +271,4 @@ const PaymentMethodsPage = () => {
   );
 };
 
-export default PaymentMethodsPage;
+export default PaymentHistoryPage;

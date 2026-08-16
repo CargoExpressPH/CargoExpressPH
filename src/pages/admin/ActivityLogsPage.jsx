@@ -9,7 +9,7 @@ import usePageTitle from '../../hooks/usePageTitle';
 import { useToast } from '../../hooks/useToast';
 import {
   ClipboardList, Search, Filter, ChevronLeft, ChevronRight,
-  Download, Package, Truck, CreditCard, MessageSquare, Shield, Settings,
+  Download, Package, Truck, CreditCard, MessageSquare, Shield, Settings, FileText,
   RefreshCw, Clock, User
 } from 'lucide-react';
 
@@ -22,9 +22,17 @@ const MODULE_COLORS = {
   Chat:           { bg: 'color-mix(in srgb, var(--chart-1) 12%, transparent)', color: 'var(--chart-purple-text)', icon: MessageSquare },
   Authentication: { bg: 'var(--error-glow)', color: 'var(--error-text)', icon: Shield },
   System:         { bg: 'var(--border-light)', color: 'var(--text-secondary)', icon: Settings },
+  // Admitted by 20260816120000. SalesPage and ReportsPage had been writing
+  // 'Sales & Reports' into a CHECK-constrained column that did not list it,
+  // so every report print and export was rejected and silently swallowed by
+  // logActivity's console.warn — and this page had no filter for a module it
+  // could never receive.
+  'Sales & Reports': { bg: 'var(--info-bg)', color: 'var(--info-text)', icon: FileText },
+  Customers:      { bg: 'var(--info-bg)', color: 'var(--info-text)', icon: Shield },
+  Feedback:       { bg: 'var(--warning-bg)', color: 'var(--warning-text)', icon: MessageSquare },
 };
 
-const MODULES = ['All', 'Orders', 'Trips', 'Payments', 'Chat', 'Authentication', 'System'];
+const MODULES = ['All', 'Orders', 'Trips', 'Payments', 'Chat', 'Authentication', 'System', 'Sales & Reports', 'Feedback', 'Customers'];
 
 const ModuleBadge = ({ module }) => {
   const cfg = MODULE_COLORS[module] || MODULE_COLORS.System;

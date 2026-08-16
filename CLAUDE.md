@@ -78,7 +78,7 @@ src/
   pages/
     auth/      (4)      Login, Register, ForgotPassword, ResetPassword — eagerly loaded
     customer/ (12)      Home, Orders, OrderDetail, BookShipment, Trips, Notifications,
-                        Profile, PersonalInfo, SupportChat, PaymentMethods,
+                        Profile, PersonalInfo, SupportChat, PaymentHistory,
                         HelpGuidelines, AboutVersion
     admin/    (22)      Dashboard, Orders, OrderDetail, Trips, TripDetail, CreateTrip,
                         Customers, CustomerDetail, Inbox, ContactInquiries, Announcements,
@@ -210,8 +210,31 @@ cargo"; `payment_status` answers "where is the money". Keeping them independent 
 ```
 Pending Review → Pending → Assigned → Picked Up → In Transit
     → Arrived at Hub → Out for Delivery → Delivered
+Pending Cancellation — a hold, not a step (see below)
 Cancelled — terminal, reachable from any state
 ```
+
+**Cancellation is a request, not an act** (`20260816100000`). A customer
+submits a *reason* and the order moves to `Pending Cancellation`; an admin then
+approves (→ `Cancelled`) or rejects (→ back to `cancellation_previous_status`,
+the exact status it held when asked). The booking keeps its trip slot and keeps
+moving to the warehouse in the meantime, because a request is not a decision.
+
+`Pending Cancellation` is a **status**, not a flag beside one: the whole point
+is that the order stops advancing while a human looks at it, and every surface
+already keys off `status`. It is deliberately absent from `STATUS_FLOW` and
+`STATUS_TIMELINE` — it is a hold, not a place the cargo has reached, so
+`timelineStatus()` resolves it back to the previous status before any timeline
+or progress bar indexes on it (a raw `indexOf` returns -1 and renders an empty
+timeline / a negative progress bar).
+
+`cancellation_previous_status` is what makes a rejection lossless — without it,
+an `Assigned` booking would come back as `Pending`, silently detached from a
+trip it is still physically on. `request_order_cancellation()` and
+`review_order_cancellation()` are the only correct entry points; they write the
+notification and the activity log in the same transaction as the status change,
+and `guard_order_update` refuses every other exit from the hold.
+`cancel_own_pending_order()` is retired to a raising stub with EXECUTE revoked.
 
 Trip status `scheduled → in_progress → arrived → completed` (+ `cancelled`) cascades to
 orders: `in_progress → In Transit`, `arrived → Arrived at Hub`, `cancelled → Cancelled`.
@@ -220,7 +243,17 @@ Every status change is appended to **`order_status_events`** by `log_order_statu
 (`20260803110000`) — an append-only timeline with `changed_by` and an optional note. This is
 what the tracking timeline reads; do not reconstruct history from `orders.updated_at`.
 
-### Conversation service state (`20260804260000`, `20260807120000`, `20260807140000`, `20260808150000`)
+### Conversation service state (`20260804260000`, `20260807120000`, `20260807140000`, `20260808150000`, `20260816110000`)
+
+> `20260816110000` repaired `maintain_conversation_service_state`, which had
+> reverted to an older revision writing a column (`last_message_at`) that does
+> not exist. Being an AFTER INSERT trigger, it raised 42703 and rolled back
+> **every** `chat_messages` insert — customer, bot and admin alike — so support
+> chat was entirely dead. Same revision had the grace window at 15 seconds
+> rather than 12 hours and lacked both `SECURITY DEFINER` and the
+> `app.conversation_service_write` flag, so `guard_conversation_update` reverted
+> whatever status it computed. If chat "stops working", check this function
+> first, and check it against the migration rather than against the live DB.
 
 `conversations.status` is **derived by trigger** from who spoke last. Four values:
 

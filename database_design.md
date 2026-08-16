@@ -114,6 +114,12 @@ erDiagram
         timestamp_with_time_zone featured_at
         jsonb reassignment_history
         text payment_preference
+        text cancellation_reason
+        timestamp_with_time_zone cancellation_requested_at
+        character_varying cancellation_previous_status
+        timestamp_with_time_zone cancellation_reviewed_at
+        uuid cancellation_reviewed_by FK
+        text cancellation_review_notes
     }
 
     announcements {
@@ -385,6 +391,12 @@ erDiagram
 | featured_at | timestamp with time zone | Records the date and time when the order was featured. |
 | reassignment_history | jsonb | Stores a log of the different trips this order was assigned to. |
 | payment_preference | text | Stores the user's preferred payment method for the transaction. |
+| cancellation_reason | text | The customer's stated reason for requesting cancellation. Required by `request_order_cancellation()` — a cancellation with no reason is what this column exists to prevent. |
+| cancellation_requested_at | timestamp with time zone | When the customer submitted the cancellation request. |
+| cancellation_previous_status | character varying | The status the order held when the request was made, so a rejection restores it exactly rather than guessing 'Pending'. |
+| cancellation_reviewed_at | timestamp with time zone | When an admin approved or declined the request. |
+| cancellation_reviewed_by | uuid | The admin who ruled on the request. FK to `profiles.id`. |
+| cancellation_review_notes | text | The admin's note, sent to the customer with the decision and recorded in the activity log. |
 
 <br>
 

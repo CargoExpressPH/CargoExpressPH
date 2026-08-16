@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { getAdminFeedback, updateFeedbackVisibility } from '../../lib/database';
+import { logActivity } from '../../lib/activityLog';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../hooks/useToast';
 import { MessageSquare, Search, Filter, Eye, EyeOff } from 'lucide-react';
@@ -37,6 +38,19 @@ const FeedbackPage = () => {
   const handleToggleVisibility = async (id, currentHidden) => {
     try {
       await updateFeedbackVisibility(id, !currentHidden);
+      // Hiding a customer's published review is a moderation decision about
+      // someone else's words. It belongs in the audit trail.
+      const entry = feedback.find(f => f.id === id);
+      logActivity({
+        module: 'Feedback',
+        action: currentHidden ? 'Feedback Unhidden' : 'Feedback Hidden',
+        recordType: 'feedback',
+        recordId: id,
+        recordRef: entry?.orders?.tracking_number || entry?.profiles?.name || null,
+        details: currentHidden
+          ? 'Restored this review to the public website.'
+          : 'Hid this review from the public website.',
+      });
       setFeedback(prev => prev.map(f => f.id === id ? { ...f, is_hidden: !currentHidden } : f));
       toast.success(currentHidden ? 'Feedback restored to public view' : 'Feedback hidden from public view');
     } catch (err) {

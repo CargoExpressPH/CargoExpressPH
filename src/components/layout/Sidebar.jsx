@@ -10,7 +10,6 @@ import {
 } from 'lucide-react';
 import ConfirmModal from '../ui/ConfirmModal';
 import { BrandLogo, BrandWordmark } from '../ui/BrandLogo';
-import { logAuth } from '../../lib/activityLog';
 
 const mainNav = [
   { to: '/admin', icon: LayoutDashboard, label: 'Dashboard', end: true },
@@ -111,7 +110,8 @@ const Sidebar = ({ isOpen, onClose, isCollapsed, onToggleCollapse }) => {
   const handleLogout = async () => {
     setShowLogoutConfirm(false);
     setProfileMenuOpen(false);
-    logAuth('Admin Logged Out', { details: 'Admin session ended' });
+    // The 'Admin Logged Out' entry is written by AuthContext.logout(), which
+    // both exits funnel through — logging it here as well double-counted it.
     await new Promise(resolve => setTimeout(resolve, 300));
     await logout();
     navigate('/login');

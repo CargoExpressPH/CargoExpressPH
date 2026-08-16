@@ -540,6 +540,8 @@ const RegisterPage = () => {
                     onBlur={() => handleBlur('name')}
                     required
                     autoComplete="name"
+                    autoCapitalize="words"
+                    spellCheck="false"
                     aria-required="true"
                     aria-invalid={!!fieldErrors.name}
                     aria-describedby={fieldErrors.name ? 'reg-name-error' : undefined}
@@ -565,10 +567,12 @@ const RegisterPage = () => {
                     className={`form-input form-input-icon-left ${fieldErrors.facebook_name ? 'field-invalid' : ''}`}
                     placeholder="Your Facebook display name"
                     value={form.facebook_name}
-                    onChange={e => update('facebook_name', e.target.value)}
+                    onChange={handleTitleCase('facebook_name')}
                     onBlur={() => handleBlur('facebook_name')}
                     required
                     autoComplete="nickname"
+                    autoCapitalize="words"
+                    spellCheck="false"
                     aria-required="true"
                     aria-invalid={!!fieldErrors.facebook_name}
                     aria-describedby={fieldErrors.facebook_name ? 'reg-facebook-error' : undefined}
@@ -596,6 +600,8 @@ const RegisterPage = () => {
                     onBlur={() => handleBlur('email')}
                     required
                     autoComplete="email"
+                    autoCapitalize="none"
+                    spellCheck="false"
                     aria-required="true"
                     aria-invalid={!!fieldErrors.email}
                     aria-describedby={fieldErrors.email ? 'reg-email-error' : undefined}
@@ -848,6 +854,8 @@ const RegisterPage = () => {
                     onBlur={() => handleBlur('address_barangay')}
                     required
                     autoComplete="address-level3"
+                    autoCapitalize="words"
+                    spellCheck="false"
                     aria-required="true"
                     aria-invalid={!!fieldErrors.address_barangay}
                     aria-describedby={fieldErrors.address_barangay ? 'reg-barangay-error' : undefined}
@@ -872,6 +880,8 @@ const RegisterPage = () => {
                     onBlur={() => handleBlur('address_street')}
                     required
                     autoComplete="street-address"
+                    autoCapitalize="words"
+                    spellCheck="false"
                     aria-required="true"
                     aria-invalid={!!fieldErrors.address_street}
                     aria-describedby={fieldErrors.address_street ? 'reg-street-error' : undefined}
@@ -895,6 +905,8 @@ const RegisterPage = () => {
                     onChange={handleTitleCase('address_lot_block')}
                     onBlur={() => handleBlur('address_lot_block')}
                     required
+                    autoCapitalize="words"
+                    spellCheck="false"
                     aria-required="true"
                     aria-invalid={!!fieldErrors.address_lot_block}
                     aria-describedby={fieldErrors.address_lot_block ? 'reg-lot-error' : undefined}
@@ -918,6 +930,8 @@ const RegisterPage = () => {
                     onChange={handleTitleCase('address_landmark')}
                     onBlur={() => handleBlur('address_landmark')}
                     required
+                    autoCapitalize="words"
+                    spellCheck="false"
                     aria-required="true"
                     aria-invalid={!!fieldErrors.address_landmark}
                     aria-describedby={fieldErrors.address_landmark ? 'reg-landmark-error' : undefined}

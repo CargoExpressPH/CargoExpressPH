@@ -10,6 +10,12 @@ export const ORDER_STATUS = {
   ARRIVED_HUB: 'Arrived at Hub',
   OUT_FOR_DELIVERY: 'Out for Delivery',
   DELIVERED: 'Delivered',
+  // A customer has asked to cancel and stated a reason; an admin has not
+  // decided yet. Deliberately a status and not a flag beside one: the point is
+  // that the order stops advancing while a human looks at it, and every
+  // surface here — badges, the Advance button, STATUS_FLOW, the filters —
+  // already keys off `status`. See 20260816100000_cancellation_requests.sql.
+  PENDING_CANCELLATION: 'Pending Cancellation',
   CANCELLED: 'Cancelled',
 };
 
@@ -110,8 +116,76 @@ export const IN_NETWORK_STATUSES = [
 export const canCancelOrder = (order) => {
   if (!order?.status) return false;
   if (order.status === ORDER_STATUS.CANCELLED) return false;
+  // Already asked. Offering "Cancel" again would open a second request against
+  // a booking that is by definition already frozen waiting on the first.
+  if (order.status === ORDER_STATUS.PENDING_CANCELLATION) return false;
   return !IN_NETWORK_STATUSES.includes(order.status);
 };
+
+/** Is this order frozen waiting for an admin to rule on a cancellation? */
+export const hasPendingCancellation = (order) =>
+  order?.status === ORDER_STATUS.PENDING_CANCELLATION;
+
+/**
+ * Which step the tracking timeline should light up.
+ *
+ * 'Pending Cancellation' is not on STATUS_TIMELINE — it is a hold, not a place
+ * the cargo has reached — so passing it straight through gives `indexOf` a -1
+ * and blanks the whole timeline, which reads as "nothing has happened to this
+ * parcel". The cargo has not moved backwards just because a request is under
+ * review, so the timeline shows where it actually is: the status it was in
+ * when the request was made.
+ *
+ * The 'Pending' fallback covers rows with no recorded previous status — the
+ * public tracking RPC does not return that column, and neither do orders that
+ * predate the cancellation-request flow.
+ */
+export const timelineStatus = (order) => {
+  if (!order?.status) return undefined;
+  if (order.status !== ORDER_STATUS.PENDING_CANCELLATION) return order.status;
+  return order.cancellation_previous_status || ORDER_STATUS.PENDING;
+};
+
+/**
+ * Status groups for the CUSTOMER orders list.
+ *
+ * The filter used to be `['All', ...VALID_STATUSES]` — ten chips, one per
+ * internal status, wrapping onto three rows on a phone. Most of them answer a
+ * question no customer asks: the difference between "Assigned" and "Picked Up"
+ * is an operational one, and "Arrived at Hub" and "Out for Delivery" are the
+ * same answer ("nearly there") to the only question being asked. Four groups
+ * cover what a customer actually wants to narrow to, and the card still shows
+ * the exact status on its badge, so nothing is hidden — only the filter is
+ * coarser than the data.
+ *
+ * `statuses: null` means "everything".
+ */
+export const CUSTOMER_ORDER_FILTERS = [
+  { value: 'all', label: 'All', statuses: null },
+  {
+    value: 'processing',
+    label: 'Processing',
+    statuses: [ORDER_STATUS.PENDING_REVIEW, ORDER_STATUS.PENDING, ORDER_STATUS.ASSIGNED],
+  },
+  {
+    value: 'in-transit',
+    label: 'In Transit',
+    statuses: [
+      ORDER_STATUS.PICKED_UP,
+      ORDER_STATUS.IN_TRANSIT,
+      ORDER_STATUS.ARRIVED_HUB,
+      ORDER_STATUS.OUT_FOR_DELIVERY,
+    ],
+  },
+  { value: 'delivered', label: 'Delivered', statuses: [ORDER_STATUS.DELIVERED] },
+  {
+    value: 'cancelled',
+    label: 'Cancelled',
+    // A pending request lives here rather than in Processing: the customer's
+    // reason for looking is "what happened to the one I tried to cancel".
+    statuses: [ORDER_STATUS.PENDING_CANCELLATION, ORDER_STATUS.CANCELLED],
+  },
+];
 
 // Status color mapping using theme variables
 export const STATUS_COLORS = {
@@ -123,6 +197,7 @@ export const STATUS_COLORS = {
   [ORDER_STATUS.ARRIVED_HUB]: { bg: 'var(--success-bg)', text: 'var(--success-dark)', border: 'var(--success)' },
   [ORDER_STATUS.OUT_FOR_DELIVERY]: { bg: 'var(--primary-bg)', text: 'var(--primary)', border: 'var(--primary-light)' },
   [ORDER_STATUS.DELIVERED]: { bg: 'var(--success-bg)', text: 'var(--success-dark)', border: 'var(--success)' },
+  [ORDER_STATUS.PENDING_CANCELLATION]: { bg: 'var(--warning-bg)', text: 'var(--warning-dark)', border: 'var(--warning)' },
   [ORDER_STATUS.CANCELLED]: { bg: 'var(--error-bg)', text: 'var(--error-dark)', border: 'var(--error)' },
 };
 
@@ -141,6 +216,7 @@ export const TRACKING_STATUS_TONES = {
   [ORDER_STATUS.ARRIVED_HUB]:     { ...STATUS_COLORS[ORDER_STATUS.ARRIVED_HUB],     iconBg: 'var(--success-icon-bg)' },
   [ORDER_STATUS.OUT_FOR_DELIVERY]:{ ...STATUS_COLORS[ORDER_STATUS.OUT_FOR_DELIVERY],iconBg: 'var(--primary-icon-bg)' },
   [ORDER_STATUS.DELIVERED]:       { ...STATUS_COLORS[ORDER_STATUS.DELIVERED],       iconBg: 'var(--success-icon-bg)' },
+  [ORDER_STATUS.PENDING_CANCELLATION]: { ...STATUS_COLORS[ORDER_STATUS.PENDING_CANCELLATION], iconBg: 'var(--warning-icon-bg)' },
   [ORDER_STATUS.CANCELLED]:       { ...STATUS_COLORS[ORDER_STATUS.CANCELLED],       iconBg: 'var(--error-icon-bg)' },
 };
 
@@ -157,6 +233,7 @@ export const STATUS_ICONS = {
   [ORDER_STATUS.ARRIVED_HUB]: 'building',
   [ORDER_STATUS.OUT_FOR_DELIVERY]: 'bike',
   [ORDER_STATUS.DELIVERED]: 'checkCircle',
+  [ORDER_STATUS.PENDING_CANCELLATION]: 'clock',
   [ORDER_STATUS.CANCELLED]: 'xCircle',
 };
 
@@ -294,6 +371,15 @@ export const isOrderSettled = (order) =>
 export const validateStatusTransition = (currentStatus, newStatus, tripId, order = null) => {
   if (currentStatus === ORDER_STATUS.DELIVERED || currentStatus === ORDER_STATUS.CANCELLED) {
     return { valid: false, error: `Cannot update an order that is already "${currentStatus}"` };
+  }
+  // Frozen pending review. The only ways out are approve → Cancelled and
+  // reject → the recorded previous status, both written by
+  // review_order_cancellation(). Mirrors the hold in guard_order_update.
+  if (currentStatus === ORDER_STATUS.PENDING_CANCELLATION && newStatus !== ORDER_STATUS.CANCELLED) {
+    return {
+      valid: false,
+      error: 'This order has a cancellation request awaiting review. Approve or reject it first.',
+    };
   }
   if (newStatus === ORDER_STATUS.CANCELLED) {
     return { valid: true };

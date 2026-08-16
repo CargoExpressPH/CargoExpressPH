@@ -147,6 +147,9 @@ const CompanyInfoFeaturesTab = ({ features, setFeatures }) => {
       }
       
       await updateCompanyInformation({ features: newFeatures });
+      logCompany(editingId === 'new' ? 'Service Feature Added' : 'Service Feature Updated', {
+        details: `${editingId === 'new' ? 'Added' : 'Updated'} the public service feature "${formData.title}".`,
+      });
       setFeatures(newFeatures);
       setEditingId(null);
       toast.success(editingId === 'new' ? 'Feature added!' : 'Feature updated!');
@@ -164,6 +167,9 @@ const CompanyInfoFeaturesTab = ({ features, setFeatures }) => {
       const newFeatures = features.filter(f => f.id !== deleteTarget.id);
       
       await updateCompanyInformation({ features: newFeatures });
+      logCompany('Service Feature Deleted', {
+        details: `Deleted the public service feature "${deleteTarget.title}".`,
+      });
       setFeatures(newFeatures);
       setDeleteTarget(null);
       toast.success('Feature deleted');

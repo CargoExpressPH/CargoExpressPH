@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getOrderById, updateOrder, createNotification, getTripReassignments, reassignTrip, getActivityLogsByRecord, getPaymentTransactions, recordAdditionalPayment, recordPickupPayment, recordDeliveryPayment, getOrderStatusEvents } from '../../lib/database';
+import { getOrderById, updateOrder, createNotification, getTripReassignments, reassignTrip, getActivityLogsByRecord, getPaymentTransactions, recordAdditionalPayment, recordPickupPayment, recordDeliveryPayment, getOrderStatusEvents, reviewOrderCancellation } from '../../lib/database';
 import { logOrder, logPayment } from '../../lib/activityLog';
 import { buildStatusTimestamps } from '../../utils/statusTimestamps';
 import { resolvePhotoUrls, deletePhoto } from '../../lib/storage';
@@ -24,7 +24,7 @@ import {
   STATUS_FLOW, STATUS_TIMELINE, validateStatusTransition,
   getSettlementState, SETTLEMENT_STATE, outstandingBalance,
   PAYMENT_METHODS, PAYMENT_STATUSES, ORDER_STATUS,
-  isTripControlledAdvance, canCancelOrder
+  isTripControlledAdvance, canCancelOrder, hasPendingCancellation, timelineStatus
 } from '../../constants/status';
 import {
   ArrowLeft, Check, Package, CreditCard, User, Phone, MapPin,
@@ -109,6 +109,8 @@ const AdminOrderDetailPage = () => {
   const [showCleanupConfirm, setShowCleanupConfirm] = useState(false);
   const [showDeliveryModal, setShowDeliveryModal] = useState(false);
   const [showRejectModal, setShowRejectModal] = useState(false);
+  const [showDeclineCancelModal, setShowDeclineCancelModal] = useState(false);
+  const [reviewingCancellation, setReviewingCancellation] = useState(false);
   const [tripHistory, setTripHistory] = useState([]);
   const [activityHistory, setActivityHistory] = useState([]);
   const [statusEvents, setStatusEvents] = useState([]);
@@ -338,6 +340,28 @@ const AdminOrderDetailPage = () => {
     } catch (e) { throw e; }
   };
 
+  // Approve or decline the customer's cancellation request.
+  //
+  // No logOrder() here on purpose: review_order_cancellation() writes the
+  // activity log and the customer's notification inside the same transaction
+  // as the status change. An audit entry that can be lost because the tab was
+  // closed between two round trips is not an audit entry.
+  const handleReviewCancellation = async (approve, notes = null) => {
+    setReviewingCancellation(true);
+    try {
+      await reviewOrderCancellation(id, approve, notes);
+      setShowDeclineCancelModal(false);
+      await loadOrder();
+      toast.success(approve
+        ? 'Cancellation approved. The order is now cancelled and the customer has been notified.'
+        : 'Cancellation declined. The order is back where it was and the customer has been notified.');
+    } catch (e) {
+      toast.error(e.message || 'Failed to record the cancellation decision.');
+    } finally {
+      setReviewingCancellation(false);
+    }
+  };
+
   const handleAdditionalPayment = async (amount, method, ref, notes, date, receiptUrl, skipInsert = false) => {
     try {
       await recordAdditionalPayment(id, amount, method, ref, notes, date, receiptUrl, skipInsert);
@@ -394,6 +418,18 @@ const AdminOrderDetailPage = () => {
         featured_at: featureForm.featured_on_website ? (order.featured_at || new Date().toISOString()) : null
       };
       await updateOrder(id, dataToSave);
+      logOrder(
+        dataToSave.featured_on_website ? 'Featured on Website' : 'Removed from Website Feature',
+        id,
+        order.tracking_number,
+        {
+          previousValue: { featured_on_website: order.featured_on_website, featured_title: order.featured_title },
+          newValue: { featured_on_website: dataToSave.featured_on_website, featured_title: dataToSave.featured_title },
+          details: dataToSave.featured_on_website
+            ? `Published this delivery to the public website as "${dataToSave.featured_title}".`
+            : 'Removed this delivery from the public website.',
+        }
+      );
       toast.success('Website feature updated.');
       await loadOrder();
     } catch (err) {
@@ -487,6 +523,7 @@ const AdminOrderDetailPage = () => {
   // one parcel at one door, and Out for Delivery carries the settlement gate.
   const showAdvanceButton = Boolean(nextStatus) && !tripOwnsNextStep;
   const showCancelButton = canCancelOrder(order);
+  const awaitingCancellationReview = hasPendingCancellation(order);
   const needsTrip = order.status === 'Pending' && !order.trip_id;
   const hasPhotos = resolvedPickupPhotos.length > 0;
   const canReassignTrip = order.trip_id && [ORDER_STATUS.PENDING, ORDER_STATUS.ASSIGNED].includes(order.status);
@@ -555,6 +592,60 @@ const AdminOrderDetailPage = () => {
         />
       </div>
 
+      {/* Cancellation Request Review Action Bar.
+          Sits above the out-of-coverage bar because it is the more urgent of
+          the two: the booking is frozen and a customer is waiting on an
+          answer. */}
+      {awaitingCancellationReview && (
+        <div className="card admin-section-card admin-action-card stagger-item mb-16" style={{ animationDelay: '40ms', borderColor: 'var(--warning)', background: 'var(--warning-bg)' }}>
+          <div className="card-body">
+            <h3 className="flex items-center gap-8 mb-12" style={{ color: 'var(--warning-dark)' }}>
+              <AlertTriangle size={20} /> Cancellation Request
+            </h3>
+            <p className="text-sm mb-8" style={{ color: 'var(--warning-dark)' }}>
+              <strong>{order.profiles?.name || 'The customer'}</strong> asked to cancel this booking
+              {order.cancellation_requested_at
+                ? ` on ${safeFormatDate(order.cancellation_requested_at, { month: 'short', day: 'numeric', year: 'numeric' })}`
+                : ''}.
+              It was <strong>{order.cancellation_previous_status || 'Pending'}</strong> at the time
+              and goes back there if you decline.
+            </p>
+            <blockquote
+              className="text-sm mb-16"
+              style={{ color: 'var(--warning-dark)', borderLeft: '3px solid var(--warning)', paddingLeft: 12, margin: '0 0 16px' }}
+            >
+              {order.cancellation_reason || 'No reason recorded.'}
+            </blockquote>
+            <div className="admin-action-group">
+              <button
+                type="button"
+                className="btn btn-danger"
+                onClick={() => handleReviewCancellation(true)}
+                disabled={reviewingCancellation}
+              >
+                {reviewingCancellation ? <Loader size={16} className="animate-spin" /> : <Check size={16} />}
+                Approve &amp; Cancel Order
+              </button>
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={() => setShowDeclineCancelModal(true)}
+                disabled={reviewingCancellation}
+              >
+                Decline Request
+              </button>
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={() => navigate(`/admin/inbox?customerId=${encodeURIComponent(order.user_id)}`)}
+              >
+                <Phone size={16} /> Contact Customer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Out of Coverage Review Action Bar */}
       {order.service_area_status === 'for_review' && (
         <div className="card admin-section-card admin-action-card stagger-item mb-16" style={{ animationDelay: '60ms', borderColor: 'var(--warning)', background: 'var(--warning-bg)' }}>
@@ -591,7 +682,7 @@ const AdminOrderDetailPage = () => {
       )}
 
       {/* Status Action Bar */}
-      {(!isTerminal && order.service_area_status !== 'for_review'
+      {(!isTerminal && !awaitingCancellationReview && order.service_area_status !== 'for_review'
         && (needsTrip || showAdvanceButton || showCancelButton || tripOwnsNextStep)) && (
         <div className="card admin-section-card admin-action-card stagger-item mb-16" style={{ animationDelay: '60ms' }}>
           <div className="card-body">
@@ -668,7 +759,7 @@ const AdminOrderDetailPage = () => {
       <ErrorBoundarySection message="Tracking timeline failed to load.">
       <div className="card admin-section-card stagger-item mb-16" style={{ animationDelay: '120ms' }}>
         <div className="card-header"><h3>Status Timeline</h3></div>
-        <div className="card-body"><TrackingTimeline currentStatus={order.status} compact stepTimestamps={stepTimestamps} /></div>
+        <div className="card-body"><TrackingTimeline currentStatus={timelineStatus(order)} compact stepTimestamps={stepTimestamps} /></div>
       </div>
       </ErrorBoundarySection>
 
@@ -1095,6 +1186,19 @@ const AdminOrderDetailPage = () => {
       {lightboxIndex >= 0 && lightboxImages.length > 0 && (
         <ImageLightbox images={lightboxImages} initialIndex={lightboxIndex} onClose={() => setLightboxIndex(-1)} />
       )}
+      {showDeclineCancelModal && (
+        <ReasonModal
+          isOpen={showDeclineCancelModal}
+          onClose={() => setShowDeclineCancelModal(false)}
+          onConfirm={(notes) => handleReviewCancellation(false, notes)}
+          loading={reviewingCancellation}
+          title="Decline Cancellation Request"
+          description={`This booking goes back to "${order.cancellation_previous_status || 'Pending'}" and keeps its trip slot. Your note is sent to the customer, so say why the request cannot be accommodated.`}
+          label="Reason for Declining *"
+          placeholder="e.g. The parcel is already loaded on today's manifest and departs in an hour."
+          submitLabel="Decline Request"
+        />
+      )}
       {showRejectModal && (
         <RejectModal
           isOpen={showRejectModal}
@@ -1110,7 +1214,25 @@ const AdminOrderDetailPage = () => {
   );
 };
 
-const RejectModal = ({ isOpen, onClose, onConfirm, loading }) => {
+/**
+ * ReasonModal — a modal whose whole job is to make someone say WHY.
+ *
+ * Generalised out of the old out-of-coverage RejectModal when the cancellation
+ * review needed the same thing. Both decisions land in the customer's
+ * notification and in the activity log, and a decision recorded without its
+ * reason is the case these screens exist to prevent.
+ */
+const ReasonModal = ({
+  isOpen,
+  onClose,
+  onConfirm,
+  loading,
+  title,
+  description,
+  label,
+  placeholder,
+  submitLabel,
+}) => {
   const [reason, setReason] = useState('');
   const [error, setError] = useState('');
 
@@ -1119,7 +1241,7 @@ const RejectModal = ({ isOpen, onClose, onConfirm, loading }) => {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!reason.trim()) {
-      setError('Please enter a rejection reason.');
+      setError('Please enter a reason.');
       return;
     }
     onConfirm(reason.trim());
@@ -1127,10 +1249,10 @@ const RejectModal = ({ isOpen, onClose, onConfirm, loading }) => {
 
   return (
     <FocusTrap active>
-      <div className="modal-overlay" onClick={onClose} role="dialog" aria-modal="true">
+      <div className="modal-overlay" onClick={onClose} role="dialog" aria-modal="true" aria-labelledby="reason-modal-title">
         <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 480 }}>
           <div className="modal-header">
-            <h3>Reject Pickup Request</h3>
+            <h3 id="reason-modal-title">{title}</h3>
             <button type="button" className="btn-icon btn-ghost" onClick={onClose} disabled={loading} aria-label="Close modal">
               <X size={20} />
             </button>
@@ -1142,16 +1264,14 @@ const RejectModal = ({ isOpen, onClose, onConfirm, loading }) => {
                   {error}
                 </div>
               )}
-              <p className="text-secondary text-sm mb-16">
-                Please provide the reason for rejecting this out-of-coverage pickup request. This will be sent as a notification to the customer.
-              </p>
+              <p className="text-secondary text-sm mb-16">{description}</p>
               <div className="form-group">
-                <label className="form-label" htmlFor="reject-reason">Rejection Reason *</label>
+                <label className="form-label" htmlFor="reason-modal-input">{label}</label>
                 <textarea
-                  id="reject-reason"
+                  id="reason-modal-input"
                   className="form-textarea"
                   rows={4}
-                  placeholder="e.g. Location is outside our delivery zone and no driver is available."
+                  placeholder={placeholder}
                   value={reason}
                   onChange={e => { setReason(e.target.value); setError(''); }}
                   required
@@ -1161,7 +1281,7 @@ const RejectModal = ({ isOpen, onClose, onConfirm, loading }) => {
             <div className="modal-footer">
               <button type="button" className="btn btn-outline" onClick={onClose} disabled={loading}>Cancel</button>
               <button type="submit" className="btn btn-danger" disabled={loading || !reason.trim()}>
-                {loading ? <Loader size={16} className="animate-spin" /> : 'Reject Request'}
+                {loading ? <Loader size={16} className="animate-spin" /> : submitLabel}
               </button>
             </div>
           </form>
@@ -1170,5 +1290,19 @@ const RejectModal = ({ isOpen, onClose, onConfirm, loading }) => {
     </FocusTrap>
   );
 };
+
+const RejectModal = ({ isOpen, onClose, onConfirm, loading }) => (
+  <ReasonModal
+    isOpen={isOpen}
+    onClose={onClose}
+    onConfirm={onConfirm}
+    loading={loading}
+    title="Reject Pickup Request"
+    description="Please provide the reason for rejecting this out-of-coverage pickup request. This will be sent as a notification to the customer."
+    label="Rejection Reason *"
+    placeholder="e.g. Location is outside our delivery zone and no driver is available."
+    submitLabel="Reject Request"
+  />
+);
 
 export default AdminOrderDetailPage;

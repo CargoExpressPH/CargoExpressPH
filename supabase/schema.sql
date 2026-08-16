@@ -1,7 +1,7 @@
 -- ============================================================
 -- Cargo Express PH — Complete Supabase PostgreSQL Schema
 -- Single source-of-truth for the entire database.
--- Synced from LIVE database on 2026-08-09
+-- Synced from LIVE database on 2026-08-16
 -- Run this in: Supabase Dashboard → SQL Editor → New Query
 -- ============================================================
 
@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS activity_logs (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   admin_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
   admin_name TEXT NOT NULL DEFAULT 'Unknown Admin'::text,
-  module TEXT NOT NULL CHECK (module = ANY (ARRAY['Orders'::text, 'Trips'::text, 'Payments'::text, 'Chat'::text, 'Authentication'::text, 'System'::text])),
+  module TEXT NOT NULL CHECK (module = ANY (ARRAY['Orders'::text, 'Trips'::text, 'Payments'::text, 'Chat'::text, 'Authentication'::text, 'System'::text, 'Sales & Reports'::text, 'Customers'::text, 'Feedback'::text])),
   action TEXT NOT NULL,
   record_type TEXT,
   record_id UUID,
@@ -104,7 +104,7 @@ CREATE TABLE IF NOT EXISTS conversations (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   customer_id UUID NOT NULL UNIQUE REFERENCES profiles(id) ON DELETE CASCADE,
   created_at TIMESTAMPTZ DEFAULT now(),
-  status TEXT DEFAULT 'open'::text CHECK (status = ANY (ARRAY['bot_active'::text, 'waiting'::text, 'waiting_customer'::text, 'resolved'::text])),
+  status TEXT DEFAULT 'bot_active'::text CHECK (status = ANY (ARRAY['bot_active'::text, 'waiting'::text, 'waiting_customer'::text, 'resolved'::text])),
   escalated BOOLEAN NOT NULL DEFAULT false,
   first_response_at TIMESTAMPTZ,
   last_customer_message_at TIMESTAMPTZ,
@@ -185,7 +185,7 @@ CREATE TABLE IF NOT EXISTS orders (
   amount_paid DECIMAL(10,2) DEFAULT 0.00 CHECK (amount_paid >= 0::numeric),
   remaining_balance DECIMAL(10,2) DEFAULT 0.00 CHECK (remaining_balance >= 0::numeric),
   promised_payment_date DATE,
-  status VARCHAR(30) DEFAULT 'Pending'::character varying CHECK (status::text = ANY (ARRAY['Pending Review'::character varying, 'Pending'::character varying, 'Assigned'::character varying, 'Picked Up'::character varying, 'In Transit'::character varying, 'Arrived at Hub'::character varying, 'Out for Delivery'::character varying, 'Delivered'::character varying, 'Cancelled'::character varying]::text[])),
+  status VARCHAR(30) DEFAULT 'Pending'::character varying CHECK (status::text = ANY (ARRAY['Pending Review'::text, 'Pending'::text, 'Assigned'::text, 'Picked Up'::text, 'Pending Cancellation'::text, 'In Transit'::text, 'Arrived at Hub'::text, 'Out for Delivery'::text, 'Delivered'::text, 'Cancelled'::text])),
   notes TEXT,
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now(),
@@ -208,7 +208,13 @@ CREATE TABLE IF NOT EXISTS orders (
   featured_image_type TEXT,
   featured_at TIMESTAMPTZ,
   reassignment_history JSONB DEFAULT '[]'::jsonb,
-  payment_preference TEXT DEFAULT 'unspecified'::text
+  payment_preference TEXT DEFAULT 'unspecified'::text,
+  cancellation_reason TEXT,
+  cancellation_requested_at TIMESTAMPTZ,
+  cancellation_previous_status VARCHAR(30),
+  cancellation_reviewed_at TIMESTAMPTZ,
+  cancellation_reviewed_by UUID REFERENCES profiles(id) ON DELETE SET NULL,
+  cancellation_review_notes TEXT
 );
 
 
@@ -335,21 +341,9 @@ CREATE OR REPLACE FUNCTION public.cancel_own_pending_order(p_order_id uuid)
  SECURITY DEFINER
  SET search_path TO 'public'
 AS $function$
-DECLARE
-  updated_order public.orders;
 BEGIN
-  UPDATE public.orders
-  SET status = 'Cancelled'
-  WHERE id = p_order_id
-    AND user_id = auth.uid()
-    AND status = 'Pending'
-  RETURNING * INTO updated_order;
-
-  IF updated_order.id IS NULL THEN
-    RAISE EXCEPTION 'Only your own pending orders can be cancelled';
-  END IF;
-
-  RETURN updated_order;
+  RAISE EXCEPTION
+    'Bookings are no longer cancelled instantly. Submit a cancellation request with a reason — an admin reviews it before the booking is cancelled.';
 END;
 $function$
 
@@ -943,8 +937,6 @@ BEGIN
 
   v_is_admin := public.is_admin();
 
-  -- 'Chat' is written by the log_customer_chat_message() trigger on the
-  -- customer's behalf — see the header. Omitting it broke customer chat.
   IF NOT v_is_admin AND NEW.module NOT IN ('Orders', 'Authentication', 'Chat') THEN
     RAISE EXCEPTION 'Not allowed to write % activity logs', NEW.module;
   END IF;
@@ -1041,6 +1033,16 @@ DECLARE
   weight NUMERIC;
   price NUMERIC;
 BEGIN
+  -- ── Cancellation review hold ──────────────────────────────────────────────
+  IF OLD.status = 'Pending Cancellation'
+     AND NEW.status IS DISTINCT FROM OLD.status
+     AND NEW.status NOT IN ('Cancelled', COALESCE(OLD.cancellation_previous_status, 'Pending'))
+  THEN
+    RAISE EXCEPTION
+      'Order % has a cancellation request awaiting review. Approve or reject it before changing its status.',
+      NEW.tracking_number;
+  END IF;
+
   IF NEW.trip_id IS NOT NULL AND NEW.status <> 'Cancelled' THEN
     SELECT * INTO trip_row FROM public.trips WHERE id = NEW.trip_id;
     IF NOT FOUND THEN
@@ -1289,59 +1291,64 @@ $function$
 CREATE OR REPLACE FUNCTION public.maintain_conversation_service_state()
  RETURNS trigger
  LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
 AS $function$
 DECLARE
-  v_sender_role text;
-  v_status text;
-  v_resolved_at timestamptz;
-  v_escalated boolean;
-  v_new_session boolean;
+  v_status      TEXT;
+  v_resolved_at TIMESTAMPTZ;
+  v_next        TEXT;
+  v_new_session BOOLEAN;
 BEGIN
-  IF TG_OP = 'INSERT' THEN
-    v_sender_role := NEW.sender_role;
+  SELECT status, resolved_at
+    INTO v_status, v_resolved_at
+    FROM public.conversations
+   WHERE id = NEW.conversation_id;
 
-    -- The trigger evaluates state transitions based on who sent the message
-    -- and the current state of the conversation it belongs to.
-    SELECT status, resolved_at, escalated
-      INTO v_status, v_resolved_at, v_escalated
-      FROM conversations
-     WHERE id = NEW.conversation_id;
+  -- Marks this as a SERVER decision so guard_conversation_update lets the
+  -- status move through. Transaction-local and cleared immediately; a client
+  -- cannot set it, since inserting a message is its own transaction.
+  PERFORM set_config('app.conversation_service_write', 'on', true);
 
-    IF v_sender_role = 'customer' THEN
-      v_new_session := v_status = 'resolved' AND (v_resolved_at IS NULL OR v_resolved_at < now() - INTERVAL '15 seconds');
-
-      UPDATE conversations
-         SET last_message_at = NEW.created_at,
-             status = CASE
+  IF NEW.sender_role = 'customer' THEN
+    v_next := CASE
                 -- The bot keeps the thread it is already handling.
                 WHEN v_status = 'bot_active' THEN 'bot_active'
-                -- Resolved within the grace window → a FOLLOW-UP, to a human.
+                -- Resolved within the grace window: a FOLLOW-UP, straight back
+                -- to the humans who just handled it.
                 WHEN v_status = 'resolved'
                      AND v_resolved_at IS NOT NULL
-                     AND v_resolved_at >= now() - INTERVAL '15 seconds'
+                     AND v_resolved_at >= now() - INTERVAL '12 hours'
                   THEN 'waiting'
-                -- Resolved longer ago, or at an unknown time → a NEW session.
+                -- Resolved longer ago, or at an unknown time: a NEW question on
+                -- the customer's one and only conversation row. Bot first, same
+                -- as any new chat.
                 WHEN v_status = 'resolved' THEN 'bot_active'
                 -- waiting / waiting_customer: already ours, stays ours.
                 ELSE 'waiting'
-             END,
-             -- Escalation drops if this is a new session (the bot handles it first).
-             escalated = CASE WHEN v_new_session THEN false ELSE escalated END
-       WHERE id = NEW.conversation_id;
+              END;
 
-    ELSIF v_sender_role = 'admin' THEN
-      UPDATE conversations
-         SET last_message_at = NEW.created_at,
-             status = 'waiting_customer'
-       WHERE id = NEW.conversation_id;
+    v_new_session := (v_status = 'resolved' AND v_next = 'bot_active');
 
-    ELSIF v_sender_role = 'bot' THEN
-      UPDATE conversations
-         SET last_message_at = NEW.created_at
-       WHERE id = NEW.conversation_id;
-    END IF;
+    UPDATE public.conversations
+       SET last_customer_message_at = NEW.created_at,
+           status      = v_next,
+           escalated   = CASE WHEN v_new_session THEN FALSE ELSE escalated END,
+           resolved_at = NULL
+     WHERE id = NEW.conversation_id;
+
+  ELSIF NEW.sender_role = 'admin' THEN
+    -- An admin replying IS the signal that we are now waiting on the customer.
+    UPDATE public.conversations
+       SET first_response_at = COALESCE(first_response_at, NEW.created_at),
+           status = 'waiting_customer'
+     WHERE id = NEW.conversation_id;
   END IF;
 
+  -- sender_role = 'bot' changes nothing: a bot reply is not a response for
+  -- service purposes and must never clear the queue.
+
+  PERFORM set_config('app.conversation_service_write', 'off', true);
   RETURN NEW;
 END;
 $function$
@@ -1396,6 +1403,14 @@ BEGIN
   NEW.pickup_photos := '[]'::jsonb;
   NEW.delivery_photos := '[]'::jsonb;
 
+  -- A booking cannot be born already asking to be cancelled.
+  NEW.cancellation_reason          := NULL;
+  NEW.cancellation_requested_at    := NULL;
+  NEW.cancellation_previous_status := NULL;
+  NEW.cancellation_reviewed_at     := NULL;
+  NEW.cancellation_reviewed_by     := NULL;
+  NEW.cancellation_review_notes    := NULL;
+
   IF NEW.trip_id IS NOT NULL THEN
     SELECT * INTO trip_row FROM public.trips WHERE id = NEW.trip_id;
     IF NOT FOUND THEN
@@ -1409,9 +1424,7 @@ BEGIN
   END IF;
 
   -- No weight, no price. Both are set by guard_order_update the moment an
-  -- admin records actual_weight at pickup. The old
-  -- "Package weight must be greater than zero" guard is gone with the field
-  -- it protected — keeping it would reject every booking.
+  -- admin records actual_weight at pickup.
   NEW.shipping_cost := 0;
   NEW.remaining_balance := 0;
 
@@ -1719,6 +1732,156 @@ BEGIN
 
   -- Re-read AFTER the ledger trigger has recomputed the totals.
   SELECT * INTO v_order FROM public.orders WHERE id = p_order_id;
+  RETURN v_order;
+END;
+$function$
+
+
+
+CREATE OR REPLACE FUNCTION public.request_order_cancellation(p_order_id uuid, p_reason text)
+ RETURNS orders
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_order  public.orders;
+  v_reason TEXT := btrim(COALESCE(p_reason, ''));
+BEGIN
+  IF auth.uid() IS NULL THEN
+    RAISE EXCEPTION 'Authentication required';
+  END IF;
+
+  IF char_length(v_reason) < 5 THEN
+    RAISE EXCEPTION 'Please tell us why you are cancelling (at least 5 characters).';
+  END IF;
+
+  SELECT * INTO v_order
+    FROM public.orders
+   WHERE id = p_order_id AND user_id = auth.uid()
+     FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Only your own bookings can be cancelled';
+  END IF;
+
+  IF v_order.status = 'Pending Cancellation' THEN
+    RAISE EXCEPTION 'A cancellation request for this booking is already awaiting review.';
+  END IF;
+
+  IF v_order.status = 'Cancelled' THEN
+    RAISE EXCEPTION 'This booking is already cancelled.';
+  END IF;
+
+  -- Mirrors IN_NETWORK_STATUSES in src/constants/status.js. Past this line the
+  -- parcel is on a vehicle or in a hub, and "cancel" no longer describes
+  -- anything that can physically happen — that is a return, not a cancellation.
+  IF v_order.status IN ('In Transit', 'Arrived at Hub', 'Out for Delivery', 'Delivered') THEN
+    RAISE EXCEPTION
+      'This shipment is already "%" and is on its way. Please contact support instead.',
+      v_order.status;
+  END IF;
+
+  UPDATE public.orders
+     SET status                       = 'Pending Cancellation',
+         cancellation_reason          = v_reason,
+         cancellation_requested_at    = now(),
+         cancellation_previous_status = v_order.status,
+         cancellation_reviewed_at     = NULL,
+         cancellation_reviewed_by     = NULL,
+         cancellation_review_notes    = NULL
+   WHERE id = p_order_id
+   RETURNING * INTO v_order;
+
+  -- Every admin is told. A request nobody sees is a booking frozen forever.
+  INSERT INTO public.notifications (user_id, title, message, type, reference_id)
+  SELECT p.id,
+         'Cancellation Requested',
+         'Order ' || v_order.tracking_number || ': the customer asked to cancel. Reason: ' || v_reason,
+         'order_update',
+         v_order.id
+    FROM public.profiles p
+   WHERE p.role = 'admin';
+
+  INSERT INTO public.activity_logs (module, action, record_type, record_id, record_ref, previous_value, new_value, details)
+  VALUES ('Orders',
+          'Cancellation Requested',
+          'order',
+          v_order.id,
+          v_order.tracking_number,
+          jsonb_build_object('status', v_order.cancellation_previous_status),
+          jsonb_build_object('status', 'Pending Cancellation'),
+          'Customer requested cancellation. Reason: ' || v_reason);
+
+  RETURN v_order;
+END;
+$function$
+
+
+
+CREATE OR REPLACE FUNCTION public.review_order_cancellation(p_order_id uuid, p_approve boolean, p_notes text DEFAULT NULL::text)
+ RETURNS orders
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_order   public.orders;
+  v_restore TEXT;
+  v_notes   TEXT := NULLIF(btrim(COALESCE(p_notes, '')), '');
+BEGIN
+  IF NOT public.is_admin() THEN
+    RAISE EXCEPTION 'Admin privileges required';
+  END IF;
+
+  SELECT * INTO v_order FROM public.orders WHERE id = p_order_id FOR UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Order not found';
+  END IF;
+
+  IF v_order.status <> 'Pending Cancellation' THEN
+    RAISE EXCEPTION 'Order % has no cancellation request awaiting review.', v_order.tracking_number;
+  END IF;
+
+  -- 'Pending' is the fallback only for rows that predate this migration and so
+  -- have no recorded previous status. It is a guess, and it is confined to the
+  -- one case where nothing better is knowable.
+  v_restore := COALESCE(v_order.cancellation_previous_status, 'Pending');
+
+  UPDATE public.orders
+     SET status                    = CASE WHEN p_approve THEN 'Cancelled' ELSE v_restore END,
+         cancellation_reviewed_at  = now(),
+         cancellation_reviewed_by  = auth.uid(),
+         cancellation_review_notes = v_notes
+   WHERE id = p_order_id
+   RETURNING * INTO v_order;
+
+  INSERT INTO public.notifications (user_id, title, message, type, reference_id)
+  VALUES (v_order.user_id,
+          CASE WHEN p_approve THEN 'Cancellation Approved' ELSE 'Cancellation Declined' END,
+          CASE WHEN p_approve
+               THEN 'Order ' || v_order.tracking_number || ' has been cancelled as you requested.'
+               ELSE 'Order ' || v_order.tracking_number || ' was not cancelled and is back to "' || v_restore || '".'
+          END
+          || COALESCE(' Note from our team: ' || v_notes, ''),
+          'order_update',
+          v_order.id);
+
+  INSERT INTO public.activity_logs (module, action, record_type, record_id, record_ref, previous_value, new_value, details)
+  VALUES ('Orders',
+          CASE WHEN p_approve THEN 'Cancellation Approved' ELSE 'Cancellation Rejected' END,
+          'order',
+          v_order.id,
+          v_order.tracking_number,
+          jsonb_build_object('status', 'Pending Cancellation'),
+          jsonb_build_object('status', v_order.status),
+          CASE WHEN p_approve
+               THEN 'Approved the customer''s cancellation request; order cancelled.'
+               ELSE 'Rejected the customer''s cancellation request; order restored to "' || v_restore || '".'
+          END
+          || COALESCE(' Note: ' || v_notes, '')
+          || COALESCE(' Customer''s stated reason: ' || v_order.cancellation_reason, ''));
+
   RETURN v_order;
 END;
 $function$
@@ -2066,6 +2229,11 @@ REVOKE ALL ON FUNCTION public.auto_resolve_stale_conversations() FROM anon;
 REVOKE ALL ON FUNCTION public.auto_resolve_stale_conversations() FROM authenticated;
 GRANT EXECUTE ON FUNCTION public.auto_resolve_stale_conversations() TO service_role;
 
+REVOKE ALL ON FUNCTION public.cancel_own_pending_order(p_order_id uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.cancel_own_pending_order(p_order_id uuid) FROM anon;
+REVOKE ALL ON FUNCTION public.cancel_own_pending_order(p_order_id uuid) FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.cancel_own_pending_order(p_order_id uuid) TO service_role;
+
 REVOKE ALL ON FUNCTION public.create_admin_notifications_rpc(p_title text, p_message text, p_type text, p_reference_id uuid) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.create_admin_notifications_rpc(p_title text, p_message text, p_type text, p_reference_id uuid) FROM anon;
 REVOKE ALL ON FUNCTION public.create_admin_notifications_rpc(p_title text, p_message text, p_type text, p_reference_id uuid) FROM authenticated;
@@ -2111,6 +2279,18 @@ REVOKE ALL ON FUNCTION public.record_pickup_payment(p_order_id uuid, p_actual_we
 REVOKE ALL ON FUNCTION public.record_pickup_payment(p_order_id uuid, p_actual_weight numeric, p_payment_method text, p_payer_type text, p_pickup_photos jsonb, p_promised_payment_date date, p_amount numeric, p_reference text, p_payment_date date, p_receipt_url text, p_payment_type text, p_notes text) FROM authenticated;
 GRANT EXECUTE ON FUNCTION public.record_pickup_payment(p_order_id uuid, p_actual_weight numeric, p_payment_method text, p_payer_type text, p_pickup_photos jsonb, p_promised_payment_date date, p_amount numeric, p_reference text, p_payment_date date, p_receipt_url text, p_payment_type text, p_notes text) TO service_role;
 GRANT EXECUTE ON FUNCTION public.record_pickup_payment(p_order_id uuid, p_actual_weight numeric, p_payment_method text, p_payer_type text, p_pickup_photos jsonb, p_promised_payment_date date, p_amount numeric, p_reference text, p_payment_date date, p_receipt_url text, p_payment_type text, p_notes text) TO authenticated;
+
+REVOKE ALL ON FUNCTION public.request_order_cancellation(p_order_id uuid, p_reason text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.request_order_cancellation(p_order_id uuid, p_reason text) FROM anon;
+REVOKE ALL ON FUNCTION public.request_order_cancellation(p_order_id uuid, p_reason text) FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.request_order_cancellation(p_order_id uuid, p_reason text) TO service_role;
+GRANT EXECUTE ON FUNCTION public.request_order_cancellation(p_order_id uuid, p_reason text) TO authenticated;
+
+REVOKE ALL ON FUNCTION public.review_order_cancellation(p_order_id uuid, p_approve boolean, p_notes text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.review_order_cancellation(p_order_id uuid, p_approve boolean, p_notes text) FROM anon;
+REVOKE ALL ON FUNCTION public.review_order_cancellation(p_order_id uuid, p_approve boolean, p_notes text) FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.review_order_cancellation(p_order_id uuid, p_approve boolean, p_notes text) TO service_role;
+GRANT EXECUTE ON FUNCTION public.review_order_cancellation(p_order_id uuid, p_approve boolean, p_notes text) TO authenticated;
 
 REVOKE ALL ON FUNCTION public.search_conversation_messages(p_query text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.search_conversation_messages(p_query text) FROM anon;
@@ -2215,6 +2395,8 @@ CREATE INDEX IF NOT EXISTS idx_order_status_events_order_id ON public.order_stat
 CREATE INDEX IF NOT EXISTS idx_orders_created_at ON public.orders USING btree (created_at DESC);
 
 CREATE INDEX IF NOT EXISTS idx_orders_featured ON public.orders USING btree (featured_at DESC) WHERE (featured_on_website = true);
+
+CREATE INDEX IF NOT EXISTS idx_orders_pending_cancellation ON public.orders USING btree (cancellation_requested_at) WHERE ((status)::text = 'Pending Cancellation'::text);
 
 CREATE INDEX IF NOT EXISTS idx_orders_status ON public.orders USING btree (status);
 
@@ -2690,6 +2872,8 @@ COMMENT ON COLUMN public.conversations.first_response_at IS 'First admin message
 COMMENT ON COLUMN public.conversations.bot_resolved IS 'NULL = unknown. TRUE/FALSE only once the customer answers the thumbs prompt.';
 COMMENT ON COLUMN public.orders._deprecated_payment_date IS 'DEPRECATED 2026-08-03 (P1). Superseded by payment_transactions.payment_date. Drop after one clean release.';
 COMMENT ON COLUMN public.orders._deprecated_receipt_url IS 'DEPRECATED 2026-08-03 (P1). Superseded by payment_transactions.receipt_url. Drop after one clean release.';
+COMMENT ON COLUMN public.orders.cancellation_reason IS 'Customer-stated reason for the cancellation request. Required — a cancellation with no reason is the case this column exists to stop.';
+COMMENT ON COLUMN public.orders.cancellation_previous_status IS 'Where the order was standing when the request was made, so a rejection can put it back exactly there rather than guessing.';
 COMMENT ON COLUMN public.trips._deprecated_available_slots IS 'DEPRECATED 2026-08-03 (P1). Write-only duplicate of capacity, never maintained. Drop after one clean release.';
 
 

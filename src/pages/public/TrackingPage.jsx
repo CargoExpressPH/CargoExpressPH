@@ -9,7 +9,7 @@ import {
   CheckCircle2, XCircle, Clock, Weight, User,
   RefreshCw, AlertTriangle, ShieldAlert, Truck, Calendar, Info, ClipboardCheck, Building2, Bike,
 } from 'lucide-react';
-import { STATUS_TIMELINE, TRACKING_STATUS_TONES, STATUS_ICONS, ORDER_STATUS } from '../../constants/status';
+import { STATUS_TIMELINE, TRACKING_STATUS_TONES, STATUS_ICONS, ORDER_STATUS, timelineStatus } from '../../constants/status';
 import TrackingTimeline from '../../components/ui/TrackingTimeline';
 import { SkeletonText } from '../../components/ui/SkeletonLoader';
 import usePageTitle from '../../hooks/usePageTitle';
@@ -298,9 +298,12 @@ const TrackingPage = ({ embedded = false }) => {
 
   const StatusIcon = getStatusIcon(order?.status);
   const statusColor = order ? TRACKING_STATUS_TONES[order.status] : null;
-  const completedSteps = order ? STATUS_TIMELINE.indexOf(order.status) : -1;
+  // timelineStatus, not order.status: 'Pending Cancellation' is a hold, not a
+  // place on the route, so indexOf returns -1 and the bar renders a NEGATIVE
+  // width. The cargo has not moved backwards because a request is under review.
+  const completedSteps = order ? STATUS_TIMELINE.indexOf(timelineStatus(order)) : -1;
   const progressPct = order?.status === 'Cancelled' ? 0
-    : order ? Math.round(((completedSteps) / (STATUS_TIMELINE.length - 1)) * 100)
+    : order ? Math.max(0, Math.round(((completedSteps) / (STATUS_TIMELINE.length - 1)) * 100))
     : 0;
 
   // ETA: only meaningful before delivery. trip.arrival_date from the RPC.
@@ -514,7 +517,7 @@ const TrackingPage = ({ embedded = false }) => {
           {/* ── Timeline ── */}
           <div className="trk-timeline-wrap">
             <p className="trk-section-label">Shipment Journey</p>
-            <TrackingTimeline currentStatus={order.status} stepTimestamps={stepTimestamps} />
+            <TrackingTimeline currentStatus={timelineStatus(order)} stepTimestamps={stepTimestamps} />
           </div>
 
           {/* ── Info grid ── */}

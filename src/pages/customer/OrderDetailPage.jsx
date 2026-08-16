@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { getOrderById, cancelOwnOrder, createNotification, getPaymentTransactions, submitFeedback, checkIfFeedbackExists, getOrderStatusEvents } from '../../lib/database';
+import { getOrderById, requestOrderCancellation, getPaymentTransactions, submitFeedback, checkIfFeedbackExists, getOrderStatusEvents } from '../../lib/database';
 import { buildStatusTimestamps } from '../../utils/statusTimestamps';
 import { resolvePhotoUrls } from '../../lib/storage';
 import { useAuth } from '../../contexts/AuthContext';
@@ -9,13 +9,14 @@ import { initiateGCashPayment, registerSource, pollPaymentStatus } from '../../l
 import StatusBadge from '../../components/ui/StatusBadge';
 import TrackingTimeline from '../../components/ui/TrackingTimeline';
 import ConfirmModal from '../../components/ui/ConfirmModal';
+import CancelBookingModal from '../../components/ui/CancelBookingModal';
 import FocusTrap from '../../components/ui/FocusTrap';
 import ImageLightbox from '../../components/ui/ImageLightbox';
 import { SkeletonOrderCard, SkeletonText } from '../../components/ui/SkeletonLoader';
 import { ArrowLeft, MapPin, User, Phone, Package, CreditCard, Truck, Camera, Image, XCircle, Loader, AlertTriangle, Check } from 'lucide-react';
 import { useToast } from '../../hooks/useToast';
 import usePageTitle from '../../hooks/usePageTitle';
-import { outstandingBalance, getSettlementState, isOrderPriced, SETTLEMENT_STATE } from '../../constants/status';
+import { outstandingBalance, getSettlementState, isOrderPriced, SETTLEMENT_STATE, ORDER_STATUS, canCancelOrder, hasPendingCancellation, timelineStatus } from '../../constants/status';
 
 // Max time (ms) to wait for data before giving up and showing an error.
 const LOAD_TIMEOUT_MS = 15000;
@@ -268,31 +269,25 @@ const OrderDetailPage = () => {
     return () => { cancelled = true; };
   }, [resolvedDeliveryPhotos]);
 
-  const handleCancel = async () => {
-    setShowCancelModal(false);
+  // Submits a cancellation REQUEST with the customer's stated reason. Nothing
+  // is cancelled here — the RPC moves the order to 'Pending Cancellation',
+  // notifies every admin and writes the activity log in one transaction, so
+  // there is no client-side follow-up write that could be lost mid-flight.
+  const handleCancel = async (reason) => {
     if (!user) {
+      setShowCancelModal(false);
       toast.error('Your session has expired. Please log in again.');
       navigate('/login');
       return;
     }
     setCancelling(true);
     try {
-      await cancelOwnOrder(id);
-      // createNotification is non-critical — don't let it block the UI
-      try {
-        await createNotification(
-          user.id,
-          'Order Cancelled',
-          `Your order ${order.tracking_number} has been cancelled`,
-          'order_update',
-          order.id
-        );
-      } catch {
-        // Notification failure is non-critical
-      }
+      await requestOrderCancellation(id, reason);
+      setShowCancelModal(false);
       await loadOrder();
-      toast.warning('Your booking has been cancelled.');
+      toast.success('Cancellation request sent. We will let you know once it has been reviewed.');
     } catch (err) {
+      // The modal stays open so the typed reason is not lost on a failure.
       toast.error(normalizeError(err));
     } finally {
       setCancelling(false);
@@ -405,8 +400,13 @@ const OrderDetailPage = () => {
     </div>
   );
 
-  const isCancelled = order.status === 'Cancelled';
-  const canCancel = order.status === 'Pending';
+  const isCancelled = order.status === ORDER_STATUS.CANCELLED;
+  const awaitingCancellation = hasPendingCancellation(order);
+  // Was `order.status === 'Pending'`, which hid the button the moment an admin
+  // put the booking on a trip — the exact point at which a customer is most
+  // likely to want out. canCancelOrder() is the shared rule: anything not yet
+  // loaded onto a vehicle, and not already under review.
+  const canCancel = canCancelOrder(order);
   const hasPhotos = resolvedPickupPhotos.length > 0;
   const balance = outstandingBalance(order);
   const settlementState = getSettlementState(order);
@@ -430,24 +430,54 @@ const OrderDetailPage = () => {
         <StatusBadge status={order.status} />
       </div>
 
-      {/* Cancel button for Pending orders */}
+      {/* Cancellation request awaiting review — states plainly that nothing
+          has been cancelled yet, and shows back the reason that was given so
+          the customer can see what the admin is reading. */}
+      {awaitingCancellation && (
+        <div className="alert-banner alert-banner-warning animate-slide-up mb-16" role="status">
+          <AlertTriangle size={16} aria-hidden="true" />
+          <div className="flex flex-col gap-4">
+            <span className="fw-700">Cancellation requested — awaiting review</span>
+            <span className="text-sm">
+              This booking is still active while our team reviews your request. You will be
+              notified once it is approved or declined.
+            </span>
+            {order.cancellation_reason && (
+              <span className="text-sm" style={{ opacity: 0.9 }}>
+                Your reason: “{order.cancellation_reason}”
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Declined request — the order carried on, and the note says why. */}
+      {!awaitingCancellation && !isCancelled && order.cancellation_reviewed_at && order.cancellation_reason && (
+        <div className="alert-banner alert-banner-info animate-slide-up mb-16" role="status">
+          <AlertTriangle size={16} aria-hidden="true" />
+          <div className="flex flex-col gap-4">
+            <span className="fw-700">Your cancellation request was declined</span>
+            <span className="text-sm">
+              This booking is still going ahead.
+              {order.cancellation_review_notes ? ` Note from our team: ${order.cancellation_review_notes}` : ''}
+            </span>
+          </div>
+        </div>
+      )}
+
       {canCancel && (
         <button className="btn btn-danger btn-sm animate-slide-up mb-16" onClick={() => setShowCancelModal(true)} disabled={cancelling}>
           {cancelling ? <Loader size={14} className="animate-spin" /> : <XCircle size={14} />}
-          Cancel Booking
+          Request Cancellation
         </button>
       )}
 
-      <ConfirmModal
+      <CancelBookingModal
         isOpen={showCancelModal}
         onClose={() => setShowCancelModal(false)}
         onConfirm={handleCancel}
-        title="Cancel This Booking?"
-        message="Are you sure you want to cancel this booking? This action cannot be undone and your shipment slot will be released."
-        confirmLabel="Yes, Cancel Booking"
-        cancelLabel="Keep Booking"
-        variant="danger"
         loading={cancelling}
+        trackingNumber={order.tracking_number}
       />
 
       {/* Tracking Timeline */}
@@ -455,7 +485,7 @@ const OrderDetailPage = () => {
         <div className="customer-detail-card customer-tracking-card card stagger-item mb-16" style={{ animationDelay: '40ms' }}>
           <div className="card-body p-16">
             <h4 className="fw-700 mb-16">Tracking Timeline</h4>
-            <TrackingTimeline currentStatus={order.status} compact stepTimestamps={stepTimestamps} />
+            <TrackingTimeline currentStatus={timelineStatus(order)} compact stepTimestamps={stepTimestamps} />
           </div>
         </div>
       )}

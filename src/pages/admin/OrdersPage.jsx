@@ -12,7 +12,11 @@ import { Search, Package } from 'lucide-react';
 import usePageTitle from '../../hooks/usePageTitle';
 import { isOrderPriced } from '../../constants/status';
 
-const tabs = ['All', 'Pending Review', 'Pending', 'Assigned', 'Picked Up', 'In Transit', 'Arrived at Hub', 'Out for Delivery', 'Delivered', 'Cancelled'];
+// Admins DO get one chip per status — unlike the customer list, an operator's
+// job is exactly the distinction between Assigned and Picked Up.
+// 'Pending Cancellation' sits right after 'Assigned' because that is the queue
+// of bookings frozen waiting on a decision.
+const tabs = ['All', 'Pending Review', 'Pending', 'Assigned', 'Pending Cancellation', 'Picked Up', 'In Transit', 'Arrived at Hub', 'Out for Delivery', 'Delivered', 'Cancelled'];
 
 // Debounce delay in ms — avoids firing a DB query on every keystroke.
 // Matches CustomersPage so admin search feels consistent across pages.

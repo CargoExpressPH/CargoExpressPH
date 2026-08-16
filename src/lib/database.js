@@ -1,6 +1,6 @@
 import { supabase } from './supabase';
 import { logOrder, logPayment, logChat } from './activityLog';
-import { validateStatusTransition, outstandingBalance } from '../constants/status';
+import { validateStatusTransition, outstandingBalance, ORDER_STATUS } from '../constants/status';
 import { detectPickupLocation } from '../constants/phLocations';
 
 // ==================== HELPER ====================
@@ -370,12 +370,60 @@ export const updateOrder = async (orderId, updates) => {
   return data;
 };
 
-export const cancelOwnOrder = async (orderId) => {
-  const { data, error } = await supabase.rpc('cancel_own_pending_order', {
+/**
+ * Customer asks to cancel a booking, stating why.
+ *
+ * This does NOT cancel anything. It moves the order to 'Pending Cancellation'
+ * and notifies every admin; the booking keeps its trip slot until someone
+ * rules on it. `cancelOwnOrder` — which flipped the row straight to
+ * 'Cancelled' with no reason recorded — is gone with the RPC behind it
+ * (20260816100000).
+ *
+ * The reason is validated server-side too; this check only saves a round trip.
+ */
+export const requestOrderCancellation = async (orderId, reason) => {
+  const trimmed = (reason || '').trim();
+  if (trimmed.length < 5) {
+    throw new Error('Please tell us why you are cancelling (at least 5 characters).');
+  }
+  const { data, error } = await supabase.rpc('request_order_cancellation', {
     p_order_id: orderId,
+    p_reason: trimmed,
   });
   if (error) throw error;
   return data;
+};
+
+/**
+ * Admin rules on a cancellation request.
+ *
+ * Approve → 'Cancelled'. Reject → back to `cancellation_previous_status`, the
+ * exact status the order was standing in when the request was made, so a
+ * rejection puts an Assigned booking back as Assigned rather than guessing
+ * 'Pending' and silently detaching it from a trip it is still on.
+ *
+ * The RPC writes the activity log and the customer's notification itself, so
+ * neither can be skipped by a caller that forgets.
+ */
+export const reviewOrderCancellation = async (orderId, approve, notes = null) => {
+  const { data, error } = await supabase.rpc('review_order_cancellation', {
+    p_order_id: orderId,
+    p_approve: approve,
+    p_notes: notes || null,
+  });
+  if (error) throw error;
+  return data;
+};
+
+/** Orders whose cancellation request is still waiting on an admin. */
+export const getPendingCancellations = async () => {
+  const { data, error } = await supabase
+    .from('orders')
+    .select('*, profiles:user_id (name, email, phone)')
+    .eq('status', ORDER_STATUS.PENDING_CANCELLATION)
+    .order('cancellation_requested_at', { ascending: true });
+  if (error) throw error;
+  return data || [];
 };
 
 export const deleteOrder = async (orderId) => {
