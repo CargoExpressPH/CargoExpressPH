@@ -746,8 +746,7 @@ const OrderDetailPage = () => {
                       <th>Type</th>
                       <th>Amount</th>
                       <th>Method</th>
-                      <th>Ref/Notes</th>
-                      <th>Recorded By</th>
+                      <th>Reference</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -760,16 +759,11 @@ const OrderDetailPage = () => {
                         <td data-label="Type">{tx.payment_type || 'Additional Payment'}</td>
                         <td data-label="Amount" className="fw-600 text-success">₱{parseFloat(tx.amount).toFixed(2)}</td>
                         <td data-label="Method" className="text-capitalize">{tx.payment_method === 'gcash' ? 'GCash' : tx.payment_method}</td>
-                        <td data-label="Ref/Notes">
-                          {/* Wrapped: on mobile the cell is a flex row, so two
-                              sibling divs sat side by side as two narrow
-                              columns. One wrapper keeps them stacked. */}
-                          <div className="cell-stack">
-                            {tx.transaction_reference && <div className="text-xs">Ref: {tx.transaction_reference}</div>}
-                            {tx.notes && <div className="text-xs text-tertiary">{tx.notes}</div>}
-                          </div>
+                        <td data-label="Reference">
+                          {tx.transaction_reference
+                            ? <div className="text-xs" style={{ wordBreak: 'break-all' }}>GCash Ref: {tx.transaction_reference}</div>
+                            : <span className="text-tertiary">—</span>}
                         </td>
-                        <td data-label="Recorded By">{tx.admin_name || 'System'}</td>
                       </tr>
                     ))}
                   </tbody>
