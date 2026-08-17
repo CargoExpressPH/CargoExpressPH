@@ -1314,14 +1314,7 @@ body {
 
   .customer-navbar-logo {
     min-width: 0;
-    flex-shrink: 1;
     gap: 6px;
-  }
-
-  .customer-navbar-logo .brand-wordmark {
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
   }
 
   .customer-navbar-brand {
