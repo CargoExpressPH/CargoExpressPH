@@ -1064,7 +1064,7 @@ const AdminOrderDetailPage = () => {
                               </button>
                             )}
                             {tx.receipt_url && <a href={tx.receipt_url} target="_blank" rel="noreferrer" className="text-xs text-primary receipt-link"><Image size={12} /> View Receipt</a>}
-                            {tx.notes && tx.notes.trim() && (
+                            {tx.notes && tx.notes.trim() && !(/captured via paymongo/i.test(tx.notes)) && (
                               <div className="text-xs text-tertiary mt-4" style={{ fontStyle: 'italic' }}>{tx.notes}</div>
                             )}
                           </td>
