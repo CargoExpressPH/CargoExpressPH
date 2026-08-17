@@ -242,6 +242,14 @@
   }
 }
 
+/* Phones: the wordmark cannot fit beside the actions row, and clipping it
+   mid-letter reads as a typo. The badge carries the brand at this size. */
+@media (max-width: 480px) {
+  .app-layout .topbar-title .brand-wordmark {
+    display: none;
+  }
+}
+
 @media (max-width: 380px) {
   .app-layout .topbar {
     gap: 6px;
