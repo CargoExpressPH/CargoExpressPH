@@ -53,6 +53,24 @@ export const truncateRef = (ref, maxLen = 16) => {
 };
 
 /**
+ * Return a customer-visible reference string, or null if the reference is
+ * an internal PayMongo ID that means nothing to the customer.
+ *
+ * PayMongo IDs start with `pay_`, `src_`, `link_`, `paym_`, `pi_` etc.
+ * Manual GCash refs entered by admin are plain numbers/text the customer
+ * can cross-check with their GCash receipt.
+ *
+ * @param {string|null} ref
+ * @returns {string|null}
+ */
+export const getCustomerVisibleRef = (ref) => {
+  if (!ref || !ref.trim()) return null;
+  // PayMongo internal ID prefixes
+  if (/^(pay_|src_|link_|paym_|pi_|re_|sub_|cus_|evt_)/i.test(ref)) return null;
+  return ref;
+};
+
+/**
  * Check whether a payment transaction was system-generated (webhook).
  * @param {{ admin_name?: string, notes?: string }} tx
  * @returns {boolean}

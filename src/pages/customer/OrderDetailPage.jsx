@@ -17,7 +17,7 @@ import { ArrowLeft, MapPin, User, Phone, Package, CreditCard, Truck, Camera, Ima
 import { useToast } from '../../hooks/useToast';
 import usePageTitle from '../../hooks/usePageTitle';
 import { outstandingBalance, getSettlementState, isOrderPriced, SETTLEMENT_STATE, ORDER_STATUS, canCancelOrder, hasPendingCancellation, timelineStatus } from '../../constants/status';
-import { formatPaymentType, formatRecordedBy, getPaymentStatusDisplay, formatPaymentMethod as fmtMethod, getCustomerFriendlyNotes } from '../../utils/paymentDisplay';
+import { formatPaymentType, formatRecordedBy, getPaymentStatusDisplay, formatPaymentMethod as fmtMethod, getCustomerFriendlyNotes, getCustomerVisibleRef } from '../../utils/paymentDisplay';
 
 // Max time (ms) to wait for data before giving up and showing an error.
 const LOAD_TIMEOUT_MS = 15000;
@@ -755,6 +755,7 @@ const OrderDetailPage = () => {
                     {paymentTransactions.map(tx => {
                       const statusInfo = getPaymentStatusDisplay(tx.payment_status);
                       const friendlyNotes = getCustomerFriendlyNotes(tx.notes, tx.admin_name);
+                      const customerRef = getCustomerVisibleRef(tx.transaction_reference);
                       return (
                         <tr key={tx.id}>
                           <td data-label="Date">
@@ -765,7 +766,17 @@ const OrderDetailPage = () => {
                           </td>
                           <td data-label="Type">{formatPaymentType(tx.payment_type)}</td>
                           <td data-label="Amount" className="fw-600 text-success">₱{parseFloat(tx.amount).toFixed(2)}</td>
-                          <td data-label="Method">{fmtMethod(tx.payment_method)}</td>
+                          <td data-label="Method">
+                            <div className="cell-stack">
+                              <span>{fmtMethod(tx.payment_method)}</span>
+                              {customerRef && <span className="text-tertiary" style={{ fontSize: '0.6875rem', wordBreak: 'break-all' }}>Ref: {customerRef}</span>}
+                              {tx.receipt_url && (
+                                <a href={tx.receipt_url} target="_blank" rel="noreferrer" className="text-xs text-primary flex items-center gap-4 mt-2">
+                                  <Image size={12} /> View Receipt
+                                </a>
+                              )}
+                            </div>
+                          </td>
                           <td data-label="Status">
                             <span className={`badge badge-${statusInfo.tone} badge-sm`}>{statusInfo.label}</span>
                           </td>

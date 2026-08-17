@@ -11,7 +11,7 @@ import EmptyState from '../../components/ui/EmptyState';
 import { useToast } from '../../hooks/useToast';
 import usePageTitle from '../../hooks/usePageTitle';
 import { outstandingBalance } from '../../constants/status';
-import { formatPaymentType, formatPaymentMethod as fmtMethod, getPaymentStatusDisplay } from '../../utils/paymentDisplay';
+import { formatPaymentType, formatPaymentMethod as fmtMethod, getPaymentStatusDisplay, getCustomerVisibleRef } from '../../utils/paymentDisplay';
 
 // Peso sign, like every other money figure in the app. This page was the one
 // place still printing a bare currency CODE ("PHP 1,200.00") instead of the ₱
@@ -231,13 +231,19 @@ const PaymentHistoryPage = () => {
                 <tbody>
                   {transactions.map(tx => {
                     const statusInfo = getPaymentStatusDisplay(tx.payment_status);
+                    const customerRef = getCustomerVisibleRef(tx.transaction_reference);
                     return (
                       <tr key={tx.id}>
                         <td data-label="Date">{formatDate(tx.payment_date || tx.created_at)}</td>
                         <td data-label="Order">{tx.order?.tracking_number || '-'}</td>
                         <td data-label="Type">{formatPaymentType(tx.payment_type)}</td>
                         <td data-label="Amount" className="fw-700 text-success">{formatMoney(tx.amount)}</td>
-                        <td data-label="Method">{fmtMethod(tx.payment_method)}</td>
+                        <td data-label="Method">
+                          <div className="cell-stack">
+                            <span>{fmtMethod(tx.payment_method)}</span>
+                            {customerRef && <span className="text-tertiary" style={{ fontSize: '0.6875rem', wordBreak: 'break-all' }}>Ref: {customerRef}</span>}
+                          </div>
+                        </td>
                         <td data-label="Status">
                           <span className={`badge badge-${statusInfo.tone} badge-sm`}>{statusInfo.label}</span>
                         </td>
