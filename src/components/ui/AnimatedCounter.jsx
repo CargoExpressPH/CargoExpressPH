@@ -19,8 +19,8 @@ const AnimatedCounter = ({
   decimals = 0,
   className = '',
 }) => {
-  const [display, setDisplay] = useState(value ?? 0);
-  const prevValue = useRef(value ?? 0);
+  const [display, setDisplay] = useState(0);
+  const prevValue = useRef(0);
   const rafId = useRef(null);
 
   useEffect(() => {
