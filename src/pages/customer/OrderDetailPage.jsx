@@ -17,6 +17,7 @@ import { ArrowLeft, MapPin, User, Phone, Package, CreditCard, Truck, Camera, Ima
 import { useToast } from '../../hooks/useToast';
 import usePageTitle from '../../hooks/usePageTitle';
 import { outstandingBalance, getSettlementState, isOrderPriced, SETTLEMENT_STATE, ORDER_STATUS, canCancelOrder, hasPendingCancellation, timelineStatus } from '../../constants/status';
+import { formatPaymentType, formatRecordedBy, getPaymentStatusDisplay, formatPaymentMethod as fmtMethod, getCustomerFriendlyNotes } from '../../utils/paymentDisplay';
 
 // Max time (ms) to wait for data before giving up and showing an error.
 const LOAD_TIMEOUT_MS = 15000;
@@ -746,26 +747,37 @@ const OrderDetailPage = () => {
                       <th scope="col">Type</th>
                       <th scope="col">Amount</th>
                       <th scope="col">Method</th>
-                      <th scope="col">Reference</th>
+                      <th scope="col">Status</th>
+                      <th scope="col">Recorded By</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {paymentTransactions.map(tx => (
-                      <tr key={tx.id}>
-                        <td data-label="Date">
-                          {new Date(tx.created_at).toLocaleDateString('en-PH')}
-                          <span className="text-tertiary ml-4">{new Date(tx.created_at).toLocaleTimeString('en-PH', {hour: '2-digit', minute:'2-digit'})}</span>
-                        </td>
-                        <td data-label="Type">{tx.payment_type || 'Additional Payment'}</td>
-                        <td data-label="Amount" className="fw-600 text-success">₱{parseFloat(tx.amount).toFixed(2)}</td>
-                        <td data-label="Method" className="text-capitalize">{tx.payment_method === 'gcash' ? 'GCash' : tx.payment_method}</td>
-                        <td data-label="Reference">
-                          {tx.transaction_reference
-                            ? <div className="text-xs" style={{ wordBreak: 'break-all' }}>GCash Ref: {tx.transaction_reference}</div>
-                            : <span className="text-tertiary">—</span>}
-                        </td>
-                      </tr>
-                    ))}
+                    {paymentTransactions.map(tx => {
+                      const statusInfo = getPaymentStatusDisplay(tx.payment_status);
+                      const friendlyNotes = getCustomerFriendlyNotes(tx.notes, tx.admin_name);
+                      return (
+                        <tr key={tx.id}>
+                          <td data-label="Date">
+                            <div className="cell-stack">
+                              <span>{new Date(tx.created_at).toLocaleDateString('en-PH')}</span>
+                              <span className="text-tertiary" style={{ fontSize: '0.6875rem' }}>{new Date(tx.created_at).toLocaleTimeString('en-PH', {hour: '2-digit', minute:'2-digit'})}</span>
+                            </div>
+                          </td>
+                          <td data-label="Type">{formatPaymentType(tx.payment_type)}</td>
+                          <td data-label="Amount" className="fw-600 text-success">₱{parseFloat(tx.amount).toFixed(2)}</td>
+                          <td data-label="Method">{fmtMethod(tx.payment_method)}</td>
+                          <td data-label="Status">
+                            <span className={`badge badge-${statusInfo.tone} badge-sm`}>{statusInfo.label}</span>
+                          </td>
+                          <td data-label="Recorded By">
+                            <div className="cell-stack">
+                              <span>{formatRecordedBy(tx.admin_name, 'customer')}</span>
+                              {friendlyNotes && <span className="text-tertiary" style={{ fontSize: '0.6875rem' }}>{friendlyNotes}</span>}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

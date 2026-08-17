@@ -11,6 +11,7 @@ import EmptyState from '../../components/ui/EmptyState';
 import { useToast } from '../../hooks/useToast';
 import usePageTitle from '../../hooks/usePageTitle';
 import { outstandingBalance } from '../../constants/status';
+import { formatPaymentType, formatPaymentMethod as fmtMethod, getPaymentStatusDisplay } from '../../utils/paymentDisplay';
 
 // Peso sign, like every other money figure in the app. This page was the one
 // place still printing a bare currency CODE ("PHP 1,200.00") instead of the ₱
@@ -224,18 +225,25 @@ const PaymentHistoryPage = () => {
                     <th scope="col">Type</th>
                     <th scope="col">Amount</th>
                     <th scope="col">Method</th>
+                    <th scope="col">Status</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {transactions.map(tx => (
-                    <tr key={tx.id}>
-                      <td data-label="Date">{formatDate(tx.payment_date || tx.created_at)}</td>
-                      <td data-label="Order">{tx.order?.tracking_number || '-'}</td>
-                      <td data-label="Type">{tx.payment_type || 'Payment'}</td>
-                      <td data-label="Amount" className="fw-700 text-success">{formatMoney(tx.amount)}</td>
-                      <td data-label="Method">{methodLabel(tx.payment_method)}</td>
-                    </tr>
-                  ))}
+                  {transactions.map(tx => {
+                    const statusInfo = getPaymentStatusDisplay(tx.payment_status);
+                    return (
+                      <tr key={tx.id}>
+                        <td data-label="Date">{formatDate(tx.payment_date || tx.created_at)}</td>
+                        <td data-label="Order">{tx.order?.tracking_number || '-'}</td>
+                        <td data-label="Type">{formatPaymentType(tx.payment_type)}</td>
+                        <td data-label="Amount" className="fw-700 text-success">{formatMoney(tx.amount)}</td>
+                        <td data-label="Method">{fmtMethod(tx.payment_method)}</td>
+                        <td data-label="Status">
+                          <span className={`badge badge-${statusInfo.tone} badge-sm`}>{statusInfo.label}</span>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

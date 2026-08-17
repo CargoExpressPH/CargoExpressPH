@@ -33,6 +33,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '../../hooks/useToast';
 import usePageTitle from '../../hooks/usePageTitle';
+import { truncateRef, isSystemGenerated, getPaymentStatusDisplay, formatRecordedBy as fmtRecordedBy } from '../../utils/paymentDisplay';
 
 const safeFormatDate = (dateStr, options) => {
   if (!dateStr) return '—';
@@ -1026,28 +1027,56 @@ const AdminOrderDetailPage = () => {
                       <th scope="col">Type</th>
                       <th scope="col">Amount</th>
                       <th scope="col">Method</th>
+                      <th scope="col">Status</th>
                       <th scope="col">Receipt/Ref</th>
-                      <th scope="col">Admin</th>
+                      <th scope="col">Recorded By</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {paymentTransactions.map(tx => (
-                      <tr key={tx.id}>
-                        <td data-label="Date">
-                          {tx.payment_date ? safeFormatDate(tx.payment_date) : safeFormatDate(tx.created_at)}
-                          {!tx.payment_date && <span className="text-tertiary ml-4">{safeFormatTime(tx.created_at, {hour: '2-digit', minute:'2-digit'})}</span>}
-                        </td>
-                        <td data-label="Type">{tx.payment_type || 'Additional Payment'}</td>
-                        <td data-label="Amount" className="fw-600 text-success">₱{parseFloat(tx.amount || 0).toFixed(2)}</td>
-                        <td data-label="Method">{formatPaymentMethod(tx.payment_method)}</td>
-                        <td data-label="Receipt/Ref" className="payment-ref-cell">
-                          {tx.transaction_reference && <div className="text-xs">Ref: {tx.transaction_reference}</div>}
-                          {tx.receipt_url && <a href={tx.receipt_url} target="_blank" rel="noreferrer" className="text-xs text-primary receipt-link"><Image size={12} /> View Receipt</a>}
-                          {tx.notes && <div className="text-xs text-tertiary mt-4">{tx.notes}</div>}
-                        </td>
-                        <td data-label="Admin">{tx.admin_name || 'System'}</td>
-                      </tr>
-                    ))}
+                    {paymentTransactions.map(tx => {
+                      const statusInfo = getPaymentStatusDisplay(tx.payment_status);
+                      const isAuto = isSystemGenerated(tx);
+                      return (
+                        <tr key={tx.id}>
+                          <td data-label="Date">
+                            {tx.payment_date ? safeFormatDate(tx.payment_date) : safeFormatDate(tx.created_at)}
+                            {!tx.payment_date && <span className="text-tertiary ml-4">{safeFormatTime(tx.created_at, {hour: '2-digit', minute:'2-digit'})}</span>}
+                          </td>
+                          <td data-label="Type">{tx.payment_type || 'Additional Payment'}</td>
+                          <td data-label="Amount" className="fw-600 text-success">₱{parseFloat(tx.amount || 0).toFixed(2)}</td>
+                          <td data-label="Method">{formatPaymentMethod(tx.payment_method)}</td>
+                          <td data-label="Status">
+                            <span className={`badge badge-${statusInfo.tone} badge-sm`}>{statusInfo.label}</span>
+                          </td>
+                          <td data-label="Receipt/Ref" className="payment-ref-cell">
+                            {tx.transaction_reference && (
+                              <button
+                                type="button"
+                                className="payment-ref-copy-btn"
+                                title={`Full ref: ${tx.transaction_reference}\nClick to copy`}
+                                onClick={() => {
+                                  navigator.clipboard.writeText(tx.transaction_reference);
+                                  toast.success('Reference copied');
+                                }}
+                              >
+                                <span className="text-xs">{truncateRef(tx.transaction_reference)}</span>
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, opacity: 0.5 }}><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                              </button>
+                            )}
+                            {tx.receipt_url && <a href={tx.receipt_url} target="_blank" rel="noreferrer" className="text-xs text-primary receipt-link"><Image size={12} /> View Receipt</a>}
+                            {tx.notes && tx.notes.trim() && (
+                              <div className="text-xs text-tertiary mt-4" style={{ fontStyle: 'italic' }}>{tx.notes}</div>
+                            )}
+                          </td>
+                          <td data-label="Recorded By">
+                            {isAuto
+                              ? <span className="badge badge-info badge-sm payment-auto-badge">{fmtRecordedBy(tx.admin_name, 'admin')}</span>
+                              : <span>{tx.admin_name || 'System'}</span>
+                            }
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
