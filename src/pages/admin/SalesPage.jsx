@@ -298,7 +298,7 @@ const SalesPage = () => {
             <div className="pd-section-title">II. Collections by Payment Method</div>
             <table className="pd-table">
               <thead>
-                <tr><th>Payment Method</th><th className="num">Amount Collected</th><th className="num">Share of Collections</th></tr>
+                <tr><th scope="col">Payment Method</th><th scope="col" className="num">Amount Collected</th><th scope="col" className="num">Share of Collections</th></tr>
               </thead>
               <tbody>
                 {paymentMethods.map((pm, i) => (
@@ -321,7 +321,7 @@ const SalesPage = () => {
               <div className="pd-section-title">III. Monthly Revenue Breakdown</div>
               <table className="pd-table">
                 <thead>
-                  <tr><th>Month</th><th className="num">Revenue</th><th className="num">Collected</th><th className="num">Outstanding</th></tr>
+                  <tr><th scope="col">Month</th><th scope="col" className="num">Revenue</th><th scope="col" className="num">Collected</th><th scope="col" className="num">Outstanding</th></tr>
                 </thead>
                 <tbody>
                   {monthlySales.map((m, i) => (
@@ -352,12 +352,12 @@ const SalesPage = () => {
               <table className="pd-table">
                 <thead>
                   <tr>
-                    <th>Tracking No.</th>
-                    <th>Booked</th>
-                    <th>Status</th>
-                    <th className="num">Shipping Cost</th>
-                    <th className="num">Amount Paid</th>
-                    <th className="num">Balance</th>
+                    <th scope="col">Tracking No.</th>
+                    <th scope="col">Booked</th>
+                    <th scope="col">Status</th>
+                    <th scope="col" className="num">Shipping Cost</th>
+                    <th scope="col" className="num">Amount Paid</th>
+                    <th scope="col" className="num">Balance</th>
                   </tr>
                 </thead>
                 <tbody>

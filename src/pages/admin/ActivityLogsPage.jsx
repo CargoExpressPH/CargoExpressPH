@@ -80,6 +80,7 @@ const ActivityLogsPage = () => {
   const [dateTo, setDateTo] = useState('');
   const [adminList, setAdminList] = useState([]);
   const [adminId, setAdminId] = useState('');
+  const [hideLogins, setHideLogins] = useState(true);
 
   // Debounced search
   const [searchInput, setSearchInput] = useState('');
@@ -105,6 +106,7 @@ const ActivityLogsPage = () => {
         dateFrom: dateFrom ? `${dateFrom}T00:00:00` : null,
         dateTo: dateTo ? `${dateTo}T23:59:59` : null,
         search: search || null,
+        hideLogins,
         page,
         pageSize: PAGE_SIZE,
       });
@@ -119,11 +121,11 @@ const ActivityLogsPage = () => {
     } finally {
       setLoading(false);
     }
-  }, [module, actionFilter, adminId, dateFrom, dateTo, search, page, showError]);
+  }, [module, actionFilter, adminId, dateFrom, dateTo, search, hideLogins, page, showError]);
 
   useEffect(() => {
     setPage(1);
-  }, [module, actionFilter, adminId, dateFrom, dateTo, search]);
+  }, [module, actionFilter, adminId, dateFrom, dateTo, search, hideLogins]);
 
   useEffect(() => {
     loadLogs();
@@ -238,10 +240,18 @@ const ActivityLogsPage = () => {
 
             <div className="form-group m-0 flex items-end">
               <button className="btn btn-ghost btn-sm w-full" onClick={() => {
-                setSearchInput(''); setSearch(''); setModule(''); setActionFilter(''); setAdminId(''); setDateFrom(''); setDateTo('');
+                setSearchInput(''); setSearch(''); setModule(''); setActionFilter(''); setAdminId(''); setDateFrom(''); setDateTo(''); setHideLogins(true);
               }}>Clear Filters</button>
             </div>
           </div>
+          <label className="activity-logs-hide-logins">
+            <input
+              type="checkbox"
+              checked={hideLogins}
+              onChange={e => setHideLogins(e.target.checked)}
+            />
+            Hide sign-ins
+          </label>
         </div>
       </div>
       {/* Results summary */}
@@ -268,7 +278,7 @@ const ActivityLogsPage = () => {
               <thead>
                 <tr>
                   {['Date & Time', 'Admin', 'Module', 'Action', 'Reference', 'Details'].map(h => (
-                    <th key={h}>{h}</th>
+                    <th key={h} scope="col">{h}</th>
                   ))}
                 </tr>
               </thead>

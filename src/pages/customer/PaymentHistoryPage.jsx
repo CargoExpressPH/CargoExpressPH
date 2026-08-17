@@ -219,11 +219,11 @@ const PaymentHistoryPage = () => {
               <table className="table customer-payment-history-table" style={{ margin: 0 }}>
                 <thead>
                   <tr>
-                    <th>Date</th>
-                    <th>Order</th>
-                    <th>Type</th>
-                    <th>Amount</th>
-                    <th>Method</th>
+                    <th scope="col">Date</th>
+                    <th scope="col">Order</th>
+                    <th scope="col">Type</th>
+                    <th scope="col">Amount</th>
+                    <th scope="col">Method</th>
                   </tr>
                 </thead>
                 <tbody>

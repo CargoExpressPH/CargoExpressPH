@@ -230,12 +230,12 @@ const ContactInquiriesPage = () => {
           <table className="data-table">
             <thead>
               <tr>
-                <th>Name</th>
-                <th>Contact</th>
-                <th>Message</th>
-                <th>Status</th>
-                <th>Date</th>
-                <th style={{ width: 100 }}>Actions</th>
+                <th scope="col">Name</th>
+                <th scope="col">Contact</th>
+                <th scope="col">Message</th>
+                <th scope="col">Status</th>
+                <th scope="col">Date</th>
+                <th scope="col" style={{ width: 100 }}>Actions</th>
               </tr>
             </thead>
             <tbody>

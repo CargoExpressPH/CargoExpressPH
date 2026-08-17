@@ -195,11 +195,11 @@ const TripDetailPage = () => {
             <table className="data-table">
               <thead>
                 <tr>
-                  <th>Tracking No.</th>
-                  <th>Sender Address</th>
-                  <th>Receiver Address</th>
-                  <th>Status</th>
-                  <th>Action</th>
+                  <th scope="col">Tracking No.</th>
+                  <th scope="col">Sender Address</th>
+                  <th scope="col">Receiver Address</th>
+                  <th scope="col">Status</th>
+                  <th scope="col">Action</th>
                 </tr>
               </thead>
               <tbody>

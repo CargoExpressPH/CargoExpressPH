@@ -123,7 +123,7 @@ const AdminOrdersPage = () => {
           <div className="table-container">
             <table className="data-table" aria-busy="true">
               <caption className="sr-only">List of customer bookings (loading)</caption>
-              <thead><tr><th>Tracking</th><th>Customer</th><th>Route</th><th>Weight</th><th>Cost</th><th>Status</th><th>Date</th></tr></thead>
+              <thead><tr><th scope="col">Tracking</th><th scope="col">Customer</th><th scope="col">Route</th><th scope="col">Weight</th><th scope="col">Cost</th><th scope="col">Status</th><th scope="col">Date</th></tr></thead>
               <tbody>
                 {Array.from({ length: 6 }, (_, i) => <SkeletonTableRow key={i} cols={7} />)}
               </tbody>
@@ -141,7 +141,7 @@ const AdminOrdersPage = () => {
           <div className="table-container">
             <table className="data-table">
               <caption className="sr-only">List of customer bookings</caption>
-              <thead><tr><th>Tracking</th><th>Customer</th><th>Route</th><th>Weight</th><th>Cost</th><th>Status</th><th>Date</th></tr></thead>
+              <thead><tr><th scope="col">Tracking</th><th scope="col">Customer</th><th scope="col">Route</th><th scope="col">Weight</th><th scope="col">Cost</th><th scope="col">Status</th><th scope="col">Date</th></tr></thead>
               <tbody>
                 {paginated.map((o) => (
                   <tr key={o.id}>

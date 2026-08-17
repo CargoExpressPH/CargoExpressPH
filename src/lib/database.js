@@ -1921,6 +1921,7 @@ export const getActivityLogs = async ({
   dateFrom = null,
   dateTo = null,
   search = null,
+  hideLogins = false,
   page = 1,
   pageSize = 50,
 } = {}) => {
@@ -1934,6 +1935,7 @@ export const getActivityLogs = async ({
   if (adminId) query = query.eq('admin_id', adminId);
   if (dateFrom) query = query.gte('created_at', dateFrom);
   if (dateTo) query = query.lte('created_at', dateTo);
+  if (hideLogins) query = query.not('action', 'ilike', '%Logged In%');
   if (search) query = query.or(`action.ilike.%${search}%,record_ref.ilike.%${search}%,admin_name.ilike.%${search}%,details.ilike.%${search}%`);
 
   const from = (page - 1) * pageSize;

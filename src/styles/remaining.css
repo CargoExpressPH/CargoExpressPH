@@ -3369,6 +3369,18 @@
 }
 .inbox-show-resolved input { cursor: pointer; margin: 0; }
 
+.activity-logs-hide-logins {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 12px;
+  font-size: 0.72rem;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  user-select: none;
+}
+.activity-logs-hide-logins input { cursor: pointer; margin: 0; }
+
 /* --- INBOX — Close the open conversation ------------------------------- */
 /* The back arrow is mobile-only, so on desktop opening a chat was a one-way
    door — particularly wrong for an empty thread you decided not to send. */

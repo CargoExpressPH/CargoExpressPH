@@ -742,11 +742,11 @@ const OrderDetailPage = () => {
                   <caption className="sr-only">Payment history for this order</caption>
                   <thead>
                     <tr>
-                      <th>Date</th>
-                      <th>Type</th>
-                      <th>Amount</th>
-                      <th>Method</th>
-                      <th>Reference</th>
+                      <th scope="col">Date</th>
+                      <th scope="col">Type</th>
+                      <th scope="col">Amount</th>
+                      <th scope="col">Method</th>
+                      <th scope="col">Reference</th>
                     </tr>
                   </thead>
                   <tbody>

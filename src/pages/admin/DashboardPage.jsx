@@ -198,7 +198,7 @@ const DashboardPage = () => {
         </div>
         <div className="table-container">
           <table className="data-table">
-            <thead><tr><th>Tracking</th><th>Customer</th><th>Status</th><th>Date</th></tr></thead>
+            <thead><tr><th scope="col">Tracking</th><th scope="col">Customer</th><th scope="col">Status</th><th scope="col">Date</th></tr></thead>
             <tbody>
               {loading ? (
                 Array.from({ length: 4 }, (_, i) => <SkeletonTableRow key={i} cols={4} />)

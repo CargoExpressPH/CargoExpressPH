@@ -9,8 +9,9 @@
        • <img> without alt (alt="" allowed for decorative)
        • <button> / <a> without accessible name or aria-label
        • <input> without aria-label, title, or placeholder
-       • empty aria-label="" / aria-labelledby=""
-       • duplicate id attributes within a single file
+        • empty aria-label="" / aria-labelledby=""
+        • duplicate id attributes within a single file
+        • <th> header cells without scope="col"
    - For multi-line JSX, each element is collapsed to one line before
      matching, so attribute positions report the line where the tag opens.
    ----------------------------------------------------------------------- */
@@ -228,11 +229,23 @@ function checkFile(file) {
       });
     }
 
+    // 5. <th> must declare scope="col". Screen readers otherwise have to
+    //    guess which column a header governs, so every header cell is
+    //    announced without column context. All 139 header cells across the
+    //    app were missing it in the 2026-08 audits.
+    if (tag === 'th' && !hasAttr(collapsed, 'scope')) {
+      violations.push({
+        file, line: startLine, tag,
+        rule: 'th-scope',
+        msg: '<th> is missing scope="col". Add scope="col" so screen readers associate the header with its column.',
+      });
+    }
+
     // Track <label> depth (non-self-closing labels only)
     if (tag === 'label' && !selfClosing) labelDepth++;
   }
 
-  // 5. Duplicate id attributes within a single file
+  // 6. Duplicate id attributes within a single file
   const idMatches = source.matchAll(/\bid\s*=\s*{"([^"]+)"\}|\bid\s*=\s*"([^"]+)"/g);
   const seenIds = new Map(); // id -> firstLine
   const idLineMap = buildLineIndex(source);
@@ -251,7 +264,7 @@ function checkFile(file) {
     }
   }
 
-  // 6. Every static aria-describedby / aria-labelledby must resolve to an id
+  // 7. Every static aria-describedby / aria-labelledby must resolve to an id
   //    that exists in the same file. A typo here fails silently in the browser:
   //    the field simply has no description and nothing indicates why.
   //    Dynamic values (template literals, expressions) are skipped — they cannot
@@ -300,7 +313,7 @@ function lineAt(lineIndex, offset) {
   return ans;
 }
 
-// 7. Every var(--token) used WITHOUT a fallback must resolve to a token that
+// 8. Every var(--token) used WITHOUT a fallback must resolve to a token that
 //    is actually defined in src/styles/*.css.
 //
 //    This failure mode is invisible at runtime and silent in every build: an

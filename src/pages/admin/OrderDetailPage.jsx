@@ -1022,12 +1022,12 @@ const AdminOrderDetailPage = () => {
                 <table className="data-table admin-payment-table">
                   <thead>
                     <tr>
-                      <th>Date</th>
-                      <th>Type</th>
-                      <th>Amount</th>
-                      <th>Method</th>
-                      <th>Receipt/Ref</th>
-                      <th>Admin</th>
+                      <th scope="col">Date</th>
+                      <th scope="col">Type</th>
+                      <th scope="col">Amount</th>
+                      <th scope="col">Method</th>
+                      <th scope="col">Receipt/Ref</th>
+                      <th scope="col">Admin</th>
                     </tr>
                   </thead>
                   <tbody>

@@ -100,7 +100,7 @@ const CustomerDetailPage = () => {
         <div className="card-header"><h3>Order History</h3></div>
         <div className="table-container">
           <table className="data-table">
-            <thead><tr><th>Tracking</th><th>Route</th><th>Cost</th><th>Status</th><th>Date</th></tr></thead>
+            <thead><tr><th scope="col">Tracking</th><th scope="col">Route</th><th scope="col">Cost</th><th scope="col">Status</th><th scope="col">Date</th></tr></thead>
             <tbody>
               {orders.map(o=>(
                 <tr key={o.id}><td data-label="Tracking" className="fw-600">{o.tracking_number}</td><td data-label="Route" className="text-sm">{o.origin} → {o.destination}</td>

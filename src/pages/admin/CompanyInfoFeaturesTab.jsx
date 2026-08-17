@@ -327,10 +327,10 @@ const CompanyInfoFeaturesTab = ({ features, setFeatures }) => {
             <table className="data-table">
               <thead>
               <tr>
-                <th style={{ width: 40 }}></th>
-                <th style={{ width: 80 }}>Icon</th>
-                <th>Title & Description</th>
-                <th style={{ width: 100, textAlign: 'right' }}>Actions</th>
+<th scope="col" style={{ width: 40 }}></th>
+    <th scope="col" style={{ width: 80 }}>Icon</th>
+    <th scope="col">Title & Description</th>
+    <th scope="col" style={{ width: 100, textAlign: 'right' }}>Actions</th>
               </tr>
             </thead>
             <tbody>

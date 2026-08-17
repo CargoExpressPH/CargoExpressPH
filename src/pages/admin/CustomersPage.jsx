@@ -85,7 +85,7 @@ const CustomersPage = () => {
           <div className="table-container">
             <table className="data-table">
               <caption className="sr-only">List of registered customers (loading)</caption>
-              <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Province</th><th>Joined</th></tr></thead>
+              <thead><tr><th scope="col">Name</th><th scope="col">Email</th><th scope="col">Phone</th><th scope="col">Province</th><th scope="col">Joined</th></tr></thead>
               <tbody>
                 {Array.from({ length: perPage }, (_, i) => <SkeletonTableRow key={i} cols={5} />)}
               </tbody>
@@ -103,7 +103,7 @@ const CustomersPage = () => {
           <div className="table-container">
             <table className="data-table">
               <caption className="sr-only">List of registered customers</caption>
-              <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Province</th><th>Joined</th></tr></thead>
+              <thead><tr><th scope="col">Name</th><th scope="col">Email</th><th scope="col">Phone</th><th scope="col">Province</th><th scope="col">Joined</th></tr></thead>
               <tbody>
                 {customers.map((c, i) => (
                   <tr key={c.id} className="stagger-item" style={{ animationDelay: `${i * 30}ms` }}>

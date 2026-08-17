@@ -401,7 +401,7 @@ const UnsettledDeliveriesPage = () => {
             <table className="data-table" aria-busy="true">
               <caption className="sr-only">Unsettled deliveries (loading)</caption>
               <thead>
-                <tr><th>Tracking</th><th>Customer</th><th>Status</th><th>Settlement</th><th>Billed</th><th>Paid</th><th>Balance</th><th>Action</th></tr>
+                <tr><th scope="col">Tracking</th><th scope="col">Customer</th><th scope="col">Status</th><th scope="col">Settlement</th><th scope="col">Billed</th><th scope="col">Paid</th><th scope="col">Balance</th><th scope="col">Action</th></tr>
               </thead>
               <tbody>
                 {Array.from({ length: 6 }, (_, i) => <SkeletonTableRow key={i} cols={8} />)}
@@ -416,14 +416,14 @@ const UnsettledDeliveriesPage = () => {
               <caption className="sr-only">Deliveries with an outstanding balance</caption>
               <thead>
                 <tr>
-                  <th>Tracking</th>
-                  <th>Customer</th>
-                  <th>Status</th>
-                  <th>Settlement</th>
-                  <th className="num">Billed</th>
-                  <th className="num">Paid</th>
-                  <th className="num">Balance</th>
-                  <th>Action</th>
+                  <th scope="col">Tracking</th>
+                  <th scope="col">Customer</th>
+                  <th scope="col">Status</th>
+                  <th scope="col">Settlement</th>
+                  <th scope="col" className="num">Billed</th>
+                  <th scope="col" className="num">Paid</th>
+                  <th scope="col" className="num">Balance</th>
+                  <th scope="col">Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -550,14 +550,14 @@ const UnsettledDeliveriesPage = () => {
             <table className="pd-table">
               <thead>
                 <tr>
-                  <th>Tracking No.</th>
-                  <th>Customer</th>
-                  <th>Status</th>
-                  <th>Settlement</th>
-                  <th>Promised</th>
-                  <th className="num">Billed</th>
-                  <th className="num">Paid</th>
-                  <th className="num">Balance</th>
+                  <th scope="col">Tracking No.</th>
+                  <th scope="col">Customer</th>
+                  <th scope="col">Status</th>
+                  <th scope="col">Settlement</th>
+                  <th scope="col">Promised</th>
+                  <th scope="col" className="num">Billed</th>
+                  <th scope="col" className="num">Paid</th>
+                  <th scope="col" className="num">Balance</th>
                 </tr>
               </thead>
               <tbody>

@@ -255,9 +255,9 @@ const ReportsPage = () => {
                     <table className="report-table">
                       <thead>
                         <tr>
-                          <th>Status</th>
-                          <th className="text-center">Count</th>
-                          <th className="text-right">Percentage</th>
+                          <th scope="col">Status</th>
+                          <th scope="col" className="text-center">Count</th>
+                          <th scope="col" className="text-right">Percentage</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -390,10 +390,10 @@ const ReportsPage = () => {
                       <table className="report-table">
                         <thead>
                           <tr>
-                            <th>Route</th>
-                            <th className="text-center">Orders</th>
-                            <th className="text-right">Revenue</th>
-                            <th className="text-right">Weight</th>
+                            <th scope="col">Route</th>
+                            <th scope="col" className="text-center">Orders</th>
+                            <th scope="col" className="text-right">Revenue</th>
+                            <th scope="col" className="text-right">Weight</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -433,14 +433,14 @@ const ReportsPage = () => {
                     <table className="report-table report-table-striped">
                       <thead>
                         <tr>
-                          <th>Tracking #</th>
-                          <th>Customer</th>
-                          <th>Route</th>
-                          <th>Status</th>
-                          <th className="text-right">Weight</th>
-                          <th className="text-right">Amount</th>
-                          <th>Payment</th>
-                          <th>Date</th>
+                          <th scope="col">Tracking #</th>
+                          <th scope="col">Customer</th>
+                          <th scope="col">Route</th>
+                          <th scope="col">Status</th>
+                          <th scope="col" className="text-right">Weight</th>
+                          <th scope="col" className="text-right">Amount</th>
+                          <th scope="col">Payment</th>
+                          <th scope="col">Date</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -527,7 +527,7 @@ const ReportsPage = () => {
                 <div className="pd-section-title">II. Order Status Breakdown</div>
                 <table className="pd-table">
                   <thead>
-                    <tr><th>Status</th><th className="ctr">Count</th><th className="num">Percentage</th></tr>
+                    <tr><th scope="col">Status</th><th scope="col" className="ctr">Count</th><th scope="col" className="num">Percentage</th></tr>
                   </thead>
                   <tbody>
                     {STATUS_ORDER.filter(st => data.statusBreakdown[st]).map(st => (
@@ -549,7 +549,7 @@ const ReportsPage = () => {
                 <div className="pd-section-title">III. Collections by Payment Method</div>
                 <table className="pd-table">
                   <thead>
-                    <tr><th>Payment Method</th><th className="ctr">Payments</th><th className="num">Amount Collected</th></tr>
+                    <tr><th scope="col">Payment Method</th><th scope="col" className="ctr">Payments</th><th scope="col" className="num">Amount Collected</th></tr>
                   </thead>
                   <tbody>
                     <tr><td>Cash</td><td className="ctr">{s.cashCount || 0}</td><td className="num">{formatCurrency(s.cashTotal)}</td></tr>
@@ -575,7 +575,7 @@ const ReportsPage = () => {
                   <div className="pd-section-title">IV. Route Performance</div>
                   <table className="pd-table">
                     <thead>
-                      <tr><th>Route</th><th className="ctr">Orders</th><th className="num">Revenue</th><th className="num">Weight</th></tr>
+                      <tr><th scope="col">Route</th><th scope="col" className="ctr">Orders</th><th scope="col" className="num">Revenue</th><th scope="col" className="num">Weight</th></tr>
                     </thead>
                     <tbody>
                       {data.routeBreakdown.map((r, i) => (
@@ -597,14 +597,14 @@ const ReportsPage = () => {
                 <table className="pd-table">
                   <thead>
                     <tr>
-                      <th>Tracking No.</th>
-                      <th>Customer</th>
-                      <th>Route</th>
-                      <th>Status</th>
-                      <th className="num">Weight</th>
-                      <th className="num">Amount</th>
-                      <th className="ctr">Payment</th>
-                      <th>Date</th>
+                      <th scope="col">Tracking No.</th>
+                      <th scope="col">Customer</th>
+                      <th scope="col">Route</th>
+                      <th scope="col">Status</th>
+                      <th scope="col" className="num">Weight</th>
+                      <th scope="col" className="num">Amount</th>
+                      <th scope="col" className="ctr">Payment</th>
+                      <th scope="col">Date</th>
                     </tr>
                   </thead>
                   <tbody>

@@ -373,7 +373,7 @@ const ServiceReportsPage = () => {
               <div className="pd-section-title">V. Weekly Volume</div>
               <table className="pd-table">
                 <thead>
-                  <tr><th>Week of</th><th className="num">Customer</th><th className="num">Bot</th><th className="num">Admin</th></tr>
+                  <tr><th scope="col">Week of</th><th scope="col" className="num">Customer</th><th scope="col" className="num">Bot</th><th scope="col" className="num">Admin</th></tr>
                 </thead>
                 <tbody>
                   {volume.map((v, i) => (
