@@ -39,7 +39,7 @@ const safeFormatDate = (dateStr, options) => {
   try {
     const d = new Date(dateStr);
     if (isNaN(d.getTime())) return '—';
-    return d.toLocaleDateString('en-US', options);
+    return d.toLocaleDateString('en-PH', options);
   } catch {
     try {
       const d = new Date(dateStr);
@@ -55,7 +55,7 @@ const safeFormatTime = (dateStr, options) => {
   try {
     const d = new Date(dateStr);
     if (isNaN(d.getTime())) return '';
-    return d.toLocaleTimeString('en-US', options);
+    return d.toLocaleTimeString('en-PH', options);
   } catch {
     try {
       const d = new Date(dateStr);
@@ -71,7 +71,7 @@ const safeFormatDateTime = (dateStr) => {
   try {
     const d = new Date(dateStr);
     if (isNaN(d.getTime())) return '—';
-    return d.toLocaleString('en-US');
+    return d.toLocaleString('en-PH');
   } catch {
     try {
       const d = new Date(dateStr);

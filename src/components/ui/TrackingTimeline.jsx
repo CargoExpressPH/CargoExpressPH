@@ -38,8 +38,8 @@ const TrackingTimeline = ({ currentStatus, compact = false, stepTimestamps = nul
       const d = new Date(ts);
       if (Number.isNaN(d.getTime())) return null;
 
-      const date = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-      const time = d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+      const date = d.toLocaleDateString('en-PH', { month: 'short', day: 'numeric' });
+      const time = d.toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit', hour12: true });
       return `${date} · ${time}`;
     } catch {
       try {

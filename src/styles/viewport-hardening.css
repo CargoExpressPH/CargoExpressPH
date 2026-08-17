@@ -207,6 +207,14 @@
     white-space: nowrap;
   }
 
+  /* The lockup clips at its own box; let the wordmark (the only part that
+     outgrows the slot on phones) ellipsize instead of being chopped mid-letter. */
+  .app-layout .topbar-title .brand-wordmark {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
   .app-layout .topbar-logo-icon {
     width: 20px;
     height: 20px;
