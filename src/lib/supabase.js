@@ -44,9 +44,20 @@ const fetchWithRetry = async (url, options = {}, retries = 3, backoff = 1000) =>
     const response = await fetch(url, { ...options, signal: controller.signal });
     clearTimeout(id);
     
-    // If it's a 5xx error or 429 Too Many Requests, throw to trigger a retry
+    // If it's a 5xx error or 429 Too Many Requests, throw to trigger a retry.
+    // Carry the server's own message when it is JSON (GoTrue errors use
+    // { code, msg }, PostgREST uses { message }): a bare "HTTP Error 500"
+    // hid "Error sending recovery email" and made every server-side failure
+    // look like a mystery.
     if (!response.ok && (response.status >= 500 || response.status === 429)) {
-      throw new Error(`HTTP Error ${response.status}`);
+      let detail = '';
+      try {
+        const body = await response.clone().json();
+        detail = body.msg || body.message || body.error_description || '';
+      } catch {
+        // Non-JSON error body — fall back to the bare status line.
+      }
+      throw new Error(detail ? `HTTP Error ${response.status}: ${detail}` : `HTTP Error ${response.status}`);
     }
     return response;
   } catch (error) {

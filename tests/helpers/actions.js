@@ -176,9 +176,9 @@ export const logout = async (page) => {
  * same toast channel, so a test that only waits for "some toast" can pass on
  * an error. Always pass the text you expect.
  */
-export const expectToast = async (page, pattern) => {
+export const expectToast = async (page, pattern, timeout = 30_000) => {
   await expect(page.locator('.toast').filter({ hasText: pattern }).first())
-    .toBeVisible({ timeout: 30_000 });
+    .toBeVisible({ timeout });
 };
 
 /**

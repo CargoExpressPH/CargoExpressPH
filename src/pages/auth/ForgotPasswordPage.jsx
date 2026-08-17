@@ -65,7 +65,13 @@ const ForgotPasswordPage = () => {
       setSent(true);
       startCountdown();
     } catch (err) {
-      setError(err.message || 'Something went wrong. Please try again.');
+      // GoTrue answers a delivery failure with "Error sending recovery email"
+      // under a 500. A raw status line tells the user nothing actionable.
+      setError(
+        /sending recovery email|failed to send|email.*could not/i.test(err.message || '')
+          ? "We couldn't send the reset link. Please try again in a few minutes, or contact support."
+          : (err.message || 'Something went wrong. Please try again.')
+      );
     }
     setLoading(false);
   };

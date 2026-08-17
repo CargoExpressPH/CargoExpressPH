@@ -75,12 +75,12 @@ const HelpGuidelinesPage = () => {
   const filteredFaqs = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return fallbackFaqs;
-    return faqs.filter(faq =>
+    return fallbackFaqs.filter(faq =>
       faq.title?.toLowerCase().includes(q) ||
       faq.answer?.toLowerCase().includes(q) ||
       faq.category?.toLowerCase().includes(q)
     );
-  }, [faqs, search]);
+  }, [fallbackFaqs, search]);
 
   return (
     <div className="page-transition customer-help-guidelines-page">

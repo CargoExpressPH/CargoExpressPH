@@ -151,6 +151,14 @@ test.describe('completeness — cancellation, chat, tracking, password recovery'
     await fillById(page, 'reason-modal-input', 'Parcel is already staged for today\'s manifest.');
     await page.getByLabel('Decline Cancellation Request').getByRole('button', { name: 'Decline Request' }).click();
 
+    // Like the approve path above, the decline RPC is one transaction that
+    // lands after the click returns — reading the DB immediately raced the
+    // commit once and saw "Pending Cancellation" even though the UI had
+    // already shown the decline as successful. Wait for the panel to drop
+    // before asserting on the database.
+    await expect(page.getByRole('heading', { name: 'Cancellation Request' }))
+      .toBeHidden({ timeout: 30_000 });
+
     const after = await getOrderByTracking(order.tracking_number);
     expect(after.status).toBe('Assigned');
     expect(after.trip_id).toBe(fixture.tripId);
@@ -203,9 +211,16 @@ test.describe('completeness — cancellation, chat, tracking, password recovery'
 
   test('5. forgot-password reaches the check-your-email state', async ({ page }) => {
     await page.goto('/forgot-password');
-    await page.getByLabel(/email/i).fill(fixture.customer.email);
+    // The fixture customer's email lives on @cargoexpressph-e2e.test, a domain
+    // with no MX record — the email service can never deliver to it, so even a
+    // healthy SMTP setup answers this with a 500. The admin email is a real
+    // inbox, which is what this flow needs.
+    await page.getByLabel(/email/i).fill(ADMIN.email);
     await page.locator('button[type="submit"]').first().click();
-    await expect(page.locator('text=/check your email|reset link|sent/i').first()).toBeVisible({ timeout: 30_000 });
+    // The send-state subtitle also contains "reset link", so matching free text
+    // passed even when the request failed (the app keeps showing the form).
+    // The sent state is the only place the "Check Your Inbox" heading exists.
+    await expect(page.getByRole('heading', { name: 'Check Your Inbox' })).toBeVisible({ timeout: 30_000 });
     console.log('  → forgot-password confirmation state shown');
   });
 });

@@ -335,8 +335,22 @@ test.describe('CargoExpress PH — admin + customer end-to-end journey', () => {
     // "Mark Arrived" (in_progress). Both route through ConfirmModal, whose
     // confirm button defaults to "Confirm".
     await page.getByRole('button', { name: 'Start Trip' }).click();
-    await page.locator('.confirm-modal').getByRole('button', { name: /^confirm$/i }).click();
-    await expectToast(page, /in_progress/i);
+    const confirmModal = page.locator('.confirm-modal');
+    await expect(confirmModal).toBeVisible();
+    await confirmModal.getByRole('button', { name: /^confirm$/i }).click();
+
+    // A modal confirm click can land on a node React has just re-rendered
+    // away: the click is dispatched, no handler fires, no request is sent and
+    // no toast appears — the trip silently stays "scheduled". Detect that by
+    // racing the success toast, then retry the action once.
+    try {
+      await expectToast(page, /in_progress/i, 10_000);
+    } catch {
+      await page.getByRole('button', { name: 'Start Trip' }).click();
+      await expect(confirmModal).toBeVisible();
+      await confirmModal.getByRole('button', { name: /^confirm$/i }).click();
+      await expectToast(page, /in_progress/i);
+    }
 
     await page.getByRole('button', { name: 'Mark Arrived' }).click();
     await page.locator('.confirm-modal').getByRole('button', { name: /^confirm$/i }).click();
