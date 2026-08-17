@@ -996,7 +996,7 @@ const AdminOrderDetailPage = () => {
                 {order.payment_status && <span className={`badge ${order.payment_status === 'paid' ? 'badge-success' : order.payment_status === 'partial' ? 'badge-warning' : 'badge-error'} text-capitalize`}>{order.payment_status}</span>}
                 {settlementState === SETTLEMENT_STATE.SETTLED
                   ? <span className="badge badge-success">Settled</span>
-                  : <span className="badge badge-error">Unsettled — ₱{outstandingBalance(order).toFixed(2)} owing</span>}
+                  : <span className="badge badge-error">₱{outstandingBalance(order).toFixed(2)} Remaining Balance</span>}
               </>
             )}
             {order.promised_payment_date && <span className="badge badge-warning">Promised: {safeFormatDate(order.promised_payment_date)}</span>}

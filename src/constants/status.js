@@ -297,7 +297,7 @@ export const canDispatchForDelivery = (order) => {
 
   return {
     allowed: false,
-    reason: `₱${balance.toFixed(2)} is still owing on this order. Settle the balance, or record a Promise Date to dispatch anyway.`,
+    reason: `There is a remaining balance of ₱${balance.toFixed(2)} on this order. Settle the balance, or record a Promise Date to dispatch anyway.`,
   };
 };
 
