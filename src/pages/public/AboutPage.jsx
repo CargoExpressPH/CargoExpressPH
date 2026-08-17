@@ -877,7 +877,7 @@ const AboutPage = () => {
             to="/login" 
             className={`about-login-btn ${scrolled ? 'scrolled' : 'transparent'}`}
           >
-            <span className="about-hide-mobile">Go Back to </span>Login <ChevronRight size={16} />
+            Sign In <ChevronRight size={16} />
           </Link>
         </div>
       </nav>

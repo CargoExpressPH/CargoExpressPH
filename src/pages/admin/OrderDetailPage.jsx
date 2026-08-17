@@ -597,7 +597,6 @@ const AdminOrderDetailPage = () => {
   // The estimate-vs-actual discrepancy warning is gone with the estimate:
   // there is no longer a customer-declared figure to disagree with.
   const actualWeightVal = parseFloat(order.actual_weight) || 0;
-  const showsWeightWarning = false;
 
 
 

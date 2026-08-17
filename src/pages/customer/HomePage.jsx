@@ -59,7 +59,6 @@ const HomePage = () => {
 
   const activeOrders = orders.filter(o => !['Delivered', 'Cancelled'].includes(o.status));
   const deliveredOrders = orders.filter(o => o.status === 'Delivered');
-  const visibleAnnouncements = announcements;
 
   const getGreetingData = () => {
     const h = new Date().getHours();
@@ -287,13 +286,13 @@ const HomePage = () => {
       )}
 
       {/* ── Announcements ────────────────────────────────────────── */}
-      {!loading && visibleAnnouncements.length > 0 && (
+      {!loading && announcements.length > 0 && (
         <StaggerItem delay={120} className="mb-lg">
           <div className="flex items-center justify-between mb-md">
             <h3 className="customer-section-title fw-700">Announcements</h3>
-            <span className="text-xs text-tertiary fw-600">{Math.min(visibleAnnouncements.length, 5)} Latest</span>
+            <span className="text-xs text-tertiary fw-600">{Math.min(announcements.length, 5)} Latest</span>
           </div>
-          {visibleAnnouncements.slice(0, 5).map((a, index) => {
+          {announcements.slice(0, 5).map((a, index) => {
             const cat = getAnnouncementCategoryInfo(a);
             const CatIcon = cat.icon;
             return (
@@ -320,7 +319,7 @@ const HomePage = () => {
                       </span>
                       <span className="inline-flex items-center gap-4 text-xs text-tertiary">
                         <Clock size={12} />
-                        {new Date(a.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                        {new Date(a.created_at).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })}
                       </span>
                     </div>
                     <div className="fw-700 text-base mb-6" style={{ color: 'var(--text)', lineHeight: 1.35 }}>

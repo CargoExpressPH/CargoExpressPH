@@ -158,7 +158,7 @@ const AdminOrdersPage = () => {
                     <td data-label="Weight">{o.actual_weight ? `${o.actual_weight} kg` : '—'}</td>
                     <td data-label="Cost" className="fw-600">{isOrderPriced(o) ? `₱${parseFloat(o.shipping_cost || 0).toFixed(2)}` : '—'}</td>
                     <td data-label="Status"><StatusBadge status={o.status} size="sm" /></td>
-                    <td data-label="Date" className="text-xs text-secondary">{new Date(o.created_at).toLocaleDateString()}</td>
+                    <td data-label="Date" className="text-xs text-secondary">{new Date(o.created_at).toLocaleDateString('en-PH')}</td>
                   </tr>
                 ))}
                 {paginated.length === 0 && (

@@ -209,7 +209,7 @@ const DashboardPage = () => {
                       <td data-label="Tracking"><Link to={`/admin/orders/${o.id}`} className="fw-600 text-accent">{o.tracking_number}</Link></td>
                       <td data-label="Customer">{o.profiles?.name || '—'}</td>
                       <td data-label="Status"><StatusBadge status={o.status} size="sm" /></td>
-                      <td data-label="Date" className="text-sm text-secondary">{new Date(o.created_at).toLocaleDateString()}</td>
+                      <td data-label="Date" className="text-sm text-secondary">{new Date(o.created_at).toLocaleDateString('en-PH')}</td>
                     </tr>
                   ))}
                   {recent.length === 0 && (

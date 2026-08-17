@@ -350,7 +350,7 @@ const TrackingPage = ({ embedded = false }) => {
             id="tracking-input"
             type="text"
             className={`trk-search-input ${invalidClass('tracking_number', errors)}`}
-            placeholder="Enter tracking number (e.g. CE-20240101-001)"
+            placeholder="Enter tracking number (e.g. CE-20270101-0001)"
             value={trackingNumber}
             onChange={e => {
               setTrackingNumber(e.target.value.toUpperCase());
