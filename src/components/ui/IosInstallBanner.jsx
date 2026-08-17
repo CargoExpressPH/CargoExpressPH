@@ -86,7 +86,7 @@ export default function IosInstallBanner() {
           left: 0,
           right: 0,
           zIndex: 9999,
-          background: 'var(--surface, #1e293b)',
+          background: 'var(--surface)',
           borderRadius: '24px 24px 0 0',
           padding: '0 0 env(safe-area-inset-bottom, 16px)',
           boxShadow: '0 -8px 40px rgba(0,0,0,0.4)',
@@ -122,7 +122,7 @@ export default function IosInstallBanner() {
               alignItems: 'center',
               justifyContent: 'center',
               cursor: 'pointer',
-              color: 'var(--text-secondary, #94a3b8)',
+              color: 'var(--text-secondary)',
             }}
           >
             <X size={16} />
@@ -136,7 +136,7 @@ export default function IosInstallBanner() {
                   width: 52,
                   height: 52,
                   borderRadius: 12,
-                  background: 'linear-gradient(135deg, #16A34A, #15803D)',
+                  background: 'linear-gradient(135deg, var(--primary), var(--primary-dark))',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -149,7 +149,7 @@ export default function IosInstallBanner() {
                   <h2 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700, color: 'var(--text)' }}>
                     Install Cargo Express PH
                   </h2>
-                  <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary, #94a3b8)', marginTop: 2 }}>
+                  <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: 2 }}>
                     Get the full app experience on iPhone
                   </p>
                 </div>
@@ -169,9 +169,9 @@ export default function IosInstallBanner() {
                     alignItems: 'center',
                     gap: 12,
                     padding: '10px 14px',
-                    background: 'rgba(22,163,74,0.08)',
+                    background: 'rgba(var(--primary-rgb), 0.08)',
                     borderRadius: 10,
-                    border: '1px solid rgba(22,163,74,0.15)',
+                    border: '1px solid rgba(var(--primary-rgb), 0.15)',
                   }}>
                     <Icon size={18} color="var(--primary-text)" aria-hidden="true" style={{ flexShrink: 0 }} />
                     <span style={{ fontSize: '0.875rem', color: 'var(--text)', fontWeight: 500 }}>
@@ -184,9 +184,9 @@ export default function IosInstallBanner() {
               {pushSupported && (
                 <div style={{
                   padding: '10px 14px',
-                  background: 'rgba(234,179,8,0.1)',
+                  background: 'rgba(var(--warning-rgb), 0.1)',
                   borderRadius: 10,
-                  border: '1px solid rgba(234,179,8,0.2)',
+                  border: '1px solid rgba(var(--warning-rgb), 0.2)',
                   marginBottom: 20,
                   fontSize: '0.8rem',
                   color: 'var(--warning-text)',
@@ -206,7 +206,7 @@ export default function IosInstallBanner() {
                 style={{
                   width: '100%',
                   padding: '14px',
-                  background: 'linear-gradient(135deg, #16A34A, #15803D)',
+                  background: 'linear-gradient(135deg, var(--primary), var(--primary-dark))',
                   color: '#fff',
                   border: 'none',
                   borderRadius: 14,
@@ -230,7 +230,7 @@ export default function IosInstallBanner() {
                   marginTop: 10,
                   padding: '12px',
                   background: 'transparent',
-                  color: 'var(--text-secondary, #94a3b8)',
+                  color: 'var(--text-secondary)',
                   border: 'none',
                   borderRadius: 14,
                   fontSize: '0.85rem',
@@ -246,7 +246,7 @@ export default function IosInstallBanner() {
               <h2 style={{ margin: '0 0 6px', fontSize: '1rem', fontWeight: 700, color: 'var(--text)', paddingRight: 36 }}>
                 How to Install on iPhone
               </h2>
-              <p style={{ margin: '0 0 20px', fontSize: '0.8rem', color: 'var(--text-secondary, #94a3b8)' }}>
+              <p style={{ margin: '0 0 20px', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
                 Follow these 3 quick steps in Safari:
               </p>
 
@@ -254,27 +254,27 @@ export default function IosInstallBanner() {
                 {[
                   {
                     step: 1,
-                    icon: <Share size={22} color="#3b82f6" />,
+                    icon: <Share size={22} color="var(--info)" />,
                     title: 'Tap the Share button',
                     desc: 'Tap the Share icon at the bottom of Safari',
-                    bg: 'rgba(59,130,246,0.1)',
-                    border: 'rgba(59,130,246,0.2)',
+                    bg: 'rgba(var(--info-rgb), 0.1)',
+                    border: 'rgba(var(--info-rgb), 0.2)',
                   },
                   {
                     step: 2,
-                    icon: <PlusSquare size={22} color="#16a34a" />,
+                    icon: <PlusSquare size={22} color="var(--primary)" />,
                     title: 'Tap "Add to Home Screen"',
                     desc: 'Scroll down in the share menu and tap this option',
-                    bg: 'rgba(22,163,74,0.1)',
-                    border: 'rgba(22,163,74,0.2)',
+                    bg: 'rgba(var(--primary-rgb), 0.1)',
+                    border: 'rgba(var(--primary-rgb), 0.2)',
                   },
                   {
                     step: 3,
-                    icon: <Bell size={22} color="#f59e0b" />,
+                    icon: <Bell size={22} color="var(--warning)" />,
                     title: 'Open & enable notifications',
                     desc: 'Launch from Home Screen, then enable push notifications when prompted',
-                    bg: 'rgba(245,158,11,0.1)',
-                    border: 'rgba(245,158,11,0.2)',
+                    bg: 'rgba(var(--warning-rgb), 0.1)',
+                    border: 'rgba(var(--warning-rgb), 0.2)',
                   },
                 ].map((item) => (
                   <div key={item.step} style={{
@@ -302,7 +302,7 @@ export default function IosInstallBanner() {
                       <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text)', marginBottom: 2 }}>
                         Step {item.step}: {item.title}
                       </div>
-                      <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary, #94a3b8)', lineHeight: 1.5 }}>
+                      <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
                         {item.desc}
                       </div>
                     </div>

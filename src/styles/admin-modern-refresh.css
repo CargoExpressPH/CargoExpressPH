@@ -1228,7 +1228,7 @@
   white-space: nowrap;
 }
 .app-layout .payment-ref-copy-btn:hover {
-  background: var(--bg-tertiary, #eee);
+  background: var(--bg-tertiary);
   border-color: var(--primary);
   color: var(--primary);
 }
