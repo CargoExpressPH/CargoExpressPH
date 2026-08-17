@@ -13,7 +13,7 @@ import {
   ArrowUp, Phone, MapPin, Globe, Loader, Send,
   Mail, Clock, Calendar, CheckCircle2,
   Navigation, Award, ChevronRight, ChevronDown, ChevronLeft, X, Play, Building2, TrendingUp, Users, MessageSquare,
-  Star, Package, Search
+  Star, Package, Search, Sparkles, Image
 } from 'lucide-react';
 import { useToast } from '../../hooks/useToast';
 import usePageTitle from '../../hooks/usePageTitle';
@@ -1004,60 +1004,67 @@ const AboutPage = () => {
         </motion.section>
 
         {/* â•â•â• 5. Features Grid â•â•â• */}
-        {features?.length > 0 && (
-          <motion.section 
-            id="features"
-            className="about-section"
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: "-100px" }}
-            transition={{ duration: 0.6 }}
-          >
-            <div style={{ textAlign: 'center', marginBottom: 48 }}>
-              <div className="about-section-label">Why Choose Us</div>
-              <h2 className="about-section-title">The Cargo Express Advantage</h2>
+        <motion.section
+          id="features"
+          className="about-section"
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-100px" }}
+          transition={{ duration: 0.6 }}
+        >
+          {features?.length > 0 ? (
+            <>
+              <div style={{ textAlign: 'center', marginBottom: 48 }}>
+                <div className="about-section-label">Why Choose Us</div>
+                <h2 className="about-section-title">The Cargo Express Advantage</h2>
+              </div>
+              <motion.div
+                style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 24 }}
+                variants={containerVariants}
+                initial="hidden"
+                whileInView="visible"
+                viewport={{ once: true, margin: "-80px" }}
+              >
+                {features.map((f) => {
+                  const Icon = getFeatureIcon(f.icon);
+                  return (
+                    <motion.div
+                      key={f.id}
+                      className="about-bento-card"
+                      variants={itemVariants}
+                    >
+                      <div className="about-feature-icon">
+                        <Icon size={28} />
+                      </div>
+                      <div>
+                        <h3 style={{ fontSize: '1.25rem', fontWeight: 800, marginBottom: 12, color: 'var(--text)' }}>{f.title}</h3>
+                        <p style={{ color: 'var(--text-secondary)', lineHeight: 1.6, fontSize: '0.9375rem' }}>{f.description}</p>
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </motion.div>
+            </>
+          ) : (
+            <div style={{ textAlign: 'center', padding: '48px 24px', background: 'var(--surface)', borderRadius: 24, border: '1px solid var(--border-light)' }}>
+              <Sparkles size={48} style={{ color: 'var(--text-tertiary)', marginBottom: 16 }} />
+              <div style={{ fontSize: '1.125rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Our feature details are being updated. Check back soon.</div>
             </div>
-            
-            <motion.div 
-              style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 24 }}
-              variants={containerVariants}
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true, margin: "-80px" }}
-            >
-              {features.map((f) => {
-                const Icon = getFeatureIcon(f.icon);
-                return (
-                  <motion.div 
-                    key={f.id} 
-                    className="about-bento-card"
-                    variants={itemVariants}
-                  >
-                    <div className="about-feature-icon">
-                      <Icon size={28} />
-                    </div>
-                    <div>
-                      <h3 style={{ fontSize: '1.25rem', fontWeight: 800, marginBottom: 12, color: 'var(--text)' }}>{f.title}</h3>
-                      <p style={{ color: 'var(--text-secondary)', lineHeight: 1.6, fontSize: '0.9375rem' }}>{f.description}</p>
-                    </div>
-                  </motion.div>
-                );
-              })}
-            </motion.div>
-          </motion.section>
-        )}
+          )}
+        </motion.section>
 
         {/* â•â•â• 6. Coverage Areas â•â•â• */}
-        {coverage?.length > 0 && (
-          <motion.section 
-            id="coverage"
-            className="about-section"
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: "-100px" }}
-            transition={{ duration: 0.6 }}
-          >
-            <div className="about-bento-card" style={{ padding: '40px 24px' }}>
+        <motion.section
+          id="coverage"
+          className="about-section"
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-100px" }}
+          transition={{ duration: 0.6 }}
+        >
+          {coverage?.length > 0 ? (
+            <>
+          <div className="about-bento-card" style={{ padding: '40px 24px' }}>
               <div className="about-coverage-grid">
                 <div>
                   <div style={{ width: 56, height: 56, borderRadius: 20, background: 'var(--primary)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 24 }}>
@@ -1158,20 +1165,27 @@ const AboutPage = () => {
                 </div>
               </div>
             </div>
-          </motion.section>
-        )}
+            </>
+          ) : (
+            <div style={{ textAlign: 'center', padding: '48px 24px', background: 'var(--surface)', borderRadius: 24, border: '1px solid var(--border-light)' }}>
+              <MapPin size={48} style={{ color: 'var(--text-tertiary)', marginBottom: 16 }} />
+              <div style={{ fontSize: '1.125rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Coverage information is being updated. Check back soon.</div>
+            </div>
+          )}
+        </motion.section>
 
         {/* â•â•â• 7. Delivery Highlights Gallery â•â•â• */}
-        {highlights?.length > 0 && (
-          <motion.section 
-            id="highlights"
-            className="about-section"
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: "-100px" }}
-            transition={{ duration: 0.6 }}
-          >
-            <div style={{ textAlign: 'center', marginBottom: 48 }}>
+        <motion.section
+          id="highlights"
+          className="about-section"
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-100px" }}
+          transition={{ duration: 0.6 }}
+        >
+          {highlights?.length > 0 ? (
+            <>
+          <div style={{ textAlign: 'center', marginBottom: 48 }}>
               <div className="about-section-label">Delivery Highlights</div>
               <h2 className="about-section-title">Featured Shipments</h2>
             </div>
@@ -1211,8 +1225,14 @@ const AboutPage = () => {
                 </motion.button>
               ))}
             </motion.div>
-          </motion.section>
-        )}
+            </>
+          ) : (
+            <div style={{ textAlign: 'center', padding: '48px 24px', background: 'var(--surface)', borderRadius: 24, border: '1px solid var(--border-light)' }}>
+              <Image size={48} style={{ color: 'var(--text-tertiary)', marginBottom: 16 }} />
+              <div style={{ fontSize: '1.125rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Featured delivery photos will appear here soon.</div>
+            </div>
+          )}
+        </motion.section>
 
         {/* â•â•â• 8. Customer Feedback â•â•â• */}
         <motion.section 
