@@ -1,12 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { getOrders } from '../../lib/database';
 import { useToast } from '../../hooks/useToast';
 import { useTheme } from '../../contexts/ThemeContext';
 import { usePushNotification } from '../../hooks/usePushNotification';
 import {
-  User, LogOut, ChevronRight, Package, Truck, Bell, MessageCircle,
+  User, LogOut, ChevronRight, Bell, MessageCircle,
   CreditCard, HelpCircle, FileText, CheckCircle2,
   Sun, Moon, Lock, Mail
 } from 'lucide-react';
@@ -57,8 +56,6 @@ const ProfilePage = () => {
   const { theme, toggleTheme } = useTheme();
   const toast = useToast();
   const navigate = useNavigate();
-  const [orderStats, setOrderStats] = useState({ total: 0, active: 0, delivered: 0 });
-  const [loading, setLoading] = useState(true);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [pushBusy, setPushBusy] = useState(false);
   const chatUnread = useCustomerChatUnread(user?.id);
@@ -119,25 +116,6 @@ const ProfilePage = () => {
       setPushBusy(false);
     }
   };
-
-  useEffect(() => {
-    if (user) {
-      setLoading(true);
-      getOrders(user.id, false)
-        .then(orders => {
-          const data = orders || [];
-          setOrderStats({
-            total: data.length,
-            active: data.filter(o => !['Delivered', 'Cancelled'].includes(o.status)).length,
-            delivered: data.filter(o => o.status === 'Delivered').length,
-          });
-        })
-        .catch(() => {
-          toast.error('Failed to load profile stats.');
-        })
-        .finally(() => setLoading(false));
-    }
-  }, [user]);
 
   const handleLogout = async () => {
     setShowLogoutConfirm(false);
@@ -202,31 +180,6 @@ const ProfilePage = () => {
                 </span>
               )}
             </div>
-          </div>
-        </div>
-
-        {/* Quick Stats */}
-        <div className="profile-quick-stats stagger-item" style={{ animationDelay: '60ms' }}>
-          <div className="profile-stat-item">
-            <div className="flex items-center justify-center mb-8" style={{ width: 36, height: 36, borderRadius: 10, background: 'var(--info-bg)' }}>
-              <Package size={18} color="var(--info)" />
-            </div>
-            <div className="text-xl fw-800 text-accent">{loading ? '—' : orderStats.total}</div>
-            <div className="text-xs text-tertiary">Total Orders</div>
-          </div>
-          <div className="profile-stat-item">
-            <div className="flex items-center justify-center mb-8" style={{ width: 36, height: 36, borderRadius: 10, background: 'var(--primary-bg)' }}>
-              <Truck size={18} color="var(--primary)" />
-            </div>
-            <div className="text-xl fw-800 text-accent">{loading ? '—' : orderStats.active}</div>
-            <div className="text-xs text-tertiary">Active</div>
-          </div>
-          <div className="profile-stat-item">
-            <div className="flex items-center justify-center mb-8" style={{ width: 36, height: 36, borderRadius: 10, background: 'var(--success-bg)' }}>
-              <CheckCircle2 size={18} color="var(--success)" />
-            </div>
-            <div className="text-xl fw-800 text-accent">{loading ? '—' : orderStats.delivered}</div>
-            <div className="text-xs text-tertiary">Delivered</div>
           </div>
         </div>
 

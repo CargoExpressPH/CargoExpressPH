@@ -35,7 +35,7 @@ const formatCurrency = (val) => `₱${(val || 0).toLocaleString('en-PH', { minim
 const STAT_CARDS = [
   { key: 'totalRevenue', label: 'Total Revenue', field: 'totalRevenue', tone: 'primary', prefix: '₱' },
   { key: 'collected',    label: 'Collected',     field: 'paidTotal',    tone: 'success', prefix: '₱' },
-  { key: 'outstanding',  label: 'Outstanding (in pipeline)', field: 'outstandingTotal', tone: 'danger', prefix: '₱' },
+  { key: 'outstanding',  label: 'Outstanding', field: 'outstandingTotal', tone: 'danger', prefix: '₱' },
   { key: 'unpaidCount',  label: 'Unpaid Orders', field: 'unpaidCount',  tone: 'warning', prefix: '' },
 ];
 

@@ -379,7 +379,7 @@ test.describe('CargoExpress PH — admin + customer end-to-end journey', () => {
     // All four headline tiles must be present. They used to drop to two after a
     // live refresh, which read as "nothing is outstanding".
     await expect(page.locator('.stat-card')).toHaveCount(4, { timeout: 30_000 });
-    await expect(page.getByText('Outstanding (in pipeline)')).toBeVisible();
+    await expect(page.getByText('Outstanding')).toBeVisible();
     await expect(page.getByText('Unpaid Orders')).toBeVisible();
 
     // The payment was CASH. Bucketing by orders.payment_method would have filed
@@ -400,7 +400,7 @@ test.describe('CargoExpress PH — admin + customer end-to-end journey', () => {
     await dismissOverlays(page);
 
     const salesOutstanding = await readSettledNumber(
-      page.locator('.stat-card', { hasText: 'Outstanding (in pipeline)' }).locator('.stat-value'),
+      page.locator('.stat-card', { hasText: 'Outstanding' }).locator('.stat-value'),
       { parse: parsePeso }
     );
 
