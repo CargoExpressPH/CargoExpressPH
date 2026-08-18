@@ -383,9 +383,7 @@
   max-width: 420px;
 }
 .trk-empty-icon {
-  width: 80px; height: 80px; border-radius: 50%; margin: 0 auto 20px;
-  background: var(--primary-bg);
-  border: 1px solid var(--primary-glow);
+  margin: 0 auto 20px;
   color: var(--primary-text);
   display: flex; align-items: center; justify-content: center;
 }

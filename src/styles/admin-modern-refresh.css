@@ -495,10 +495,6 @@
   text-align: center;
 }
 .admin-notif-empty-icon {
-  width: 64px;
-  height: 64px;
-  border-radius: 50%;
-  background: var(--bg-secondary);
   display: flex;
   align-items: center;
   justify-content: center;
