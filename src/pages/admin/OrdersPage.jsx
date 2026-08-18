@@ -10,13 +10,28 @@ import ResponsiveFilterControls from '../../components/ui/ResponsiveFilterContro
 import Pagination from '../../components/ui/Pagination';
 import { Search, Package } from 'lucide-react';
 import usePageTitle from '../../hooks/usePageTitle';
-import { isOrderPriced } from '../../constants/status';
+import { isOrderPriced, ORDER_STATUS } from '../../constants/status';
 
-// Admins DO get one chip per status — unlike the customer list, an operator's
-// job is exactly the distinction between Assigned and Picked Up.
-// 'Pending Cancellation' sits right after 'Assigned' because that is the queue
-// of bookings frozen waiting on a decision.
-const tabs = ['All', 'Pending Review', 'Pending', 'Assigned', 'Pending Cancellation', 'Picked Up', 'In Transit', 'Arrived at Hub', 'Out for Delivery', 'Delivered', 'Cancelled'];
+// Eleven chips — one per status — put the whole state machine in the toolbar and
+// made the two that need a human ('Pending Review', 'Pending Cancellation') look
+// like the eight that don't. These six group by what the admin has to DO:
+// something is waiting on a decision, waiting on a trip, moving, or finished.
+// The exact micro-status is still on every row's badge and on the order page.
+//
+// `statuses: null` means "no filter" — an empty array would filter to nothing.
+const FILTER_GROUPS = [
+  { value: 'All',           label: 'All',           statuses: null },
+  { value: 'Action Needed', label: 'Action Needed', statuses: [ORDER_STATUS.PENDING_REVIEW, ORDER_STATUS.PENDING_CANCELLATION] },
+  { value: 'Pending',       label: 'Pending',       statuses: [ORDER_STATUS.PENDING] },
+  { value: 'Active',        label: 'Active',        statuses: [ORDER_STATUS.ASSIGNED, ORDER_STATUS.PICKED_UP, ORDER_STATUS.IN_TRANSIT, ORDER_STATUS.ARRIVED_HUB, ORDER_STATUS.OUT_FOR_DELIVERY] },
+  { value: 'Completed',     label: 'Completed',     statuses: [ORDER_STATUS.DELIVERED] },
+  { value: 'Cancelled',     label: 'Cancelled',     statuses: [ORDER_STATUS.CANCELLED] },
+];
+
+// Every status appears in exactly one group, so 'All' is the sum of the other
+// five and nothing can go missing from the list by being unfiltered anywhere.
+const statusesForTab = (tab) =>
+  FILTER_GROUPS.find(g => g.value === tab)?.statuses ?? null;
 
 // Debounce delay in ms — avoids firing a DB query on every keystroke.
 // Matches CustomersPage so admin search feels consistent across pages.
@@ -46,7 +61,9 @@ const AdminOrdersPage = () => {
         getOrders(null, true, {
           page: currentPage,
           perPage,
-          statusFilter: activeTab,
+          // A group is a list of statuses matched with IN, applied in the query
+          // so pagination and the total count cover the same population.
+          statusFilter: statusesForTab(activeTab),
           search: debouncedSearch.trim(),
         })
       );
@@ -66,13 +83,9 @@ const AdminOrdersPage = () => {
 
   useNetworkRecovery(loadOrders);
 
-  const filterOptions = tabs.map(t => ({
-    value: t,
-    label: t,
-    // Note: To properly count tabs we would need independent counts, 
-    // but for performance we just show the label for now if it's not 'All'.
-    count: null, 
-  }));
+  // Counts would need one COUNT query per group; the list already reports the
+  // total for the active filter in the header, so they stay off.
+  const filterOptions = FILTER_GROUPS.map(g => ({ value: g.value, label: g.label, count: null }));
 
   const handleTabChange = (tab) => { setActiveTab(tab); setCurrentPage(1); };
   const handleSearchChange = (e) => {

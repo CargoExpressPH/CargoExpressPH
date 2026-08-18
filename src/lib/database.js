@@ -239,7 +239,14 @@ export const getOrders = async (userId, isAdmin = false, options = {}) => {
     query = query.eq('user_id', userId);
   }
 
-  if (statusFilter && statusFilter !== 'All') {
+  // A string matches one status; an array matches any of several, which is what
+  // the admin list's grouped filters ("Active", "Action Needed") need. The
+  // grouping has to happen in the query, not on the returned page: the rows are
+  // paginated server-side, so filtering the 15 rows that came back would show a
+  // part of a page and report a count for a different population.
+  if (Array.isArray(statusFilter)) {
+    if (statusFilter.length > 0) query = query.in('status', statusFilter);
+  } else if (statusFilter && statusFilter !== 'All') {
     query = query.eq('status', statusFilter);
   }
 
