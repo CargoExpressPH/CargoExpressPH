@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { getOrderById, updateOrder, createNotification, getTripReassignments, reassignTrip, getActivityLogsByRecord, getPaymentTransactions, recordAdditionalPayment, recordPickupPayment, recordDeliveryPayment, getOrderStatusEvents, reviewOrderCancellation, getLatestPaymentAttemptByOrder } from '../../lib/database';
+import { getOrderById, updateOrder, createNotification, getTripReassignments, reassignTrip, getActivityLogsByRecord, getPaymentTransactions, recordAdditionalPayment, recordPickupPayment, recordDeliveryPayment, getOrderStatusEvents, reviewOrderCancellation, cancelOrderAsAdmin, getLatestPaymentAttemptByOrder } from '../../lib/database';
 import { pollPaymentStatus } from '../../lib/paymongo';
 import { logOrder, logPayment } from '../../lib/activityLog';
 import { buildStatusTimestamps } from '../../utils/statusTimestamps';
@@ -291,7 +291,16 @@ const AdminOrderDetailPage = () => {
       toast.error(`"${next}" is set by the trip for every order aboard. Update the trip instead.`);
       return;
     }
-    if (next === ORDER_STATUS.PICKED_UP) { 
+    // "Assigned" means assigned to a *trip*. Without one the status is a claim
+    // about nothing, so the click is redirected to the thing that has to happen
+    // first rather than refused — the admin wanted to move this order forward,
+    // and picking the trip is how that is done. Assigning writes the status
+    // itself (handleTripAssign), so there is no second step afterwards.
+    if (next === ORDER_STATUS.ASSIGNED && !order.trip_id) {
+      setShowTripModal(true);
+      return;
+    }
+    if (next === ORDER_STATUS.PICKED_UP) {
       if (!order.trip_id) {
         toast.error("This booking must be assigned to a trip before pickup can be processed.");
         return;
@@ -371,20 +380,34 @@ const AdminOrderDetailPage = () => {
     } catch (e) { toast.error(e.message || 'Failed to change trip'); }
   };
 
-  const handleCancel = async () => {
+  // Cancelling used to be a bare yes/no. The row then said 'Cancelled' with
+  // nothing beside it, and the only way to answer "why was this cancelled?"
+  // weeks later was to ask whoever clicked. The reason is now mandatory, stored
+  // on the order, written into the activity log, and told to the customer —
+  // who is otherwise the last person to learn their booking is gone.
+  const handleCancel = async (reason) => {
     if (!canCancelOrder(order)) {
       setShowCancelConfirm(false);
       toast.error(`An order that is "${order.status}" is already in the network and cannot be cancelled.`);
       return;
     }
+    setSaving(true);
     try {
-      await updateOrder(id, { status: 'Cancelled' });
-      logOrder('Order Cancelled', id, order.tracking_number, { previousValue: { status: order.status }, newValue: { status: 'Cancelled' } });
-      await createNotification(order.user_id, 'Order Cancelled', `Order ${order.tracking_number} has been cancelled`, 'order_update', order.id);
+      await cancelOrderAsAdmin(id, reason);
+      logOrder('Order Cancelled', id, order.tracking_number, {
+        previousValue: { status: order.status },
+        newValue: { status: 'Cancelled', cancellation_reason: reason },
+        details: `Cancelled by admin. Reason: ${reason}`,
+      });
+      await createNotification(order.user_id, 'Order Cancelled', `Order ${order.tracking_number} has been cancelled. Reason: ${reason}`, 'order_update', order.id);
       setShowCancelConfirm(false);
       await loadOrder();
       toast.success('Order cancelled.');
-    } catch (e) { throw e; }
+    } catch (e) {
+      toast.error(e.message || 'Failed to cancel this order.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   // Approve or decline the customer's cancellation request.
@@ -568,10 +591,13 @@ const AdminOrderDetailPage = () => {
   const tripOwnsNextStep = isTripControlledAdvance(order);
   // Out for Delivery and Delivered stay manual — they are last-mile events for
   // one parcel at one door, and Out for Delivery carries the settlement gate.
-  const showAdvanceButton = Boolean(nextStatus) && !tripOwnsNextStep;
+  const needsTrip = order.status === 'Pending' && !order.trip_id;
+  // While a trip is missing, "Assign to Trip" IS the advance step — assigning
+  // sets the status. Two buttons for one action invited the click that produced
+  // an Assigned order with no trip.
+  const showAdvanceButton = Boolean(nextStatus) && !tripOwnsNextStep && !needsTrip;
   const showCancelButton = canCancelOrder(order);
   const awaitingCancellationReview = hasPendingCancellation(order);
-  const needsTrip = order.status === 'Pending' && !order.trip_id;
   const hasPhotos = resolvedPickupPhotos.length > 0;
   const canReassignTrip = order.trip_id && [ORDER_STATUS.PENDING, ORDER_STATUS.ASSIGNED].includes(order.status);
 
@@ -631,6 +657,35 @@ const AdminOrderDetailPage = () => {
           showLabel
         />
       </div>
+
+      {/* Why this booking is cancelled — shown on the order itself, not only in
+          the activity log, because "why?" is the first question anyone opening
+          a cancelled order has. Covers both routes in: an approved customer
+          request (which carries cancellation_requested_at) and an admin
+          cancelling outright (which does not). */}
+      {order.status === 'Cancelled' && order.cancellation_reason && (
+        <div className="card admin-section-card stagger-item mb-16" style={{ animationDelay: '40ms' }}>
+          <div className="card-body">
+            <h3 className="flex items-center gap-8 text-sm fw-700 mb-8">
+              <AlertTriangle size={16} aria-hidden="true" /> Cancellation Reason
+            </h3>
+            <p className="text-xs text-secondary mb-8">
+              {order.cancellation_requested_at
+                ? `Requested by ${order.profiles?.name || 'the customer'}`
+                : 'Cancelled by an admin'}
+              {order.cancellation_reviewed_at
+                ? ` • ${safeFormatDate(order.cancellation_reviewed_at, { month: 'short', day: 'numeric', year: 'numeric' })}`
+                : ''}
+            </p>
+            <blockquote
+              className="text-sm"
+              style={{ borderLeft: '3px solid var(--border)', paddingLeft: 12, margin: 0 }}
+            >
+              {order.cancellation_reason}
+            </blockquote>
+          </div>
+        </div>
+      )}
 
       {/* Cancellation Request Review Action Bar.
           Sits above the out-of-coverage bar because it is the more urgent of
@@ -1229,17 +1284,19 @@ const AdminOrderDetailPage = () => {
       {showDeliveryModal && (
         <DeliveryModal order={order} onClose={() => setShowDeliveryModal(false)} onSave={handleDeliverySave} />
       )}
-      <ConfirmModal
-        isOpen={showCancelConfirm}
-        onClose={() => setShowCancelConfirm(false)}
-        onConfirm={handleCancel}
-        title="Cancel Order"
-        message="Are you sure you want to cancel this order? This action cannot be undone."
-        confirmLabel="Cancel Order"
-        cancelLabel="Keep Order"
-        variant="danger"
-        loading={saving}
-      />
+      {showCancelConfirm && (
+        <ReasonModal
+          isOpen={showCancelConfirm}
+          onClose={() => setShowCancelConfirm(false)}
+          onConfirm={handleCancel}
+          loading={saving}
+          title="Cancel Order"
+          description="This cannot be undone. Your reason is saved on the booking, recorded in the activity log, and sent to the customer."
+          label="Reason for Cancelling *"
+          placeholder="e.g. Customer called to cancel; parcel was never dropped off."
+          submitLabel="Cancel Order"
+        />
+      )}
       <ConfirmModal
         isOpen={showCleanupConfirm}
         onClose={() => setShowCleanupConfirm(false)}

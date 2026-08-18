@@ -214,7 +214,13 @@ CREATE TABLE IF NOT EXISTS orders (
   cancellation_previous_status VARCHAR(30),
   cancellation_reviewed_at TIMESTAMPTZ,
   cancellation_reviewed_by UUID REFERENCES profiles(id) ON DELETE SET NULL,
-  cancellation_review_notes TEXT
+  cancellation_review_notes TEXT,
+  -- An order at 'Assigned' or beyond must be on a trip (20260818110000). The
+  -- four exempt statuses are the ones that legitimately have no trip yet.
+  CONSTRAINT orders_trip_required_for_active_status CHECK (
+    status::text = ANY (ARRAY['Pending Review'::text, 'Pending'::text, 'Pending Cancellation'::text, 'Cancelled'::text])
+    OR trip_id IS NOT NULL
+  )
 );
 
 

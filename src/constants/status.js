@@ -44,10 +44,23 @@ export const STATUS_TIMELINE = [
   ORDER_STATUS.DELIVERED,
 ];
 
-// Statuses that require trip_id
+// Statuses that require trip_id.
+//
+// Every status from Assigned onward: "Assigned" is a claim about a specific
+// trip, so an order that is Assigned to nothing is a contradiction that then
+// propagates — it shows as scheduled to the customer, counts against no trip's
+// capacity, and reaches the pickup screen with no vessel to load onto. The list
+// used to start at In Transit, which only caught it two steps too late.
+//
+// Mirrors the CHECK constraint orders_trip_required_for_active_status
+// (20260818110000). The database is the enforcement; this is the message.
 export const REQUIRES_TRIP = [
+  ORDER_STATUS.ASSIGNED,
+  ORDER_STATUS.PICKED_UP,
   ORDER_STATUS.IN_TRANSIT,
   ORDER_STATUS.ARRIVED_HUB,
+  ORDER_STATUS.OUT_FOR_DELIVERY,
+  ORDER_STATUS.DELIVERED,
 ];
 
 // Trip status enum

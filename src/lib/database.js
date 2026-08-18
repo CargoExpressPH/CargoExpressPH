@@ -379,6 +379,36 @@ export const updateOrder = async (orderId, updates) => {
 };
 
 /**
+ * Admin cancels a booking outright, stating why.
+ *
+ * Distinct from reviewOrderCancellation, which rules on a request the customer
+ * made. Here nobody asked — the admin is ending the booking — so the reason is
+ * the only record of why, and it is written in the SAME statement as the
+ * status. The activity log and the customer's notification are separate round
+ * trips that can be lost; the row cannot be left saying 'Cancelled' with no
+ * explanation beside it.
+ *
+ * `cancellation_requested_at` stays NULL, which is what tells an
+ * admin-initiated cancellation apart from an approved customer request.
+ * `cancellation_previous_status` also stays NULL on purpose: it exists so a
+ * *rejected* request can be put back exactly where it was, and there is nothing
+ * to put back here.
+ */
+export const cancelOrderAsAdmin = async (orderId, reason) => {
+  const trimmed = (reason || '').trim();
+  if (trimmed.length < 5) {
+    throw new Error('Please state why this booking is being cancelled (at least 5 characters).');
+  }
+  const { data: auth } = await supabase.auth.getUser();
+  return updateOrder(orderId, {
+    status: 'Cancelled',
+    cancellation_reason: trimmed,
+    cancellation_reviewed_at: new Date().toISOString(),
+    cancellation_reviewed_by: auth?.user?.id || null,
+  });
+};
+
+/**
  * Customer asks to cancel a booking, stating why.
  *
  * This does NOT cancel anything. It moves the order to 'Pending Cancellation'
@@ -732,7 +762,16 @@ export const deleteTrip = async (tripId) => {
     .from('trips')
     .delete()
     .eq('id', tripId);
-  if (error) throw error;
+  if (error) {
+    // trips.id is ON DELETE SET NULL, so deleting a trip tries to null the
+    // trip_id of every order aboard — which orders_trip_required_for_active_status
+    // now refuses for anything at 'Assigned' or beyond. The raw 23514 names a
+    // constraint, not the problem.
+    if (error.code === '23514' && /orders_trip_required_for_active_status/.test(error.message || '')) {
+      throw new Error('This trip still has orders on it. Move them to another trip (or cancel them) before deleting it.');
+    }
+    throw error;
+  }
 };
 
 export const reassignTrip = async (orderId, newTripId, reason) => {
