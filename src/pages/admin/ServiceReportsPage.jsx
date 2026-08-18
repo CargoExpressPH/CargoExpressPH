@@ -8,7 +8,7 @@ import MiniBarChart from '../../components/ui/MiniBarChart';
 import PrintDocument from '../../components/ui/PrintDocument';
 import EmptyState from '../../components/ui/EmptyState';
 import { exportPrintDocumentToPdf } from '../../lib/exportPdf';
-import { MessageSquare, Printer, Download, Loader, RefreshCw, Clock } from 'lucide-react';
+import { MessageSquare, Printer, Download, Loader, RefreshCw, Clock, Headphones } from 'lucide-react';
 import usePageTitle from '../../hooks/usePageTitle';
 
 /** Minutes → the largest unit that stays readable. */
@@ -98,7 +98,7 @@ const ServiceReportsPage = () => {
     <div className="page-transition">
       <div className="admin-page-header">
         <div>
-          <h1 className="admin-page-title">Customer Service</h1>
+          <h1 className="admin-page-title"><Headphones size={24} color="var(--primary)" aria-hidden="true" />Customer Service</h1>
           <p className="admin-page-subtitle">
             Queue health, response times, and how much work the bot is absorbing.
           </p>

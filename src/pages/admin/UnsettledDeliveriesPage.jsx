@@ -288,7 +288,7 @@ const UnsettledDeliveriesPage = () => {
     <div>
       <div className="admin-page-header">
         <div>
-          <h1 className="admin-page-title">Unsettled Deliveries</h1>
+          <h1 className="admin-page-title"><Wallet size={24} color="var(--primary)" aria-hidden="true" />Unsettled Deliveries</h1>
           <p className="admin-page-subtitle">
             Shipments in the pipeline that still owe money — who owes it, how much, and how overdue.
           </p>

@@ -8,7 +8,7 @@ import { logCompany } from '../../lib/activityLog';
 import { 
   Building2, LayoutTemplate, Phone, Star, Image as ImageIcon, 
   Map, Loader, Save, ExternalLink, AlertTriangle,
-  Upload, X, Trash2, Plus, Edit2, MapPin, PhilippinePeso
+  Upload, X, Trash2, Plus, Edit2, MapPin, PhilippinePeso, Building
 } from 'lucide-react';
 import { useToast } from '../../hooks/useToast';
 import ConfirmModal from '../../components/ui/ConfirmModal';
@@ -231,7 +231,7 @@ const CompanyInformationPage = () => {
       {/* Page Header */}
       <div className="admin-page-header" style={{ flexWrap: 'wrap', gap: 12 }}>
         <div>
-          <h1 className="admin-page-title">Company Information</h1>
+          <h1 className="admin-page-title"><Building size={24} color="var(--primary)" aria-hidden="true" />Company Information</h1>
           <p className="admin-page-subtitle">Manage all public website content shown to customers.</p>
         </div>
         <div className="flex items-center gap-8">

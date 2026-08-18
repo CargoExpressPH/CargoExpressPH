@@ -60,7 +60,7 @@ const AdminTripsPage = () => {
     <div className="page-transition">
       <div className="admin-page-header">
         <div>
-          <h1 className="admin-page-title">Trips</h1>
+          <h1 className="admin-page-title"><Truck size={24} color="var(--primary)" aria-hidden="true" />Trips</h1>
           <p className="admin-page-subtitle">Plan cargo runs, capacity, and trip status across routes.</p>
         </div>
         <div className="admin-page-meta">

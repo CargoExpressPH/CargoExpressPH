@@ -9,7 +9,7 @@ import DonutChart from '../../components/ui/DonutChart';
 import MiniBarChart from '../../components/ui/MiniBarChart';
 import PrintDocument from '../../components/ui/PrintDocument';
 import { exportPrintDocumentToPdf } from '../../lib/exportPdf';
-import { DollarSign, CheckCircle, AlertTriangle, Clock, Printer, Download, Loader } from 'lucide-react';
+import { DollarSign, CheckCircle, AlertTriangle, Clock, Printer, Download, Loader, BarChart3 } from 'lucide-react';
 import EmptyState from '../../components/ui/EmptyState';
 import usePageTitle from '../../hooks/usePageTitle';
 
@@ -159,7 +159,7 @@ const SalesPage = () => {
     <div className="page-transition">
       <div className="admin-page-header">
         <div>
-          <h1 className="admin-page-title">Sales & Revenue</h1>
+          <h1 className="admin-page-title"><BarChart3 size={24} color="var(--primary)" aria-hidden="true" />Sales & Revenue</h1>
           <p className="admin-page-subtitle">Revenue, collection health, and payment method performance.</p>
           {!loading && data && (
             <div className="text-xs text-tertiary mt-4 no-print" role="status" aria-live="polite">

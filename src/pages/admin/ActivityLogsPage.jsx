@@ -162,8 +162,8 @@ const ActivityLogsPage = () => {
 
       <div className="flex items-center justify-between mb-8 flex-wrap gap-12">
         <div>
-          <h1 className="fw-800 text-2xl flex items-center gap-10">
-            <ClipboardList size={26} color="var(--primary)" />
+          <h1 className="admin-page-title">
+            <ClipboardList size={24} color="var(--primary)" aria-hidden="true" />
             Activity Logs
           </h1>
           <p className="text-secondary text-sm mt-4">Audit trail of admin actions — logs are kept for 7 days, older entries are deleted automatically</p>

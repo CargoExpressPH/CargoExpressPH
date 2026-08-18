@@ -103,7 +103,7 @@ const ReportsPage = () => {
       <div className="report-controls no-print">
         <div>
           <h1 className="admin-page-title">
-            <FileText size={24} className="text-primary" />
+            <FileText size={24} color="var(--primary)" aria-hidden="true" />
             Reports & Analytics
           </h1>
           <p className="admin-page-subtitle">

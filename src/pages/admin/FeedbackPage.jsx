@@ -73,7 +73,7 @@ const FeedbackPage = () => {
     <div className="page-transition">
       <div className="flex justify-between items-center mb-24" style={{ flexWrap: 'wrap', gap: 12 }}>
         <div>
-          <h1 className="page-title"><MessageSquare size={28} className="text-primary inline mr-12" />Customer Feedback</h1>
+          <h1 className="admin-page-title"><MessageSquare size={24} color="var(--primary)" aria-hidden="true" />Customer Feedback</h1>
           <p className="page-subtitle mt-4">Manage reviews and delivery feedback from customers</p>
         </div>
       </div>

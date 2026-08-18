@@ -179,7 +179,7 @@ const AdminOrdersPage = () => {
     <PageTransition>
       <div className="admin-page-header">
         <div>
-          <h1 className="admin-page-title">Bookings</h1>
+          <h1 className="admin-page-title"><Package size={24} color="var(--primary)" aria-hidden="true" />Bookings</h1>
           <p className="admin-page-subtitle">Search, review, and advance every cargo order.</p>
         </div>
         <div className="admin-page-meta">

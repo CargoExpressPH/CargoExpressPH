@@ -8,7 +8,7 @@ import { SkeletonStatCard, SkeletonTableRow, SkeletonDonut } from '../../compone
 import AnimatedCounter from '../../components/ui/AnimatedCounter';
 import PageTransition, { StaggerItem } from '../../components/ui/PageTransition';
 import ErrorBoundarySection from '../../components/ui/ErrorBoundarySection';
-import { Package, Truck, Users, Clock, ArrowRight, Gauge, PieChart, AlertTriangle } from 'lucide-react';
+import { Package, Truck, Users, Clock, ArrowRight, Gauge, PieChart, AlertTriangle, LayoutDashboard } from 'lucide-react';
 import usePageTitle from '../../hooks/usePageTitle';
 import EmptyState from '../../components/ui/EmptyState';
 
@@ -99,7 +99,7 @@ const DashboardPage = () => {
     <PageTransition>
       <div className="admin-page-header">
         <div>
-          <h1 className="admin-page-title">Dashboard</h1>
+          <h1 className="admin-page-title"><LayoutDashboard size={24} color="var(--primary)" aria-hidden="true" />Dashboard</h1>
           <p className="admin-page-subtitle">Live operations, trip capacity, and recent order movement.</p>
         </div>
       </div>

@@ -196,8 +196,8 @@ const ContactInquiriesPage = () => {
       {/* Header */}
       <div className="admin-page-header">
         <div>
-          <h1 className="fw-800 text-2xl flex items-center gap-10">
-            <Mail size={24} color="var(--primary)" />
+          <h1 className="admin-page-title">
+            <Mail size={24} color="var(--primary)" aria-hidden="true" />
             Contact Inquiries
             {newCount > 0 && (
               <span className="badge badge-warning text-xs">

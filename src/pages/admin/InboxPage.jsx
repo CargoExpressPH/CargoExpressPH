@@ -733,7 +733,7 @@ const InboxPage = () => {
 
   return (
     <div className="page-transition admin-inbox-page">
-      <h1 className="fw-800 text-2xl mb-24">Customer Inbox</h1>
+      <h1 className="admin-page-title mb-24"><MessageSquare size={24} color="var(--primary)" aria-hidden="true" />Customer Inbox</h1>
 
       <div className={`inbox-layout ${activeConv ? 'has-active-conv' : ''}`}>
 

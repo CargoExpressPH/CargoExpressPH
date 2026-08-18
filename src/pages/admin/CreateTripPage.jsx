@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createTrip, findDuplicateTrip, duplicateTripMessage } from '../../lib/database';
 import { ROUTES } from '../../constants/phLocations';
-import { ArrowLeft, Calendar, Loader, Truck, Package, FileText, Lightbulb } from 'lucide-react';
+import { ArrowLeft, Calendar, Loader, Truck, Package, FileText, Lightbulb, Plus } from 'lucide-react';
 import { useToast } from '../../hooks/useToast';
 import usePageTitle from '../../hooks/usePageTitle';
 import { logTrip } from '../../lib/activityLog';
@@ -116,7 +116,7 @@ const CreateTripPage = () => {
       </button>
       <div className="admin-page-header">
         <div>
-          <h1 className="admin-page-title">Create New Trip</h1>
+          <h1 className="admin-page-title"><Plus size={24} color="var(--primary)" aria-hidden="true" />Create New Trip</h1>
           <p className="admin-page-subtitle">Define route, schedule, capacity, and pricing for a cargo run.</p>
         </div>
       </div>

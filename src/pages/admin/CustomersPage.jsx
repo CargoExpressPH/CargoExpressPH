@@ -60,7 +60,7 @@ const CustomersPage = () => {
     <div className="page-transition">
       <div className="admin-page-header">
         <div>
-          <h1 className="admin-page-title">Customers</h1>
+          <h1 className="admin-page-title"><Users size={24} color="var(--primary)" aria-hidden="true" />Customers</h1>
           <p className="admin-page-subtitle">Customer accounts, contact details, and booking history.</p>
         </div>
         <div className="admin-page-meta">

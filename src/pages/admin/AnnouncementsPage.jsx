@@ -251,7 +251,7 @@ const AnnouncementsPage = () => {
     <div className="page-transition">
       <div className="admin-page-header">
         <div>
-          <h1 className="admin-page-title">Announcements</h1>
+          <h1 className="admin-page-title"><Megaphone size={24} color="var(--primary)" aria-hidden="true" />Announcements</h1>
           <p className="admin-page-subtitle">Publish operational updates customers can see in their dashboard.</p>
         </div>
         <button type="button" className="btn btn-primary" onClick={()=>{ setShowForm(!showForm); clearAll(); }}><Plus size={16}/> New</button>

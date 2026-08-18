@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { Mail, LogOut, Shield, ChevronRight, KeyRound } from 'lucide-react';
+import { Mail, LogOut, Shield, ChevronRight, KeyRound, User } from 'lucide-react';
 import ConfirmModal from '../../components/ui/ConfirmModal';
 import usePageTitle from '../../hooks/usePageTitle';
 
@@ -15,7 +15,7 @@ const AdminProfilePage = () => {
   return (
     <>
     <div className="page-transition" style={{ maxWidth: 520 }}>
-      <h1 className="fw-800 text-2xl mb-24">Profile</h1>
+      <h1 className="admin-page-title mb-24"><User size={24} color="var(--primary)" aria-hidden="true" />Profile</h1>
 
       {/* Profile Card */}
       <div className="profile-card-premium mb-20">
