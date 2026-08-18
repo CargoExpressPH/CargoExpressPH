@@ -388,7 +388,6 @@
   border: 1px solid var(--primary-glow);
   color: var(--primary-text);
   display: flex; align-items: center; justify-content: center;
-  animation: float 5s ease-in-out infinite;
 }
 .trk-empty-title {
   font-size: 1.25rem; font-weight: 800; color: var(--text); margin-bottom: 10px;
@@ -448,7 +447,7 @@
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  background: var(--bg);
+  background: var(--bg-gradient, var(--bg));
   overflow-x: hidden;
 }
 .public-about-header {
@@ -575,7 +574,7 @@
   }
   .public-about-feature-grid .card {
     min-width: 0;
-    padding: 16px 12px !important;
+    padding: 16px 12px;
   }
   .public-about-content-grid {
     grid-template-columns: minmax(0, 1fr);
@@ -583,8 +582,8 @@
     gap: 20px;
   }
   .public-about-contact-card {
-    position: static !important;
-    top: auto !important;
+    position: static;
+    top: auto;
   }
 }
 

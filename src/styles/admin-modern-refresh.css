@@ -1119,12 +1119,11 @@
        remaining.css  @media (max-width: 900px)  grid card, value right-aligned
        this file      @media (max-width: 768px)  flex card
 
-     remaining.css sets `text-align: right !important` on `.data-table td`.
-     An !important author declaration beats a normal one regardless of
-     specificity or source order, so a plain `text-align: left` here has NO
-     effect — it was previously declared and silently ignored. It has been
-     removed rather than left as a lie. Cell text below 768px is right-aligned
-     (labels stay left via the ::before rule below), matching the ≤900px design.
+     remaining.css sets `text-align: right` on `.data-table td`.
+     This file's `.app-layout .data-table td` selector (0,2,0) outranks
+     that (0,1,0) on admin pages, so any text-align set here will apply.
+     Cell text below 768px is right-aligned (labels stay left via the
+     ::before rule below), matching the ≤900px design.
 
      Consolidating these two blocks into one is worthwhile but needs visual
      verification across the 9 admin table pages in both themes. */
@@ -1232,7 +1231,7 @@
   border-color: var(--primary);
   color: var(--primary);
 }
-.app-layout .payment-ref-copy-btn:hover svg { opacity: 1 !important; }
+.app-layout .payment-ref-copy-btn:hover svg { opacity: 1; }
 .app-layout .payment-ref-copy-btn:active {
   transform: scale(0.97);
 }

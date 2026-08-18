@@ -320,13 +320,13 @@ const InteractiveMap = ({ coverage, selectedRegionId, onSelectRegion }) => {
           fill="none" stroke="rgba(255,255,255,0.11)" strokeWidth="1.3" strokeLinecap="round" />
 
         {/* Topographic texture and simplified primary road corridors. */}
-        <g opacity="0.48" style={{ pointerEvents: 'none' }}>
+        <g opacity="0.48" className="about-svg-no-events">
           <path d="M127,24 L157,22 L169,47 L174,84 L176,113 L158,166 L143,187 L122,171 L108,121 L106,79 Z" fill="url(#terrainContours)" />
           <path d="M161,309 L194,297 L226,308 L239,327 L222,350 L187,355 L160,338 Z" fill="url(#terrainContours)" />
           <path d="M127,24 L157,22 L169,47 L174,84 L176,113 L158,166 L143,187 L122,171 L108,121 L106,79 Z" fill="url(#terrainGrain)" />
           <path d="M161,309 L194,297 L226,308 L239,327 L222,350 L187,355 L160,338 Z" fill="url(#terrainGrain)" />
         </g>
-        <g fill="none" strokeLinecap="round" strokeLinejoin="round" style={{ pointerEvents: 'none' }}>
+        <g fill="none" strokeLinecap="round" strokeLinejoin="round" className="about-svg-no-events">
           <g stroke="rgba(255,244,189,0.72)" strokeWidth="1.15">
             <path d="M148,100 L150,115 L140,125 L148,145" />
             <path d="M150,115 L160,130 L148,145" />
@@ -384,7 +384,7 @@ const InteractiveMap = ({ coverage, selectedRegionId, onSelectRegion }) => {
         </g>
 
         {/* Familiar city labels turn the coverage illustration into a readable map. */}
-        <g fontFamily="Inter,sans-serif" fontSize="5.6" fontWeight="700" fill="#f8fbff" filter="url(#labelShadow)" style={{ pointerEvents: 'none' }}>
+        <g fontFamily="Inter,sans-serif" fontSize="5.6" fontWeight="700" fill="#f8fbff" filter="url(#labelShadow)" className="about-svg-no-events">
           <text x="154" y="110">BULACAN</text>
           <text x="155" y="121">MANILA</text>
           <text x="116" y="131">CAVITE</text>
@@ -439,7 +439,7 @@ const InteractiveMap = ({ coverage, selectedRegionId, onSelectRegion }) => {
               onMouseLeave={() => setHoveredPin(null)}
               onFocus={() => setHoveredPin(pin.name)}
               onBlur={() => setHoveredPin(null)}
-              style={{ cursor: 'pointer', outline: 'none' }}
+              className="about-map-pin-group"
               tabIndex={0}
               role="button"
               aria-label={`Select ${pin.name} region`}
@@ -457,7 +457,7 @@ const InteractiveMap = ({ coverage, selectedRegionId, onSelectRegion }) => {
                 r={active ? 7 : 5}
                 fill={pin.isOrigin ? '#22c55e' : active ? '#22c55e' : 'rgba(74,222,128,0.88)'}
                 stroke="#fff" strokeWidth="1.6"
-                style={{ transition: 'all 0.25s ease' }}
+                className="about-map-pin-circle"
                 filter={active ? 'url(#pinGlow)' : undefined}
               />
               <circle cx={pin.x} cy={pin.y} r="2" fill="#fff" />
@@ -479,21 +479,14 @@ const InteractiveMap = ({ coverage, selectedRegionId, onSelectRegion }) => {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 5 }}
-            style={{
-              position: 'absolute', bottom: 12, left: 12, right: 12,
-              background: 'rgba(5,18,38,0.85)', backdropFilter: 'blur(14px)',
-              border: '1px solid rgba(74,222,128,0.28)',
-              borderRadius: 14, padding: '10px 14px',
-              boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
-              display: 'flex', alignItems: 'center', gap: 10, zIndex: 10
-            }}
+            className="about-map-tooltip"
           >
-            <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#22c55e', boxShadow: '0 0 8px #22c55e', flexShrink: 0 }} />
-            <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 700, fontSize: '0.8125rem', color: '#fff' }}>
+            <div className="about-map-tooltip-dot" />
+            <div className="about-map-tooltip-body">
+              <div className="about-map-tooltip-name">
                 {hoveredPin || mapPins.find(p => coverage.find(r => r.name.toLowerCase().includes(p.name.toLowerCase()))?.id === selectedRegionId)?.name}
               </div>
-              <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginTop: 2 }}>
+              <div className="about-map-tooltip-detail">
                 {hoveredPin
                   ? mapPins.find(p => p.name === hoveredPin)?.details
                   : mapPins.find(p => coverage.find(r => r.name.toLowerCase().includes(p.name.toLowerCase()))?.id === selectedRegionId)?.details}
@@ -560,33 +553,33 @@ const AnimatedCounter = ({ value }) => {
 
 // â”€â”€â”€ Loading Skeleton â”€â”€â”€
 const LoadingSkeleton = () => (
-  <div style={{ minHeight: '100vh', background: 'var(--bg-gradient, var(--bg))', fontFamily: 'Inter, system-ui, sans-serif' }}>
+  <div className="about-skel-wrapper">
     {/* Skeleton Hero */}
-    <div style={{ height: '70vh', background: 'var(--bg-secondary)', position: 'relative', overflow: 'hidden' }}>
-      <div className="about-skeleton" style={{ position: 'absolute', inset: 0, borderRadius: 0 }} />
-      <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 20, padding: '0 24px' }}>
-        <div className="about-skeleton about-skeleton-text" style={{ width: 180, height: 28 }} />
-        <div className="about-skeleton about-skeleton-title" style={{ width: '60%', maxWidth: 500, height: 48 }} />
-        <div className="about-skeleton about-skeleton-text" style={{ width: '40%', maxWidth: 300 }} />
+    <div className="about-skel-hero">
+      <div className="about-skeleton about-skel-hero-bg" />
+      <div className="about-skel-center">
+        <div className="about-skeleton about-skeleton-text about-skel-badge" />
+        <div className="about-skeleton about-skeleton-title about-skel-title-lg" />
+        <div className="about-skeleton about-skeleton-text about-skel-subtitle" />
       </div>
     </div>
     {/* Skeleton Stats */}
-    <div style={{ maxWidth: 1100, margin: '-30px auto 0', padding: '0 20px' }}>
-      <div className="about-skeleton about-skeleton-block" style={{ height: 100 }} />
+    <div className="about-skel-stats">
+      <div className="about-skeleton about-skeleton-block about-skel-stats-block" />
     </div>
     {/* Skeleton Content */}
-    <div style={{ maxWidth: 1200, margin: '80px auto 0', padding: '0 20px' }}>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 48, marginBottom: 80 }}>
+    <div className="about-skel-content">
+      <div className="about-skel-grid-2">
         <div>
-          <div className="about-skeleton about-skeleton-title" style={{ width: '80%' }} />
-          <div className="about-skeleton about-skeleton-text" style={{ width: '100%' }} />
-          <div className="about-skeleton about-skeleton-text" style={{ width: '90%' }} />
-          <div className="about-skeleton about-skeleton-text" style={{ width: '95%' }} />
-          <div className="about-skeleton about-skeleton-text" style={{ width: '70%' }} />
+          <div className="about-skeleton about-skeleton-title about-skel-text-80" />
+          <div className="about-skeleton about-skeleton-text about-skel-text-100" />
+          <div className="about-skeleton about-skeleton-text about-skel-text-90" />
+          <div className="about-skeleton about-skeleton-text about-skel-text-95" />
+          <div className="about-skeleton about-skeleton-text about-skel-text-70" />
         </div>
         <div className="about-skeleton about-skeleton-card" />
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 24 }}>
+      <div className="about-skel-grid-3">
         {[1, 2, 3].map(i => <div key={i} className="about-skeleton about-skeleton-card" />)}
       </div>
     </div>
@@ -844,7 +837,7 @@ const AboutPage = () => {
 
   return (
     <MotionConfig reducedMotion="user">
-    <div className="public-about-page" style={{ background: 'var(--bg-gradient, var(--bg))', color: 'var(--text)', minHeight: '100vh', fontFamily: 'Inter, system-ui, sans-serif' }}>
+    <div className="public-about-page">
       <a href="#hero" className="skip-link">Skip to main content</a>
 
       {/* â• â• â•  Scroll Progress Bar â• â• â•  */}
@@ -853,9 +846,9 @@ const AboutPage = () => {
       {/* â• â• â•  1. Navigation â• â• â•  */}
       <nav className={`about-glass-nav ${scrolled ? 'scrolled' : ''}`}>
         <div className="about-nav-container">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div className="about-nav-brand">
             <BrandLogo size={36} decorative />
-            <h1 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 900 }}>
+            <h1>
               <BrandWordmark tone={scrolled ? 'default' : 'on-dark'} />
             </h1>
           </div>
@@ -885,20 +878,18 @@ const AboutPage = () => {
       {/* â•â•â• 2. Hero Section â•â•â• */}
       <section id="hero" className="about-hero" tabIndex={-1}>
         <motion.div 
+          className="about-hero-bg"
           style={{ 
-            position: 'absolute', inset: 0,
             backgroundImage: `url(${heroImage})`,
-            backgroundSize: 'cover', backgroundPosition: 'center',
             y: yHero,
-            opacity: opacityHero,
-            zIndex: 1
+            opacity: opacityHero
           }}
         />
-        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, rgba(0,0,0,0.25) 0%, rgba(0,0,0,0.75) 100%)', zIndex: 2 }} />
+        <div className="about-hero-overlay" />
         
         {/* Decorative gradient orbs */}
-        <div className="about-gradient-orb" style={{ width: 400, height: 400, top: '10%', left: '-5%', background: 'rgba(var(--primary-rgb), 0.08)', zIndex: 3 }} />
-        <div className="about-gradient-orb" style={{ width: 300, height: 300, bottom: '15%', right: '-3%', background: 'rgba(var(--accent-rgb), 0.06)', zIndex: 3 }} />
+        <div className="about-gradient-orb about-gradient-orb-primary" />
+        <div className="about-gradient-orb about-gradient-orb-accent" />
 
         <motion.div 
           className="about-hero-content"
@@ -909,13 +900,13 @@ const AboutPage = () => {
           <div className="about-hero-badge">
             Trusted Logistics Partner
           </div>
-          <h2 style={{ fontSize: 'clamp(2.25rem, 5vw, 4rem)', fontWeight: 800, color: '#fff', lineHeight: 1.1, marginBottom: 24, letterSpacing: '-2px' }}>
+          <h2 className="about-hero-heading">
             {info?.hero_title || 'Deliveries Made Simple.'}
           </h2>
-          <p style={{ fontSize: 'clamp(1rem, 2vw, 1.25rem)', color: 'rgba(255,255,255,0.9)', lineHeight: 1.6, maxWidth: 700, margin: '0 auto 40px' }}>
+          <p className="about-hero-subtext">
             {info?.hero_description || info?.short_description || 'Connecting businesses and families through reliable logistics.'}
           </p>
-          <div style={{ display: 'flex', gap: 16, justifyContent: 'center', flexWrap: 'wrap' }}>
+          <div className="about-hero-cta-row">
             <a href="#contact" className="about-hero-cta-primary">
               Contact Us <Send size={18} />
             </a>
@@ -948,10 +939,10 @@ const AboutPage = () => {
         >
           <div className="about-grid-2">
             <div>
-              <h2 style={{ fontSize: 'clamp(2rem, 4vw, 3rem)', fontWeight: 800, marginBottom: 24, letterSpacing: '-1px' }}>
+              <h2 className="about-story-heading">
                 About <span className="about-text-gradient">Cargo Express PH</span>.
               </h2>
-              <p style={{ fontSize: '1.125rem', color: 'var(--text-secondary)', lineHeight: 1.8, marginBottom: 8, whiteSpace: 'pre-wrap' }}>
+              <p className="about-story-body">
                 {info?.long_description || 'We are a dedicated logistics provider ensuring safe and timely delivery of your cargo.'}
               </p>
 
@@ -979,13 +970,13 @@ const AboutPage = () => {
             </div>
             
             {/* Image collage */}
-            <div className="about-story-image-container" style={{ position: 'relative' }}>
+            <div className="about-story-image-container">
               {/* Decorative dot pattern */}
-              <div className="about-dot-pattern" style={{ top: -20, right: -10 }} />
-              <div className="about-dot-pattern" style={{ bottom: 0, left: -15 }} />
+              <div className="about-dot-pattern about-dot-top" />
+              <div className="about-dot-pattern about-dot-bottom" />
               
-              <div style={{ position: 'relative' }}>
-                <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(45deg, rgba(var(--primary-rgb),0.1), rgba(var(--accent-rgb),0.1))', borderRadius: '50%', filter: 'blur(40px)', transform: 'scale(0.8)' }} />
+              <div className="about-story-img-wrap">
+                <div className="about-story-img-glow" />
                 <img 
                   src={heroImage} 
                   alt={`${companyName} Logistics`} 
@@ -1014,12 +1005,12 @@ const AboutPage = () => {
         >
           {features?.length > 0 ? (
             <>
-              <div style={{ textAlign: 'center', marginBottom: 48 }}>
+              <div className="about-section-header">
                 <div className="about-section-label">Why Choose Us</div>
                 <h2 className="about-section-title">The Cargo Express Advantage</h2>
               </div>
               <motion.div
-                style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 24 }}
+                className="about-features-grid"
                 variants={containerVariants}
                 initial="hidden"
                 whileInView="visible"
@@ -1037,8 +1028,8 @@ const AboutPage = () => {
                         <Icon size={28} />
                       </div>
                       <div>
-                        <h3 style={{ fontSize: '1.25rem', fontWeight: 800, marginBottom: 12, color: 'var(--text)' }}>{f.title}</h3>
-                        <p style={{ color: 'var(--text-secondary)', lineHeight: 1.6, fontSize: '0.9375rem' }}>{f.description}</p>
+                        <h3 className="about-feature-title">{f.title}</h3>
+                        <p className="about-feature-desc">{f.description}</p>
                       </div>
                     </motion.div>
                   );
@@ -1046,9 +1037,9 @@ const AboutPage = () => {
               </motion.div>
             </>
           ) : (
-            <div style={{ textAlign: 'center', padding: '48px 24px', background: 'var(--surface)', borderRadius: 24, border: '1px solid var(--border-light)' }}>
-              <Sparkles size={48} style={{ color: 'var(--text-tertiary)', marginBottom: 16 }} />
-              <div style={{ fontSize: '1.125rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Our feature details are being updated. Check back soon.</div>
+            <div className="about-empty-state">
+              <Sparkles size={48} className="about-empty-icon" />
+              <div className="about-empty-text">Our feature details are being updated. Check back soon.</div>
             </div>
           )}
         </motion.section>
@@ -1064,14 +1055,14 @@ const AboutPage = () => {
         >
           {coverage?.length > 0 ? (
             <>
-          <div className="about-bento-card" style={{ padding: '40px 24px' }}>
+          <div className="about-bento-card about-coverage-header-card">
               <div className="about-coverage-grid">
                 <div>
-                  <div style={{ width: 56, height: 56, borderRadius: 20, background: 'var(--primary)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 24 }}>
+                  <div className="about-coverage-icon-box">
                     <MapPin size={28} />
                   </div>
-                  <h2 style={{ fontSize: 'clamp(1.75rem, 3.5vw, 2.5rem)', fontWeight: 800, letterSpacing: '-1px', marginBottom: 16 }}>Where We Deliver</h2>
-                  <p style={{ color: 'var(--text-secondary)', fontSize: '1.05rem', lineHeight: 1.6, marginBottom: 16 }}>Explore the destinations we serve from Bohol. Select a destination on the map or a coverage card to preview its route.</p>
+                  <h2 className="about-coverage-heading">Where We Deliver</h2>
+                  <p className="about-coverage-desc">Explore the destinations we serve from Bohol. Select a destination on the map or a coverage card to preview its route.</p>
                   
                   <InteractiveMap 
                     coverage={coverage} 
@@ -1081,34 +1072,25 @@ const AboutPage = () => {
                 </div>
                 
                 <div className="about-coverage-regions">
-                  <div style={{ marginBottom: 16 }}>
-                    <div style={{ position: 'relative' }}>
-                      <Search size={18} style={{ position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)' }} />
+                  <div className="about-coverage-search-wrap">
+                    <div className="about-coverage-search-inner">
+                      <Search size={18} className="about-coverage-search-icon" />
                       <input 
                         type="text"
                         placeholder="Search municipalities..."
                         value={citySearchQuery}
                         onChange={(e) => setCitySearchQuery(e.target.value)}
-                        style={{
-                          width: '100%',
-                          padding: '14px 16px 14px 44px',
-                          borderRadius: 12,
-                          border: '1px solid var(--border)',
-                          background: 'var(--bg-secondary)',
-                          fontSize: '0.9375rem',
-                          outline: 'none',
-                          color: 'var(--text)'
-                        }}
+                        className="about-coverage-search-input"
                       />
                     </div>
                   </div>
                   {citySearchQuery && !coverage.some(region =>
                     region.municipalities?.some(m => m.name.toLowerCase().includes(citySearchQuery.toLowerCase()))
                   ) && (
-                    <div className="about-region-card" style={{ textAlign: 'center', padding: '32px 20px' }}>
-                      <Search size={22} style={{ color: 'var(--text-tertiary)', marginBottom: 10 }} aria-hidden="true" />
-                      <p style={{ fontWeight: 700, marginBottom: 4 }}>No municipalities found</p>
-                      <p style={{ color: 'var(--text-secondary)', fontSize: '0.9375rem' }}>
+                    <div className="about-region-card about-coverage-no-result">
+                      <Search size={22} className="about-coverage-no-result-icon" aria-hidden="true" />
+                      <p className="about-coverage-no-result-title">No municipalities found</p>
+                      <p className="about-coverage-no-result-desc">
                         Nothing matches “{citySearchQuery}”. Try a different spelling or a nearby town.
                       </p>
                     </div>
@@ -1132,13 +1114,12 @@ const AboutPage = () => {
                         role="button"
                         tabIndex={0}
                         aria-expanded={isExpanded}
-                        style={{ cursor: 'pointer', overflow: 'hidden' }}
                       >
-                        <h4 style={{ fontSize: '1.125rem', fontWeight: 800, marginBottom: isExpanded ? 16 : 0, display: 'flex', alignItems: 'center', gap: 12, justifyContent: 'space-between', transition: 'margin-bottom 0.2s' }}>
-                          <span style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                            <MapPin size={18} style={{ color: isSelected ? 'var(--primary)' : 'var(--text-tertiary)', transition: 'color 0.2s' }} /> {region.name}
+                        <h4>
+                          <span className="about-region-label-wrap">
+                            <MapPin size={18} className="about-region-pin-icon" /> {region.name}
                           </span>
-                          <ChevronDown size={18} style={{ color: 'var(--text-tertiary)', transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }} />
+                          <ChevronDown size={18} className="about-region-chevron" />
                         </h4>
                         
                         <AnimatePresence initial={false}>
@@ -1149,7 +1130,7 @@ const AboutPage = () => {
                               exit={{ height: 0, opacity: 0 }}
                               transition={{ duration: 0.2, ease: 'easeInOut' }}
                             >
-                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, paddingBottom: 4 }}>
+                              <div className="about-region-munis">
                                 {filteredMunis.map(muni => (
                                   <div key={muni.id} className="about-muni-tag">
                                     {muni.name}
@@ -1167,9 +1148,9 @@ const AboutPage = () => {
             </div>
             </>
           ) : (
-            <div style={{ textAlign: 'center', padding: '48px 24px', background: 'var(--surface)', borderRadius: 24, border: '1px solid var(--border-light)' }}>
-              <MapPin size={48} style={{ color: 'var(--text-tertiary)', marginBottom: 16 }} />
-              <div style={{ fontSize: '1.125rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Coverage information is being updated. Check back soon.</div>
+            <div className="about-empty-state">
+              <MapPin size={48} className="about-empty-icon" />
+              <div className="about-empty-text">Coverage information is being updated. Check back soon.</div>
             </div>
           )}
         </motion.section>
@@ -1185,13 +1166,13 @@ const AboutPage = () => {
         >
           {highlights?.length > 0 ? (
             <>
-          <div style={{ textAlign: 'center', marginBottom: 48 }}>
+          <div className="about-section-header">
               <div className="about-section-label">Delivery Highlights</div>
               <h2 className="about-section-title">Featured Shipments</h2>
             </div>
             
             <motion.div 
-              style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 24 }}
+              className="about-highlights-grid"
               variants={containerVariants}
               initial="hidden"
               whileInView="visible"
@@ -1208,8 +1189,8 @@ const AboutPage = () => {
                 >
                   <img src={highlight.resolved_image} alt={highlight.featured_title || 'Delivery photo'} loading="lazy" />
                   <div className="about-highlight-overlay">
-                    <div className="about-highlight-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <Package size={18} style={{ color: 'var(--primary-text)', flexShrink: 0 }} />
+                    <div className="about-highlight-title about-highlight-title-inner">
+                      <Package size={18} className="about-highlight-pkg-icon" />
                       <span>{highlight.featured_title}</span>
                     </div>
                     {highlight.featured_caption && (
@@ -1227,9 +1208,9 @@ const AboutPage = () => {
             </motion.div>
             </>
           ) : (
-            <div style={{ textAlign: 'center', padding: '48px 24px', background: 'var(--surface)', borderRadius: 24, border: '1px solid var(--border-light)' }}>
-              <Image size={48} style={{ color: 'var(--text-tertiary)', marginBottom: 16 }} />
-              <div style={{ fontSize: '1.125rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Featured delivery photos will appear here soon.</div>
+            <div className="about-empty-state">
+              <Image size={48} className="about-empty-icon" />
+              <div className="about-empty-text">Featured delivery photos will appear here soon.</div>
             </div>
           )}
         </motion.section>
@@ -1243,7 +1224,7 @@ const AboutPage = () => {
           viewport={{ once: true, margin: "-100px" }}
           transition={{ duration: 0.6 }}
         >
-          <div style={{ textAlign: 'center', marginBottom: 36 }}>
+          <div className="about-section-header-sm">
             <div className="about-section-label">Feedback</div>
             <h2 className="about-section-title">What Our Customers Say</h2>
           </div>
@@ -1271,18 +1252,18 @@ const AboutPage = () => {
           </div>
           
           {(!feedback || feedback.length === 0) ? (
-            <div style={{ textAlign: 'center', padding: '48px', background: 'var(--surface)', borderRadius: 24, border: '1px solid var(--border-light)' }}>
-              <MessageSquare size={48} style={{ color: 'var(--text-tertiary)', marginBottom: 16 }} />
-              <div style={{ fontSize: '1.125rem', fontWeight: 600, color: 'var(--text-secondary)' }}>No customer feedback has been submitted yet.</div>
+            <div className="about-empty-state about-empty-state-lg">
+              <MessageSquare size={48} className="about-empty-icon" />
+              <div className="about-empty-text">No customer feedback has been submitted yet.</div>
             </div>
           ) : filteredFeedback.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '48px', background: 'var(--surface)', borderRadius: 24, border: '1px solid var(--border-light)' }}>
-              <MessageSquare size={48} style={{ color: 'var(--text-tertiary)', marginBottom: 16 }} />
-              <div style={{ fontSize: '1.125rem', fontWeight: 600, color: 'var(--text-secondary)' }}>No {selectedRating}-star reviews found.</div>
+            <div className="about-empty-state about-empty-state-lg">
+              <MessageSquare size={48} className="about-empty-icon" />
+              <div className="about-empty-text">No {selectedRating}-star reviews found.</div>
             </div>
           ) : (
             <motion.div 
-              style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 24 }}
+              className="about-reviews-grid"
               variants={containerVariants}
               initial="hidden"
               whileInView="visible"
@@ -1301,31 +1282,31 @@ const AboutPage = () => {
                     <div className="about-quote-mark">"</div>
                     
                     <div>
-                      <div style={{ display: 'flex', gap: 4, marginBottom: 16 }}>
+                      <div className="about-review-stars">
                         {[1, 2, 3, 4, 5].map(star => (
                           <svg key={star} width="20" height="20" viewBox="0 0 24 24" fill={star <= fb.rating ? "var(--warning)" : "var(--border)"} stroke="none">
                             <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
                           </svg>
                         ))}
                       </div>
-                      <p style={{ fontSize: isHero ? '1.15rem' : '1.05rem', lineHeight: 1.7, color: 'var(--text)', marginBottom: 24, fontStyle: 'italic', position: 'relative', zIndex: 1 }}>"{fb.message}"</p>
+                      <p className="about-review-text">"{fb.message}"</p>
                       
                       {fb.resolved_image && (
-                        <div style={{ marginBottom: 24, borderRadius: 16, overflow: 'hidden', height: isHero ? 200 : 160 }}>
-                          <img src={fb.resolved_image} alt="Delivery Proof" loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        <div className="about-review-photo">
+                          <img src={fb.resolved_image} alt="Delivery Proof" loading="lazy" />
                         </div>
                       )}
 
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                        <div style={{ width: 42, height: 42, borderRadius: '50%', background: 'linear-gradient(135deg, rgba(var(--primary-rgb), 0.15), rgba(var(--primary-rgb), 0.05))', color: 'var(--primary-text)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: '1.1rem' }}>
+                      <div className="about-reviewer-row">
+                        <div className="about-reviewer-avatar">
                           {firstName[0].toUpperCase()}
                         </div>
                         <div>
-                          <div style={{ fontWeight: 700, fontSize: '0.9375rem', display: 'flex', alignItems: 'center', gap: 6, color: 'var(--text)' }}>
+                          <div className="about-reviewer-name">
                             {'\u2014'} {firstName}
                           </div>
                           {fb.orders?.receiver_city && (
-                            <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginTop: 2 }}>
+                            <div className="about-reviewer-location">
                               Delivered to {fb.orders.receiver_city}{fb.orders.receiver_province ? `, ${fb.orders.receiver_province}` : ''}
                             </div>
                           )}
@@ -1353,18 +1334,18 @@ const AboutPage = () => {
               
               {/* Left: Contact Info */}
               <div className="about-contact-info">
-                <h2 style={{ fontSize: 'clamp(1.75rem, 3.5vw, 2.5rem)', fontWeight: 800, letterSpacing: '-1px', marginBottom: 16 }}>Get in Touch.</h2>
-                <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '1.05rem', lineHeight: 1.6, marginBottom: 32 }}>
+                <h2 className="about-contact-heading">Get in Touch.</h2>
+                <p className="about-contact-subtext">
                   Have questions about our services? Need a quote? Our team is ready to assist you 24/7.
                 </p>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+                <div className="about-contact-blocks">
                   {(info?.smart_phone || info?.globe_phone) && (
                     <div className="about-contact-block">
                       <div className="about-contact-icon-box"><Phone size={20} /></div>
                       <div>
-                        <div style={{ fontWeight: 700, fontSize: '1.05rem', marginBottom: 4 }}>Call Us</div>
-                        <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.9375rem', lineHeight: 1.5, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        <div className="about-contact-block-title">Call Us</div>
+                        <div className="about-contact-block-body">
                           {info.smart_phone && (
                             <div>Smart: <a href={`tel:${info.smart_phone}`} className="about-contact-link">{info.smart_phone}</a></div>
                           )}
@@ -1380,7 +1361,7 @@ const AboutPage = () => {
                     <div className="about-contact-block">
                       <div className="about-contact-icon-box"><Mail size={20} /></div>
                       <div>
-                        <div style={{ fontWeight: 700, fontSize: '1.05rem', marginBottom: 4 }}>Email Us</div>
+                        <div className="about-contact-block-title">Email Us</div>
                         <a href={`mailto:${info.email}`} className="about-contact-link">{info.email}</a>
                       </div>
                     </div>
@@ -1390,8 +1371,8 @@ const AboutPage = () => {
                     <div className="about-contact-block">
                       <div className="about-contact-icon-box"><MapPin size={20} /></div>
                       <div>
-                        <div style={{ fontWeight: 700, fontSize: '1.05rem', marginBottom: 4 }}>Visit Our Hubs</div>
-                        <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.9375rem', lineHeight: 1.5, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        <div className="about-contact-block-title">Visit Our Hubs</div>
+                        <div className="about-contact-block-body about-contact-block-body-lg">
                           {info.manila_address && <div><strong>Manila:</strong> {info.manila_address}</div>}
                           {info.bohol_address && <div><strong>Bohol:</strong> {info.bohol_address}</div>}
                         </div>
@@ -1403,13 +1384,13 @@ const AboutPage = () => {
 
               {/* Right: Form */}
               <div className="about-contact-form">
-                <h3 style={{ fontSize: 'clamp(1.35rem, 3vw, 1.75rem)', fontWeight: 800, marginBottom: 24, color: 'var(--text)' }}>Send a Message</h3>
+                <h3 className="about-contact-form-title">Send a Message</h3>
                 {/* noValidate, as every other form in the app is: the browser's
                     native bubble would otherwise intercept the submit and this
                     form's own inline errors would never render. */}
-                <form onSubmit={handleSubmit} noValidate style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                <form onSubmit={handleSubmit} noValidate className="about-contact-form-body">
                   <div>
-                    <label htmlFor="contact-name" style={{ display: 'block', fontWeight: 700, fontSize: '0.875rem', marginBottom: 8, color: 'var(--text-secondary)' }}>Full Name</label>
+                    <label htmlFor="contact-name" className="about-form-label">Full Name</label>
                     <input 
                       id="contact-name"
                       className={`about-premium-input ${invalidClass('name', errors)}`}
@@ -1422,7 +1403,7 @@ const AboutPage = () => {
                     <FieldError name="name" errors={errors} />
                   </div>
                   <div>
-                    <label htmlFor="contact-phone" style={{ display: 'block', fontWeight: 700, fontSize: '0.875rem', marginBottom: 8, color: 'var(--text-secondary)' }}>Mobile Number or Email</label>
+                    <label htmlFor="contact-phone" className="about-form-label">Mobile Number or Email</label>
                     <input
                       id="contact-phone"
                       type="text"
@@ -1436,11 +1417,10 @@ const AboutPage = () => {
                     <FieldError name="phone" errors={errors} />
                   </div>
                   <div>
-                    <label htmlFor="contact-message" style={{ display: 'block', fontWeight: 700, fontSize: '0.875rem', marginBottom: 8, color: 'var(--text-secondary)' }}>Message</label>
+                    <label htmlFor="contact-message" className="about-form-label">Message</label>
                     <textarea 
                       id="contact-message"
-                      style={{ minHeight: 120, resize: 'vertical' }}
-                      className={`about-premium-input ${invalidClass('message', errors)}`}
+                      className={`about-premium-input about-form-textarea ${invalidClass('message', errors)}`}
                       placeholder="How can we help you?"
                       value={form.message}
                       onChange={e => { setForm(p => ({ ...p, message: e.target.value })); clearError('message'); }}
@@ -1467,7 +1447,7 @@ const AboutPage = () => {
 
       {/* â•â•â• Wave Divider â•â•â• */}
       <div className="about-wave-divider">
-        <svg viewBox="0 0 1440 100" preserveAspectRatio="none" style={{ fill: '#0a0a0a' }}>
+        <svg viewBox="0 0 1440 100" preserveAspectRatio="none" className="about-wave-svg">
           <path d="M0,40 C320,100 440,0 720,50 C1000,100 1120,10 1440,60 L1440,100 L0,100 Z" />
         </svg>
       </div>
@@ -1477,15 +1457,15 @@ const AboutPage = () => {
         <div className="about-footer-grid">
           {/* Brand Column */}
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+            <div className="about-footer-brand">
               <BrandLogo size={34} decorative />
-              <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 900, letterSpacing: '-0.3px' }}>{companyName}</h3>
+              <h3>{companyName}</h3>
             </div>
-            <p style={{ color: 'rgba(255,255,255,0.55)', lineHeight: 1.7, fontSize: '0.9375rem', marginBottom: 24 }}>
+            <p className="about-footer-desc">
               {info?.short_description || 'Reliable logistics and cargo delivery services across the Philippines.'}
             </p>
             {/* Social Media */}
-            <div style={{ display: 'flex', gap: 12 }}>
+            <div className="about-footer-social">
               {info?.facebook && (
                 <a href={info.facebook} target="_blank" rel="noreferrer" className="about-social-btn" title="Facebook">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
@@ -1511,7 +1491,7 @@ const AboutPage = () => {
           {/* Quick Links */}
           <div>
             <h4 className="about-footer-heading">Quick Links</h4>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div className="about-footer-links">
               <Link to="/track" className="about-footer-link">Track Your Order</Link>
               <Link to="/login" className="about-footer-link">Customer Portal</Link>
               <a href="#features" className="about-footer-link" onClick={(e) => { e.preventDefault(); scrollToSection('features'); }}>Our Services</a>
@@ -1522,7 +1502,7 @@ const AboutPage = () => {
           {/* Company */}
           <div>
             <h4 className="about-footer-heading">Company</h4>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div className="about-footer-links">
               <a href="#story" className="about-footer-link" onClick={(e) => { e.preventDefault(); scrollToSection('story'); }}>About Us</a>
               <a href="#feedback" className="about-footer-link" onClick={(e) => { e.preventDefault(); scrollToSection('feedback'); }}>Customer Reviews</a>
               <a href="#highlights" className="about-footer-link" onClick={(e) => { e.preventDefault(); scrollToSection('highlights'); }}>Gallery</a>
@@ -1533,8 +1513,8 @@ const AboutPage = () => {
 
         <div className="about-footer-bottom">
           <span>&copy; {new Date().getFullYear()} {companyName}. All rights reserved.</span>
-          <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ color: 'var(--primary-text)' }}>{'\u25CF'}</span> System Online
+          <span className="about-footer-status">
+            <span className="about-footer-status-dot">{'\u25CF'}</span> System Online
           </span>
         </div>
       </footer>
