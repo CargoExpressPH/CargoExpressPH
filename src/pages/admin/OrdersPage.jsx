@@ -1,7 +1,9 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { getOrders, withTimeout } from '../../lib/database';
+import { getOrders, getOrderStatusCounts, withTimeout } from '../../lib/database';
 import useNetworkRecovery from '../../hooks/useNetworkRecovery';
+import useRealtimeOrders from '../../hooks/useRealtimeOrders';
+import { useAuth } from '../../contexts/AuthContext';
 import StatusBadge from '../../components/ui/StatusBadge';
 import { SkeletonTableRow } from '../../components/ui/SkeletonLoader';
 import EmptyState from '../../components/ui/EmptyState';
@@ -33,12 +35,23 @@ const FILTER_GROUPS = [
 const statusesForTab = (tab) =>
   FILTER_GROUPS.find(g => g.value === tab)?.statuses ?? null;
 
+// Which tabs carry a badge. 'All' is a total, not a queue — a number there
+// would compete with the two that mean something. 'Completed' and 'Cancelled'
+// only grow, so their counts are trivia, not work.
+const BADGED_TABS = ['Action Needed', 'Pending', 'Active'];
+
+// Sum the per-status counts the RPC returns into one group's total. A status
+// absent from the payload has no orders, which is a 0 here.
+const groupCount = (statusCounts, statuses) =>
+  statuses.reduce((sum, status) => sum + (statusCounts[status] || 0), 0);
+
 // Debounce delay in ms — avoids firing a DB query on every keystroke.
 // Matches CustomersPage so admin search feels consistent across pages.
 const SEARCH_DEBOUNCE_MS = 350;
 
 const AdminOrdersPage = () => {
   usePageTitle('Bookings');
+  const { user } = useAuth();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -76,16 +89,79 @@ const AdminOrdersPage = () => {
     }
   };
 
+  // loadOrders closes over the current tab, page and search. The refresh
+  // callbacks below are memoized (so they don't re-subscribe the socket on
+  // every render), which would otherwise pin them to the first render's
+  // filters and reload page 1 of "All" forever.
+  const loadOrdersRef = useRef(loadOrders);
+  loadOrdersRef.current = loadOrders;
+
   useEffect(() => { loadOrders(); }, [currentPage, perPage, activeTab, debouncedSearch]);
+
+  // ── Filter badges ────────────────────────────────────────────────────────
+  // Deliberately NOT part of loadOrders: the counts do not depend on the tab,
+  // the page, or the search box, so recomputing them on every keystroke or
+  // page turn would be an aggregate over the whole orders table for an answer
+  // that has not changed. They move only when an order's status does, which is
+  // mount, a realtime batch, and coming back from offline.
+  //
+  // null (not {}) until the first load, so a badge is absent rather than
+  // claiming zero while the answer is still unknown.
+  const [statusCounts, setStatusCounts] = useState(null);
+
+  const loadStatusCounts = useCallback(async () => {
+    try {
+      setStatusCounts(await getOrderStatusCounts());
+    } catch {
+      // A failed count must not take the list down with it — the table is the
+      // page, the badges are decoration. Leave whatever was there.
+    }
+  }, []);
+
+  useEffect(() => { loadStatusCounts(); }, [loadStatusCounts]);
 
   // Cleanup debounce on unmount so a pending timer can't set state after teardown
   useEffect(() => () => clearTimeout(debounceTimer.current), []);
 
-  useNetworkRecovery(loadOrders);
+  const handleRecovery = useCallback(() => {
+    loadOrdersRef.current();
+    loadStatusCounts();
+  }, [loadStatusCounts]);
 
-  // Counts would need one COUNT query per group; the list already reports the
-  // total for the active filter in the header, so they stay off.
-  const filterOptions = FILTER_GROUPS.map(g => ({ value: g.value, label: g.label, count: null }));
+  useNetworkRecovery(handleRecovery);
+
+  // One admin action fans out across many rows (a trip cascade rewrites every
+  // order aboard), so the hook's debounce collapses the burst into one refresh
+  // of both the rows on screen and the badge totals.
+  const handleRealtimeBatch = useCallback(() => {
+    loadOrdersRef.current();
+    loadStatusCounts();
+  }, [loadStatusCounts]);
+
+  useRealtimeOrders({
+    // Keyed off the session, not off `loading`: this list sets loading on every
+    // tab change and page turn, so gating on it would tear the socket down and
+    // rebuild it each time the admin clicks a filter.
+    enabled: Boolean(user?.id),
+    channelName: 'admin_orders_list',
+    userId: user?.id,
+    debounceMs: 1500,
+    onBatch: handleRealtimeBatch,
+  });
+
+  const filterOptions = FILTER_GROUPS.map(g => {
+    const badged = statusCounts && BADGED_TABS.includes(g.value);
+    const count = badged ? groupCount(statusCounts, g.statuses) : null;
+    return {
+      value: g.value,
+      label: g.label,
+      // A zero queue is good news and needs no pill; showing "0" three times
+      // trains the eye to skip the row where the real number appears.
+      count: count > 0 ? count : null,
+      // Red only where a human is blocked waiting on a decision.
+      countClassName: g.value === 'Action Needed' ? 'tab-count-alert' : undefined,
+    };
+  });
 
   const handleTabChange = (tab) => { setActiveTab(tab); setCurrentPage(1); };
   const handleSearchChange = (e) => {

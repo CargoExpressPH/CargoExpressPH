@@ -478,6 +478,33 @@ $function$
 
 
 
+CREATE OR REPLACE FUNCTION public.get_order_status_counts()
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  payload JSONB;
+BEGIN
+  IF NOT public.is_admin() THEN
+    RAISE EXCEPTION 'Admin access required';
+  END IF;
+
+  SELECT COALESCE(jsonb_object_agg(s.status, s.n), '{}'::jsonb)
+    INTO payload
+  FROM (
+    SELECT status, COUNT(*) AS n
+      FROM public.orders
+     GROUP BY status
+  ) s;
+
+  RETURN payload;
+END;
+$function$
+
+
+
 CREATE OR REPLACE FUNCTION public.get_public_business_profile()
  RETURNS TABLE(name text, smart_phone text, globe_phone text, facebook_link text, manila_address text, bohol_address text)
  LANGUAGE sql

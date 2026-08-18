@@ -271,6 +271,19 @@ export const getOrders = async (userId, isAdmin = false, options = {}) => {
   return data || [];
 };
 
+/**
+ * { 'Pending': 12, 'In Transit': 3, … } across every order — admin only.
+ *
+ * One grouped aggregate in one round trip, not one COUNT per filter tab. The
+ * caller sums these into whatever groups it displays; a status with no orders
+ * is absent from the object, so read a missing key as 0.
+ */
+export const getOrderStatusCounts = async () => {
+  const { data, error } = await withTimeout(supabase.rpc('get_order_status_counts'));
+  if (error) throw error;
+  return data || {};
+};
+
 export const getOrderById = async (orderId) => {
   const { data, error } = await supabase
     .from('orders')

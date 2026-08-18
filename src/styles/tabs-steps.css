@@ -34,6 +34,15 @@
 .tab.active .tab-count {
   background: var(--primary-bg); color: var(--primary-text);
 }
+/* A count that means "someone is waiting on you". Reserved for queues that
+   need a decision — if every tab were red, none of them would be. Tinted
+   rather than solid so it reads as a badge, not a button; --error-text-strong
+   is the variant tuned for text on --error-bg in both themes. */
+.tab-count-alert,
+.tab .tab-count.tab-count-alert,
+.tab.active .tab-count.tab-count-alert {
+  background: var(--error-bg); color: var(--error-text-strong);
+}
 
 
 /* --- STEP PROGRESS ----------------------------------------------------- */

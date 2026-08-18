@@ -94,7 +94,9 @@ const ResponsiveFilterControls = ({
             >
               {Icon && <Icon size={option.iconSize || 14} aria-hidden="true" />}
               <span>{option.label}</span>
-              {option.count != null && <span className="tab-count">{option.count}</span>}
+              {option.count != null && (
+                <span className={`tab-count ${option.countClassName || ''}`.trim()}>{option.count}</span>
+              )}
             </button>
           );
         })}
@@ -137,7 +139,9 @@ const ResponsiveFilterControls = ({
                     <span>{option.label}</span>
                   </span>
                   <span className="responsive-filter-option-meta">
-                    {option.count != null && <span className="tab-count">{option.count}</span>}
+                    {option.count != null && (
+                <span className={`tab-count ${option.countClassName || ''}`.trim()}>{option.count}</span>
+              )}
                     {active && <Check size={15} aria-hidden="true" />}
                   </span>
                 </button>
