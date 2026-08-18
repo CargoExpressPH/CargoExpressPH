@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { createTrip } from '../../lib/database';
+import { createTrip, findDuplicateTrip, duplicateTripMessage } from '../../lib/database';
 import { ROUTES } from '../../constants/phLocations';
 import { ArrowLeft, Calendar, Loader, Truck, Package, FileText, Lightbulb } from 'lucide-react';
 import { useToast } from '../../hooks/useToast';
@@ -33,6 +33,8 @@ const CreateTripPage = () => {
     u('origin', route.origin);
     u('destination', route.destination);
     clearError('route');
+    // A "already scheduled" message names this route; switching route retires it.
+    clearError('departure_date');
   };
 
   const buildRules = () => ({
@@ -66,6 +68,24 @@ const CreateTripPage = () => {
 
     setLoading(true);
     try {
+      // One departure per route per day. Checked here so the admin is told
+      // before the trip number is burned and the auto-assignment runs; the
+      // unique index in 20260818090000 is what actually enforces it.
+      const departureISO = phLocalInputToISO(form.departure_date);
+      const duplicate = await findDuplicateTrip({
+        origin: form.origin,
+        destination: form.destination,
+        departure_date: departureISO,
+      });
+      if (duplicate) {
+        // validate() rather than setError(): it also scrolls the date field
+        // into view, which is the field the admin has to change.
+        validate({
+          departure_date: duplicateTripMessage(form.origin, form.destination, departureISO),
+        });
+        return;
+      }
+
       const result = await createTrip({
         ...form,
         // Stamp +08:00 before the insert. The datetime-local inputs are naive,

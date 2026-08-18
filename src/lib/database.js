@@ -2,6 +2,7 @@ import { supabase } from './supabase';
 import { logOrder, logPayment, logChat } from './activityLog';
 import { validateStatusTransition, outstandingBalance, ORDER_STATUS } from '../constants/status';
 import { detectPickupLocation } from '../constants/phLocations';
+import { phDayRangeISO, formatPhDate } from '../utils/datetime';
 
 // ==================== HELPER ====================
 // ─────────────────────────────────────────────────────────────────────────────
@@ -457,11 +458,58 @@ export const getPendingGrouped = async () => {
 };
 
 // ==================== TRIPS ====================
+
+/**
+ * One route may run once per calendar day. The message is built here so the
+ * pre-flight check in the form and the failure thrown by createTrip word it
+ * identically — the admin should not be able to tell which one caught it.
+ */
+export const duplicateTripMessage = (origin, destination, departureDate) =>
+  `A trip from ${origin} to ${destination} is already scheduled for ${formatPhDate(departureDate)}.`;
+
+/**
+ * The existing non-cancelled trip on the same route and the same *Philippine*
+ * calendar day, or null. The window is computed as an instant range rather than
+ * a DATE() cast because departure_date is TIMESTAMPTZ: a 6:00 AM Manila
+ * departure is stored as 22:00 UTC the previous day, so comparing UTC dates
+ * would file it under the wrong day. See phDayRangeISO.
+ *
+ * This is a courtesy check, not the enforcement — two admins submitting at once
+ * both pass it. The unique index added in 20260818090000 is what actually
+ * prevents the duplicate row; createTrip translates its 23505 back into this
+ * same sentence.
+ */
+export const findDuplicateTrip = async ({ origin, destination, departure_date, excludeTripId } = {}) => {
+  if (!origin || !destination || !departure_date) return null;
+  const { start, end } = phDayRangeISO(departure_date);
+  if (!start || !end) return null;
+
+  let query = supabase
+    .from('trips')
+    .select('id, trip_number, origin, destination, departure_date, status')
+    .eq('origin', origin)
+    .eq('destination', destination)
+    .gte('departure_date', start)
+    .lt('departure_date', end)
+    .neq('status', 'cancelled')
+    .limit(1);
+  if (excludeTripId) query = query.neq('id', excludeTripId);
+
+  const { data, error } = await withTimeout(query);
+  if (error) throw error;
+  return data?.[0] || null;
+};
+
 export const createTrip = async (tripData) => {
   const tripNumber = generateTripNumber();
-  
+
   const { data: user } = await supabase.auth.getUser();
-  
+
+  const duplicate = await findDuplicateTrip(tripData);
+  if (duplicate) {
+    throw new Error(duplicateTripMessage(tripData.origin, tripData.destination, tripData.departure_date));
+  }
+
   const { data, error } = await supabase
     .from('trips')
     .insert({
@@ -476,7 +524,13 @@ export const createTrip = async (tripData) => {
     })
     .select()
     .single();
-  if (error) throw error;
+  if (error) {
+    // The index is the real gate; the check above only loses a round trip.
+    if (error.code === '23505' && /trips_unique_route_departure_day/.test(error.message || '')) {
+      throw new Error(duplicateTripMessage(tripData.origin, tripData.destination, tripData.departure_date));
+    }
+    throw error;
+  }
 
   // Auto-assign pending orders matching this route
   let autoAssignedCount = 0;

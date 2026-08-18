@@ -52,6 +52,35 @@ export const isoToPhLocalInput = (iso) => {
   return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}`;
 };
 
+/**
+ * Timestamp (or naive `datetime-local` value) → its PH calendar day, "2026-08-24".
+ * This is the day a Filipino admin means when they say "the 24th" — never the
+ * UTC day, which for anything before 8:00 AM local is the day before.
+ */
+export const phDateKey = (value) => {
+  if (!value) return '';
+  const d = new Date(phLocalInputToISO(value));
+  if (Number.isNaN(d.getTime())) return '';
+  // en-CA formats as YYYY-MM-DD.
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: PH_TIME_ZONE, year: 'numeric', month: '2-digit', day: '2-digit',
+  }).format(d);
+};
+
+/**
+ * Timestamp → the half-open instant range covering that whole PH calendar day,
+ * `[start, end)`, as offset-qualified ISO strings. Used to ask PostgREST
+ * "any row on this day?" without a server-side DATE() cast that would answer in
+ * UTC. Returns nulls for an unparseable input.
+ */
+export const phDayRangeISO = (value) => {
+  const key = phDateKey(value);
+  if (!key) return { start: null, end: null };
+  const start = `${key}T00:00:00+08:00`;
+  const next = new Date(new Date(start).getTime() + 24 * 60 * 60 * 1000);
+  return { start, end: `${phDateKey(next.toISOString())}T00:00:00+08:00` };
+};
+
 const formatInPH = (value, opts) => {
   if (!value) return '—';
   const d = value instanceof Date ? value : new Date(value);

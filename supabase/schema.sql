@@ -1888,6 +1888,16 @@ $function$
 
 
 
+CREATE OR REPLACE FUNCTION public.ph_calendar_day(ts timestamp with time zone)
+ RETURNS date
+ LANGUAGE sql
+ IMMUTABLE STRICT PARALLEL SAFE
+AS $function$
+  SELECT ((ts + INTERVAL '8 hours') AT TIME ZONE 'UTC')::date;
+$function$
+
+
+
 CREATE OR REPLACE FUNCTION public.safe_uuid(value text)
  RETURNS uuid
  LANGUAGE plpgsql
@@ -2421,6 +2431,13 @@ CREATE INDEX IF NOT EXISTS idx_profiles_role ON public.profiles USING btree (rol
 CREATE INDEX IF NOT EXISTS idx_trips_departure_date ON public.trips USING btree (departure_date);
 
 CREATE INDEX IF NOT EXISTS idx_trips_status ON public.trips USING btree (status);
+
+-- One non-cancelled trip per route per PH calendar day (20260818090000).
+-- ph_calendar_day() exists because AT TIME ZONE <name> is STABLE and therefore
+-- not indexable; PHT is a fixed UTC+8 so the offset form is genuinely immutable.
+CREATE UNIQUE INDEX IF NOT EXISTS trips_unique_route_departure_day
+  ON public.trips USING btree (origin, destination, public.ph_calendar_day(departure_date))
+  WHERE ((status)::text <> 'cancelled'::text);
 
 CREATE INDEX IF NOT EXISTS idx_user_device_tokens_user_id ON public.user_device_tokens USING btree (user_id);
 
