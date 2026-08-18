@@ -691,7 +691,7 @@ const BookShipmentPage = () => {
       {/* Step 1: Route */}
       {step === 1 && (
         <div className="card animate-fade-in"><div className="card-body">
-          <h3 className="fw-700 mb-16"><MapPin size={18} className="inline mr-8" />Select Route</h3>
+          <h3 className="fw-700 mb-16 flex items-center gap-8"><MapPin size={18} aria-hidden="true" />Select Route</h3>
           <div className="alert-banner alert-banner-info mb-16" style={{ fontSize: '0.8125rem' }}>
             <Info size={14} aria-hidden="true" />
             <span><strong>Coverage Area:</strong> Cargo Express PH currently operates routes to and from <strong>Bohol only</strong>. Select a route below to view specific province rules.</span>
@@ -757,7 +757,7 @@ const BookShipmentPage = () => {
       {/* Step 2: Sender */}
       {step === 2 && (
         <div className="card animate-fade-in"><div className="card-body">
-          <h3 className="fw-700 mb-16"><User size={18} className="inline mr-8" />Sender Details</h3>
+          <h3 className="fw-700 mb-16 flex items-center gap-8"><User size={18} aria-hidden="true" />Sender Details</h3>
           {showSenderCheckbox && (
             <div className="mb-20 p-12 flex items-center gap-10 rounded-sm" style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)' }}>
               <input type="checkbox" id="useRegSender" checked={useRegisteredSender} onChange={e => handleUseRegisteredSenderChange(e.target.checked)} className="w-18" style={{ height: 18 }} />
@@ -777,7 +777,7 @@ const BookShipmentPage = () => {
       {/* Step 3: Receiver */}
       {step === 3 && (
         <div className="card animate-fade-in"><div className="card-body">
-          <h3 className="fw-700 mb-16"><User size={18} className="inline mr-8" />Receiver Details</h3>
+          <h3 className="fw-700 mb-16 flex items-center gap-8"><User size={18} aria-hidden="true" />Receiver Details</h3>
           {showReceiverCheckbox && (
             <div className="mb-20 p-12 flex items-center gap-10 rounded-sm" style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)' }}>
               <input type="checkbox" id="useRegReceiver" checked={useRegisteredReceiver} onChange={e => handleUseRegisteredReceiverChange(e.target.checked)} className="w-18" style={{ height: 18 }} />
@@ -799,7 +799,7 @@ const BookShipmentPage = () => {
       {/* Step 4: Package */}
       {step === 4 && (
         <div className="card animate-fade-in"><div className="card-body">
-          <h3 className="fw-700 mb-16"><Package size={18} className="inline mr-8" />Package Details</h3>
+          <h3 className="fw-700 mb-16 flex items-center gap-8"><Package size={18} aria-hidden="true" />Package Details</h3>
           <div className="form-group">
             <label className="form-label" htmlFor="package-description">What are you sending? <span className="text-danger">*</span></label>
             <input id="package-description" className={`form-input ${fieldErrors.package_description ? 'field-invalid' : ''}`} value={form.package_description} onChange={e => { u('package_description', e.target.value); setFieldErrors(prev => ({...prev, package_description: false})); }} placeholder="e.g. Documents, 2 boxes of clothes, small appliance" aria-invalid={fieldErrors.package_description ? 'true' : undefined} aria-describedby={fieldErrors.package_description ? 'package-description-error package-description-helper' : 'package-description-helper'} />

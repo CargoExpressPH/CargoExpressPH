@@ -571,7 +571,7 @@ const OrderDetailPage = () => {
       {/* Package Details */}
       <div className="customer-detail-card customer-package-card card stagger-item mb-16" style={{ animationDelay: '180ms' }}>
         <div className="card-body p-16">
-          <h4 className="fw-700 mb-12"><Package size={16} className="inline mr-8" />Package Details</h4>
+          <h4 className="fw-700 mb-12 flex items-center gap-8"><Package size={16} aria-hidden="true" />Package Details</h4>
           <div className="grid grid-2 gap-12">
             <div><span className="text-xs text-tertiary">Description</span><div className="text-sm">{order.package_description || '—'}</div></div>
 
@@ -644,7 +644,7 @@ const OrderDetailPage = () => {
       {/* Payment */}
       <div className="customer-detail-card customer-payment-card card stagger-item" style={{ animationDelay: '300ms' }}>
         <div className="card-body p-16">
-          <h4 className="fw-700 mb-12"><CreditCard size={16} className="inline mr-8" />Payment Details</h4>
+          <h4 className="fw-700 mb-12 flex items-center gap-8"><CreditCard size={16} aria-hidden="true" />Payment Details</h4>
           <div className="customer-payment-summary mb-20">
             <div className="text-center">
               <div className="text-xs text-tertiary">Shipping Cost</div>

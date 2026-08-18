@@ -599,7 +599,7 @@ const SupportChatPage = () => {
         <h1 className="sr-only">Support Chat</h1>
         <div className="mb-16">
           <h2 className="fw-800 mb-4 flex items-center gap-8">
-            <MessageSquare size={22} color="var(--primary)" />
+            <MessageSquare size={24} aria-hidden="true" />
             Support Chat
           </h2>
           <p className="text-secondary text-sm">Message our support team for help with your shipments.</p>
@@ -636,7 +636,7 @@ const SupportChatPage = () => {
       <h1 className="sr-only">Support Chat</h1>
       <div className="mb-16">
         <h2 className="fw-800 mb-4 flex items-center gap-8">
-          <MessageSquare size={22} color="var(--primary)" />
+          <MessageSquare size={24} aria-hidden="true" />
           Support Chat
         </h2>
         <p className="text-secondary text-sm">
