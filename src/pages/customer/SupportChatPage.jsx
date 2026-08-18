@@ -108,7 +108,7 @@ const MessageBubble = ({ m, showResolutionPrompt, onResolve, onEscalate, onRetry
               onClick={onEscalate}
               disabled={actionsDisabled}
             >
-              Talk to an Agent
+              Talk to an Admin
             </button>
           </div>
         )}
@@ -652,7 +652,7 @@ const SupportChatPage = () => {
       {isWaiting && (
         <div className="chat-waiting-banner" role="status">
           <Clock size={16} />
-          <span>Connecting you to a support agent. You can keep adding details here while you wait.</span>
+          <span>Connecting you to an admin. You can keep adding details here while you wait.</span>
         </div>
       )}
 
@@ -749,7 +749,7 @@ const SupportChatPage = () => {
           ref={textareaRef}
           className="form-input flex-1"
           placeholder={
-            isWaiting  ? 'Leave more details for the support agent...' :
+            isWaiting  ? 'Leave more details for the admin...' :
             isResolved ? 'Reply to reopen this conversation…' :
             botTyping  ? 'Assistant is typing…' :
             isBotMode  ? 'Ask about your shipment…' :

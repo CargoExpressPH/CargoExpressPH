@@ -21,7 +21,6 @@ const AboutVersionPage = () => {
   const [companyInfo, setCompanyInfo] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isOnline, setIsOnline] = useState(typeof navigator === 'undefined' ? true : navigator.onLine);
-  const [serviceWorkerReady, setServiceWorkerReady] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -34,12 +33,6 @@ const AboutVersionPage = () => {
     const updateOnlineState = () => setIsOnline(navigator.onLine);
     window.addEventListener('online', updateOnlineState);
     window.addEventListener('offline', updateOnlineState);
-
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.getRegistration()
-        .then(registration => setServiceWorkerReady(Boolean(registration?.active || navigator.serviceWorker.controller)))
-        .catch(() => setServiceWorkerReady(false));
-    }
 
     return () => {
       isMounted = false;
@@ -92,16 +85,11 @@ const AboutVersionPage = () => {
         </div>
       </div>
 
-      <div className="grid grid-3 gap-12 mb-16">
+      <div className="grid grid-2 gap-12 mb-16">
         <div className="card card-body">
           <Wifi size={18} className={isOnline ? 'text-success' : 'text-error'} />
           <div className="text-xs text-tertiary mt-8">Network</div>
           <div className="fw-800">{isOnline ? 'Online' : 'Offline'}</div>
-        </div>
-        <div className="card card-body">
-          <ShieldCheck size={18} className={serviceWorkerReady ? 'text-success' : 'text-tertiary'} />
-          <div className="text-xs text-tertiary mt-8">PWA Cache</div>
-          <div className="fw-800">{serviceWorkerReady ? 'Ready' : 'Not active'}</div>
         </div>
         <div className="card card-body">
           <Bell size={18} className="text-primary" />
