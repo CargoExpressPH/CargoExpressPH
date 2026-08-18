@@ -1078,6 +1078,7 @@ const AboutPage = () => {
                       <input 
                         type="text"
                         placeholder="Search municipalities..."
+                        aria-label="Search municipalities"
                         value={citySearchQuery}
                         onChange={(e) => setCitySearchQuery(e.target.value)}
                         className="about-coverage-search-input"
