@@ -58,24 +58,21 @@ const SortableRegion = ({ region, handleEditRegion, setDeleteTarget, handleAddNe
     <div ref={setNodeRef} style={style}>
       {/* Region Header */}
       <div
+        className="flex justify-between items-center cursor-pointer select-none"
         style={{
           padding: '12px 16px',
           background: 'var(--bg-secondary)',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          cursor: 'pointer',
-          userSelect: 'none',
           borderBottom: isExpanded ? '1px solid var(--border-light)' : 'none',
           transition: 'border-bottom 0ms 250ms'
         }}
         onClick={onToggle}
       >
-        <div style={{ fontWeight: 700, fontSize: '0.9375rem', display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div className="flex items-center" style={{ fontWeight: 700, fontSize: '0.9375rem', gap: 8}}>
           <div
             {...attributes}
             {...listeners}
-            style={{ cursor: 'grab', display: 'flex', alignItems: 'center', color: 'var(--text-tertiary)' }}
+            className="flex items-center text-tertiary"
+            style={{ cursor: 'grab',}}
             onClick={e => e.stopPropagation()}
           >
             <GripVertical size={16} />
@@ -83,10 +80,9 @@ const SortableRegion = ({ region, handleEditRegion, setDeleteTarget, handleAddNe
           <MapPin size={16} style={{ color: 'var(--primary-text)' }} />
           <span>{region.name}</span>
           {muniCount > 0 && (
-            <span style={{
+            <span className="text-tertiary" style={{
               fontSize: '0.7rem',
               fontWeight: 500,
-              color: 'var(--text-tertiary)',
               background: 'var(--bg-secondary)',
               borderRadius: '999px',
               padding: '1px 7px',
@@ -96,7 +92,7 @@ const SortableRegion = ({ region, handleEditRegion, setDeleteTarget, handleAddNe
             </span>
           )}
         </div>
-        <div className="flex gap-4" style={{ alignItems: 'center' }}>
+        <div className="flex gap-4 items-center">
           <button
             className="btn btn-ghost btn-icon btn-sm"
             onClick={e => { e.stopPropagation(); handleEditRegion(region); }}
@@ -116,11 +112,8 @@ const SortableRegion = ({ region, handleEditRegion, setDeleteTarget, handleAddNe
           <div style={{ width: 1, height: 18, background: 'var(--border-light)', margin: '0 4px' }} />
           {/* Chevron toggle */}
           <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              color: 'var(--text-secondary)',
-              transform: isExpanded ? 'rotate(0deg)' : 'rotate(-90deg)',
+            className="flex items-center text-secondary"
+            style={{transform: isExpanded ? 'rotate(0deg)' : 'rotate(-90deg)',
               transition: 'transform 250ms cubic-bezier(0.4, 0, 0.2, 1)'
             }}
           >
@@ -140,10 +133,10 @@ const SortableRegion = ({ region, handleEditRegion, setDeleteTarget, handleAddNe
         <div style={{ overflow: 'hidden' }}>
           <div style={{ padding: 16 }}>
             <div className="flex justify-between items-center mb-12">
-              <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Municipalities</div>
+              <div className="text-secondary" style={{ fontSize: '0.8125rem', fontWeight: 600,}}>Municipalities</div>
               <button
-                className="btn btn-outline btn-sm"
-                style={{ padding: '4px 10px', fontSize: '0.75rem', minHeight: 28 }}
+                className="btn btn-outline btn-sm text-xs"
+                style={{ padding: '4px 10px', minHeight: 28 }}
                 onClick={() => handleAddNewMuni(region.id)}
               >
                 <Plus size={12} /> Add Muni
@@ -151,7 +144,7 @@ const SortableRegion = ({ region, handleEditRegion, setDeleteTarget, handleAddNe
             </div>
 
             {(!region.municipalities || region.municipalities.length === 0) ? (
-              <div style={{ fontSize: '0.8125rem', color: 'var(--text-tertiary)' }}>No municipalities added to this region.</div>
+              <div className="text-tertiary" style={{ fontSize: '0.8125rem',}}>No municipalities added to this region.</div>
             ) : (
               <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleMuniDragEnd}>
                 <SortableContext items={region.municipalities.map(m => m.id)} strategy={verticalListSortingStrategy}>
@@ -189,14 +182,14 @@ const SortableMuni = ({ muni, regionId, handleEditMuni, setDeleteTarget }) => {
 
   return (
     <div ref={setNodeRef} style={style}>
-      <div {...attributes} {...listeners} style={{ cursor: 'grab', display: 'flex', alignItems: 'center', color: 'var(--text-tertiary)' }}>
+      <div {...attributes} {...listeners} className="flex items-center text-tertiary" style={{ cursor: 'grab',}}>
         <GripVertical size={14} />
       </div>
       <div style={{ flex: 1, fontSize: '0.8125rem', fontWeight: 500 }}>{muni.name}</div>
-      <button className="btn-icon" style={{ padding: 4, background: 'none', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer' }} onClick={() => handleEditMuni(muni, regionId)} aria-label={`Edit ${muni.name}`}>
+      <button className="btn-icon bg-none border-none text-tertiary cursor-pointer" style={{ padding: 4 }} onClick={() => handleEditMuni(muni, regionId)} aria-label={`Edit ${muni.name}`}>
         <Edit2 size={12} />
       </button>
-      <button className="btn-icon" style={{ padding: 4, background: 'none', border: 'none', color: 'var(--error-text)', cursor: 'pointer' }} onClick={() => setDeleteTarget({ type: 'muni', id: muni.id, regionId, name: muni.name })} aria-label={`Delete ${muni.name}`}>
+      <button className="btn-icon bg-none border-none cursor-pointer" style={{ padding: 4, color: 'var(--error-text)' }} onClick={() => setDeleteTarget({ type: 'muni', id: muni.id, regionId, name: muni.name })} aria-label={`Delete ${muni.name}`}>
         <Trash2 size={12} />
       </button>
     </div>
@@ -410,7 +403,7 @@ const CompanyInfoCoverageTab = ({ coverageAreas, setCoverageAreas }) => {
             <div style={{ fontWeight: 700, marginBottom: 16, fontSize: '0.9375rem' }}>
               {editingRegion === 'new' ? 'New Region' : 'Edit Region'}
             </div>
-            <div className="form-group" style={{ marginBottom: 0 }}>
+            <div className="form-group mb-0">
               <label className="form-label" htmlFor="coverage-region-name">Region Name <span className="required">*</span></label>
               <input
                 id="coverage-region-name"
@@ -438,7 +431,7 @@ const CompanyInfoCoverageTab = ({ coverageAreas, setCoverageAreas }) => {
             <div style={{ fontWeight: 700, marginBottom: 16, fontSize: '0.9375rem' }}>
               {editingMuni === 'new' ? 'New Municipality' : 'Edit Municipality'}
             </div>
-            <div className="form-group" style={{ marginBottom: 0 }}>
+            <div className="form-group mb-0">
               <label className="form-label" htmlFor="coverage-muni-name">Municipality Name <span className="required">*</span></label>
               <input
                 id="coverage-muni-name"

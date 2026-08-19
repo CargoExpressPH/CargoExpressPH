@@ -740,7 +740,7 @@ const InboxPage = () => {
         {/* ── Left Panel: Conversations List ─────────────────────────────── */}
         <div className="inbox-sidebar">
           <div className="inbox-sidebar-header">
-            <h3 className="fw-700 text-base" style={{ margin: 0 }}>Conversations</h3>
+            <h3 className="fw-700 text-base m-0">Conversations</h3>
             
             {/* Search Input Box */}
             <div className="inbox-search-box" role="search">
@@ -883,8 +883,8 @@ const InboxPage = () => {
               {searchQuery.trim().length >= 2 && (searchingCustomers || customerResults.length > 0) && (
                 <div>
                   <div
-                    className="text-tertiary fw-700"
-                    style={{ fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.05em', padding: '10px 14px 4px' }}
+                    className="text-tertiary fw-700 text-uppercase"
+                    style={{ fontSize: '0.6875rem', letterSpacing: '0.05em', padding: '10px 14px 4px' }}
                   >
                     Start a new conversation
                   </div>

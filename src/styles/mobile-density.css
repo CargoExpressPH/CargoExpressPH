@@ -4,21 +4,22 @@
 
    Phone-width sizing for tiles, headings, card padding and gaps.
 
-   WHY THIS IS A SEPARATE FILE, IMPORTED LAST
-   Mobile rules already existed in responsive.css and remaining.css, and most
-   of them never applied. Both files are imported BEFORE premium-refresh.css,
-   admin-modern-refresh.css and customer-mobile-refresh.css, which re-assert
-   the same properties under `.app-layout …` / `.customer-layout-v2 …`. Those
-   selectors carry one more class, so they win on specificity no matter what
-   the media query says. Measured before this file existed: `.stat-card
-   .stat-value` was declared at 1.75rem (≤768px), 1.5rem (≤480px) and
-   1.375rem (≤360px), and the computed value on a 390px phone was 24.8px —
-   the 1.55rem desktop figure from premium-refresh.css. Three mobile rules,
-   none of them reaching the screen.
+   WHY THIS IS A SEPARATE FILE, IN THE LAST SCREEN LAYER
+   Mobile rules already existed in responsive.css and the former remaining.css,
+   and most of them never applied. Both files are imported BEFORE
+   premium-refresh.css, admin-modern-refresh.css and customer-mobile-refresh.css,
+   which re-assert the same properties under `.app-layout …` /
+   `.customer-layout-v2 …`. Those selectors carry one more class, so they win
+   on specificity no matter what the media query says. Measured before this
+   file existed: `.stat-card .stat-value` was declared at 1.75rem (≤768px),
+   1.5rem (≤480px) and 1.375rem (≤360px), and the computed value on a 390px
+   phone was 24.8px — the 1.55rem desktop figure from premium-refresh.css.
+   Three mobile rules, none of them reaching the screen.
 
    Adding a fourth override in one of those earlier files would have lost the
-   same way. So the density rules live here, in one place, imported after
-   every file that could outrank them, at matching specificity. When you add
+   same way. So the density rules live here, in one place, in the `density`
+   cascade layer — declared LAST in the layer order in main.css, so this file
+   outranks every earlier screen layer at matching specificity. When you add
    a rule here, match the specificity of the one you are overriding —
    `.app-layout .stat-card .stat-value`, not `.stat-value`.
 

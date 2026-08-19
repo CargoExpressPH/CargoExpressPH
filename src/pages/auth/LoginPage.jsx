@@ -241,7 +241,7 @@ const LoginPage = () => {
 
         <div className="login-form-container animate-slide-up">
 
-          <div className="login-mobile-brand" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div className="login-mobile-brand flex items-center" style={{ gap: 8 }}>
             <BrandLogo size={32} decorative />
             <BrandWordmark />
           </div>

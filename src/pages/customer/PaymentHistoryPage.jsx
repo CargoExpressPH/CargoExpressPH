@@ -185,7 +185,7 @@ const PaymentHistoryPage = () => {
             <div className="flex flex-col gap-10 mb-16">
               {summary.outstandingOrders.slice(0, 6).map(order => (
                 <div className="card card-body" key={order.id}>
-                  <div className="flex justify-between gap-12" style={{ alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                  <div className="flex justify-between gap-12 items-start flex-wrap">
                     <div>
                       <div className="fw-800">{order.tracking_number}</div>
                       <div className="text-xs text-tertiary mt-4">
@@ -217,7 +217,7 @@ const PaymentHistoryPage = () => {
             </div>
           ) : (
             <div className="table-responsive customer-payment-history-table-wrap">
-              <table className="table customer-payment-history-table" style={{ margin: 0 }}>
+              <table className="table customer-payment-history-table m-0">
                 <thead>
                   <tr>
                     <th scope="col">Date</th>

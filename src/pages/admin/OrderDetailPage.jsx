@@ -678,8 +678,8 @@ const AdminOrderDetailPage = () => {
                 : ''}
             </p>
             <blockquote
-              className="text-sm"
-              style={{ borderLeft: '3px solid var(--border)', paddingLeft: 12, margin: 0 }}
+              className="text-sm m-0"
+              style={{ borderLeft: '3px solid var(--border)', paddingLeft: 12 }}
             >
               {order.cancellation_reason}
             </blockquote>
@@ -892,7 +892,7 @@ const AdminOrderDetailPage = () => {
             </div>
             
             {tripHistory && tripHistory.length > 0 && (
-              <div className="mt-16 pt-16" style={{ borderTop: '1px solid var(--border)' }}>
+              <div className="mt-16 pt-16 border-t">
                 <h4 className="text-xs text-tertiary text-uppercase mb-12"><Clock size={12} className="inline mr-4" />Trip History</h4>
                 <div className="flex flex-col gap-12">
                   {tripHistory.map((history) => (
@@ -1115,7 +1115,7 @@ const AdminOrderDetailPage = () => {
                                 }}
                               >
                                 <span className="text-xs">{truncateRef(tx.transaction_reference)}</span>
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, opacity: 0.5 }}><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="opacity-50" style={{ flexShrink: 0,}}><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
                               </button>
                             )}
                             {tx.receipt_url && <a href={tx.receipt_url} target="_blank" rel="noreferrer" className="text-xs text-primary receipt-link"><Image size={12} /> View Receipt</a>}
@@ -1161,14 +1161,13 @@ const AdminOrderDetailPage = () => {
             <h3><Clock size={16} className="inline mr-8" />Activity History</h3>
           </div>
           <div className="card-body" style={{ paddingTop: 8 }}>
-            <div style={{ position: 'relative', paddingLeft: 20 }}>
+            <div className="relative" style={{paddingLeft: 20}}>
               {/* Vertical line */}
-              <div style={{ position: 'absolute', left: 7, top: 8, bottom: 8, width: 2, background: 'var(--border)', borderRadius: 2 }} />
+              <div className="absolute" style={{left: 7, top: 8, bottom: 8, width: 2, background: 'var(--border)', borderRadius: 2}} />
               {activityHistory.map((log) => (
-                <div key={log.id} style={{ position: 'relative', marginBottom: 16, paddingLeft: 20 }}>
+                <div key={log.id} className="relative" style={{marginBottom: 16, paddingLeft: 20}}>
                   {/* Dot */}
-                  <div style={{
-                    position: 'absolute', left: -13, top: 4, width: 10, height: 10,
+                  <div className="absolute" style={{left: -13, top: 4, width: 10, height: 10,
                     borderRadius: '50%', background: 'var(--primary)', border: '2px solid var(--surface)',
                     boxShadow: '0 0 0 2px var(--primary)',
                   }} />
@@ -1205,14 +1204,15 @@ const AdminOrderDetailPage = () => {
                 id="feature-website"
                 checked={featureForm.featured_on_website}
                 onChange={e => setFeatureForm({ ...featureForm, featured_on_website: e.target.checked })}
-                style={{ width: 18, height: 18 }}
+                className="w-18"
+                style={{height: 18}}
               />
               <label htmlFor="feature-website" className="font-semibold text-lg cursor-pointer m-0">Feature this shipment on the website</label>
             </div>
 
             {featureForm.featured_on_website && (
               <div className="grid grid-2 gap-16 mt-16 p-16" style={{ background: 'var(--bg-secondary)', borderRadius: 12 }}>
-                <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                <div className="form-group col-full">
                   <label className="form-label" htmlFor="order-featured-title">Highlight Title</label>
                   <input
                     id="order-featured-title"
@@ -1223,7 +1223,7 @@ const AdminOrderDetailPage = () => {
                     onChange={e => setFeatureForm({ ...featureForm, featured_title: e.target.value })}
                   />
                 </div>
-                <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                <div className="form-group col-full">
                   <label className="form-label" htmlFor="order-featured-caption">Caption</label>
                   <textarea
                     id="order-featured-caption"
@@ -1249,7 +1249,7 @@ const AdminOrderDetailPage = () => {
                   </CustomSelect>
                 </div>
                 
-                <div className="form-group" style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'flex-end', marginTop: 12 }}>
+                <div className="form-group flex justify-end col-full" style={{marginTop: 12}}>
                   <button className="btn btn-primary" onClick={handleSaveFeature} disabled={savingFeature}>
                     {savingFeature ? <Loader size={16} className="animate-spin" /> : <><Save size={16} /> Save Feature Settings</>}
                   </button>
@@ -1258,7 +1258,7 @@ const AdminOrderDetailPage = () => {
             )}
             
             {!featureForm.featured_on_website && order.featured_on_website && (
-               <div className="form-group" style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 12 }}>
+               <div className="form-group flex justify-end" style={{ marginTop: 12 }}>
                  <button className="btn btn-primary" onClick={handleSaveFeature} disabled={savingFeature}>
                    {savingFeature ? <Loader size={16} className="animate-spin" /> : 'Save (Remove from Website)'}
                  </button>
@@ -1385,7 +1385,7 @@ const ReasonModal = ({
           <form onSubmit={handleSubmit}>
             <div className="modal-body">
               {error && (
-                <div style={{ color: 'var(--error-text)', background: 'var(--error-bg)', border: '1px solid var(--error)', padding: '8px 12px', borderRadius: 8, fontSize: '0.875rem', marginBottom: 12 }}>
+                <div className="br-8" style={{ color: 'var(--error-text)', background: 'var(--error-bg)', border: '1px solid var(--error)', padding: '8px 12px', fontSize: '0.875rem', marginBottom: 12}}>
                   {error}
                 </div>
               )}

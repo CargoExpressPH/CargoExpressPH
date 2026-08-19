@@ -74,9 +74,8 @@ const TripAssignModal = ({ order, onClose, onAssign }) => {
         </div>
 
         <div className="modal-body" ref={containerRef}>
-          <div id="trip-assign-desc" className="text-secondary mb-16" style={{
-            background: 'var(--bg)', borderRadius: 8, padding: 12,
-            fontSize: '0.8125rem',
+          <div id="trip-assign-desc" className="text-secondary mb-16 bg-surface br-8" style={{padding: 12,
+            fontSize: '0.8125rem'
           }}>
             <MapPin size={14} className="inline mr-6" />
             Route: <strong>{order.origin} → {order.destination}</strong>
@@ -116,15 +115,11 @@ const TripAssignModal = ({ order, onClose, onAssign }) => {
                     onClick={() => { setSelectedTrip(trip); clearError('trip'); }}
                     aria-pressed={isSelected}
                     aria-label={`Select trip ${trip.trip_number}, ${trip.status}, ${(trip.current_weight || 0).toFixed(1)} of ${trip.capacity} kilograms used`}
-                    style={{
-                      display: 'block',
-                      width: '100%',
-                      padding: 14, borderRadius: 10, cursor: 'pointer',
-                      border: `2px solid ${isSelected ? 'var(--primary)' : 'var(--border)'}`,
+                    className="block w-full cursor-pointer text-left"
+                    style={{padding: 14, borderRadius: 10, border: `2px solid ${isSelected ? 'var(--primary)' : 'var(--border)'}`,
                       background: isSelected ? 'var(--primary-glow)' : 'var(--surface)',
                       color: 'inherit',
                       font: 'inherit',
-                      textAlign: 'left',
                       transition: 'all 0.2s ease',
                     }}
                   >

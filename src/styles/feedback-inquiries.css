@@ -1,0 +1,285 @@
+/* --- Feedback modal, change-email success, contact inquiries responsive ---
+   Split from remaining.css. Import order in main.css keeps every rule
+   in the original cascade position (pages layer).
+   ----------------------------------------------------------------- */
+
+/* --- FEEDBACK MODAL (Customer Order Detail) ------------------------------- */
+
+.feedback-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+.feedback-modal-card {
+  background: var(--surface);
+  border-radius: 24px;
+  width: 100%;
+  max-width: 400px;
+  padding: 32px;
+  box-shadow: var(--shadow-xl);
+  position: relative;
+}
+.feedback-star-btn {
+  background: none;
+  border: none;
+  padding: 4px;
+  min-width: 44px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.2s;
+  color: var(--border);
+}
+.feedback-star-btn.active {
+  color: var(--warning-text);
+}
+.feedback-star-btn:hover {
+  transform: scale(1.15);
+}
+
+/* -----------------------------------------------------------------------
+   CHANGE EMAIL ΓÇö SUCCESS STATE (shared customer / admin)
+   World-class, fully responsive "Check your new inbox" panel.
+   ----------------------------------------------------------------------- */
+.ce-success-body {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 32px 28px;
+}
+
+.ce-success-hero {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.ce-success-icon-wrap {
+  position: relative;
+  width: 84px;
+  height: 84px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ce-success-ring {
+  position: absolute;
+  inset: -6px;
+  border-radius: 50%;
+  background: rgba(16, 185, 129, 0.16);
+  animation: sentRingPulse 2s ease-out infinite;
+  pointer-events: none;
+}
+
+.ce-success-icon {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: var(--success-bg);
+  color: var(--success-text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 0 8px rgba(16, 185, 129, 0.08);
+  animation: sentEnvelope 0.55s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.ce-success-title {
+  font-size: 1.375rem;
+  font-weight: 800;
+  color: var(--text);
+  letter-spacing: -0.025em;
+  margin: 0;
+}
+
+.ce-success-subtitle {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  line-height: 1.65;
+  margin: 0;
+  max-width: 360px;
+}
+
+.ce-email-highlight {
+  color: var(--primary-text);
+  font-weight: 700;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.ce-steps-box {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  padding: 16px 18px;
+  min-width: 0;
+}
+
+.ce-steps-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-tertiary);
+  margin: 0 0 12px;
+}
+
+.ce-steps-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ce-step-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+  line-height: 1.55;
+  min-width: 0;
+}
+
+.ce-step-item > span:last-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.ce-step-dot {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-top: 1px;
+  background: linear-gradient(135deg, var(--primary), var(--primary-light));
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(22, 163, 74, 0.3);
+}
+
+.ce-note-box {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: var(--info-bg);
+  border: 1px solid var(--info-glow);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  min-width: 0;
+}
+
+.ce-note-icon {
+  color: var(--info);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.ce-success-cta {
+  margin-top: 4px;
+}
+
+@media (max-width: 480px) {
+  .ce-success-body {
+    padding: 24px 18px;
+    gap: 16px;
+  }
+
+  .ce-success-title {
+    font-size: 1.25rem;
+  }
+
+  .ce-success-icon-wrap {
+    width: 72px;
+    height: 72px;
+  }
+
+  .ce-success-icon {
+    width: 60px;
+    height: 60px;
+  }
+
+  .ce-steps-box {
+    padding: 14px 14px;
+  }
+}
+
+/* --- CONTACT INQUIRIES — responsive -----------------------------------
+   The page previously relied on inline fixed sizes (maxWidth: 280 on the
+   message cell, ml-auto on the modal's action group) which do not survive
+   narrow viewports. */
+
+/* Desktop table: keep each row one scannable line. */
+.inquiry-message-preview {
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* At <=900px .data-table becomes stacked cards, where a 280px cap truncated
+   messages on phones that had room for more. Allow up to three wrapped lines. */
+@media (max-width: 900px) {
+  .inquiry-message-preview {
+    max-width: 100%;
+    white-space: normal;
+    text-overflow: clip;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+}
+
+/* Modal identity row: avatar + name/contact + status badge + claim button. */
+.inquiry-identity-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.inquiry-identity-row > div:not(.inquiry-identity-actions) {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.inquiry-identity-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* Below ~520px the badge and Claim button cannot share a line with the name
+   and a long email. Drop them onto their own full-width row. */
+@media (max-width: 520px) {
+  .inquiry-identity-row {
+    flex-wrap: wrap;
+  }
+  .inquiry-identity-actions {
+    margin-left: 0;
+    width: 100%;
+    justify-content: space-between;
+  }
+}

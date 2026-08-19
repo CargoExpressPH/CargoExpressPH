@@ -213,7 +213,7 @@
   bottom: -22px;
   left: 50%;
   transform: translateX(-50%);
-  font-size: 0.625rem;
+  font-size: 0.6875rem;
   font-weight: 600;
   color: var(--text-tertiary);
   white-space: nowrap;

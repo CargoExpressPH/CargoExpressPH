@@ -198,7 +198,7 @@ const CreateTripPage = () => {
               <div className="form-group">
                 <label className="form-label" htmlFor="trip-price-per-kg">Amount per Kilo (₱)</label>
                 <div className="relative">
-                  <span aria-hidden="true" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)', pointerEvents: 'none', fontSize: 15, lineHeight: 1 }}>₱</span>
+                  <span aria-hidden="true" className="absolute text-tertiary pointer-events-none" style={{left: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 15, lineHeight: 1}}>₱</span>
                   <input id="trip-price-per-kg" type="number" className={`form-input ${fieldErrors.price_per_kg ? 'field-invalid' : ''}`} value={form.price_per_kg} onChange={e => u('price_per_kg', e.target.value)} placeholder="e.g. 70" min="0.01" step="0.01" style={{ paddingLeft: 34 }} required aria-invalid={fieldErrors.price_per_kg ? 'true' : undefined} aria-describedby={fieldErrors.price_per_kg ? 'trip-price-error trip-price-helper' : 'trip-price-helper'} />
                 </div>
                 <FieldError name="price_per_kg" errors={fieldErrors} id="trip-price-error" />
@@ -220,7 +220,7 @@ const CreateTripPage = () => {
         <div className="card stagger-item mb-24" style={{ animationDelay: '180ms' }}>
           <div className="card-body">
             <h3 className="fw-700 mb-12 flex items-center gap-8">
-              <FileText size={18} color="var(--text-tertiary)" /> Notes <span className="fw-400" style={{ color: 'var(--text-tertiary)', fontSize: '0.8125rem' }}>(Optional)</span>
+              <FileText size={18} color="var(--text-tertiary)" /> Notes <span className="fw-400 text-tertiary" style={{ fontSize: '0.8125rem' }}>(Optional)</span>
             </h3>
             <label className="sr-only" htmlFor="trip-notes">Trip notes</label>
             <textarea id="trip-notes" className="form-textarea" value={form.notes} onChange={e => u('notes', e.target.value)} placeholder="Any special instructions, remarks, or conditions for this trip..." rows={3} />

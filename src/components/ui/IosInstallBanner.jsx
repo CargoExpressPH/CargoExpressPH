@@ -66,9 +66,8 @@ export default function IosInstallBanner() {
       {/* Backdrop */}
       <div
         onClick={dismiss}
-        style={{
-          position: 'fixed',
-          inset: 0,
+        className="fixed"
+        style={{inset: 0,
           background: 'rgba(0,0,0,0.45)',
           backdropFilter: 'blur(4px)',
           zIndex: 9998,
@@ -80,9 +79,8 @@ export default function IosInstallBanner() {
       <div
         role="dialog"
         aria-label="Install Cargo Express PH"
-        style={{
-          position: 'fixed',
-          bottom: 0,
+        className="fixed"
+        style={{bottom: 0,
           left: 0,
           right: 0,
           zIndex: 9999,
@@ -96,10 +94,8 @@ export default function IosInstallBanner() {
         }}
       >
         {/* Drag handle */}
-        <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 12 }}>
-          <div style={{
-            width: 40, height: 4,
-            borderRadius: 2,
+        <div className="flex justify-center" style={{paddingTop: 12}}>
+          <div className="w-40 h-4" style={{borderRadius: 2,
             background: 'var(--border-hover)',
           }} />
         </div>
@@ -109,20 +105,12 @@ export default function IosInstallBanner() {
           <button
             onClick={dismiss}
             aria-label="Close install banner"
-            style={{
-              position: 'absolute',
-              top: 20,
+            className="absolute w-32 h-32 flex items-center justify-center cursor-pointer text-secondary"
+            style={{top: 20,
               right: 20,
               background: 'var(--bg-secondary)',
               border: 'none',
               borderRadius: '50%',
-              width: 32,
-              height: 32,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-              color: 'var(--text-secondary)',
             }}
           >
             <X size={16} />
@@ -131,15 +119,12 @@ export default function IosInstallBanner() {
           {step === 1 ? (
             // ── Step 1: Why install? ─────────────────────────────────────
             <>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 16 }}>
-                <div style={{
+              <div className="flex items-center" style={{gap: 14, marginBottom: 16}}>
+                <div className="flex items-center justify-center" style={{
                   width: 52,
                   height: 52,
                   borderRadius: 12,
                   background: 'linear-gradient(135deg, var(--primary), var(--primary-dark))',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
                   flexShrink: 0,
                   boxShadow: '0 4px 16px rgba(22,163,74,0.35)',
                 }}>
@@ -149,14 +134,14 @@ export default function IosInstallBanner() {
                   <h2 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700, color: 'var(--text)' }}>
                     Install Cargo Express PH
                   </h2>
-                  <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: 2 }}>
+                  <p className="text-secondary" style={{ margin: 0, fontSize: '0.8rem', marginTop: 2}}>
                     Get the full app experience on iPhone
                   </p>
                 </div>
               </div>
 
               {/* Feature pills */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
+              <div className="flex flex-col" style={{gap: 10, marginBottom: 20}}>
                 {[
                   pushSupported
                     ? { icon: Bell, label: 'Push notifications for shipment updates' }
@@ -164,10 +149,7 @@ export default function IosInstallBanner() {
                   { icon: Zap, label: 'Lightning-fast app-like experience' },
                   { icon: Smartphone, label: 'Works from your Home Screen like a native app' },
                 ].map(({ icon: Icon, label }) => (
-                  <div key={label} style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 12,
+                  <div key={label} className="flex items-center" style={{gap: 12,
                     padding: '10px 14px',
                     background: 'rgba(var(--primary-rgb), 0.08)',
                     borderRadius: 10,
@@ -182,7 +164,7 @@ export default function IosInstallBanner() {
               </div>
 
               {pushSupported && (
-                <div style={{
+                <div className="flex items-start" style={{
                   padding: '10px 14px',
                   background: 'rgba(var(--warning-rgb), 0.1)',
                   borderRadius: 10,
@@ -191,8 +173,6 @@ export default function IosInstallBanner() {
                   fontSize: '0.8rem',
                   color: 'var(--warning-text)',
                   lineHeight: 1.5,
-                  display: 'flex',
-                  alignItems: 'flex-start',
                   gap: 8,
                 }}>
                   <AlertTriangle size={16} aria-hidden="true" style={{ flexShrink: 0, marginTop: 2 }} />
@@ -203,20 +183,15 @@ export default function IosInstallBanner() {
               <button
                 id="ios-install-show-steps-btn"
                 onClick={() => setStep(2)}
-                style={{
-                  width: '100%',
-                  padding: '14px',
+                className="w-full cursor-pointer flex items-center justify-center"
+                style={{padding: '14px',
                   background: 'linear-gradient(135deg, var(--primary), var(--primary-dark))',
                   color: '#fff',
                   border: 'none',
                   borderRadius: 14,
                   fontSize: '0.95rem',
                   fontWeight: 700,
-                  cursor: 'pointer',
                   boxShadow: '0 4px 20px rgba(22,163,74,0.4)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
                   gap: 8,
                 }}
               >
@@ -225,16 +200,13 @@ export default function IosInstallBanner() {
               </button>
               <button
                 onClick={dismiss}
-                style={{
-                  width: '100%',
-                  marginTop: 10,
+                className="w-full text-secondary cursor-pointer"
+                style={{marginTop: 10,
                   padding: '12px',
                   background: 'transparent',
-                  color: 'var(--text-secondary)',
                   border: 'none',
                   borderRadius: 14,
                   fontSize: '0.85rem',
-                  cursor: 'pointer',
                 }}
               >
                 Maybe later
@@ -246,11 +218,11 @@ export default function IosInstallBanner() {
               <h2 style={{ margin: '0 0 6px', fontSize: '1rem', fontWeight: 700, color: 'var(--text)', paddingRight: 36 }}>
                 How to Install on iPhone
               </h2>
-              <p style={{ margin: '0 0 20px', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+              <p className="text-secondary" style={{ margin: '0 0 20px', fontSize: '0.8rem',}}>
                 Follow these 3 quick steps in Safari:
               </p>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 24 }}>
+              <div className="flex flex-col" style={{gap: 12, marginBottom: 24}}>
                 {[
                   {
                     step: 1,
@@ -277,23 +249,17 @@ export default function IosInstallBanner() {
                     border: 'rgba(var(--warning-rgb), 0.2)',
                   },
                 ].map((item) => (
-                  <div key={item.step} style={{
-                    display: 'flex',
-                    gap: 14,
+                  <div key={item.step} className="flex items-start" style={{gap: 14,
                     padding: '12px 14px',
                     background: item.bg,
                     borderRadius: 12,
                     border: `1px solid ${item.border}`,
-                    alignItems: 'flex-start',
                   }}>
-                    <div style={{
+                    <div className="flex items-center justify-center" style={{
                       width: 38,
                       height: 38,
                       borderRadius: 10,
                       background: 'var(--bg-secondary)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
                       flexShrink: 0,
                     }}>
                       {item.icon}
@@ -302,7 +268,7 @@ export default function IosInstallBanner() {
                       <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text)', marginBottom: 2 }}>
                         Step {item.step}: {item.title}
                       </div>
-                      <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                      <div className="text-secondary" style={{ fontSize: '0.78rem', lineHeight: 1.5}}>
                         {item.desc}
                       </div>
                     </div>
@@ -311,10 +277,7 @@ export default function IosInstallBanner() {
               </div>
 
               {/* Animated arrow pointing down toward Safari's share button */}
-              <div style={{
-                display: 'flex',
-                justifyContent: 'center',
-                padding: '8px',
+              <div className="flex justify-center" style={{padding: '8px',
                 marginBottom: 16,
                 animation: 'bounce 1.5s infinite',
                 color: 'var(--info-text)',
@@ -324,16 +287,13 @@ export default function IosInstallBanner() {
 
               <button
                 onClick={dismiss}
-                style={{
-                  width: '100%',
-                  padding: '13px',
+                className="w-full text-secondary cursor-pointer"
+                style={{padding: '13px',
                   background: 'var(--bg-secondary)',
-                  color: 'var(--text-secondary)',
                   border: '1px solid var(--border)',
                   borderRadius: 14,
                   fontSize: '0.875rem',
                   fontWeight: 600,
-                  cursor: 'pointer',
                 }}
               >
                 Got it, I'll install it

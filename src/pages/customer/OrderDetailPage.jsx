@@ -376,7 +376,7 @@ const OrderDetailPage = () => {
   if (loading) return (
     <div className="page-transition customer-order-detail-page">
       <div className="stagger-item mb-16" style={{ animationDelay: '0ms' }}>
-        <div className="skeleton skeleton-text" style={{ width: '30%', height: 20 }} />
+        <div className="skeleton skeleton-text h-20" style={{ width: '30%',}} />
       </div>
       <div className="stagger-item mb-16" style={{ animationDelay: '60ms' }}><SkeletonOrderCard /></div>
       <div className="stagger-item mb-16" style={{ animationDelay: '120ms' }}><SkeletonText lines={4} /></div>
@@ -443,7 +443,7 @@ const OrderDetailPage = () => {
           <div className="flex items-center gap-8 mt-4 text-sm">
             <span className="fw-800" style={{ color: 'var(--text)' }}>{order.origin}</span>
             <span className="fw-700" style={{ color: 'var(--primary-text)' }}>➔</span>
-            <span className="fw-800" style={{ color: 'var(--text-secondary)' }}>{order.destination}</span>
+            <span className="fw-800 text-secondary">{order.destination}</span>
           </div>
         </div>
         <StatusBadge status={order.status} />
@@ -511,14 +511,14 @@ const OrderDetailPage = () => {
 
       {/* Feedback Banner */}
       {order.status === 'Delivered' && !hasFeedback && (
-        <div className="alert-banner alert-banner-success animate-scale-in mb-16" style={{ padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16 }}>
+        <div className="alert-banner alert-banner-success animate-scale-in mb-16 flex justify-between items-center" style={{ padding: '16px 20px', gap: 16 }}>
           <div className="flex flex-col gap-4">
             <div className="fw-700 text-base">🎉 Delivery Complete!</div>
             <p className="text-sm m-0" style={{ opacity: 0.9 }}>How was your experience? Your feedback helps us improve.</p>
           </div>
-          <button 
-            className="btn btn-alert-action" 
-            style={{ whiteSpace: 'nowrap', flexShrink: 0 }}
+          <button
+            className="btn btn-alert-action shrink-0"
+            style={{ whiteSpace: 'nowrap' }}
             onClick={() => setShowFeedbackModal(true)}
           >
             Leave Feedback
@@ -697,7 +697,7 @@ const OrderDetailPage = () => {
             if (verifyingPayment) {
               return (
                 <div className="mt-16 text-center">
-                  <div className="btn btn-primary w-full justify-center" style={{ opacity: 0.7, pointerEvents: 'none' }}>
+                  <div className="btn btn-primary w-full justify-center pointer-events-none" style={{ opacity: 0.7,}}>
                     <Loader size={16} className="animate-spin mr-8" />
                     Verifying payment...
                   </div>
@@ -723,7 +723,7 @@ const OrderDetailPage = () => {
             if ((balance > 0 || !isOrderPriced(order)) && !isCancelled && isEarlyStatus) {
               return (
                 <div className="mt-16">
-                  <div className="alert-banner alert-banner-info py-10 px-12" style={{ fontSize: '0.8125rem', borderRadius: '8px' }}>
+                  <div className="alert-banner alert-banner-info py-10 px-12 br-8" style={{ fontSize: '0.8125rem' }}>
                     <Package size={14} style={{ flexShrink: 0, marginTop: 2 }} />
                     <span>Payment will become available once your shipment has been picked up and the final shipping weight has been confirmed.</span>
                   </div>
@@ -739,7 +739,7 @@ const OrderDetailPage = () => {
             <div className="mt-20">
               <h5 className="text-xs text-tertiary font-bold mb-8">Payment History</h5>
               <div className="table-responsive customer-payment-history-table-wrap">
-                <table className="table customer-payment-history-table" style={{ margin: 0 }}>
+                <table className="table customer-payment-history-table m-0">
                   <caption className="sr-only">Payment history for this order</caption>
                   <thead>
                     <tr>

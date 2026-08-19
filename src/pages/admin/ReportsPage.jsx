@@ -283,7 +283,7 @@ const ReportsPage = () => {
                       Status Distribution
                     </h3>
                   </div>
-                  <div className="card-body" style={{ display: 'flex', justifyContent: 'center', padding: '24px 16px' }}>
+                  <div className="card-body flex justify-center" style={{ padding: '24px 16px' }}>
                     <DonutChart
                       size={170}
                       thickness={24}
@@ -308,7 +308,7 @@ const ReportsPage = () => {
                 </div>
 
                 {/* Financial Summary */}
-                <div className="card stagger-item" style={{ animationDelay: '300ms', gridColumn: '1 / -1' }}>
+                <div className="card stagger-item col-full" style={{ animationDelay: '300ms',}}>
                   <div className="card-header">
                     <h3 className="flex items-center gap-8">
                       <CreditCard size={18} className="text-primary" />
@@ -335,7 +335,7 @@ const ReportsPage = () => {
                       </div>
                     </div>
 
-                    <div className="mt-16 mb-16" style={{ borderTop: '1px solid var(--border)', paddingTop: 16 }}>
+                    <div className="mt-16 mb-16 border-t" style={{ paddingTop: 16 }}>
                       <div className="fw-700 text-secondary mb-12 text-uppercase" style={{ fontSize: '0.8rem', letterSpacing: '0.05em' }}>Payment Methods</div>
                       {[
                         { label: 'Cash', count: s.cashCount, total: s.cashTotal, color: 'var(--success)' },
@@ -616,7 +616,7 @@ const ReportsPage = () => {
                         <td>{order.status}</td>
                         <td className="num">{formatWeight(parseFloat(order.actual_weight || 0))}</td>
                         <td className="num">{isOrderPriced(order) ? formatCurrency(parseFloat(order.shipping_cost || 0)) : '—'}</td>
-                        <td className="ctr" style={{ textTransform: 'capitalize' }}>{order.payment_method || '—'}</td>
+                        <td className="ctr text-capitalize">{order.payment_method || '—'}</td>
                         <td>{formatDate(order.created_at)}</td>
                       </tr>
                     ))}

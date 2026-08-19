@@ -1,0 +1,60 @@
+/* --- iOS focus zoom prevention, form touch sizing ---
+   Split from remaining.css. Import order in main.css keeps every rule
+   in the original cascade position (pages layer).
+   ----------------------------------------------------------------- */
+
+/* Touch devices: prevent iOS focus auto-zoom (inputs must be >= 16px)
+   and meet the 44px minimum touch-target guideline */
+@media (hover: none) and (pointer: coarse) {
+  .inbox-search-box input,
+  .inbox-textarea {
+    font-size: 16px;
+  }
+
+  /* Global form controls sit at 0.9375rem (15px) — also under the iOS
+     threshold, so every form in the admin and customer apps zooms on focus.
+     Their base rule is in components.css, which this file already outranks. */
+  .form-input,
+  .form-select,
+  .form-textarea,
+  .form-control {
+    font-size: 16px;
+  }
+
+  /* The auth pages need their own selectors here. tabs-steps.css sets
+     `.login-right-panel .form-input, .auth-page .form-input` to 0.9375rem at
+     (0,2,0); a media query adds no specificity, so the (0,1,0) rule above lost
+     and login/register/forgot/reset kept zooming on focus. Matching (0,2,0)
+     wins on source order — tabs-steps.css is imported before this file.
+     Only .form-input needs it: tabs-steps.css never targets the select or
+     textarea variants, so those are already covered above. */
+  .login-right-panel .form-input,
+  .auth-page .form-input {
+    font-size: 16px;
+  }
+
+  /* Search inputs carry no .form-input class, so the rule above misses them.
+     Their 0.875rem comes from loading-search.css `.search-box input` (0,1,1);
+     matching that here wins on source order. Covers admin Orders/Customers/
+     Inbox, customer Home/Orders, and public Tracking. */
+  .search-box input {
+    font-size: 16px;
+  }
+
+  .inbox-mobile-back-btn {
+    min-width: 44px;
+    min-height: 44px;
+    padding: 10px;
+  }
+
+  .inbox-filter-tab-btn {
+    min-height: 40px;
+    padding: 8px;
+  }
+
+  .inbox-chat-header-actions .btn {
+    min-height: 44px;
+  }
+}
+
+

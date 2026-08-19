@@ -415,7 +415,7 @@ const RegisterPage = () => {
       {/* LEFT PANEL — Branding */}
       <div className="login-left-panel" aria-hidden="true">
         <div className="login-left-content">
-          <div className="login-brand" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div className="login-brand flex items-center" style={{ gap: 10 }}>
             <BrandLogo size={48} decorative />
             <div style={{ margin: 0, fontSize: '2rem', fontWeight: 900 }}>
               <BrandWordmark tone="on-dark" />
@@ -463,7 +463,7 @@ const RegisterPage = () => {
       <div className="login-right-panel">
         <div className="login-form-container wide-form animate-slide-up">
 
-          <div className="login-mobile-brand" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div className="login-mobile-brand flex items-center" style={{ gap: 8 }}>
             <BrandLogo size={32} decorative />
             <BrandWordmark />
           </div>
@@ -653,7 +653,7 @@ const RegisterPage = () => {
                 <div className="login-pw-header">
                   <label className="form-label" htmlFor="reg-password">Password <span className="required">*</span></label>
                   {capsLockOn && (
-                    <span className="caps-warning" style={{ fontSize: '0.72rem', color: 'var(--warning-text)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                    <span className="caps-warning font-semibold inline-flex items-center" style={{ fontSize: '0.72rem', color: 'var(--warning-text)', gap: 3 }}>
                       <AlertTriangle size={11} /> Caps Lock ON
                     </span>
                   )}
@@ -943,9 +943,9 @@ const RegisterPage = () => {
               </div>
 
               {/* Terms note */}
-              <div className="reg-address-note" style={{ background: 'var(--bg-secondary)', borderColor: 'var(--border)' }}>
+              <div className="reg-address-note border-color" style={{ background: 'var(--bg-secondary)' }}>
                 <ShieldCheck size={14} style={{ color: 'var(--primary-text)', marginTop: 2 }} />
-                <p style={{ color: 'var(--text-secondary)', fontSize: '0.78rem' }}>
+                <p className="text-secondary" style={{fontSize: '0.78rem'}}>
                   By creating an account, you agree to Cargo Express PH's Terms of Service and Privacy Policy.
                 </p>
               </div>

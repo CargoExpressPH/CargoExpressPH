@@ -289,7 +289,7 @@ const ChangePasswordPage = () => {
               : <><ShieldCheck size={18} /> Update Password</>
             }
           </button>
-          <p className="form-helper mt-12" style={{ textAlign: 'center' }}>
+          <p className="form-helper mt-12 text-center">
             You must enter your current password to change it.
           </p>
 

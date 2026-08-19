@@ -95,7 +95,7 @@ const ResetPasswordPage = () => {
         <div className="auth-orb auth-orb-1" aria-hidden="true" />
         <div className="auth-orb auth-orb-2" aria-hidden="true" />
         <div className="auth-card rp-loading-card">
-          <div className="auth-brand" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 8, justifyContent: 'center' }}>
+          <div className="auth-brand flex flex-row items-center justify-center" style={{ gap: 8 }}>
             <BrandLogo size={34} decorative />
             <div className="auth-brand-text"><BrandWordmark /></div>
           </div>
@@ -145,7 +145,7 @@ const ResetPasswordPage = () => {
 
       <div className="auth-card fp-card">
 
-        <div className="auth-brand" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 8, justifyContent: 'center' }}>
+        <div className="auth-brand flex flex-row items-center justify-center" style={{ gap: 8 }}>
           <BrandLogo size={34} decorative />
           <div className="auth-brand-text"><BrandWordmark /></div>
         </div>

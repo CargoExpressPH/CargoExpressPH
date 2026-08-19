@@ -436,9 +436,9 @@ const PaymentCollectionPanel = ({
   return (
     <>
       {value.notice && (
-        <div style={{
+        <div className="br-8" style={{
           background: 'var(--info-bg)', color: 'var(--info-dark)', padding: '10px 14px',
-          borderRadius: 8, fontSize: '0.8125rem', marginBottom: 16, border: '1px solid var(--info)',
+          fontSize: '0.8125rem', marginBottom: 16, border: '1px solid var(--info)',
         }} role="status">
           {value.notice}
         </div>
@@ -532,8 +532,8 @@ const PaymentCollectionPanel = ({
 
       {/* GCash */}
       {value.payment_method === 'gcash' && (
-        <div className="mb-16" style={{ background: 'var(--bg-secondary)', borderRadius: 8, padding: 14, border: '1px solid var(--border)' }}>
-          <div className="mb-8" style={{ fontSize: '0.8125rem', fontWeight: 600 }}>GCash Payment</div>
+        <div className="mb-16 br-8" style={{ background: 'var(--bg-secondary)', padding: 14, border: '1px solid var(--border)'}}>
+          <div className="mb-8 font-semibold" style={{ fontSize: '0.8125rem' }}>GCash Payment</div>
 
           {value.paymentStep === 'setup' && (
             <div className="mb-12">
@@ -545,7 +545,7 @@ const PaymentCollectionPanel = ({
               >
                 <CreditCard size={14} className="mr-6" /> Process via PayMongo
               </button>
-              <div className="text-xs text-tertiary mt-4" style={{ textAlign: 'center' }}>
+              <div className="text-xs text-tertiary mt-4 text-center">
                 Opens GCash checkout for the customer to pay
               </div>
             </div>
@@ -560,7 +560,7 @@ const PaymentCollectionPanel = ({
 
           {/* Confirmed — the ledger has the money */}
           {value.paymentStep === 'waiting' && value.confirmed && (
-            <div className="mb-12" style={{ background: 'var(--success-bg)', borderRadius: 8, padding: 14, border: '1px solid var(--success)' }}>
+            <div className="mb-12 br-8" style={{ background: 'var(--success-bg)', padding: 14, border: '1px solid var(--success)'}}>
               <div className="flex items-center gap-8 mb-12">
                 <CheckCircle size={20} style={{ color: 'var(--success-text)' }} aria-hidden="true" />
                 <span className="text-sm fw-700" style={{ color: 'var(--success-text)' }}>
@@ -584,7 +584,7 @@ const PaymentCollectionPanel = ({
                   </div>
                 )}
               </div>
-              <div className="text-xs text-tertiary mt-12" style={{ textAlign: 'center' }}>
+              <div className="text-xs text-tertiary mt-12 text-center">
                 Recorded automatically. You can now {config.confirmVerb}.
               </div>
             </div>
@@ -595,8 +595,9 @@ const PaymentCollectionPanel = ({
             <div className="mb-12" style={{ background: 'var(--info-bg)', borderRadius: 12, padding: 14, border: '1px solid var(--info)' }}>
               <div className="flex items-center justify-between mb-16">
                 <span
+                  className="text-white"
                   style={{
-                    background: '#007DFE', color: '#FFFFFF', borderRadius: 6,
+                    background: '#007DFE', borderRadius: 6,
                     padding: '3px 10px', fontWeight: 700, fontSize: '0.8125rem',
                     letterSpacing: 0.5,
                   }}
@@ -614,7 +615,7 @@ const PaymentCollectionPanel = ({
                 </div>
               </div>
 
-              <ol className="mb-16" style={{ margin: 0, paddingLeft: 18, fontSize: '0.8125rem', lineHeight: 1.9, color: 'var(--text-secondary)' }}>
+              <ol className="m-0 text-secondary" style={{ paddingLeft: 18, fontSize: '0.8125rem', lineHeight: 1.9 }}>
                 <li>Scan the QR, or tap <strong>Open GCash</strong> for the checkout page</li>
                 <li>Approve the payment in the GCash app</li>
                 <li>Done — this panel updates by itself the moment the payment lands</li>
@@ -666,7 +667,7 @@ const PaymentCollectionPanel = ({
                 <XCircle size={14} className="mr-6" aria-hidden="true" /> Cancel payment — pay another way
               </button>
 
-              <div className="text-xs text-tertiary mt-12" style={{ textAlign: 'center' }}>
+              <div className="text-xs text-tertiary mt-12 text-center">
                 <strong>{config.confirmLabel} is locked</strong> until this payment is confirmed or cancelled.
               </div>
             </div>
@@ -675,7 +676,7 @@ const PaymentCollectionPanel = ({
           {/* Manual reference fallback */}
           {value.paymentStep !== 'waiting' && (
             <>
-              <div className="text-xs text-tertiary mb-8" style={{ textAlign: 'center', borderTop: '1px solid var(--border)', paddingTop: 10 }}>
+              <div className="text-xs text-tertiary mb-8 text-center border-t" style={{ paddingTop: 10 }}>
                 Or enter payment details manually
               </div>
               <div className="form-group mb-12">
@@ -715,8 +716,8 @@ const PaymentCollectionPanel = ({
               administrator or if additional proof is needed.
             </p>
             {value.receiptPreview ? (
-              <div className="relative overflow-hidden mb-8" style={{ width: 90, height: 90, borderRadius: 8, border: '2px solid var(--border)' }}>
-                <img src={value.receiptPreview} alt="Receipt" className="w-full h-full" style={{ objectFit: 'cover' }} />
+              <div className="relative overflow-hidden mb-8 br-8" style={{ width: 90, height: 90, border: '2px solid var(--border)'}}>
+                <img src={value.receiptPreview} alt="Receipt" className="w-full h-full object-cover" />
                 <button
                   type="button"
                   onClick={() => patch({ receiptFile: null, receiptPreview: null })}
@@ -731,9 +732,10 @@ const PaymentCollectionPanel = ({
                 type="button"
                 onClick={() => receiptInputRef.current?.click()}
                 disabled={disabled}
+                className="br-8 cursor-pointer"
                 style={{
-                  padding: '8px 16px', borderRadius: 8, border: '1px dashed var(--border)',
-                  background: 'transparent', cursor: 'pointer', fontSize: '0.8125rem',
+                  padding: '8px 16px', border: '1px dashed var(--border)',
+                  background: 'transparent', fontSize: '0.8125rem',
                 }}
               >
                 <FileText size={14} className="inline mr-6" /> Upload Receipt
@@ -751,8 +753,8 @@ const PaymentCollectionPanel = ({
           of the choice is visible before the amount is edited; required once an
           amount is actually left owing. */}
       {d.isPayLater && (
-        <div className="mb-16" style={{ background: 'var(--warning-bg)', borderRadius: 8, padding: 14, border: '1px solid var(--warning)' }}>
-          <div className="mb-8" style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--warning-text)' }}>
+        <div className="mb-16 br-8" style={{ background: 'var(--warning-bg)', padding: 14, border: '1px solid var(--warning)'}}>
+          <div className="mb-8 font-semibold" style={{ fontSize: '0.8125rem', color: 'var(--warning-text)' }}>
             <AlertTriangle size={14} className="inline mr-6" /> Promise to Pay
           </div>
           <div className="form-group mb-0">

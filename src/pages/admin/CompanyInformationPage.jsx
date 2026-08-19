@@ -216,7 +216,7 @@ const CompanyInformationPage = () => {
   if (!companyInfo) {
     return (
       <div className="flex items-center justify-center" style={{ minHeight: 300 }}>
-        <div style={{ textAlign: 'center', color: 'var(--text-secondary)' }}>
+        <div className="text-center text-secondary">
           <AlertTriangle size={32} style={{ color: 'var(--warning-text)', marginBottom: 8 }} />
           <p>Failed to load company information. Please refresh the page.</p>
         </div>
@@ -229,7 +229,7 @@ const CompanyInformationPage = () => {
   return (
     <div className="page-transition">
       {/* Page Header */}
-      <div className="admin-page-header" style={{ flexWrap: 'wrap', gap: 12 }}>
+      <div className="admin-page-header flex-wrap" style={{ gap: 12 }}>
         <div>
           <h1 className="admin-page-title"><Building size={24} color="var(--primary)" aria-hidden="true" />Company Information</h1>
           <p className="admin-page-subtitle">Manage all public website content shown to customers.</p>
@@ -259,16 +259,15 @@ const CompanyInformationPage = () => {
       {/* Unsaved Changes Banner */}
       {isDirty && (
         <div
-          className="flex items-center justify-between gap-12 animate-fade-in"
+          className="flex items-center justify-between gap-12 animate-fade-in rounded-md"
           style={{
             background: 'var(--warning-bg)',
             border: '1px solid rgba(245,158,11,0.3)',
-            borderRadius: 'var(--radius-md)',
             padding: '10px 16px',
-            marginBottom: 16,
+            marginBottom: 16
           }}
         >
-          <div className="flex items-center gap-8" style={{ color: 'var(--warning-text)', fontSize: '0.875rem', fontWeight: 600 }}>
+          <div className="flex items-center gap-8 text-sm font-semibold" style={{ color: 'var(--warning-text)' }}>
             <AlertTriangle size={16} />
             You have unsaved changes on this tab. Click "Save Changes" to apply them.
           </div>
@@ -277,15 +276,13 @@ const CompanyInformationPage = () => {
 
       {/* Tab Navigation */}
       <div
-        className="card"
+        className="card company-tab-bar flex items-center"
         style={{
           padding: '4px 8px',
           marginBottom: 20,
-          display: 'flex',
-          alignItems: 'center',
           gap: 4,
           overflowX: 'auto',
-          flexWrap: 'nowrap',
+          flexWrap: 'nowrap'
         }}
       >
         {TABS.map(tab => {
@@ -339,12 +336,12 @@ const CompanyInformationPage = () => {
                   </div>
                 </div>
                 <div className="form-group">
-                  <label className="form-label" htmlFor="company-short-description">Short Description <span style={{ color: 'var(--text-tertiary)', fontWeight: 400 }}>(shown in footer and search results)</span></label>
+                  <label className="form-label" htmlFor="company-short-description">Short Description <span className="text-tertiary" style={{fontWeight: 400}}>(shown in footer and search results)</span></label>
                   <input id="company-short-description" className="form-input" value={companyInfo.short_description || ''} onChange={e => handleInfoChange('short_description', e.target.value)} placeholder="One-line company description..." maxLength={160} />
                   <span className="form-helper">{(companyInfo.short_description || '').length}/160 characters</span>
                 </div>
-                <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label" htmlFor="company-long-description">Company Introduction <span style={{ color: 'var(--text-tertiary)', fontWeight: 400 }}>(main text on the About Us page)</span></label>
+                <div className="form-group mb-0">
+                  <label className="form-label" htmlFor="company-long-description">Company Introduction <span className="text-tertiary" style={{fontWeight: 400}}>(main text on the About Us page)</span></label>
                   <textarea id="company-long-description" className="form-textarea" rows={5} value={companyInfo.long_description || ''} onChange={e => handleInfoChange('long_description', e.target.value)} placeholder="Tell your company's story..." style={{ minHeight: 120 }} />
                 </div>
               </div>
@@ -360,18 +357,12 @@ const CompanyInformationPage = () => {
               <div className="card-body">
                 {/* Image Preview */}
                 <div
-                  style={{
-                    width: '100%',
-                    height: 200,
-                    borderRadius: 'var(--radius-md)',
+                  className="w-full rounded-md flex items-center justify-center relative"
+                  style={{height: 200,
                     overflow: 'hidden',
                     marginBottom: 16,
                     background: companyInfo.hero_image_url ? 'none' : 'var(--bg-secondary)',
                     border: '1.5px dashed var(--border)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    position: 'relative',
                   }}
                 >
                   {companyInfo.hero_image_url ? (
@@ -379,18 +370,18 @@ const CompanyInformationPage = () => {
                       <img
                         src={companyInfo.hero_image_url}
                         alt="Hero Banner"
-                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        className="w-full h-full object-cover"
                       />
                       <button
                         onClick={() => handleRemoveImage('hero_image_url')}
-                        className="btn btn-sm btn-danger"
-                        style={{ position: 'absolute', top: 8, right: 8, minHeight: 32, opacity: 0.9 }}
+                        className="btn btn-sm btn-danger absolute"
+                        style={{top: 8, right: 8, minHeight: 32, opacity: 0.9}}
                       >
                         <Trash2 size={13} /> Remove
                       </button>
                     </>
                   ) : (
-                    <div className="text-center" style={{ color: 'var(--text-tertiary)' }}>
+                    <div className="text-center text-tertiary">
                       <ImageIcon size={32} style={{ marginBottom: 8, opacity: 0.4 }} />
                       <div style={{ fontSize: '0.875rem' }}>No image uploaded</div>
                     </div>
@@ -416,7 +407,7 @@ const CompanyInformationPage = () => {
                       onChange={e => handleImageUpload(e, 'hero_image_url')}
                     />
                   </label>
-                  <span className="form-helper" style={{ margin: 0 }}>
+                  <span className="form-helper m-0">
                     Recommended: 1920×600px · JPG, PNG, WebP · Max 10MB
                   </span>
                 </div>
@@ -437,12 +428,12 @@ const CompanyInformationPage = () => {
                   <textarea id="company-hero-description" className="form-textarea" rows={3} value={companyInfo.hero_description || ''} onChange={e => handleInfoChange('hero_description', e.target.value)} placeholder="Subtitle text displayed below the headline..." />
                 </div>
                 <div className="grid grid-2" style={{ gap: 16 }}>
-                  <div className="form-group" style={{ marginBottom: 0 }}>
-                    <label className="form-label" htmlFor="company-hero-button-text">Button Label <span style={{ color: 'var(--text-tertiary)', fontWeight: 400 }}>(optional)</span></label>
+                  <div className="form-group mb-0">
+                    <label className="form-label" htmlFor="company-hero-button-text">Button Label <span className="text-tertiary" style={{fontWeight: 400}}>(optional)</span></label>
                     <input id="company-hero-button-text" className="form-input" value={companyInfo.hero_button_text || ''} onChange={e => handleInfoChange('hero_button_text', e.target.value)} placeholder="e.g. Book a Shipment" />
                   </div>
-                  <div className="form-group" style={{ marginBottom: 0 }}>
-                    <label className="form-label" htmlFor="company-hero-button-link">Button Link <span style={{ color: 'var(--text-tertiary)', fontWeight: 400 }}>(optional)</span></label>
+                  <div className="form-group mb-0">
+                    <label className="form-label" htmlFor="company-hero-button-link">Button Link <span className="text-tertiary" style={{fontWeight: 400}}>(optional)</span></label>
                     <input id="company-hero-button-link" className="form-input" value={companyInfo.hero_button_link || ''} onChange={e => handleInfoChange('hero_button_link', e.target.value)} placeholder="e.g. /login or /customer/book" />
                   </div>
                 </div>
@@ -460,11 +451,11 @@ const CompanyInformationPage = () => {
               </div>
               <div className="card-body">
                 <div className="grid grid-2" style={{ gap: 16 }}>
-                  <div className="form-group" style={{ marginBottom: 0 }}>
+                  <div className="form-group mb-0">
                     <label className="form-label" htmlFor="company-smart-phone">Smart / TNT Number</label>
                     <input id="company-smart-phone" className="form-input" value={companyInfo.smart_phone || ''} onChange={e => handleInfoChange('smart_phone', e.target.value)} placeholder="09XX-XXX-XXXX" />
                   </div>
-                  <div className="form-group" style={{ marginBottom: 0 }}>
+                  <div className="form-group mb-0">
                     <label className="form-label" htmlFor="company-globe-phone">Globe / TM Number</label>
                     <input id="company-globe-phone" className="form-input" value={companyInfo.globe_phone || ''} onChange={e => handleInfoChange('globe_phone', e.target.value)} placeholder="09XX-XXX-XXXX" />
                   </div>
@@ -488,12 +479,12 @@ const CompanyInformationPage = () => {
                     <input id="company-facebook" className={`form-input ${invalidClass('facebook', errors)}`} type="url" value={companyInfo.facebook || ''} onChange={e => handleInfoChange('facebook', e.target.value)} placeholder="https://facebook.com/..." {...fieldAttrs('facebook', errors)} />
                     <FieldError name="facebook" errors={errors} />
                   </div>
-                  <div className="form-group" style={{ marginBottom: 0 }}>
+                  <div className="form-group mb-0">
                     <label className="form-label" htmlFor="company-messenger">Messenger Link</label>
                     <input id="company-messenger" className={`form-input ${invalidClass('messenger', errors)}`} type="url" value={companyInfo.messenger || ''} onChange={e => handleInfoChange('messenger', e.target.value)} placeholder="https://m.me/..." {...fieldAttrs('messenger', errors)} />
                     <FieldError name="messenger" errors={errors} />
                   </div>
-                  <div className="form-group" style={{ marginBottom: 0 }}>
+                  <div className="form-group mb-0">
                     {/* NOTE: this edits the same companyInfo.website field as the
                         "Website URL" input in the Business Details card above.
                         Distinct id so the labels stay unambiguous. */}
@@ -511,11 +502,11 @@ const CompanyInformationPage = () => {
               </div>
               <div className="card-body">
                 <div className="grid grid-2" style={{ gap: 16 }}>
-                  <div className="form-group" style={{ marginBottom: 0 }}>
+                  <div className="form-group mb-0">
                     <label className="form-label" htmlFor="company-manila-address">Manila Hub Address</label>
                     <textarea id="company-manila-address" className="form-textarea" rows={3} value={companyInfo.manila_address || ''} onChange={e => handleInfoChange('manila_address', e.target.value)} placeholder="Full address of Manila hub..." />
                   </div>
-                  <div className="form-group" style={{ marginBottom: 0 }}>
+                  <div className="form-group mb-0">
                     <label className="form-label" htmlFor="company-bohol-address">Bohol Hub Address</label>
                     <textarea id="company-bohol-address" className="form-textarea" rows={3} value={companyInfo.bohol_address || ''} onChange={e => handleInfoChange('bohol_address', e.target.value)} placeholder="Full address of Bohol hub..." />
                   </div>

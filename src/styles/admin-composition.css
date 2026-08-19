@@ -1,0 +1,129 @@
+/* --- Admin page header, toolbar, detail grid composition ---
+   Split from remaining.css. Import order in main.css keeps every rule
+   in the original cascade position (pages layer).
+   ----------------------------------------------------------------- */
+
+/* Admin responsive composition */
+.admin-page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 24px;
+  min-width: 0;
+}
+
+.admin-page-header > * {
+  min-width: 0;
+}
+
+.admin-page-header h1,
+.admin-page-header h2,
+.admin-page-header h3 {
+  overflow-wrap: anywhere;
+}
+
+.admin-page-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  color: var(--text);
+  font-size: 1.5rem;
+  font-weight: 800;
+  line-height: 1.15;
+  letter-spacing: 0;
+}
+
+.admin-page-subtitle {
+  margin-top: 5px;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  line-height: 1.45;
+}
+
+.admin-page-meta {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.admin-toolbar {
+  display: grid;
+  grid-template-columns: minmax(240px, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.admin-toolbar .search-box {
+  margin-bottom: 0;
+}
+
+.admin-table-card {
+  overflow: hidden;
+}
+
+.admin-table-card .table-container {
+  border-radius: 0;
+}
+
+.admin-section-card {
+  border: 1px solid var(--border-light);
+  box-shadow: var(--shadow-sm);
+}
+
+.admin-section-card .card-header {
+  background: linear-gradient(180deg, var(--surface), var(--bg));
+}
+
+.admin-action-card .card-body {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.admin-action-group {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.admin-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.admin-detail-item {
+  min-width: 0;
+  padding: 14px 16px;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+}
+
+.admin-detail-label {
+  margin-bottom: 4px;
+  color: var(--text-tertiary);
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1.25;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.admin-detail-value {
+  min-width: 0;
+  color: var(--text);
+  font-size: 0.925rem;
+  font-weight: 700;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+

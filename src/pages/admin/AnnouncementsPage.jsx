@@ -68,26 +68,26 @@ const CategoryDropdown = ({ value, onChange }) => {
   };
 
   return (
-    <div className="custom-category-select-wrap" ref={rootRef} style={{ position: 'relative' }}>
+    <div className="custom-category-select-wrap relative" ref={rootRef}>
       <button
         type="button"
-        className="form-select flex items-center justify-between gap-10"
+        className="form-select flex items-center justify-between gap-10 text-left cursor-pointer w-full"
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-label="Select announcement category tag"
         onClick={() => setOpen(prev => !prev)}
         onKeyDown={handleKeyDown}
-        style={{ textAlign: 'left', cursor: 'pointer', minHeight: 44, width: '100%' }}
+        style={{ minHeight: 44 }}
       >
         <span className="flex items-center gap-8 fw-600 truncate">
           {SelectedIcon && <SelectedIcon size={16} color="var(--primary)" className="shrink-0" />}
           <span className="truncate">{selected.label}</span>
         </span>
-        <ChevronDown size={16} className="shrink-0" style={{ transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s ease', color: 'var(--text-tertiary)' }} />
+        <ChevronDown size={16} className="shrink-0 text-tertiary" style={{ transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s ease',}} />
       </button>
       {open && (
         <div
-          className="custom-category-select-menu"
+          className="custom-category-select-menu rounded-md flex flex-col"
           role="listbox"
           tabIndex={-1}
           style={{
@@ -97,18 +97,15 @@ const CategoryDropdown = ({ value, onChange }) => {
             right: 0,
             background: 'var(--surface-raised)',
             border: '1px solid var(--border)',
-            borderRadius: 'var(--radius-md)',
             boxShadow: 'var(--shadow-lg)',
             zIndex: 9999,
             padding: 6,
-            display: 'flex',
-            flexDirection: 'column',
             gap: 2,
             maxHeight: 'min(280px, 50vh)',
             overflowY: 'auto',
             WebkitOverflowScrolling: 'touch',
             overscrollBehavior: 'contain',
-            animation: 'fadeIn 0.15s ease-out',
+            animation: 'fadeIn 0.15s ease-out'
           }}
         >
           {ANNOUNCEMENT_CATEGORIES.map((cat, idx) => {
@@ -121,7 +118,7 @@ const CategoryDropdown = ({ value, onChange }) => {
                 type="button"
                 role="option"
                 aria-selected={active}
-                className="flex items-center justify-between p-10 rounded-md"
+                className="flex items-center justify-between p-10 rounded-md text-left cursor-pointer"
                 style={{
                   background: active
                     ? 'color-mix(in srgb, var(--primary) 14%, transparent)'
@@ -130,8 +127,6 @@ const CategoryDropdown = ({ value, onChange }) => {
                     : 'transparent',
                   color: active ? 'var(--primary)' : 'var(--text)',
                   border: 'none',
-                  textAlign: 'left',
-                  cursor: 'pointer',
                   fontSize: '0.875rem',
                   fontWeight: active ? 700 : 500,
                   minHeight: 44,

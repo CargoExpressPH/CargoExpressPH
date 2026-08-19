@@ -242,8 +242,8 @@ const AdditionalPaymentModal = ({ order, remainingBalance, onClose, onSave }) =>
             </div>
 
             {form.payment_method === 'gcash' && (
-              <div className="mb-16" style={{ background: 'var(--bg-secondary)', borderRadius: 8, padding: 14, border: '1px solid var(--border)' }}>
-                <div className="mb-8" style={{ fontSize: '0.8125rem', fontWeight: 600 }}>GCash Payment Details</div>
+              <div className="mb-16 br-8" style={{ background: 'var(--bg-secondary)', padding: 14, border: '1px solid var(--border)'}}>
+                <div className="mb-8 font-semibold" style={{ fontSize: '0.8125rem' }}>GCash Payment Details</div>
                 
                 {/* === PayMongo Automated Flow === */}
                 {paymentStep === 'setup' && (
@@ -256,7 +256,7 @@ const AdditionalPaymentModal = ({ order, remainingBalance, onClose, onSave }) =>
                     >
                       <CreditCard size={14} className="mr-6" /> Process via PayMongo
                     </button>
-                    <div className="text-xs text-tertiary mt-4" style={{ textAlign: 'center' }}>Opens GCash checkout for the customer to pay</div>
+                    <div className="text-xs text-tertiary mt-4 text-center">Opens GCash checkout for the customer to pay</div>
                   </div>
                 )}
 
@@ -271,8 +271,9 @@ const AdditionalPaymentModal = ({ order, remainingBalance, onClose, onSave }) =>
                   <div className="mb-12" style={{ background: 'var(--info-bg)', borderRadius: 12, padding: 14, border: '1px solid var(--info)' }}>
                     <div className="flex items-center justify-between mb-16">
                       <span
+                        className="text-white"
                         style={{
-                          background: '#007DFE', color: '#FFFFFF', borderRadius: 6,
+                          background: '#007DFE', borderRadius: 6,
                           padding: '3px 10px', fontWeight: 700, fontSize: '0.8125rem',
                           letterSpacing: 0.5,
                         }}
@@ -290,7 +291,7 @@ const AdditionalPaymentModal = ({ order, remainingBalance, onClose, onSave }) =>
                       </div>
                     </div>
 
-                    <ol className="mb-16" style={{ margin: 0, paddingLeft: 18, fontSize: '0.8125rem', lineHeight: 1.9, color: 'var(--text-secondary)' }}>
+                    <ol className="m-0 text-secondary" style={{ paddingLeft: 18, fontSize: '0.8125rem', lineHeight: 1.9 }}>
                       <li>Scan the QR, or tap <strong>Open GCash</strong> for the checkout page</li>
                       <li>Approve the payment in the GCash app</li>
                       <li>Done — this window updates by itself the moment the payment lands</li>
@@ -320,7 +321,7 @@ const AdditionalPaymentModal = ({ order, remainingBalance, onClose, onSave }) =>
                 {/* === Manual Reference Fallback === */}
                 {paymentStep !== 'waiting' && (
                   <>
-                    <div className="text-xs text-tertiary mb-8" style={{ textAlign: 'center', borderTop: '1px solid var(--border)', paddingTop: 10 }}>Or enter payment details manually</div>
+                    <div className="text-xs text-tertiary mb-8 text-center border-t" style={{ paddingTop: 10 }}>Or enter payment details manually</div>
                     <div className="form-group mb-12">
                       <label className="form-label" htmlFor="addl-payment-reference">Reference Number *</label>
                       <input
@@ -347,8 +348,8 @@ const AdditionalPaymentModal = ({ order, remainingBalance, onClose, onSave }) =>
                   <label className="form-label">Receipt Screenshot (Optional)</label>
                   <p className="text-xs text-tertiary mb-8">Receipt screenshot is optional and should only be uploaded if requested by the administrator or if additional proof is needed.</p>
                   {receiptPreview ? (
-                    <div className="relative overflow-hidden mb-8" style={{ width: 90, height: 90, borderRadius: 8, border: '2px solid var(--border)' }}>
-                      <img src={receiptPreview} alt="Receipt" className="w-full h-full" style={{ objectFit: 'cover' }} />
+                    <div className="relative overflow-hidden mb-8 br-8" style={{ width: 90, height: 90, border: '2px solid var(--border)'}}>
+                      <img src={receiptPreview} alt="Receipt" className="w-full h-full object-cover" />
                       <button type="button" onClick={() => { setReceiptPhoto(null); setReceiptPreview(null); }} className="pickup-photo-remove-btn" aria-label="Remove receipt">
                         <Trash2 size={12} />
                       </button>
@@ -357,9 +358,10 @@ const AdditionalPaymentModal = ({ order, remainingBalance, onClose, onSave }) =>
                     <button
                       type="button"
                       onClick={() => receiptInputRef.current?.click()}
+                      className="br-8 cursor-pointer"
                       style={{
-                        padding: '8px 16px', borderRadius: 8, border: '1px dashed var(--border)',
-                        background: 'transparent', cursor: 'pointer', fontSize: '0.8125rem'
+                        padding: '8px 16px', border: '1px dashed var(--border)',
+                        background: 'transparent', fontSize: '0.8125rem'
                       }}
                     >
                       <FileText size={14} className="inline mr-6" /> Upload Receipt

@@ -349,10 +349,10 @@ const UnsettledDeliveriesPage = () => {
 
       {!loading && (t.overdue || 0) > 0 && (
         <div
-          className="mb-16 no-print"
+          className="mb-16 no-print br-8"
           style={{
             background: 'var(--error-bg)', color: 'var(--error-text-strong)', border: '1px solid var(--error)',
-            borderRadius: 8, padding: '10px 14px', fontSize: '0.8125rem',
+            padding: '10px 14px', fontSize: '0.8125rem',
           }}
           role="status"
         >
@@ -363,10 +363,10 @@ const UnsettledDeliveriesPage = () => {
 
       {!loading && (t.mismatched || 0) > 0 && (
         <div
-          className="mb-16 no-print"
+          className="mb-16 no-print br-8"
           style={{
             background: 'var(--warning-bg)', color: 'var(--badge-warning-color)', border: '1px solid var(--warning)',
-            borderRadius: 8, padding: '10px 14px', fontSize: '0.8125rem',
+            padding: '10px 14px', fontSize: '0.8125rem',
           }}
           role="status"
         >

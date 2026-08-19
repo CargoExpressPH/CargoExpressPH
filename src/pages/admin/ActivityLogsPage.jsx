@@ -38,11 +38,9 @@ const ModuleBadge = ({ module }) => {
   const cfg = MODULE_COLORS[module] || MODULE_COLORS.System;
   const Icon = cfg.icon;
   return (
-    <span style={{
-      display: 'inline-flex', alignItems: 'center', gap: 4,
+    <span className="inline-flex items-center text-uppercase" style={{gap: 4,
       padding: '2px 8px', borderRadius: 20, fontSize: '0.7rem',
-      fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase',
-      background: cfg.bg, color: cfg.color,
+      fontWeight: 700, letterSpacing: '0.04em', background: cfg.bg, color: cfg.color,
     }}>
       <Icon size={10} />
       {module}

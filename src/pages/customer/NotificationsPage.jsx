@@ -122,7 +122,7 @@ const SwipeableNotificationCard = ({ notification, onRead, onDelete, onClick, in
         <div className="notification-icon-wrap">
           <Icon size={18} aria-hidden="true" />
         </div>
-        <div className="notification-content" style={{ flex: 1 }}>
+        <div className="notification-content flex-1">
           <div className="notification-title">
             {notification.title}
             {isUnread && <span className="notification-unread-dot" />}
@@ -303,7 +303,7 @@ const NotificationsPage = () => {
           <h1 className="fw-800 flex items-center gap-8 flex-wrap">
             <span>Notifications</span>
             {unreadCount > 0 && (
-              <span className="badge badge-pending text-xs flex-shrink-0" style={{ display: 'inline-flex', alignItems: 'center' }}>
+              <span className="badge badge-pending text-xs flex-shrink-0 inline-flex items-center">
                 {unreadCount} new
               </span>
             )}

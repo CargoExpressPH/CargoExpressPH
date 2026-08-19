@@ -73,7 +73,7 @@ const AboutVersionPage = () => {
       </div>
 
       <div className="card card-body mb-16">
-        <div className="flex items-center gap-12" style={{ flexWrap: 'wrap' }}>
+        <div className="flex items-center gap-12 flex-wrap">
           <div className="profile-menu-icon-wrap success">
             <Info size={18} />
           </div>
@@ -165,7 +165,7 @@ const AboutVersionPage = () => {
         <div className="flex flex-col gap-8">
           {releaseItems.map(item => (
             <div className="flex gap-8 text-sm text-secondary" key={item}>
-              <ShieldCheck size={15} className="text-success" style={{ flexShrink: 0, marginTop: 2 }} />
+              <ShieldCheck size={15} className="text-success shrink-0" style={{ marginTop: 2 }} />
               <span>{item}</span>
             </div>
           ))}

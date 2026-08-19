@@ -121,7 +121,7 @@ const HelpGuidelinesPage = () => {
             <div className="flex flex-col gap-8">
               {section.items.map(item => (
                 <div className="flex gap-8 text-sm text-secondary" key={item}>
-                  <CheckCircle2 size={15} className="text-success" style={{ flexShrink: 0, marginTop: 2 }} />
+                  <CheckCircle2 size={15} className="text-success shrink-0" style={{ marginTop: 2 }} />
                   <span>{item}</span>
                 </div>
               ))}
@@ -157,7 +157,7 @@ const HelpGuidelinesPage = () => {
         <div className="flex flex-col gap-10">
           {filteredFaqs.map(faq => (
             <div className="card card-body" key={faq.id}>
-              <div className="flex justify-between gap-12 mb-8" style={{ alignItems: 'flex-start', flexWrap: 'wrap' }}>
+              <div className="flex justify-between gap-12 mb-8 items-start flex-wrap">
                 <div className="fw-800">{faq.title}</div>
                 {faq.category && <span className="badge badge-info">{faq.category}</span>}
               </div>

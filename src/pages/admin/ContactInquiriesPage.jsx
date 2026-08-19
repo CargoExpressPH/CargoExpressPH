@@ -364,8 +364,7 @@ const ContactInquiriesPage = () => {
                       <Phone size={12} />
                       <a
                         href={getContactHref(selectedContact.phone)}
-                        className="text-secondary"
-                        style={{ textDecoration: 'underline' }}
+                        className="text-secondary text-underline"
                         title={`Call ${selectedContact.phone}`}
                       >
                         {selectedContact.phone}
@@ -377,8 +376,7 @@ const ContactInquiriesPage = () => {
                       <Mail size={12} />
                       <a
                         href={getContactHref(selectedContact.email)}
-                        className="text-secondary"
-                        style={{ textDecoration: 'underline' }}
+                        className="text-secondary text-underline"
                         title={`Email ${selectedContact.email}`}
                       >
                         {selectedContact.email}

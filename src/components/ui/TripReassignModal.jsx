@@ -106,9 +106,8 @@ const TripReassignModal = ({ order, onClose, onReassign }) => {
         </div>
 
         <div className="modal-body">
-          <div className="text-secondary mb-16" style={{
-            background: 'var(--bg)', borderRadius: 8, padding: 12,
-            fontSize: '0.8125rem',
+          <div className="text-secondary mb-16 bg-surface br-8" style={{padding: 12,
+            fontSize: '0.8125rem'
           }}>
             <MapPin size={14} className="inline mr-6" />
             Route: <strong>{order.origin} → {order.destination}</strong><br />
@@ -157,24 +156,20 @@ const TripReassignModal = ({ order, onClose, onReassign }) => {
                     onClick={() => setSelectedTrip(trip)}
                     aria-pressed={isSelected}
                     aria-label={`Select trip ${trip.trip_number}`}
-                    style={{
-                      display: 'block',
-                      width: '100%',
-                      padding: 14, borderRadius: 10, cursor: 'pointer',
-                      border: `2px solid ${isSelected ? 'var(--primary)' : 'var(--border)'}`,
+                    className="block w-full cursor-pointer text-left"
+                    style={{padding: 14, borderRadius: 10, border: `2px solid ${isSelected ? 'var(--primary)' : 'var(--border)'}`,
                       background: isSelected ? 'var(--primary-glow)' : 'var(--surface)',
                       color: 'inherit',
                       font: 'inherit',
-                      textAlign: 'left',
                       transition: 'all 0.2s',
                       opacity: exceedsCapacity ? 0.6 : 1
                     }}
                   >
                     <div className="flex items-center justify-between mb-4">
                       <strong className="text-sm">{trip.trip_number}</strong>
-                      <span className="text-xs font-bold" style={{
+                      <span className="text-xs font-bold text-uppercase" style={{
                         color: trip.status === 'scheduled' ? 'var(--primary)' : 'var(--warning)',
-                        textTransform: 'uppercase', letterSpacing: '0.05em'
+                        letterSpacing: '0.05em'
                       }}>
                         {trip.status.replace('_', ' ')}
                       </span>
@@ -186,10 +181,8 @@ const TripReassignModal = ({ order, onClose, onReassign }) => {
                         <span style={{ color: exceedsCapacity ? 'var(--error-text)' : 'inherit' }}>
                           {(trip.current_weight || 0).toFixed(1)} / {trip.capacity || '∞'} kg
                         </span>
-                        <div style={{ width: 40, height: 4, background: 'var(--border)', borderRadius: 2, overflow: 'hidden' }}>
-                          <div style={{ 
-                            height: '100%', 
-                            background: exceedsCapacity ? 'var(--error)' : capPct > 80 ? 'var(--warning)' : 'var(--success)',
+                        <div className="w-40 h-4" style={{background: 'var(--border)', borderRadius: 2, overflow: 'hidden'}}>
+                          <div className="h-full" style={{background: exceedsCapacity ? 'var(--error)' : capPct > 80 ? 'var(--warning)' : 'var(--success)',
                             width: `${Math.min(100, capPct)}%`
                           }} />
                         </div>

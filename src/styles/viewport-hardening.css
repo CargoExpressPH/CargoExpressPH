@@ -35,22 +35,8 @@
   }
 }
 
-.notification-badge {
-  min-width: 18px;
-  height: 18px;
-  border-radius: 9px;
-  font-size: 0.6875rem;
-  letter-spacing: 0;
-}
-
-.customer-bottom-tab {
-  min-width: 60px;
-  font-size: 0.7rem;
-}
-
 .app-layout .topbar > .flex,
-.app-layout .topbar-title,
-.customer-navbar-logo {
+.app-layout .topbar-title {
   display: inline-flex;
   align-items: center;
 }
@@ -60,10 +46,14 @@
   line-height: 1;
 }
 
-.app-layout .topbar-title > span,
-.customer-navbar-brand {
+.app-layout .topbar-title > span {
   display: inline-flex;
   align-items: center;
+  line-height: 1;
+  min-width: 0;
+}
+
+.customer-navbar-brand {
   line-height: 1;
   min-width: 0;
 }
@@ -93,10 +83,6 @@
   align-self: center;
 }
 
-.form-input-wrapper {
-  align-items: center;
-}
-
 .form-input-wrapper .form-input-icon {
   display: block;
   flex-shrink: 0;
@@ -113,13 +99,7 @@
 }
 
 .tab,
-.card-header h3,
-.admin-page-title,
-.customer-section-title,
-.customer-inline-action,
-.alert-banner,
-.profile-menu-item,
-.sidebar-link {
+.customer-section-title {
   align-items: center;
 }
 
@@ -175,10 +155,6 @@
   overflow-wrap: normal;
 }
 
-.chat-fab-badge,
-.fp-tip-dot,
-.bar-chart-label,
-.topbar-command-kbd,
 .app-layout .topbar-command-kbd {
   font-size: 0.6875rem;
 }
@@ -283,11 +259,6 @@
 }
 
 @media (max-width: 360px) {
-  .customer-bottom-tab {
-    min-width: 52px;
-    padding-inline: 6px;
-    font-size: 0.6875rem;
-  }
 
   .customer-layout-v2 .customer-home-snapshot {
     gap: 6px;
@@ -311,7 +282,9 @@
 /* ── Dark mode: primary CTA backgrounds follow the dark --primary token (#22C55E).
    Overrides the hardcoded light-mode greens (#15803D/#166534) in every layer so
    CTAs stay vivid on dark UI. Dark navy text on bright green passes AA (7.9:1). ── */
-[data-theme="dark"] .btn-primary,
+[data-theme="dark"] .btn-primary {
+  background: #22C55E;
+}
 [data-theme="dark"] .app-layout .btn-primary,
 [data-theme="dark"] .customer-layout-v2 .btn-primary,
 [data-theme="dark"] .auth-submit-btn,

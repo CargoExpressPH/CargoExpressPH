@@ -172,7 +172,7 @@ const DashboardPage = () => {
         <ErrorBoundarySection message="Order distribution unavailable.">
         <StaggerItem className="card admin-section-card" delay={300}>
           <div className="card-header"><h3><PieChart size={16} className="inline mr-8" />Order Distribution</h3></div>
-          <div className="card-body" style={{ display: 'flex', justifyContent: 'center', padding: '24px 16px' }}>
+          <div className="card-body flex justify-center" style={{ padding: '24px 16px' }}>
             {loading ? (
               <SkeletonDonut size={170} />
             ) : (

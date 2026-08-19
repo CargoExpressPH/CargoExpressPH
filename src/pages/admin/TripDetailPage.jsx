@@ -213,7 +213,7 @@ const TripDetailPage = () => {
                     </td>
                     <td data-label="Action">
                       <div className="flex items-center gap-4">
-                        <Link to={`/admin/orders/${o.id}`} className="btn btn-primary btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                        <Link to={`/admin/orders/${o.id}`} className="btn btn-primary btn-sm inline-flex items-center gap-xs">
                           View Details
                         </Link>
                         {/* This table lists addresses rather than the booker,
@@ -240,12 +240,11 @@ const TripDetailPage = () => {
             <h3><Clock size={16} className="inline mr-8" />Trip Activity</h3>
           </div>
           <div className="card-body" style={{ paddingTop: 8 }}>
-            <div style={{ position: 'relative', paddingLeft: 20 }}>
-              <div style={{ position: 'absolute', left: 7, top: 8, bottom: 8, width: 2, background: 'var(--border)', borderRadius: 2 }} />
+            <div className="relative" style={{paddingLeft: 20}}>
+              <div className="absolute" style={{left: 7, top: 8, bottom: 8, width: 2, background: 'var(--border)', borderRadius: 2}} />
               {activityHistory.map((log) => (
-                <div key={log.id} style={{ position: 'relative', marginBottom: 16, paddingLeft: 20 }}>
-                  <div style={{
-                    position: 'absolute', left: -13, top: 4, width: 10, height: 10,
+                <div key={log.id} className="relative" style={{marginBottom: 16, paddingLeft: 20}}>
+                  <div className="absolute" style={{left: -13, top: 4, width: 10, height: 10,
                     borderRadius: '50%', background: 'var(--primary)', border: '2px solid var(--surface)',
                     boxShadow: '0 0 0 2px var(--primary)',
                   }} />

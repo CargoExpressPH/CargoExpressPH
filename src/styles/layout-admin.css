@@ -3,9 +3,9 @@
 .app-layout {
   display: flex;
   min-height: 100vh;
-  background: var(--bg-gradient, var(--bg));
-  --sidebar-width: 260px;
-  --sidebar-collapsed-width: 72px;
+  background: linear-gradient(180deg, #FCFEFC 0%, #F5F8F4 42%, #F7F8FB 100%);
+  --sidebar-width: 280px;
+  --sidebar-collapsed-width: 88px;
 }
 
 /* -- Admin Sidebar -- */

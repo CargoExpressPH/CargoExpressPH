@@ -424,6 +424,19 @@
 .text-left { text-align: left; }
 .rounded { border-radius: var(--radius-md, 8px); }
 
+/* --- Inline-style migration utilities ---------------------------------- */
+.absolute { position: absolute; }
+.fixed { position: fixed; }
+.bg-secondary { background: var(--bg-secondary); }
+.bg-error { background: var(--error-bg); }
+.bg-warning { background: var(--warning-bg); }
+.bg-primary { background: var(--primary-bg); }
+.bg-info { background: var(--info-bg); }
+.overflow-y-auto { overflow-y: auto; }
+.object-cover { object-fit: cover; }
+.pointer-events-none { pointer-events: none; }
+.col-full { grid-column: 1 / -1; }
+
 /* --- Global prefers-reduced-motion accessibility reset ------------------ */
 @media (prefers-reduced-motion: reduce) {
   *, ::before, ::after {

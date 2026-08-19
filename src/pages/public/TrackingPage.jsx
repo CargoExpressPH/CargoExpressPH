@@ -334,7 +334,7 @@ const TrackingPage = ({ embedded = false }) => {
       {/* ══════════ HEADER ══════════ */}
       <header className="trk-header animate-fade-in">
         {!embedded && (
-          <Link to="/login" className="trk-brand" aria-label="Cargo Express PH home" style={{ textDecoration: 'none' }}>
+          <Link to="/login" className="trk-brand text-no-underline" aria-label="Cargo Express PH home">
             <BrandLockup size={36} />
           </Link>
         )}

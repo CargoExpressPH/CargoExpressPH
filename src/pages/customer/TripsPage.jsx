@@ -160,7 +160,7 @@ const TripsPage = () => {
                       <Calendar size={14} aria-hidden="true" />
                       <span>{tripDate.full}</span>
                     </div>
-                    <div className="flex gap-8 items-center flex-wrap" style={{ gap: '6px' }}>
+                    <div className="flex items-center flex-wrap gap-6">
                       <span className="badge badge-info text-xs" style={{ padding: '3px 8px', borderRadius: '4px' }}>
                         <strong>{Math.max(0, (trip.capacity || 0) - (trip.current_weight || 0)).toLocaleString()} kg</strong> space left
                       </span>

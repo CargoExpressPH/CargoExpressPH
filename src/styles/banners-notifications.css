@@ -1,0 +1,409 @@
+/* --- Message/alert banners, typing indicator, notification list + swipe/delete ---
+   Split from remaining.css. Import order in main.css keeps every rule
+   in the original cascade position (pages layer).
+   ----------------------------------------------------------------- */
+
+/* --- MESSAGE / ALERT BANNERS ------------------------------------------ */
+
+.alert-banner {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 16px; border-radius: var(--radius-sm);
+  font-size: 0.875rem; font-weight: 500;
+  margin-bottom: 16px;
+  animation: slideDown 0.3s ease;
+}
+.alert-banner svg {
+  flex-shrink: 0;
+}
+.alert-banner-success {
+  background: var(--success-bg); color: var(--success-text);
+  border: 1px solid rgba(var(--success-rgb), 0.35);
+}
+.alert-banner-error {
+  background: var(--error-bg); color: var(--error-text-strong);
+  border: 1px solid rgba(var(--error-rgb), 0.35);
+}
+.alert-banner-warning {
+  background: var(--warning-bg); color: var(--warning-text);
+  border: 1px solid rgba(var(--warning-rgb), 0.35);
+}
+.alert-banner-info {
+  background: var(--info-bg); color: var(--info-dark);
+  border: 1px solid rgba(var(--info-rgb), 0.35);
+}
+.alert-banner .alert-dismiss {
+  margin-left: auto; background: none; border: none;
+  cursor: pointer; color: inherit; opacity: 0.6;
+  transition: var(--transition-fast); padding: 2px;
+}
+.alert-banner .alert-dismiss:hover { opacity: 1; }
+
+
+/* --- TYPING INDICATOR ------------------------------------------------- */
+
+.typing-indicator {
+  display: flex; gap: 4px; padding: 10px 14px;
+  background: var(--surface); border-radius: var(--radius-lg);
+  border: 1px solid var(--border-light);
+  width: fit-content;
+}
+.typing-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--text-tertiary);
+  animation: typingBounce 1.4s ease-in-out infinite;
+}
+.typing-dot:nth-child(2) { animation-delay: 0.2s; }
+.typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes typingBounce {
+  0%, 60%, 100% { transform: translateY(0); }
+  30% { transform: translateY(-6px); }
+}
+
+
+/* --- NOTIFICATION STYLES ---------------------------------------------- */
+
+.notification-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 16px;
+  border-top-left-radius: 24px;
+  border-top-right-radius: 24px;
+  border-bottom-right-radius: 24px;
+  border-bottom-left-radius: 24px;
+  border: 1px solid var(--border-light);
+  background: var(--customer-panel);
+  transition: var(--transition);
+  cursor: default;
+  margin-bottom: 8px;
+  width: 100%;
+  color: inherit;
+  text-align: left;
+}
+.notification-card-action {
+  cursor: pointer;
+}
+.notification-card:hover {
+  border-color: var(--border);
+  box-shadow: var(--shadow-sm);
+}
+.notification-card.unread {
+  background: linear-gradient(135deg, var(--customer-green-soft), color-mix(in srgb, var(--customer-panel-solid) 90%, transparent));
+  border-color: color-mix(in srgb, var(--customer-green) 24%, transparent);
+}
+.notification-card.unread .notification-icon-wrap {
+  background: linear-gradient(135deg, var(--customer-green), #22C55E);
+  color: white;
+}
+.notification-icon-wrap {
+  width: 40px;
+  height: 40px;
+  border-top-left-radius: 16px;
+  border-top-right-radius: 16px;
+  border-bottom-right-radius: 16px;
+  border-bottom-left-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-secondary);
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+  transition: var(--transition);
+}
+.notification-content { flex: 1; min-width: 0; }
+.notification-title {
+  font-size: 0.875rem; font-weight: 600;
+  color: var(--text); margin-bottom: 4px;
+  display: flex; align-items: center; gap: 6px;
+}
+.notification-body {
+  font-size: 0.8125rem; color: var(--text-secondary);
+  line-height: 1.5;
+}
+.notification-time {
+  font-size: 0.75rem; color: var(--text-tertiary);
+  margin-top: 4px;
+}
+.notification-unread-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--primary); flex-shrink: 0;
+  animation: breathe 2s ease-in-out infinite;
+}
+
+.notification-date-separator {
+  font-size: 0.75rem;
+  font-weight: 900;
+  color: var(--customer-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  padding: 12px 0 8px;
+  margin-top: 8px;
+  border-bottom: 0;
+}
+
+/* --- NOTIFICATION DELETE / SWIPE STYLES -------------------------------- */
+
+.notification-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-left: auto;
+}
+
+.notification-clear-all-btn {
+  color: var(--error-text);
+}
+.notification-clear-all-btn:hover {
+  background: var(--error-bg);
+}
+
+.notification-swipe-container {
+  position: relative;
+  overflow: hidden;
+  border-top-left-radius: 24px;
+  border-top-right-radius: 24px;
+  border-bottom-right-radius: 24px;
+  border-bottom-left-radius: 24px;
+  margin-bottom: 8px;
+  transition: max-height 0.3s ease, opacity 0.3s ease, margin 0.3s ease;
+  max-height: 200px;
+}
+
+.notification-swipe-container .notification-card {
+  margin-bottom: 0;
+  position: relative;
+  z-index: 2;
+}
+
+.notification-delete-backdrop {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  color: white;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  border-top-left-radius: 0;
+  border-top-right-radius: 24px;
+  border-bottom-right-radius: 24px;
+  border-bottom-left-radius: 0;
+  z-index: 1;
+  transition: opacity 0.2s ease;
+  user-select: none;
+}
+
+/* Exit animation when card is deleted */
+.notification-exit {
+  animation: notificationSlideOut 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes notificationSlideOut {
+  0% { max-height: 200px; opacity: 1; transform: translateX(0); }
+  50% { opacity: 0; transform: translateX(-100%); }
+  100% { max-height: 0; opacity: 0; margin-bottom: 0; padding: 0; transform: translateX(-100%); }
+}
+
+/* Desktop delete button (visible on hover) */
+.notification-delete-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  border: none;
+  background: transparent;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.2s ease, background-color 0.2s ease, color 0.2s ease;
+  flex-shrink: 0;
+  align-self: center;
+}
+
+.notification-card:hover .notification-delete-btn,
+.notification-card:focus-within .notification-delete-btn {
+  opacity: 1;
+}
+
+.notification-delete-btn:hover {
+  background: var(--error-bg);
+  color: var(--error-text-strong);
+  transform: scale(1.1);
+}
+
+.notification-delete-btn:active {
+  transform: scale(0.95);
+}
+
+/* Swipe hint (mobile only) */
+.notification-swipe-hint {
+  display: none;
+  text-align: center;
+  font-size: 0.7rem;
+  color: var(--customer-muted);
+  padding: 0 0 8px;
+  letter-spacing: 0.04em;
+  opacity: 0.7;
+  animation: notificationHintFade 4s ease forwards;
+}
+
+@keyframes notificationHintFade {
+  0%, 80% { opacity: 0.7; }
+  100% { opacity: 0; display: none; }
+}
+
+/* Confirmation modal */
+.notification-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  animation: modalOverlayIn 0.25s ease;
+}
+
+@keyframes modalOverlayIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.notification-modal {
+  position: relative;
+  width: 100%;
+  max-width: 380px;
+  background: var(--customer-panel-solid);
+  border: 1px solid var(--border-light);
+  border-top-left-radius: 28px;
+  border-top-right-radius: 28px;
+  border-bottom-right-radius: 28px;
+  border-bottom-left-radius: 28px;
+  padding: 32px 28px 24px;
+  box-shadow: var(--shadow-xl);
+  text-align: center;
+  animation: modalCardIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes modalCardIn {
+  from { opacity: 0; transform: scale(0.85) translateY(20px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.notification-modal-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 32px;
+  height: 32px;
+  border-top-left-radius: 14px;
+  border-top-right-radius: 14px;
+  border-bottom-right-radius: 14px;
+  border-bottom-left-radius: 14px;
+  border: none;
+  background: var(--bg-secondary);
+  color: var(--text-tertiary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+.notification-modal-close:hover {
+  background: var(--border);
+  color: var(--text);
+}
+
+.notification-modal-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #fee2e2, #fecaca);
+  color: #dc2626;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 16px;
+}
+
+.notification-modal-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+
+.notification-modal-message {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin-bottom: 24px;
+}
+
+.notification-modal-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
+.notification-modal-actions .btn {
+  min-width: 100px;
+  font-weight: 600;
+}
+
+.btn-danger {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 12px;
+  font-size: 0.875rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: transform 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
+}
+.btn-danger:hover {
+  background: linear-gradient(135deg, #dc2626, #b91c1c);
+  box-shadow: 0 4px 14px rgba(239, 68, 68, 0.35);
+  transform: translateY(-1px);
+}
+.btn-danger:active {
+  transform: translateY(0) scale(0.98);
+}
+.btn-danger:disabled {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+/* Mobile-only: show swipe hint, hide desktop delete button */
+@media (max-width: 768px) {
+  .notification-swipe-hint {
+    display: block;
+  }
+  .notification-delete-btn {
+    display: none;
+  }
+}
+
+/* Desktop: hide swipe hint */
+@media (min-width: 769px) {
+  .notification-swipe-hint {
+    display: none;
+  }
+}
+

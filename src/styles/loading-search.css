@@ -135,12 +135,14 @@
   position: relative; display: flex; align-items: center;
 }
 .search-box input {
-  width: 100%; min-height: 44px; padding: 10px 14px 10px 40px;
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 14px 10px 40px;
   border: 1.5px solid var(--border);
   border-radius: var(--radius-sm);
   font-size: 0.875rem;
   transition: var(--transition);
-  background: var(--surface);
+  background: color-mix(in srgb, var(--surface) 94%, var(--bg) 6%);
 }
 .search-box input:focus {
   border-color: var(--primary);

@@ -12,7 +12,7 @@ Installable PWA. Door-to-door service, two roles: **customer** and **admin**.
 | Frontend | React 19 (JavaScript + JSX, **not** TypeScript) |
 | Build | Vite 6 + `@vitejs/plugin-react` |
 | Routing | React Router DOM 7 (`createBrowserRouter` data router) |
-| Styling | Hand-written CSS, 24 files in `src/styles/`, tokens in `tokens.css`. No Tailwind, no component library |
+| Styling | Hand-written CSS, 35 files in `src/styles/`, tokens in `tokens.css`. No Tailwind, no component library |
 | Backend | **Supabase** (PostgreSQL + PostgREST + GoTrue + Realtime + Storage + Edge Functions) |
 | Database | PostgreSQL — schema in `supabase/schema.sql`, history in `supabase/migrations/` |
 | Auth | Supabase Auth (email/password, JWT) |
@@ -97,7 +97,7 @@ src/
   lib/                Integration + data layer — see below
   constants/          status.js (state machines + settlement rules), phLocations.js
   utils/              password.js, string.js, statusTimestamps.js
-  styles/             24 CSS files; tokens.css drives theming
+  styles/             35 CSS files; tokens.css drives theming
 
 supabase/
   schema.sql          Full DDL: 16 tables, RLS, triggers, RPCs

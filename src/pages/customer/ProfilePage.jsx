@@ -145,7 +145,7 @@ const ProfilePage = () => {
             </div>
 
             <div className="profile-card-info-header">
-              <div className="flex items-center gap-8" style={{ flexWrap: 'wrap' }}>
+              <div className="flex items-center gap-8 flex-wrap">
                 <h2 className="profile-user-name">{userProfile?.name || 'User'}</h2>
                 <span
                   className={`profile-tier-badge${isProfileComplete ? '' : ' incomplete'}`}
@@ -175,7 +175,7 @@ const ProfilePage = () => {
                   Complete your personal information for faster booking
                 </button>
               ) : (
-                <span className="text-xs font-semibold text-primary" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                <span className="text-xs font-semibold text-primary flex items-center" style={{ gap: 4 }}>
                   <CheckCircle2 size={12} /> Your details are ready for faster booking.
                 </span>
               )}

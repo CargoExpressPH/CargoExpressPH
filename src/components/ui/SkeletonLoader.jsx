@@ -51,7 +51,7 @@ export const SkeletonCard = () => (
       <SkeletonText lines={3} />
     </div>
     <div className="skeleton-card-actions" aria-hidden="true">
-      <div className="skeleton skeleton-button" style={{ width: '80px' }} />
+      <div className="skeleton skeleton-button w-80" />
       <div className="skeleton skeleton-button" style={{ width: '100px' }} />
     </div>
   </div>
@@ -125,7 +125,7 @@ export const SkeletonDonut = ({ size = 170 }) => (
     <div className="skeleton-donut-legend">
       {Array.from({ length: 3 }, (_, i) => (
         <div key={i} className="skeleton-donut-legend-item" style={{ animationDelay: `${i * 80}ms` }}>
-          <div className="skeleton" style={{ width: 8, height: 8, borderRadius: '50%' }} />
+          <div className="skeleton w-8 h-8" style={{borderRadius: '50%'}} />
           <div className="skeleton skeleton-text" style={{ width: `${50 + i * 15}%` }} />
         </div>
       ))}
@@ -160,27 +160,27 @@ export const SkeletonChat = () => (
   <div className="skeleton-chat animate-pulse">
     <div className="skeleton-chat-header mb-16">
       <div className="skeleton skeleton-text" style={{ width: '40%', height: 22 }} />
-      <div className="skeleton skeleton-text" style={{ width: '60%', height: 12, marginTop: 8 }} />
+      <div className="skeleton skeleton-text h-12" style={{ width: '60%', marginTop: 8}} />
     </div>
     <div className="skeleton-chat-list">
       <div className="skeleton-chat-msg-row start">
         <SkeletonAvatar size={32} />
         <div className="skeleton-chat-bubble-col">
-          <div className="skeleton skeleton-text skeleton-chat-bubble-start" style={{ width: '100%', height: 36 }} />
-          <div className="skeleton skeleton-text" style={{ width: '25%', height: 8 }} />
+          <div className="skeleton skeleton-text skeleton-chat-bubble-start w-full h-36" />
+          <div className="skeleton skeleton-text h-8" style={{ width: '25%',}} />
         </div>
       </div>
       <div className="skeleton-chat-msg-row end">
         <div className="skeleton-chat-bubble-col">
-          <div className="skeleton skeleton-text skeleton-chat-bubble-end" style={{ width: '100%', height: 48 }} />
-          <div className="skeleton skeleton-text" style={{ width: '30%', height: 8 }} />
+          <div className="skeleton skeleton-text skeleton-chat-bubble-end w-full h-48" />
+          <div className="skeleton skeleton-text h-8" style={{ width: '30%',}} />
         </div>
       </div>
       <div className="skeleton-chat-msg-row start" style={{ width: '55%' }}>
         <SkeletonAvatar size={32} />
         <div className="skeleton-chat-bubble-col">
-          <div className="skeleton skeleton-text skeleton-chat-bubble-start" style={{ width: '100%', height: 32 }} />
-          <div className="skeleton skeleton-text" style={{ width: '20%', height: 8 }} />
+          <div className="skeleton skeleton-text skeleton-chat-bubble-start w-full h-32" />
+          <div className="skeleton skeleton-text h-8" style={{ width: '20%',}} />
         </div>
       </div>
     </div>

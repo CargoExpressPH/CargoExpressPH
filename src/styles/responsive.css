@@ -115,33 +115,12 @@
 
 /* Company Info tab bar scroll on narrow screens */
 @media (max-width: 768px) {
-  .app-layout .card:has(> button[style*="flexShrink"]) {
+  .app-layout .card.company-tab-bar {
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
   }
-  .app-layout .card:has(> button[style*="flexShrink"])::-webkit-scrollbar {
+  .app-layout .card.company-tab-bar::-webkit-scrollbar {
     display: none;
-  }
-}
-
-/* Business hours rows: stack time inputs below day name on small screens */
-@media (max-width: 560px) {
-  .app-layout .flex.items-center.gap-16:has(input[type="time"]) {
-    gap: 10px;
-  }
-  .app-layout .flex.items-center.gap-16:has(input[type="time"]) > div:first-child {
-    width: auto ;
-    flex: 1 0 auto;
-    font-size: 0.8125rem ;
-  }
-  .app-layout .flex.items-center.gap-16:has(input[type="time"]) > .flex:last-child {
-    flex: 1 0 100%;
-    margin-left: 0 ;
-  }
-  .app-layout .flex.items-center.gap-16:has(input[type="time"]) input[type="time"] {
-    width: 100px ;
-    min-height: 40px ;
-    flex: 1;
   }
 }
 

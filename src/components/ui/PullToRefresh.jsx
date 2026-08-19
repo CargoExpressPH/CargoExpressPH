@@ -90,21 +90,15 @@ const PullToRefresh = ({ onRefresh, children, disabled = false, className = '' }
   const progressRatio = Math.min(1, pullDistance / THRESHOLD);
 
   return (
-    <div ref={containerRef} className={`pull-to-refresh-container ${className}`} style={{ position: 'relative' }}>
+    <div ref={containerRef} className={`pull-to-refresh-container ${className} relative`}>
       {/* Pull Indicator Banner */}
       <div
-        className="pull-to-refresh-indicator"
-        style={{
-          position: 'absolute',
-          top: 0,
+        className="pull-to-refresh-indicator absolute flex justify-center items-center pointer-events-none"
+        style={{top: 0,
           left: 0,
           right: 0,
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
           height: `${pullDistance}px`,
           overflow: 'hidden',
-          pointerEvents: 'none',
           zIndex: 90,
           transition: isDraggingRef.current ? 'none' : 'height 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
         }}

@@ -3,7 +3,6 @@
    ----------------------------------------------------------------------- */
 .customer-layout-v2,
 .customer-layout-v2 *,
-.customer-main,
 .customer-main *,
 .customer-bottom-nav,
 .customer-bottom-nav *,
@@ -11,23 +10,31 @@
 :is(.trk-page, .public-about-page, .contact-page, .help-guidelines-page) *,
 html:has(:is(.customer-layout-v2, .trk-page, .public-about-page, .contact-page, .help-guidelines-page)),
 body:has(:is(.customer-layout-v2, .trk-page, .public-about-page, .contact-page, .help-guidelines-page)) {
-  scrollbar-width: none !important;
-  -ms-overflow-style: none !important;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  -webkit-overflow-scrolling: touch;
+}
+.customer-main {
   -webkit-overflow-scrolling: touch;
 }
 
 .customer-layout-v2::-webkit-scrollbar,
 .customer-layout-v2 *::-webkit-scrollbar,
-.customer-main::-webkit-scrollbar,
 .customer-main *::-webkit-scrollbar,
 :is(.trk-page, .public-about-page, .contact-page, .help-guidelines-page)::-webkit-scrollbar,
 :is(.trk-page, .public-about-page, .contact-page, .help-guidelines-page) *::-webkit-scrollbar,
 html:has(:is(.customer-layout-v2, .trk-page, .public-about-page, .contact-page, .help-guidelines-page))::-webkit-scrollbar,
 body:has(:is(.customer-layout-v2, .trk-page, .public-about-page, .contact-page, .help-guidelines-page))::-webkit-scrollbar {
-  display: none !important;
-  width: 0 !important;
-  height: 0 !important;
-  background: transparent !important;
+  display: none;
+  width: 0;
+  height: 0;
+  background: transparent;
+}
+
+.customer-main::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  background: transparent;
 }
 
 .customer-layout-v2 .hero-search-input {
@@ -53,9 +60,6 @@ body:has(:is(.customer-layout-v2, .trk-page, .public-about-page, .contact-page, 
   --customer-shadow: 0 18px 44px rgba(15, 23, 42, 0.08);
   --customer-shadow-soft: 0 10px 26px rgba(15, 23, 42, 0.06);
   --customer-safe-bottom: env(safe-area-inset-bottom, 0px);
-  min-height: 100dvh;
-  background:
-    linear-gradient(180deg, #FCFEFC 0%, #F5F8F4 42%, #F7F8FB 100%);
   color: var(--customer-ink);
 }
 
@@ -85,7 +89,6 @@ body:has(:is(.customer-layout-v2, .trk-page, .public-about-page, .contact-page, 
 }
 
 .customer-layout-v2 .card:hover {
-  border-color: var(--customer-line);
   border-color: color-mix(in srgb, var(--customer-green) 20%, var(--customer-line));
   box-shadow: var(--customer-shadow);
 }
@@ -108,7 +111,6 @@ body:has(:is(.customer-layout-v2, .trk-page, .public-about-page, .contact-page, 
 .customer-layout-v2 .form-textarea,
 .customer-layout-v2 .search-box input {
   border-color: var(--customer-line);
-  background: var(--customer-panel-solid);
   background: color-mix(in srgb, var(--customer-panel-solid) 92%, var(--bg) 8%);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55);
 }
@@ -145,17 +147,6 @@ body:has(:is(.customer-layout-v2, .trk-page, .public-about-page, .contact-page, 
   color: var(--primary-text);
 }
 
-
-.customer-navbar {
-  position: sticky;
-  top: 0;
-  border-bottom: 0;
-  background: rgba(255, 255, 255, 0.82);
-  backdrop-filter: blur(22px) saturate(170%);
-  -webkit-backdrop-filter: blur(22px) saturate(170%);
-  box-shadow: none;
-}
-
 [data-theme="dark"] .customer-navbar {
   background: rgba(8, 19, 33, 0.82);
 }
@@ -171,13 +162,7 @@ body:has(:is(.customer-layout-v2, .trk-page, .public-about-page, .contact-page, 
 }
 
 .customer-navbar-inner {
-  height: 72px;
-  max-width: 980px;
   padding-inline: 24px;
-}
-
-.customer-navbar-logo {
-  gap: 10px;
 }
 
 .customer-navbar-logo > svg {
@@ -194,12 +179,9 @@ body:has(:is(.customer-layout-v2, .trk-page, .public-about-page, .contact-page, 
 
 .customer-navbar-brand {
   display: inline-flex;
-  align-items: baseline;
+  align-items: center;
   gap: 2px;
   color: var(--customer-ink);
-  font-size: 1.03rem;
-  font-weight: 800;
-  letter-spacing: 0;
 }
 
 /* (0,3,0) — outranks the .customer-layout-v2 .text-accent rule above, so this
@@ -209,58 +191,24 @@ body:has(:is(.customer-layout-v2, .trk-page, .public-about-page, .contact-page, 
   color: var(--primary-text);
 }
 
-.customer-nav-link {
-  border-radius: 999px;
-  font-weight: 700;
-  color: var(--customer-muted);
-}
-
-.customer-nav-link.active {
-  background: var(--customer-green-soft);
-  color: var(--customer-green-dark);
-}
-
 .customer-nav-link.active::after {
   display: none;
 }
 
-.theme-toggle-btn,
-.customer-nav-icon-btn,
 .customer-avatar-btn {
   border-radius: 999px;
 }
 
-.customer-nav-icon-btn:hover,
-.theme-toggle-btn:hover {
-  background: var(--customer-green-soft);
-  color: var(--customer-green-dark);
-}
-
 .customer-avatar {
-  background: var(--bg-secondary);
   box-shadow: none;
 }
 
 .customer-main {
   width: min(100%, 980px);
-  max-width: 980px;
-  padding: 28px 22px calc(132px + var(--customer-safe-bottom));
-}
-
-.customer-bottom-nav {
-  padding: 0 16px calc(16px + var(--customer-safe-bottom));
 }
 
 .customer-bottom-nav-inner {
-  max-width: 430px;
   min-height: 74px;
-  padding: 8px;
-  border-radius: 28px;
-  border: 1px solid rgba(255, 255, 255, 0.68);
-  background: rgba(255, 255, 255, 0.86);
-  box-shadow:
-    0 18px 44px rgba(15, 23, 42, 0.16),
-    inset 0 1px 0 rgba(255, 255, 255, 0.78);
 }
 
 [data-theme="dark"] .customer-bottom-nav-inner {
@@ -268,16 +216,9 @@ body:has(:is(.customer-layout-v2, .trk-page, .public-about-page, .contact-page, 
   background: rgba(19, 32, 51, 0.86);
 }
 
+/* 4.89:1 on the light nav — passes; kept so light mode is unchanged */
 .customer-bottom-tab {
-  min-width: 58px;
   min-height: 58px;
-  padding: 7px 8px;
-  border-radius: 22px;
-  color: #657184; /* 4.89:1 on the light nav — passes; kept so light mode is unchanged */
-  font-size: 0.66rem;
-  font-weight: 800;
-  letter-spacing: 0;
-  text-transform: none;
 }
 
 /* #657184 measured only 3.39:1 against the dark nav (rgba(19,32,51,.86) over
@@ -289,32 +230,6 @@ body:has(:is(.customer-layout-v2, .trk-page, .public-about-page, .contact-page, 
 /* The active tab label is 11.2px — body-size text, so --customer-green
    (aliases --primary, 3.08:1 on the translucent white nav bar) fails AA.
    The icon keeps its own colour rule below; only the label needs this. */
-.customer-bottom-tab.active {
-  color: var(--primary-text);
-}
-
-.customer-bottom-tab.active::before {
-  inset: 0;
-  border-radius: 22px;
-  background: var(--customer-green-soft);
-}
-
-.customer-bottom-tab.book-tab .book-tab-icon {
-  width: 56px;
-  height: 56px;
-  margin-top: -12px;
-  border-radius: 999px;
-  background: linear-gradient(135deg, var(--customer-green), #22C55E);
-  box-shadow:
-    0 16px 34px rgba(18, 138, 90, 0.28),
-    inset 0 1px 0 rgba(255, 255, 255, 0.3);
-}
-
-.customer-bottom-tab.book-tab.active .book-tab-icon {
-  box-shadow:
-    0 18px 38px rgba(18, 138, 90, 0.34),
-    0 0 0 6px rgba(18, 138, 90, 0.12);
-}
 
 .customer-page-heading,
 .customer-mobile-heading {
@@ -328,11 +243,18 @@ body:has(:is(.customer-layout-v2, .trk-page, .public-about-page, .contact-page, 
 .customer-page-heading h1,
 .customer-page-heading h2,
 .customer-mobile-heading h1,
-.customer-mobile-heading h2,
-.customer-home-hero h1,
-.customer-home-hero h2 {
+.customer-mobile-heading h2 {
   color: var(--customer-ink);
   font-size: clamp(1.85rem, 5vw, 2.55rem);
+  font-weight: 900;
+  line-height: 1.02;
+  letter-spacing: 0;
+}
+
+.customer-home-hero h1,
+.customer-home-hero h2 {
+  color: var(--text-on-dark);
+  font-size: clamp(2.1rem, 8vw, 3rem);
   font-weight: 900;
   line-height: 1.02;
   letter-spacing: 0;
@@ -355,11 +277,6 @@ body:has(:is(.customer-layout-v2, .trk-page, .public-about-page, .contact-page, 
 .customer-inline-action {
   color: var(--customer-green-dark);
   font-weight: 800;
-  border-radius: 999px;
-}
-
-.customer-inline-action:hover {
-  background: var(--customer-green-soft);
 }
 
 .customer-home-page {
@@ -383,9 +300,7 @@ body:has(:is(.customer-layout-v2, .trk-page, .public-about-page, .contact-page, 
   display: none;
 }
 
-.customer-home-hero p,
-.customer-home-hero h1,
-.customer-home-hero h2 {
+.customer-home-hero p {
   position: relative;
   z-index: 1;
   color: var(--text-on-dark);
@@ -393,8 +308,13 @@ body:has(:is(.customer-layout-v2, .trk-page, .public-about-page, .contact-page, 
 
 .customer-home-hero h1,
 .customer-home-hero h2 {
+  position: relative;
+  z-index: 1;
+}
+
+.customer-home-hero h1,
+.customer-home-hero h2 {
   margin-bottom: 8px;
-  font-size: clamp(2.1rem, 8vw, 3rem);
 }
 
 .customer-home-hero > .text-sm:first-child {
@@ -506,15 +426,11 @@ body:has(:is(.customer-layout-v2, .trk-page, .public-about-page, .contact-page, 
 
 /* Soft panel trip cards (trips list + home next-available). Same family as
    shipment cards / snapshot pills: light panel light mode, dark panel dark mode. */
-.customer-layout-v2 .customer-trip-card,
-.customer-layout-v2 .home-hero-trip-card {
+.customer-layout-v2 .customer-trip-card {
   overflow: hidden;
-  border: 1px solid var(--customer-green-soft);
   border: 1px solid color-mix(in srgb, var(--customer-green) 22%, transparent);
   border-radius: 28px;
-  background: var(--customer-panel-solid);
-  background:
-    linear-gradient(135deg, color-mix(in srgb, var(--customer-green-soft) 82%, var(--customer-panel-solid) 18%), var(--customer-panel-solid) 62%),
+  background: linear-gradient(135deg, color-mix(in srgb, var(--customer-green-soft) 82%, var(--customer-panel-solid) 18%), var(--customer-panel-solid) 62%),
     var(--customer-panel-solid);
   color: var(--customer-ink);
   box-shadow: var(--customer-shadow);
@@ -628,7 +544,6 @@ body:has(:is(.customer-layout-v2, .trk-page, .public-about-page, .contact-page, 
 }
 
 .customer-order-tabs .tab.active {
-  border-color: var(--customer-green);
   border-color: color-mix(in srgb, var(--customer-green) 40%, transparent);
   background: var(--customer-green-soft);
   color: var(--customer-green-dark);
@@ -737,11 +652,12 @@ body:has(:is(.customer-layout-v2, .trk-page, .public-about-page, .contact-page, 
   top: 82px;
   z-index: 5;
   gap: 0;
-  margin: 0 -2px 2px;
+  margin-top: 0;
+  margin-right: -2px;
+  margin-left: -2px;
   padding: 10px;
   border: 1px solid var(--customer-line);
   border-radius: 24px;
-  background: var(--customer-panel-solid);
   background: color-mix(in srgb, var(--customer-panel-solid) 92%, transparent);
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
@@ -789,10 +705,6 @@ body:has(:is(.customer-layout-v2, .trk-page, .public-about-page, .contact-page, 
   border-radius: 999px;
 }
 
-.customer-route-options {
-  gap: 12px;
-}
-
 .customer-layout-v2 .customer-route-option {
   min-height: 118px;
   border-radius: 24px;
@@ -803,11 +715,6 @@ body:has(:is(.customer-layout-v2, .trk-page, .public-about-page, .contact-page, 
   background: var(--customer-green-soft);
   border-color: var(--customer-green);
   box-shadow: 0 12px 28px rgba(18, 138, 90, 0.12);
-}
-
-.booking-summary-card,
-.booking-cost-card {
-  border-radius: 20px;
 }
 
 .booking-trip-select {
@@ -855,8 +762,6 @@ body:has(:is(.customer-layout-v2, .trk-page, .public-about-page, .contact-page, 
 
 .booking-cost-card {
   border-color: color-mix(in srgb, var(--customer-green) 24%, transparent);
-  background:
-    linear-gradient(135deg, var(--customer-green-soft), var(--customer-green-soft));
 }
 
 .customer-notifications-page {
@@ -870,65 +775,24 @@ body:has(:is(.customer-layout-v2, .trk-page, .public-about-page, .contact-page, 
   gap: 12px 16px;
 }
 
-.notification-date-separator {
-  border-bottom: 0;
-  color: var(--customer-muted);
-  font-weight: 900;
-  letter-spacing: 0.09em;
-}
-
 .notification-card {
   min-height: 78px;
   border-color: var(--customer-line);
-  border-radius: 24px;
-  background: var(--customer-panel);
   box-shadow: var(--customer-shadow-soft);
 }
 
-.notification-card.unread {
-  border-color: var(--customer-line);
-  border-color: color-mix(in srgb, var(--customer-green) 24%, transparent);
-  background: var(--customer-green-soft);
-  background:
-    linear-gradient(135deg, var(--customer-green-soft), color-mix(in srgb, var(--customer-panel-solid) 90%, transparent));
-}
-
-.notification-card.unread .notification-icon-wrap,
-.notification-icon-wrap {
+.notification-card.unread .notification-icon-wrap {
   border-radius: 16px;
 }
 
-.notification-card.unread .notification-icon-wrap {
-  background: linear-gradient(135deg, var(--customer-green), #22C55E);
-}
-
 /* Swipe-to-delete mobile refinements */
-.notification-swipe-container {
-  border-radius: 24px;
-}
-
-.notification-swipe-container .notification-card {
-  margin-bottom: 0;
-}
-
-.notification-delete-backdrop {
-  border-radius: 0 24px 24px 0;
-}
 
 .notification-swipe-hint {
-  color: var(--customer-muted);
   font-weight: 600;
 }
 
 .notification-modal {
-  border-radius: 28px;
   border-color: var(--customer-line);
-  background: var(--customer-panel-solid);
-  box-shadow: var(--shadow-xl);
-}
-
-.notification-modal-close {
-  border-radius: 14px;
 }
 
 
@@ -939,13 +803,11 @@ body:has(:is(.customer-layout-v2, .trk-page, .public-about-page, .contact-page, 
 }
 
 .customer-order-detail-header {
-  align-items: flex-start;
-  margin-bottom: 6px ;
+  margin-bottom: 6px;
   padding: 18px;
   border: 1px solid var(--customer-line);
   border-radius: 26px;
-  background:
-    linear-gradient(135deg, var(--customer-green-soft), var(--customer-panel-solid));
+  background: linear-gradient(135deg, var(--customer-green-soft), var(--customer-panel-solid));
   box-shadow: var(--customer-shadow-soft);
 }
 
@@ -967,24 +829,14 @@ body:has(:is(.customer-layout-v2, .trk-page, .public-about-page, .contact-page, 
 
 .customer-payment-summary {
   border-color: var(--customer-line);
-  border-radius: 20px;
-  background: linear-gradient(135deg, var(--customer-green-soft), var(--customer-panel-solid));
 }
 
 .profile-card-premium {
-  overflow: visible;
-  border-radius: 30px;
-  background: var(--customer-panel);
-  box-shadow: var(--customer-shadow);
   position: relative;
 }
 
 .profile-card-banner {
-  height: 132px;
   border-radius: 30px 30px 26px 26px;
-  background:
-    linear-gradient(135deg, var(--customer-green-dark), var(--customer-green));
-  position: relative;
 }
 
 .profile-vip-overlay {
@@ -1010,11 +862,7 @@ body:has(:is(.customer-layout-v2, .trk-page, .public-about-page, .contact-page, 
 }
 
 .profile-card-avatar {
-  width: 82px;
-  height: 82px;
   border-width: 5px;
-  background: linear-gradient(135deg, var(--customer-green), #22C55E);
-  box-shadow: 0 16px 32px rgba(18, 138, 90, 0.24);
 }
 
 .profile-avatar-container {
@@ -1109,7 +957,6 @@ body:has(:is(.customer-layout-v2, .trk-page, .public-about-page, .contact-page, 
 }
 
 .profile-completion-container {
-  background: var(--customer-green-soft);
   background: color-mix(in srgb, var(--customer-green-soft) 40%, var(--customer-panel));
   border: 1px solid var(--customer-line);
   border-radius: 22px;
@@ -1219,18 +1066,13 @@ body:has(:is(.customer-layout-v2, .trk-page, .public-about-page, .contact-page, 
 [data-theme="dark"] .profile-menu-icon-wrap.warning { background: rgba(251, 191, 36, 0.12); color: #fbbf24; }
 
 .profile-quick-stats {
-  gap: 10px;
   margin: 16px 0;
-  border: 0 ;
-  background: transparent ;
-  box-shadow: none ;
 }
 
 .profile-stat-item {
   min-height: 104px;
   border: 1px solid var(--customer-line);
   border-radius: 22px;
-  background: var(--customer-panel);
   box-shadow: var(--customer-shadow-soft);
 }
 
@@ -1243,28 +1085,6 @@ body:has(:is(.customer-layout-v2, .trk-page, .public-about-page, .contact-page, 
 
 .profile-menu-item {
   min-height: 74px;
-  padding: 16px 18px;
-  border-bottom: 1px solid var(--customer-line) ;
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  background: var(--customer-panel);
-  color: var(--customer-ink);
-  width: 100%;
-  border-top: none;
-  border-left: none;
-  border-right: none;
-  cursor: pointer;
-  transition: var(--transition-fast);
-}
-
-.profile-menu-item:last-child {
-  border-bottom: none ;
-}
-
-.profile-menu-item:hover {
-  background: var(--customer-green-soft);
-  color: var(--customer-green-dark);
 }
 
 .profile-menu-item.no-hover {
@@ -1360,27 +1180,13 @@ input:checked + .toggle-slider:before {
   font-weight: 900;
 }
 
-.form-input-wrapper {
-  position: relative;
-}
-
 .form-input-icon {
-  position: absolute;
   top: 50%;
-  left: 15px;
   z-index: 1;
   transform: translateY(-50%);
-  color: var(--customer-muted);
-  pointer-events: none;
-}
-
-.form-input-icon-left {
-  padding-left: 44px ;
 }
 
 .support-chat-page {
-  min-height: 500px;
-  height: calc(100vh - 160px);
   gap: 12px;
 }
 
@@ -1395,23 +1201,16 @@ input:checked + .toggle-slider:before {
   letter-spacing: 0;
 }
 
+/* See tables-mobile.css: a flex item defaults to min-height:auto and refuses to
+   shrink below its content, which pushed the chat column past its height and
+   scrolled the composer under the tab bar. Re-asserted here because this
+   file loads after tables-mobile.css. */
 .support-chat-messages {
-  /* See remaining.css: a flex item defaults to min-height:auto and refuses to
-     shrink below its content, which pushed the chat column past its height and
-     scrolled the composer under the tab bar. Re-asserted here because this
-     file loads after remaining.css. */
-  min-height: 0;
   border-color: var(--customer-line);
-  border-radius: 28px;
-  background: var(--customer-panel-solid);
-  background:
-    linear-gradient(180deg, color-mix(in srgb, var(--customer-green-soft) 42%, transparent), transparent 44%),
-    color-mix(in srgb, var(--customer-panel-solid) 88%, var(--bg) 12%);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
 }
 
 .support-message-bubble {
-  border-radius: 22px;
   box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
 }
 
@@ -1456,7 +1255,6 @@ input:checked + .toggle-slider:before {
   padding: 8px;
   border: 1px solid var(--customer-line);
   border-radius: 999px;
-  background: var(--customer-panel-solid);
   background: color-mix(in srgb, var(--customer-panel-solid) 92%, transparent);
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
@@ -1464,13 +1262,11 @@ input:checked + .toggle-slider:before {
 }
 
 .customer-main:has(.support-chat-page) {
-  padding-bottom: calc(104px + var(--customer-safe-bottom)) ;
-  scroll-padding-bottom: calc(94px + var(--customer-safe-bottom)) ;
+  scroll-padding-bottom: calc(94px + var(--customer-safe-bottom));
 }
 
 @media (max-width: 899.98px) {
   .customer-navbar-inner {
-    height: 66px;
     padding-inline: 20px;
   }
 
@@ -1488,7 +1284,6 @@ input:checked + .toggle-slider:before {
   .customer-main {
     width: 100%;
     max-width: 560px;
-    padding: 18px 18px calc(160px + var(--customer-safe-bottom)) ;
   }
 
   .customer-page-heading,
@@ -1648,7 +1443,6 @@ input:checked + .toggle-slider:before {
 }
 
 .customer-payment-history-table thead {
-  background: var(--bg-secondary);
   background: color-mix(in srgb, var(--customer-green-soft) 40%, var(--bg-secondary));
 }
 
@@ -1676,7 +1470,6 @@ input:checked + .toggle-slider:before {
 }
 
 .customer-payment-history-table tbody tr:hover {
-  background: var(--customer-green-soft);
   background: color-mix(in srgb, var(--customer-green-soft) 30%, transparent);
 }
 
@@ -1719,21 +1512,20 @@ input:checked + .toggle-slider:before {
     background: var(--customer-panel);
   }
 
+  /* Values can wrap to more than one line (PayMongo references are ~30
+     characters with no spaces), so top-align them against their label
+     rather than centring a two-line value against a one-line label.
+     `pay_AF5gLbFUtAGwauryXa6LfzLp` is a single unbreakable token. Without an
+     explicit break opportunity it overflowed the card and was clipped. */
   .customer-payment-history-table td {
-    display: flex ;
-    /* Values can wrap to more than one line (PayMongo references are ~30
-       characters with no spaces), so top-align them against their label
-       rather than centring a two-line value against a one-line label. */
+    display: flex;
     align-items: flex-start;
     justify-content: space-between;
     gap: 12px;
-    padding: 0 0 6px 0 ;
-    border-bottom: 1px solid var(--customer-line) ;
-    border-bottom: 1px solid color-mix(in srgb, var(--customer-line) 40%, transparent) ;
+    padding: 0 0 6px 0;
+    border-bottom: 1px solid color-mix(in srgb, var(--customer-line) 40%, transparent);
     font-size: 0.8125rem;
-    text-align: right ;
-    /* `pay_AF5gLbFUtAGwauryXa6LfzLp` is a single unbreakable token. Without an
-       explicit break opportunity it overflowed the card and was clipped. */
+    text-align: right;
     overflow-wrap: anywhere;
     word-break: break-word;
   }
@@ -1848,7 +1640,6 @@ body:has(textarea:focus) .support-chat-page {
 .customer-route-line {
   width: 100%;
   height: 2px;
-  background: var(--customer-line);
   background: color-mix(in srgb, var(--customer-line) 80%, transparent);
   position: relative;
 }

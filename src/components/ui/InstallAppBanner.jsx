@@ -103,10 +103,8 @@ export default function InstallAppBanner() {
       {/* Backdrop — mobile only; desktop shows a corner card instead */}
       <div
         onClick={dismiss}
-        className="install-banner-backdrop"
-        style={{
-          position: 'fixed',
-          inset: 0,
+        className="install-banner-backdrop fixed"
+        style={{inset: 0,
           background: 'rgba(0,0,0,0.45)',
           backdropFilter: 'blur(4px)',
           zIndex: 9998,
@@ -117,33 +115,24 @@ export default function InstallAppBanner() {
       <div
         role="dialog"
         aria-label="Install Cargo Express PH"
-        className="install-banner-card"
-        style={{
-          position: 'fixed',
-          zIndex: 9999,
+        className="install-banner-card fixed"
+        style={{zIndex: 9999,
           background: 'var(--surface, #1e293b)',
           boxShadow: '0 -8px 40px rgba(0,0,0,0.4)',
           border: '1px solid var(--border)',
           animation: 'installSlideUp 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)',
         }}
       >
-        <div style={{ padding: '20px 24px 24px', position: 'relative' }}>
+        <div className="relative" style={{ padding: '20px 24px 24px',}}>
           <button
             onClick={dismiss}
             aria-label="Close install prompt"
-            style={{
-              position: 'absolute',
-              top: 4,
+            className="absolute w-32 h-32 flex items-center justify-center cursor-pointer"
+            style={{top: 4,
               right: 20,
               background: 'var(--bg-secondary)',
               border: 'none',
               borderRadius: '50%',
-              width: 32,
-              height: 32,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
               color: 'var(--text-secondary, #94a3b8)',
             }}
           >
@@ -151,15 +140,12 @@ export default function InstallAppBanner() {
           </button>
 
           {/* Header */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 18, paddingRight: 40 }}>
-            <div style={{
+          <div className="flex items-center" style={{gap: 14, marginBottom: 18, paddingRight: 40}}>
+            <div className="flex items-center justify-center" style={{
               width: 52,
               height: 52,
               borderRadius: 12,
               background: 'linear-gradient(135deg, #16A34A, #15803D)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
               flexShrink: 0,
               boxShadow: '0 4px 16px rgba(22,163,74,0.35)',
             }}>
@@ -176,12 +162,9 @@ export default function InstallAppBanner() {
           </div>
 
           {/* Perks */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
+          <div className="flex flex-col" style={{gap: 10, marginBottom: 20}}>
             {perks.map(({ icon: Icon, label }) => (
-              <div key={label} style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 12,
+              <div key={label} className="flex items-center" style={{gap: 12,
                 padding: '10px 14px',
                 background: 'rgba(22,163,74,0.08)',
                 borderRadius: 10,
@@ -198,9 +181,8 @@ export default function InstallAppBanner() {
           <button
             onClick={install}
             disabled={installing}
-            style={{
-              width: '100%',
-              padding: '14px',
+            className="w-full flex items-center justify-center"
+            style={{padding: '14px',
               background: 'linear-gradient(135deg, #16A34A, #15803D)',
               color: '#fff',
               border: 'none',
@@ -210,9 +192,6 @@ export default function InstallAppBanner() {
               cursor: installing ? 'wait' : 'pointer',
               opacity: installing ? 0.75 : 1,
               boxShadow: '0 4px 20px rgba(22,163,74,0.4)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
               gap: 8,
             }}
           >
@@ -221,16 +200,14 @@ export default function InstallAppBanner() {
           </button>
           <button
             onClick={dismiss}
-            style={{
-              width: '100%',
-              marginTop: 10,
+            className="w-full cursor-pointer"
+            style={{marginTop: 10,
               padding: '12px',
               background: 'transparent',
               color: 'var(--text-secondary, #94a3b8)',
               border: 'none',
               borderRadius: 14,
               fontSize: '0.85rem',
-              cursor: 'pointer',
             }}
           >
             Not now

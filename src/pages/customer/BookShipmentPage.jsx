@@ -396,7 +396,7 @@ const BookShipmentPage = () => {
       : null;
     return (
       <div className="grid grid-2 gap-16">
-        <div className="form-group" style={{ gridColumn: '1 / -1' }}><label className="form-label" htmlFor={id('name')}>Full Name <span className="required">*</span></label><input id={id('name')} className={`form-input ${fc('name')}`} value={form[`${prefix}_name`]} onChange={handleTextChange(`${prefix}_name`)} autoComplete={isSender ? 'name' : 'shipping name'} autoCapitalize="words" required {...a11y('name')} />{errEl('name')}</div>
+        <div className="form-group col-full"><label className="form-label" htmlFor={id('name')}>Full Name <span className="required">*</span></label><input id={id('name')} className={`form-input ${fc('name')}`} value={form[`${prefix}_name`]} onChange={handleTextChange(`${prefix}_name`)} autoComplete={isSender ? 'name' : 'shipping name'} autoCapitalize="words" required {...a11y('name')} />{errEl('name')}</div>
         <div className="form-group"><label className="form-label" htmlFor={id('phone')}>Mobile Number <span className="required">*</span></label><input id={id('phone')} className={`form-input ${fc('phone')}`} value={form[`${prefix}_phone`]} onChange={handlePhoneChange(`${prefix}_phone`)} inputMode="numeric" maxLength={11} placeholder="09xxxxxxxxx" autoComplete="tel" required {...a11y('phone')} />{errEl('phone')}</div>
         <div className="form-group"><label className="form-label" htmlFor={id('facebook')}>Facebook Name <span className="required">*</span></label><input id={id('facebook')} className={`form-input ${fc('facebook')}`} value={form[`${prefix}_facebook`]} onChange={handleTextChange(`${prefix}_facebook`)} placeholder="Your name on Facebook" autoCapitalize="words" required {...a11y('facebook')} />{errEl('facebook')}</div>
         <div className="form-group"><label className="form-label" htmlFor={id('province')}>Province <span className="required">*</span></label>
@@ -424,8 +424,8 @@ const BookShipmentPage = () => {
         <div className="form-group"><label className="form-label" htmlFor={id('lot-block')}>Lot / Block / Purok <span className="required">*</span></label><input id={id('lot-block')} className={`form-input ${fc('lot_block')}`} value={form[`${prefix}_lot_block`]} onChange={handleTextChange(`${prefix}_lot_block`)} autoComplete="address-line2" autoCapitalize="words" required {...a11y('lot_block')} />{errEl('lot_block')}</div>
         <div className="form-group"><label className="form-label" htmlFor={id('landmark')}>Landmark <span className="required">*</span></label><input id={id('landmark')} className={`form-input ${fc('landmark')}`} value={form[`${prefix}_landmark`]} onChange={handleTextChange(`${prefix}_landmark`)} placeholder="Near what building/place?" autoCapitalize="words" required {...a11y('landmark')} />{errEl('landmark')}</div>
         {isSender && form[`${prefix}_province`] === 'Other Area' && (
-          <div className="alert alert-warning mt-md" style={{ gridColumn: '1 / -1' }}>
-            <AlertTriangle size={16} style={{display:'inline', marginRight: '8px', verticalAlign: 'middle'}}/>
+          <div className="alert alert-warning mt-md col-full">
+            <AlertTriangle size={16} className="inline" style={{marginRight: '8px', verticalAlign: 'middle'}}/>
             Your pickup location is outside our standard service coverage area. Cargo Express PH may still accommodate your request depending on operational availability. Our team will review your booking and contact you if additional arrangements are required.
           </div>
         )}

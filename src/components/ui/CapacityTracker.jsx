@@ -68,8 +68,8 @@ const CapacityTracker = ({ currentWeight = 0, maxCapacity = 1000, tripNumber = '
         style={{ height: 14, borderRadius: 7, background: 'var(--bg-secondary)' }}
       >
         <div
-          className={`capacity-fill ${percent > 100 ? 'danger' : ''}`}
-          style={{ width: `${barPercent}%`, height: '100%', background: barColor, transition: 'width 0.5s ease-out, background-color 0.5s ease-out' }}
+          className={`capacity-fill ${percent > 100 ? 'danger' : ''} h-full`}
+          style={{ width: `${barPercent}%`, background: barColor, transition: 'width 0.5s ease-out, background-color 0.5s ease-out'}}
         />
       </div>
 

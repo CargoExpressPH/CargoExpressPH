@@ -235,7 +235,7 @@ const AdminOrdersPage = () => {
                 {paginated.map((o) => (
                   <tr key={o.id}>
                     <td data-label="Tracking">
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <div className="flex flex-col" style={{gap: '4px'}}>
                         <Link to={`/admin/orders/${o.id}`} className="fw-700 text-accent">{o.tracking_number}</Link>
                         {o.service_area_status === 'for_review' && (
                           <span className="badge badge-warning" style={{ alignSelf: 'flex-start', fontSize: '0.65rem' }}>Out of Coverage Review</span>

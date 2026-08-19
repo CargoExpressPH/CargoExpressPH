@@ -15,10 +15,6 @@
   --admin-line: rgba(15, 23, 42, 0.08);
   --admin-shadow: 0 18px 44px rgba(15, 23, 42, 0.08);
   --admin-shadow-soft: 0 10px 26px rgba(15, 23, 42, 0.06);
-  --sidebar-width: 280px;
-  --sidebar-collapsed-width: 88px;
-  background:
-    linear-gradient(180deg, #FCFEFC 0%, #F5F8F4 42%, #F7F8FB 100%);
   color: var(--admin-ink);
   overflow-x: clip;
 }
@@ -67,7 +63,6 @@
   margin-left: var(--sidebar-width);
 }
 
-.app-layout.sidebar-collapsed .main-content,
 .app-layout .sidebar.collapsed ~ .main-content {
   margin-left: var(--sidebar-collapsed-width);
 }
@@ -700,12 +695,7 @@
 }
 
 .app-layout .stat-card {
-  min-height: 118px;
-  border: 1px solid var(--admin-line);
   border-radius: 24px;
-  background: var(--admin-panel) ;
-  color: var(--admin-ink) ;
-  box-shadow: var(--admin-shadow-soft);
 }
 
 .app-layout .stat-card:hover {
@@ -715,18 +705,11 @@
 }
 
 .app-layout .stat-card .stat-value {
-  color: var(--admin-ink);
   font-weight: 900;
 }
 
 .app-layout .stat-card .stat-label {
-  color: var(--admin-muted);
   font-weight: 800;
-}
-
-.app-layout .stat-card .stat-icon {
-  color: var(--admin-green);
-  background: var(--admin-green-soft);
 }
 
 .app-layout .btn {
@@ -855,9 +838,7 @@
   white-space: nowrap;
 }
 
-.app-layout .responsive-filter-tabs .tab,
-.app-layout .admin-filter-row .btn,
-.app-layout .report-period-tab {
+.app-layout .responsive-filter-tabs .tab {
   width: 100%;
   white-space: normal;
 }
@@ -989,9 +970,12 @@
   }
 
   .app-layout .main-content,
-  .app-layout.sidebar-collapsed .main-content,
   .app-layout .sidebar.collapsed ~ .main-content {
     margin-left: 0;
+    width: 100%;
+  }
+
+  .app-layout.sidebar-collapsed .main-content {
     width: 100%;
   }
 
@@ -1112,10 +1096,10 @@
      The table→card conversion is defined in TWO places at different
      breakpoints, and this block is the narrower one:
 
-       remaining.css  @media (max-width: 900px)  grid card, value right-aligned
-       this file      @media (max-width: 768px)  flex card
+       tables-mobile.css  @media (max-width: 900px)  grid card, value right-aligned
+       this file          @media (max-width: 768px)  flex card
 
-     remaining.css sets `text-align: right` on `.data-table td`.
+     tables-mobile.css sets `text-align: right` on `.data-table td`.
      This file's `.app-layout .data-table td` selector (0,2,0) outranks
      that (0,1,0) on admin pages, so any text-align set here will apply.
      Cell text below 768px is right-aligned (labels stay left via the
@@ -1240,7 +1224,7 @@
 
 
 .topbar-command-kbd {
-  font-size: 0.625rem;
+  font-size: 0.6875rem;
   font-weight: 600;
   background: var(--bg-secondary);
   padding: 1px 5px;

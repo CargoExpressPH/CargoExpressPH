@@ -304,7 +304,7 @@ const ChangeEmailPage = () => {
                   : <><ShieldCheck size={18} /> Update Email</>
                 }
               </button>
-              <p className="form-helper mt-12" style={{ textAlign: 'center' }}>
+              <p className="form-helper mt-12 text-center">
                 A confirmation link will be sent to your new email address.
               </p>
 

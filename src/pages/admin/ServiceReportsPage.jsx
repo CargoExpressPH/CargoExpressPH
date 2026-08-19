@@ -122,10 +122,10 @@ const ServiceReportsPage = () => {
       {/* The honesty banner. Without it these numbers read as an operational
           baseline, which they are not — they describe testing. */}
       <div
-        className="mb-24 no-print"
+        className="mb-24 no-print br-8"
         style={{
           background: 'var(--info-bg)', color: 'var(--info-dark)', border: '1px solid var(--info)',
-          borderRadius: 8, padding: '12px 16px', fontSize: '0.8125rem', lineHeight: 1.6,
+          padding: '12px 16px', fontSize: '0.8125rem', lineHeight: 1.6,
         }}
         role="note"
       >
@@ -196,7 +196,7 @@ const ServiceReportsPage = () => {
         {/* Bot deflection */}
         <div className="card admin-section-card stagger-item" style={{ animationDelay: '240ms' }}>
           <div className="card-header"><h3>Bot outcomes</h3></div>
-          <div className="card-body" style={{ display: 'flex', justifyContent: 'center', padding: '20px 16px' }}>
+          <div className="card-body flex justify-center" style={{ padding: '20px 16px' }}>
             {loading ? <SkeletonDonut size={150} /> : botVoted === 0 ? (
               <EmptyState
                 icon={MessageSquare}
@@ -285,7 +285,7 @@ const ServiceReportsPage = () => {
                 { l: 'Median response', v: inq.measured > 0 ? formatDuration(inq.medianResponseMinutes) : '—' },
               ].map((s, i) => (
                 <div key={i}>
-                  <div className="fw-700" style={{ fontSize: '1.5rem' }}>{s.v}</div>
+                  <div className="fw-700 text-2xl">{s.v}</div>
                   <div className="text-xs text-tertiary">{s.l}</div>
                 </div>
               ))}

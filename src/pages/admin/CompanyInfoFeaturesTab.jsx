@@ -34,18 +34,18 @@ const SortableRow = ({ feat, handleEdit, setDeleteTarget }) => {
 
   return (
     <tr ref={setNodeRef} style={style}>
-      <td className="feature-drag-handle" style={{ width: 40, textAlign: 'center', color: 'var(--text-tertiary)', cursor: 'grab' }} {...attributes} {...listeners}>
+      <td className="feature-drag-handle text-center text-tertiary w-40" style={{cursor: 'grab'}} {...attributes} {...listeners}>
         <GripVertical size={16} />
       </td>
       <td data-label="Icon">
-        <div style={{ width: 34, height: 34, borderRadius: 'var(--radius-sm)', background: 'var(--primary-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--primary-text)' }}>
+        <div className="rounded-sm flex items-center justify-center" style={{ width: 34, height: 34, background: 'var(--primary-bg)', color: 'var(--primary-text)'}}>
           <Ico size={18} />
         </div>
       </td>
       <td data-label="Title & Description">
         <div className="feature-title-desc">
           <div style={{ fontWeight: 700, marginBottom: 2 }}>{feat.title}</div>
-          <div style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>{feat.description}</div>
+          <div className="text-secondary" style={{ fontSize: '0.8125rem',}}>{feat.description}</div>
         </div>
       </td>
       <td>
@@ -206,34 +206,31 @@ const CompanyInfoFeaturesTab = ({ features, setFeatures }) => {
 
             <div className="grid grid-2" style={{ gap: 16 }}>
               {/* Icon Picker */}
-              <div className="form-group" style={{ marginBottom: 0 }}>
+              <div className="form-group mb-0">
                 <label className="form-label">Icon</label>
                 <div className="flex items-center gap-8">
                   <div
+                    className="rounded-sm flex items-center justify-center"
                     style={{
-                      width: 44, height: 44, borderRadius: 'var(--radius-sm)',
-                      background: 'var(--primary-bg)', border: '1.5px solid var(--border)',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      width: 44, height: 44, background: 'var(--primary-bg)', border: '1.5px solid var(--border)',
                       flexShrink: 0, color: 'var(--primary-text)',
                     }}
                   >
                     <PreviewIcon size={22} />
                   </div>
-                  <div style={{ flex: 1, position: 'relative' }}>
+                  <div className="relative" style={{ flex: 1,}}>
                     <button
                       type="button"
-                      className="form-input"
-                      style={{ textAlign: 'left', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
+                      className="form-input text-left cursor-pointer flex items-center justify-between"
                       onClick={() => setShowIconPicker(p => !p)}
                     >
                       <span>{formData.icon || 'Select icon...'}</span>
-                      <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>▼</span>
+                      <span className="text-tertiary" style={{ fontSize: '0.75rem',}}>▼</span>
                     </button>
                     {showIconPicker && (
-                      <div style={{
-                        position: 'absolute', top: 'calc(100% + 4px)', left: 0, zIndex: 200,
+                      <div className="absolute rounded-md" style={{top: 'calc(100% + 4px)', left: 0, zIndex: 200,
                         background: 'var(--surface)', border: '1px solid var(--border)',
-                        borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-lg)',
+                        boxShadow: 'var(--shadow-lg)',
                         padding: 12, width: 280,
                       }}>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 6 }}>
@@ -246,12 +243,12 @@ const CompanyInfoFeaturesTab = ({ features, setFeatures }) => {
                                 title={name}
                                 type="button"
                                 onClick={() => { setFormData(p => ({ ...p, icon: name })); setShowIconPicker(false); }}
+                                className="flex items-center justify-center cursor-pointer"
                                 style={{
                                   width: 34, height: 34, borderRadius: 6, border: '1.5px solid',
                                   borderColor: formData.icon === name ? 'var(--primary)' : 'transparent',
                                   background: formData.icon === name ? 'var(--primary-bg)' : 'transparent',
-                                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                  cursor: 'pointer', color: formData.icon === name ? 'var(--primary)' : 'var(--text-secondary)',
+                                  color: formData.icon === name ? 'var(--primary)' : 'var(--text-secondary)',
                                   transition: 'all 0.15s',
                                 }}
                                 onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-secondary)'; }}
@@ -262,12 +259,12 @@ const CompanyInfoFeaturesTab = ({ features, setFeatures }) => {
                             );
                           })}
                         </div>
-                        <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--border-light)', fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>
+                        <div className="text-tertiary" style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--border-light)', fontSize: '0.75rem',}}>
                           Or type a custom name:{' '}
                           <input
-                            className="form-input"
+                            className="form-input inline"
                             aria-label="Custom icon name"
-                            style={{ display: 'inline', width: 120, padding: '4px 8px', minHeight: 'auto', fontSize: '0.8125rem' }}
+                            style={{ width: 120, padding: '4px 8px', minHeight: 'auto', fontSize: '0.8125rem' }}
                             value={formData.icon}
                             onChange={e => setFormData(p => ({ ...p, icon: e.target.value }))}
                             placeholder="e.g. ShieldCheck"
@@ -280,7 +277,7 @@ const CompanyInfoFeaturesTab = ({ features, setFeatures }) => {
               </div>
 
               {/* Title */}
-              <div className="form-group" style={{ marginBottom: 0 }}>
+              <div className="form-group mb-0">
                 <label className="form-label" htmlFor="feature-title">Title <span className="required">*</span></label>
                 <input
                   id="feature-title"
@@ -295,7 +292,7 @@ const CompanyInfoFeaturesTab = ({ features, setFeatures }) => {
               </div>
 
               {/* Description */}
-              <div className="form-group" style={{ marginBottom: 0, gridColumn: '1 / -1' }}>
+              <div className="form-group mb-0 col-full">
                 <label className="form-label" htmlFor="feature-description">Description <span className="required">*</span></label>
                 <textarea
                   id="feature-description"
@@ -327,16 +324,16 @@ const CompanyInfoFeaturesTab = ({ features, setFeatures }) => {
             <table className="data-table">
               <thead>
               <tr>
-<th scope="col" style={{ width: 40 }}></th>
-    <th scope="col" style={{ width: 80 }}>Icon</th>
+<th scope="col" className="w-40"></th>
+    <th scope="col" className="w-80">Icon</th>
     <th scope="col">Title & Description</th>
-    <th scope="col" style={{ width: 100, textAlign: 'right' }}>Actions</th>
+    <th scope="col" className="text-right" style={{ width: 100,}}>Actions</th>
               </tr>
             </thead>
             <tbody>
                 {features.length === 0 ? (
                   <tr>
-                    <td colSpan={4} style={{ textAlign: 'center', padding: '32px 24px', color: 'var(--text-tertiary)' }}>
+                    <td colSpan={4} className="text-center text-tertiary" style={{padding: '32px 24px',}}>
                       No features added yet. Click "Add Feature" to get started.
                     </td>
                   </tr>

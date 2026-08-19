@@ -209,16 +209,16 @@ const DeliveryModal = ({ order, onClose, onSave }) => {
           </div>
 
           {error && (
-            <div style={{
+            <div className="br-8" style={{
               background: 'var(--error-bg)', color: 'var(--error-text-strong)', padding: '10px 14px',
-              borderRadius: 8, fontSize: '0.8125rem', marginBottom: 16, border: '1px solid var(--error)',
+              fontSize: '0.8125rem', marginBottom: 16, border: '1px solid var(--error)',
             }} role="alert">
               {error}
             </div>
           )}
 
           {needsPayment && (
-            <div className="mb-20" style={{ border: '1px solid var(--border)', borderRadius: 8, padding: 16 }}>
+            <div className="mb-20 br-8" style={{ border: '1px solid var(--border)', padding: 16}}>
               <PaymentCollectionPanel
                 order={order}
                 value={payment}
@@ -245,8 +245,8 @@ const DeliveryModal = ({ order, onClose, onSave }) => {
               tabIndex={errors.delivery_photos ? -1 : undefined}
             >
               {photoPreviews.map((preview, i) => (
-                <div key={i} className="relative overflow-hidden" style={{ width: 90, height: 90, borderRadius: 8, border: '2px solid var(--border)' }}>
-                  <img src={preview} alt={`Photo ${i + 1}`} className="w-full h-full" style={{ objectFit: 'cover' }} />
+                <div key={i} className="relative overflow-hidden br-8" style={{ width: 90, height: 90, border: '2px solid var(--border)'}}>
+                  <img src={preview} alt={`Photo ${i + 1}`} className="w-full h-full object-cover" />
                   <button type="button" onClick={() => removePhoto(i)} className="pickup-photo-remove-btn" aria-label={`Remove photo ${i + 1}`}>
                     <Trash2 size={12} />
                   </button>
@@ -255,10 +255,10 @@ const DeliveryModal = ({ order, onClose, onSave }) => {
               {photos.length < 3 && (
                 <button
                   type="button" onClick={() => fileInputRef.current?.click()}
+                  className="br-8 flex flex-col items-center justify-center cursor-pointer text-tertiary"
                   style={{
-                    width: 90, height: 90, borderRadius: 8, border: '2px dashed var(--border)',
-                    background: 'var(--bg-secondary)', display: 'flex', flexDirection: 'column',
-                    alignItems: 'center', justifyContent: 'center', gap: 4, cursor: 'pointer', color: 'var(--text-tertiary)', fontSize: '0.6875rem'
+                    width: 90, height: 90, border: '2px dashed var(--border)',
+                    background: 'var(--bg-secondary)', gap: 4, fontSize: '0.6875rem'
                   }}
                 >
                   <Upload size={20} /> Add Photo

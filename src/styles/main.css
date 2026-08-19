@@ -1,57 +1,80 @@
 /* ═══════════════════════════════════════════════════════════════════════
    CARGO EXPRESS PH — Main Stylesheet
-   Modular CSS architecture — imports organized by layer
+   Modular CSS architecture — imports organized by cascade layer
    ═══════════════════════════════════════════════════════════════════════ */
 
+/* Layer order is the cascade contract. Every file below belongs to exactly
+   one layer; later layers beat earlier ones at equal specificity. This makes
+   the "which layer wins?" answer explicit instead of depending on import
+   position — a file can never accidentally outrank its intended layer.
+
+   Layer order mirrors the former import order, so no rule changes meaning:
+   tokens < base < components < layout < pages < effects < responsive
+   < refresh < hardening < density < print. density stays last on purpose
+   (phone-width density beats every earlier mobile rule), and print is last
+   so formal documents can always outrank the screen. */
+
+@layer tokens, base, components, layout, pages, effects, responsive, refresh, hardening, density, print;
+
 /* ── 1. Design Tokens (no output, only CSS variables) ── */
-@import './tokens.css';
+@import './tokens.css' layer(tokens);
 
 /* ── 2. Base & Reset ── */
-@import './base.css';
+@import './base.css' layer(base);
 
 /* ── 3. Component Styles ── */
-@import './components.css';
-@import './data.css';
-@import './feedback.css';
-@import './loading-search.css';
-@import './tabs-steps.css';
-@import './charts.css';
-@import './validation.css';
+@import './components.css' layer(components);
+@import './data.css' layer(components);
+@import './feedback.css' layer(components);
+@import './loading-search.css' layer(components);
+@import './tabs-steps.css' layer(components);
+@import './charts.css' layer(components);
+@import './validation.css' layer(components);
 
 /* ── 4. Layouts ── */
-@import './layout-admin.css';
-@import './layout-customer.css';
+@import './layout-admin.css' layer(layout);
+@import './layout-customer.css' layer(layout);
 
 /* ── 5. Page-Specific Styles ── */
-@import './auth.css';
-@import './pages.css';
-@import './about-page.css';
-@import './tracking.css';
-@import './remaining.css';
+@import './auth.css' layer(pages);
+@import './pages.css' layer(pages);
+@import './about-page.css' layer(pages);
+@import './tracking.css' layer(pages);
+@import './banners-notifications.css' layer(pages);
+@import './chat-inbox.css' layer(pages);
+@import './profile-card.css' layer(pages);
+@import './forms-hardening.css' layer(pages);
+@import './sales-reports.css' layer(pages);
+@import './micro-effects.css' layer(pages);
+@import './tables-mobile.css' layer(pages);
+@import './onboarding-lightbox.css' layer(pages);
+@import './admin-composition.css' layer(pages);
+@import './trip-detail.css' layer(pages);
+@import './feedback-inquiries.css' layer(pages);
 
 /* ── 6. Animations & Utilities ── */
-@import './animations-utils.css';
+@import './animations-utils.css' layer(effects);
 
 /* ── 7. Responsive Overrides ── */
-@import './responsive.css';
+@import './responsive.css' layer(responsive);
 
 /* ── 8. Premium Product Refresh ── */
-@import './premium-refresh.css';
+@import './premium-refresh.css' layer(refresh);
 
 /* Customer mobile app refresh */
-@import './customer-mobile-refresh.css';
+@import './customer-mobile-refresh.css' layer(refresh);
 
 /* Admin mobile app refresh */
-@import './admin-modern-refresh.css';
+@import './admin-modern-refresh.css' layer(refresh);
 
 /* Final mobile viewport and tap-readability hardening */
-@import './viewport-hardening.css';
+@import './viewport-hardening.css' layer(hardening);
 
 /* Phone-width density: tile, heading, card-padding and gap sizing.
-   MUST stay last of the screen layers — it exists to outrank the refresh
-   files above, which re-assert desktop values under .app-layout /
-   .customer-layout-v2 and beat every earlier mobile rule on specificity. */
-@import './mobile-density.css';
+   density is the last screen layer in the declaration above, so these rules
+   outrank every earlier layer at equal specificity — the ordering contract
+   is enforced by the layer list, not by this file's import position. */
+@import './mobile-density.css' layer(density);
 
 /* Formal bond-paper print documents (Reports & Sales) */
-@import './print-document.css';
+@import './print-document.css' layer(print);
