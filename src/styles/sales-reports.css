@@ -65,7 +65,7 @@
   margin-bottom: 20px;
   padding: 4px;
   background: var(--bg-secondary);
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
 }
@@ -77,7 +77,7 @@
   min-height: 36px;
   padding: 8px 16px;
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--text-secondary);
   font-size: 0.85rem;
@@ -106,7 +106,7 @@
   gap: 16px;
   padding: 16px;
   background: var(--surface);
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   border: 1px solid var(--border);
   margin-bottom: 20px;
   flex-wrap: wrap;
@@ -177,7 +177,7 @@
 .report-financial-item {
   padding: 12px;
   background: var(--bg-secondary);
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   display: flex;
   flex-direction: column;
   gap: 4px;

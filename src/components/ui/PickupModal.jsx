@@ -251,7 +251,7 @@ const PickupModal = ({ order, onClose, onSave, pricePerKilo = 70 }) => {
         <div className="modal-body" ref={containerRef} style={{ maxHeight: '70vh', overflowY: 'auto' }}>
           {/* Order summary */}
           <div className="pickup-summary-card flex justify-between items-center mb-20" style={{
-            background: 'var(--bg-secondary)', borderRadius: 8, padding: 14,
+            background: 'var(--bg-secondary)', borderRadius: 'var(--radius-sm)', padding: 14,
           }}>
             <div>
               <div className="fw-700 text-accent">{order.tracking_number}</div>

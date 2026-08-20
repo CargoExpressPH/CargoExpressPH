@@ -123,7 +123,7 @@ const TripAssignModal = ({ order, onClose, onAssign }) => {
                     aria-pressed={isSelected}
                     aria-label={`Select trip ${trip.trip_number}, ${trip.status}, ${(trip.current_weight || 0).toFixed(1)} of ${trip.capacity} kilograms used`}
                     className="block w-full cursor-pointer text-left"
-                    style={{padding: 14, borderRadius: 10, border: `2px solid ${isSelected ? 'var(--primary)' : 'var(--border)'}`,
+                    style={{padding: 14, borderRadius: 'var(--radius-sm)', border: `2px solid ${isSelected ? 'var(--primary)' : 'var(--border)'}`,
                       background: isSelected ? 'var(--primary-glow)' : 'var(--surface)',
                       color: 'inherit',
                       font: 'inherit',
@@ -134,7 +134,7 @@ const TripAssignModal = ({ order, onClose, onAssign }) => {
                       <span className="fw-700 text-accent">{trip.trip_number}</span>
                       <span style={{
                         fontSize: '0.6875rem', fontWeight: 600, padding: '2px 8px',
-                        borderRadius: 4,
+                        borderRadius: 'var(--radius-xs)',
                         background: trip.status === 'scheduled' ? 'var(--info-bg)' : 'var(--primary-bg)',
                         color: trip.status === 'scheduled' ? 'var(--info)' : 'var(--primary)',
                       }}>
@@ -144,7 +144,7 @@ const TripAssignModal = ({ order, onClose, onAssign }) => {
                     <div className="text-secondary mb-6" style={{ fontSize: '0.8125rem' }}>
                       {trip.origin} → {trip.destination}
                     </div>
-                    <div className="capacity-bar" style={{ height: 6, borderRadius: 3 }}>
+                    <div className="capacity-bar" style={{ height: 6, borderRadius: 'var(--radius-full)' }}>
                       <div
                         className={`capacity-fill ${capPct > 80 ? 'warning' : ''}`}
                         style={{ width: `${Math.min(100, capPct)}%` }}

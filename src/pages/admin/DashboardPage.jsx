@@ -143,7 +143,7 @@ const DashboardPage = () => {
             {loading ? (
               <div className="p-20">
                 <div className="skeleton skeleton-text mb-12" style={{ width: '60%' }} />
-                <div className="skeleton" style={{ height: 14, borderRadius: 7 }} />
+                <div className="skeleton" style={{ height: 14, borderRadius: 'var(--radius-full)' }} />
               </div>
             ) : capacity?.activeTrip ? (
               <>

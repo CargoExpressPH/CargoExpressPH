@@ -245,7 +245,7 @@ const CompanyInfoFeaturesTab = ({ features, setFeatures }) => {
                                 onClick={() => { setFormData(p => ({ ...p, icon: name })); setShowIconPicker(false); }}
                                 className="flex items-center justify-center cursor-pointer"
                                 style={{
-                                  width: 34, height: 34, borderRadius: 6, border: '1.5px solid',
+                                  width: 34, height: 34, borderRadius: 'var(--radius-xs)', border: '1.5px solid',
                                   borderColor: formData.icon === name ? 'var(--primary)' : 'transparent',
                                   background: formData.icon === name ? 'var(--primary-bg)' : 'transparent',
                                   color: formData.icon === name ? 'var(--primary)' : 'var(--text-secondary)',

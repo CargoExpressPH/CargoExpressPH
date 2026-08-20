@@ -214,12 +214,12 @@ const AdditionalPaymentModal = ({ order, remainingBalance, onClose, onSave }) =>
           
           <div className="modal-body" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
             {error && (
-              <div className="mb-16 p-12 text-sm" style={{ background: 'var(--error-bg)', color: 'var(--error-text-strong)', borderRadius: 8, border: '1px solid var(--error)' }}>
+              <div className="mb-16 p-12 text-sm" style={{ background: 'var(--error-bg)', color: 'var(--error-text-strong)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--error)' }}>
                 {error}
               </div>
             )}
             
-            <div className="flex justify-between items-center mb-20" style={{ background: 'var(--bg-secondary)', padding: '12px 16px', borderRadius: 8 }}>
+            <div className="flex justify-between items-center mb-20" style={{ background: 'var(--bg-secondary)', padding: '12px 16px', borderRadius: 'var(--radius-sm)' }}>
               <div>
                 <div className="text-sm text-secondary">Remaining Balance</div>
                 <div className="text-xl fw-700 text-error">₱{remainingBalance.toFixed(2)}</div>
@@ -285,12 +285,12 @@ const AdditionalPaymentModal = ({ order, remainingBalance, onClose, onSave }) =>
                 )}
 
                 {paymentStep === 'waiting' && checkoutUrl && (
-                  <div className="mb-12" style={{ background: 'var(--info-bg)', borderRadius: 12, padding: 14, border: '1px solid var(--info)' }}>
+                  <div className="mb-12" style={{ background: 'var(--info-bg)', borderRadius: 'var(--radius-md)', padding: 14, border: '1px solid var(--info)' }}>
                     <div className="flex items-center justify-between mb-16">
                       <span
                         className="text-white"
                         style={{
-                          background: '#007DFE', borderRadius: 6,
+                          background: '#007DFE', borderRadius: 'var(--radius-xs)',
                           padding: '3px 10px', fontWeight: 700, fontSize: '0.8125rem',
                           letterSpacing: 0.5,
                         }}
@@ -303,7 +303,7 @@ const AdditionalPaymentModal = ({ order, remainingBalance, onClose, onSave }) =>
                     </div>
 
                     <div className="flex flex-col items-center gap-8 mb-16">
-                      <div style={{ background: 'white', padding: 10, borderRadius: 12 }}>
+                      <div style={{ background: 'white', padding: 10, borderRadius: 'var(--radius-md)' }}>
                         <QRCode value={checkoutUrl} size={160} />
                       </div>
                     </div>

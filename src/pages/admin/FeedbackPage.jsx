@@ -153,7 +153,7 @@ const FeedbackPage = () => {
                 flex: 1,
                 padding: 16,
                 background: 'var(--bg-secondary)',
-                borderRadius: 12,
+                borderRadius: 'var(--radius-md)',
                 marginBottom: 16,
                 fontStyle: 'italic',
               }}>

@@ -1163,7 +1163,7 @@ const AdminOrderDetailPage = () => {
           <div className="card-body" style={{ paddingTop: 8 }}>
             <div className="relative" style={{paddingLeft: 20}}>
               {/* Vertical line */}
-              <div className="absolute" style={{left: 7, top: 8, bottom: 8, width: 2, background: 'var(--border)', borderRadius: 2}} />
+              <div className="absolute" style={{left: 7, top: 8, bottom: 8, width: 2, background: 'var(--border)', borderRadius: 'var(--radius-full)'}} />
               {activityHistory.map((log) => (
                 <div key={log.id} className="relative" style={{marginBottom: 16, paddingLeft: 20}}>
                   {/* Dot */}
@@ -1211,7 +1211,7 @@ const AdminOrderDetailPage = () => {
             </div>
 
             {featureForm.featured_on_website && (
-              <div className="grid grid-2 gap-16 mt-16 p-16" style={{ background: 'var(--bg-secondary)', borderRadius: 12 }}>
+              <div className="grid grid-2 gap-16 mt-16 p-16" style={{ background: 'var(--bg-secondary)', borderRadius: 'var(--radius-md)' }}>
                 <div className="form-group col-full">
                   <label className="form-label" htmlFor="order-featured-title">Highlight Title</label>
                   <input

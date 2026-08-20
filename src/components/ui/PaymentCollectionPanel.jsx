@@ -592,12 +592,12 @@ const PaymentCollectionPanel = ({
 
           {/* Waiting for the customer */}
           {value.paymentStep === 'waiting' && !value.confirmed && value.checkoutUrl && (
-            <div className="mb-12" style={{ background: 'var(--info-bg)', borderRadius: 12, padding: 14, border: '1px solid var(--info)' }}>
+            <div className="mb-12" style={{ background: 'var(--info-bg)', borderRadius: 'var(--radius-md)', padding: 14, border: '1px solid var(--info)' }}>
               <div className="flex items-center justify-between mb-16">
                 <span
                   className="text-white"
                   style={{
-                    background: '#007DFE', borderRadius: 6,
+                    background: '#007DFE', borderRadius: 'var(--radius-xs)',
                     padding: '3px 10px', fontWeight: 700, fontSize: '0.8125rem',
                     letterSpacing: 0.5,
                   }}
@@ -610,7 +610,7 @@ const PaymentCollectionPanel = ({
               </div>
 
               <div className="flex flex-col items-center gap-8 mb-16">
-                <div style={{ background: 'white', padding: 10, borderRadius: 12 }}>
+                <div style={{ background: 'white', padding: 10, borderRadius: 'var(--radius-md)' }}>
                   <QRCode value={value.checkoutUrl} size={160} />
                 </div>
               </div>

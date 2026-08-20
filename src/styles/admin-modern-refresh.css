@@ -77,7 +77,7 @@
   width: 22px;
   height: 22px;
   padding: 11px;
-  border-radius: 15px;
+  border-radius: var(--radius-lg);
   background: linear-gradient(145deg, #0B1220, #173725);
   stroke: var(--admin-green) ;
   box-shadow: 0 10px 22px rgba(15, 23, 42, 0.16);
@@ -105,7 +105,7 @@
 
 .app-layout .sidebar-link {
   min-height: 48px;
-  border-radius: 18px;
+  border-radius: var(--radius-lg);
   color: var(--admin-muted);
   font-weight: 700;
 }
@@ -125,7 +125,7 @@
   left: 7px;
   width: 4px;
   height: 22px;
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   background: var(--admin-green);
 }
 
@@ -141,7 +141,7 @@
 .app-layout .sidebar-profile-btn {
   min-height: 48px;
   border: 1px solid var(--admin-line);
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   background: var(--admin-panel);
 }
 .app-layout .sidebar-profile-btn:hover,
@@ -179,7 +179,7 @@
   justify-content: center;
   width: 38px;
   height: 38px;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   border: 1px solid var(--border-light);
   background: var(--surface);
   color: var(--text-secondary);
@@ -214,7 +214,7 @@
   min-width: 18px;
   height: 18px;
   padding: 0 5px;
-  border-radius: 9px;
+  border-radius: var(--radius-full);
   /* Darkened from #EF4444→#DC2626: white on #EF4444 is 3.76:1, and at
      0.5625rem/800 this is body-size text needing 4.5:1. */
   background: linear-gradient(135deg, #DC2626, var(--error-fill));
@@ -255,7 +255,7 @@
   max-height: 520px;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 16px;
+  border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg);
   z-index: calc(var(--z-dropdown, 1000) + 10);
   display: flex;
@@ -289,7 +289,7 @@
   font-size: 0.625rem;
   font-weight: 800;
   padding: 2px 8px;
-  border-radius: 20px;
+  border-radius: var(--radius-full);
   background: linear-gradient(135deg, var(--admin-green), var(--primary-light));
   color: white;
   letter-spacing: 0.02em;
@@ -307,7 +307,7 @@
   justify-content: center;
   width: 28px;
   height: 28px;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   border: none;
   background: transparent;
   color: var(--text-tertiary);
@@ -374,7 +374,7 @@
 .admin-notif-item-icon {
   width: 36px;
   height: 36px;
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -444,7 +444,7 @@
   justify-content: center;
   width: 22px;
   height: 22px;
-  border-radius: 6px;
+  border-radius: var(--radius-xs);
   border: none;
   background: transparent;
   color: var(--text-tertiary);
@@ -625,7 +625,7 @@
 
 .app-layout .topbar-actions .btn-icon,
 .app-layout .theme-toggle-btn {
-  border-radius: 999px;
+  border-radius: var(--radius-full);
 }
 
 .app-layout .topbar-actions .btn-icon:hover,
@@ -722,7 +722,7 @@
 
 .app-layout .btn {
   min-height: 46px;
-  border-radius: 16px;
+  border-radius: var(--radius-lg);
   font-weight: 800;
   letter-spacing: 0;
 }
@@ -752,7 +752,7 @@
 .app-layout .search-box input {
   min-height: 48px;
   border-color: var(--admin-line);
-  border-radius: 16px;
+  border-radius: var(--radius-lg);
   background: color-mix(in srgb, var(--admin-panel-solid) 92%, var(--bg) 8%);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55);
 }
@@ -821,7 +821,7 @@
 .app-layout .report-period-tab {
   min-height: 44px;
   border: 1px solid var(--admin-line);
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   background: var(--admin-panel);
   color: var(--admin-muted);
   font-weight: 800;
@@ -1249,7 +1249,7 @@
   margin-bottom: 20px;
   padding: 4px;
   background: var(--bg-secondary);
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   width: fit-content;
   max-width: 100%;
   overflow-x: auto;
@@ -1263,7 +1263,7 @@
   min-height: 36px;
   padding: 8px 18px;
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--text-secondary);
   font-size: 0.85rem;

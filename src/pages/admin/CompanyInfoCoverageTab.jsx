@@ -84,7 +84,7 @@ const SortableRegion = ({ region, handleEditRegion, setDeleteTarget, handleAddNe
               fontSize: '0.7rem',
               fontWeight: 500,
               background: 'var(--bg-secondary)',
-              borderRadius: '999px',
+              borderRadius: 'var(--radius-full)',
               padding: '1px 7px',
               lineHeight: '1.5'
             }}>

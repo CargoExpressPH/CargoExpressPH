@@ -165,7 +165,7 @@ const TripReassignModal = ({ order, onClose, onReassign }) => {
                     aria-pressed={isSelected}
                     aria-label={`Select trip ${trip.trip_number}`}
                     className="block w-full cursor-pointer text-left"
-                    style={{padding: 14, borderRadius: 10, border: `2px solid ${isSelected ? 'var(--primary)' : 'var(--border)'}`,
+                    style={{padding: 14, borderRadius: 'var(--radius-sm)', border: `2px solid ${isSelected ? 'var(--primary)' : 'var(--border)'}`,
                       background: isSelected ? 'var(--primary-glow)' : 'var(--surface)',
                       color: 'inherit',
                       font: 'inherit',
@@ -189,7 +189,7 @@ const TripReassignModal = ({ order, onClose, onReassign }) => {
                         <span style={{ color: exceedsCapacity ? 'var(--error-text)' : 'inherit' }}>
                           {(trip.current_weight || 0).toFixed(1)} / {trip.capacity || '∞'} kg
                         </span>
-                        <div className="w-40 h-4" style={{background: 'var(--border)', borderRadius: 2, overflow: 'hidden'}}>
+                        <div className="w-40 h-4" style={{background: 'var(--border)', borderRadius: 'var(--radius-full)', overflow: 'hidden'}}>
                           <div className="h-full" style={{background: exceedsCapacity ? 'var(--error)' : capPct > 80 ? 'var(--warning)' : 'var(--success)',
                             width: `${Math.min(100, capPct)}%`
                           }} />

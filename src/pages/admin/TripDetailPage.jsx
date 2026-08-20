@@ -241,7 +241,7 @@ const TripDetailPage = () => {
           </div>
           <div className="card-body" style={{ paddingTop: 8 }}>
             <div className="relative" style={{paddingLeft: 20}}>
-              <div className="absolute" style={{left: 7, top: 8, bottom: 8, width: 2, background: 'var(--border)', borderRadius: 2}} />
+              <div className="absolute" style={{left: 7, top: 8, bottom: 8, width: 2, background: 'var(--border)', borderRadius: 'var(--radius-full)'}} />
               {activityHistory.map((log) => (
                 <div key={log.id} className="relative" style={{marginBottom: 16, paddingLeft: 20}}>
                   <div className="absolute" style={{left: -13, top: 4, width: 10, height: 10,

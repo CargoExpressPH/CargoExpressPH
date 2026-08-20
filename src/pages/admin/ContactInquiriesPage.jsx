@@ -352,7 +352,7 @@ const ContactInquiriesPage = () => {
             </div>
             <div className="modal-body">
               <div style={{
-                background: 'var(--bg-secondary)', borderRadius: 10,
+                background: 'var(--bg-secondary)', borderRadius: 'var(--radius-sm)',
               }} className="p-16 mb-16 inquiry-identity-row">
                 <div className="sidebar-user-avatar text-base flex-shrink-0" style={{ width: 44, height: 44 }}>
                   {(selectedInquiry.name || '?')[0].toUpperCase()}
@@ -420,7 +420,7 @@ const ContactInquiriesPage = () => {
                   Message
                 </div>
                 <div className="p-16" style={{
-                  background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10,
+                  background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)',
                   fontSize: '0.9375rem', lineHeight: 1.7, whiteSpace: 'pre-wrap',
                 }}>
                   {selectedInquiry.message}

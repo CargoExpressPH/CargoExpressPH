@@ -39,7 +39,7 @@ const ModuleBadge = ({ module }) => {
   const Icon = cfg.icon;
   return (
     <span className="inline-flex items-center text-uppercase" style={{gap: 4,
-      padding: '2px 8px', borderRadius: 20, fontSize: '0.7rem',
+      padding: '2px 8px', borderRadius: 'var(--radius-full)', fontSize: '0.7rem',
       fontWeight: 700, letterSpacing: '0.04em', background: cfg.bg, color: cfg.color,
     }}>
       <Icon size={10} />
@@ -307,7 +307,7 @@ const ActivityLogsPage = () => {
                           fontFamily: 'monospace',
                           background: 'var(--bg-secondary)',
                           padding: '2px 7px',
-                          borderRadius: 4,
+                          borderRadius: 'var(--radius-xs)',
                           fontSize: '0.78rem',
                           border: '1px solid var(--border)',
                         }}>{log.record_ref}</span>

@@ -144,7 +144,7 @@ const CreateTripPage = () => {
                   aria-pressed={form.origin === r.origin}
                   className="card-interactive admin-route-option flex-1 p-20 cursor-pointer text-center"
                   style={{
-                    borderRadius: 12,
+                    borderRadius: 'var(--radius-md)',
                     border: form.origin === r.origin ? '2px solid var(--primary)' : '1.5px solid var(--border)',
                     background: form.origin === r.origin ? 'var(--primary-bg)' : 'var(--surface)',
                   }}

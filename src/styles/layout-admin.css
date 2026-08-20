@@ -208,7 +208,7 @@
   min-width: 18px;
   height: 18px;
   padding: 0 6px;
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   /* White on #EF4444 is 3.76:1 at 10px/800 — same fix as .admin-notif-badge. */
   background: linear-gradient(135deg, #DC2626, var(--error-fill));
   color: white;
@@ -251,7 +251,7 @@
   width: 100%;
   padding: 8px 10px;
   border: none; background: transparent;
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   transition: background 0.18s ease;
   color: var(--sidebar-text-hover);
@@ -283,7 +283,7 @@
   left: 0; right: 0;
   background: var(--glass-bg-heavy);
   border: 1px solid var(--border-light);
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
   box-shadow:
     0 -4px 24px rgba(0, 0, 0, 0.14),
     0 2px 8px rgba(0, 0, 0, 0.08);
