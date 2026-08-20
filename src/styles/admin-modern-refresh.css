@@ -790,14 +790,15 @@
   border-color: transparent;
   box-shadow: none;
   background: transparent;
+  border-radius: var(--radius-sm);
 }
 .app-layout .admin-toolbar:focus-within {
-  border-color: transparent;
-  box-shadow: var(--admin-shadow-soft);
+  border-color: var(--admin-green);
+  box-shadow: 0 0 0 3px var(--admin-green-glow), var(--admin-shadow-soft);
 }
 .app-layout .admin-toolbar .search-box:focus-within input {
-  border-color: var(--admin-green);
-  box-shadow: 0 0 0 3px var(--admin-green-glow);
+  border-color: transparent;
+  box-shadow: none;
   background: color-mix(in srgb, var(--admin-panel-solid) 92%, var(--bg) 8%);
 }
 
