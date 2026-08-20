@@ -785,17 +785,26 @@
   box-shadow: var(--admin-shadow-soft);
 }
 
-/* Remove inner search border inside toolbar — toolbar itself is the border */
-.app-layout .admin-toolbar .search-box input {
-  border-color: transparent;
+/* Bookings/Customers toolbar contains only search — make it behave exactly like FeedbackPage standalone search (single input, no outer card) */
+.app-layout .admin-toolbar:has(.search-box) {
+  padding: 0;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  border-radius: 0;
+}
+.app-layout .admin-toolbar:has(.search-box) .search-box input {
+  border: 1.5px solid var(--admin-line);
+  background: color-mix(in srgb, var(--admin-panel-solid) 92%, var(--bg) 8%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55);
+  border-radius: var(--radius-lg);
+}
+.app-layout .admin-toolbar:has(.search-box):focus-within {
+  border: none;
   box-shadow: none;
   background: transparent;
 }
-.app-layout .admin-toolbar:focus-within {
-  border-color: transparent;
-  box-shadow: var(--admin-shadow-soft);
-}
-.app-layout .admin-toolbar .search-box:focus-within input {
+.app-layout .admin-toolbar:has(.search-box) .search-box:focus-within input {
   border-color: var(--admin-green);
   box-shadow: 0 0 0 3px var(--admin-green-glow);
   background: color-mix(in srgb, var(--admin-panel-solid) 92%, var(--bg) 8%);
