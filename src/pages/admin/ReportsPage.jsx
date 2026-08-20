@@ -110,18 +110,18 @@ const ReportsPage = () => {
             Generate, view, and print detailed business reports
           </p>
         </div>
-        <div className="flex gap-8">
-          <button type="button" className="btn btn-ghost btn-sm" onClick={loadReport} disabled={loading}>
+        <div className="flex gap-8 flex-wrap">
+          <button type="button" className="btn btn-ghost btn-sm flex-1 sm:flex-none justify-center" style={{minWidth: 90}} onClick={loadReport} disabled={loading}>
             <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
             Refresh
           </button>
           {hasData && (
             <>
-              <button type="button" className="btn btn-outline btn-sm" onClick={handleExportPDF} disabled={exporting}>
+              <button type="button" className="btn btn-outline btn-sm flex-1 sm:flex-none justify-center" style={{minWidth: 110}} onClick={handleExportPDF} disabled={exporting}>
                 {exporting ? <Loader size={16} className="animate-spin" /> : <Download size={16} />}
                 Export PDF
               </button>
-              <button type="button" className="btn btn-primary btn-sm" onClick={handlePrint}>
+              <button type="button" className="btn btn-primary btn-sm flex-1 sm:flex-none justify-center" style={{minWidth: 110}} onClick={handlePrint}>
                 <Printer size={16} />
                 Print Report
               </button>

@@ -628,10 +628,11 @@ const PaymentCollectionPanel = ({
                 </span>
               </div>
 
-              <div className="flex gap-8 mb-8">
+              <div className="flex gap-8 flex-wrap mb-8">
                 <button
                   type="button"
                   className="btn btn-primary btn-sm flex-1 justify-center"
+                  style={{minWidth: 110}}
                   onClick={() => { window.location.href = value.checkoutUrl; }}
                 >
                   <ExternalLink size={14} className="mr-6" aria-hidden="true" /> Open GCash
@@ -639,6 +640,7 @@ const PaymentCollectionPanel = ({
                 <button
                   type="button"
                   className="btn btn-outline btn-sm flex-1 justify-center"
+                  style={{minWidth: 110}}
                   onClick={() => navigator.clipboard.writeText(value.checkoutUrl)}
                 >
                   Copy Payment Link
@@ -646,6 +648,7 @@ const PaymentCollectionPanel = ({
                 <button
                   type="button"
                   className="btn btn-secondary btn-sm flex-1 justify-center"
+                  style={{minWidth: 110}}
                   onClick={() => checkPaymentNow(false)}
                   disabled={disabled || checkingPayment}
                 >

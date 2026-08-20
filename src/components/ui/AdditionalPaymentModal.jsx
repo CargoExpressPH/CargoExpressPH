@@ -314,10 +314,11 @@ const AdditionalPaymentModal = ({ order, remainingBalance, onClose, onSave }) =>
                       <li>Done — this window updates by itself the moment the payment lands</li>
                     </ol>
 
-                    <div className="flex gap-8">
+                    <div className="flex gap-8 flex-wrap">
                       <button
                         type="button"
                         className="btn btn-primary btn-sm flex-1 justify-center"
+                        style={{minWidth: 120}}
                         onClick={() => { window.location.href = checkoutUrl; }}
                       >
                         <ExternalLink size={14} className="mr-6" aria-hidden="true" /> Open GCash
@@ -325,6 +326,7 @@ const AdditionalPaymentModal = ({ order, remainingBalance, onClose, onSave }) =>
                       <button
                         type="button"
                         className="btn btn-outline btn-sm flex-1 justify-center"
+                        style={{minWidth: 120}}
                         onClick={() => {
                           navigator.clipboard.writeText(checkoutUrl);
                         }}
