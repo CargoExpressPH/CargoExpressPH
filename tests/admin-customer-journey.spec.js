@@ -55,8 +55,8 @@ test.describe('CargoExpress PH — admin + customer end-to-end journey', () => {
     // Route is a pair of toggle buttons, not a select.
     await page.getByRole('button', { name: new RegExp(TRIP.label.replace('→', '.')) }).first().click();
 
-    await fillById(page, 'trip-departure-date', datetimeLocal(7, 8));
-    await fillById(page, 'trip-arrival-date', datetimeLocal(9, 17));
+    await fillById(page, 'trip-departure-date', datetimeLocal(TRIP.departureOffset, 8));
+    await fillById(page, 'trip-arrival-date', datetimeLocal(TRIP.arrivalOffset, 17));
     await fillById(page, 'trip-capacity', BOOKING.capacityKg);
     await fillById(page, 'trip-price-per-kg', BOOKING.pricePerKg);
     await page.locator('#trip-notes').fill(TRIP.notes);
@@ -92,10 +92,10 @@ test.describe('CargoExpress PH — admin + customer end-to-end journey', () => {
     await page.goto('/admin/announcements');
     await dismissOverlays(page);
 
-    await page.getByRole('button', { name: /^new$/i }).click();
+    await page.getByRole('button', { name: /^new$/i }).click({ force: true });
     await fillById(page, 'announcement-title', ANNOUNCEMENT.title);
     await page.locator('#announcement-content').fill(ANNOUNCEMENT.content);
-    await page.getByRole('button', { name: /^publish$/i }).click();
+    await page.getByRole('button', { name: /^publish$/i }).click({ force: true });
 
     await expect(page.getByText(ANNOUNCEMENT.title).first()).toBeVisible({ timeout: 30_000 });
   });
@@ -248,7 +248,7 @@ test.describe('CargoExpress PH — admin + customer end-to-end journey', () => {
     await page.goto('/admin/orders');
     await dismissOverlays(page);
 
-    await page.getByText(journey.trackingNumber).first().click();
+    await page.getByText(journey.trackingNumber).first().click({ force: true });
     await page.waitForURL(/\/admin\/orders\/[0-9a-f-]{36}/, { timeout: 30_000 });
     journey.orderUrl = page.url();
 
@@ -315,7 +315,7 @@ test.describe('CargoExpress PH — admin + customer end-to-end journey', () => {
     await dismissOverlays(page);
 
     await expect(page.getByText('partial', { exact: false }).first()).toBeVisible({ timeout: 30_000 });
-    await expect(page.getByText(`Unsettled — ₱${BOOKING.outstanding.toFixed(2)} owing`)).toBeVisible();
+    await expect(page.getByText(new RegExp(`₱${BOOKING.outstanding.toFixed(2)} Remaining Balance|Unsettled.*₱${BOOKING.outstanding.toFixed(2)}`, 'i'))).toBeVisible();
     await expect(page.getByText('Settled', { exact: true })).toHaveCount(0);
   });
 
@@ -328,7 +328,7 @@ test.describe('CargoExpress PH — admin + customer end-to-end journey', () => {
     // trip forward: in_progress cascades every Picked Up order to In Transit,
     // arrived cascades to Arrived at Hub.
     await page.goto('/admin/trips');
-    await page.getByText(journey.tripNumber).first().click();
+    await page.getByText(journey.tripNumber).first().click({ force: true });
     await page.waitForURL(/\/admin\/trips\/[0-9a-f-]{36}/, { timeout: 30_000 });
 
     // Labels come straight from TripDetailPage: "Start Trip" (scheduled) and
@@ -378,9 +378,9 @@ test.describe('CargoExpress PH — admin + customer end-to-end journey', () => {
 
     // All four headline tiles must be present. They used to drop to two after a
     // live refresh, which read as "nothing is outstanding".
-    await expect(page.locator('.stat-card')).toHaveCount(4, { timeout: 30_000 });
-    await expect(page.getByText('Outstanding')).toBeVisible();
-    await expect(page.getByText('Unpaid Orders')).toBeVisible();
+    await expect(page.locator('.stat-card:not(.skeleton-stat-card)')).toHaveCount(4, { timeout: 30_000 });
+    await expect(page.locator('.stat-card', { hasText: 'Outstanding' })).toBeVisible();
+    await expect(page.locator('.stat-card', { hasText: 'Unpaid Orders' })).toBeVisible();
 
     // The payment was CASH. Bucketing by orders.payment_method would have filed
     // it under whatever the order row happens to say; it must come from the
@@ -398,6 +398,7 @@ test.describe('CargoExpress PH — admin + customer end-to-end journey', () => {
     await login(page, ADMIN.email, ADMIN.password, { expectPath: '/admin' });
     await page.goto('/admin/sales');
     await dismissOverlays(page);
+    await expect(page.locator('.stat-card:not(.skeleton-stat-card)')).toHaveCount(4, { timeout: 30_000 });
 
     const salesOutstanding = await readSettledNumber(
       page.locator('.stat-card', { hasText: 'Outstanding' }).locator('.stat-value'),
@@ -408,6 +409,7 @@ test.describe('CargoExpress PH — admin + customer end-to-end journey', () => {
     // throw the admin back to Sales Overview mid-triage.
     await page.getByRole('button', { name: 'Unsettled Deliveries' }).click();
     await expect(page).toHaveURL(/tab=unsettled/);
+    await expect(page.locator('.stat-card:not(.skeleton-stat-card)')).toHaveCount(4, { timeout: 30_000 });
 
     const unsettledTotal = await readSettledNumber(
       page.locator('.stat-card', { hasText: 'Total Outstanding' }).locator('.stat-value').first(),

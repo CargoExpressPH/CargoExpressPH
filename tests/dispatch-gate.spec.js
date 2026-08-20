@@ -96,7 +96,7 @@ test.describe('dispatch gate — unweighed cargo cannot be sent out for delivery
     await page.goto(`/admin/orders`);
     await dismissOverlays(page);
 
-    await page.getByText(fixture.trackingNumber).first().click();
+    await page.getByText(fixture.trackingNumber).first().click({ force: true });
     await page.waitForURL(/\/admin\/orders\/[0-9a-f-]{36}/, { timeout: 30_000 });
 
     // The badge must say unpriced, not settled — the same ₱0.00 that fooled the

@@ -196,17 +196,18 @@ export const readSettledNumber = async (locator, { parse, timeout = 20_000 } = {
   let stableFor = 0;
 
   while (Date.now() - started < timeout) {
+    const isSkeleton = await locator.evaluate(el => Boolean(el.closest('.skeleton, .skeleton-stat-card'))).catch(() => false);
     const text = await locator.textContent();
     const value = parse(text);
 
-    if (previous !== null && value === previous && !Number.isNaN(value)) {
+    if (!isSkeleton && previous !== null && value === previous && !Number.isNaN(value)) {
       stableFor += 1;
       if (stableFor >= 2) return value;
     } else {
       stableFor = 0;
     }
-    previous = value;
-    await locator.page().waitForTimeout(250);
+    previous = isSkeleton ? null : value;
+    await locator.page().waitForTimeout(300);
   }
 
   throw new Error(`Value never settled within ${timeout}ms (last read: ${previous})`);

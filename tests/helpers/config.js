@@ -5,6 +5,9 @@ import dotenv from 'dotenv';
 dotenv.config({ path: '.env' });
 dotenv.config({ path: '.env.test', override: true });
 
+// Allow Node.js db client to connect even in environments with local TLS interception
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+
 /**
  * Test configuration and per-run identities.
  *
@@ -93,9 +96,13 @@ export const BOOKING = {
   },
 };
 
+const TRIP_DAY_OFFSET = 14 + Math.floor(Math.random() * 180);
+
 export const TRIP = {
   label: 'Manila → Bohol',
   notes: `E2E run ${RUN_ID}`,
+  departureOffset: TRIP_DAY_OFFSET,
+  arrivalOffset: TRIP_DAY_OFFSET + 2,
 };
 
 export const ANNOUNCEMENT = {

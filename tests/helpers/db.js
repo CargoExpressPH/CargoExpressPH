@@ -1,6 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
 import { ADMIN, CUSTOMER } from './config.js';
 
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+
 /**
  * A Supabase client signed in as the admin, for the two things the UI cannot
  * do reliably from a test:

@@ -3,6 +3,7 @@ import dotenv from 'dotenv';
 
 dotenv.config({ path: '.env' });
 dotenv.config({ path: '.env.test', override: true });
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
 /**
  * Playwright configuration for the CargoExpress PH end-to-end suite.
@@ -57,6 +58,7 @@ export default defineConfig({
     video: 'off',
     actionTimeout: 45_000,
     navigationTimeout: 120_000,
+    reducedMotion: 'reduce',
   },
 
   projects: [

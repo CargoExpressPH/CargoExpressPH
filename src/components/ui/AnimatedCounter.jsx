@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useReducedMotion } from 'framer-motion';
 
 /**
  * AnimatedCounter — Smooth number counting animation for dashboard stats.
@@ -19,23 +20,30 @@ const AnimatedCounter = ({
   decimals = 0,
   className = '',
 }) => {
-  const [display, setDisplay] = useState(0);
-  const prevValue = useRef(0);
+  const shouldReduceMotion = useReducedMotion();
+  const [display, setDisplay] = useState(shouldReduceMotion ? (value ?? 0) : 0);
+  const prevValue = useRef(shouldReduceMotion ? (value ?? 0) : 0);
   const rafId = useRef(null);
 
   useEffect(() => {
+    if (shouldReduceMotion) {
+      setDisplay(value ?? 0);
+      prevValue.current = value ?? 0;
+      return;
+    }
+
     const start = prevValue.current;
     const end = value;
     const startTime = performance.now();
 
     // easeOutExpo — fast start, smooth deceleration
-    const easeOutExpo = (t) => (t === 1 ? 1 : 1 - Math.pow(2, -10 * t));
+    const easeOutExpo = (t) => (t <= 0 ? 0 : t >= 1 ? 1 : 1 - Math.pow(2, -10 * t));
 
     const animate = (currentTime) => {
-      const elapsed = currentTime - startTime;
-      const progress = Math.min(elapsed / duration, 1);
+      const elapsed = Math.max(0, (currentTime || performance.now()) - startTime);
+      const progress = Math.min(Math.max(elapsed / duration, 0), 1);
       const easedProgress = easeOutExpo(progress);
-      const current = start + (end - start) * easedProgress;
+      const current = progress >= 1 ? end : (start + (end - start) * easedProgress);
 
       setDisplay(current);
 

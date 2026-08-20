@@ -107,7 +107,7 @@ test.describe('completeness — cancellation, chat, tracking, password recovery'
     await login(page, ADMIN.email, ADMIN.password, { expectPath: '/admin' });
     await page.goto(`/admin/orders/${orderId}`);
     await dismissOverlays(page);
-    const heading = page.getByRole('heading', { name: 'Cancellation Request' });
+    const heading = page.getByRole('heading', { name: 'Cancellation Request', exact: true });
     await awaitOrderPageOrRetry(page, heading);
     await page.getByRole('button', { name: /approve & cancel order/i }).click();
 
@@ -115,7 +115,7 @@ test.describe('completeness — cancellation, chat, tracking, password recovery'
     // but it lands after the click returns. Reading the DB immediately raced
     // the commit — the order WAS cancelled, the read just came first. Wait for
     // the UI to drop the "Cancellation Request" panel before asserting.
-    await expect(page.getByRole('heading', { name: 'Cancellation Request' }))
+    await expect(page.getByRole('heading', { name: 'Cancellation Request', exact: true }))
       .toBeHidden({ timeout: 30_000 });
 
     const after = await getOrderByTracking(trackingNumber);
@@ -145,7 +145,7 @@ test.describe('completeness — cancellation, chat, tracking, password recovery'
     await login(page, ADMIN.email, ADMIN.password, { expectPath: '/admin' });
     await page.goto(`/admin/orders/${order.id}`);
     await dismissOverlays(page);
-    const heading2 = page.getByRole('heading', { name: 'Cancellation Request' });
+    const heading2 = page.getByRole('heading', { name: 'Cancellation Request', exact: true });
     await awaitOrderPageOrRetry(page, heading2);
     await page.getByRole('button', { name: /decline request/i }).click();
     await fillById(page, 'reason-modal-input', 'Parcel is already staged for today\'s manifest.');
@@ -156,7 +156,7 @@ test.describe('completeness — cancellation, chat, tracking, password recovery'
     // commit once and saw "Pending Cancellation" even though the UI had
     // already shown the decline as successful. Wait for the panel to drop
     // before asserting on the database.
-    await expect(page.getByRole('heading', { name: 'Cancellation Request' }))
+    await expect(page.getByRole('heading', { name: 'Cancellation Request', exact: true }))
       .toBeHidden({ timeout: 30_000 });
 
     const after = await getOrderByTracking(order.tracking_number);
