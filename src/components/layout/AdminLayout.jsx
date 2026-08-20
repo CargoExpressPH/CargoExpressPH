@@ -236,6 +236,8 @@ const AdminLayout = () => {
                 className={`admin-notif-bell${unreadCount > 0 ? ' has-unread' : ''}${notifOpen ? ' active' : ''}`}
                 type="button"
                 onClick={() => setNotifOpen(prev => !prev)}
+                aria-haspopup="dialog"
+                aria-expanded={notifOpen}
                 aria-label={`Notifications${unreadCount > 0 ? `, ${unreadCount} unread` : ''}`}
                 title="Notifications"
               >

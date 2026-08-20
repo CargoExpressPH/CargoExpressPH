@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Camera, Loader, Package, CheckCircle, Trash2, Upload } from 'lucide-react';
 import FocusTrap from './FocusTrap';
 import useScrollLock from '../../hooks/useScrollLock';
@@ -93,19 +94,32 @@ const DeliveryModal = ({ order, onClose, onSave }) => {
       clearError('delivery_photos');
     }
     setPhotos(prev => [...prev, ...validFiles]);
-    validFiles.forEach(file => {
-      const reader = new FileReader();
-      reader.onload = (evt) => setPhotoPreviews(prev => [...prev, evt.target.result]);
-      reader.readAsDataURL(file);
-    });
+    const newPreviews = validFiles.map(file => URL.createObjectURL(file));
+    setPhotoPreviews(prev => [...prev, ...newPreviews]);
     setError('');
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const removePhoto = (index) => {
+    if (photoPreviews[index] && typeof photoPreviews[index] === 'string' && photoPreviews[index].startsWith('blob:')) {
+      URL.revokeObjectURL(photoPreviews[index]);
+    }
     setPhotos(prev => prev.filter((_, i) => i !== index));
     setPhotoPreviews(prev => prev.filter((_, i) => i !== index));
   };
+
+  const previewsRef = useRef([]);
+  previewsRef.current = photoPreviews;
+
+  useEffect(() => {
+    return () => {
+      previewsRef.current.forEach(url => {
+        if (url && typeof url === 'string' && url.startsWith('blob:')) {
+          URL.revokeObjectURL(url);
+        }
+      });
+    };
+  }, []);
 
   const handleSubmit = async () => {
     setError('');
@@ -168,19 +182,27 @@ const DeliveryModal = ({ order, onClose, onSave }) => {
     }
   };
 
+  const isLocked = saving || payment?.paymentStep === 'generating' || payment?.paymentStep === 'waiting';
+
+  const handleSafeClose = () => {
+    if (!isLocked) {
+      onClose();
+    }
+  };
+
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') {
-        onClose();
+        handleSafeClose();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onClose]);
+  }, [isLocked, onClose]);
 
-  return (
+  return createPortal(
     <FocusTrap active>
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="modal-overlay" onClick={handleSafeClose}>
       <div
         className="modal modal-delivery"
         onClick={e => e.stopPropagation()}
@@ -190,7 +212,7 @@ const DeliveryModal = ({ order, onClose, onSave }) => {
       >
         <div className="modal-header">
           <h3 id="delivery-modal-title"><Package size={18} aria-hidden="true" /> Confirm Delivery</h3>
-          <button type="button" className="btn-icon btn-ghost" onClick={onClose} aria-label="Close delivery modal"><X size={20} aria-hidden="true" /></button>
+          <button type="button" className="btn-icon btn-ghost" onClick={handleSafeClose} disabled={isLocked} aria-label="Close delivery modal"><X size={20} aria-hidden="true" /></button>
         </div>
 
         <div className="modal-body modal-body-scroll" ref={containerRef}>
@@ -271,7 +293,7 @@ const DeliveryModal = ({ order, onClose, onSave }) => {
         </div>
 
         <div className="modal-footer">
-          <button className="btn btn-outline" onClick={onClose} disabled={saving || payment.paymentStep === 'generating'}>Cancel</button>
+          <button className="btn btn-outline" onClick={handleSafeClose} disabled={isLocked}>Cancel</button>
           <button
             className="btn btn-primary"
             onClick={handleSubmit}
@@ -285,7 +307,8 @@ const DeliveryModal = ({ order, onClose, onSave }) => {
         </div>
       </div>
     </div>
-    </FocusTrap>
+    </FocusTrap>,
+    document.body
   );
 };
 

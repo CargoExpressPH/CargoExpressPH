@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Loader, Smartphone, AlertTriangle, CreditCard, FileText, Trash2, CheckCircle, ExternalLink } from 'lucide-react';
 import FocusTrap from './FocusTrap';
 import AmountInput from './AmountInput';
@@ -37,6 +38,14 @@ const AdditionalPaymentModal = ({ order, remainingBalance, onClose, onSave }) =>
 
   const receiptInputRef = useRef(null);
 
+  const isLocked = saving || paymentStep === 'generating';
+
+  const handleSafeClose = () => {
+    if (!isLocked) {
+      onClose();
+    }
+  };
+
   /**
    * Amount validation, evaluated on every render rather than only on submit.
    * The balance is the ceiling the database enforces, so the field must say so
@@ -48,21 +57,18 @@ const AdditionalPaymentModal = ({ order, remainingBalance, onClose, onSave }) =>
   let amountError = null;
   if (amountEntered) {
     if (Number.isNaN(amountValue)) {
-      amountError = 'Enter a valid amount.';
+      amountError = 'Enter a valid amount';
     } else if (amountValue <= 0) {
-      amountError = 'Amount must be greater than ₱0.';
+      amountError = 'Amount must be greater than ₱0';
     } else if (amountValue > remainingBalance) {
-      amountError = `Amount cannot exceed the ₱${remainingBalance.toFixed(2)} remaining balance.`;
+      amountError = `Amount cannot exceed balance (₱${remainingBalance.toFixed(2)})`;
     }
   }
-  const amountValid = amountEntered && !amountError;
+  const amountValid = amountEntered && !amountError && amountValue > 0 && amountValue <= remainingBalance;
 
   // GCash QR generated and no manual reference typed: the footer button only
   // dismisses the modal — the webhook records the payment, not this form.
-  const isDoneStep =
-    form.payment_method === 'gcash' &&
-    paymentStep === 'waiting' &&
-    !form.payment_reference;
+  const isDoneStep = form.payment_method === 'gcash' && paymentStep === 'waiting';
 
   const handleProceedToGCash = async () => {
     try {
@@ -95,7 +101,6 @@ const AdditionalPaymentModal = ({ order, remainingBalance, onClose, onSave }) =>
     setPaymentStep('setup');
     setPaymongoSourceId(null);
     setCheckoutUrl(null);
-    setError('');
   };
 
   useEffect(() => {
@@ -107,12 +112,12 @@ const AdditionalPaymentModal = ({ order, remainingBalance, onClose, onSave }) =>
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') {
-        onClose();
+        handleSafeClose();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onClose]);
+  }, [isLocked, onClose]);
 
   const handleReceiptAdd = (e) => {
     const file = e.target.files?.[0];
@@ -121,13 +126,25 @@ const AdditionalPaymentModal = ({ order, remainingBalance, onClose, onSave }) =>
       setError('Only JPG, PNG, and WebP images allowed for receipts');
       return;
     }
+    if (receiptPreview && typeof receiptPreview === 'string' && receiptPreview.startsWith('blob:')) {
+      URL.revokeObjectURL(receiptPreview);
+    }
     setReceiptPhoto(file);
-    const reader = new FileReader();
-    reader.onload = (evt) => setReceiptPreview(evt.target.result);
-    reader.readAsDataURL(file);
+    setReceiptPreview(URL.createObjectURL(file));
     setError('');
     if (receiptInputRef.current) receiptInputRef.current.value = '';
   };
+
+  const receiptPreviewRef = useRef(null);
+  receiptPreviewRef.current = receiptPreview;
+
+  useEffect(() => {
+    return () => {
+      if (receiptPreviewRef.current && typeof receiptPreviewRef.current === 'string' && receiptPreviewRef.current.startsWith('blob:')) {
+        URL.revokeObjectURL(receiptPreviewRef.current);
+      }
+    };
+  }, []);
 
   const handleSave = async () => {
     setError(null);
@@ -186,13 +203,13 @@ const AdditionalPaymentModal = ({ order, remainingBalance, onClose, onSave }) =>
     }
   };
 
-  return (
+  return createPortal(
     <FocusTrap active>
-      <div className="modal-overlay" onClick={onClose} role="dialog" aria-modal="true" aria-labelledby="add-payment-modal-title">
+      <div className="modal-overlay" onClick={handleSafeClose} role="dialog" aria-modal="true" aria-labelledby="add-payment-modal-title">
         <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 450 }}>
           <div className="modal-header">
             <h3 id="add-payment-modal-title">Record Payment</h3>
-            <button className="btn-icon btn-ghost" onClick={onClose} aria-label="Close record payment modal"><X size={20} aria-hidden="true" /></button>
+            <button className="btn-icon btn-ghost" onClick={handleSafeClose} disabled={isLocked} aria-label="Close record payment modal"><X size={20} aria-hidden="true" /></button>
           </div>
           
           <div className="modal-body" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
@@ -388,7 +405,7 @@ const AdditionalPaymentModal = ({ order, remainingBalance, onClose, onSave }) =>
           </div>
           
           <div className="modal-footer">
-            <button className="btn btn-outline" onClick={onClose} disabled={saving || paymentStep === 'generating'}>Cancel</button>
+            <button className="btn btn-outline" onClick={handleSafeClose} disabled={isLocked}>Cancel</button>
             {/* `isDoneStep` is the QR hand-off: nothing is being recorded, the
                 webhook will. Amount validity is irrelevant to closing it. */}
             <button
@@ -405,7 +422,8 @@ const AdditionalPaymentModal = ({ order, remainingBalance, onClose, onSave }) =>
           </div>
         </div>
       </div>
-    </FocusTrap>
+    </FocusTrap>,
+    document.body
   );
 };
 

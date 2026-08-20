@@ -444,7 +444,7 @@ test.describe('CargoExpress PH — admin + customer end-to-end journey', () => {
     // The field must go invalid immediately and the submit must be dead — the
     // old behaviour kept a green "valid" border until the user pressed Record.
     await expect(amount).toHaveClass(/field-invalid/);
-    await expect(page.getByText(/cannot exceed the ₱.* remaining balance/i)).toBeVisible();
+    await expect(page.getByText(/cannot exceed balance/i)).toBeVisible();
     await expect(page.getByRole('button', { name: /^record payment$/i })).toBeDisabled();
 
     // A valid amount clears it again.

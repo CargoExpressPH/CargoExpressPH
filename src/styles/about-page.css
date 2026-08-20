@@ -1192,7 +1192,7 @@
   border-radius: 5px; color: rgba(255,255,255,0.6); font-size: 0.56rem; letter-spacing: 0.03em; z-index: 2;
 }
 .about-skel-wrapper {
-  min-height: 100vh; background: var(--bg-gradient, var(--bg)); font-family: Inter, system-ui, sans-serif;
+  min-height: 100vh; background: var(--bg-gradient, var(--bg)); font-family: var(--font-sans);
 }
 .about-skel-hero {
   height: 70vh; background: var(--bg-secondary); position: relative; overflow: hidden;

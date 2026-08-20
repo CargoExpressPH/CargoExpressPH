@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { getTrips } from '../../lib/database';
 import { X, Truck, Loader, MapPin, AlertTriangle } from 'lucide-react';
 import FocusTrap from './FocusTrap';
@@ -18,6 +19,12 @@ const TripAssignModal = ({ order, onClose, onAssign }) => {
   const [selectedTrip, setSelectedTrip] = useState(null);
   const [saving, setSaving] = useState(false);
   const { errors, validate, clearError, containerRef } = useFieldErrors();
+
+  const handleSafeClose = () => {
+    if (!saving) {
+      onClose();
+    }
+  };
 
   useEffect(() => {
     loadTrips();
@@ -57,20 +64,20 @@ const TripAssignModal = ({ order, onClose, onAssign }) => {
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') {
-        onClose();
+        handleSafeClose();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onClose]);
+  }, [saving, onClose]);
 
-  return (
+  return createPortal(
     <FocusTrap active>
-    <div className="modal-overlay" onClick={onClose} role="dialog" aria-modal="true" aria-labelledby="trip-assign-title" aria-describedby="trip-assign-desc">
+    <div className="modal-overlay" onClick={handleSafeClose} role="dialog" aria-modal="true" aria-labelledby="trip-assign-title" aria-describedby="trip-assign-desc">
       <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 480 }}>
         <div className="modal-header">
           <h3 id="trip-assign-title"><Truck size={18} className="inline mr-8" aria-hidden="true" />Assign to Trip</h3>
-          <button className="btn-icon btn-ghost" onClick={onClose} aria-label="Close trip assignment modal"><X size={20} aria-hidden="true" /></button>
+          <button className="btn-icon btn-ghost" onClick={handleSafeClose} disabled={saving} aria-label="Close trip assignment modal"><X size={20} aria-hidden="true" /></button>
         </div>
 
         <div className="modal-body" ref={containerRef}>
@@ -162,7 +169,7 @@ const TripAssignModal = ({ order, onClose, onAssign }) => {
         </div>
 
         <div className="modal-footer">
-          <button className="btn btn-outline" onClick={onClose} disabled={saving}>Cancel</button>
+          <button className="btn btn-outline" onClick={handleSafeClose} disabled={saving}>Cancel</button>
           <button
             className="btn btn-primary"
             onClick={handleAssign}
@@ -174,7 +181,8 @@ const TripAssignModal = ({ order, onClose, onAssign }) => {
         </div>
       </div>
     </div>
-    </FocusTrap>
+    </FocusTrap>,
+    document.body
   );
 };
 

@@ -24,7 +24,6 @@
   --accent: #1B3A5C;
   --accent-dark: #152E4A;
   --accent-light: #2D5A8A;
-  --accent-lighter: #3D7ABB;
   --bg-gradient: linear-gradient(135deg, #F3F7FA 0%, #E9EFF4 100%);
 
   /* -- Semantic Colors -- */
@@ -160,17 +159,24 @@
   --customer-green-soft: var(--primary-bg);
   --customer-green-glow: var(--primary-glow);
   --customer-ink: var(--text);
+  --customer-muted: #5F6B7A;
   --customer-panel: var(--surface);
   --customer-panel-solid: var(--surface);
   --customer-line: var(--border);
   --customer-shadow: var(--shadow-md);
+  --customer-shadow-soft: var(--shadow-sm);
 
   --admin-green: var(--primary);
   --admin-green-dark: var(--primary-dark);
   --admin-green-soft: var(--primary-bg);
+  --admin-green-glow: var(--primary-glow);
   --admin-ink: var(--text);
+  --admin-muted: #607085;
   --admin-panel: var(--surface);
+  --admin-panel-solid: var(--surface);
   --admin-line: var(--border);
+  --admin-shadow: var(--shadow-md);
+  --admin-shadow-soft: var(--shadow-sm);
   --sidebar-border: #E2E8F0;
   --sidebar-text: #475569;
   --sidebar-text-hover: #0F172A;
@@ -311,7 +317,6 @@
   --accent: #4A8EC7;
   --accent-dark: #3A70A0;
   --accent-light: #5DA0D8;
-  --accent-lighter: #7BB8E8;
 
   --success: #34D399;
   --success-dark: #6EE7B7;
@@ -399,11 +404,30 @@
   --shadow-primary: 0 4px 14px rgba(22, 163, 74, 0.25);
   --shadow-primary-lg: 0 8px 30px rgba(22, 163, 74, 0.3);
 
-  /* Semantic Chart Color Mapping (Dark Mode Override) */
-  --chart-1: var(--chart-purple);
-  --chart-2: var(--chart-pink);
-  --chart-3: var(--chart-slate);
-  --chart-4: var(--chart-teal);
+  /* -- Sub-System Token Aliases (Dark Mode) -- */
+  --customer-green: var(--primary-light);
+  --customer-green-dark: var(--primary-lighter);
+  --customer-green-soft: rgba(34, 197, 94, 0.12);
+  --customer-green-glow: rgba(74, 222, 128, 0.22);
+  --customer-ink: var(--text);
+  --customer-muted: #B7C2D0;
+  --customer-panel: rgba(19, 32, 51, 0.9);
+  --customer-panel-solid: var(--surface);
+  --customer-line: rgba(148, 163, 184, 0.15);
+  --customer-shadow: var(--shadow-lg);
+  --customer-shadow-soft: var(--shadow-md);
+
+  --admin-green: var(--primary-light);
+  --admin-green-dark: var(--primary-lighter);
+  --admin-green-soft: rgba(34, 197, 94, 0.12);
+  --admin-green-glow: var(--primary-glow);
+  --admin-ink: var(--text);
+  --admin-muted: #94A3B8;
+  --admin-panel: var(--surface);
+  --admin-panel-solid: var(--surface);
+  --admin-line: var(--border);
+  --admin-shadow: var(--shadow-lg);
+  --admin-shadow-soft: var(--shadow-md);
 }
 
 /* ── Smooth theme transitions (applied via .theme-transition only) ── */

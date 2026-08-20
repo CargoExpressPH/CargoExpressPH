@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { getTrips } from '../../lib/database';
 import { X, Truck, Loader, MapPin, Edit3, AlertTriangle } from 'lucide-react';
 import FocusTrap from './FocusTrap';
@@ -16,6 +17,13 @@ const TripReassignModal = ({ order, onClose, onReassign }) => {
   const [reason, setReason] = useState('');
   const [saving, setSaving] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+
+  const handleSafeClose = () => {
+    if (!saving) {
+      if (showConfirm) setShowConfirm(false);
+      else onClose();
+    }
+  };
 
   useEffect(() => {
     loadTrips();
@@ -61,17 +69,16 @@ const TripReassignModal = ({ order, onClose, onReassign }) => {
   useEffect(() => {
     const handleEscape = (e) => {
       if (e.key !== 'Escape' || saving) return;
-      if (showConfirm) setShowConfirm(false);
-      else onClose();
+      handleSafeClose();
     };
     document.addEventListener('keydown', handleEscape);
     return () => document.removeEventListener('keydown', handleEscape);
   }, [showConfirm, saving, onClose]);
 
   if (showConfirm) {
-    return (
+    return createPortal(
       <FocusTrap active>
-        <div className="modal-overlay" onClick={onClose} role="dialog" aria-modal="true" aria-labelledby="confirm-reassign-title">
+        <div className="modal-overlay" onClick={handleSafeClose} role="dialog" aria-modal="true" aria-labelledby="confirm-reassign-title">
           <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 400 }}>
             <div className="modal-header">
               <h3 id="confirm-reassign-title"><AlertTriangle size={18} className="inline mr-8 text-warning" /> Confirm Reassignment</h3>
@@ -92,17 +99,18 @@ const TripReassignModal = ({ order, onClose, onReassign }) => {
             </div>
           </div>
         </div>
-      </FocusTrap>
+      </FocusTrap>,
+      document.body
     );
   }
 
-  return (
+  return createPortal(
     <FocusTrap active>
-    <div className="modal-overlay" onClick={onClose} role="dialog" aria-modal="true" aria-labelledby="trip-reassign-title">
+    <div className="modal-overlay" onClick={handleSafeClose} role="dialog" aria-modal="true" aria-labelledby="trip-reassign-title">
       <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 520 }}>
         <div className="modal-header">
           <h3 id="trip-reassign-title"><Edit3 size={18} className="inline mr-8" />Change Assigned Trip</h3>
-          <button className="btn-icon btn-ghost" onClick={onClose} aria-label="Close modal"><X size={20} /></button>
+          <button className="btn-icon btn-ghost" onClick={handleSafeClose} disabled={saving} aria-label="Close modal"><X size={20} /></button>
         </div>
 
         <div className="modal-body">
@@ -203,7 +211,7 @@ const TripReassignModal = ({ order, onClose, onReassign }) => {
         </div>
 
         <div className="modal-footer">
-          <button className="btn btn-outline" onClick={onClose} disabled={saving}>Cancel</button>
+          <button className="btn btn-outline" onClick={handleSafeClose} disabled={saving}>Cancel</button>
           <button 
             className="btn btn-primary" 
             onClick={handleConfirmPrompt} 
@@ -214,7 +222,8 @@ const TripReassignModal = ({ order, onClose, onReassign }) => {
         </div>
       </div>
     </div>
-    </FocusTrap>
+    </FocusTrap>,
+    document.body
   );
 };
 

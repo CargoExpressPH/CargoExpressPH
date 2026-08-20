@@ -1209,7 +1209,7 @@
 .app-layout .payment-ref-copy-btn:hover {
   background: var(--bg-tertiary);
   border-color: var(--primary);
-  color: var(--primary);
+  color: var(--primary-text-strong);
 }
 .app-layout .payment-ref-copy-btn:hover svg { opacity: 1; }
 .app-layout .payment-ref-copy-btn:active {

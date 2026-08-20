@@ -217,9 +217,18 @@ const Sidebar = ({ isOpen, onClose, isCollapsed, onToggleCollapse }) => {
               type="button"
               className={`sidebar-profile-btn${profileMenuOpen ? ' active' : ''}`}
               onClick={() => setProfileMenuOpen(prev => !prev)}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape' && profileMenuOpen) {
+                  e.preventDefault();
+                  setProfileMenuOpen(false);
+                } else if ((e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ') && !profileMenuOpen) {
+                  e.preventDefault();
+                  setProfileMenuOpen(true);
+                }
+              }}
               data-tooltip="Account"
               aria-label="Open account menu"
-              aria-haspopup="true"
+              aria-haspopup="menu"
               aria-expanded={profileMenuOpen}
             >
               <div className="sidebar-user-avatar">
@@ -238,7 +247,16 @@ const Sidebar = ({ isOpen, onClose, isCollapsed, onToggleCollapse }) => {
 
             {/* Floating dropdown panel */}
             {profileMenuOpen && (
-              <div className="sidebar-profile-dropdown" role="menu">
+              <div
+                className="sidebar-profile-dropdown"
+                role="menu"
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') {
+                    e.preventDefault();
+                    setProfileMenuOpen(false);
+                  }
+                }}
+              >
                 <div className="sidebar-profile-dropdown-header">
                   <div className="sidebar-profile-dropdown-avatar">
                     {(userProfile?.name || 'A')[0].toUpperCase()}

@@ -11,6 +11,7 @@ import {
   Trash2, X, MessageSquare, Mail, Star, Clock, ChevronRight, BellOff
 } from 'lucide-react';
 import { useToast } from '../../hooks/useToast';
+import ConfirmModal from './ConfirmModal';
 
 // ── Icon map per notification type ─────────────────────────────────────────────
 const iconMap = {
@@ -88,6 +89,7 @@ const AdminNotificationCenter = ({ isOpen, onClose, anchorRef }) => {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
 
   // ── Fetch notifications ───────────────────────────────────────────────────
   const fetchNotifications = useCallback(async () => {
@@ -130,6 +132,10 @@ const AdminNotificationCenter = ({ isOpen, onClose, anchorRef }) => {
     if (!isOpen) return;
 
     const handleClickOutside = (e) => {
+      // The clear-all ConfirmModal is portaled to <body>, so its own mousedowns
+      // land outside panelRef — dismissing the panel here would unmount the
+      // confirm before its buttons could be clicked.
+      if (e.target?.closest?.('.confirm-modal')) return;
       if (
         panelRef.current && !panelRef.current.contains(e.target) &&
         anchorRef?.current && !anchorRef.current.contains(e.target)
@@ -220,7 +226,7 @@ const AdminNotificationCenter = ({ isOpen, onClose, anchorRef }) => {
           {notifications.length > 0 && (
             <button
               className="admin-notif-action-btn danger"
-              onClick={handleClearAll}
+              onClick={() => setShowClearConfirm(true)}
               disabled={actionLoading}
               title="Clear all"
             >
@@ -303,6 +309,19 @@ const AdminNotificationCenter = ({ isOpen, onClose, anchorRef }) => {
           })
         )}
       </div>
+
+      <ConfirmModal
+        isOpen={showClearConfirm}
+        onClose={() => setShowClearConfirm(false)}
+        onConfirm={async () => {
+          setShowClearConfirm(false);
+          await handleClearAll();
+        }}
+        title="Clear All Notifications"
+        message="Are you sure you want to permanently clear all notifications? This action cannot be undone."
+        confirmLabel="Clear All"
+        variant="danger"
+      />
     </div>
   );
 };
