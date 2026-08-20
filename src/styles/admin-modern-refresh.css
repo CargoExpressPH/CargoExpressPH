@@ -1303,17 +1303,3 @@
   background: #22C55E;
   color: #0F172A;
 }
-
-@media (max-width: 480px) {
-  .sales-reports-switcher {
-    flex-wrap: wrap;
-    width: 100%;
-  }
-  .sales-reports-tab {
-    flex: 1 1 calc(50% - 6px);
-    justify-content: center;
-    min-width: 0;
-    white-space: normal;
-    text-align: center;
-  }
-}
