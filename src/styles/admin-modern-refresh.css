@@ -642,7 +642,7 @@
   margin-bottom: 22px;
   padding: 20px;
   border: 1px solid var(--admin-line);
-  border-radius: 28px;
+  border-radius: var(--radius-xl);
   background:
     linear-gradient(135deg, var(--admin-green-soft), color-mix(in srgb, var(--admin-panel-solid) 92%, transparent));
   box-shadow: var(--admin-shadow-soft);
@@ -669,9 +669,17 @@
 .app-layout .modal,
 .app-layout .confirm-modal {
   border-color: var(--admin-line);
-  border-radius: 24px;
+  border-radius: var(--radius-lg);
   background: var(--admin-panel);
   box-shadow: var(--admin-shadow-soft);
+}
+
+/* Portaled modals render on <body>, outside .app-layout, so they get the
+   base .modal radius (--radius-xl). In-layout modals match it here so every
+   admin modal agrees regardless of where it mounts. */
+.app-layout .modal,
+.app-layout .confirm-modal {
+  border-radius: var(--radius-xl);
 }
 
 .app-layout .card:hover,
@@ -695,7 +703,7 @@
 }
 
 .app-layout .stat-card {
-  border-radius: 24px;
+  border-radius: var(--radius-lg);
 }
 
 .app-layout .stat-card:hover {
@@ -772,7 +780,7 @@
   margin-bottom: 18px;
   padding: 10px;
   border: 1px solid var(--admin-line);
-  border-radius: 24px;
+  border-radius: var(--radius-lg);
   background: var(--admin-panel);
   box-shadow: var(--admin-shadow-soft);
 }
@@ -848,7 +856,7 @@
 }
 
 .app-layout .table-container {
-  border-radius: 24px;
+  border-radius: var(--radius-lg);
   background: var(--admin-panel);
 }
 
@@ -873,7 +881,7 @@
 }
 
 .app-layout .admin-list-card {
-  border-radius: 24px;
+  border-radius: var(--radius-lg);
 }
 
 .app-layout .admin-list-card-title {
@@ -890,13 +898,13 @@
 .app-layout .admin-payment-summary,
 .app-layout .booking-summary-card {
   border-color: var(--admin-line);
-  border-radius: 20px;
+  border-radius: var(--radius-md);
   background: color-mix(in srgb, var(--admin-panel-solid) 82%, var(--admin-green-soft) 18%);
 }
 
 .app-layout .admin-route-option {
   border: 1px solid var(--admin-line);
-  border-radius: 24px;
+  border-radius: var(--radius-md);
   background: var(--admin-panel);
 }
 
@@ -907,13 +915,13 @@
 
 .app-layout .profile-card-premium {
   border-color: var(--admin-line);
-  border-radius: 30px;
+  border-radius: var(--radius-xl);
   background: var(--admin-panel);
   box-shadow: var(--admin-shadow);
 }
 
 .app-layout .profile-card-banner {
-  border-radius: 30px 30px 26px 26px;
+  border-radius: var(--radius-xl) var(--radius-xl) var(--radius-lg) var(--radius-lg);
   background: linear-gradient(135deg, var(--admin-green-dark), var(--admin-green));
 }
 
@@ -1049,7 +1057,7 @@
 
   .app-layout .admin-page-header {
     padding: 18px;
-    border-radius: 24px;
+    border-radius: var(--radius-lg);
   }
 
   .app-layout .admin-toolbar {
@@ -1083,7 +1091,7 @@
     margin: 12px 0;
     padding: 16px ;
     border: 1px solid var(--admin-line) ;
-    border-radius: 20px ;
+    border-radius: var(--radius-md) ;
     background: var(--admin-panel) ;
     box-shadow: var(--admin-shadow-soft);
   }
