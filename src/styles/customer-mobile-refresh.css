@@ -1346,8 +1346,8 @@ input:checked + .toggle-slider:before {
        Must stay in step with .customer-main:has(.support-chat-page) in
        layout-customer.css; if the two stop summing to 100dvh the page gains a
        scroll and the composer slides under the bottom tab bar. */
-    min-height: calc(100dvh - 186px - var(--customer-safe-bottom));
-    height: calc(100dvh - 186px - var(--customer-safe-bottom));
+    min-height: calc(100dvh - 186px - var(--customer-safe-bottom) - var(--app-safe-top));
+    height: calc(100dvh - 186px - var(--customer-safe-bottom) - var(--app-safe-top));
     /* The column is a fixed-height viewport for the message list. Without this
        an overflowing child still grew the page, and that scroll is what slid
        the composer under the floating tab bar. */
@@ -1705,8 +1705,8 @@ body:has(textarea:focus) .support-chat-page {
    base rule and the earlier mobile block whichever way the cascade falls. */
 @media (max-width: 899.98px) {
   .customer-layout-v2 .support-chat-page {
-    min-height: calc(100dvh - 186px - var(--customer-safe-bottom));
-    height: calc(100dvh - 186px - var(--customer-safe-bottom));
+    min-height: calc(100dvh - 186px - var(--customer-safe-bottom) - var(--app-safe-top));
+    height: calc(100dvh - 186px - var(--customer-safe-bottom) - var(--app-safe-top));
     overflow: hidden;
   }
   .customer-layout-v2 .support-chat-messages {

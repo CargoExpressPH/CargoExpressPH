@@ -279,6 +279,60 @@
   }
 }
 
+/* iOS edge-to-edge support: keep header content below the notch or Dynamic
+   Island when viewport-fit=cover is active. The fallback is zero elsewhere. */
+:root {
+  --app-safe-top: env(safe-area-inset-top, 0px);
+}
+
+.app-layout .topbar {
+  box-sizing: border-box;
+  height: calc(74px + var(--app-safe-top));
+  padding-top: var(--app-safe-top);
+}
+
+@media (max-width: 1024px) {
+  .app-layout .topbar {
+    height: calc(66px + var(--app-safe-top));
+  }
+}
+
+@media (max-width: 768px) {
+  .app-layout .topbar {
+    height: calc(62px + var(--app-safe-top));
+  }
+}
+
+.customer-layout-v2 .customer-navbar {
+  padding-top: var(--app-safe-top);
+}
+
+.customer-layout-v2 .step-progress {
+  top: calc(82px + var(--app-safe-top));
+}
+
+@media (max-width: 899.98px) {
+  .customer-layout-v2 .step-progress {
+    top: calc(74px + var(--app-safe-top));
+  }
+}
+
+.app-layout .sidebar {
+  padding-top: var(--app-safe-top);
+}
+
+.app-layout .sidebar-collapse-btn {
+  top: calc(20px + var(--app-safe-top));
+}
+
+.about-glass-nav {
+  padding-top: calc(16px + var(--app-safe-top));
+}
+
+.about-scroll-progress {
+  top: var(--app-safe-top);
+}
+
 /* ── Dark mode: primary CTA backgrounds follow the dark --primary token (#22C55E).
    Overrides the hardcoded light-mode greens (#15803D/#166534) in every layer so
    CTAs stay vivid on dark UI. Dark navy text on bright green passes AA (7.9:1). ── */
