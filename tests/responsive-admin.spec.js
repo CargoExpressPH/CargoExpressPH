@@ -62,6 +62,15 @@ const checkNoClippedButtons = async (page, viewport) => {
     const sidebar = document.querySelector('.sidebar');
     const sidebarRect = sidebar ? sidebar.getBoundingClientRect() : null;
     const sidebarHidden = sidebarRect ? sidebarRect.left < -10 : false;
+    const isScrollableAncestor = (el) => {
+      let p = el.parentElement;
+      while (p && p !== document.body) {
+        const s = window.getComputedStyle(p);
+        if ((s.overflowX === 'auto' || s.overflowX === 'scroll') && p.scrollWidth > p.clientWidth + 5) return true;
+        p = p.parentElement;
+      }
+      return false;
+    };
     const els = Array.from(document.querySelectorAll('button, a.btn, .btn'));
     const vw = window.innerWidth;
     const bad = [];
@@ -71,6 +80,8 @@ const checkNoClippedButtons = async (page, viewport) => {
       if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') continue;
       // ignore elements inside hidden sidebar drawer
       if (sidebarHidden && el.closest('.sidebar')) continue;
+      // ignore buttons inside horizontally scrollable containers (tabs, switchers) — they are expected to be off-screen and scrollable
+      if (isScrollableAncestor(el)) continue;
       const rect = el.getBoundingClientRect();
       if (rect.width === 0 || rect.height === 0) continue;
       // ignore elements completely off-screen vertically
