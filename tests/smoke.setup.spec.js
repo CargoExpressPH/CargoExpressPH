@@ -36,6 +36,35 @@ test.describe('harness smoke check', () => {
     }
   });
 
+  test('the public legal documents are published with version information', async ({ page }) => {
+    await page.goto('/terms');
+    await expect(page.getByRole('heading', { name: 'Terms of Service', level: 1 })).toBeVisible();
+    await expect(page.getByText('Version 2026-08-22')).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Privacy Policy' }).first()).toBeVisible();
+
+    await page.goto('/privacy');
+    await expect(page.getByRole('heading', { name: 'Privacy Policy', level: 1 })).toBeVisible();
+    await expect(page.getByText('Version 2026-08-22')).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Terms of Service' }).first()).toBeVisible();
+  });
+
+  test('registration presents explicit legal acceptance before account creation', async ({ page }) => {
+    await page.goto('/register');
+    await page.locator('#reg-name').fill('Test Customer');
+    await page.locator('#reg-facebook').fill('Test Customer');
+    await page.locator('#reg-email').fill('legal-consent-check@cargoexpressph-e2e.test');
+    await page.locator('#reg-phone').fill('09171234567');
+    await page.locator('#reg-password').fill('Password123');
+    await page.locator('#reg-confirm-password').fill('Password123');
+    await page.getByRole('button', { name: /Continue to Address/ }).click();
+
+    await expect(page.locator('#reg-legal-consent')).toBeVisible();
+    await expect(page.locator('#reg-legal-consent')).not.toBeChecked();
+    await expect(page.locator('#reg-legal-consent')).toHaveAttribute('required', '');
+    await expect(page.getByRole('link', { name: 'Terms of Service' }).last()).toHaveAttribute('href', '/terms');
+    await expect(page.getByRole('link', { name: 'Privacy Policy' }).last()).toHaveAttribute('href', '/privacy');
+  });
+
   test('the public tracking page is reachable anonymously', async ({ page }) => {
     await page.goto('/track');
     await expect(page.locator('.trk-page')).toBeVisible();

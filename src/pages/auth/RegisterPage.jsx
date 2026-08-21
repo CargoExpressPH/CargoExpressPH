@@ -15,6 +15,7 @@ import { getPasswordStrength } from '../../utils/password';
 import FieldError from '../../components/ui/FieldError';
 import { BrandLogo, BrandWordmark } from '../../components/ui/BrandLogo';
 import AuthHeroPanel from '../../components/auth/AuthHeroPanel';
+import { LEGAL_DOCUMENTS } from '../../constants/legalDocuments';
 
 /* ── Helpers ──────────────────────────────────────────────────────────── */
 
@@ -79,6 +80,7 @@ const RegisterPage = () => {
   const [touchedFields, setTouchedFields] = useState({});
   const [loading,       setLoading]       = useState(false);
   const [success,       setSuccess]       = useState(false);
+  const [legalConsent,  setLegalConsent]  = useState(false);
   const topRef = useRef(null);
   const errorRef = useRef(null);
 
@@ -223,6 +225,7 @@ const RegisterPage = () => {
       address_street: 'reg-street',
       address_lot_block: 'reg-lot',
       address_landmark: 'reg-landmark',
+      legal_consent: 'reg-legal-consent',
     };
 
     const firstFieldKey = errorKeys[0];
@@ -320,9 +323,12 @@ const RegisterPage = () => {
     setTouchedFields(prev => ({ ...prev, ...allStep2Touched }));
 
     const step2Errors = validateStep2();
+    if (!legalConsent) step2Errors.legal_consent = 'Please review and agree to the Terms of Service and Privacy Policy to create an account.';
     if (Object.keys(step2Errors).length > 0) {
       setFieldErrors(step2Errors);
-      setError('Please complete all required address fields highlighted below.');
+      setError(step2Errors.legal_consent
+        ? 'Please complete the required address fields and legal acceptance before creating your account.'
+        : 'Please complete all required address fields highlighted below.');
       focusFirstError(step2Errors);
       return;
     }
@@ -343,6 +349,11 @@ const RegisterPage = () => {
         address_street:   normalizedAddress.address_street,
         address_lot_block:normalizedAddress.address_lot_block,
         address_landmark: normalizedAddress.address_landmark,
+        legal_consent: {
+          termsAccepted: true,
+          privacyAccepted: true,
+          version: LEGAL_DOCUMENTS.terms.version,
+        },
       });
 
       setLoading(false);
@@ -898,12 +909,34 @@ const RegisterPage = () => {
                 )}
               </div>
 
-              {/* Terms note */}
-              <div className="reg-address-note border-color" style={{ background: 'var(--bg-secondary)' }}>
-                <ShieldCheck size={14} style={{ color: 'var(--primary-text)', marginTop: 2 }} />
-                <p className="text-secondary" style={{fontSize: '0.78rem'}}>
-                  By creating an account, you agree to Cargo Express PH's Terms of Service and Privacy Policy.
-                </p>
+              {/* Required, affirmative legal acceptance. Links open separately so the draft is preserved. */}
+              <div className={`reg-legal-consent ${fieldErrors.legal_consent ? 'reg-legal-consent-invalid' : ''}`}>
+                <ShieldCheck size={18} aria-hidden="true" />
+                <div className="reg-legal-consent-copy">
+                  <div className="reg-legal-consent-control">
+                    <input
+                      id="reg-legal-consent"
+                      type="checkbox"
+                      checked={legalConsent}
+                      onChange={(e) => {
+                        setLegalConsent(e.target.checked);
+                        setTouchedFields(prev => ({ ...prev, legal_consent: true }));
+                        setFieldErrors(prev => ({ ...prev, legal_consent: e.target.checked ? '' : prev.legal_consent }));
+                      }}
+                      required
+                      aria-required="true"
+                      aria-invalid={!!fieldErrors.legal_consent}
+                      aria-describedby={fieldErrors.legal_consent ? 'reg-legal-consent-help reg-legal-consent-error' : 'reg-legal-consent-help'}
+                    />
+                    <label htmlFor="reg-legal-consent">I have read and agree to the legal documents.</label>
+                  </div>
+                  <p id="reg-legal-consent-help">
+                    Read the <Link to={LEGAL_DOCUMENTS.terms.path} target="_blank" rel="noopener noreferrer">Terms of Service</Link> and <Link to={LEGAL_DOCUMENTS.privacy.path} target="_blank" rel="noopener noreferrer">Privacy Policy</Link> (version {LEGAL_DOCUMENTS.terms.version}) before continuing.
+                  </p>
+                  {fieldErrors.legal_consent && (
+                    <FieldError id="reg-legal-consent-error" message={fieldErrors.legal_consent} />
+                  )}
+                </div>
               </div>
 
               {/* Buttons */}

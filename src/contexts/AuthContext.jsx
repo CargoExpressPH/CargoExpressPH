@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect, useRef, useMemo, useCal
 import { supabase } from '../lib/supabase';
 import { disableNotificationsForDevice } from '../lib/firebase-messaging';
 import { normalizeProfileAddressFields } from '../lib/address';
+import { LEGAL_DOCUMENT_VERSION } from '../constants/legalDocuments';
 import { getProfile, createProfile } from '../lib/database';
 import { logAuth } from '../lib/activityLog';
 import useNetworkRecovery from '../hooks/useNetworkRecovery';
@@ -192,20 +193,43 @@ export const AuthProvider = ({ children }) => {
     try {
       setLoading(true);
 
+      const { legal_consent: legalConsent, ...profileFields } = profileData || {};
+      if (
+        legalConsent?.termsAccepted !== true ||
+        legalConsent?.privacyAccepted !== true ||
+        legalConsent?.version !== LEGAL_DOCUMENT_VERSION
+      ) {
+        throw new Error('You must agree to the current Terms of Service and Privacy Policy to create an account.');
+      }
+
       // Set flag BEFORE signUp so onAuthStateChange skips the premature fetchProfile.
       isAuthAction.current = true;
 
-      const { data, error } = await supabase.auth.signUp({ email, password });
+      // These fields are written during the same auth transaction. The database
+      // trigger validates the version against its published-document registry
+      // and records both consents before the account can be created.
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            name: profileFields.name,
+            legal_terms_accepted: true,
+            legal_privacy_accepted: true,
+            legal_policy_version: legalConsent.version,
+          },
+        },
+      });
       if (error) throw error;
 
-      const normalizedAddress = normalizeProfileAddressFields(profileData);
+      const normalizedAddress = normalizeProfileAddressFields(profileFields);
 
       await createProfile({
         id: data.user.id,
         email,
-        name: profileData.name,
-        facebook_name: profileData.facebook_name || null,
-        phone: profileData.phone || null,
+        name: profileFields.name,
+        facebook_name: profileFields.facebook_name || null,
+        phone: profileFields.phone || null,
         role: 'customer',
         address_lot_block: normalizedAddress.address_lot_block || null,
         address_street: normalizedAddress.address_street || null,
@@ -225,7 +249,7 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       isAuthAction.current = false;
       setLoading(false);
-      let msg = error.message;
+      let msg = error.message || 'Registration failed. Please try again.';
       if (msg.includes('already registered')) {
         msg = 'This email is already registered. Please sign in instead.';
       }

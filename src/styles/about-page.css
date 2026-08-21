@@ -1090,6 +1090,18 @@
   font-size: 0.875rem;
 }
 
+.about-footer-legal-links {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 16px;
+}
+
+.about-footer-legal-links .about-footer-link {
+  color: inherit;
+  font-size: inherit;
+}
+
 /* ── Back to Top ── */
 .about-back-to-top {
   position: fixed;

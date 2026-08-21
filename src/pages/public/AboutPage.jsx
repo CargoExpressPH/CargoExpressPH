@@ -1582,9 +1582,13 @@ const AboutPage = () => {
           </div>
         </div>
 
-        <div className="about-footer-bottom">
-          <span>&copy; {new Date().getFullYear()} {companyName}. All rights reserved.</span>
-          <span
+          <div className="about-footer-bottom">
+            <span>&copy; {new Date().getFullYear()} {companyName}. All rights reserved.</span>
+            <span className="about-footer-legal-links" aria-label="Legal information">
+              <Link to="/terms" className="about-footer-link">Terms of Service</Link>
+              <Link to="/privacy" className="about-footer-link">Privacy Policy</Link>
+            </span>
+            <span
             className={`about-footer-status about-footer-status-${resolvedSystemStatus}`}
             role="status"
             aria-live="polite"
