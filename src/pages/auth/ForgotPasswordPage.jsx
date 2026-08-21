@@ -4,12 +4,12 @@ import { useAuth } from '../../contexts/AuthContext';
 import {
   Mail, Loader,
   ArrowLeft, Send, AlertTriangle, RefreshCw, Inbox,
-  Ship, DollarSign, Search, Zap, Package,
 } from 'lucide-react';
 import usePageTitle from '../../hooks/usePageTitle';
 import useFieldErrors from '../../hooks/useFieldErrors';
 import FieldError, { fieldAttrs, invalidClass } from '../../components/ui/FieldError';
 import { BrandLogo, BrandWordmark } from '../../components/ui/BrandLogo';
+import AuthHeroPanel from '../../components/auth/AuthHeroPanel';
 
 /* ══════════════════════════════════════════════════════════════════════════
    ForgotPasswordPage — World-Class Premium Redesign
@@ -103,51 +103,7 @@ const ForgotPasswordPage = () => {
       </div>
 
       {/* LEFT PANEL — Branding */}
-      <div className="login-left-panel" aria-hidden="true">
-        <div className="login-left-content">
-          <div className="login-brand flex items-center" style={{ gap: 10 }}>
-            <BrandLogo size={48} decorative />
-            <h1 style={{ margin: 0, fontSize: '2rem', fontWeight: 900 }}>
-              <BrandWordmark tone="on-dark" />
-            </h1>
-          </div>
-
-          <h2 className="login-tagline">
-            Fast &amp; Reliable<br />Cargo Delivery
-          </h2>
-          <p className="login-tagline-sub">
-            Connecting Bohol and Manila with safe,<br />
-            affordable sea cargo shipping.
-          </p>
-
-          <div className="login-route-pills">
-            <div className="login-route-pill">
-              <Ship size={14} /> Bohol → Manila
-            </div>
-            <div className="login-route-pill">
-              <Ship size={14} /> Manila → Bohol
-            </div>
-          </div>
-
-          <div className="login-features">
-            {[
-              { icon: Package,    text: 'Door-to-door delivery' },
-              { icon: Search,     text: 'Real-time tracking' },
-              { icon: DollarSign, text: 'Affordable per-kilo rates' },
-              { icon: Zap,        text: 'Fast and reliable service' },
-            ].map((f, i) => (
-              <div key={i} className="login-feature-item">
-                <div className="login-feature-icon-wrap"><f.icon size={14} /></div>
-                {f.text}
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="login-left-footer">
-          <div>© {new Date().getFullYear()} Cargo Express PH. All rights reserved.</div>
-        </div>
-      </div>
+      <AuthHeroPanel ariaHidden />
 
       {/* RIGHT PANEL — Reset Form */}
       <div className="login-right-panel">

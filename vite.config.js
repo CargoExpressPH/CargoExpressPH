@@ -109,11 +109,30 @@ export default defineConfig({
   build: {
     rollupOptions: {
       output: {
-        manualChunks: {
-          // React core — cached across all pages
-          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
-          // Supabase client — large dependency, rarely changes
-          'vendor-supabase': ['@supabase/supabase-js'],
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('react') || id.includes('react-dom') || id.includes('react-router-dom')) {
+              return 'vendor-react';
+            }
+            if (id.includes('@supabase')) {
+              return 'vendor-supabase';
+            }
+            if (id.includes('firebase')) {
+              return 'vendor-firebase';
+            }
+            if (id.includes('framer-motion')) {
+              return 'vendor-motion';
+            }
+            if (id.includes('@dnd-kit')) {
+              return 'vendor-dndkit';
+            }
+            if (id.includes('html2pdf.js') || id.includes('jspdf') || id.includes('html2canvas')) {
+              return 'vendor-pdf';
+            }
+            if (id.includes('browser-image-compression')) {
+              return 'vendor-image';
+            }
+          }
         },
       },
     },

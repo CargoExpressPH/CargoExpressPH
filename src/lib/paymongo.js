@@ -185,10 +185,13 @@ export const initiateGCashPayment = async (amount, trackingNumber, customer = {}
   return { sourceId, checkoutUrl };
 };
 
+const inFlightPolls = new Map();
+
 /**
  * Poll the payment status from the server.
  * Called when the customer returns from PayMongo checkout.
  * The server checks the PayMongo source status and reconciles if paid.
+ * Includes concurrency deduplication to prevent duplicate webhook/polling race conditions.
  * @param {string} sourceId - PayMongo source ID
  * @param {string} orderId - Order UUID
  * @returns {object} - { status, orderReconciled, paymentId, amount, error }
@@ -198,27 +201,41 @@ export const pollPaymentStatus = async (sourceId, orderId) => {
     throw new Error('sourceId and orderId are required for polling');
   }
 
-  const { data, error } = await supabase.functions.invoke('paymongo-create-payment', {
-    body: {
-      sourceId,
-      amount: 1, // Minimum — the server uses the stored attempt amount
-      action: 'poll',
-      orderUpdate: { orderId },
-    },
-  });
-
-  if (error) {
-    throw new Error(error.message || 'Failed to verify payment status');
-  }
-  if (data?.error) {
-    throw new Error(data.error);
+  const pollKey = `${sourceId}:${orderId}`;
+  if (inFlightPolls.has(pollKey)) {
+    return inFlightPolls.get(pollKey);
   }
 
-  return {
-    status: data.status || 'unknown',
-    orderReconciled: data.orderReconciled || false,
-    paymentId: data.paymentId || null,
-    amount: data.amount || 0,
-    message: data.message || null,
-  };
+  const pollPromise = (async () => {
+    try {
+      const { data, error } = await supabase.functions.invoke('paymongo-create-payment', {
+        body: {
+          sourceId,
+          amount: 1, // Minimum — the server uses the stored attempt amount
+          action: 'poll',
+          orderUpdate: { orderId },
+        },
+      });
+
+      if (error) {
+        throw new Error(error.message || 'Failed to verify payment status');
+      }
+      if (data?.error) {
+        throw new Error(data.error);
+      }
+
+      return {
+        status: data.status || 'unknown',
+        orderReconciled: data.orderReconciled || false,
+        paymentId: data.paymentId || null,
+        amount: data.amount || 0,
+        message: data.message || null,
+      };
+    } finally {
+      inFlightPolls.delete(pollKey);
+    }
+  })();
+
+  inFlightPolls.set(pollKey, pollPromise);
+  return pollPromise;
 };

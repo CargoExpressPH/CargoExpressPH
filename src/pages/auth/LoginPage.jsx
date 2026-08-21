@@ -2,14 +2,13 @@ import { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import {
-  Eye, EyeOff,
-  Ship, Package, DollarSign, Search, Zap, AlertTriangle,
-  Mail, Lock,
+  Eye, EyeOff, AlertTriangle, Mail, Lock,
 } from 'lucide-react';
 import usePageTitle from '../../hooks/usePageTitle';
 import { logAuth } from '../../lib/activityLog';
 import FieldError from '../../components/ui/FieldError';
 import { BrandLogo, BrandWordmark } from '../../components/ui/BrandLogo';
+import AuthHeroPanel from '../../components/auth/AuthHeroPanel';
 
 // ── Error mapper ─────────────────────────────────────────────────────────────
 const INVALID_CREDENTIALS_ERROR = 'Incorrect password or email.';
@@ -181,56 +180,8 @@ const LoginPage = () => {
         <div className="auth-mesh-orb auth-mesh-orb-3" />
       </div>
 
-      {/* ════════════════════════════════════════════════════════════
-          LEFT PANEL — Branding
-      ════════════════════════════════════════════════════════════ */}
-      <div className="login-left-panel">
-        <div className="login-left-content">
-          <div className="login-brand">
-            <BrandLogo size={44} decorative />
-            <h1><BrandWordmark tone="on-dark" /></h1>
-          </div>
-
-          {/* Tagline */}
-          <h2 className="login-tagline">
-            Fast &amp; Reliable<br />Cargo Delivery
-          </h2>
-          <p className="login-tagline-sub">
-            Connecting Bohol and Manila with safe,<br />
-            affordable sea cargo shipping.
-          </p>
-
-          {/* Route pills */}
-          <div className="login-route-pills">
-            <div className="login-route-pill">
-              <Ship size={14} /> Bohol → Manila
-            </div>
-            <div className="login-route-pill">
-              <Ship size={14} /> Manila → Bohol
-            </div>
-          </div>
-
-          {/* Features */}
-          <div className="login-features">
-            {[
-              { icon: Package,    text: 'Door-to-door delivery' },
-              { icon: Search,     text: 'Real-time tracking' },
-              { icon: DollarSign, text: 'Affordable per-kilo rates' },
-              { icon: Zap,        text: 'Fast and reliable service' },
-            ].map((f, i) => (
-              <div key={i} className="login-feature-item">
-                <div className="login-feature-icon-wrap"><f.icon size={14} /></div>
-                {f.text}
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Bottom attribution */}
-        <div className="login-left-footer">
-          <div>© {new Date().getFullYear()} Cargo Express PH. All rights reserved.</div>
-        </div>
-      </div>
+      {/* LEFT PANEL — Branding */}
+      <AuthHeroPanel />
 
       {/* ════════════════════════════════════════════════════════════
           RIGHT PANEL — Login Form

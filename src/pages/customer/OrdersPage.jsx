@@ -9,6 +9,7 @@ import EmptyState from '../../components/ui/EmptyState';
 import PageTransition, { StaggerItem } from '../../components/ui/PageTransition';
 import PullToRefresh from '../../components/ui/PullToRefresh';
 import ResponsiveFilterControls from '../../components/ui/ResponsiveFilterControls';
+import Pagination from '../../components/ui/Pagination';
 import { Search, Package, AlertCircle, MapPin, ChevronRight } from 'lucide-react';
 import usePageTitle from '../../hooks/usePageTitle';
 import { CUSTOMER_ORDER_FILTERS, isOrderPriced } from '../../constants/status';
@@ -17,6 +18,7 @@ import { CUSTOMER_ORDER_FILTERS, isOrderPriced } from '../../constants/status';
 const filterOptions = CUSTOMER_ORDER_FILTERS.map(f => ({ value: f.value, label: f.label }));
 const statusesFor = (value) =>
   CUSTOMER_ORDER_FILTERS.find(f => f.value === value)?.statuses ?? null;
+const ITEMS_PER_PAGE = 10;
 
 const fmtDate = (iso) => {
   if (!iso) return '—';
@@ -32,6 +34,7 @@ const OrdersPage = () => {
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('all');
   const [search, setSearch] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
 
   const refreshOrders = useCallback(() => {
     if (!user) return;
@@ -60,6 +63,16 @@ const OrdersPage = () => {
     }
   };
 
+  const handleSearchChange = (e) => {
+    setSearch(e.target.value);
+    setCurrentPage(1);
+  };
+
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+    setCurrentPage(1);
+  };
+
   const activeStatuses = statusesFor(activeTab);
 
   const filtered = orders.filter(o => {
@@ -75,6 +88,20 @@ const OrdersPage = () => {
     }
     return true;
   });
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
+  // Keep the UI valid immediately when a refresh removes the current page.
+  // The effect below persists the clamped value for subsequent interactions.
+  const visiblePage = Math.min(currentPage, totalPages);
+
+  useEffect(() => {
+    if (currentPage > totalPages) setCurrentPage(totalPages);
+  }, [currentPage, totalPages]);
+
+  const paginatedOrders = filtered.slice(
+    (visiblePage - 1) * ITEMS_PER_PAGE,
+    visiblePage * ITEMS_PER_PAGE
+  );
 
   return (
     <PullToRefresh onRefresh={() => loadOrders(true)}>
@@ -92,14 +119,14 @@ const OrdersPage = () => {
           aria-label="Search orders"
           placeholder="Search tracking, sender, receiver, destination..."
           value={search}
-          onChange={e => setSearch(e.target.value)}
+          onChange={handleSearchChange}
         />
       </StaggerItem>
       <StaggerItem className="mb-16" delay={60}>
         <ResponsiveFilterControls
           options={filterOptions}
           value={activeTab}
-          onChange={setActiveTab}
+          onChange={handleTabChange}
           ariaLabel="Order status filters"
           label="Status"
           desktopClassName="tabs customer-order-tabs"
@@ -133,39 +160,52 @@ const OrdersPage = () => {
           />
         </div>
       ) : (
-        filtered.map((order, index) => (
-          <StaggerItem key={order.id} delay={(index + 2) * 60} className="mb-12">
-            <Link to={`/customer/orders/${order.id}`} className="customer-order-list-card customer-shipment-card-v2 card card-interactive block text-no-underline" style={{ color: 'inherit' }}>
-              <div className="card-body p-16">
-                <div className="customer-list-card-top">
-                  <div className="flex flex-col min-width-0">
-                    <span className="customer-list-card-title">{order.tracking_number}</span>
-                    <span className="customer-list-card-booked-date">Booked: {fmtDate(order.created_at)}</span>
-                  </div>
-                  <div className="flex items-center gap-8 flex-shrink-0">
-                    <StatusBadge status={order.status} size="sm" />
-                    <ChevronRight size={18} className="customer-card-chevron" />
-                  </div>
-                </div>
-                <div className="customer-list-card-route-visual">
-                  <span className="customer-route-node origin">{order.origin || 'Not set'}</span>
-                  <div className="customer-route-line-wrap" aria-hidden="true">
-                    <div className="customer-route-line">
-                      <div className="customer-route-arrow" />
+        <>
+          {paginatedOrders.map((order, index) => (
+            <StaggerItem key={order.id} delay={(index + 2) * 60} className="mb-12">
+              <Link to={`/customer/orders/${order.id}`} className="customer-order-list-card customer-shipment-card-v2 card card-interactive block text-no-underline" style={{ color: 'inherit' }}>
+                <div className="card-body p-16">
+                  <div className="customer-list-card-top">
+                    <div className="flex flex-col min-width-0">
+                      <span className="customer-list-card-title">{order.tracking_number}</span>
+                      <span className="customer-list-card-booked-date">Booked: {fmtDate(order.created_at)}</span>
+                    </div>
+                    <div className="flex items-center gap-8 flex-shrink-0">
+                      <StatusBadge status={order.status} size="sm" />
+                      <ChevronRight size={18} className="customer-card-chevron" />
                     </div>
                   </div>
-                  <span className="customer-route-node destination">{order.destination || 'Not set'}</span>
+                  <div className="customer-list-card-route-visual">
+                    <span className="customer-route-node origin">{order.origin || 'Not set'}</span>
+                    <div className="customer-route-line-wrap" aria-hidden="true">
+                      <div className="customer-route-line">
+                        <div className="customer-route-arrow" />
+                      </div>
+                    </div>
+                    <span className="customer-route-node destination">{order.destination || 'Not set'}</span>
+                  </div>
+                  <div className="customer-list-card-footer">
+                    <span>To: {order.receiver_name || 'Receiver'}</span>
+                    <span className="customer-list-card-price">
+                      {isOrderPriced(order) ? `₱${parseFloat(order.shipping_cost || 0).toFixed(2)}` : 'Priced at pickup'}
+                    </span>
+                  </div>
                 </div>
-                <div className="customer-list-card-footer">
-                  <span>To: {order.receiver_name || 'Receiver'}</span>
-                  <span className="customer-list-card-price">
-                    {isOrderPriced(order) ? `₱${parseFloat(order.shipping_cost || 0).toFixed(2)}` : 'Priced at pickup'}
-                  </span>
-                </div>
-              </div>
-            </Link>
-          </StaggerItem>
-        ))
+              </Link>
+            </StaggerItem>
+          ))}
+
+          {filtered.length > ITEMS_PER_PAGE && (
+            <div className="mt-16 flex justify-center">
+              <Pagination
+                totalItems={filtered.length}
+                currentPage={visiblePage}
+                itemsPerPage={ITEMS_PER_PAGE}
+                onPageChange={setCurrentPage}
+              />
+            </div>
+          )}
+        </>
       )}
     </PageTransition>
     </PullToRefresh>

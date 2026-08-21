@@ -375,30 +375,32 @@ self.addEventListener('fetch', (event) => {
   // ----- Navigation requests: Network first with offline fallback -----
   if (isNavigationRequest(request)) {
     event.respondWith(
-      fetch(request)
-        .then((response) => {
-          // Cache successful navigation responses
-          const responseClone = response.clone();
-          caches.open(DYNAMIC_CACHE).then((cache) => {
-            cache.put(request, responseClone);
-          });
+      (async () => {
+        try {
+          const response = await fetch(request);
+          if (response && response.ok) {
+            const responseClone = response.clone();
+            caches.open(DYNAMIC_CACHE).then((cache) => {
+              cache.put(request, responseClone);
+            });
+          }
           return response;
-        })
-        .catch(async () => {
-          // Try cache first
+        } catch (err) {
+          // 1. Try exact cached navigation response
           const cached = await caches.match(request);
           if (cached) return cached;
 
-          // Try index.html from cache (SPA fallback)
-          const indexCached = await caches.match('/index.html');
+          // 2. Try cached index.html or root SPA app shell
+          const indexCached = (await caches.match('/index.html')) || (await caches.match('/'));
           if (indexCached) return indexCached;
 
-          // Ultimate offline fallback
+          // 3. Ultimate offline fallback page
           return new Response(OFFLINE_FALLBACK_HTML, {
             status: 200,
             headers: { 'Content-Type': 'text/html; charset=utf-8' },
           });
-        })
+        }
+      })()
     );
     return;
   }

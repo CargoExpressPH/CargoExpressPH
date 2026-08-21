@@ -110,11 +110,16 @@
   backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
   z-index: var(--z-modal);
   display: flex; align-items: flex-start; justify-content: center;
-  padding-top: min(20vh, 160px);
+  padding-top: min(15vh, 120px);
+  padding-inline: 16px;
+  padding-bottom: max(16px, env(safe-area-inset-bottom, 0px));
   animation: fadeIn 0.15s ease;
 }
 .cmd-palette {
   width: 100%; max-width: 540px;
+  max-height: min(80dvh, 520px);
+  display: flex;
+  flex-direction: column;
   background: var(--surface);
   border-radius: var(--radius-xl);
   box-shadow: 0 25px 60px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(0, 0, 0, 0.05);
@@ -126,10 +131,21 @@
   to { opacity: 1; transform: scale(1) translateY(0); }
 }
 
+@media (max-width: 480px) {
+  .cmd-palette-overlay {
+    padding-top: max(16px, env(safe-area-inset-top, 0px));
+    padding-inline: 12px;
+  }
+  .cmd-palette {
+    max-height: calc(100dvh - 32px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+  }
+}
+
 .cmd-palette-input-wrap {
   display: flex; align-items: center; gap: 12px;
   padding: 16px 20px;
   border-bottom: 1px solid var(--border-light);
+  flex-shrink: 0;
 }
 .cmd-palette-input-wrap svg { color: var(--text-tertiary); flex-shrink: 0; }
 .cmd-palette-input {
@@ -148,8 +164,11 @@
 }
 
 .cmd-palette-results {
-  max-height: 320px; overflow-y: auto;
+  max-height: min(320px, calc(80dvh - 120px));
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   padding: 8px;
+  flex: 1 1 auto;
 }
 .cmd-palette-section-label {
   font-size: 0.6875rem; font-weight: 700;

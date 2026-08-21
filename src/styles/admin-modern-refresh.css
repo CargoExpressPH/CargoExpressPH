@@ -1085,8 +1085,10 @@
   .app-layout .admin-toolbar {
     padding: 8px;
   }
+}
 
-  /* --- Complete responsive table → card conversion --- */
+/* --- Complete responsive table → card conversion (Harmonized at ≤820px) --- */
+@media (max-width: 820px) {
   .app-layout .data-table thead,
   .app-layout .report-table thead {
     display: none;
@@ -1122,21 +1124,6 @@
     margin-top: 0;
   }
 
-  /* NOTE ON ALIGNMENT — read before adding `text-align` here.
-     The table→card conversion is defined in TWO places at different
-     breakpoints, and this block is the narrower one:
-
-       tables-mobile.css  @media (max-width: 900px)  grid card, value right-aligned
-       this file          @media (max-width: 768px)  flex card
-
-     tables-mobile.css sets `text-align: right` on `.data-table td`.
-     This file's `.app-layout .data-table td` selector (0,2,0) outranks
-     that (0,1,0) on admin pages, so any text-align set here will apply.
-     Cell text below 768px is right-aligned (labels stay left via the
-     ::before rule below), matching the ≤900px design.
-
-     Consolidating these two blocks into one is worthwhile but needs visual
-     verification across the 9 admin table pages in both themes. */
   .app-layout .data-table td,
   .app-layout .report-table td {
     display: flex ;
@@ -1204,7 +1191,7 @@
 /* ── Admin Payment History Table ───────────────────────────────────────── */
 /* The table itself is a plain `.data-table` in a `.table-container`, exactly
    like every other admin table — header treatment, cell padding, row hover and
-   the ≤768px card conversion all come from the shared rules above. It used to
+   the ≤820px card conversion all come from the shared rules above. It used to
    carry its own wrapper border, thead background, tighter padding and a
    duplicate mobile block, which is what made it read as a different component.
    Only the genuinely payment-specific cells are styled here. */
