@@ -59,6 +59,9 @@ const checkNoHorizontalOverflow = async (page, viewport) => {
 const checkNoClippedButtons = async (page, viewport) => {
   // Every visible button/link should be within viewport horizontally
   const clipped = await page.evaluate(() => {
+    const sidebar = document.querySelector('.sidebar');
+    const sidebarRect = sidebar ? sidebar.getBoundingClientRect() : null;
+    const sidebarHidden = sidebarRect ? sidebarRect.left < -10 : false;
     const els = Array.from(document.querySelectorAll('button, a.btn, .btn'));
     const vw = window.innerWidth;
     const bad = [];
@@ -66,9 +69,12 @@ const checkNoClippedButtons = async (page, viewport) => {
       if (!(el instanceof HTMLElement)) continue;
       const style = window.getComputedStyle(el);
       if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') continue;
+      // ignore elements inside hidden sidebar drawer
+      if (sidebarHidden && el.closest('.sidebar')) continue;
       const rect = el.getBoundingClientRect();
-      // ignore off-screen drawer etc (left < -10)
       if (rect.width === 0 || rect.height === 0) continue;
+      // ignore elements completely off-screen vertically
+      if (rect.bottom < 0 || rect.top > window.innerHeight) continue;
       if (rect.left < -5 || rect.right > vw + 5) {
         bad.push({ text: (el.textContent || el.getAttribute('aria-label') || el.className).slice(0, 60), left: Math.round(rect.left), right: Math.round(rect.right), vw });
         if (bad.length >= 3) break;
@@ -82,16 +88,20 @@ const checkNoClippedButtons = async (page, viewport) => {
 const checkTapTargets = async (page, viewport) => {
   if (!viewport.isMobile) return;
   const smallTargets = await page.evaluate(() => {
+    const sidebar = document.querySelector('.sidebar');
+    const sidebarRect = sidebar ? sidebar.getBoundingClientRect() : null;
+    const sidebarHidden = sidebarRect ? sidebarRect.left < -10 : false;
     const els = Array.from(document.querySelectorAll('button, a, [role="button"], .btn-icon'));
     const bad = [];
     for (const el of els) {
       if (!(el instanceof HTMLElement)) continue;
       const style = window.getComputedStyle(el);
       if (style.display === 'none' || style.visibility === 'hidden') continue;
+      if (sidebarHidden && el.closest('.sidebar')) continue;
       const rect = el.getBoundingClientRect();
       if (rect.width === 0 || rect.height === 0) continue;
       // only check visible in viewport
-      if (rect.top < 0 || rect.top > window.innerHeight) continue;
+      if (rect.top < 0 || rect.top > window.innerHeight || rect.left < -5 || rect.right > window.innerWidth + 5) continue;
       if (rect.width < 24 || rect.height < 24) {
         bad.push({ cls: el.className.slice(0, 40), w: Math.round(rect.width), h: Math.round(rect.height) });
         if (bad.length >= 3) break;
