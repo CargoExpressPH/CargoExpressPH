@@ -130,7 +130,7 @@
 .trk-clear-btn:hover { background: var(--border); color: var(--text); }
 .trk-search-btn {
   display: flex; align-items: center; gap: 6px;
-  background: linear-gradient(135deg, var(--primary-fill) 0%, var(--primary-text-strong) 100%);
+  background: linear-gradient(135deg, #15803D, #166534);
   color: white; border: none;
   padding: 12px 24px; border-radius: var(--radius-full);
   font-weight: 700; font-size: 0.9rem; cursor: pointer;

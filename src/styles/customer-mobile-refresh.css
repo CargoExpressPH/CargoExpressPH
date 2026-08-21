@@ -132,13 +132,13 @@
 }
 
 .customer-layout-v2 .btn-primary {
-  background: linear-gradient(135deg, var(--primary-fill) 0%, var(--primary-text-strong) 100%);
+  background: linear-gradient(135deg, #15803D, #166534);
   color: #FFFFFF;
   box-shadow: 0 14px 28px rgba(18, 138, 90, 0.24);
 }
 
 .customer-layout-v2 .btn-primary:hover {
-  background: linear-gradient(135deg, var(--primary-text-strong), var(--primary-dark));
+  background: linear-gradient(135deg, #166534, #14532D);
   box-shadow: 0 18px 34px rgba(18, 138, 90, 0.28);
 }
 
@@ -450,7 +450,7 @@
   /* Was `var(--customer-green) → #22C55E`; white text on the #22C55E stop is
      only 2.28:1. Matches the .customer-layout-v2 .btn-primary gradient above,
      which is already AA-safe across both stops. */
-  background: linear-gradient(135deg, var(--primary-fill) 0%, var(--primary-text-strong) 100%);
+  background: linear-gradient(135deg, #15803D, #166534);
   color: #FFFFFF;
   box-shadow: 0 14px 28px rgba(18, 138, 90, 0.22);
 }
