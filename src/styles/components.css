@@ -477,14 +477,8 @@ input[type="datetime-local"]:hover::-webkit-calendar-picker-indicator {
 }
 
 .modal-body-scroll {
-  max-height: min(70vh, calc(100dvh - 140px));
+  max-height: 70vh;
   overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-}
-@media (max-width: 640px) {
-  .modal-body-scroll {
-    max-height: calc(100dvh - 120px - env(safe-area-inset-bottom, 0px));
-  }
 }
 .summary-card-secondary {
   background: var(--bg-secondary);
