@@ -1,8 +1,8 @@
 /* -----------------------------------------------------------------------
    App-like scrollbar hiding — customer shell only (no visible bar, keep scroll)
-   Scoped to .customer-layout-v2 so html/body keep native scrollbar for
-   desktop/a11y. Public pages (.trk-page etc.) keep their own hide in
-   responsive.css where they are full-screen sheets.
+   Mobile: window scrollbar hidden too so phone feels like native app.
+   Desktop: window scrollbar stays (a11y/keyboard) — only the shell is hidden.
+   Public pages (.trk-page etc.) keep their own hide in responsive.css.
    ----------------------------------------------------------------------- */
 .customer-layout-v2,
 .customer-layout-v2 .customer-main,
@@ -27,6 +27,22 @@
 .customer-layout-v2,
 .customer-main {
   -webkit-overflow-scrolling: touch;
+}
+
+/* Phone only: hide window scrollbar when customer app is open — app-like */
+@media (max-width: 899.98px) {
+  html:has(.customer-layout-v2),
+  body:has(.customer-layout-v2) {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  html:has(.customer-layout-v2)::-webkit-scrollbar,
+  body:has(.customer-layout-v2)::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
+    background: transparent;
+  }
 }
 
 .customer-layout-v2 .hero-search-input {
