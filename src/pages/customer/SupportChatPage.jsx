@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 import {
@@ -21,6 +21,7 @@ import EmptyState from '../../components/ui/EmptyState';
 import { useToast } from '../../hooks/useToast';
 import { SkeletonChat } from '../../components/ui/SkeletonLoader';
 import usePageTitle from '../../hooks/usePageTitle';
+import ErrorBoundarySection from '../../components/ui/ErrorBoundarySection';
 
 // Max ms to wait for chat to initialize before showing an error.
 const LOAD_TIMEOUT_MS = 15000;
@@ -154,6 +155,20 @@ const SupportChatPage = () => {
   const forceScrollRef = useRef(false);
   const initialScrollPendingRef = useRef(false);
   const failedSeqRef   = useRef(0);
+
+  useLayoutEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    if (!input.trim()) {
+      el.style.height = `${TEXTAREA_BASE_HEIGHT}px`;
+      setTextareaHeight(TEXTAREA_BASE_HEIGHT);
+      return;
+    }
+    el.style.height = 'auto';
+    const h = Math.min(Math.max(el.scrollHeight, TEXTAREA_BASE_HEIGHT), 120);
+    el.style.height = `${h}px`;
+    setTextareaHeight(h);
+  }, [input]);
 
   const clearLoadTimeout = useCallback(() => {
     if (timeoutRef.current) { clearTimeout(timeoutRef.current); timeoutRef.current = null; }
@@ -667,76 +682,78 @@ const SupportChatPage = () => {
       )}
 
       {/* Messages area */}
-      <div
-        className="support-chat-messages"
-        ref={messagesContainerRef}
-        onScroll={handleMessagesScroll}
-        role="log"
-        aria-live="polite"
-        aria-label="Support chat messages"
-      >
-        {messages.length === 0 && !botTyping && (
-          <EmptyState
-            icon={MessageSquare}
-            title="No Messages Yet"
-            description="Send a message to start chatting with our support team!"
-          />
-        )}
+      <ErrorBoundarySection message="Chat timeline failed to display.">
+        <div
+          className="support-chat-messages"
+          ref={messagesContainerRef}
+          onScroll={handleMessagesScroll}
+          role="log"
+          aria-live="polite"
+          aria-label="Support chat messages"
+        >
+          {messages.length === 0 && !botTyping && (
+            <EmptyState
+              icon={MessageSquare}
+              title="No Messages Yet"
+              description="Send a message to start chatting with our support team!"
+            />
+          )}
 
-        {hasMoreMessages && messages.length > 0 && (
-          <div className="support-load-older">
-            <button
-              type="button"
-              className="btn btn-ghost btn-sm"
-              onClick={handleLoadOlder}
-              disabled={loadingOlder}
-            >
-              {loadingOlder
-                ? <Loader size={14} className="animate-spin" aria-hidden="true" />
-                : 'Load earlier messages'}
-            </button>
-          </div>
-        )}
-
-        {messages.map((m, i) => {
-          const showTimestamp =
-            i === 0 ||
-            (messages[i - 1] && (new Date(m.created_at) - new Date(messages[i - 1].created_at)) > 300000);
-          const isLastBotWithPrompt = m.sender_role === 'bot' && m.id === pendingResolutionId;
-
-          return (
-            <div key={m.id}>
-              {showTimestamp && (
-                <div className="text-center mt-12 mb-8 text-tertiary fw-600" style={{ fontSize: '0.6875rem' }}>
-                  {new Date(m.created_at).toLocaleDateString('en-PH', { month: 'short', day: 'numeric' })} · {formatTime(m.created_at)}
-                </div>
-              )}
-              <MessageBubble
-                m={m}
-                showResolutionPrompt={isLastBotWithPrompt}
-                onResolve={handleResolvedYes}
-                onEscalate={handleResolvedNo}
-                onRetry={handleRetryMessage}
-                onDiscard={handleDiscardMessage}
-                actionsDisabled={sending || botTyping}
-              />
+          {hasMoreMessages && messages.length > 0 && (
+            <div className="support-load-older">
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                onClick={handleLoadOlder}
+                disabled={loadingOlder}
+              >
+                {loadingOlder
+                  ? <Loader size={14} className="animate-spin" aria-hidden="true" />
+                  : 'Load earlier messages'}
+              </button>
             </div>
-          );
-        })}
+          )}
 
-        {/* Bot typing indicator */}
-        {botTyping && (
-          <div className="support-message-row is-admin" role="status" aria-label="Assistant is typing">
-            <div className="chat-avatar bot-avatar"><Bot size={12} /></div>
-            <div className="support-message-stack">
-              <div className="chat-sender-label bot-label"><Bot size={11} aria-hidden="true" /> Cargo Express Assistant</div>
-              <div className="chat-typing-dots"><span /><span /><span /></div>
+          {messages.map((m, i) => {
+            const showTimestamp =
+              i === 0 ||
+              (messages[i - 1] && (new Date(m.created_at) - new Date(messages[i - 1].created_at)) > 300000);
+            const isLastBotWithPrompt = m.sender_role === 'bot' && m.id === pendingResolutionId;
+
+            return (
+              <div key={m.id}>
+                {showTimestamp && (
+                  <div className="text-center mt-12 mb-8 text-tertiary fw-600" style={{ fontSize: '0.6875rem' }}>
+                    {new Date(m.created_at).toLocaleDateString('en-PH', { month: 'short', day: 'numeric' })} · {formatTime(m.created_at)}
+                  </div>
+                )}
+                <MessageBubble
+                  m={m}
+                  showResolutionPrompt={isLastBotWithPrompt}
+                  onResolve={handleResolvedYes}
+                  onEscalate={handleResolvedNo}
+                  onRetry={handleRetryMessage}
+                  onDiscard={handleDiscardMessage}
+                  actionsDisabled={sending || botTyping}
+                />
+              </div>
+            );
+          })}
+
+          {/* Bot typing indicator */}
+          {botTyping && (
+            <div className="support-message-row is-admin" role="status" aria-label="Assistant is typing">
+              <div className="chat-avatar bot-avatar"><Bot size={12} /></div>
+              <div className="support-message-stack">
+                <div className="chat-sender-label bot-label"><Bot size={11} aria-hidden="true" /> Cargo Express Assistant</div>
+                <div className="chat-typing-dots"><span /><span /><span /></div>
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        <div ref={messagesEndRef} />
-      </div>
+          <div ref={messagesEndRef} />
+        </div>
+      </ErrorBoundarySection>
 
       {/* Input */}
       <div
@@ -758,19 +775,7 @@ const SupportChatPage = () => {
           aria-label="Type your support message"
           maxLength={MAX_MESSAGE_LENGTH}
           value={input}
-          onChange={e => {
-            const nextValue = e.target.value;
-            setInput(nextValue);
-            if (!nextValue.trim()) {
-              e.target.style.height = `${TEXTAREA_BASE_HEIGHT}px`;
-              setTextareaHeight(TEXTAREA_BASE_HEIGHT);
-              return;
-            }
-            e.target.style.height = `${TEXTAREA_BASE_HEIGHT}px`;
-            const h = Math.min(Math.max(e.target.scrollHeight, TEXTAREA_BASE_HEIGHT), 120);
-            e.target.style.height = `${h}px`;
-            setTextareaHeight(h);
-          }}
+          onChange={e => setInput(e.target.value)}
           onKeyDown={e => {
             if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
           }}

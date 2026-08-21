@@ -6,28 +6,23 @@ const CapacityTracker = ({ currentWeight = 0, maxCapacity = 1000, tripNumber = '
   const barPercent = Math.min(100, percent);
   const remaining = Math.max(0, maxCapacity - currentWeight);
 
-  let status, statusColor, barColor;
+  let status, statusKey;
   
   if (percent > 100) {
     status = 'OVER CAPACITY';
-    statusColor = 'var(--capacity-critical-text)';
-    barColor = 'var(--capacity-critical-bar)';
+    statusKey = 'critical';
   } else if (percent >= 91) {
     status = 'CRITICAL'; 
-    statusColor = 'var(--capacity-critical-text)';
-    barColor = 'var(--capacity-critical-bar)';
+    statusKey = 'critical';
   } else if (percent >= 76) {
     status = 'HIGH'; 
-    statusColor = 'var(--capacity-high-text)';
-    barColor = 'var(--capacity-high-bar)';
+    statusKey = 'high';
   } else if (percent >= 51) {
     status = 'MEDIUM'; 
-    statusColor = 'var(--capacity-medium-text)';
-    barColor = 'var(--capacity-medium-bar)';
+    statusKey = 'medium';
   } else {
     status = 'SAFE'; 
-    statusColor = 'var(--capacity-safe-text)';
-    barColor = 'var(--capacity-safe-bar)';
+    statusKey = 'safe';
   }
 
   return (
@@ -40,36 +35,28 @@ const CapacityTracker = ({ currentWeight = 0, maxCapacity = 1000, tripNumber = '
               Trip Capacity
             </span>
             {tripNumber && (
-              <span className="rounded-full text-xs text-tertiary fw-600" style={{
-                background: 'var(--bg-secondary)', padding: '2px 8px',
-              }}>
+              <span className="badge badge-sm badge-default rounded-full">
                 {tripNumber}
               </span>
             )}
           </div>
-          <span className="rounded-full text-xs fw-700" style={{
-            padding: '3px 10px',
-            background: `color-mix(in srgb, ${statusColor} 12%, transparent)`,
-            color: statusColor,
-            letterSpacing: '0.05em',
-          }}>
+          <span className={`capacity-status-badge status-${statusKey}`}>
             {status}
           </span>
         </div>
       )}
 
       <div
-        className="capacity-bar overflow-hidden"
+        className="capacity-bar"
         role="progressbar"
         aria-valuenow={Math.round(percent)}
         aria-valuemin={0}
         aria-valuemax={100}
         aria-label={`Trip capacity: ${percent.toFixed(1)}% used, status ${status}`}
-        style={{ height: 14, borderRadius: 7, background: 'var(--bg-secondary)' }}
       >
         <div
-          className={`capacity-fill ${percent > 100 ? 'danger' : ''} h-full`}
-          style={{ width: `${barPercent}%`, background: barColor, transition: 'width 0.5s ease-out, background-color 0.5s ease-out'}}
+          className={`capacity-fill fill-${statusKey} ${percent > 100 ? 'danger' : ''}`}
+          style={{ width: `${barPercent}%` }}
         />
       </div>
 

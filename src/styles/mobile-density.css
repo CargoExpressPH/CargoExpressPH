@@ -307,3 +307,15 @@
     font-size: 0.72rem;
   }
 }
+
+@media (max-width: 360px) {
+  /* Narrow foldable & small screens: stack snapshot pills vertically */
+  .customer-layout-v2 .customer-home-snapshot {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  .customer-layout-v2 .customer-snapshot-pill {
+    min-height: 56px;
+    padding: 10px 14px;
+  }
+}

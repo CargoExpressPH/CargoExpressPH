@@ -62,28 +62,15 @@ const DonutChart = ({
     setHoveredIdx(prev => (prev === i ? null : i));
   };
 
-  const onSegmentKeyDown = (e, i) => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      toggleSegment(i);
-    }
-  };
-
   return (
     <div className="donut-chart-wrap">
       <div className="donut-chart-svg-wrap" style={{ width: size, height: size }}>
-        {/*
-          role="group" (not "img") so nested focusable arcs are valid.
-          Do NOT set aria-hidden on this SVG — focusable descendants would be
-          hidden from AT while still tabbable (WCAG failure).
-        */}
         <svg
           width={size}
           height={size}
           viewBox={`0 0 ${size} ${size}`}
           className="donut-chart-svg"
-          role="group"
-          aria-label={chartSummary}
+          aria-hidden="true"
         >
           {/* Background ring */}
           <circle
@@ -94,9 +81,8 @@ const DonutChart = ({
             stroke="var(--border)"
             strokeWidth={thickness}
             opacity={0.5}
-            aria-hidden="true"
           />
-          {/* Data arcs — keyboard + pointer highlight */}
+          {/* Data arcs — pointer highlight */}
           {arcs.map((arc, i) => (
             <circle
               key={i}
@@ -106,7 +92,7 @@ const DonutChart = ({
               fill="none"
               stroke={arc.color}
               strokeWidth={hoveredIdx === i ? thickness + 4 : thickness}
-              strokeDasharray={`${arc.dashLength} ${circumference - arc.dashLength}`}
+              strokeDasharray={`${arc.dashLength} ${circumference}`}
               strokeDashoffset={mounted ? arc.dashOffset : circumference}
               strokeLinecap="butt"
               className={`donut-chart-arc${hoveredIdx === i ? ' is-active' : ''}`}
@@ -117,15 +103,8 @@ const DonutChart = ({
                   ? `stroke-dashoffset 0.8s cubic-bezier(0.4, 0, 0.2, 1) ${i * 0.1}s, stroke-width 0.2s ease`
                   : 'none',
               }}
-              tabIndex={0}
-              role="button"
-              aria-label={`${arc.label}: ${arc.value.toLocaleString()}`}
-              aria-pressed={hoveredIdx === i}
               onMouseEnter={() => setHoveredIdx(i)}
               onMouseLeave={() => setHoveredIdx(null)}
-              onFocus={() => setHoveredIdx(i)}
-              onBlur={() => setHoveredIdx(null)}
-              onKeyDown={(e) => onSegmentKeyDown(e, i)}
             />
           ))}
         </svg>
@@ -146,6 +125,30 @@ const DonutChart = ({
           </div>
         )}
       </div>
+
+      {/* When the visual legend is intentionally omitted, expose the same
+          segment data as a real table instead of hiding the only data view. */}
+      {!showLegend && (
+        <table className="sr-only">
+          <caption>{chartSummary}</caption>
+          <thead>
+            <tr>
+              <th scope="col">Segment</th>
+              <th scope="col">Value</th>
+              <th scope="col">Percentage</th>
+            </tr>
+          </thead>
+          <tbody>
+            {arcs.map((arc, i) => (
+              <tr key={i}>
+                <td>{arc.label}</td>
+                <td>{arc.value.toLocaleString()}</td>
+                <td>{(arc.pct * 100).toFixed(0)}%</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
 
       {/* Legend — native buttons (Enter/Space → click; no extra key handler) */}
       {showLegend && (

@@ -402,6 +402,8 @@
 
 .page-content {
   width: 100%;
+  max-width: 1720px;
+  margin-inline: auto;
   min-width: 0;
   /* Fill the remaining column height rather than wrapping tight to content. */
   flex: 1 1 auto;

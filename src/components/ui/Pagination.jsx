@@ -1,5 +1,13 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import CustomSelect from './CustomSelect';
+
+const COMPACT_PAGINATION_QUERY = '(max-width: 480px)';
+
+const getCompactPagination = () => (
+  typeof window !== 'undefined'
+  && window.matchMedia(COMPACT_PAGINATION_QUERY).matches
+);
 
 /**
  * Pagination — Reusable pagination controls
@@ -19,14 +27,31 @@ const Pagination = ({
   onPerPageChange,
   perPageOptions = [10, 15, 25, 50],
 }) => {
+  const [isCompact, setIsCompact] = useState(getCompactPagination);
   const totalPages = Math.max(1, Math.ceil(totalItems / itemsPerPage));
   const startItem = Math.min((currentPage - 1) * itemsPerPage + 1, totalItems);
   const endItem = Math.min(currentPage * itemsPerPage, totalItems);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia(COMPACT_PAGINATION_QUERY);
+    const updateCompactPagination = () => setIsCompact(mediaQuery.matches);
+
+    updateCompactPagination();
+    mediaQuery.addEventListener?.('change', updateCompactPagination);
+
+    return () => mediaQuery.removeEventListener?.('change', updateCompactPagination);
+  }, []);
 
   if (totalItems <= 0) return null;
 
   // Build page numbers with ellipsis
   const getPageNumbers = () => {
+    if (isCompact && totalPages > 3) {
+      if (currentPage <= 2) return [1, 2, '...', totalPages];
+      if (currentPage >= totalPages - 1) return [1, '...', totalPages - 1, totalPages];
+      return [1, '...', currentPage, '...', totalPages];
+    }
+
     const pages = [];
     const maxVisible = 5;
 

@@ -27,7 +27,11 @@ const SortableRegion = ({ region, handleEditRegion, setDeleteTarget, handleAddNe
   const muniCount = region.municipalities ? region.municipalities.length : 0;
 
   const sensors = useSensors(
-    useSensor(PointerSensor),
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
@@ -227,7 +231,11 @@ const CompanyInfoCoverageTab = ({ coverageAreas, setCoverageAreas }) => {
   };
 
   const sensors = useSensors(
-    useSensor(PointerSensor),
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 

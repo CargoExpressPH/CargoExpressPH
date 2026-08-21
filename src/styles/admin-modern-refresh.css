@@ -320,7 +320,7 @@
 }
 .admin-notif-action-btn.danger:hover {
   background: rgba(239, 68, 68, 0.1);
-  color: #EF4444;
+  color: var(--error-text-strong);
 }
 
 /* ── Body ────────────────────────────────────────────────────────────────────── */
@@ -452,12 +452,21 @@
   opacity: 0;
   transition: opacity 0.15s ease, background-color 0.15s ease, color 0.15s ease;
 }
+@media (hover: none) and (pointer: coarse) {
+  .admin-notif-delete-btn {
+    opacity: 1;
+    min-width: 36px;
+    min-height: 36px;
+    width: 36px;
+    height: 36px;
+  }
+}
 .admin-notif-item:hover .admin-notif-delete-btn {
   opacity: 1;
 }
 .admin-notif-delete-btn:hover {
   background: rgba(239, 68, 68, 0.1);
-  color: #EF4444;
+  color: var(--error-text-strong);
 }
 .admin-notif-chevron {
   color: var(--text-tertiary);

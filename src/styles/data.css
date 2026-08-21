@@ -334,26 +334,33 @@
 /* --- CAPACITY GAUGE ---------------------------------------------------- */
 
 .capacity-tracker {
-  --capacity-safe-text: #047857;
-  --capacity-safe-bar: #10B981;
-  --capacity-medium-text: #92400E;
-  --capacity-medium-bar: #F59E0B;
-  --capacity-high-text: #C2410C;
-  --capacity-high-bar: #F97316;
-  --capacity-critical-text: #B91C1C;
-  --capacity-critical-bar: #DC2626;
   transition: var(--transition);
 }
 
-[data-theme="dark"] .capacity-tracker {
-  --capacity-safe-text: #A7F3D0;
-  --capacity-safe-bar: #10B981;
-  --capacity-medium-text: #FDE68A;
-  --capacity-medium-bar: #F59E0B;
-  --capacity-high-text: #FDBA74;
-  --capacity-high-bar: #F97316;
-  --capacity-critical-text: #FCA5A5;
-  --capacity-critical-bar: #EF4444;
+.capacity-status-badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: var(--radius-full);
+  padding: 3px 10px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+.capacity-status-badge.status-safe {
+  background: color-mix(in srgb, var(--capacity-safe-text) 12%, transparent);
+  color: var(--capacity-safe-text);
+}
+.capacity-status-badge.status-medium {
+  background: color-mix(in srgb, var(--capacity-medium-text) 12%, transparent);
+  color: var(--capacity-medium-text);
+}
+.capacity-status-badge.status-high {
+  background: color-mix(in srgb, var(--capacity-high-text) 12%, transparent);
+  color: var(--capacity-high-text);
+}
+.capacity-status-badge.status-critical {
+  background: color-mix(in srgb, var(--capacity-critical-text) 12%, transparent);
+  color: var(--capacity-critical-text);
 }
 
 .capacity-bar {
@@ -367,11 +374,15 @@
   height: 100%; border-radius: var(--radius-full);
   max-width: 100%;
   overflow: hidden;
-  transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
   background: linear-gradient(90deg, var(--success), #34D399);
+  transition: width 0.5s ease-out, background-color 0.5s ease-out;
   position: relative;
   animation: capacityFillIn 1.2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
 }
+.capacity-fill.fill-safe { background: var(--capacity-safe-bar); }
+.capacity-fill.fill-medium { background: var(--capacity-medium-bar); }
+.capacity-fill.fill-high { background: var(--capacity-high-bar); }
+.capacity-fill.fill-critical { background: var(--capacity-critical-bar); }
 @keyframes capacityFillIn {
   from { max-width: 0; }
   to { max-width: 100%; }

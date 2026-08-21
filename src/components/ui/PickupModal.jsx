@@ -248,7 +248,7 @@ const PickupModal = ({ order, onClose, onSave, pricePerKilo = 70 }) => {
           <button type="button" className="btn-icon btn-ghost" onClick={handleSafeClose} disabled={isLocked} aria-label="Close pickup modal"><X size={20} aria-hidden="true" /></button>
         </div>
 
-        <div className="modal-body" ref={containerRef} style={{ maxHeight: '70vh', overflowY: 'auto' }}>
+        <div className="modal-body modal-body-scroll" ref={containerRef}>
           {/* Order summary */}
           <div className="pickup-summary-card flex justify-between items-center mb-20" style={{
             background: 'var(--bg-secondary)', borderRadius: 'var(--radius-sm)', padding: 14,

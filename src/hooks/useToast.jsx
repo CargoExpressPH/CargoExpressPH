@@ -124,9 +124,14 @@ const ToastItem = ({ toast, onRemove }) => {
 
 /* ── Toast Container ─────────────────────────────────────────────────── */
 const ToastContainer = ({ toasts, onRemove }) => {
-  if (!toasts.length) return null;
   return (
-    <div className="toast-container" role="region" aria-label="Notifications">
+    <div
+      className="toast-container"
+      role="region"
+      aria-label="Notifications"
+      aria-live="polite"
+      aria-relevant="additions text"
+    >
       {toasts.map(t => (
         <ToastItem key={t.id} toast={t} onRemove={onRemove} />
       ))}

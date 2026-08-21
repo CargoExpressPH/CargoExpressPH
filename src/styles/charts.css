@@ -225,7 +225,7 @@
 }
 
 .bar-chart-value-label {
-  font-size: 0.6rem;
+  font-size: 0.6875rem;
   font-weight: 700;
   color: var(--text-secondary);
   margin-bottom: 3px;
@@ -259,8 +259,8 @@
 }
 
 .bar-chart-tooltip-label {
-  font-size: 0.65rem;
-  font-weight: 500;
+  font-size: 0.6875rem;
+  font-weight: 600;
   color: var(--text-tertiary);
 }
 
@@ -343,6 +343,14 @@
   transition: var(--transition);
 }
 
+@media (hover: none) and (pointer: coarse) {
+  .pagination-btn {
+    min-width: 44px;
+    height: 44px;
+    padding: 0 8px;
+  }
+}
+
 .pagination-btn:hover:not(:disabled) {
   background: var(--bg-secondary);
   color: var(--text);
@@ -384,6 +392,20 @@
   }
   .pagination-controls {
     justify-content: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .pagination-controls {
+    width: 100%;
+    max-width: 100%;
+    flex-wrap: wrap;
+    gap: 2px;
+  }
+
+  .pagination-ellipsis {
+    width: 16px;
+    height: 44px;
   }
 }
 

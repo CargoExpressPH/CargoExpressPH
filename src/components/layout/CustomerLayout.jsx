@@ -392,12 +392,13 @@ const CustomerLayout = () => {
               key={item.to}
               to={item.to}
               end={item.end}
+              aria-label={item.isBookTab ? 'Place order / Book shipment' : undefined}
               className={({ isActive }) =>
                 `customer-bottom-tab ${isActive ? 'active' : ''} ${item.isBookTab ? 'book-tab' : ''}`
               }
             >
               {item.isBookTab ? (
-                <div className="book-tab-icon">
+                <div className="book-tab-icon" aria-hidden="true">
                   <item.icon size={22} />
                 </div>
               ) : (

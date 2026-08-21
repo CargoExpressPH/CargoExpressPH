@@ -76,6 +76,17 @@ export default function InstallAppBanner() {
     setVisible(false);
   }, []);
 
+  useEffect(() => {
+    if (!visible) return;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        dismiss();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [visible, dismiss]);
+
   const install = useCallback(async () => {
     if (!deferredPrompt) return;
     setInstalling(true);

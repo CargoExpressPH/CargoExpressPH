@@ -4,6 +4,7 @@ import SalesPage from './SalesPage';
 import ReportsPage from './ReportsPage';
 import UnsettledDeliveriesPage from './UnsettledDeliveriesPage';
 import ServiceReportsPage from './ServiceReportsPage';
+import ErrorBoundarySection from '../../components/ui/ErrorBoundarySection';
 
 /**
  * SalesReportsPage — Combined Sales & Reports page.
@@ -61,10 +62,26 @@ const SalesReportsPage = ({ initialSection }) => {
           </button>
         ))}
       </div>
-      {section === 'sales' && <SalesPage />}
-      {section === 'unsettled' && <UnsettledDeliveriesPage />}
-      {section === 'service' && <ServiceReportsPage />}
-      {section === 'reports' && <ReportsPage />}
+      {section === 'sales' && (
+        <ErrorBoundarySection key="sales" message="Sales overview failed to load.">
+          <SalesPage />
+        </ErrorBoundarySection>
+      )}
+      {section === 'unsettled' && (
+        <ErrorBoundarySection key="unsettled" message="Unsettled deliveries report failed to load.">
+          <UnsettledDeliveriesPage />
+        </ErrorBoundarySection>
+      )}
+      {section === 'service' && (
+        <ErrorBoundarySection key="service" message="Customer service reports failed to load.">
+          <ServiceReportsPage />
+        </ErrorBoundarySection>
+      )}
+      {section === 'reports' && (
+        <ErrorBoundarySection key="reports" message="Analytics report failed to load.">
+          <ReportsPage />
+        </ErrorBoundarySection>
+      )}
     </div>
   );
 };

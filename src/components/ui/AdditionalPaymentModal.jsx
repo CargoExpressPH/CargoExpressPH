@@ -212,7 +212,7 @@ const AdditionalPaymentModal = ({ order, remainingBalance, onClose, onSave }) =>
             <button className="btn-icon btn-ghost" onClick={handleSafeClose} disabled={isLocked} aria-label="Close record payment modal"><X size={20} aria-hidden="true" /></button>
           </div>
           
-          <div className="modal-body" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
+          <div className="modal-body modal-body-scroll">
             {error && (
               <div className="mb-16 p-12 text-sm" style={{ background: 'var(--error-bg)', color: 'var(--error-text-strong)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--error)' }}>
                 {error}

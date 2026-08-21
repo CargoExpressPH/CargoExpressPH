@@ -6,7 +6,7 @@
 // iOS Safari does NOT support the Firebase Messaging SDK at all.
 // The native PushManager API is the only way to get push on iPhone.
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import {
   requestNotificationPermission,
@@ -248,20 +248,28 @@ export function usePushNotification(userId, onMsg) {
     }
   }, [userId]);
 
+  const onMsgRef = useRef(onMsg);
+  useEffect(() => {
+    onMsgRef.current = onMsg;
+  }, [onMsg]);
+
+  const hasOnMsg = typeof onMsg === 'function';
+
   // ── Foreground FCM message listener (Android/Chrome) ────────────────────
   useEffect(() => {
-    if (!userId || isIosPwa() || typeof onMsg !== 'function') return;
+    if (!userId || isIosPwa() || !hasOnMsg) return;
     const unsub = onForegroundMessage((payload) => {
+      if (typeof onMsgRef.current !== 'function') return;
       const notif = payload.notification || {};
       const data  = payload.data         || {};
-      onMsg({
+      onMsgRef.current({
         title: notif.title || 'Cargo Express PH',
         body:  notif.body  || 'You have a new update',
         url:   data.url    || '/customer/notifications',
       });
     });
     return unsub;
-  }, [userId, onMsg]);
+  }, [userId, hasOnMsg]);
 
   return {
     permissionState,

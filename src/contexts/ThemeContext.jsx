@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useLayoutEffect, useCallback, useRef } from 'react';
+import { createContext, useContext, useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef } from 'react';
 
 const ThemeContext = createContext(null);
 
@@ -98,8 +98,13 @@ export const ThemeProvider = ({ children }) => {
     try { localStorage.setItem(STORAGE_KEY, mode); } catch { /* localStorage may be blocked in private mode */ }
   }, []);
 
+  const contextValue = useMemo(
+    () => ({ theme, toggleTheme, setThemeMode }),
+    [theme, toggleTheme, setThemeMode]
+  );
+
   return (
-    <ThemeContext.Provider value={{ theme, toggleTheme, setThemeMode }}>
+    <ThemeContext.Provider value={contextValue}>
       {children}
     </ThemeContext.Provider>
   );

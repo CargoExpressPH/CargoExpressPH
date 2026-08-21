@@ -111,6 +111,25 @@ const MiniBarChart = ({
           })}
         </div>
       </div>
+
+      {/* Accessible data table fallback for screen readers */}
+      <table className="sr-only">
+        <caption>{chartSummary}</caption>
+        <thead>
+          <tr>
+            <th scope="col">Period / Category</th>
+            <th scope="col">Value</th>
+          </tr>
+        </thead>
+        <tbody>
+          {bars.map((bar, i) => (
+            <tr key={i}>
+              <td>{bar.label}</td>
+              <td>{valuePrefix}{(bar.value || 0).toLocaleString()}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 };

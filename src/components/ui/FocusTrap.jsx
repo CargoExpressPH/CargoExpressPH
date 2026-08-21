@@ -56,6 +56,17 @@ const FocusTrap = ({ children, active = true }) => {
       const firstElement = focusable[0];
       const lastElement = focusable[focusable.length - 1];
 
+      // If focus escaped container (e.g. from browser chrome), redirect back inside
+      if (!trapElement.contains(document.activeElement)) {
+        e.preventDefault();
+        if (e.shiftKey) {
+          lastElement.focus();
+        } else {
+          firstElement.focus();
+        }
+        return;
+      }
+
       if (e.shiftKey) {
         // Shift+Tab: if we're at the first element, wrap to last
         if (document.activeElement === firstElement) {

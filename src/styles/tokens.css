@@ -182,6 +182,16 @@
   --sidebar-text-hover: #0F172A;
   --sidebar-section-label: #64748B;
 
+  /* -- Capacity Status Tokens -- */
+  --capacity-safe-text: #047857;
+  --capacity-safe-bar: #10B981;
+  --capacity-medium-text: #92400E;
+  --capacity-medium-bar: #F59E0B;
+  --capacity-high-text: #C2410C;
+  --capacity-high-bar: #F97316;
+  --capacity-critical-text: #B91C1C;
+  --capacity-critical-bar: #DC2626;
+
   /* -- Shadows � color-tinted for depth -- */
   --shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.04);
   --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.05), 0 1px 1px rgba(15, 23, 42, 0.03);
@@ -428,11 +438,32 @@
   --admin-line: var(--border);
   --admin-shadow: var(--shadow-lg);
   --admin-shadow-soft: var(--shadow-md);
+
+  /* -- Capacity Status Tokens (Dark Mode) -- */
+  --capacity-safe-text: #A7F3D0;
+  --capacity-safe-bar: #10B981;
+  --capacity-medium-text: #FDE68A;
+  --capacity-medium-bar: #F59E0B;
+  --capacity-high-text: #FDBA74;
+  --capacity-high-bar: #F97316;
+  --capacity-critical-text: #FCA5A5;
+  --capacity-critical-bar: #EF4444;
 }
 
 /* ── Smooth theme transitions (applied via .theme-transition only) ── */
-.theme-transition, .theme-transition * {
-  transition: background-color 0.35s ease, border-color 0.35s ease, color 0.35s ease, box-shadow 0.35s ease, fill 0.35s ease, stroke 0.35s ease !important;
+.theme-transition,
+.theme-transition body,
+.theme-transition .topbar,
+.theme-transition .sidebar,
+.theme-transition .card,
+.theme-transition .data-table,
+.theme-transition .modal,
+.theme-transition .customer-bottom-nav,
+.theme-transition input,
+.theme-transition select,
+.theme-transition textarea,
+.theme-transition button {
+  transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease, box-shadow 0.3s ease;
 }
 
 

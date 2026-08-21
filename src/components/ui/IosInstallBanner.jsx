@@ -59,6 +59,17 @@ export default function IosInstallBanner() {
     setVisible(false);
   };
 
+  useEffect(() => {
+    if (!visible) return;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        dismiss();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [visible]);
+
   if (!visible) return null;
 
   return (
