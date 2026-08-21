@@ -15,7 +15,6 @@ import { getPasswordStrength } from '../../utils/password';
 import FieldError from '../../components/ui/FieldError';
 import { BrandLogo, BrandWordmark } from '../../components/ui/BrandLogo';
 import AuthHeroPanel from '../../components/auth/AuthHeroPanel';
-import { LEGAL_POLICY_VERSION } from '../../constants/legal';
 
 /* ── Helpers ──────────────────────────────────────────────────────────── */
 
@@ -80,8 +79,6 @@ const RegisterPage = () => {
   const [touchedFields, setTouchedFields] = useState({});
   const [loading,       setLoading]       = useState(false);
   const [success,       setSuccess]       = useState(false);
-  const [termsAccepted, setTermsAccepted] = useState(false);
-  const [privacyAccepted, setPrivacyAccepted] = useState(false);
   const topRef = useRef(null);
   const errorRef = useRef(null);
 
@@ -226,8 +223,6 @@ const RegisterPage = () => {
       address_street: 'reg-street',
       address_lot_block: 'reg-lot',
       address_landmark: 'reg-landmark',
-      termsAccepted: 'reg-terms',
-      privacyAccepted: 'reg-privacy',
     };
 
     const firstFieldKey = errorKeys[0];
@@ -332,20 +327,6 @@ const RegisterPage = () => {
       return;
     }
 
-    const consentErrors = {};
-    if (!termsAccepted) {
-      consentErrors.termsAccepted = 'You must agree to the Terms of Service.';
-    }
-    if (!privacyAccepted) {
-      consentErrors.privacyAccepted = 'You must acknowledge the Privacy Policy.';
-    }
-    if (Object.keys(consentErrors).length > 0) {
-      setFieldErrors(consentErrors);
-      setError('Please review and accept the legal documents before creating your account.');
-      focusFirstError(consentErrors);
-      return;
-    }
-
     setError('');
     setFieldErrors({});
     setLoading(true);
@@ -362,11 +343,6 @@ const RegisterPage = () => {
         address_street:   normalizedAddress.address_street,
         address_lot_block:normalizedAddress.address_lot_block,
         address_landmark: normalizedAddress.address_landmark,
-        legalConsent: {
-          termsAccepted: true,
-          privacyAccepted: true,
-          version: LEGAL_POLICY_VERSION,
-        },
       });
 
       setLoading(false);
@@ -922,66 +898,12 @@ const RegisterPage = () => {
                 )}
               </div>
 
-              {/* Required legal consent */}
-              <div className={`reg-address-note reg-consent-note ${fieldErrors.termsAccepted || fieldErrors.privacyAccepted ? 'field-invalid' : ''}`}>
-                <ShieldCheck size={14} aria-hidden="true" />
-                <div className="reg-consent-content">
-                  <label className="reg-consent-label" htmlFor="reg-terms">
-                    <input
-                      id="reg-terms"
-                      type="checkbox"
-                      checked={termsAccepted}
-                      onChange={(event) => {
-                        const accepted = event.target.checked;
-                        setTermsAccepted(accepted);
-                        if (accepted && privacyAccepted) setError('');
-                        if (accepted) setFieldErrors((previous) => {
-                          const next = { ...previous };
-                          delete next.termsAccepted;
-                          return next;
-                        });
-                      }}
-                      aria-required="true"
-                      aria-invalid={!!fieldErrors.termsAccepted}
-                      aria-describedby={fieldErrors.termsAccepted ? 'reg-terms-error' : 'reg-consent-help'}
-                    />
-                    <span>
-                      I agree to the <Link to="/terms" target="_blank" rel="noopener noreferrer">Terms of Service</Link>.
-                    </span>
-                  </label>
-                  <label className="reg-consent-label" htmlFor="reg-privacy">
-                    <input
-                      id="reg-privacy"
-                      type="checkbox"
-                      checked={privacyAccepted}
-                      onChange={(event) => {
-                        const accepted = event.target.checked;
-                        setPrivacyAccepted(accepted);
-                        if (accepted && termsAccepted) setError('');
-                        if (accepted) setFieldErrors((previous) => {
-                          const next = { ...previous };
-                          delete next.privacyAccepted;
-                          return next;
-                        });
-                      }}
-                      aria-required="true"
-                      aria-invalid={!!fieldErrors.privacyAccepted}
-                      aria-describedby={fieldErrors.privacyAccepted ? 'reg-privacy-error' : 'reg-consent-help'}
-                    />
-                    <span>
-                      I have read and acknowledge the <Link to="/privacy" target="_blank" rel="noopener noreferrer">Privacy Policy</Link>.
-                    </span>
-                  </label>
-                  <p id="reg-consent-help" className="reg-consent-help">
-                    Both acknowledgements are required to create your account. Version {LEGAL_POLICY_VERSION}.
-                  </p>
-                  {fieldErrors.termsAccepted && (
-                    <FieldError id="reg-terms-error" message={fieldErrors.termsAccepted} />
-                  )}
-                  {fieldErrors.privacyAccepted && (
-                    <FieldError id="reg-privacy-error" message={fieldErrors.privacyAccepted} />
-                  )}
-                </div>
+              {/* Terms note */}
+              <div className="reg-address-note border-color" style={{ background: 'var(--bg-secondary)' }}>
+                <ShieldCheck size={14} style={{ color: 'var(--primary-text)', marginTop: 2 }} />
+                <p className="text-secondary" style={{fontSize: '0.78rem'}}>
+                  By creating an account, you agree to Cargo Express PH's Terms of Service and Privacy Policy.
+                </p>
               </div>
 
               {/* Buttons */}

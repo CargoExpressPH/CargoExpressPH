@@ -285,19 +285,6 @@ CREATE TABLE IF NOT EXISTS profiles (
 );
 
 
--- ===================== 14A. LEGAL_CONSENTS =====================
--- Append-only evidence of the document versions accepted at registration.
-CREATE TABLE IF NOT EXISTS legal_consents (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  document_type TEXT NOT NULL CHECK (document_type IN ('terms_of_service', 'privacy_policy')),
-  document_version TEXT NOT NULL CHECK (length(trim(document_version)) > 0),
-  accepted_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  source TEXT NOT NULL DEFAULT 'registration' CHECK (source IN ('registration', 'account_update')),
-  UNIQUE (user_id, document_type, document_version)
-);
-
-
 -- ===================== 15. TRIPS =====================
 CREATE TABLE IF NOT EXISTS trips (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -1238,31 +1225,13 @@ CREATE OR REPLACE FUNCTION public.handle_new_user()
  SECURITY DEFINER
  SET search_path TO 'public'
 AS $function$
-DECLARE
-  v_policy_version TEXT;
 BEGIN
   INSERT INTO public.profiles (id, email, name, role, created_at, updated_at)
   VALUES (
-    NEW.id,
-    NEW.email,
-    COALESCE(NULLIF(NEW.raw_user_meta_data->>'name', ''), initcap(split_part(NEW.email, '@', 1))),
-    'customer',
-    now(),
-    now()
+    NEW.id, NEW.email,
+    COALESCE(NULLIF(NEW.raw_user_meta_data->>'name',''), initcap(split_part(NEW.email,'@',1))),
+    'customer', now(), now()
   ) ON CONFLICT (id) DO NOTHING;
-
-  v_policy_version := NULLIF(trim(NEW.raw_user_meta_data->>'legal_policy_version'), '');
-
-  IF v_policy_version IS NOT NULL
-     AND COALESCE(NEW.raw_user_meta_data->>'legal_terms_accepted', 'false') = 'true'
-     AND COALESCE(NEW.raw_user_meta_data->>'legal_privacy_accepted', 'false') = 'true' THEN
-    INSERT INTO public.legal_consents (user_id, document_type, document_version, source)
-    VALUES
-      (NEW.id, 'terms_of_service', v_policy_version, 'registration'),
-      (NEW.id, 'privacy_policy', v_policy_version, 'registration')
-    ON CONFLICT (user_id, document_type, document_version) DO NOTHING;
-  END IF;
-
   RETURN NEW;
 END; $function$
 
@@ -2425,9 +2394,6 @@ CREATE TRIGGER profiles_guard_write BEFORE INSERT OR UPDATE ON profiles FOR EACH
 DROP TRIGGER IF EXISTS profiles_updated_at ON public.profiles;
 CREATE TRIGGER profiles_updated_at BEFORE UPDATE ON profiles FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
-DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
-CREATE TRIGGER on_auth_user_created AFTER INSERT ON auth.users FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
-
 DROP TRIGGER IF EXISTS trips_guard_completion ON public.trips;
 CREATE TRIGGER trips_guard_completion BEFORE UPDATE OF status ON trips FOR EACH ROW EXECUTE FUNCTION guard_trip_completion();
 
@@ -2458,9 +2424,6 @@ CREATE INDEX IF NOT EXISTS idx_chat_messages_unread ON public.chat_messages USIN
 CREATE INDEX IF NOT EXISTS idx_contact_inquiries_created_at ON public.contact_inquiries USING btree (created_at);
 
 CREATE INDEX IF NOT EXISTS idx_contact_inquiries_status ON public.contact_inquiries USING btree (status);
-
-CREATE INDEX IF NOT EXISTS idx_legal_consents_user_accepted
-  ON public.legal_consents USING btree (user_id, accepted_at DESC);
 
 CREATE INDEX IF NOT EXISTS idx_customer_feedback_customer_id ON public.customer_feedback USING btree (customer_id);
 
@@ -2838,22 +2801,6 @@ CREATE POLICY "Users can view own profile" ON public.profiles
   FOR SELECT
   TO public
   USING ((id = auth.uid()));
-
-ALTER TABLE public.legal_consents ENABLE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS "Users can view own legal consents" ON public.legal_consents;
-CREATE POLICY "Users can view own legal consents" ON public.legal_consents
-  FOR SELECT
-  TO authenticated
-  USING ((user_id = auth.uid()));
-
-DROP POLICY IF EXISTS "Admins can view legal consents" ON public.legal_consents;
-CREATE POLICY "Admins can view legal consents" ON public.legal_consents
-  FOR SELECT
-  TO authenticated
-  USING (public.is_admin());
-
-GRANT SELECT ON TABLE public.legal_consents TO authenticated;
 
 ALTER TABLE public.trips ENABLE ROW LEVEL SECURITY;
 

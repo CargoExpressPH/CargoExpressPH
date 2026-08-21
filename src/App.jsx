@@ -60,8 +60,6 @@ const CompanyInformationPage = lazyWithRetry(() => import('./pages/admin/Company
 // Public Pages
 const TrackingPage = lazyWithRetry(() => import('./pages/public/TrackingPage'));
 const AboutPage = lazyWithRetry(() => import('./pages/public/AboutPage'));
-const TermsPage = lazyWithRetry(() => import('./pages/public/TermsPage'));
-const PrivacyPage = lazyWithRetry(() => import('./pages/public/PrivacyPage'));
 const NotFoundPage = lazyWithRetry(() => import('./pages/public/NotFoundPage'));
 
 // ─── Loading Screens ────────────────────────────────────────────────────────
@@ -152,8 +150,6 @@ const router = createBrowserRouter([
       // Public (lazy)
       { path: '/track', element: <TrackingPage /> },
       { path: '/about', element: <AboutPage /> },
-      { path: '/terms', element: <TermsPage /> },
-      { path: '/privacy', element: <PrivacyPage /> },
 
       // Auth (eager — first thing users see)
       { path: '/login', element: <AuthRoute><LoginPage /></AuthRoute> },

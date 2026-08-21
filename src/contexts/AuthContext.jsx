@@ -195,21 +195,8 @@ export const AuthProvider = ({ children }) => {
       // Set flag BEFORE signUp so onAuthStateChange skips the premature fetchProfile.
       isAuthAction.current = true;
 
-      const legalConsent = profileData?.legalConsent;
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            name: profileData?.name || '',
-            legal_terms_accepted: legalConsent?.termsAccepted === true,
-            legal_privacy_accepted: legalConsent?.privacyAccepted === true,
-            legal_policy_version: legalConsent?.version || null,
-          },
-        },
-      });
+      const { data, error } = await supabase.auth.signUp({ email, password });
       if (error) throw error;
-      if (!data.user) throw new Error('Account creation did not return a user. Please try again.');
 
       const normalizedAddress = normalizeProfileAddressFields(profileData);
 
