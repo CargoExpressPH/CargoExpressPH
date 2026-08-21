@@ -4,7 +4,11 @@ const requiredFiles = [
   'src/lib/supabase.js',
   'src/lib/storage.js',
   'src/lib/database.js',
+  'src/pages/public/TermsPage.jsx',
+  'src/pages/public/PrivacyPage.jsx',
+  'src/constants/legal.js',
   'supabase/schema.sql',
+  'supabase/migrations/20260822100000_legal_documents_and_consent.sql',
   'supabase/functions/send-push/index.ts',
   'supabase/functions/store-photo-fallback/index.ts',
   'supabase/functions/get-photo-fallback/index.ts',
@@ -20,6 +24,8 @@ const requiredSchemaSnippets = [
   'guard_profile_write',
   'prepare_order_insert',
   'guard_order_update',
+  'legal_consents',
+  'on_auth_user_created',
 ];
 
 const requiredStorageSnippets = [
@@ -57,6 +63,20 @@ if (missingDatabase.length > 0) {
 
 if (database.includes('skip auto-assignment')) {
   throw new Error('Selected-trip booking still contains silent downgrade fallback.');
+}
+
+const appSources = [
+  ['src/App.jsx', ['/terms', '/privacy']],
+  ['src/pages/auth/RegisterPage.jsx', ['reg-terms', 'reg-privacy', 'LEGAL_POLICY_VERSION']],
+  ['src/contexts/AuthContext.jsx', ['legal_policy_version', 'legal_terms_accepted', 'legal_privacy_accepted']],
+];
+
+for (const [file, snippets] of appSources) {
+  const source = readFileSync(file, 'utf8');
+  const missing = snippets.filter(snippet => !source.includes(snippet));
+  if (missing.length > 0) {
+    throw new Error(`Missing legal-flow snippets in ${file}: ${missing.join(', ')}`);
+  }
 }
 
 console.log('Smoke checks passed.');

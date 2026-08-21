@@ -1578,6 +1578,8 @@ const AboutPage = () => {
               <a href="#feedback" className="about-footer-link" onClick={(e) => { e.preventDefault(); scrollToSection('feedback'); }}>Customer Reviews</a>
               <a href="#highlights" className="about-footer-link" onClick={(e) => { e.preventDefault(); scrollToSection('highlights'); }}>Gallery</a>
               <a href="#contact" className="about-footer-link" onClick={(e) => { e.preventDefault(); scrollToSection('contact'); }}>Contact Us</a>
+              <Link to="/terms" className="about-footer-link">Terms of Service</Link>
+              <Link to="/privacy" className="about-footer-link">Privacy Policy</Link>
             </div>
           </div>
         </div>

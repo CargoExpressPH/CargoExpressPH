@@ -225,6 +225,59 @@
   line-height: 1.5; margin: 0; font-weight: 500;
 }
 
+/* -- Required legal consent -- */
+.reg-consent-note {
+  align-items: flex-start;
+  background: var(--bg-secondary) !important;
+}
+.reg-consent-note > svg {
+  color: var(--primary-text);
+  margin-top: 3px;
+}
+.reg-consent-note.field-invalid {
+  border-color: var(--error) !important;
+  box-shadow: 0 0 0 3px var(--error-glow);
+}
+.reg-consent-content {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+}
+.reg-consent-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  color: var(--text-secondary);
+  font-size: 0.79rem;
+  font-weight: 600;
+  line-height: 1.55;
+  cursor: pointer;
+}
+.reg-consent-label input {
+  width: 17px;
+  height: 17px;
+  flex: 0 0 17px;
+  margin: 1px 0 0;
+  accent-color: var(--primary-fill);
+  cursor: pointer;
+}
+.reg-consent-label input:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+.reg-consent-label a {
+  color: var(--primary-text);
+  font-weight: 800;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.reg-address-note .reg-consent-help {
+  margin: 0;
+  color: var(--text-tertiary);
+  font-size: 0.7rem;
+  line-height: 1.45;
+}
+
 /* -- Step content area -- */
 .reg-step-content { width: 100%; }
 
