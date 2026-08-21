@@ -628,7 +628,12 @@ const AboutPage = () => {
     info: null, features: [], highlights: [], coverage: [], feedback: []
   });
   const [fetching, setFetching] = useState(true);
-  const [systemStatus, setSystemStatus] = useState('checking');
+  const [isOnline, setIsOnline] = useState(() =>
+    typeof navigator === 'undefined' ? true : navigator.onLine
+  );
+  const [systemStatus, setSystemStatus] = useState(() =>
+    typeof navigator === 'undefined' || navigator.onLine ? 'checking' : 'offline'
+  );
 
   // â”€â”€â”€ Scroll handling (scroll progress, active section, back-to-top) â”€â”€â”€
   useEffect(() => {
@@ -668,10 +673,22 @@ const AboutPage = () => {
   // â”€â”€â”€ Data loading â”€â”€â”€
   useEffect(() => {
     let isMounted = true;
+    let requestSequence = 0;
 
-    const loadData = async () => {
+    const loadData = async ({ initial = false } = {}) => {
+      const requestId = ++requestSequence;
+      const browserOnline = typeof navigator === 'undefined' || navigator.onLine;
+
+      if (!browserOnline) {
+        if (!isMounted || requestId !== requestSequence) return;
+        setIsOnline(false);
+        setSystemStatus('offline');
+        if (initial) setFetching(false);
+        return;
+      }
+
       try {
-        setFetching(true);
+        if (initial) setFetching(true);
         setSystemStatus('checking');
         const [info, highlights, coverage, feedback] = await Promise.all([
           getCompanyInformation(), getFeaturedDeliveries(),
@@ -705,19 +722,56 @@ const AboutPage = () => {
           }
         }));
 
-        if (isMounted) {
+        if (isMounted && requestId === requestSequence) {
+          setIsOnline(true);
           setData({ info, features, highlights: resolvedHighlights.filter(h => h.resolved_image), coverage, feedback: resolvedFeedback });
           setSystemStatus('online');
         }
       } catch (err) {
         console.error('Failed to load company info', err);
-        if (isMounted) setSystemStatus('unavailable');
+        if (isMounted && requestId === requestSequence) {
+          const stillOnline = typeof navigator === 'undefined' || navigator.onLine;
+          setIsOnline(stillOnline);
+          setSystemStatus(stillOnline ? 'unavailable' : 'offline');
+        }
       } finally {
-        if (isMounted) setFetching(false);
+        if (isMounted && requestId === requestSequence) setFetching(false);
       }
     };
-    loadData();
-    return () => { isMounted = false; };
+
+    const updateOnlineState = () => {
+      const online = navigator.onLine;
+      setIsOnline(online);
+
+      if (!online) {
+        requestSequence += 1;
+        setSystemStatus('offline');
+        setFetching(false);
+        return;
+      }
+
+      // Re-check the backend when the connection returns instead of leaving
+      // the footer stuck on the previous offline/unavailable result.
+      loadData();
+    };
+
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'visible' && navigator.onLine) loadData();
+    };
+
+    loadData({ initial: true });
+    window.addEventListener('online', updateOnlineState);
+    window.addEventListener('offline', updateOnlineState);
+    window.addEventListener('focus', refreshWhenVisible);
+    document.addEventListener('visibilitychange', refreshWhenVisible);
+
+    return () => {
+      isMounted = false;
+      window.removeEventListener('online', updateOnlineState);
+      window.removeEventListener('offline', updateOnlineState);
+      window.removeEventListener('focus', refreshWhenVisible);
+      document.removeEventListener('visibilitychange', refreshWhenVisible);
+    };
   }, []);
 
   // â”€â”€â”€ Form handlers â”€â”€â”€
@@ -818,11 +872,13 @@ const AboutPage = () => {
   };
 
   const { info, features, highlights, coverage, feedback } = data;
+  const resolvedSystemStatus = !isOnline ? 'offline' : systemStatus;
   const systemStatusLabel = {
     checking: 'Checking System',
     online: 'System Online',
+    offline: 'System Offline',
     unavailable: 'System Unavailable',
-  }[systemStatus];
+  }[resolvedSystemStatus] || 'Checking System';
 
   // Filter feedback by rating state
   const filteredFeedback = feedback?.filter(fb => {
@@ -1529,7 +1585,7 @@ const AboutPage = () => {
         <div className="about-footer-bottom">
           <span>&copy; {new Date().getFullYear()} {companyName}. All rights reserved.</span>
           <span
-            className={`about-footer-status about-footer-status-${systemStatus}`}
+            className={`about-footer-status about-footer-status-${resolvedSystemStatus}`}
             role="status"
             aria-live="polite"
             aria-label={`Service status: ${systemStatusLabel}`}

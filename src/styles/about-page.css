@@ -1435,4 +1435,5 @@
 .about-footer-status { display: flex; align-items: center; gap: 6px; }
 .about-footer-status-dot { color: var(--primary-text); }
 .about-footer-status-checking .about-footer-status-dot { color: var(--warning-text); }
+.about-footer-status-offline .about-footer-status-dot { color: var(--error-text); }
 .about-footer-status-unavailable .about-footer-status-dot { color: var(--error-text); }

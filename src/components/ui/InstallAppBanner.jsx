@@ -10,6 +10,40 @@ const isInStandaloneMode = () =>
 const DISMISSED_KEY = 'install_banner_dismissed';
 const DISMISS_DURATION_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
+// Capture the browser event as soon as this module is loaded. The event is
+// one-shot, so waiting for an authenticated layout to mount can lose it after
+// a clean visit to /login. The root App imports this module eagerly and the
+// banner subscribes to the small in-memory store below when it mounts.
+let pendingInstallPrompt = null;
+const installPromptSubscribers = new Set();
+
+const notifyInstallPromptSubscribers = () => {
+  installPromptSubscribers.forEach((subscriber) => subscriber(pendingInstallPrompt));
+};
+
+const handleBeforeInstallPrompt = (event) => {
+  event.preventDefault();
+  pendingInstallPrompt = event;
+  notifyInstallPromptSubscribers();
+};
+
+const handleAppInstalled = () => {
+  pendingInstallPrompt = null;
+  notifyInstallPromptSubscribers();
+  try { localStorage.setItem('pwa_installed', 'true'); } catch { /* private browsing */ }
+};
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+  window.addEventListener('appinstalled', handleAppInstalled);
+}
+
+const subscribeToInstallPrompt = (subscriber) => {
+  installPromptSubscribers.add(subscriber);
+  subscriber(pendingInstallPrompt);
+  return () => installPromptSubscribers.delete(subscriber);
+};
+
 function wasDismissedRecently() {
   try {
     const ts = parseInt(localStorage.getItem(DISMISSED_KEY) || '0', 10);
@@ -32,13 +66,13 @@ const perks = [
  *
  * Android / Windows / macOS install prompt. Chromium fires
  * `beforeinstallprompt` only when the app already meets every installability
- * criterion, so this banner appears exclusively on browsers that can actually
- * install — no capability sniffing needed on our side.
+ * criterion. The event is captured at module load and this banner subscribes
+ * to it, so route/authentication timing cannot make the prompt disappear.
  *
  * iOS is handled separately by IosInstallBanner (Safari has no install event).
  */
 export default function InstallAppBanner() {
-  const [deferredPrompt, setDeferredPrompt] = useState(null);
+  const [deferredPrompt, setDeferredPrompt] = useState(() => pendingInstallPrompt);
   const [visible, setVisible] = useState(false);
   const [installing, setInstalling] = useState(false);
 
@@ -46,28 +80,22 @@ export default function InstallAppBanner() {
     // Never compete with IosInstallBanner, and never nag an installed user
     if (isIos() || isInStandaloneMode()) return;
 
-    const handleBeforeInstallPrompt = (event) => {
-      // Suppress Chrome's own mini-infobar so we can present our own UI
-      event.preventDefault();
+    let showTimer;
+    const handlePrompt = (event) => {
+      window.clearTimeout(showTimer);
       setDeferredPrompt(event);
-
-      if (wasDismissedRecently()) return;
-      // Delay so it doesn't fight with first paint
-      setTimeout(() => setVisible(true), 3000);
-    };
-
-    const handleAppInstalled = () => {
       setVisible(false);
-      setDeferredPrompt(null);
-      try { localStorage.setItem('pwa_installed', 'true'); } catch { /* private browsing */ }
+
+      if (!event || wasDismissedRecently()) return;
+      // Delay so it doesn't fight with first paint.
+      showTimer = window.setTimeout(() => setVisible(true), 3000);
     };
 
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-    window.addEventListener('appinstalled', handleAppInstalled);
+    const unsubscribe = subscribeToInstallPrompt(handlePrompt);
 
     return () => {
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-      window.removeEventListener('appinstalled', handleAppInstalled);
+      unsubscribe();
+      window.clearTimeout(showTimer);
     };
   }, []);
 

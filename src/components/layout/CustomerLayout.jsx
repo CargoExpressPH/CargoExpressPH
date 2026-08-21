@@ -8,8 +8,6 @@ import { supabase } from '../../lib/supabase';
 import { getUnreadNotificationCount } from '../../lib/database';
 import { useToast } from '../../hooks/useToast';
 import { usePushNotification } from '../../hooks/usePushNotification';
-import IosInstallBanner from '../ui/IosInstallBanner';
-import InstallAppBanner from '../ui/InstallAppBanner';
 import ErrorBoundary from '../ui/ErrorBoundary';
 import ConfirmModal from '../ui/ConfirmModal';
 import OnboardingModal from '../ui/OnboardingModal';
@@ -243,8 +241,6 @@ const CustomerLayout = () => {
   return (
     <>
     <OnboardingModal />
-    <IosInstallBanner />
-    <InstallAppBanner />
     <div className="customer-layout-v2">
       <a href="#customer-main-content" className="skip-link">Skip to main content</a>
       {/* ─── Top Navigation Bar ─── */}

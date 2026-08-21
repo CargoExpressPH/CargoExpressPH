@@ -6,7 +6,6 @@ import PageTransition from '../ui/PageTransition';
 import CommandPalette from '../ui/CommandPalette';
 import FocusTrap from '../ui/FocusTrap';
 import AdminNotificationCenter from '../ui/AdminNotificationCenter';
-import InstallAppBanner from '../ui/InstallAppBanner';
 import { Menu, Search, Bell } from 'lucide-react';
 import BrandLockup from '../ui/BrandLogo';
 import ThemeToggle from '../ui/ThemeToggle';
@@ -185,7 +184,6 @@ const AdminLayout = () => {
   return (
     <div className={`app-layout${sidebarCollapsed ? ' sidebar-collapsed' : ''}${sidebarOpen ? ' sidebar-drawer-open' : ''}`}>
       <a href="#admin-main-content" className="skip-link">Skip to main content</a>
-      <InstallAppBanner />
       <FocusTrap active={sidebarOpen}>
         <Sidebar
           isOpen={sidebarOpen}

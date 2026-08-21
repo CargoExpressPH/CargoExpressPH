@@ -1,6 +1,8 @@
 import { Suspense, useEffect } from 'react';
 import { lazyWithRetry } from './lib/lazyWithRetry';
 import PageLoader from './components/ui/PageLoader';
+import InstallAppBanner from './components/ui/InstallAppBanner';
+import IosInstallBanner from './components/ui/IosInstallBanner';
 import { createBrowserRouter, RouterProvider, Navigate, Outlet, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
@@ -222,6 +224,8 @@ function App() {
     <ThemeProvider>
     <ToastProvider>
       <AuthProvider>
+        <InstallAppBanner />
+        <IosInstallBanner />
         <RouterProvider router={router} />
       </AuthProvider>
     </ToastProvider>
