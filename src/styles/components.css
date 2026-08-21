@@ -8,13 +8,13 @@
 }
 
 .btn-primary {
-  background: #166534;
+  background: var(--primary-fill);
   color: #FFFFFF;
   box-shadow: var(--shadow-primary);
 }
 [data-theme="dark"] .btn-primary { color: #0F172A; font-weight: 700; }
 .btn-primary:hover {
-  background: #14532D;
+  background: var(--primary-text-strong);
   box-shadow: var(--shadow-primary-lg);
   transform: translateY(-1px);
   filter: brightness(1.08);
