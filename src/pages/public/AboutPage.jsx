@@ -628,6 +628,7 @@ const AboutPage = () => {
     info: null, features: [], highlights: [], coverage: [], feedback: []
   });
   const [fetching, setFetching] = useState(true);
+  const [systemStatus, setSystemStatus] = useState('checking');
 
   // â”€â”€â”€ Scroll handling (scroll progress, active section, back-to-top) â”€â”€â”€
   useEffect(() => {
@@ -666,9 +667,12 @@ const AboutPage = () => {
 
   // â”€â”€â”€ Data loading â”€â”€â”€
   useEffect(() => {
+    let isMounted = true;
+
     const loadData = async () => {
       try {
         setFetching(true);
+        setSystemStatus('checking');
         const [info, highlights, coverage, feedback] = await Promise.all([
           getCompanyInformation(), getFeaturedDeliveries(),
           getCoverageAreas(), getPublicFeedback()
@@ -701,14 +705,19 @@ const AboutPage = () => {
           }
         }));
 
-        setData({ info, features, highlights: resolvedHighlights.filter(h => h.resolved_image), coverage, feedback: resolvedFeedback });
+        if (isMounted) {
+          setData({ info, features, highlights: resolvedHighlights.filter(h => h.resolved_image), coverage, feedback: resolvedFeedback });
+          setSystemStatus('online');
+        }
       } catch (err) {
         console.error('Failed to load company info', err);
+        if (isMounted) setSystemStatus('unavailable');
       } finally {
-        setFetching(false);
+        if (isMounted) setFetching(false);
       }
     };
     loadData();
+    return () => { isMounted = false; };
   }, []);
 
   // â”€â”€â”€ Form handlers â”€â”€â”€
@@ -809,6 +818,11 @@ const AboutPage = () => {
   };
 
   const { info, features, highlights, coverage, feedback } = data;
+  const systemStatusLabel = {
+    checking: 'Checking System',
+    online: 'System Online',
+    unavailable: 'System Unavailable',
+  }[systemStatus];
 
   // Filter feedback by rating state
   const filteredFeedback = feedback?.filter(fb => {
@@ -1514,8 +1528,13 @@ const AboutPage = () => {
 
         <div className="about-footer-bottom">
           <span>&copy; {new Date().getFullYear()} {companyName}. All rights reserved.</span>
-          <span className="about-footer-status">
-            <span className="about-footer-status-dot">{'\u25CF'}</span> System Online
+          <span
+            className={`about-footer-status about-footer-status-${systemStatus}`}
+            role="status"
+            aria-live="polite"
+            aria-label={`Service status: ${systemStatusLabel}`}
+          >
+            <span className="about-footer-status-dot">{'\u25CF'}</span> {systemStatusLabel}
           </span>
         </div>
       </footer>
