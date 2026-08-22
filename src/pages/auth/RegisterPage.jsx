@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { normalizeProfileAddressFields } from '../../lib/address';
 import {
-  Eye, EyeOff, Loader, Check, ArrowRight, ArrowLeft,
+  Eye, EyeOff, Loader, Check,
   AlertTriangle, User, Mail, Phone, Lock, MapPin, MessageSquare,
   Home, Landmark, CheckCircle2, Navigation,
 } from 'lucide-react';
@@ -753,7 +753,7 @@ const RegisterPage = () => {
                 className="auth-submit-btn"
                 onClick={goToStep2}
               >
-                Continue to Address <ArrowRight size={17} />
+                Continue to Address
               </button>
             </div>
           )}
@@ -959,7 +959,7 @@ const RegisterPage = () => {
                   className="auth-back-btn"
                   onClick={() => { setError(''); setStep(1); }}
                 >
-                  <ArrowLeft size={16} /> Back
+                  Back
                 </button>
                 <button
                   type="submit"
