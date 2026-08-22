@@ -941,10 +941,10 @@ const RegisterPage = () => {
                       aria-invalid={!!fieldErrors.legal_consent}
                       aria-describedby={fieldErrors.legal_consent ? 'reg-legal-consent-help reg-legal-consent-error' : 'reg-legal-consent-help'}
                     />
-                    <label htmlFor="reg-legal-consent">I have read and agree to the legal documents.</label>
+                    <label htmlFor="reg-legal-consent">I have read and agree to the Terms of Service and Privacy Policy.</label>
                   </div>
                   <p id="reg-legal-consent-help">
-                    Read the <Link to={`${LEGAL_DOCUMENTS.terms.path}?returnTo=register`} state={{ registrationDraft: form, returnStep: 2 }}>Terms of Service</Link> and <Link to={`${LEGAL_DOCUMENTS.privacy.path}?returnTo=register`} state={{ registrationDraft: form, returnStep: 2 }}>Privacy Policy</Link> before continuing.
+                    Review the <Link to={`${LEGAL_DOCUMENTS.terms.path}?returnTo=register`} state={{ registrationDraft: form, returnStep: 2 }}>Terms of Service</Link> and <Link to={`${LEGAL_DOCUMENTS.privacy.path}?returnTo=register`} state={{ registrationDraft: form, returnStep: 2 }}>Privacy Policy</Link>.
                   </p>
                   {fieldErrors.legal_consent && (
                     <FieldError id="reg-legal-consent-error" message={fieldErrors.legal_consent} />
