@@ -237,7 +237,6 @@
   background: var(--bg-secondary);
   transition: border-color .18s ease, box-shadow .18s ease, background-color .18s ease;
 }
-.reg-legal-consent > svg { flex: 0 0 auto; margin-top: 2px; color: var(--primary-text); }
 .reg-legal-consent-invalid { border-color: var(--error-text); background: var(--error-bg); }
 .reg-legal-consent-control { display: flex; align-items: flex-start; gap: 9px; }
 .reg-legal-consent-control input {

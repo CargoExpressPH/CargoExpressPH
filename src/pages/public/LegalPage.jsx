@@ -1,6 +1,5 @@
-import { Link } from 'react-router-dom';
-import { ArrowLeft, FileCheck2, Scale, ShieldCheck } from 'lucide-react';
-import { BrandLogo, BrandWordmark } from '../../components/ui/BrandLogo';
+import { Link, useLocation, useSearchParams } from 'react-router-dom';
+import { ArrowLeft, Scale, ShieldCheck } from 'lucide-react';
 import usePageTitle from '../../hooks/usePageTitle';
 import { LEGAL_DOCUMENTS } from '../../constants/legalDocuments';
 
@@ -131,37 +130,38 @@ const PRIVACY_SECTIONS = [
 const CONTENT = { terms: TERMS_SECTIONS, privacy: PRIVACY_SECTIONS };
 
 const LegalPage = ({ documentKey }) => {
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
   const document = LEGAL_DOCUMENTS[documentKey];
   const isTerms = documentKey === 'terms';
   const Icon = isTerms ? Scale : ShieldCheck;
   const other = LEGAL_DOCUMENTS[isTerms ? 'privacy' : 'terms'];
+  const returnToRegister = searchParams.get('returnTo') === 'register';
+  const backPath = returnToRegister ? '/register?step=2' : '/about';
+  const backLabel = returnToRegister ? 'Back to registration' : 'Back to About';
+  const relatedPath = `${other.path}${returnToRegister ? '?returnTo=register' : ''}`;
 
   usePageTitle(document.title, `${document.title} for Cargo Express PH. Effective ${document.effectiveDate}.`);
 
   return (
     <main className="legal-page">
       <nav className="legal-nav" aria-label="Legal document navigation">
-        <Link to="/about" className="legal-brand" aria-label="Cargo Express PH home">
-          <BrandLogo size={34} decorative />
-          <BrandWordmark />
+        <Link to={backPath} state={returnToRegister ? location.state : undefined} className="legal-back">
+          <ArrowLeft size={16} /> {backLabel}
         </Link>
-        <Link to="/register" className="legal-nav-action">Create account</Link>
       </nav>
 
       <section className="legal-hero" aria-labelledby="legal-title">
-        <Link to="/about" className="legal-back"><ArrowLeft size={16} /> Back to website</Link>
         <div className="legal-eyebrow"><Icon size={16} /> Legal information</div>
         <h1 id="legal-title">{document.title}</h1>
         <p>Clear terms for using Cargo Express PH and transparent information about your rights.</p>
-        <div className="legal-version" aria-label={`Version ${document.version}, effective ${document.effectiveDate}`}>
-          <FileCheck2 size={17} /> Version {document.version} <span aria-hidden="true">•</span> Effective {document.effectiveDate}
-        </div>
+        <p className="legal-effective-date">Effective date: {document.effectiveDate}</p>
       </section>
 
       <div className="legal-content-wrap">
         <aside className="legal-aside" aria-label="Related legal document">
           <p>Related document</p>
-          <Link to={other.path}>{other.title} <ArrowLeft size={15} /></Link>
+          <Link to={relatedPath} state={returnToRegister ? location.state : undefined}>{other.title} <ArrowLeft size={15} /></Link>
         </aside>
         <article className="legal-document">
           <p className="legal-intro">Please read this document carefully. By using Cargo Express PH, you acknowledge the terms that apply to the Services.</p>

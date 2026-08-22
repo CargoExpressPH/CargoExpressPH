@@ -39,12 +39,12 @@ test.describe('harness smoke check', () => {
   test('the public legal documents are published with version information', async ({ page }) => {
     await page.goto('/terms');
     await expect(page.getByRole('heading', { name: 'Terms of Service', level: 1 })).toBeVisible();
-    await expect(page.getByText('Version 2026-08-22')).toBeVisible();
+    await expect(page.getByText('Effective date: 22 August 2026')).toBeVisible();
     await expect(page.getByRole('link', { name: 'Privacy Policy' }).first()).toBeVisible();
 
     await page.goto('/privacy');
     await expect(page.getByRole('heading', { name: 'Privacy Policy', level: 1 })).toBeVisible();
-    await expect(page.getByText('Version 2026-08-22')).toBeVisible();
+    await expect(page.getByText('Effective date: 22 August 2026')).toBeVisible();
     await expect(page.getByRole('link', { name: 'Terms of Service' }).first()).toBeVisible();
   });
 
@@ -61,8 +61,16 @@ test.describe('harness smoke check', () => {
     await expect(page.locator('#reg-legal-consent')).toBeVisible();
     await expect(page.locator('#reg-legal-consent')).not.toBeChecked();
     await expect(page.locator('#reg-legal-consent')).toHaveAttribute('required', '');
-    await expect(page.getByRole('link', { name: 'Terms of Service' }).last()).toHaveAttribute('href', '/terms');
-    await expect(page.getByRole('link', { name: 'Privacy Policy' }).last()).toHaveAttribute('href', '/privacy');
+    await expect(page.getByRole('link', { name: 'Terms of Service' }).last()).toHaveAttribute('href', '/terms?returnTo=register');
+    await expect(page.getByRole('link', { name: 'Privacy Policy' }).last()).toHaveAttribute('href', '/privacy?returnTo=register');
+
+    await page.getByRole('link', { name: 'Terms of Service' }).last().click();
+    await expect(page.getByRole('link', { name: 'Back to registration' })).toBeVisible();
+    await expect(page.getByText('Version 2026-08-22')).not.toBeVisible();
+    await page.getByRole('link', { name: 'Back to registration' }).click();
+    await expect(page).toHaveURL(/\/register\?step=2/);
+    await expect(page.locator('#reg-legal-consent')).toBeVisible();
+    await expect(page.locator('#reg-name')).toHaveValue('Test Customer');
   });
 
   test('the public tracking page is reachable anonymously', async ({ page }) => {

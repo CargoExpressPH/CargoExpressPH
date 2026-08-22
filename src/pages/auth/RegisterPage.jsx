@@ -1,11 +1,11 @@
 import { useState, useRef, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { normalizeProfileAddressFields } from '../../lib/address';
 import {
   Eye, EyeOff, Loader, Check, ArrowRight, ArrowLeft,
   AlertTriangle, User, Mail, Phone, Lock, MapPin, MessageSquare,
-  Home, Landmark, CheckCircle2, Navigation, ShieldCheck,
+  Home, Landmark, CheckCircle2, Navigation,
 } from 'lucide-react';
 import { PH_LOCATIONS, VALID_PROVINCES } from '../../constants/phLocations';
 import CustomSelect from '../../components/ui/CustomSelect';
@@ -42,8 +42,22 @@ const STEPS = [
 ══════════════════════════════════════════════════════════════════════════ */
 const RegisterPage = () => {
   usePageTitle('Create Account');
-  const [step, setStep] = useState(1);
+  const location = useLocation();
+  const [step, setStep] = useState(() => new URLSearchParams(location.search).get('step') === '2' ? 2 : 1);
   const [form, setForm] = useState(() => {
+    // Legal pages return users to this step without persisting credentials to
+    // storage. History state is transient and is discarded on a browser refresh.
+    const returnDraft = location.state?.registrationDraft;
+    if (returnDraft && typeof returnDraft === 'object') {
+      return {
+        name: returnDraft.name || '', email: returnDraft.email || '', phone: returnDraft.phone || '',
+        password: returnDraft.password || '', confirmPassword: returnDraft.confirmPassword || '',
+        facebook_name: returnDraft.facebook_name || '',
+        address_province: returnDraft.address_province || '', address_city: returnDraft.address_city || '',
+        address_barangay: returnDraft.address_barangay || '', address_street: returnDraft.address_street || '',
+        address_lot_block: returnDraft.address_lot_block || '', address_landmark: returnDraft.address_landmark || '',
+      };
+    }
     try {
       const saved = sessionStorage.getItem('reg_draft');
       if (saved) {
@@ -909,9 +923,8 @@ const RegisterPage = () => {
                 )}
               </div>
 
-              {/* Required, affirmative legal acceptance. Links open separately so the draft is preserved. */}
+              {/* Required, affirmative legal acceptance. */}
               <div className={`reg-legal-consent ${fieldErrors.legal_consent ? 'reg-legal-consent-invalid' : ''}`}>
-                <ShieldCheck size={18} aria-hidden="true" />
                 <div className="reg-legal-consent-copy">
                   <div className="reg-legal-consent-control">
                     <input
@@ -931,7 +944,7 @@ const RegisterPage = () => {
                     <label htmlFor="reg-legal-consent">I have read and agree to the legal documents.</label>
                   </div>
                   <p id="reg-legal-consent-help">
-                    Read the <Link to={LEGAL_DOCUMENTS.terms.path} target="_blank" rel="noopener noreferrer">Terms of Service</Link> and <Link to={LEGAL_DOCUMENTS.privacy.path} target="_blank" rel="noopener noreferrer">Privacy Policy</Link> (version {LEGAL_DOCUMENTS.terms.version}) before continuing.
+                    Read the <Link to={`${LEGAL_DOCUMENTS.terms.path}?returnTo=register`} state={{ registrationDraft: form, returnStep: 2 }}>Terms of Service</Link> and <Link to={`${LEGAL_DOCUMENTS.privacy.path}?returnTo=register`} state={{ registrationDraft: form, returnStep: 2 }}>Privacy Policy</Link> before continuing.
                   </p>
                   {fieldErrors.legal_consent && (
                     <FieldError id="reg-legal-consent-error" message={fieldErrors.legal_consent} />
