@@ -133,10 +133,21 @@ const ScrollToTop = () => {
   return null;
 };
 
+/** Keep PWA-install overlays off the public, time-sensitive tracking task. */
+const InstallPrompts = () => {
+  const { pathname } = useLocation();
+  if (pathname === '/track') return null;
+  return <>
+    <InstallAppBanner />
+    <IosInstallBanner />
+  </>;
+};
+
 // ─── Root Layout (provides Suspense boundary for the entire route tree) ─────
 const RootLayout = () => (
   <Suspense fallback={<LoadingScreen />}>
     <ScrollToTop />
+    <InstallPrompts />
     <Outlet />
   </Suspense>
 );
@@ -228,8 +239,6 @@ function App() {
     <ThemeProvider>
     <ToastProvider>
       <AuthProvider>
-        <InstallAppBanner />
-        <IosInstallBanner />
         <RouterProvider router={router} />
       </AuthProvider>
     </ToastProvider>

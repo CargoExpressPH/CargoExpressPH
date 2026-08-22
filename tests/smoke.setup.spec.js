@@ -77,4 +77,19 @@ test.describe('harness smoke check', () => {
     await page.goto('/track');
     await expect(page.locator('.trk-page')).toBeVisible();
   });
+
+  test('public tracking does not show a gesture-blocking iOS install prompt', async ({ page }) => {
+    await page.addInitScript(() => {
+      Object.defineProperty(navigator, 'userAgent', {
+        configurable: true,
+        get: () => 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Version/17.0 Mobile/15E148 Safari/604.1',
+      });
+    });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/track');
+    await page.waitForTimeout(3_300);
+
+    await expect(page.locator('.trk-page')).toBeVisible();
+    await expect(page.getByRole('dialog', { name: 'Install Cargo Express PH' })).toHaveCount(0);
+  });
 });

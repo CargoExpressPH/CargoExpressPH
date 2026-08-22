@@ -19,6 +19,11 @@ body {
   filter: blur(4px);
 }
 
+/* Avoid expensive animated blur layers while a phone is touch-scrolling. */
+@media (max-width: 899.98px) {
+  .trk-orb { display: none; }
+}
+
 .card {
   border-color: var(--border);
 }
