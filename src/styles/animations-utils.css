@@ -110,13 +110,15 @@
   backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
   z-index: var(--z-modal);
   display: flex; align-items: flex-start; justify-content: center;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding-top: min(15vh, 120px);
   padding-inline: 16px;
   padding-bottom: max(16px, env(safe-area-inset-bottom, 0px));
   animation: fadeIn 0.15s ease;
 }
 .cmd-palette {
-  width: 100%; max-width: 540px;
+  width: min(540px, 100%); min-width: 0;
   max-height: min(80dvh, 520px);
   display: flex;
   flex-direction: column;
@@ -139,6 +141,21 @@
   .cmd-palette {
     max-height: calc(100dvh - 32px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
   }
+
+  .cmd-palette-input-wrap {
+    gap: 8px;
+    padding: 14px 12px;
+  }
+
+  .cmd-palette-kbd {
+    display: none;
+  }
+
+  .cmd-palette-footer {
+    flex-wrap: wrap;
+    gap: 6px 12px;
+    padding: 8px 12px;
+  }
 }
 
 .cmd-palette-input-wrap {
@@ -149,7 +166,7 @@
 }
 .cmd-palette-input-wrap svg { color: var(--text-tertiary); flex-shrink: 0; }
 .cmd-palette-input {
-  flex: 1; border: none; background: none;
+  flex: 1; min-width: 0; border: none; background: none;
   font-size: 1rem; font-weight: 500; color: var(--text);
   outline: none;
 }
@@ -165,6 +182,7 @@
 
 .cmd-palette-results {
   max-height: min(320px, calc(80dvh - 120px));
+  min-height: 0;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   padding: 8px;
@@ -196,7 +214,7 @@
 .cmd-palette-item svg { color: var(--text-tertiary); flex-shrink: 0; }
 .cmd-palette-item:hover svg,
 .cmd-palette-item.highlighted svg { color: var(--primary); }
-.cmd-palette-item-label { flex: 1; text-align: left; }
+.cmd-palette-item-label { flex: 1; min-width: 0; text-align: left; overflow-wrap: anywhere; }
 .cmd-palette-item-shortcut {
   font-size: 0.75rem; color: var(--text-tertiary);
 }
