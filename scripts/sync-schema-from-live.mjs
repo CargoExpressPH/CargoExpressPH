@@ -35,13 +35,15 @@ function loadEnv() {
 loadEnv();
 
 // The token variable is SUPABASE_PERSONAL_ACCESS_TOKEN — the name .env has
-// always used. This script read `supabase_PAT`, a name that exists nowhere in
-// the project, so it exited on line 1 every time it was run.
+// The existing local .env alias `supabase_PAT` is accepted below for
+// compatibility; the token is read only for the read-only API request.
 //
 // SUPABASE_ACCESS_TOKEN is accepted as a second name because that is what the
 // Supabase CLI itself reads, so a shell or CI job already exported for `npx
 // supabase` can run this with no .env at all.
-const PAT = process.env.SUPABASE_PERSONAL_ACCESS_TOKEN || process.env.SUPABASE_ACCESS_TOKEN;
+const PAT = process.env.SUPABASE_PERSONAL_ACCESS_TOKEN
+  || process.env.SUPABASE_ACCESS_TOKEN
+  || process.env.supabase_PAT;
 if (!PAT) {
   console.error('❌  No access token found.');
   console.error('    Set SUPABASE_PERSONAL_ACCESS_TOKEN in .env (or export SUPABASE_ACCESS_TOKEN).');

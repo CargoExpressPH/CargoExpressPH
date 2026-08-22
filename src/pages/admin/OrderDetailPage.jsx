@@ -185,23 +185,70 @@ const AdminOrderDetailPage = () => {
     }
 
     const verify = async () => {
+      let channel = null;
+      let confirmed = false;
+      let attempt = null;
+      const finish = async (sourceAlreadyVerified = false) => {
+        if (confirmed) return;
+        if (!sourceAlreadyVerified) {
+          try {
+            const result = await pollPaymentStatus(attempt.source_id, id);
+            if (!(result.orderReconciled || result.status === 'paid')) return;
+          } catch {
+            return;
+          }
+        }
+        confirmed = true;
+        if (channel) void supabase.removeChannel(channel);
+        toast.success('GCash payment received — recorded automatically.');
+        await loadOrder();
+      };
+
       try {
-        const attempt = await getLatestPaymentAttemptByOrder(id);
-        if (!attempt?.source_id || attempt.status === 'reconciled') return;
-        const result = await pollPaymentStatus(attempt.source_id, id);
-        if (result.orderReconciled || result.status === 'paid') {
-          toast.success('GCash payment received — recorded automatically.');
+        attempt = await getLatestPaymentAttemptByOrder(id);
+        if (!attempt?.source_id) {
           await loadOrder();
           return;
         }
-        await new Promise(r => setTimeout(r, 3000));
-        const retry = await pollPaymentStatus(attempt.source_id, id);
-        if (retry.orderReconciled || retry.status === 'paid') {
-          toast.success('GCash payment received — recorded automatically.');
-        } else {
-          toast.info('GCash payment is still processing. Check again in a moment.');
+        if (attempt.status === 'reconciled') {
+          await loadOrder();
+          return;
         }
-        await loadOrder();
+
+        channel = supabase
+          .channel(`admin_payment_return_${id}`)
+          .on('postgres_changes', {
+            event: 'UPDATE', schema: 'public', table: 'orders', filter: `id=eq.${id}`,
+          }, (payload) => {
+            // Mirror the customer page's settled test: a ₱0-balance unpriced
+            // order must not look paid just because remaining_balance <= 0.
+            if (
+              payload.new?.payment_status === 'paid'
+              || (Number(payload.new?.amount_paid) > 0 && Number(payload.new?.remaining_balance) <= 0)
+            ) {
+              void finish(false);
+            }
+          })
+          .subscribe();
+
+        for (const delay of [0, 2000, 4000, 6000, 8000]) {
+          if (delay) await new Promise(resolve => setTimeout(resolve, delay));
+          if (confirmed) return;
+          try {
+            const result = await pollPaymentStatus(attempt.source_id, id);
+            if (result.orderReconciled || result.status === 'paid') {
+              await finish(true);
+              return;
+            }
+          } catch {
+            // The webhook/realtime path may still complete the payment.
+          }
+        }
+        if (!confirmed) {
+          toast.info('GCash payment is still processing. Check the order again in a moment.');
+          await loadOrder();
+          setTimeout(() => { if (channel && !confirmed) void supabase.removeChannel(channel); }, 30000);
+        }
       } catch {
         await loadOrder();
       }
@@ -1279,7 +1326,13 @@ const AdminOrderDetailPage = () => {
         <TripReassignModal order={order} onClose={() => setShowReassignModal(false)} onReassign={handleTripReassign} />
       )}
       {showPaymentModal && (
-        <AdditionalPaymentModal order={order} remainingBalance={computedRemainingBalance} onClose={() => setShowPaymentModal(false)} onSave={handleAdditionalPayment} />
+        <AdditionalPaymentModal
+          order={order}
+          remainingBalance={computedRemainingBalance}
+          onClose={() => setShowPaymentModal(false)}
+          onSave={handleAdditionalPayment}
+          onPaymentConfirmed={() => loadOrder()}
+        />
       )}
       {showDeliveryModal && (
         <DeliveryModal order={order} onClose={() => setShowDeliveryModal(false)} onSave={handleDeliverySave} />

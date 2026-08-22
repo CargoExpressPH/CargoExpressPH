@@ -1430,8 +1430,17 @@ export const createAdminNotification = async (title, message, type = 'general', 
       // Push notification to each admin device (fire-and-forget)
       notifiedAdmins.forEach(row => {
         if (row.admin_id) {
+          // Use only the server-generated notification payload. The caller's
+          // title/message are customer-controlled and must never reach a
+          // staff push notification, even though the RPC ignores them for the
+          // in-app notification row.
           void supabase.functions.invoke('send-push', {
-            body: { user_id: row.admin_id, title, body: message, url: '/admin' },
+            body: {
+              user_id: row.admin_id,
+              title: row.notification_title || 'New admin notification',
+              body: row.notification_message || 'Open the admin dashboard to review this update.',
+              url: '/admin',
+            },
           }).catch(() => {});
         }
       });
@@ -1475,15 +1484,8 @@ export const createContactInquiry = async (data) => {
     });
   if (error) throw error;
 
-  // ── Non-blocking: notify admin(s) of new inquiry ────────────────────────
-  // (This used to read data.email and data.subject — neither of which is a
-  // column on contact_inquiries, so both were always undefined.)
-  void createAdminNotification(
-    'New Contact Inquiry',
-    `Inquiry from ${data.name || contactEmail || contactPhone || 'Visitor'}: ${(data.message || '').slice(0, 80)}`,
-    'inquiry',
-    null
-  );
+  // Admin in-app notifications are created by the database trigger so an
+  // anonymous browser cannot forge the recipient, title, or message.
 };
 
 export const getContactInquiries = async () => {

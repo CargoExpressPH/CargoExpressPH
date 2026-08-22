@@ -158,8 +158,11 @@ test.describe('admin responsive — every screen at every device size', () => {
       for (const route of ADMIN_ROUTES) {
         test(`${route.label} ${route.path} — no overflow, buttons visible, content fits`, async ({ page }) => {
           await page.goto(route.path, { waitUntil: 'domcontentloaded' });
-          // wait for either table, card, or page header
-          await page.waitForSelector('.admin-page-header, .card, .page-transition', { timeout: 15000 });
+          // Wait for either table, card, or page header.
+        // Orders renders its responsive header as a plain main heading at
+        // narrow widths, so do not make this diagnostic wait depend on the
+        // desktop-only header class.
+          await page.waitForSelector('.admin-page-header, .card, .page-transition, main h1', { timeout: 15000 });
           await page.waitForTimeout(800); // let stagger animations settle
 
           // 1. No horizontal overflow

@@ -1,7 +1,7 @@
 -- ============================================================
 -- Cargo Express PH — Complete Supabase PostgreSQL Schema
 -- Single source-of-truth for the entire database.
--- Synced from LIVE database on 2026-08-16
+-- Synced from LIVE database on 2026-08-22
 -- Run this in: Supabase Dashboard → SQL Editor → New Query
 -- ============================================================
 
@@ -125,7 +125,44 @@ CREATE TABLE IF NOT EXISTS customer_feedback (
 );
 
 
--- ===================== 8. NOTIFICATION_DELIVERY_ATTEMPTS =====================
+-- ===================== 8. LEGAL_DOCUMENTS =====================
+-- Must exist before legal_consents: the consent table carries a composite
+-- foreign key into this one.
+CREATE TABLE IF NOT EXISTS legal_documents (
+  document_type TEXT CHECK (document_type = ANY (ARRAY['terms_of_service'::text, 'privacy_policy'::text])),
+  version TEXT CHECK (length(TRIM(BOTH FROM version)) > 0),
+  url_path TEXT NOT NULL CHECK (url_path = ANY (ARRAY['/terms'::text, '/privacy'::text])),
+  effective_at TIMESTAMPTZ NOT NULL,
+  published_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  is_current BOOLEAN NOT NULL DEFAULT false,
+  PRIMARY KEY (document_type, version)
+);
+
+-- Version registry seed — must match src/constants/legalDocuments.js.
+-- handle_new_user() refuses every signup while either document lacks a
+-- current version, so a fresh database is not functional without these rows
+-- (20260822120000_restore_versioned_legal_consent.sql).
+INSERT INTO public.legal_documents (document_type, version, url_path, effective_at, is_current)
+VALUES
+  ('terms_of_service', '2026-08-22', '/terms', '2026-08-22T00:00:00+08:00', true),
+  ('privacy_policy', '2026-08-22', '/privacy', '2026-08-22T00:00:00+08:00', true)
+ON CONFLICT (document_type, version) DO NOTHING;
+
+
+-- ===================== 9. LEGAL_CONSENTS =====================
+CREATE TABLE IF NOT EXISTS legal_consents (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  document_type TEXT NOT NULL CHECK (document_type = ANY (ARRAY['terms_of_service'::text, 'privacy_policy'::text])),
+  document_version TEXT NOT NULL CHECK (length(TRIM(BOTH FROM document_version)) > 0),
+  accepted_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  source TEXT NOT NULL DEFAULT 'registration'::text CHECK (source = ANY (ARRAY['registration'::text, 'account_update'::text])),
+  FOREIGN KEY (document_type, document_version) REFERENCES legal_documents(document_type, version),
+  UNIQUE (user_id, document_type, document_version)
+);
+
+
+-- ===================== 10. NOTIFICATION_DELIVERY_ATTEMPTS =====================
 CREATE TABLE IF NOT EXISTS notification_delivery_attempts (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   notification_id UUID REFERENCES notifications(id) ON DELETE SET NULL,
@@ -138,7 +175,7 @@ CREATE TABLE IF NOT EXISTS notification_delivery_attempts (
 );
 
 
--- ===================== 9. NOTIFICATIONS =====================
+-- ===================== 11. NOTIFICATIONS =====================
 CREATE TABLE IF NOT EXISTS notifications (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
@@ -151,7 +188,7 @@ CREATE TABLE IF NOT EXISTS notifications (
 );
 
 
--- ===================== 10. ORDER_STATUS_EVENTS =====================
+-- ===================== 12. ORDER_STATUS_EVENTS =====================
 CREATE TABLE IF NOT EXISTS order_status_events (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   order_id UUID NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
@@ -162,7 +199,7 @@ CREATE TABLE IF NOT EXISTS order_status_events (
 );
 
 
--- ===================== 11. ORDERS =====================
+-- ===================== 13. ORDERS =====================
 CREATE TABLE IF NOT EXISTS orders (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
@@ -215,16 +252,11 @@ CREATE TABLE IF NOT EXISTS orders (
   cancellation_reviewed_at TIMESTAMPTZ,
   cancellation_reviewed_by UUID REFERENCES profiles(id) ON DELETE SET NULL,
   cancellation_review_notes TEXT,
-  -- An order at 'Assigned' or beyond must be on a trip (20260818110000). The
-  -- four exempt statuses are the ones that legitimately have no trip yet.
-  CONSTRAINT orders_trip_required_for_active_status CHECK (
-    status::text = ANY (ARRAY['Pending Review'::text, 'Pending'::text, 'Pending Cancellation'::text, 'Cancelled'::text])
-    OR trip_id IS NOT NULL
-  )
+  CONSTRAINT orders_trip_required_for_active_status CHECK ((status::text = ANY (ARRAY['Pending Review'::character varying, 'Pending'::character varying, 'Pending Cancellation'::character varying, 'Cancelled'::character varying]::text[])) OR trip_id IS NOT NULL)
 );
 
 
--- ===================== 12. PAYMENT_ATTEMPTS =====================
+-- ===================== 14. PAYMENT_ATTEMPTS =====================
 CREATE TABLE IF NOT EXISTS payment_attempts (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   source_id TEXT NOT NULL UNIQUE,
@@ -248,7 +280,7 @@ CREATE TABLE IF NOT EXISTS payment_attempts (
 );
 
 
--- ===================== 13. PAYMENT_TRANSACTIONS =====================
+-- ===================== 15. PAYMENT_TRANSACTIONS =====================
 CREATE TABLE IF NOT EXISTS payment_transactions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   order_id UUID NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
@@ -266,7 +298,7 @@ CREATE TABLE IF NOT EXISTS payment_transactions (
 );
 
 
--- ===================== 14. PROFILES =====================
+-- ===================== 16. PROFILES =====================
 CREATE TABLE IF NOT EXISTS profiles (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   name VARCHAR(100) NOT NULL,
@@ -285,7 +317,7 @@ CREATE TABLE IF NOT EXISTS profiles (
 );
 
 
--- ===================== 15. TRIPS =====================
+-- ===================== 17. TRIPS =====================
 CREATE TABLE IF NOT EXISTS trips (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   trip_number VARCHAR(50) NOT NULL UNIQUE,
@@ -305,7 +337,7 @@ CREATE TABLE IF NOT EXISTS trips (
 );
 
 
--- ===================== 16. USER_DEVICE_TOKENS =====================
+-- ===================== 18. USER_DEVICE_TOKENS =====================
 CREATE TABLE IF NOT EXISTS user_device_tokens (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
@@ -356,25 +388,91 @@ $function$
 
 
 CREATE OR REPLACE FUNCTION public.create_admin_notifications_rpc(p_title text, p_message text, p_type text, p_reference_id uuid DEFAULT NULL::uuid)
- RETURNS TABLE(admin_id uuid)
+ RETURNS TABLE(admin_id uuid, notification_title text, notification_message text)
  LANGUAGE plpgsql
  SECURITY DEFINER
  SET search_path TO 'public'
 AS $function$
+DECLARE
+  v_title TEXT;
+  v_message TEXT;
+  v_tracking_number TEXT;
+  v_sender_name TEXT;
+  v_rating INTEGER;
+  v_feedback_message TEXT;
 BEGIN
   IF auth.uid() IS NULL THEN
     RAISE EXCEPTION 'Authentication required';
   END IF;
 
+  IF p_type = 'order_update' THEN
+    SELECT o.tracking_number, o.sender_name
+      INTO v_tracking_number, v_sender_name
+      FROM public.orders AS o
+     WHERE o.id = p_reference_id
+       AND o.user_id = auth.uid();
+
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'Notification reference is not owned by the caller';
+    END IF;
+
+    v_title := 'New Booking';
+    v_message := format(
+      'New order %s from %s',
+      v_tracking_number,
+      COALESCE(NULLIF(btrim(v_sender_name), ''), 'Customer')
+    );
+  ELSIF p_type = 'feedback' THEN
+    SELECT f.rating, f.message
+      INTO v_rating, v_feedback_message
+      FROM public.customer_feedback AS f
+      JOIN public.orders AS o ON o.id = f.order_id
+     WHERE f.order_id = p_reference_id
+       AND f.customer_id = auth.uid()
+       AND o.user_id = auth.uid()
+       AND o.status = 'Delivered';
+
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'Notification reference is not an owned delivered-order feedback';
+    END IF;
+
+    v_title := 'New Customer Feedback';
+    v_message := format(
+      '%s★ rating%s',
+      v_rating,
+      CASE
+        WHEN NULLIF(btrim(v_feedback_message), '') IS NULL THEN ''
+        ELSE ': ' || left(btrim(v_feedback_message), 60)
+      END
+    );
+  ELSE
+    RAISE EXCEPTION 'Unsupported customer notification event';
+  END IF;
+
+  -- One notification fan-out per event key. The advisory lock closes the
+  -- race where two browser callbacks arrive in the same millisecond.
+  PERFORM pg_advisory_xact_lock(
+    hashtextextended(p_type || ':' || COALESCE(p_reference_id::TEXT, ''), 0)
+  );
+  IF EXISTS (
+    SELECT 1
+      FROM public.notifications AS n
+     WHERE n.type = p_type
+       AND n.reference_id = p_reference_id
+       AND n.created_at > now() - INTERVAL '10 minutes'
+  ) THEN
+    RETURN;
+  END IF;
+
   RETURN QUERY
   WITH inserted AS (
     INSERT INTO public.notifications (user_id, title, message, type, reference_id)
-    SELECT id, p_title, p_message, p_type, p_reference_id
-    FROM public.profiles
-    WHERE role = 'admin'
+    SELECT p.id, v_title, v_message, p_type, p_reference_id
+      FROM public.profiles AS p
+     WHERE p.role = 'admin'
     RETURNING user_id
   )
-  SELECT user_id FROM inserted;
+  SELECT user_id, v_title, v_message FROM inserted;
 END;
 $function$
 
@@ -499,6 +597,9 @@ BEGIN
      GROUP BY status
   ) s;
 
+  -- A status with no orders is simply absent; the client reads a missing key
+  -- as 0. Padding every known status with a zero here would invent rows the
+  -- table does not have.
   RETURN payload;
 END;
 $function$
@@ -1055,6 +1156,48 @@ $function$
 
 
 
+CREATE OR REPLACE FUNCTION public.guard_customer_order_insert()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_trip_status TEXT;
+  v_departure_at TIMESTAMPTZ;
+BEGIN
+  IF auth.uid() IS NULL OR public.is_admin() THEN
+    RETURN NEW;
+  END IF;
+
+  NEW.featured_on_website := false;
+  NEW.featured_title := NULL;
+  NEW.featured_caption := NULL;
+  NEW.featured_image_type := NULL;
+  NEW.featured_at := NULL;
+
+  IF NEW.trip_id IS NOT NULL THEN
+    SELECT t.status, t.departure_date
+      INTO v_trip_status, v_departure_at
+      FROM public.trips AS t
+     WHERE t.id = NEW.trip_id;
+
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'Selected trip does not exist';
+    END IF;
+
+    IF v_trip_status IN ('cancelled', 'completed')
+       OR v_departure_at <= now() THEN
+      RAISE EXCEPTION 'This trip is no longer accepting bookings';
+    END IF;
+  END IF;
+
+  RETURN NEW;
+END;
+$function$
+
+
+
 CREATE OR REPLACE FUNCTION public.guard_order_update()
  RETURNS trigger
  LANGUAGE plpgsql
@@ -1225,15 +1368,53 @@ CREATE OR REPLACE FUNCTION public.handle_new_user()
  SECURITY DEFINER
  SET search_path TO 'public'
 AS $function$
+DECLARE
+  v_terms_version TEXT;
+  v_privacy_version TEXT;
+  v_requested_version TEXT;
 BEGIN
+  SELECT version INTO v_terms_version
+  FROM public.legal_documents
+  WHERE document_type = 'terms_of_service' AND is_current = true;
+
+  SELECT version INTO v_privacy_version
+  FROM public.legal_documents
+  WHERE document_type = 'privacy_policy' AND is_current = true;
+
+  v_requested_version := NULLIF(trim(NEW.raw_user_meta_data->>'legal_policy_version'), '');
+
+  IF v_terms_version IS NULL OR v_privacy_version IS NULL THEN
+    RAISE EXCEPTION 'Account creation is temporarily unavailable because legal documents are not published.'
+      USING ERRCODE = 'P0001';
+  END IF;
+
+  IF COALESCE(NEW.raw_user_meta_data->>'legal_terms_accepted', 'false') <> 'true'
+     OR COALESCE(NEW.raw_user_meta_data->>'legal_privacy_accepted', 'false') <> 'true'
+     OR v_requested_version IS DISTINCT FROM v_terms_version
+     OR v_requested_version IS DISTINCT FROM v_privacy_version THEN
+    RAISE EXCEPTION 'The current Terms of Service and Privacy Policy must be accepted to create an account.'
+      USING ERRCODE = '22023';
+  END IF;
+
   INSERT INTO public.profiles (id, email, name, role, created_at, updated_at)
   VALUES (
-    NEW.id, NEW.email,
-    COALESCE(NULLIF(NEW.raw_user_meta_data->>'name',''), initcap(split_part(NEW.email,'@',1))),
-    'customer', now(), now()
-  ) ON CONFLICT (id) DO NOTHING;
+    NEW.id,
+    NEW.email,
+    COALESCE(NULLIF(NEW.raw_user_meta_data->>'name', ''), initcap(split_part(NEW.email, '@', 1))),
+    'customer',
+    now(),
+    now()
+  )
+  ON CONFLICT (id) DO NOTHING;
+
+  INSERT INTO public.legal_consents (user_id, document_type, document_version, source)
+  VALUES
+    (NEW.id, 'terms_of_service', v_terms_version, 'registration'),
+    (NEW.id, 'privacy_policy', v_privacy_version, 'registration');
+
   RETURN NEW;
-END; $function$
+END;
+$function$
 
 
 
@@ -1409,6 +1590,43 @@ AS $function$
         ELSE ''
       END
   END
+$function$
+
+
+
+CREATE OR REPLACE FUNCTION public.notify_admins_of_contact_inquiry()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+BEGIN
+  INSERT INTO public.notifications (user_id, title, message, type, reference_id)
+  SELECT
+    p.id,
+    'New Contact Inquiry',
+    format(
+      'Inquiry from %s: %s',
+      COALESCE(NULLIF(btrim(NEW.name), ''), 'Visitor'),
+      left(COALESCE(btrim(NEW.message), ''), 80)
+    ),
+    'inquiry',
+    NEW.id
+  FROM public.profiles AS p
+  WHERE p.role = 'admin';
+
+  RETURN NEW;
+END;
+$function$
+
+
+
+CREATE OR REPLACE FUNCTION public.ph_calendar_day(ts timestamp with time zone)
+ RETURNS date
+ LANGUAGE sql
+ IMMUTABLE PARALLEL SAFE STRICT
+AS $function$
+  SELECT ((ts + INTERVAL '8 hours') AT TIME ZONE 'UTC')::date;
 $function$
 
 
@@ -1921,16 +2139,6 @@ $function$
 
 
 
-CREATE OR REPLACE FUNCTION public.ph_calendar_day(ts timestamp with time zone)
- RETURNS date
- LANGUAGE sql
- IMMUTABLE STRICT PARALLEL SAFE
-AS $function$
-  SELECT ((ts + INTERVAL '8 hours') AT TIME ZONE 'UTC')::date;
-$function$
-
-
-
 CREATE OR REPLACE FUNCTION public.safe_uuid(value text)
  RETURNS uuid
  LANGUAGE plpgsql
@@ -2289,11 +2497,19 @@ REVOKE ALL ON FUNCTION public.derive_payment_status(p_shipping_cost numeric, p_a
 GRANT EXECUTE ON FUNCTION public.derive_payment_status(p_shipping_cost numeric, p_amount_paid numeric) TO service_role;
 GRANT EXECUTE ON FUNCTION public.derive_payment_status(p_shipping_cost numeric, p_amount_paid numeric) TO authenticated;
 
+REVOKE ALL ON FUNCTION public.get_order_status_counts() FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.get_order_status_counts() FROM anon;
+REVOKE ALL ON FUNCTION public.get_order_status_counts() FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.get_order_status_counts() TO service_role;
+GRANT EXECUTE ON FUNCTION public.get_order_status_counts() TO authenticated;
+
 REVOKE ALL ON FUNCTION public.get_service_summary() FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.get_service_summary() FROM anon;
 REVOKE ALL ON FUNCTION public.get_service_summary() FROM authenticated;
 GRANT EXECUTE ON FUNCTION public.get_service_summary() TO service_role;
 GRANT EXECUTE ON FUNCTION public.get_service_summary() TO authenticated;
+
+REVOKE ALL ON FUNCTION public.notify_admins_of_contact_inquiry() FROM PUBLIC;
 
 REVOKE ALL ON FUNCTION public.purge_old_activity_logs() FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.purge_old_activity_logs() FROM anon;
@@ -2361,6 +2577,9 @@ CREATE TRIGGER chat_messages_maintain_service_state AFTER INSERT ON chat_message
 DROP TRIGGER IF EXISTS trigger_log_customer_chat ON public.chat_messages;
 CREATE TRIGGER trigger_log_customer_chat AFTER INSERT ON chat_messages FOR EACH ROW EXECUTE FUNCTION log_customer_chat_message();
 
+DROP TRIGGER IF EXISTS contact_inquiries_notify_admins ON public.contact_inquiries;
+CREATE TRIGGER contact_inquiries_notify_admins AFTER INSERT ON contact_inquiries FOR EACH ROW EXECUTE FUNCTION notify_admins_of_contact_inquiry();
+
 DROP TRIGGER IF EXISTS contact_inquiries_stamp_service_state ON public.contact_inquiries;
 CREATE TRIGGER contact_inquiries_stamp_service_state BEFORE UPDATE OF status ON contact_inquiries FOR EACH ROW EXECUTE FUNCTION stamp_inquiry_service_state();
 
@@ -2369,6 +2588,9 @@ CREATE TRIGGER conversations_guard_update BEFORE UPDATE ON conversations FOR EAC
 
 DROP TRIGGER IF EXISTS conversations_stamp_resolved_at ON public.conversations;
 CREATE TRIGGER conversations_stamp_resolved_at BEFORE UPDATE OF status ON conversations FOR EACH ROW EXECUTE FUNCTION stamp_conversation_resolved_at();
+
+DROP TRIGGER IF EXISTS orders_guard_customer_insert ON public.orders;
+CREATE TRIGGER orders_guard_customer_insert BEFORE INSERT ON orders FOR EACH ROW EXECUTE FUNCTION guard_customer_order_insert();
 
 DROP TRIGGER IF EXISTS orders_guard_update ON public.orders;
 CREATE TRIGGER orders_guard_update BEFORE UPDATE ON orders FOR EACH ROW EXECUTE FUNCTION guard_order_update();
@@ -2427,6 +2649,10 @@ CREATE INDEX IF NOT EXISTS idx_contact_inquiries_status ON public.contact_inquir
 
 CREATE INDEX IF NOT EXISTS idx_customer_feedback_customer_id ON public.customer_feedback USING btree (customer_id);
 
+CREATE INDEX IF NOT EXISTS idx_legal_consents_user_accepted ON public.legal_consents USING btree (user_id, accepted_at DESC);
+
+CREATE UNIQUE INDEX IF NOT EXISTS legal_documents_one_current_version ON public.legal_documents USING btree (document_type) WHERE is_current;
+
 CREATE INDEX IF NOT EXISTS idx_notification_delivery_attempts_notification_id ON public.notification_delivery_attempts USING btree (notification_id, attempted_at DESC);
 
 CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON public.notifications USING btree (user_id);
@@ -2465,12 +2691,7 @@ CREATE INDEX IF NOT EXISTS idx_trips_departure_date ON public.trips USING btree 
 
 CREATE INDEX IF NOT EXISTS idx_trips_status ON public.trips USING btree (status);
 
--- One non-cancelled trip per route per PH calendar day (20260818090000).
--- ph_calendar_day() exists because AT TIME ZONE <name> is STABLE and therefore
--- not indexable; PHT is a fixed UTC+8 so the offset form is genuinely immutable.
-CREATE UNIQUE INDEX IF NOT EXISTS trips_unique_route_departure_day
-  ON public.trips USING btree (origin, destination, public.ph_calendar_day(departure_date))
-  WHERE ((status)::text <> 'cancelled'::text);
+CREATE UNIQUE INDEX IF NOT EXISTS trips_unique_route_departure_day ON public.trips USING btree (origin, destination, ph_calendar_day(departure_date)) WHERE ((status)::text <> 'cancelled'::text);
 
 CREATE INDEX IF NOT EXISTS idx_user_device_tokens_user_id ON public.user_device_tokens USING btree (user_id);
 
@@ -2648,17 +2869,41 @@ CREATE POLICY "Admins can manage all feedback" ON public.customer_feedback
    FROM profiles
   WHERE ((profiles.id = auth.uid()) AND ((profiles.role)::text = 'admin'::text)))));
 
-DROP POLICY IF EXISTS "Customers can insert own feedback" ON public.customer_feedback;
-CREATE POLICY "Customers can insert own feedback" ON public.customer_feedback
+DROP POLICY IF EXISTS "Customers can insert own delivered-order feedback" ON public.customer_feedback;
+CREATE POLICY "Customers can insert own delivered-order feedback" ON public.customer_feedback
   FOR INSERT
   TO authenticated
-  WITH CHECK ((auth.uid() = customer_id));
+  WITH CHECK (((auth.uid() = customer_id) AND (EXISTS ( SELECT 1
+   FROM orders o
+  WHERE ((o.id = customer_feedback.order_id) AND (o.user_id = auth.uid()) AND ((o.status)::text = 'Delivered'::text))))));
 
 DROP POLICY IF EXISTS "Customers can read own feedback" ON public.customer_feedback;
 CREATE POLICY "Customers can read own feedback" ON public.customer_feedback
   FOR SELECT
   TO authenticated
   USING ((auth.uid() = customer_id));
+
+ALTER TABLE public.legal_consents ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Admins can view legal consents" ON public.legal_consents;
+CREATE POLICY "Admins can view legal consents" ON public.legal_consents
+  FOR SELECT
+  TO authenticated
+  USING (is_admin());
+
+DROP POLICY IF EXISTS "Users can view own legal consents" ON public.legal_consents;
+CREATE POLICY "Users can view own legal consents" ON public.legal_consents
+  FOR SELECT
+  TO authenticated
+  USING ((user_id = auth.uid()));
+
+ALTER TABLE public.legal_documents ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Published legal documents are public" ON public.legal_documents;
+CREATE POLICY "Published legal documents are public" ON public.legal_documents
+  FOR SELECT
+  TO anon,authenticated
+  USING (is_current);
 
 ALTER TABLE public.notification_delivery_attempts ENABLE ROW LEVEL SECURITY;
 

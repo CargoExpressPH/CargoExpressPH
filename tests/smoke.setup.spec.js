@@ -70,6 +70,8 @@ test.describe('harness smoke check', () => {
     await page.getByRole('link', { name: 'Back' }).click();
     await expect(page).toHaveURL(/\/register\?step=2/);
     await expect(page.locator('#reg-legal-consent')).toBeVisible();
+    await expect(page.locator('#reg-province')).toBeVisible();
+    await page.getByRole('button', { name: 'Back' }).click();
     await expect(page.locator('#reg-name')).toHaveValue('Test Customer');
   });
 

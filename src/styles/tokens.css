@@ -368,6 +368,32 @@
   --error-icon-bg: rgba(248, 113, 113, 0.18);
   --info-icon-bg: rgba(96, 165, 250, 0.18);
 
+  /* -- Status badges (dark mode; keep every shipment stage distinguishable) -- */
+  --badge-pending-bg: rgba(251, 146, 60, 0.15);
+  --badge-pending-color: #FDBA74;
+  --badge-pending-border: rgba(251, 146, 60, 0.30);
+  --badge-assigned-bg: rgba(96, 165, 250, 0.15);
+  --badge-assigned-color: #93C5FD;
+  --badge-assigned-border: rgba(96, 165, 250, 0.30);
+  --badge-pickedup-bg: rgba(34, 197, 94, 0.15);
+  --badge-pickedup-color: #86EFAC;
+  --badge-pickedup-border: rgba(34, 197, 94, 0.30);
+  --badge-intransit-bg: rgba(56, 189, 248, 0.15);
+  --badge-intransit-color: #7DD3FC;
+  --badge-intransit-border: rgba(56, 189, 248, 0.30);
+  --badge-arrived-bg: rgba(16, 185, 129, 0.15);
+  --badge-arrived-color: #6EE7B7;
+  --badge-arrived-border: rgba(16, 185, 129, 0.30);
+  --badge-outdelivery-bg: rgba(192, 132, 252, 0.15);
+  --badge-outdelivery-color: #D8B4FE;
+  --badge-outdelivery-border: rgba(192, 132, 252, 0.30);
+  --badge-delivered-bg: rgba(74, 222, 128, 0.18);
+  --badge-delivered-color: #4ADE80;
+  --badge-delivered-border: rgba(74, 222, 128, 0.35);
+  --badge-cancelled-bg: rgba(248, 113, 113, 0.15);
+  --badge-cancelled-color: #FCA5A5;
+  --badge-cancelled-border: rgba(248, 113, 113, 0.30);
+
   --chart-purple: #A78BFA;
   --chart-pink: #F472B6;
   --chart-slate: #94A3B8;

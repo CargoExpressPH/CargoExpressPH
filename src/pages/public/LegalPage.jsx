@@ -155,7 +155,7 @@ const LegalPage = ({ documentKey }) => {
         <div className="legal-eyebrow"><Icon size={16} /> Legal information</div>
         <h1 id="legal-title">{document.title}</h1>
         <p>Clear terms for using Cargo Express PH and transparent information about your rights.</p>
-        <p className="legal-effective-date">Last updated · {document.effectiveDate}</p>
+        <p className="legal-effective-date">Effective date: {document.effectiveDate}</p>
       </section>
 
       <div className="legal-content-wrap">

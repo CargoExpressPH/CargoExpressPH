@@ -4,6 +4,12 @@
    ----------------------------------------------------------------------- */
 
 .app-layout {
+  /* Scoped overrides on purpose — these are NOT duplicates of the
+     tokens.css aliases. Several alias mappings resolve to different values
+     (e.g. dark --admin-green-dark -> var(--primary-lighter) = #14532D,
+     unreadable as text on the dark surface). The refresh layer wins over
+     layer(tokens), and removing this block would silently darken headings,
+     active sidebar items and muted text in dark mode. */
   --admin-green: #16A34A;
   --admin-green-dark: #0B5F3D;
   --admin-green-soft: #F0FDF4;

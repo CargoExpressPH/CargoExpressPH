@@ -268,6 +268,8 @@ const PaymentCollectionPanel = ({
   const [checkingPayment, setCheckingPayment] = useState(false);
   const receiptInputRef = useRef(null);
   const pollRef = useRef(null);
+  const paymentCheckInFlightRef = useRef(false);
+  const paymentConfirmedRef = useRef(false);
   // amount_paid when the QR was generated — anything above it is new money
   const baselinePaidRef = useRef(parseFloat(order?.amount_paid || 0));
 
@@ -302,6 +304,7 @@ const PaymentCollectionPanel = ({
         ...(config.sourceMetadata || {}),
       });
       baselinePaidRef.current = parseFloat(order?.amount_paid || 0);
+      paymentConfirmedRef.current = false;
       patch({
         confirmed: null,
         sourceId: source.sourceId,
@@ -314,9 +317,10 @@ const PaymentCollectionPanel = ({
     }
   };
 
-  const resetFlow = (notice = '') => patch({
-    paymentStep: 'setup', sourceId: null, checkoutUrl: null, confirmed: null, notice,
-  });
+  const resetFlow = (notice = '') => {
+    paymentConfirmedRef.current = false;
+    patch({ paymentStep: 'setup', sourceId: null, checkoutUrl: null, confirmed: null, notice });
+  };
 
   /**
    * Abandon a pending checkout — the "cancelled" half of the gate.
@@ -333,8 +337,10 @@ const PaymentCollectionPanel = ({
 
   /** Records a confirmed payment from a fresh `orders` row. */
   const applyConfirmedOrder = (row) => {
+    if (paymentConfirmedRef.current) return true;
     const paid = parseFloat(row?.amount_paid || 0);
     if (!(paid > baselinePaidRef.current)) return false;
+    paymentConfirmedRef.current = true;
     setValue(prev => ({
       ...prev,
       confirmed: {
@@ -354,16 +360,28 @@ const PaymentCollectionPanel = ({
    * trigger owns them, so that is the truth regardless of what poll returned.
    */
   const checkPaymentNow = async (silent = false) => {
-    if (!value.sourceId || !order?.id) return;
+    if (!value.sourceId || !order?.id || paymentCheckInFlightRef.current) return;
+    paymentCheckInFlightRef.current = true;
     if (!silent) { setCheckingPayment(true); patch({ notice: '' }); }
     try {
-      await pollPaymentStatus(value.sourceId, order.id).catch(() => null);
-      const { data: fresh } = await supabase
+      const pollResult = await pollPaymentStatus(value.sourceId, order.id).catch(() => null);
+      const { data: attempt, error: attemptError } = await supabase
+        .from('payment_attempts')
+        .select('status, payment_status')
+        .eq('source_id', value.sourceId)
+        .maybeSingle();
+      if (attemptError) throw attemptError;
+      const { data: fresh, error: orderError } = await supabase
         .from('orders')
         .select('amount_paid, remaining_balance, payment_status, payment_reference')
         .eq('id', order.id)
         .single();
-      const found = applyConfirmedOrder(fresh);
+      if (orderError) throw orderError;
+      const sourceReconciled = pollResult?.orderReconciled
+        || pollResult?.status === 'paid'
+        || attempt?.status === 'reconciled'
+        || attempt?.payment_status === 'paid';
+      const found = sourceReconciled && applyConfirmedOrder(fresh);
       if (!found && !silent) {
         config.onError?.('No payment received yet. Ask the customer to complete the GCash payment, then check again.');
       }
@@ -371,6 +389,7 @@ const PaymentCollectionPanel = ({
       if (!silent) config.onError?.(err.message || 'Could not check payment status.');
     } finally {
       if (!silent) setCheckingPayment(false);
+      paymentCheckInFlightRef.current = false;
     }
   };
 
@@ -389,7 +408,7 @@ const PaymentCollectionPanel = ({
         schema: 'public',
         table: 'orders',
         filter: `id=eq.${order.id}`,
-      }, (payload) => applyConfirmedOrder(payload.new))
+      }, () => { void checkPaymentNow(true); })
       .subscribe();
 
     pollRef.current = setInterval(() => checkPaymentNow(true), 15000);

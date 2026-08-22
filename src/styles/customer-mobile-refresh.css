@@ -56,6 +56,12 @@
 }
 
 .customer-layout-v2 {
+  /* Scoped overrides on purpose — these are NOT duplicates of the
+     tokens.css aliases. Several alias mappings resolve to different values
+     (e.g. dark --customer-green-dark -> var(--primary-lighter) = #14532D,
+     unreadable as text on the dark surface). The refresh layer wins over
+     layer(tokens), and removing this block would silently darken headings,
+     active nav items and muted text in dark mode. */
   --customer-green: #16A34A;
   --customer-green-dark: #0B5F3D;
   --customer-green-soft: #F0FDF4;

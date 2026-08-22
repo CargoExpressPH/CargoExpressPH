@@ -7,12 +7,13 @@ import useScrollLock from '../../hooks/useScrollLock';
 import { sanitizeAmount, parseAmount, formatAmount } from '../../utils/currencyInput';
 import { uploadPhoto } from '../../lib/storage';
 import QRCode from 'react-qr-code';
-import { createGCashSource, registerSource } from '../../lib/paymongo';
+import { createGCashSource, registerSource, pollPaymentStatus } from '../../lib/paymongo';
+import { supabase } from '../../lib/supabase';
 
 /**
  * AdditionalPaymentModal — Manually collects additional payments for remaining balances.
  */
-const AdditionalPaymentModal = ({ order, remainingBalance, onClose, onSave }) => {
+const AdditionalPaymentModal = ({ order, remainingBalance, onClose, onSave, onPaymentConfirmed }) => {
   useScrollLock(true); // mounted only while open
 
   const [form, setForm] = useState({
@@ -35,8 +36,13 @@ const AdditionalPaymentModal = ({ order, remainingBalance, onClose, onSave }) =>
   const [paymentStep, setPaymentStep] = useState('setup');
   const [paymongoSourceId, setPaymongoSourceId] = useState(null);
   const [checkoutUrl, setCheckoutUrl] = useState(null);
+  const [paymentConfirmed, setPaymentConfirmed] = useState(null);
+  const [checkingPayment, setCheckingPayment] = useState(false);
 
   const receiptInputRef = useRef(null);
+  const paymentChannelRef = useRef(null);
+  const baselinePaidRef = useRef(Number(order?.amount_paid || 0));
+  const paymentConfirmedRef = useRef(false);
 
   const isLocked = saving || paymentStep === 'generating';
 
@@ -68,7 +74,7 @@ const AdditionalPaymentModal = ({ order, remainingBalance, onClose, onSave }) =>
 
   // GCash QR generated and no manual reference typed: the footer button only
   // dismisses the modal — the webhook records the payment, not this form.
-  const isDoneStep = form.payment_method === 'gcash' && paymentStep === 'waiting';
+  const isDoneStep = form.payment_method === 'gcash' && paymentStep === 'waiting' && paymentConfirmed;
 
   const handleProceedToGCash = async () => {
     try {
@@ -90,6 +96,9 @@ const AdditionalPaymentModal = ({ order, remainingBalance, onClose, onSave }) =>
       
       setPaymongoSourceId(source.sourceId);
       setCheckoutUrl(source.checkoutUrl);
+      baselinePaidRef.current = Number(order?.amount_paid || 0);
+      paymentConfirmedRef.current = false;
+      setPaymentConfirmed(null);
       setPaymentStep('waiting');
     } catch (err) {
       setError(err.message);
@@ -108,6 +117,73 @@ const AdditionalPaymentModal = ({ order, remainingBalance, onClose, onSave }) =>
       resetPayMongoFlow();
     }
   }, [form.payment_method]);
+
+  const applyConfirmedPayment = (row) => {
+    if (paymentConfirmedRef.current) return true;
+    const paid = Number(row?.amount_paid || 0);
+    if (!(paid > baselinePaidRef.current)) return false;
+    paymentConfirmedRef.current = true;
+    const confirmation = {
+      received: paid - baselinePaidRef.current,
+      amountPaid: paid,
+      remaining: Number(row?.remaining_balance || 0),
+      status: row?.payment_status || 'paid',
+    };
+    setPaymentConfirmed(confirmation);
+    void onPaymentConfirmed?.(confirmation);
+    return true;
+  };
+
+  const checkPaymentNow = async () => {
+    if (!paymongoSourceId || checkingPayment) return;
+    setCheckingPayment(true);
+    setError('');
+    try {
+      const pollResult = await pollPaymentStatus(paymongoSourceId, order.id).catch(() => null);
+      const { data: attempt, error: attemptError } = await supabase
+        .from('payment_attempts')
+        .select('status, payment_status')
+        .eq('source_id', paymongoSourceId)
+        .maybeSingle();
+      if (attemptError) throw attemptError;
+      const { data, error: orderError } = await supabase
+        .from('orders')
+        .select('amount_paid, remaining_balance, payment_status')
+        .eq('id', order.id)
+        .single();
+      if (orderError) throw orderError;
+      const sourceReconciled = pollResult?.orderReconciled
+        || pollResult?.status === 'paid'
+        || attempt?.status === 'reconciled'
+        || attempt?.payment_status === 'paid';
+      if (!sourceReconciled || !applyConfirmedPayment(data)) {
+        setError('No payment received yet. Ask the customer to complete GCash payment, then check again.');
+      }
+    } catch (err) {
+      setError(err.message || 'Could not check payment status.');
+    } finally {
+      setCheckingPayment(false);
+    }
+  };
+
+  useEffect(() => {
+    if (paymentStep !== 'waiting' || !paymongoSourceId || paymentConfirmed) return undefined;
+
+    const channel = supabase
+      .channel(`additional_payment_${order.id}`)
+      .on('postgres_changes', {
+        event: 'UPDATE', schema: 'public', table: 'orders', filter: `id=eq.${order.id}`,
+      }, () => { void checkPaymentNow(); })
+      .subscribe();
+    paymentChannelRef.current = channel;
+    const fallbackPoll = setInterval(() => { void checkPaymentNow(); }, 15000);
+
+    return () => {
+      void supabase.removeChannel(channel);
+      if (paymentChannelRef.current === channel) paymentChannelRef.current = null;
+      clearInterval(fallbackPoll);
+    };
+  }, [paymentStep, paymongoSourceId, paymentConfirmed, order.id]);
 
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -154,6 +230,11 @@ const AdditionalPaymentModal = ({ order, remainingBalance, onClose, onSave }) =>
     // to save — just close.
     if (isDoneStep) {
       onClose();
+      return;
+    }
+
+    if (form.payment_method === 'gcash' && paymentStep === 'waiting') {
+      setError('Wait for payment confirmation or use Check payment before closing this collection.');
       return;
     }
 
@@ -308,11 +389,23 @@ const AdditionalPaymentModal = ({ order, remainingBalance, onClose, onSave }) =>
                       </div>
                     </div>
 
-                    <ol className="m-0 text-secondary" style={{ paddingLeft: 18, fontSize: '0.8125rem', lineHeight: 1.9 }}>
-                      <li>Scan the QR, or tap <strong>Open GCash</strong> for the checkout page</li>
-                      <li>Approve the payment in the GCash app</li>
-                      <li>Done — this window updates by itself the moment the payment lands</li>
-                    </ol>
+                    {paymentConfirmed ? (
+                      <div className="alert-banner alert-banner-success mb-12" role="status">
+                        <CheckCircle size={15} aria-hidden="true" />
+                        <span>Payment received — ₱{formatAmount(paymentConfirmed.received.toFixed(2))} recorded automatically.</span>
+                      </div>
+                    ) : (
+                      <>
+                        <ol className="m-0 text-secondary" style={{ paddingLeft: 18, fontSize: '0.8125rem', lineHeight: 1.9 }}>
+                          <li>Scan the QR, or tap <strong>Open GCash</strong> for the checkout page</li>
+                          <li>Approve the payment in the GCash app</li>
+                          <li>This window updates automatically when the payment lands</li>
+                        </ol>
+                        <button type="button" className="btn btn-secondary btn-sm w-full justify-center mt-10" onClick={checkPaymentNow} disabled={checkingPayment}>
+                          {checkingPayment ? <><Loader size={14} className="animate-spin mr-6" /> Checking…</> : 'Check payment'}
+                        </button>
+                      </>
+                    )}
 
                     <div className="flex gap-8 flex-wrap">
                       <button
@@ -415,11 +508,12 @@ const AdditionalPaymentModal = ({ order, remainingBalance, onClose, onSave }) =>
               onClick={handleSave}
               disabled={
                 saving ||
+                (form.payment_method === 'gcash' && paymentStep === 'waiting' && !paymentConfirmed) ||
                 (!isDoneStep && !amountValid) ||
                 (form.payment_method === 'gcash' && paymentStep !== 'waiting' && !(form.payment_reference && form.payment_reference.trim()))
               }
             >
-              {saving ? <><Loader size={16} className="animate-spin" /> {uploadProgress || 'Saving...'}</> : <><CheckCircle size={16} /> {isDoneStep ? 'Done' : 'Record Payment'}</>}
+              {saving ? <><Loader size={16} className="animate-spin" /> {uploadProgress || 'Saving...'}</> : <><CheckCircle size={16} /> {isDoneStep ? 'Done' : paymentStep === 'waiting' ? 'Waiting for payment' : 'Record Payment'}</>}
             </button>
           </div>
         </div>

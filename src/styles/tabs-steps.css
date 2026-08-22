@@ -56,6 +56,25 @@
 .step {
   display: flex; align-items: center; gap: 8px; flex: 1; position: relative;
 }
+button.step.clickable {
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+button.step.clickable:hover .step-number {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+}
+button.step.clickable:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 4px;
+  border-radius: var(--radius-sm);
+}
 .step-number {
   width: 40px; height: 40px; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;

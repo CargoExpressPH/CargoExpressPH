@@ -4,6 +4,7 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { getOrderById, requestOrderCancellation, getPaymentTransactions, submitFeedback, checkIfFeedbackExists, getOrderStatusEvents, getLatestPaymentAttemptByOrder } from '../../lib/database';
 import { buildStatusTimestamps } from '../../utils/statusTimestamps';
 import { resolvePhotoUrls } from '../../lib/storage';
+import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { initiateGCashPayment, registerSource, pollPaymentStatus } from '../../lib/paymongo';
 import StatusBadge from '../../components/ui/StatusBadge';
@@ -68,6 +69,7 @@ const OrderDetailPage = () => {
 
   const [processingPayment, setProcessingPayment] = useState(false);
   const [verifyingPayment, setVerifyingPayment] = useState(false);
+  const [paymentVerificationPending, setPaymentVerificationPending] = useState(false);
 
   // Statuses where payment is allowed (cargo has been picked up and weighed)
   const PAYABLE_STATUSES = ['Picked Up', 'In Transit', 'Arrived at Hub', 'Out for Delivery'];
@@ -75,6 +77,10 @@ const OrderDetailPage = () => {
   // Timeout ref — cleared if data arrives before LOAD_TIMEOUT_MS
   const timeoutRef = useRef(null);
   const isMountedRef = useRef(true);
+  const paymentSourceRef = useRef(null);
+  const paymentChannelRef = useRef(null);
+  const paymentConfirmedRef = useRef(false);
+  const paymentVerificationInFlightRef = useRef(false);
 
   const clearLoadTimeout = useCallback(() => {
     if (timeoutRef.current) {
@@ -171,70 +177,173 @@ const OrderDetailPage = () => {
     newParams.delete('payment');
     setSearchParams(newParams, { replace: true });
 
-    if (paymentResult === 'success') {
-      const storedSourceId = localStorage.getItem(`pending_payment_${id}`);
-      if (!storedSourceId) {
-        // No stored source — the app may have been reinstalled or cleared.
-        // Fall back to the latest attempt in the database before giving up.
-        setVerifyingPayment(true);
-        const fallback = async () => {
-          try {
-            const attempt = await getLatestPaymentAttemptByOrder(id);
-            if (attempt?.source_id && attempt.status !== 'reconciled') {
-              const result = await pollPaymentStatus(attempt.source_id, id);
-              if (result.orderReconciled) {
-                toast.success('Payment confirmed! Your order has been updated.');
-                await loadOrder();
-                return;
-              }
-            }
-          } catch {
-            // The webhook is the safety net here.
-          }
-          toast.info('Verifying payment status...');
-          setTimeout(() => loadOrder(), 2000);
-        };
-        fallback().finally(() => { if (isMountedRef.current) setVerifyingPayment(false); });
-        return;
-      }
-
-      setVerifyingPayment(true);
-      toast.info('Verifying your payment...');
-
-      // Poll the server to trigger reconciliation
-      const verify = async () => {
-        try {
-          const result = await pollPaymentStatus(storedSourceId, id);
-          if (result.orderReconciled) {
-            localStorage.removeItem(`pending_payment_${id}`);
-            toast.success('Payment confirmed! Your order has been updated.');
-            await loadOrder();
-          } else {
-            // Payment not yet confirmed — retry after a delay
-            await new Promise(r => setTimeout(r, 3000));
-            const retry = await pollPaymentStatus(storedSourceId, id);
-            if (retry.orderReconciled) {
-              localStorage.removeItem(`pending_payment_${id}`);
-              toast.success('Payment confirmed! Your order has been updated.');
-            } else {
-              toast.info('Payment is being processed. Your order will update shortly.');
-            }
-            await loadOrder();
-          }
-        } catch (err) {
-          console.error('Payment verification error:', err);
-          toast.error('Could not verify payment. Please refresh the page.');
-          await loadOrder();
-        } finally {
-          if (isMountedRef.current) setVerifyingPayment(false);
-        }
-      };
-      verify();
-    } else if (paymentResult === 'failed') {
+    // The success path is handled by the resilient effect below: it combines
+    // realtime order updates, fallback polling, and a manual refresh action.
+    if (paymentResult === 'failed') {
       localStorage.removeItem(`pending_payment_${id}`);
       toast.error('Payment was not completed. You can try again.');
     }
   }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const clearPaymentReconciliation = useCallback(() => {
+    if (paymentChannelRef.current) {
+      void supabase.removeChannel(paymentChannelRef.current);
+      paymentChannelRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => () => clearPaymentReconciliation(), [clearPaymentReconciliation]);
+
+  const isPaymentSettled = (row) => (
+    row?.payment_status === 'paid'
+    || (Number(row?.amount_paid) > 0 && Number(row?.remaining_balance) <= 0)
+  );
+
+  const markPaymentConfirmed = useCallback(async () => {
+    if (paymentConfirmedRef.current) return true;
+    paymentConfirmedRef.current = true;
+    clearPaymentReconciliation();
+    localStorage.removeItem(`pending_payment_${id}`);
+    if (isMountedRef.current) {
+      setPaymentVerificationPending(false);
+      setVerifyingPayment(false);
+      toast.success('Payment confirmed! Your order has been updated.');
+      await loadOrder();
+    }
+    return true;
+  }, [clearPaymentReconciliation, id, loadOrder, toast]);
+
+  /**
+   * Reconcile a returned PayMongo source for about 20 seconds. The webhook is
+   * authoritative, but the customer needs active checks while it is in flight.
+   * The realtime subscription below covers a webhook that lands between polls.
+   */
+  const verifyPaymentStatus = useCallback(async () => {
+    const sourceId = paymentSourceRef.current;
+    if (!sourceId || !id || paymentVerificationInFlightRef.current) return false;
+
+    paymentVerificationInFlightRef.current = true;
+    if (isMountedRef.current) {
+      setVerifyingPayment(true);
+      setPaymentVerificationPending(false);
+    }
+
+    const retryDelays = [0, 2000, 4000, 6000, 8000];
+    try {
+      for (const delay of retryDelays) {
+        if (delay) await new Promise(resolve => setTimeout(resolve, delay));
+        if (!isMountedRef.current || paymentConfirmedRef.current) return paymentConfirmedRef.current;
+
+        try {
+          const result = await pollPaymentStatus(sourceId, id);
+          if (result.orderReconciled || result.status === 'paid') {
+            return await markPaymentConfirmed();
+          }
+        } catch {
+          // A transient verification error should not end reconciliation.
+        }
+
+        try {
+          const freshOrder = await getOrderById(id);
+          if (isPaymentSettled(freshOrder)) return await markPaymentConfirmed();
+        } catch {
+          // Keep the next retry alive; the normal page loader handles a
+          // persistent access or network failure.
+        }
+      }
+
+      if (isMountedRef.current && !paymentConfirmedRef.current) {
+        setVerifyingPayment(false);
+        setPaymentVerificationPending(true);
+        toast.info('Payment is still being confirmed. Refresh status in a moment.');
+      }
+      return false;
+    } finally {
+      paymentVerificationInFlightRef.current = false;
+    }
+  }, [id, markPaymentConfirmed, toast]);
+
+  const handleRefreshPaymentStatus = useCallback(async () => {
+    if (paymentSourceRef.current) {
+      await verifyPaymentStatus();
+      return;
+    }
+
+    try {
+      const attempt = await getLatestPaymentAttemptByOrder(id);
+      if (attempt?.status === 'reconciled') {
+        // markPaymentConfirmed clears the pending banner, removes the stored
+        // source, toasts and reloads — reloading alone left the "still being
+        // confirmed" notice on screen even though the payment had landed.
+        await markPaymentConfirmed();
+        return;
+      }
+      if (attempt?.source_id) {
+        paymentSourceRef.current = attempt.source_id;
+        setPaymentVerificationPending(false);
+        await verifyPaymentStatus();
+        return;
+      }
+    } catch {
+      // Fall through to a normal order refresh if the attempt lookup fails.
+    }
+    await loadOrder();
+  }, [id, loadOrder, markPaymentConfirmed, verifyPaymentStatus]);
+
+  // A successful return gets a realtime listener plus bounded backoff polling.
+  useEffect(() => {
+    if (searchParams.get('payment') !== 'success' || !id) return;
+
+    paymentConfirmedRef.current = false;
+    let sourceId = localStorage.getItem(`pending_payment_${id}`);
+
+    const beginVerification = async () => {
+      if (!sourceId) {
+        try {
+          const attempt = await getLatestPaymentAttemptByOrder(id);
+          if (attempt?.status === 'reconciled') {
+            localStorage.removeItem(`pending_payment_${id}`);
+            toast.success('Payment confirmed! Your order has been updated.');
+            await loadOrder();
+            return;
+          }
+          sourceId = attempt?.source_id || null;
+        } catch {
+          sourceId = null;
+        }
+      }
+
+      if (!sourceId) {
+        setVerifyingPayment(false);
+        setPaymentVerificationPending(true);
+        toast.info('Payment is being verified. Refresh status in a moment.');
+        return;
+      }
+
+      paymentSourceRef.current = sourceId;
+      setPaymentVerificationPending(false);
+      toast.info('Verifying your payment...');
+
+      paymentChannelRef.current = supabase
+        .channel(`customer_payment_${id}`)
+        .on('postgres_changes', {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'orders',
+          filter: `id=eq.${id}`,
+        }, (payload) => {
+          if (isPaymentSettled(payload.new)) void markPaymentConfirmed();
+        })
+        .subscribe();
+
+      await verifyPaymentStatus();
+    };
+
+    void beginVerification();
+    // The URL is cleaned by the preceding effect. This effect intentionally
+    // starts once for this order-return event.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
 
   // Resolve photo URLs when order changes
   useEffect(() => {
@@ -701,6 +810,24 @@ const OrderDetailPage = () => {
                     <Loader size={16} className="animate-spin mr-8" />
                     Verifying payment...
                   </div>
+                </div>
+              );
+            }
+
+            if (paymentVerificationPending) {
+              return (
+                <div className="mt-16 text-center" role="status" aria-live="polite">
+                  <div className="alert-banner alert-banner-info py-10 px-12 br-8" style={{ fontSize: '0.8125rem' }}>
+                    <Loader size={14} className="animate-spin" aria-hidden="true" />
+                    <span>Your payment is still being confirmed. Your balance will change automatically when PayMongo finishes processing.</span>
+                  </div>
+                  <button
+                    type="button"
+                    className="btn btn-outline w-full justify-center mt-8"
+                    onClick={handleRefreshPaymentStatus}
+                  >
+                    Refresh payment status
+                  </button>
                 </div>
               );
             }

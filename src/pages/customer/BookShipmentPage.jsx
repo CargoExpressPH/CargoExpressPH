@@ -669,15 +669,34 @@ const BookShipmentPage = () => {
 
       {/* Step Progress */}
       <div className="step-progress" role="list" aria-label="Booking progress">
-        {steps.map((s, i) => (
-          <div key={s} role="listitem" className="flex items-center flex-1">
-            <div className={`step ${step > i + 1 ? 'completed' : step === i + 1 ? 'active' : ''}`}>
-              <div className="step-number" aria-current={step === i + 1 ? 'step' : undefined}>{i + 1}</div>
+        {steps.map((s, i) => {
+          const completed = step > i + 1;
+          const stepClass = `step ${completed ? 'completed clickable' : step === i + 1 ? 'active' : ''}`;
+          const stepChildren = (
+            <>
+              <div className="step-number" aria-current={step === i + 1 ? 'step' : undefined}>
+                {completed ? <Check size={14} aria-hidden="true" /> : i + 1}
+              </div>
               <span className="step-label">{s}</span>
+            </>
+          );
+
+          return (
+            <div key={s} role="listitem" className="flex items-center flex-1">
+              {completed ? (
+                <button
+                  type="button"
+                  className={stepClass}
+                  onClick={() => setStep(i + 1)}
+                  aria-label={`Go back to step ${i + 1}: ${s}`}
+                >
+                  {stepChildren}
+                </button>
+              ) : <div className={stepClass}>{stepChildren}</div>}
+              {i < steps.length - 1 && <div className="step-connector" style={{ background: completed ? 'var(--success)' : 'var(--border)' }} />}
             </div>
-            {i < steps.length - 1 && <div className="step-connector" style={{ background: step > i + 1 ? 'var(--success)' : 'var(--border)' }} />}
-          </div>
-        ))}
+          );
+        })}
       </div>
       <div className="booking-current-step" aria-live="polite">Step {step} of {steps.length}: {steps[step - 1]}</div>
 

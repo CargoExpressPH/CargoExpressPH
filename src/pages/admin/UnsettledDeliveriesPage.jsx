@@ -591,6 +591,7 @@ const UnsettledDeliveriesPage = () => {
           remainingBalance={payingOrder.outstanding}
           onClose={() => setPayingOrder(null)}
           onSave={handleRecordPayment}
+          onPaymentConfirmed={() => loadUnsettled({ silent: true })}
         />
       )}
     </div>
