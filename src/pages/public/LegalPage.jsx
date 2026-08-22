@@ -138,7 +138,7 @@ const LegalPage = ({ documentKey }) => {
   const other = LEGAL_DOCUMENTS[isTerms ? 'privacy' : 'terms'];
   const returnToRegister = searchParams.get('returnTo') === 'register';
   const backPath = returnToRegister ? '/register?step=2' : '/about';
-  const backLabel = returnToRegister ? 'Back to registration' : 'Back to About';
+  const backLabel = 'Back';
   const relatedPath = `${other.path}${returnToRegister ? '?returnTo=register' : ''}`;
 
   usePageTitle(document.title, `${document.title} for Cargo Express PH. Effective ${document.effectiveDate}.`);

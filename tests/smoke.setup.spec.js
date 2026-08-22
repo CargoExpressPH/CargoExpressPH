@@ -65,9 +65,9 @@ test.describe('harness smoke check', () => {
     await expect(page.getByRole('link', { name: 'Privacy Policy' }).last()).toHaveAttribute('href', '/privacy?returnTo=register');
 
     await page.getByRole('link', { name: 'Terms of Service' }).last().click();
-    await expect(page.getByRole('link', { name: 'Back to registration' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Back' })).toBeVisible();
     await expect(page.getByText('Version 2026-08-22')).not.toBeVisible();
-    await page.getByRole('link', { name: 'Back to registration' }).click();
+    await page.getByRole('link', { name: 'Back' }).click();
     await expect(page).toHaveURL(/\/register\?step=2/);
     await expect(page.locator('#reg-legal-consent')).toBeVisible();
     await expect(page.locator('#reg-name')).toHaveValue('Test Customer');
