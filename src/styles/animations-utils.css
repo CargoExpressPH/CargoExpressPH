@@ -110,13 +110,15 @@
   backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
   z-index: var(--z-modal);
   display: flex; align-items: flex-start; justify-content: center;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding-top: min(15vh, 120px);
   padding-inline: 16px;
   padding-bottom: max(16px, env(safe-area-inset-bottom, 0px));
   animation: fadeIn 0.15s ease;
 }
 .cmd-palette {
-  width: 100%; max-width: 540px;
+  width: min(540px, 100%); min-width: 0;
   max-height: min(80dvh, 520px);
   display: flex;
   flex-direction: column;
@@ -139,6 +141,21 @@
   .cmd-palette {
     max-height: calc(100dvh - 32px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
   }
+
+  .cmd-palette-input-wrap {
+    gap: 8px;
+    padding: 14px 12px;
+  }
+
+  .cmd-palette-kbd {
+    display: none;
+  }
+
+  .cmd-palette-footer {
+    flex-wrap: wrap;
+    gap: 6px 12px;
+    padding: 8px 12px;
+  }
 }
 
 .cmd-palette-input-wrap {
@@ -149,7 +166,7 @@
 }
 .cmd-palette-input-wrap svg { color: var(--text-tertiary); flex-shrink: 0; }
 .cmd-palette-input {
-  flex: 1; border: none; background: none;
+  flex: 1; min-width: 0; border: none; background: none;
   font-size: 1rem; font-weight: 500; color: var(--text);
   outline: none;
 }
@@ -162,9 +179,27 @@
   border: 1px solid var(--border-light);
   font-family: inherit;
 }
+.cmd-palette-close-btn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 36px;
+  width: 36px;
+  height: 36px;
+  margin: -6px -6px -6px 0;
+  padding: 0;
+  color: var(--text-secondary);
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.cmd-palette-close-btn:hover { background: var(--bg-secondary); color: var(--text); }
+.cmd-palette-close-btn:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 
 .cmd-palette-results {
   max-height: min(320px, calc(80dvh - 120px));
+  min-height: 0;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   padding: 8px;
@@ -196,7 +231,7 @@
 .cmd-palette-item svg { color: var(--text-tertiary); flex-shrink: 0; }
 .cmd-palette-item:hover svg,
 .cmd-palette-item.highlighted svg { color: var(--primary); }
-.cmd-palette-item-label { flex: 1; text-align: left; }
+.cmd-palette-item-label { flex: 1; min-width: 0; text-align: left; overflow-wrap: anywhere; }
 .cmd-palette-item-shortcut {
   font-size: 0.75rem; color: var(--text-tertiary);
 }
@@ -218,6 +253,10 @@
   padding: 2px 6px; border-radius: 4px;
   border: 1px solid var(--border-light);
   font-family: inherit;
+}
+
+@media (max-width: 480px) {
+  .cmd-palette-close-btn { display: inline-flex; }
 }
 
 /* --- UTILITIES --------------------------------------------------------- */
