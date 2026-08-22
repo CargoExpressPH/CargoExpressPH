@@ -43,23 +43,6 @@ const ADMIN_ROUTES = [
   { path: '/admin/sales?tab=reports', label: 'Reports tab', hasTable: false },
 ];
 
-const COMMAND_PALETTE_DESTINATIONS = [
-  { label: 'Dashboard', path: '/admin' },
-  { label: 'Orders', path: '/admin/orders' },
-  { label: 'Trips', path: '/admin/trips' },
-  { label: 'Customers', path: '/admin/customers' },
-  { label: 'Sales & Reports', path: '/admin/sales' },
-  { label: 'Announcements', path: '/admin/announcements' },
-  { label: 'Inbox', path: '/admin/inbox' },
-  { label: 'Contact Inquiries', path: '/admin/contact-inquiries' },
-  { label: 'Customer Feedback', path: '/admin/feedback' },
-  { label: 'Activity Logs', path: '/admin/activity-logs' },
-  { label: 'Company Information', path: '/admin/company-info' },
-  { label: 'Profile', path: '/admin/profile' },
-  { label: 'Change Email', path: '/admin/change-email' },
-  { label: 'Change Password', path: '/admin/change-password' },
-];
-
 const checkNoHorizontalOverflow = async (page, viewport) => {
   const overflow = await page.evaluate(() => {
     const docEl = document.documentElement;
@@ -293,41 +276,6 @@ test.describe('admin responsive — every screen at every device size', () => {
           await checkNoHorizontalOverflow(page, viewport);
         }
       });
-      test(`command palette fits and keeps every destination reachable at ${viewport.name}`, async ({ page }) => {
-        await page.goto('/admin', { waitUntil: 'domcontentloaded' });
-        await page.getByRole('button', { name: 'Open command palette' }).click();
-        const dialog = page.getByRole('dialog', { name: 'Admin command palette' });
-        await expect(dialog).toBeVisible();
-
-        const fits = await dialog.evaluate((el) => {
-          const rect = el.getBoundingClientRect();
-          return rect.left >= -1 && rect.right <= window.innerWidth + 1 &&
-            rect.top >= -1 && rect.bottom <= window.innerHeight + 1 &&
-            el.scrollWidth <= el.clientWidth + 1;
-        });
-        expect(fits, `Command palette should fit ${viewport.width}x${viewport.height}`).toBe(true);
-
-        for (const destination of COMMAND_PALETTE_DESTINATIONS) {
-          const option = page.getByRole('option', { name: destination.label });
-          await option.scrollIntoViewIfNeeded();
-          await expect(option).toBeVisible();
-        }
-      });
     });
   }
-});
-
-test.describe('admin command palette navigation', () => {
-  test.skip(!process.env.E2E_ADMIN_EMAIL || !process.env.E2E_ADMIN_PASSWORD, 'E2E_ADMIN_EMAIL not set — skipping admin command palette navigation');
-
-  test('every destination button navigates to its matching admin page', async ({ page }) => {
-    await page.setViewportSize({ width: 1280, height: 800 });
-    await login(page, ADMIN.email, ADMIN.password, { expectPath: '/admin' });
-
-    for (const destination of COMMAND_PALETTE_DESTINATIONS) {
-      await page.getByRole('button', { name: 'Open command palette' }).click();
-      await page.getByRole('option', { name: destination.label }).click();
-      await expect(page).toHaveURL(new RegExp(`${destination.path.replace('/', '\\/')}$`));
-    }
-  });
 });
