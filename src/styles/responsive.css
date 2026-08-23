@@ -89,6 +89,7 @@
   .grid-4 { grid-template-columns: repeat(2, 1fr); }
   .grid-3 { grid-template-columns: repeat(2, 1fr); }
 }
+
 @media (max-width: 768px) {
   .page-content { padding: 16px; }
   .grid { gap: 16px; }
@@ -126,16 +127,18 @@
   }
 
   .page-title {
-    font-size: 1.35rem ;
+    font-size: 1.35rem;
   }
 }
 
 /* Company Info tab bar scroll on narrow screens */
 @media (max-width: 768px) {
+  .app-layout .company-tab-bar,
   .app-layout .card.company-tab-bar {
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
   }
+  .app-layout .company-tab-bar::-webkit-scrollbar,
   .app-layout .card.company-tab-bar::-webkit-scrollbar {
     display: none;
   }
@@ -144,19 +147,19 @@
 /* Feedback page: single column cards + stacked filter on mobile */
 @media (max-width: 640px) {
   .grid-2:has(.hover-lift) {
-    grid-template-columns: 1fr ;
+    grid-template-columns: 1fr;
   }
 
   .feedback-filter-row {
     flex-direction: column;
-    gap: 12px ;
+    gap: 12px;
   }
   .feedback-filter-row > .form-group {
-    flex: 1 0 100% ;
-    min-width: 0 ;
+    flex: 1 0 100%;
+    min-width: 0;
   }
   .feedback-rating-filter {
-    min-width: 0 ;
+    min-width: 0;
   }
 }
 
@@ -169,4 +172,3 @@
 
 
 /* --- PUBLIC TRACKING PAGE --------------------------------------------- */
-

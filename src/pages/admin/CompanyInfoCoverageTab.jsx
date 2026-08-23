@@ -16,10 +16,6 @@ const SortableRegion = ({ region, handleEditRegion, setDeleteTarget, handleAddNe
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
-    border: '1px solid var(--border-light)',
-    borderRadius: 'var(--radius-md)',
-    overflow: 'hidden',
-    backgroundColor: 'var(--surface)',
     zIndex: isDragging ? 10 : 1,
     position: 'relative'
   };
@@ -59,67 +55,66 @@ const SortableRegion = ({ region, handleEditRegion, setDeleteTarget, handleAddNe
   };
 
   return (
-    <div ref={setNodeRef} style={style}>
+    <div ref={setNodeRef} style={style} className="coverage-region-card">
       {/* Region Header */}
-      <div
-        className="flex justify-between items-center cursor-pointer select-none"
-        style={{
-          padding: '12px 16px',
-          background: 'var(--bg-secondary)',
-          borderBottom: isExpanded ? '1px solid var(--border-light)' : 'none',
-          transition: 'border-bottom 0ms 250ms'
-        }}
-        onClick={onToggle}
-      >
-        <div className="flex items-center" style={{ fontWeight: 700, fontSize: '0.9375rem', gap: 8}}>
+      <div className={`coverage-region-header ${isExpanded ? 'expanded' : ''}`}>
+        <div className="coverage-region-left">
           <div
             {...attributes}
             {...listeners}
-            className="flex items-center text-tertiary"
-            style={{ cursor: 'grab',}}
+            className="coverage-drag-handle"
             onClick={e => e.stopPropagation()}
+            title="Drag to reorder region"
+            aria-label="Drag to reorder region"
           >
             <GripVertical size={16} />
           </div>
-          <MapPin size={16} style={{ color: 'var(--primary-text)' }} />
-          <span>{region.name}</span>
-          {muniCount > 0 && (
-            <span className="text-tertiary" style={{
-              fontSize: '0.7rem',
-              fontWeight: 500,
-              background: 'var(--bg-secondary)',
-              borderRadius: 'var(--radius-full)',
-              padding: '1px 7px',
-              lineHeight: '1.5'
-            }}>
-              {muniCount}
-            </span>
-          )}
-        </div>
-        <div className="flex gap-4 items-center">
           <button
-            className="btn btn-ghost btn-icon btn-sm"
+            type="button"
+            className="coverage-region-toggle"
+            onClick={onToggle}
+            aria-expanded={isExpanded}
+            aria-controls={`coverage-region-${region.id}-municipalities`}
+          >
+            <div className="coverage-region-icon-wrap" aria-hidden="true">
+              <MapPin size={16} />
+            </div>
+            <div className="coverage-region-title-wrap">
+              <span className="coverage-region-title" title={region.name}>{region.name}</span>
+              {muniCount > 0 && (
+                <span className="coverage-muni-count-badge">
+                  {muniCount} {muniCount === 1 ? 'muni' : 'munis'}
+                </span>
+              )}
+            </div>
+          </button>
+        </div>
+        <div className="coverage-region-actions">
+          <button
+            type="button"
+            className="coverage-action-btn"
             onClick={e => { e.stopPropagation(); handleEditRegion(region); }}
-            title="Edit region"
+            title={`Edit ${region.name}`}
+            aria-label={`Edit ${region.name}`}
           >
             <Edit2 size={14} />
           </button>
           <button
-            className="btn btn-ghost btn-icon btn-sm"
-            style={{ color: 'var(--error-text)' }}
+            type="button"
+            className="coverage-action-btn danger"
             onClick={e => { e.stopPropagation(); setDeleteTarget({ type: 'region', id: region.id, name: region.name }); }}
-            title="Delete region"
+            title={`Delete ${region.name}`}
+            aria-label={`Delete ${region.name}`}
           >
             <Trash2 size={14} />
           </button>
-          {/* Divider */}
-          <div style={{ width: 1, height: 18, background: 'var(--border-light)', margin: '0 4px' }} />
-          {/* Chevron toggle */}
+          <div className="coverage-action-divider" aria-hidden="true" />
           <div
-            className="flex items-center text-secondary"
-            style={{transform: isExpanded ? 'rotate(0deg)' : 'rotate(-90deg)',
-              transition: 'transform 250ms cubic-bezier(0.4, 0, 0.2, 1)'
+            className="coverage-chevron-indicator"
+            style={{
+              transform: isExpanded ? 'rotate(0deg)' : 'rotate(-90deg)'
             }}
+            aria-hidden="true"
           >
             <ChevronDown size={16} />
           </div>
@@ -128,6 +123,7 @@ const SortableRegion = ({ region, handleEditRegion, setDeleteTarget, handleAddNe
 
       {/* Municipalities — collapsible with smooth animation */}
       <div
+        id={`coverage-region-${region.id}-municipalities`}
         style={{
           display: 'grid',
           gridTemplateRows: isExpanded ? '1fr' : '0fr',
@@ -135,10 +131,13 @@ const SortableRegion = ({ region, handleEditRegion, setDeleteTarget, handleAddNe
         }}
       >
         <div style={{ overflow: 'hidden' }}>
-          <div style={{ padding: 16 }}>
-            <div className="flex justify-between items-center mb-12">
-              <div className="text-secondary" style={{ fontSize: '0.8125rem', fontWeight: 600,}}>Municipalities</div>
+          <div className="coverage-muni-section">
+            <div className="coverage-muni-header">
+              <div className="text-secondary" style={{ fontSize: '0.8125rem', fontWeight: 600 }}>
+                Municipalities {muniCount > 0 && `(${muniCount})`}
+              </div>
               <button
+                type="button"
                 className="btn btn-outline btn-sm text-xs"
                 style={{ padding: '4px 10px', minHeight: 28 }}
                 onClick={() => handleAddNewMuni(region.id)}
@@ -148,7 +147,9 @@ const SortableRegion = ({ region, handleEditRegion, setDeleteTarget, handleAddNe
             </div>
 
             {(!region.municipalities || region.municipalities.length === 0) ? (
-              <div className="text-tertiary" style={{ fontSize: '0.8125rem',}}>No municipalities added to this region.</div>
+              <div className="text-tertiary" style={{ fontSize: '0.8125rem', padding: '12px 0' }}>
+                No municipalities added to this region.
+              </div>
             ) : (
               <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleMuniDragEnd}>
                 <SortableContext items={region.municipalities.map(m => m.id)} strategy={verticalListSortingStrategy}>
@@ -173,28 +174,36 @@ const SortableMuni = ({ muni, regionId, handleEditMuni, setDeleteTarget }) => {
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
-    display: 'flex',
-    alignItems: 'center',
-    gap: 8,
-    padding: '8px 12px',
-    backgroundColor: 'var(--bg-secondary)',
-    border: '1px solid var(--border-light)',
-    borderRadius: 'var(--radius-sm)',
     zIndex: isDragging ? 10 : 1,
     position: 'relative'
   };
 
   return (
-    <div ref={setNodeRef} style={style}>
-      <div {...attributes} {...listeners} className="flex items-center text-tertiary" style={{ cursor: 'grab',}}>
+    <div ref={setNodeRef} style={style} className="coverage-muni-item">
+      <div {...attributes} {...listeners} className="coverage-drag-handle" title="Drag to reorder municipality" aria-label="Drag to reorder municipality">
         <GripVertical size={14} />
       </div>
-      <div style={{ flex: 1, fontSize: '0.8125rem', fontWeight: 500 }}>{muni.name}</div>
-      <button className="btn-icon bg-none border-none text-tertiary cursor-pointer" style={{ padding: 4 }} onClick={() => handleEditMuni(muni, regionId)} aria-label={`Edit ${muni.name}`}>
-        <Edit2 size={12} />
+      <MapPin size={13} style={{ color: 'var(--primary-text)', flexShrink: 0 }} aria-hidden="true" />
+      <div className="coverage-muni-name" title={muni.name}>{muni.name}</div>
+      <button
+        type="button"
+        className="coverage-action-btn"
+        style={{ width: 30, height: 30, minWidth: 30, minHeight: 30 }}
+        onClick={() => handleEditMuni(muni, regionId)}
+        title={`Edit ${muni.name}`}
+        aria-label={`Edit ${muni.name}`}
+      >
+        <Edit2 size={13} />
       </button>
-      <button className="btn-icon bg-none border-none cursor-pointer" style={{ padding: 4, color: 'var(--error-text)' }} onClick={() => setDeleteTarget({ type: 'muni', id: muni.id, regionId, name: muni.name })} aria-label={`Delete ${muni.name}`}>
-        <Trash2 size={12} />
+      <button
+        type="button"
+        className="coverage-action-btn danger"
+        style={{ width: 30, height: 30, minWidth: 30, minHeight: 30 }}
+        onClick={() => setDeleteTarget({ type: 'muni', id: muni.id, regionId, name: muni.name })}
+        title={`Delete ${muni.name}`}
+        aria-label={`Delete ${muni.name}`}
+      >
+        <Trash2 size={13} />
       </button>
     </div>
   );
@@ -462,9 +471,9 @@ const CompanyInfoCoverageTab = ({ coverageAreas, setCoverageAreas }) => {
         )}
 
         {/* Coverage List */}
-        <div style={{ padding: 24 }}>
+        <div className="coverage-list-container">
           {coverageAreas.length === 0 ? (
-            <div className="text-center p-20 text-tertiary border rounded" style={{ borderColor: 'var(--border-light)' }}>
+            <div className="text-center p-24 text-tertiary border rounded-md" style={{ borderColor: 'var(--border-light)', background: 'var(--bg-secondary)' }}>
               No coverage areas defined. Click "Add Region" to get started.
             </div>
           ) : (

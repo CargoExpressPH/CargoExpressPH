@@ -276,35 +276,23 @@ const CompanyInformationPage = () => {
 
       {/* Tab Navigation */}
       <div
-        className="card company-tab-bar flex items-center"
-        style={{
-          padding: '4px 8px',
-          marginBottom: 20,
-          gap: 4,
-          overflowX: 'auto',
-          flexWrap: 'nowrap'
-        }}
+        className="company-tab-bar"
+        role="tablist"
+        aria-label="Company information sections"
       >
         {TABS.map(tab => {
           const isActive = activeTab === tab.id;
           return (
             <button
               key={tab.id}
+              type="button"
+              role="tab"
+              aria-selected={isActive}
               onClick={() => setActiveTab(tab.id)}
-              className={`btn btn-sm flex items-center gap-6${isActive ? '' : ' btn-ghost'}`}
-              style={{
-                flexShrink: 0,
-                background: isActive ? 'var(--primary)' : 'transparent',
-                color: isActive ? '#fff' : 'var(--text-secondary)',
-                borderRadius: 'var(--radius-sm)',
-                fontWeight: isActive ? 700 : 500,
-                padding: '8px 14px',
-                minHeight: 36,
-                border: 'none',
-              }}
+              className={`company-tab-btn ${isActive ? 'active' : ''}`}
             >
-              <tab.icon size={14} />
-              {tab.label}
+              <tab.icon size={15} aria-hidden="true" />
+              <span>{tab.label}</span>
             </button>
           );
         })}
