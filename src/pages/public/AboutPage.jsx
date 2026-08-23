@@ -1146,7 +1146,9 @@ const AboutPage = () => {
                     <div className="about-coverage-search-inner">
                       <Search size={18} className="about-coverage-search-icon" />
                       <input 
-                        type="text"
+                        type="search"
+                        maxLength={100}
+                        enterKeyHint="search"
                         placeholder="Search municipalities..."
                         aria-label="Search municipalities"
                         value={citySearchQuery}
