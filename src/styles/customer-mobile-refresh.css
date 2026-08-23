@@ -1673,7 +1673,7 @@ body:has(textarea:focus) .support-chat-page {
   background: var(--customer-green);
 }
 
-/* â”€â”€ Push soft prompt â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+/* ── Push soft prompt ──────────────────────────────────────────────────────
    .alert-banner is a shared, non-wrapping flex row used across the app, so the
    wrapping behaviour is scoped to this banner rather than changed there. The
    copy needs min-width:0 or the flex item refuses to shrink below its text and

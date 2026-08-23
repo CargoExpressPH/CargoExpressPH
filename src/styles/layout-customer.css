@@ -149,7 +149,7 @@
   color: var(--customer-green-dark);
 }
 
-/* Notification Badge � Desktop Navbar */
+/* Notification Badge — Desktop Navbar */
 .notification-badge {
   position: absolute;
   top: 2px;
@@ -349,7 +349,7 @@
   to { transform: scale(1); opacity: 1; }
 }
 
-/* Center "Book" tab � Premium Elevated FAB */
+/* Center "Book" tab — Premium Elevated FAB */
 .customer-bottom-tab.book-tab {
   position: relative;
   min-width: 60px;

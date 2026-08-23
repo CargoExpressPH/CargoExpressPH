@@ -44,7 +44,7 @@ const getGoogleMapsSearchUrl = (address) => (
   `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address?.trim() || '')}`
 );
 
-// â”€â”€â”€ Lightbox Component (with prev/next navigation) â”€â”€â”€
+// ─── Lightbox Component (with prev/next navigation) ───
 const Lightbox = ({ images, currentIndex, onClose, onNavigate }) => {
   // Shared hook: ref-counted and iOS-safe. The previous inline version reset
   // body overflow to 'unset' rather than restoring the prior value.
@@ -117,7 +117,7 @@ const Lightbox = ({ images, currentIndex, onClose, onNavigate }) => {
   );
 };
 
-// â”€â”€â”€ Interactive Map Component â”€â”€â”€
+// ─── Interactive Map Component ───
 const DEFAULT_MAP_TILE_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
 const DEFAULT_MAP_TILE_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
 const CONFIGURED_MAP_TILE_URL = import.meta.env.VITE_MAP_TILE_URL?.trim();
@@ -331,7 +331,7 @@ const AnimatedCounter = ({ value }) => {
   return <span ref={elementRef}>{typeof count === 'number' ? count.toLocaleString() : count}</span>;
 };
 
-// â”€â”€â”€ Loading Skeleton â”€â”€â”€
+// ─── Loading Skeleton ───
 const LoadingSkeleton = () => (
   <div className="about-skel-wrapper">
     {/* Skeleton Hero */}
@@ -366,7 +366,7 @@ const LoadingSkeleton = () => (
   </div>
 );
 
-// â”€â”€â”€ Section anchor IDs and labels â”€â”€â”€
+// ─── Section anchor IDs and labels ───
 // Height reserved by the fixed glass nav — anchors must clear it or the section
 // header lands underneath the bar and the click looks like it hit blank space.
 const NAV_OFFSET = 88;
@@ -381,9 +381,9 @@ const SECTIONS = [
   { id: 'contact', label: 'Contact' },
 ];
 
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ═══════════════════════════════════════════════════════════
 // MAIN ABOUT PAGE COMPONENT
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ═══════════════════════════════════════════════════════════
 const AboutPage = () => {
   usePageTitle('About Us');
   const toast = useToast();
@@ -415,7 +415,7 @@ const AboutPage = () => {
     typeof navigator === 'undefined' || navigator.onLine ? 'checking' : 'offline'
   );
 
-  // â”€â”€â”€ Scroll handling (scroll progress, active section, back-to-top) â”€â”€â”€
+  // ─── Scroll handling (scroll progress, active section, back-to-top) ───
   useEffect(() => {
     const handleScroll = () => {
       const y = window.scrollY;
@@ -450,7 +450,7 @@ const AboutPage = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // â”€â”€â”€ Data loading â”€â”€â”€
+  // ─── Data loading ───
   useEffect(() => {
     let isMounted = true;
     let requestSequence = 0;
@@ -554,7 +554,7 @@ const AboutPage = () => {
     };
   }, []);
 
-  // â”€â”€â”€ Form handlers â”€â”€â”€
+  // ─── Form handlers ───
   const PHONE_RE = /^09\d{9}$/;
   const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -623,7 +623,7 @@ const AboutPage = () => {
     }
   };
 
-  // â”€â”€â”€ Lightbox navigation â”€â”€â”€
+  // ─── Lightbox navigation ───
   const lightboxImages = data.highlights.map(h => ({
     image_url: h.resolved_image,
     title: h.featured_title,
@@ -637,7 +637,7 @@ const AboutPage = () => {
     });
   }, [lightboxImages.length]);
 
-  // â”€â”€â”€ Section scroll helper â”€â”€â”€
+  // ─── Section scroll helper ───
   const scrollToSection = (id) => {
     const el = document.getElementById(id);
     if (!el) return;
@@ -666,7 +666,7 @@ const AboutPage = () => {
     return fb.rating === parseInt(selectedRating, 10);
   }) || [];
 
-  // â”€â”€â”€ Loading state â”€â”€â”€
+  // ─── Loading state ───
   if (fetching) return <LoadingSkeleton />;
 
   const companyName = info?.name || 'Cargo Express PH';
@@ -690,10 +690,10 @@ const AboutPage = () => {
     <div className="public-about-page">
       <a href="#hero" className="skip-link">Skip to main content</a>
 
-      {/* â• â• â•  Scroll Progress Bar â• â• â•  */}
+      {/* --- Scroll Progress Bar --- */}
       <div className="about-scroll-progress" style={{ width: `${scrollProgress}%` }} />
 
-      {/* â• â• â•  1. Navigation â• â• â•  */}
+      {/* --- 1. Navigation --- */}
       <nav className={`about-glass-nav ${scrolled ? 'scrolled' : ''}`}>
         <div className="about-nav-container">
           <div className="about-nav-brand">
@@ -725,7 +725,7 @@ const AboutPage = () => {
         </div>
       </nav>
 
-      {/* â•â•â• 2. Hero Section â•â•â• */}
+      {/* ═══ 2. Hero Section ═══ */}
       <section id="hero" className="about-hero" tabIndex={-1}>
         <motion.div 
           className="about-hero-bg"
@@ -775,10 +775,10 @@ const AboutPage = () => {
 
       </section>
 
-      {/* â•â•â• Main Content â•â•â• */}
+      {/* ═══ Main Content ═══ */}
       <div className="about-content-wrapper">
 
-        {/* â•â•â• 4. Our Story â•â•â• */}
+        {/* ═══ 4. Our Story ═══ */}
         <motion.section 
           id="story"
           className="about-section"
@@ -844,7 +844,7 @@ const AboutPage = () => {
           </div>
         </motion.section>
 
-        {/* â•â•â• 5. Features Grid â•â•â• */}
+        {/* ═══ 5. Features Grid ═══ */}
         <motion.section
           id="features"
           className="about-section"
@@ -894,7 +894,7 @@ const AboutPage = () => {
           )}
         </motion.section>
 
-        {/* â•â•â• 6. Coverage Areas â•â•â• */}
+        {/* ═══ 6. Coverage Areas ═══ */}
         <motion.section
           id="coverage"
           className="about-section"
@@ -1008,7 +1008,7 @@ const AboutPage = () => {
           )}
         </motion.section>
 
-        {/* â•â•â• 7. Delivery Highlights Gallery â•â•â• */}
+        {/* ═══ 7. Delivery Highlights Gallery ═══ */}
         <motion.section
           id="highlights"
           className="about-section"
@@ -1068,7 +1068,7 @@ const AboutPage = () => {
           )}
         </motion.section>
 
-        {/* â•â•â• 8. Customer Feedback â•â•â• */}
+        {/* ═══ 8. Customer Feedback ═══ */}
         <motion.section 
           id="feedback"
           className="about-section"
@@ -1173,7 +1173,7 @@ const AboutPage = () => {
           )}
         </motion.section>
 
-        {/* â•â•â• 9. Contact Section â•â•â• */}
+        {/* ═══ 9. Contact Section ═══ */}
         <motion.section 
           id="contact"
           className="about-section"
@@ -1318,14 +1318,14 @@ const AboutPage = () => {
 
       </div>
 
-      {/* â•â•â• Wave Divider â•â•â• */}
+      {/* ═══ Wave Divider ═══ */}
       <div className="about-wave-divider">
         <svg viewBox="0 0 1440 100" preserveAspectRatio="none" className="about-wave-svg">
           <path d="M0,40 C320,100 440,0 720,50 C1000,100 1120,10 1440,60 L1440,100 L0,100 Z" />
         </svg>
       </div>
       
-      {/* â•â•â• 10. Footer â•â•â• */}
+      {/* ═══ 10. Footer ═══ */}
       <footer className="about-footer">
         <div className="about-footer-grid">
           {/* Brand Column */}
@@ -1401,7 +1401,7 @@ const AboutPage = () => {
         </div>
       </footer>
 
-      {/* â•â•â• Lightbox â•â•â• */}
+      {/* ═══ Lightbox ═══ */}
       {lightboxIndex >= 0 && (
         <Lightbox 
           images={lightboxImages} 
@@ -1411,7 +1411,7 @@ const AboutPage = () => {
         />
       )}
 
-      {/* â•â•â• Back to Top â•â•â• */}
+      {/* ═══ Back to Top ═══ */}
       <AnimatePresence>
         {showBackToTop && (
           <motion.button
