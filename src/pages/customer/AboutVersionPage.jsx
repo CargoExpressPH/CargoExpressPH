@@ -49,10 +49,10 @@ const AboutVersionPage = () => {
   }, []);
 
   const contacts = [
-    { label: 'Smart', value: companyInfo?.smart_phone, icon: Phone, href: companyInfo?.smart_phone ? `tel:${companyInfo.smart_phone}` : '' },
-    { label: 'Globe', value: companyInfo?.globe_phone, icon: Phone, href: companyInfo?.globe_phone ? `tel:${companyInfo.globe_phone}` : '' },
-    { label: 'Email', value: companyInfo?.email, icon: Mail, href: companyInfo?.email ? `mailto:${companyInfo.email}` : '' },
-    { label: 'Facebook', value: companyInfo?.facebook, icon: Globe, href: companyInfo?.facebook || '' },
+    { label: 'Smart', value: companyInfo?.smart_phone, icon: Phone, href: companyInfo?.smart_phone ? `tel:${companyInfo.smart_phone}` : '', action: 'Tap to call' },
+    { label: 'Globe', value: companyInfo?.globe_phone, icon: Phone, href: companyInfo?.globe_phone ? `tel:${companyInfo.globe_phone}` : '', action: 'Tap to call' },
+    { label: 'Email', value: companyInfo?.email, icon: Mail, href: companyInfo?.email ? `mailto:${companyInfo.email}` : '', action: 'Tap to send email' },
+    { label: 'Facebook', value: companyInfo?.facebook, icon: Globe, href: companyInfo?.facebook || '', action: 'Tap to open' },
   ].filter(item => item.value);
 
   return (
@@ -145,13 +145,14 @@ const AboutVersionPage = () => {
                 href={item.href}
                 target={item.href.startsWith('http') ? '_blank' : undefined}
                 rel={item.href.startsWith('http') ? 'noreferrer' : undefined}
+                aria-label={`${item.label} — ${item.action}`}
               >
                 <div className="profile-menu-icon-wrap info">
                   <item.icon size={18} />
                 </div>
                 <div className="flex-1 text-left">
                   <div className="text-sm font-bold">{item.label}</div>
-                  <div className="text-xs text-secondary">{item.value}</div>
+                  <div className="text-xs text-secondary">{item.action}</div>
                 </div>
                 <ExternalLink size={16} color="var(--text-tertiary)" />
               </a>
