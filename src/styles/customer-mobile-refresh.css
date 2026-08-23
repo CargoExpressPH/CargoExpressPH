@@ -1717,9 +1717,23 @@ body:has(textarea:focus) .support-chat-page {
   .customer-layout-v2 .support-chat-page {
     min-height: calc(100dvh - 186px - var(--customer-safe-bottom) - var(--app-safe-top));
     height: calc(100dvh - 186px - var(--customer-safe-bottom) - var(--app-safe-top));
+    /* Keep the composer above the floating navigation's shadow as well as its
+       box. The main-content reserve covers the page flow, but the nav is fixed
+       and its visual shadow reaches farther into the chat column. */
+    padding-bottom: 24px;
+    box-sizing: border-box;
     overflow: hidden;
   }
   .customer-layout-v2 .support-chat-messages {
     min-height: 0;
+  }
+}
+
+@media (max-width: 899.98px) {
+  /* When the keyboard is open the bottom navigation is hidden, so do not keep
+     the extra nav clearance and waste message/composer space. */
+  body.keyboard-active .customer-layout-v2 .support-chat-page,
+  body:has(textarea:focus) .customer-layout-v2 .support-chat-page {
+    padding-bottom: 8px;
   }
 }
