@@ -684,7 +684,7 @@ const SupportChatPage = () => {
       {/* Messages area */}
       <ErrorBoundarySection message="Chat timeline failed to display.">
         <div
-          className="support-chat-messages"
+          className={`support-chat-messages${messages.length === 0 && !botTyping ? ' is-empty' : ''}`}
           ref={messagesContainerRef}
           onScroll={handleMessagesScroll}
           role="log"

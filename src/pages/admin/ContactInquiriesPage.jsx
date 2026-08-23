@@ -243,7 +243,7 @@ const ContactInquiriesPage = () => {
                 Array.from({ length: 5 }, (_, i) => <SkeletonTableRow key={i} cols={6} />)
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={6} style={{ padding: 40 }}>
+                  <td colSpan={6} className="empty-state-cell">
                     <EmptyState
                       icon={Mail}
                       title="No Inquiries"

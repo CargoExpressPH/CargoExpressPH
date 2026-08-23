@@ -487,7 +487,7 @@ const UnsettledDeliveriesPage = () => {
                 })}
                 {paginated.length === 0 && (
                   <tr>
-                    <td colSpan={8} className="p-0 b-0">
+                    <td colSpan={8} className="empty-state-cell">
                       <EmptyState
                         icon={CheckCircle}
                         title={orders.length === 0 ? 'Everything is settled' : 'No matching shipments'}

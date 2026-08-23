@@ -214,7 +214,7 @@ const DashboardPage = () => {
                   ))}
                   {recent.length === 0 && (
                     <tr>
-                      <td colSpan={4} style={{ padding: '24px 16px' }}>
+                      <td colSpan={4} className="empty-state-cell">
                         <EmptyState
                           icon={Package}
                           title="No orders yet"

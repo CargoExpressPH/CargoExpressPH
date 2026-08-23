@@ -1025,7 +1025,7 @@ const InboxPage = () => {
                     </button>
                   </div>
                 ) : messages.length === 0 ? (
-                  <div className="text-center text-sm text-secondary mt-20">No messages yet.</div>
+                  <div className="inbox-empty-state text-center text-sm text-secondary">No messages yet.</div>
                 ) : (
                   <>
                     {hasMoreMessages && (

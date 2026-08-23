@@ -117,7 +117,7 @@ const CustomersPage = () => {
                 ))}
                 {customers.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="p-0 b-0">
+                    <td colSpan={5} className="empty-state-cell">
                       <EmptyState
                         icon={Users}
                         title="No customers found"

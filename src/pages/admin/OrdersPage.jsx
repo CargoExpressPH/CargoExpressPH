@@ -253,7 +253,7 @@ const AdminOrdersPage = () => {
                 ))}
                 {paginated.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="p-0 b-0">
+                    <td colSpan={7} className="empty-state-cell">
                       <EmptyState
                         icon={Package}
                         title="No orders found"
