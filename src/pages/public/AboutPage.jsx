@@ -23,8 +23,18 @@ import useFieldErrors from '../../hooks/useFieldErrors';
 import FieldError, { fieldAttrs, invalidClass } from '../../components/ui/FieldError';
 import { motion, useScroll, useTransform, AnimatePresence, MotionConfig } from 'framer-motion';
 import { BrandLogo, BrandWordmark } from '../../components/ui/BrandLogo';
-import * as maplibregl from 'maplibre-gl';
-import 'maplibre-gl/dist/maplibre-gl.css';
+import L from 'leaflet';
+import {
+  AttributionControl,
+  MapContainer,
+  Marker,
+  Polyline,
+  Popup,
+  TileLayer,
+  ZoomControl,
+  useMap,
+} from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
 import {
   PHILIPPINES_MAP_BOUNDS,
   PHILIPPINES_MAP_CENTER,
@@ -117,41 +127,8 @@ const MAP_TILE_URL = CONFIGURED_MAP_TILE_URL || DEFAULT_MAP_TILE_URL;
 const MAP_TILE_ATTRIBUTION = CONFIGURED_MAP_TILE_URL
   ? (import.meta.env.VITE_MAP_TILE_ATTRIBUTION?.trim() || DEFAULT_MAP_TILE_ATTRIBUTION)
   : DEFAULT_MAP_TILE_ATTRIBUTION;
-const PHILIPPINES_MAP_BOUNDS_LNG_LAT = [
-  [PHILIPPINES_MAP_BOUNDS[0][1], PHILIPPINES_MAP_BOUNDS[0][0]],
-  [PHILIPPINES_MAP_BOUNDS[1][1], PHILIPPINES_MAP_BOUNDS[1][0]],
-];
-const PHILIPPINES_MAP_TILE_BOUNDS = [
-  PHILIPPINES_MAP_BOUNDS_LNG_LAT[0][0],
-  PHILIPPINES_MAP_BOUNDS_LNG_LAT[0][1],
-  PHILIPPINES_MAP_BOUNDS_LNG_LAT[1][0],
-  PHILIPPINES_MAP_BOUNDS_LNG_LAT[1][1],
-];
-const MAP_STYLE = {
-  version: 8,
-  sources: {
-    'map-tiles': {
-      type: 'raster',
-      tiles: [MAP_TILE_URL],
-      tileSize: 256,
-      minzoom: PHILIPPINES_MAP_ZOOM,
-      maxzoom: 19,
-      bounds: PHILIPPINES_MAP_TILE_BOUNDS,
-      attribution: MAP_TILE_ATTRIBUTION,
-    },
-  },
-  layers: [
-    {
-      id: 'map-tiles-layer',
-      type: 'raster',
-      source: 'map-tiles',
-    },
-  ],
-};
 const BOHOL_MAP_REGION = PHILIPPINES_MAP_REGIONS.find(region => region.name === 'Bohol');
 const BOHOL_POSITION = BOHOL_MAP_REGION.position;
-
-const toMapLibrePosition = ([latitude, longitude]) => [longitude, latitude];
 
 const getCoverageMatch = (coverage, mapRegion) => (
   coverage.find(region => {
@@ -160,40 +137,15 @@ const getCoverageMatch = (coverage, mapRegion) => (
   })
 );
 
-const createMapPinElement = (mapRegion, isActive) => {
-  const element = document.createElement('button');
-  element.type = 'button';
-  element.className = 'about-maplibre-marker';
-  element.classList.toggle('is-origin', Boolean(mapRegion.isOrigin));
-  element.classList.toggle('is-active', isActive);
-  element.setAttribute('aria-label', `Select ${mapRegion.name} region`);
-  element.title = `Select ${mapRegion.name} region`;
-
-  const shell = document.createElement('span');
-  shell.className = 'about-maplibre-marker-shell';
-  const dot = document.createElement('span');
-  dot.className = 'about-maplibre-marker-dot';
-  shell.append(dot);
-  element.append(shell);
-
-  return element;
-};
-
-const createMapPopup = (mapRegion) => {
-  const content = document.createElement('div');
-  const name = document.createElement('strong');
-  name.textContent = mapRegion.name;
-  const detail = document.createElement('span');
-  detail.textContent = mapRegion.details;
-  content.append(name, document.createElement('br'), detail);
-
-  return new maplibregl.Popup({
-    closeButton: true,
-    closeOnClick: false,
-    offset: 18,
-    className: 'about-maplibre-popup',
-  }).setDOMContent(content);
-};
+const createMapPinIcon = (isOrigin, isActive) => L.divIcon({
+  className: 'about-leaflet-marker',
+  html: '<span class="about-leaflet-marker-shell'
+    + (isOrigin ? ' is-origin' : '')
+    + (isActive ? ' is-active' : '')
+    + '"><span class="about-leaflet-marker-dot"></span></span>',
+  iconSize: [28, 28],
+  iconAnchor: [14, 14],
+});
 
 const buildShippingRoute = (from, to) => {
   const control = [
@@ -211,17 +163,35 @@ const buildShippingRoute = (from, to) => {
   });
 };
 
-const InteractiveMap = ({ coverage, selectedRegionId, onSelectRegion }) => {
-  const mapContainerRef = useRef(null);
-  const mapRef = useRef(null);
-  const markerEntriesRef = useRef([]);
-  const selectedRegionIdRef = useRef(selectedRegionId);
-  const onSelectRegionRef = useRef(onSelectRegion);
-  const [mapReady, setMapReady] = useState(false);
-  const [hoveredPin, setHoveredPin] = useState(null);
-  selectedRegionIdRef.current = selectedRegionId;
-  onSelectRegionRef.current = onSelectRegion;
+const MapViewport = ({ selectedRegion }) => {
+  const map = useMap();
 
+  useEffect(() => {
+    if (!selectedRegion) {
+      map.fitBounds(PHILIPPINES_MAP_BOUNDS, {
+        padding: [20, 20],
+        maxZoom: PHILIPPINES_MAP_ZOOM,
+        animate: true,
+      });
+      return;
+    }
+
+    if (selectedRegion.name === 'Bohol') {
+      map.setView(selectedRegion.position, 8, { animate: true });
+      return;
+    }
+
+    map.fitBounds(
+      L.latLngBounds([BOHOL_POSITION, selectedRegion.position]),
+      { padding: [48, 48], maxZoom: 7, animate: true }
+    );
+  }, [map, selectedRegion]);
+
+  return null;
+};
+
+const InteractiveMap = ({ coverage, selectedRegionId, onSelectRegion }) => {
+  const [hoveredPin, setHoveredPin] = useState(null);
   const mappedRegions = PHILIPPINES_MAP_REGIONS
     .map(mapRegion => ({
       mapRegion,
@@ -240,189 +210,77 @@ const InteractiveMap = ({ coverage, selectedRegionId, onSelectRegion }) => {
   const tooltipRegion = hoveredPin
     ? mappedRegions.find(({ mapRegion }) => mapRegion.name === hoveredPin)?.mapRegion
     : selectedMapRegion;
-  const mappedRegionsSignature = mappedRegions
-    .map(({ mapRegion, coverageRegion }) => `${mapRegion.name}:${coverageRegion.id}`)
-    .join('|');
-
-  useEffect(() => {
-    if (!mapContainerRef.current) return undefined;
-
-    const map = new maplibregl.Map({
-      container: mapContainerRef.current,
-      style: MAP_STYLE,
-      center: toMapLibrePosition(PHILIPPINES_MAP_CENTER),
-      zoom: PHILIPPINES_MAP_ZOOM,
-      maxBounds: PHILIPPINES_MAP_BOUNDS_LNG_LAT,
-      minZoom: PHILIPPINES_MAP_ZOOM,
-      maxZoom: 13,
-      renderWorldCopies: false,
-      scrollZoom: false,
-      attributionControl: false,
-    });
-
-    mapRef.current = map;
-    map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
-    map.addControl(new maplibregl.AttributionControl({ compact: false }), 'bottom-right');
-
-    const handleLoad = () => setMapReady(true);
-    map.once('load', handleLoad);
-
-    return () => {
-      map.off('load', handleLoad);
-      map.remove();
-      mapRef.current = null;
-      markerEntriesRef.current = [];
-      setMapReady(false);
-    };
-  }, []);
-
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!mapReady || !map) return;
-
-    if (!selectedMapRegion) {
-      map.fitBounds(PHILIPPINES_MAP_BOUNDS_LNG_LAT, {
-        padding: 20,
-        maxZoom: PHILIPPINES_MAP_ZOOM,
-        duration: 650,
-      });
-      return;
-    }
-
-    if (selectedMapRegion.name === 'Bohol') {
-      map.flyTo({
-        center: toMapLibrePosition(selectedMapRegion.position),
-        zoom: 8,
-        duration: 650,
-        essential: true,
-      });
-      return;
-    }
-
-    map.fitBounds(
-      [toMapLibrePosition(BOHOL_POSITION), toMapLibrePosition(selectedMapRegion.position)],
-      { padding: 48, maxZoom: 7, duration: 650 }
-    );
-  }, [mapReady, selectedMapRegion]);
-
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!mapReady || !map) return;
-
-    const sourceId = 'shipping-route';
-    const layerId = 'shipping-route-layer';
-
-    if (!routeRegion) {
-      if (map.getLayer(layerId)) map.removeLayer(layerId);
-      if (map.getSource(sourceId)) map.removeSource(sourceId);
-      return;
-    }
-
-    const routeData = {
-      type: 'Feature',
-      properties: {},
-      geometry: {
-        type: 'LineString',
-        coordinates: buildShippingRoute(BOHOL_POSITION, routeRegion.position)
-          .map(toMapLibrePosition),
-      },
-    };
-    const source = map.getSource(sourceId);
-
-    if (source) {
-      source.setData(routeData);
-    } else {
-      map.addSource(sourceId, { type: 'geojson', data: routeData });
-      map.addLayer({
-        id: layerId,
-        type: 'line',
-        source: sourceId,
-        layout: {
-          'line-cap': 'round',
-          'line-join': 'round',
-        },
-        paint: {
-          'line-color': '#22c55e',
-          'line-width': selectedDestination ? 4 : 3,
-          'line-opacity': selectedDestination ? 0.84 : 0.38,
-          'line-dasharray': selectedDestination ? [2, 2.5] : [1, 1.8],
-        },
-      });
-      return;
-    }
-
-    map.setPaintProperty(layerId, 'line-width', selectedDestination ? 4 : 3);
-    map.setPaintProperty(layerId, 'line-opacity', selectedDestination ? 0.84 : 0.38);
-    map.setPaintProperty(layerId, 'line-dasharray', selectedDestination ? [2, 2.5] : [1, 1.8]);
-  }, [mapReady, routeRegion, selectedDestination]);
-
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!mapReady || !map) return undefined;
-
-    const markerEntries = mappedRegions.map(({ mapRegion, coverageRegion }) => {
-      const isActive = selectedRegionIdRef.current === coverageRegion.id
-        || hoveredPin === mapRegion.name;
-      const element = createMapPinElement(mapRegion, isActive);
-      const popup = createMapPopup(mapRegion);
-      const marker = new maplibregl.Marker({ element, anchor: 'center' })
-        .setLngLat(toMapLibrePosition(mapRegion.position))
-        .setPopup(popup)
-        .addTo(map);
-      const handleClick = () => {
-        const isSelected = selectedRegionIdRef.current === coverageRegion.id;
-        onSelectRegionRef.current(isSelected ? null : coverageRegion.id);
-      };
-      const handleMouseEnter = () => setHoveredPin(mapRegion.name);
-      const handleMouseLeave = () => setHoveredPin(null);
-
-      element.addEventListener('click', handleClick);
-      element.addEventListener('mouseenter', handleMouseEnter);
-      element.addEventListener('mouseleave', handleMouseLeave);
-      element.addEventListener('focus', handleMouseEnter);
-      element.addEventListener('blur', handleMouseLeave);
-
-      return {
-        marker,
-        element,
-        mapRegion,
-        coverageRegion,
-        handlers: [
-          ['click', handleClick],
-          ['mouseenter', handleMouseEnter],
-          ['mouseleave', handleMouseLeave],
-          ['focus', handleMouseEnter],
-          ['blur', handleMouseLeave],
-        ],
-      };
-    });
-
-    markerEntriesRef.current = markerEntries;
-
-    return () => {
-      markerEntries.forEach(({ marker, element, handlers }) => {
-        handlers.forEach(([event, handler]) => element.removeEventListener(event, handler));
-        marker.remove();
-      });
-      if (markerEntriesRef.current === markerEntries) markerEntriesRef.current = [];
-    };
-  }, [mapReady, mappedRegionsSignature]);
-
-  useEffect(() => {
-    markerEntriesRef.current.forEach(({ element, mapRegion, coverageRegion }) => {
-      const isActive = selectedRegionId === coverageRegion.id || hoveredPin === mapRegion.name;
-      element.classList.toggle('is-active', isActive);
-    });
-  }, [mappedRegionsSignature, selectedRegionId, hoveredPin]);
 
   return (
     <div className="about-map-box">
-      <div
-        ref={mapContainerRef}
-        className="about-maplibre-map"
-        role="region"
-        aria-label="Interactive Philippine coverage map"
-      />
+      <MapContainer
+        className="about-leaflet-map"
+        center={PHILIPPINES_MAP_CENTER}
+        zoom={PHILIPPINES_MAP_ZOOM}
+        maxBounds={PHILIPPINES_MAP_BOUNDS}
+        maxBoundsViscosity={1}
+        minZoom={PHILIPPINES_MAP_ZOOM}
+        maxZoom={13}
+        worldCopyJump={false}
+        scrollWheelZoom={false}
+        zoomControl={false}
+        attributionControl={false}
+      >
+        <TileLayer
+          url={MAP_TILE_URL}
+          attribution={MAP_TILE_ATTRIBUTION}
+          bounds={PHILIPPINES_MAP_BOUNDS}
+          noWrap
+          maxZoom={19}
+        />
+        <AttributionControl prefix={false} position="bottomright" />
+        <ZoomControl position="topright" />
+        <MapViewport selectedRegion={selectedMapRegion} />
+
+        {routeRegion && (
+          <Polyline
+            positions={buildShippingRoute(BOHOL_POSITION, routeRegion.position)}
+            pathOptions={{
+              color: '#22c55e',
+              weight: selectedDestination ? 4 : 3,
+              opacity: selectedDestination ? 0.84 : 0.38,
+              dashArray: selectedDestination ? '8 10' : '5 9',
+              lineCap: 'round',
+              lineJoin: 'round',
+            }}
+          />
+        )}
+
+        {mappedRegions.map(({ mapRegion, coverageRegion }) => {
+          const isSelected = selectedRegionId === coverageRegion.id;
+          const isActive = isSelected || hoveredPin === mapRegion.name;
+
+          return (
+            <Marker
+              key={mapRegion.name}
+              position={mapRegion.position}
+              icon={createMapPinIcon(mapRegion.isOrigin, isActive)}
+              keyboard
+              title={'Select ' + mapRegion.name + ' region'}
+              alt={'Select ' + mapRegion.name + ' region'}
+              zIndexOffset={isActive ? 1000 : 0}
+              eventHandlers={{
+                click: () => onSelectRegion(isSelected ? null : coverageRegion.id),
+                mouseover: () => setHoveredPin(mapRegion.name),
+                mouseout: () => setHoveredPin(null),
+                focus: () => setHoveredPin(mapRegion.name),
+                blur: () => setHoveredPin(null),
+              }}
+            >
+              <Popup>
+                <strong>{mapRegion.name}</strong>
+                <br />
+                {mapRegion.details}
+              </Popup>
+            </Marker>
+          );
+        })}
+      </MapContainer>
 
       <div className="about-coverage-tag">
         <span className="about-green-dot" /> COVERAGE EXPLORER

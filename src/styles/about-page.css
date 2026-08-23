@@ -1190,57 +1190,44 @@
   box-shadow: var(--shadow-lg); border: 1px solid rgba(255,255,255,0.08);
   background: #dbeafe; isolation: isolate;
 }
-.about-maplibre-map {
+.about-leaflet-map {
   width: 100%; height: 100%; z-index: 0;
   font-family: var(--font-sans);
 }
-.about-maplibre-map .maplibregl-ctrl-top-right {
+.about-leaflet-map .leaflet-top.leaflet-right {
   top: 64px; right: 12px;
 }
-.about-maplibre-map .maplibregl-ctrl-group {
+.about-leaflet-map .leaflet-control-zoom {
   border: 1px solid rgba(15, 23, 42, 0.18);
   border-radius: 10px; overflow: hidden;
   box-shadow: 0 4px 14px rgba(15, 23, 42, 0.18);
 }
-.about-maplibre-map .maplibregl-ctrl-group button {
-  width: 32px; height: 32px;
-  color: #1e293b; background-color: rgba(255,255,255,0.92);
+.about-leaflet-map .leaflet-control-zoom a {
+  width: 32px; height: 32px; line-height: 30px;
+  color: #1e293b; background: rgba(255,255,255,0.92);
   border-bottom-color: rgba(15, 23, 42, 0.12);
 }
-.about-maplibre-map .maplibregl-ctrl-group button:hover,
-.about-maplibre-map .maplibregl-ctrl-group button:focus-visible {
-  color: #0f172a; background-color: #fff;
+.about-leaflet-map .leaflet-control-zoom a:hover,
+.about-leaflet-map .leaflet-control-zoom a:focus-visible {
+  color: #0f172a; background: #fff;
 }
-.about-maplibre-map .maplibregl-ctrl-attrib {
+.about-leaflet-map .leaflet-control-attribution {
   padding: 2px 6px; color: #334155;
-  background: rgba(255,255,255,0.86); font-family: var(--font-sans);
+  background: rgba(255,255,255,0.86);
 }
-.about-maplibre-map .maplibregl-ctrl-attrib a { color: #0f4c81; }
-.about-maplibre-map .maplibregl-popup-content {
-  margin: 0; padding: 12px 14px;
+.about-leaflet-map .leaflet-control-attribution a { color: #0f4c81; }
+.about-leaflet-map .leaflet-popup-content-wrapper {
   border-radius: 12px; color: var(--text); background: var(--surface);
-  font-size: 0.8125rem; line-height: 1.45;
 }
-.about-maplibre-map .maplibregl-popup-content strong {
-  display: block; margin-bottom: 2px;
+.about-leaflet-map .leaflet-popup-tip { background: var(--surface); }
+.about-leaflet-map .leaflet-popup-content {
+  margin: 12px 14px; font-size: 0.8125rem; line-height: 1.45;
 }
-.about-maplibre-map .maplibregl-popup-content span { color: var(--text-tertiary); }
-.about-maplibre-map .maplibregl-popup-tip { background: var(--surface); }
-.about-maplibre-map .maplibregl-popup-close-button {
-  color: var(--text-tertiary); font-size: 1rem; line-height: 1;
+.about-leaflet-marker {
+  width: 28px !important; height: 28px !important;
+  border: 0; background: transparent;
 }
-.about-maplibre-map .maplibregl-popup-close-button:hover,
-.about-maplibre-map .maplibregl-popup-close-button:focus-visible {
-  color: var(--text); background: transparent;
-}
-.about-maplibre-marker {
-  position: relative; width: 28px; height: 28px; padding: 0;
-  border: 0; background: transparent; cursor: pointer;
-}
-.about-maplibre-marker:focus-visible {
-  outline: 3px solid rgba(34,197,94,0.8); outline-offset: 3px; border-radius: 50%;
-}
-.about-maplibre-marker-shell {
+.about-leaflet-marker-shell {
   position: absolute; top: 5px; left: 5px;
   width: 18px; height: 18px; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
@@ -1248,17 +1235,17 @@
   box-shadow: 0 2px 8px rgba(15, 23, 42, 0.4);
   transition: width 0.2s ease, height 0.2s ease, top 0.2s ease, left 0.2s ease, background 0.2s ease;
 }
-.about-maplibre-marker.is-origin .about-maplibre-marker-shell { background: #22c55e; }
-.about-maplibre-marker.is-active .about-maplibre-marker-shell {
+.about-leaflet-marker-shell.is-origin { background: #22c55e; }
+.about-leaflet-marker-shell.is-active {
   top: 3px; left: 3px; width: 22px; height: 22px;
   box-shadow: 0 0 0 5px rgba(34,197,94,0.2), 0 3px 12px rgba(15, 23, 42, 0.45);
 }
-.about-maplibre-marker.is-active .about-maplibre-marker-shell::before {
+.about-leaflet-marker-shell.is-active::before {
   content: ''; position: absolute; inset: -6px;
   border: 2px solid rgba(34,197,94,0.58); border-radius: 50%;
   animation: about-map-pin-pulse 1.6s ease-out infinite;
 }
-.about-maplibre-marker-dot {
+.about-leaflet-marker-dot {
   width: 5px; height: 5px; border-radius: 50%; background: #fff;
 }
 @keyframes about-map-pin-pulse {
