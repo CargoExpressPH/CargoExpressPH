@@ -275,7 +275,7 @@ const ActivityLogsPage = () => {
           />
         ) : (
           <div className="table-container">
-            <table className="data-table">
+            <table className="data-table data-table--wide">
               <thead>
                 <tr>
                   {['Date & Time', 'Admin', 'Module', 'Action', 'Reference', 'Details'].map(h => (

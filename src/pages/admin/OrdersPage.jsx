@@ -229,7 +229,7 @@ const AdminOrdersPage = () => {
       ) : (
         <div className="card admin-section-card admin-table-card animate-fade-in">
           <div className="table-container">
-            <table className="data-table">
+            <table className="data-table data-table--wide">
               <caption className="sr-only">List of customer bookings</caption>
               <thead><tr><th scope="col">Tracking</th><th scope="col">Customer</th><th scope="col">Route</th><th scope="col">Weight</th><th scope="col">Cost</th><th scope="col">Status</th><th scope="col">Date</th></tr></thead>
               <tbody>

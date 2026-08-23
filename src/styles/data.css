@@ -4,26 +4,56 @@
   width: 100%;
   min-width: 0;
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
   border-radius: var(--radius-md);
+  scrollbar-width: thin;
 }
 
 .data-table {
   width: 100%; border-collapse: separate; border-spacing: 0;
 }
+
+/* Wide tables (7-8 columns: bookings, unsettled, activity logs) retain
+   readable column width in the 900–1100px band before cards. Narrow
+   tables (dashboard 4 cols, customers 5 cols) fill naturally without
+   forced scroll. */
+.data-table--wide {
+  min-width: 640px;
+}
+
+@media (max-width: 900px) {
+  .data-table--wide {
+    min-width: 0;
+  }
+}
 .data-table th {
   padding: 12px 16px; text-align: left;
-  font-size: 0.75rem; font-weight: 600;
+  font-size: 0.75rem; font-weight: 700;
   text-transform: uppercase; letter-spacing: 0.05em;
   color: var(--text-secondary);
   background: var(--bg);
   border-bottom: 1px solid var(--border);
   position: sticky; top: 0; z-index: 1;
+  font-family: var(--font-sans);
 }
 .data-table td {
   padding: 14px 16px;
   border-bottom: 1px solid var(--border-light);
   font-size: 0.875rem; color: var(--text);
+  font-family: var(--font-sans);
+  line-height: 1.45;
   transition: var(--transition-fast);
+}
+
+.data-table th.num,
+.data-table td.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.data-table th.num {
+  text-align: right;
 }
 .data-table tbody tr {
   transition: var(--transition-fast);

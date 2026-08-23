@@ -252,26 +252,28 @@ const ReportsPage = () => {
                     </h3>
                   </div>
                   <div className="card-body">
-                    <table className="report-table">
-                      <thead>
-                        <tr>
-                          <th scope="col">Status</th>
-                          <th scope="col" className="text-center">Count</th>
-                          <th scope="col" className="text-right">Percentage</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {STATUS_ORDER.filter(st => data.statusBreakdown[st]).map(st => (
-                          <tr key={st}>
-                            <td data-label="Status"><StatusBadge status={st} /></td>
-                            <td data-label="Count" className="text-center fw-600">{data.statusBreakdown[st]}</td>
-                            <td data-label="Percentage" className="text-right text-secondary">
-                              {s.totalOrders > 0 ? ((data.statusBreakdown[st] / s.totalOrders) * 100).toFixed(1) : 0}%
-                            </td>
+                    <div className="report-table-wrap">
+                      <table className="report-table">
+                        <thead>
+                          <tr>
+                            <th scope="col">Status</th>
+                            <th scope="col" className="text-center">Count</th>
+                            <th scope="col" className="text-right">Percentage</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                        </thead>
+                        <tbody>
+                          {STATUS_ORDER.filter(st => data.statusBreakdown[st]).map(st => (
+                            <tr key={st}>
+                              <td data-label="Status"><StatusBadge status={st} /></td>
+                              <td data-label="Count" className="text-center fw-600">{data.statusBreakdown[st]}</td>
+                              <td data-label="Percentage" className="text-right text-secondary">
+                                {s.totalOrders > 0 ? ((data.statusBreakdown[st] / s.totalOrders) * 100).toFixed(1) : 0}%
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 </div>
 
@@ -336,7 +338,7 @@ const ReportsPage = () => {
                     </div>
 
                     <div className="mt-16 mb-16 border-t" style={{ paddingTop: 16 }}>
-                      <div className="fw-700 text-secondary mb-12 text-uppercase" style={{ fontSize: '0.8rem', letterSpacing: '0.05em' }}>Payment Methods</div>
+                      <div className="report-financial-sublabel">Payment Methods</div>
                       {[
                         { label: 'Cash', count: s.cashCount, total: s.cashTotal, color: 'var(--success)' },
                         { label: 'GCash', count: s.gcashCount, total: s.gcashTotal, color: 'var(--info)' },
@@ -347,16 +349,16 @@ const ReportsPage = () => {
                           ? [{ label: 'Unattributed', count: null, total: s.unattributedTotal, color: 'var(--text-tertiary)' }]
                           : []),
                       ].map((pm, i, arr) => (
-                        <div key={pm.label} className="flex justify-between items-center" style={{ padding: '6px 0', borderBottom: i < arr.length - 1 ? '1px solid var(--border-light)' : 'none' }}>
+                        <div key={pm.label} className="report-payment-row" style={{ borderBottom: i < arr.length - 1 ? '1px solid var(--border-light)' : 'none' }}>
                           <div className="flex items-center gap-8">
-                            <div className="w-8 h-8 rounded-full" style={{ background: pm.color }} />
+                            <span className="report-payment-dot" style={{ background: pm.color }} aria-hidden="true" />
                             <span className="text-sm">{pm.label}</span>
                             {/* Payments, not orders — one order can settle across two methods. */}
                             {pm.count !== null && (
-                              <span className="badge text-secondary" style={{ background: 'var(--bg-secondary)', fontSize: '0.7rem' }}>{pm.count || 0} payments</span>
+                              <span className="badge badge-sm badge-default">{pm.count || 0} payments</span>
                             )}
                           </div>
-                          <span className="fw-700 text-sm">{formatCurrency(pm.total)}</span>
+                          <span className="fw-700 text-sm report-payment-amount">{formatCurrency(pm.total)}</span>
                         </div>
                       ))}
                     </div>
@@ -386,7 +388,7 @@ const ReportsPage = () => {
                         }))}
                       />
                     </div>
-                    <div style={{ overflowX: 'auto' }}>
+                    <div className="report-table-wrap">
                       <table className="report-table">
                         <thead>
                           <tr>
@@ -429,8 +431,8 @@ const ReportsPage = () => {
                   </span>
                 </div>
                 <div className="card-body p-0">
-                  <div style={{ overflowX: 'auto' }}>
-                    <table className="report-table report-table-striped">
+                  <div className="report-table-wrap">
+                    <table className="report-table report-table-striped report-table--wide">
                       <thead>
                         <tr>
                           <th scope="col">Tracking #</th>
@@ -446,32 +448,31 @@ const ReportsPage = () => {
                       <tbody>
                         {data.orders.map((order) => (
                           <tr key={order.id}>
-                            <td data-label="Tracking #" className="fw-600 text-primary" style={{ fontFamily: 'monospace', fontSize: '0.8rem' }}>
+                            <td data-label="Tracking #" className="fw-600 report-mono">
                               {order.tracking_number}
                             </td>
                             <td data-label="Customer">
-                              <div className="fw-500" style={{ fontSize: '0.85rem' }}>{order.sender_name || order.profiles?.name || '—'}</div>
+                              <div className="fw-500 text-sm">{order.sender_name || order.profiles?.name || '—'}</div>
                             </td>
-                            <td data-label="Route" className="text-secondary" style={{ fontSize: '0.8rem' }}>
+                            <td data-label="Route" className="text-secondary text-sm">
                               {order.origin || '—'} → {order.destination || '—'}
                             </td>
                             <td data-label="Status"><StatusBadge status={order.status} /></td>
-                            <td data-label="Weight" className="text-right" style={{ fontSize: '0.85rem' }}>
+                            <td data-label="Weight" className="text-right fw-500">
                               {formatWeight(parseFloat(order.actual_weight || 0))}
                             </td>
-                            <td data-label="Amount" className="text-right fw-600" style={{ fontSize: '0.85rem' }}>
+                            <td data-label="Amount" className="text-right fw-700">
                               {isOrderPriced(order) ? formatCurrency(parseFloat(order.shipping_cost || 0)) : '—'}
                             </td>
                             <td data-label="Payment">
-                              <span className="badge text-capitalize" style={{
-                                background: order.payment_method === 'cash' ? 'var(--success-bg)' : order.payment_method === 'gcash' ? 'var(--info-bg)' : 'var(--warning-bg)',
-                                color: order.payment_method === 'cash' ? 'var(--success-text)' : order.payment_method === 'gcash' ? 'var(--info-text)' : 'var(--warning-text)',
-                                fontSize: '0.7rem'
-                              }}>
+                              <span className={`badge text-capitalize badge-sm ${
+                                order.payment_method === 'cash' ? 'badge-success' :
+                                order.payment_method === 'gcash' ? 'badge-info' : 'badge-warning'
+                              }`}>
                                 {order.payment_method || '—'}
                               </span>
                             </td>
-                            <td data-label="Date" className="text-secondary" style={{ fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
+                            <td data-label="Date" className="text-secondary text-sm" style={{ whiteSpace: 'nowrap' }}>
                               {formatDate(order.created_at)}
                             </td>
                           </tr>

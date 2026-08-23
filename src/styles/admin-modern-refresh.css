@@ -1073,7 +1073,7 @@
   }
 
   .app-layout .topbar-command-btn {
-    gap: 0 ;
+    gap: 0;
   }
 
   .app-layout .topbar-command-kbd {
@@ -1086,8 +1086,28 @@
   }
 
   .app-layout .admin-page-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 14px;
     padding: 18px;
     border-radius: var(--radius-lg);
+  }
+
+  .app-layout .admin-page-header > div:first-child {
+    min-width: 0;
+  }
+
+  .app-layout .admin-page-header .flex.gap-8 {
+    width: 100%;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    gap: 8px;
+  }
+
+  .app-layout .admin-page-header .btn {
+    flex: 1 1 auto;
+    min-width: 0;
+    justify-content: center;
   }
 
   .app-layout .admin-toolbar {
@@ -1095,86 +1115,93 @@
   }
 }
 
-/* --- Complete responsive table → card conversion (Harmonized at ≤820px) --- */
-@media (max-width: 820px) {
-  .app-layout .data-table thead,
-  .app-layout .report-table thead {
-    display: none;
+@media (max-width: 640px) {
+  .admin-page-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 14px;
   }
 
+  .admin-page-header .flex.gap-8 {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .admin-page-header .btn {
+    flex: 1 1 140px;
+    justify-content: center;
+  }
+
+  .unsettled-filter-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .unsettled-filter-row .responsive-filter {
+    width: 100%;
+  }
+
+  .unsettled-filter-row .unsettled-search {
+    width: 100%;
+    max-width: none;
+  }
+}
+
+/* --- Admin table card conversion — aligns to canonical 900px engine
+   Do NOT re-introduce a separate 820px flex layout. tables-mobile.css is
+   canonical; this block only tints the cards and adjusts label color for
+   the admin theme, inheriting the grid shape and spacing from there. --- */
+@media (max-width: 900px) {
   .app-layout .table-container {
     overflow-x: visible;
   }
 
-  .app-layout .data-table,
-  .app-layout .report-table {
-    display: block;
-  }
-
-  .app-layout .data-table tbody,
-  .app-layout .report-table tbody {
-    display: block;
-  }
-
   .app-layout .data-table tbody tr,
   .app-layout .report-table tbody tr {
-    display: block ;
-    width: 100% ;
-    margin: 12px 0;
-    padding: 16px ;
-    border: 1px solid var(--admin-line) ;
-    border-radius: var(--radius-md) ;
-    background: var(--admin-panel) ;
+    background: var(--admin-panel);
+    border-color: var(--admin-line);
     box-shadow: var(--admin-shadow-soft);
-  }
-
-  .app-layout .data-table tbody tr:first-child {
-    margin-top: 0;
-  }
-
-  .app-layout .data-table td,
-  .app-layout .report-table td {
-    display: flex ;
-    align-items: center;
-    gap: 10px;
-    padding: 9px 4px ;
-    border-bottom: 1px solid color-mix(in srgb, var(--admin-line) 50%, transparent) ;
-    width: auto ;
-    max-width: none ;
-    word-break: break-word;
-    white-space: normal ;
-  }
-
-  .app-layout .data-table td:last-child,
-  .app-layout .report-table td:last-child {
-    border-bottom: none ;
   }
 
   .app-layout .data-table td[data-label]::before,
   .app-layout .report-table td[data-label]::before {
-    content: attr(data-label);
-    font-weight: 800;
-    font-size: 0.68rem;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: var(--admin-green-dark);
-    flex-shrink: 0;
-    min-width: 80px;
+    color: var(--admin-muted);
+    font-weight: 700;
+    letter-spacing: 0.04em;
+  }
+
+  .app-layout .data-table td:first-child,
+  .app-layout .report-table td:first-child {
+    border-bottom-color: var(--admin-line);
+  }
+
+  .app-layout .data-table td[data-label="Action"],
+  .app-layout .report-table td[data-label="Action"],
+  .app-layout .data-table td[data-label="Actions"],
+  .app-layout .report-table td[data-label="Actions"] {
+    border-top-color: var(--admin-line);
+  }
+
+  .app-layout .data-table tfoot tr,
+  .app-layout .report-table tfoot tr {
+    background: color-mix(in srgb, var(--admin-green-soft) 55%, var(--admin-panel));
+    border-color: var(--admin-line);
   }
 
   .app-layout .data-table tbody tr:hover,
   .app-layout .report-table tbody tr:hover {
-    background: color-mix(in srgb, var(--admin-green-soft) 50%, var(--admin-panel)) ;
+    background: color-mix(in srgb, var(--admin-green-soft) 50%, var(--admin-panel));
   }
 
   .app-layout .data-table tbody tr:hover td:first-child,
   .app-layout .report-table tbody tr:hover td:first-child {
-    box-shadow: none ;
+    box-shadow: none;
   }
 
   /* Hide drag handles on mobile card layout */
   .app-layout .feature-drag-handle {
-    display: none ;
+    display: none;
   }
 }
 
@@ -1288,7 +1315,7 @@
   cursor: pointer;
   transition: background-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
   white-space: nowrap;
-  font-family: inherit;
+  font-family: var(--font-sans);
 }
 
 .sales-reports-tab:hover {

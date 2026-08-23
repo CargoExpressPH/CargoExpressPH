@@ -131,29 +131,60 @@
   margin: -4px 0 0;
 }
 
+/* ── Base report table — visually aligned to .data-table
+   The two tables live side-by-side in admin (Unsettled = data-table,
+   Reports = report-table). They must read as one system, not two
+   components stitched together. report-table inherits the same type
+   scale, padding, and tokens as data-table; only the striped variant
+   keeps its even-row tint. */
 .report-table {
   width: 100%;
-  border-collapse: collapse;
-  font-size: 0.85rem;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 0.875rem;
+  font-family: var(--font-sans);
+  color: var(--text);
+}
+
+/* Only the dense 8-col order list needs a scroll floor; narrow report
+   tables (status 3-col, routes 4-col) fill naturally. */
+.report-table--wide {
+  min-width: 640px;
+}
+
+@media (max-width: 900px) {
+  .report-table--wide {
+    min-width: 0;
+  }
 }
 
 .report-table th {
-  padding: 10px 12px;
+  padding: 12px 16px;
   text-align: left;
   font-size: 0.75rem;
   font-weight: 700;
   color: var(--text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  border-bottom: 2px solid var(--border);
-  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
   white-space: nowrap;
+  position: sticky;
+  top: 0;
+  z-index: 1;
 }
 
 .report-table td {
-  padding: 10px 12px;
+  padding: 14px 16px;
   border-bottom: 1px solid var(--border-light);
+  font-size: 0.875rem;
+  color: var(--text);
   vertical-align: middle;
+  transition: var(--transition-fast);
+}
+
+.report-table tbody tr {
+  transition: var(--transition-fast);
 }
 
 .report-table tbody tr:hover {
@@ -166,6 +197,32 @@
 
 .report-table-striped tbody tr:nth-child(even):hover {
   background: var(--primary-bg);
+}
+
+.report-table td.num,
+.report-table th.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Admin theme must tint both tables identically — otherwise switching
+   tabs between Sales (data-table) and Reports (report-table) reads as
+   a theme change. */
+.app-layout .report-table th {
+  background: color-mix(in srgb, var(--admin-green-soft) 72%, var(--admin-panel-solid) 28%);
+  color: var(--admin-green-dark);
+  font-weight: 900;
+  letter-spacing: 0.07em;
+  border-bottom-color: var(--admin-line);
+}
+
+.app-layout .report-table td {
+  border-bottom-color: var(--admin-line);
+}
+
+.app-layout .report-table tbody tr:hover {
+  background: color-mix(in srgb, var(--admin-green-soft) 62%, transparent);
 }
 
 .report-financial-grid {
@@ -192,15 +249,81 @@
 }
 
 .report-financial-value {
+  font-family: var(--font-sans);
   font-size: 1.125rem;
   font-weight: 800;
   color: var(--text);
+  line-height: 1.1;
+  letter-spacing: -0.01em;
 }
 
 .report-financial-value.text-error { color: var(--error-text-strong); }
+.report-financial-value.text-success { color: var(--success-text); }
 .report-table td.text-primary { color: var(--primary-text-strong); }
+.report-table td.fw-600 { font-weight: 600; }
+.report-table td.text-secondary { color: var(--text-secondary); }
+
+/* Tracking numbers are the only monospace in the reports table.
+   Scoped here rather than inline so mobile and dark theme stay in sync. */
+.report-table .report-mono {
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--primary-text-strong);
+}
+
+.report-financial-sublabel {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 12px;
+}
+
+.report-payment-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+  min-width: 0;
+}
+
+.report-payment-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: inline-block;
+}
+
+.report-payment-amount {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
 
 /* -- Reports page responsive -- */
+@media (max-width: 900px) {
+  .report-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .report-controls .flex {
+    width: 100%;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+
+  .report-controls .btn {
+    flex: 1 1 auto;
+    min-width: 0;
+    justify-content: center;
+  }
+}
+
 @media (max-width: 768px) {
   .report-custom-range {
     flex-direction: column;
@@ -223,6 +346,70 @@
   .report-period-tab {
     padding: 6px 12px;
     font-size: 0.8rem;
+  }
+
+  .report-controls h1.admin-page-title {
+    font-size: 1.25rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .report-financial-item {
+    padding: 12px 14px;
+  }
+
+  .report-financial-value {
+    font-size: 1rem;
+  }
+
+  .report-payment-row {
+    flex-wrap: wrap;
+  }
+
+  .report-payment-row .badge {
+    font-size: 0.6875rem;
+  }
+}
+
+/* Unsettled filter row — search and settlement state on one line desktop,
+   stacked on phone so the 260px input never overflows the content box */
+.unsettled-filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.unsettled-search {
+  flex: 1 1 220px;
+  min-width: min(220px, 100%);
+  max-width: 320px;
+}
+
+/* Pagination inside card footers inherits table card rounding */
+.admin-table-card .pagination-wrap {
+  border-top: 1px solid var(--border-light);
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
+}
+
+.app-layout .admin-table-card .pagination-wrap {
+  border-top-color: var(--admin-line);
+  background: color-mix(in srgb, var(--admin-panel) 88%, var(--bg) 12%);
+}
+
+/* Report tables inside cards need a horizontal scroll fallback on
+   desktop narrow (820–900) before the card conversion fires. The outer
+   .card-body.p-0 already clips, so the scroll container needs min-width:0 */
+.report-table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  min-width: 0;
+  width: 100%;
+}
+
+@media (max-width: 900px) {
+  .report-table-wrap {
+    overflow-x: visible;
   }
 }
 

@@ -375,7 +375,7 @@ const UnsettledDeliveriesPage = () => {
         </div>
       )}
 
-      <div className="flex gap-8 flex-wrap items-center mb-16 no-print">
+      <div className="flex gap-8 flex-wrap items-center mb-16 no-print unsettled-filter-row">
         <ResponsiveFilterControls
           options={filterOptions}
           value={filter}
@@ -386,8 +386,7 @@ const UnsettledDeliveriesPage = () => {
         />
         <input
           type="search"
-          className="form-input"
-          style={{ maxWidth: 260 }}
+          className="form-input unsettled-search"
           placeholder="Search tracking or customer…"
           aria-label="Search unsettled deliveries"
           value={search}
@@ -412,7 +411,7 @@ const UnsettledDeliveriesPage = () => {
       ) : (
         <div className="card admin-section-card admin-table-card animate-fade-in no-print">
           <div className="table-container">
-            <table className="data-table">
+            <table className="data-table data-table--wide">
               <caption className="sr-only">Deliveries with an outstanding balance</caption>
               <thead>
                 <tr>
