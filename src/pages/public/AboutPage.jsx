@@ -330,24 +330,6 @@ const InteractiveMap = ({ coverage, selectedRegionId, onSelectRegion }) => {
           <path d="M127,24 L157,22 L169,47 L174,84 L176,113 L158,166 L143,187 L122,171 L108,121 L106,79 Z" fill="url(#terrainGrain)" />
           <path d="M161,309 L194,297 L226,308 L239,327 L222,350 L187,355 L160,338 Z" fill="url(#terrainGrain)" />
         </g>
-        <g fill="none" strokeLinecap="round" strokeLinejoin="round" className="about-svg-no-events">
-          <g stroke="rgba(255,244,189,0.72)" strokeWidth="1.15">
-            <path d="M148,100 L150,115 L140,125 L148,145" />
-            <path d="M150,115 L160,130 L148,145" />
-            <path d="M150,115 L160,106 L165,91" />
-            <path d="M193,281 L176,276 L164,270 L146,245 L132,239" />
-            <path d="M193,281 L199,259 L204,228 L207,216" />
-          </g>
-          <g stroke="rgba(9,63,96,0.72)" strokeWidth="0.8">
-            <path d="M144,39 Q151,70 142,96 Q137,123 150,158" />
-            <path d="M199,307 Q203,326 222,340" />
-          </g>
-          <g stroke="rgba(255,255,255,0.32)" strokeWidth="0.45" strokeDasharray="1.4 1.4">
-            <path d="M142,51 L165,67 L157,92 L168,119" />
-            <path d="M122,158 L142,168 L151,181" />
-            <path d="M171,257 L175,280" />
-          </g>
-        </g>
         {/* â”€â”€ Dynamic shipping route: Bohol â†” selected pin â”€â”€ */}
         {/* Default faint route when nothing selected */}
         {!selectedPin && (
