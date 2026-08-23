@@ -23,7 +23,7 @@
  *
  *   It is 2000×2000 and ~949 KB. Into a 40 px slot on every page of a PWA that
  *   is the entire image budget spent on a favicon-sized element, so
- *   `/logo-nav.png` is a cropped, downscaled derivative (160 px, ~23 KB).
+ *   `/logo-nav.png` is an optimized, downscaled derivative (256 px, ~38 KB).
  *   `/logo.png` remains the untouched master.
  *
  * `tone` picks the wordmark colours: "default" on light surfaces, "on-dark" for

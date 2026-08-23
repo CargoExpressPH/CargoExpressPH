@@ -18,7 +18,8 @@ const APP_SHELL = [
   '/',
   '/index.html',
   '/manifest.json',
-  '/favicon.svg',
+  '/logo-nav.png',
+  '/icons/icon-32.png',
   '/icons/icon-192.png',
   '/icons/icon-72.png',
 ];
