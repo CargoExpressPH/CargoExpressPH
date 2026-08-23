@@ -29,10 +29,8 @@ import {
   MapContainer,
   Marker,
   Polyline,
-  Popup,
   TileLayer,
   ZoomControl,
-  useMap,
 } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import {
@@ -163,33 +161,6 @@ const buildShippingRoute = (from, to) => {
   });
 };
 
-const MapViewport = ({ selectedRegion }) => {
-  const map = useMap();
-
-  useEffect(() => {
-    if (!selectedRegion) {
-      map.fitBounds(PHILIPPINES_MAP_BOUNDS, {
-        padding: [20, 20],
-        maxZoom: PHILIPPINES_MAP_ZOOM,
-        animate: true,
-      });
-      return;
-    }
-
-    if (selectedRegion.name === 'Bohol') {
-      map.setView(selectedRegion.position, 8, { animate: true });
-      return;
-    }
-
-    map.fitBounds(
-      L.latLngBounds([BOHOL_POSITION, selectedRegion.position]),
-      { padding: [48, 48], maxZoom: 7, animate: true }
-    );
-  }, [map, selectedRegion]);
-
-  return null;
-};
-
 const InteractiveMap = ({ coverage, selectedRegionId, onSelectRegion }) => {
   const [hoveredPin, setHoveredPin] = useState(null);
   const mappedRegions = PHILIPPINES_MAP_REGIONS
@@ -203,9 +174,9 @@ const InteractiveMap = ({ coverage, selectedRegionId, onSelectRegion }) => {
     ({ coverageRegion }) => coverageRegion.id === selectedRegionId
   )?.mapRegion || null;
   const selectedDestination = selectedMapRegion?.name === 'Bohol' ? null : selectedMapRegion;
-  const defaultRouteRegion = mappedRegions.find(
-    ({ mapRegion }) => mapRegion.name === 'Batangas'
-  )?.mapRegion || null;
+  const defaultRouteRegion = PHILIPPINES_MAP_REGIONS.find(
+    mapRegion => mapRegion.name === 'Batangas'
+  ) || null;
   const routeRegion = selectedDestination || defaultRouteRegion;
   const tooltipRegion = hoveredPin
     ? mappedRegions.find(({ mapRegion }) => mapRegion.name === hoveredPin)?.mapRegion
@@ -235,7 +206,6 @@ const InteractiveMap = ({ coverage, selectedRegionId, onSelectRegion }) => {
         />
         <AttributionControl prefix={false} position="bottomright" />
         <ZoomControl position="topright" />
-        <MapViewport selectedRegion={selectedMapRegion} />
 
         {routeRegion && (
           <Polyline
@@ -263,21 +233,22 @@ const InteractiveMap = ({ coverage, selectedRegionId, onSelectRegion }) => {
               keyboard
               title={'Select ' + mapRegion.name + ' region'}
               alt={'Select ' + mapRegion.name + ' region'}
+              autoPanOnFocus={false}
               zIndexOffset={isActive ? 1000 : 0}
               eventHandlers={{
                 click: () => onSelectRegion(isSelected ? null : coverageRegion.id),
+                keydown: (event) => {
+                  const key = event.originalEvent?.key;
+                  if (key !== 'Enter' && key !== ' ') return;
+                  event.originalEvent.preventDefault();
+                  onSelectRegion(isSelected ? null : coverageRegion.id);
+                },
                 mouseover: () => setHoveredPin(mapRegion.name),
                 mouseout: () => setHoveredPin(null),
                 focus: () => setHoveredPin(mapRegion.name),
                 blur: () => setHoveredPin(null),
               }}
-            >
-              <Popup>
-                <strong>{mapRegion.name}</strong>
-                <br />
-                {mapRegion.details}
-              </Popup>
-            </Marker>
+            />
           );
         })}
       </MapContainer>
