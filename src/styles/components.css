@@ -85,6 +85,83 @@
   box-shadow: none !important;
 }
 
+/* --- PAYMONGO WAITING CARD (responsive) -------------------------------- */
+.paymongo-waiting-card {
+  background: var(--info-bg);
+  border-radius: var(--radius-md);
+  padding: 14px;
+  border: 1px solid var(--info);
+  container-type: inline-size;
+  container-name: paymongo;
+}
+.paymongo-qr-wrap {
+  background: white;
+  padding: 10px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: min(180px, 44vw);
+  max-width: 100%;
+  box-shadow: 0 1px 6px rgba(15,23,42,0.06);
+}
+.paymongo-qr-wrap svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+.paymongo-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(140px, 100%), 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+.paymongo-actions-3 {
+  grid-template-columns: repeat(auto-fit, minmax(min(110px, 100%), 1fr));
+}
+.paymongo-check-btn {
+  margin-top: 12px;
+}
+.paymongo-waiting-status {
+  margin-top: 12px;
+  margin-bottom: 12px;
+}
+.paymongo-cancel-btn {
+  margin-top: 4px;
+}
+@container paymongo (max-width: 340px) {
+  .paymongo-actions,
+  .paymongo-actions-3 {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 480px) {
+  .paymongo-waiting-card {
+    padding: 12px;
+  }
+  .paymongo-waiting-card .btn {
+    min-height: 42px;
+    font-size: 0.8125rem;
+    white-space: normal;
+    text-align: center;
+    line-height: 1.25;
+  }
+  .paymongo-qr-wrap {
+    width: min(160px, 52vw);
+    padding: 8px;
+  }
+}
+@media (max-width: 360px) {
+  .paymongo-waiting-card {
+    padding: 10px;
+  }
+  .paymongo-actions,
+  .paymongo-actions-3 {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+}
+
 /* Button loading spinner */
 .btn .animate-spin { animation: spin 0.8s linear infinite; }
 

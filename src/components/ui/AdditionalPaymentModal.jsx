@@ -357,8 +357,8 @@ const AdditionalPaymentModal = ({ order, remainingBalance, onClose, onSave, onPa
                 )}
 
                 {paymentStep === 'waiting' && checkoutUrl && (
-                  <div className="mb-12" style={{ background: 'var(--info-bg)', borderRadius: 'var(--radius-md)', padding: 14, border: '1px solid var(--info)' }}>
-                    <div className="flex items-center justify-between mb-16">
+                  <div className="mb-12 paymongo-waiting-card">
+                    <div className="flex items-center justify-between flex-wrap gap-8 mb-16">
                       <span
                         className="text-white"
                         style={{
@@ -375,8 +375,8 @@ const AdditionalPaymentModal = ({ order, remainingBalance, onClose, onSave, onPa
                     </div>
 
                     <div className="flex flex-col items-center gap-8 mb-16">
-                      <div style={{ background: 'white', padding: 10, borderRadius: 'var(--radius-md)' }}>
-                        <QRCode value={checkoutUrl} size={160} />
+                      <div className="paymongo-qr-wrap">
+                        <QRCode value={checkoutUrl} size={256} style={{ height: 'auto', maxWidth: '100%', width: '100%' }} viewBox="0 0 256 256" />
                       </div>
                     </div>
 
@@ -392,25 +392,23 @@ const AdditionalPaymentModal = ({ order, remainingBalance, onClose, onSave, onPa
                           <li>Approve the payment in the GCash app</li>
                           <li>This window updates automatically when the payment lands</li>
                         </ol>
-                        <button type="button" className="btn btn-secondary btn-sm w-full justify-center mt-10" onClick={checkPaymentNow} disabled={checkingPayment}>
+                        <button type="button" className="btn btn-secondary btn-sm w-full justify-center mt-12 paymongo-check-btn" onClick={checkPaymentNow} disabled={checkingPayment}>
                           {checkingPayment ? <><Loader size={14} className="animate-spin mr-6" /> Checking…</> : 'Check payment'}
                         </button>
                       </>
                     )}
 
-                    <div className="flex gap-8 flex-wrap">
+                    <div className="paymongo-actions">
                       <button
                         type="button"
-                        className="btn btn-primary btn-sm flex-1 justify-center"
-                        style={{minWidth: 120}}
+                        className="btn btn-primary btn-sm justify-center"
                         onClick={() => { window.location.href = checkoutUrl; }}
                       >
                         <ExternalLink size={14} className="mr-6" aria-hidden="true" /> Open GCash
                       </button>
                       <button
                         type="button"
-                        className="btn btn-outline btn-sm flex-1 justify-center"
-                        style={{minWidth: 120}}
+                        className="btn btn-outline btn-sm justify-center"
                         onClick={() => {
                           navigator.clipboard.writeText(checkoutUrl);
                         }}

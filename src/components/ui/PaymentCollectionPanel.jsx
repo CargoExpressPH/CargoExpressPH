@@ -602,8 +602,8 @@ const PaymentCollectionPanel = ({
 
           {/* Waiting for the customer */}
           {value.paymentStep === 'waiting' && !value.confirmed && value.checkoutUrl && (
-            <div className="mb-12" style={{ background: 'var(--info-bg)', borderRadius: 'var(--radius-md)', padding: 14, border: '1px solid var(--info)' }}>
-              <div className="flex items-center justify-between mb-16">
+            <div className="mb-12 paymongo-waiting-card">
+              <div className="flex items-center justify-between flex-wrap gap-8 mb-16">
                 <span
                   className="text-white"
                   style={{
@@ -620,8 +620,8 @@ const PaymentCollectionPanel = ({
               </div>
 
               <div className="flex flex-col items-center gap-8 mb-16">
-                <div style={{ background: 'white', padding: 10, borderRadius: 'var(--radius-md)' }}>
-                  <QRCode value={value.checkoutUrl} size={160} />
+                <div className="paymongo-qr-wrap">
+                  <QRCode value={value.checkoutUrl} size={256} style={{ height: 'auto', maxWidth: '100%', width: '100%' }} viewBox="0 0 256 256" />
                 </div>
               </div>
 
@@ -631,34 +631,31 @@ const PaymentCollectionPanel = ({
                 <li>Done — this panel updates by itself the moment the payment lands</li>
               </ol>
 
-              <div className="flex items-center justify-center gap-8 mb-16" role="status" aria-live="polite">
+              <div className="flex items-center justify-center gap-8 mt-12 mb-12 paymongo-waiting-status" role="status" aria-live="polite">
                 <Loader size={14} className="animate-spin" style={{ color: 'var(--info-dark)' }} aria-hidden="true" />
                 <span className="text-xs" style={{ color: 'var(--info-dark)' }}>
                   Waiting for the customer to complete payment…
                 </span>
               </div>
 
-              <div className="flex gap-8 flex-wrap mb-8">
+              <div className="paymongo-actions paymongo-actions-3 mb-12">
                 <button
                   type="button"
-                  className="btn btn-primary btn-sm flex-1 justify-center"
-                  style={{minWidth: 110}}
+                  className="btn btn-primary btn-sm justify-center"
                   onClick={() => { window.location.href = value.checkoutUrl; }}
                 >
                   <ExternalLink size={14} className="mr-6" aria-hidden="true" /> Open GCash
                 </button>
                 <button
                   type="button"
-                  className="btn btn-outline btn-sm flex-1 justify-center"
-                  style={{minWidth: 110}}
+                  className="btn btn-outline btn-sm justify-center"
                   onClick={() => navigator.clipboard.writeText(value.checkoutUrl)}
                 >
                   Copy Payment Link
                 </button>
                 <button
                   type="button"
-                  className="btn btn-secondary btn-sm flex-1 justify-center"
-                  style={{minWidth: 110}}
+                  className="btn btn-secondary btn-sm justify-center"
                   onClick={() => checkPaymentNow(false)}
                   disabled={disabled || checkingPayment}
                 >
@@ -673,7 +670,7 @@ const PaymentCollectionPanel = ({
                   modal they cannot submit. */}
               <button
                 type="button"
-                className="btn btn-outline btn-sm w-full justify-center"
+                className="btn btn-outline btn-sm w-full justify-center paymongo-cancel-btn"
                 onClick={handleCancelGCash}
                 disabled={disabled || checkingPayment}
               >
