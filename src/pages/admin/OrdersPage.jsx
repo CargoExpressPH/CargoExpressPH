@@ -36,10 +36,10 @@ const FILTER_GROUPS = [
 const statusesForTab = (tab) =>
   FILTER_GROUPS.find(g => g.value === tab)?.statuses ?? null;
 
-// Which tabs carry a badge. 'All' is a total, not a queue — a number there
-// would compete with the two that mean something. 'Completed' and 'Cancelled'
-// only grow, so their counts are trivia, not work.
-const BADGED_TABS = ['Action Needed', 'Pending', 'Active'];
+// Every specific status group carries a badge. 'All' is a total, not an
+// individual status group, so it stays unbadged while Completed and Cancelled
+// remain visible as useful status totals.
+const BADGED_TABS = FILTER_GROUPS.filter(group => group.statuses !== null).map(group => group.value);
 
 // Sum the per-status counts the RPC returns into one group's total. A status
 // absent from the payload has no orders, which is a 0 here.
