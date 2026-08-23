@@ -1,7 +1,7 @@
 /* --- Table-to-card layout, mobile grid spacing, narrow-screen admin table hardening ---
    Split from remaining.css. This file holds the CANONICAL responsive table
-   engine (global). admin-modern-refresh.css currently carries a scoped
-   duplicate at @820px — fix table bugs HERE until that consolidation lands.
+   engine (global). admin-modern-refresh.css tints at @900px — fix table
+   bugs HERE.
    ----------------------------------------------------------------- */
 
 /* -----------------------------------------------------------------------
@@ -247,7 +247,8 @@
   }
 
   /* Inline labels — single token set so Unsettled and Reports render
-     the same weight/size/color at every width. */
+      the same weight/size/color at every width. First-cell title hides its
+      label (redundant with the prominent tracking/name). */
   .data-table td[data-label]::before,
   .report-table td[data-label]::before {
     content: attr(data-label);
@@ -261,6 +262,21 @@
     text-align: left;
     align-self: start;
     padding-top: 2px;
+    grid-column: 1;
+  }
+
+  .data-table td:first-child::before,
+  .report-table td:first-child::before {
+    display: none;
+  }
+
+  /* Every real cell value must land in column 2. Without this a td with
+     two children (settlement badge + hint, balance + ledger note) would
+     place the second child in column 1 of the next row — directly under
+     the label instead of under the value. */
+  .data-table td[data-label]:not(:first-child) > *,
+  .report-table td[data-label]:not(:first-child) > * {
+    grid-column: 2;
   }
 
   .data-table td:not([data-label]),
@@ -324,6 +340,11 @@
     text-align: right;
     color: var(--error-text-strong);
     font-variant-numeric: tabular-nums;
+  }
+
+  .data-table tfoot td:empty,
+  .report-table tfoot td:empty {
+    display: none;
   }
 
   /* Numeric columns stay tabular on cards */
