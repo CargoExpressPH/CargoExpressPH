@@ -10,6 +10,7 @@ import { sanitizeAmount, parseAmount, formatAmount } from '../../utils/currencyI
 import { createGCashSource, registerSource, pollPaymentStatus } from '../../lib/paymongo';
 import { getPaymentAttemptBySource, getOrderPaymentSnapshot } from '../../lib/database';
 import { supabase } from '../../lib/supabase';
+import { useToast } from '../../hooks/useToast';
 
 /**
  * PaymentCollectionPanel — the one place money is taken from a customer.
@@ -264,6 +265,7 @@ const PaymentCollectionPanel = ({
   errors = {},
   clearError = () => {},
 }) => {
+  const toast = useToast();
   // Purely visual and only meaningful while the request is in flight, so it
   // stays local rather than joining the state the parent submits.
   const [checkingPayment, setCheckingPayment] = useState(false);
@@ -649,7 +651,14 @@ const PaymentCollectionPanel = ({
                 <button
                   type="button"
                   className="btn btn-outline btn-sm justify-center"
-                  onClick={() => navigator.clipboard.writeText(value.checkoutUrl)}
+                  onClick={async () => {
+                    try {
+                      await navigator.clipboard.writeText(value.checkoutUrl);
+                      toast.success('Payment link copied to clipboard');
+                    } catch {
+                      config.onError?.('Failed to copy link. Please copy manually.');
+                    }
+                  }}
                 >
                   Copy Payment Link
                 </button>

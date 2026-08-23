@@ -10,6 +10,7 @@ import QRCode from 'react-qr-code';
 import { createGCashSource, registerSource, pollPaymentStatus } from '../../lib/paymongo';
 import { getPaymentAttemptBySource, getOrderPaymentSnapshot } from '../../lib/database';
 import { supabase } from '../../lib/supabase';
+import { useToast } from '../../hooks/useToast';
 
 /**
  * AdditionalPaymentModal — Manually collects additional payments for remaining balances.
@@ -40,6 +41,7 @@ const AdditionalPaymentModal = ({ order, remainingBalance, onClose, onSave, onPa
   const [paymentConfirmed, setPaymentConfirmed] = useState(null);
   const [checkingPayment, setCheckingPayment] = useState(false);
 
+  const toast = useToast();
   const receiptInputRef = useRef(null);
   const paymentChannelRef = useRef(null);
   const baselinePaidRef = useRef(Number(order?.amount_paid || 0));
@@ -409,8 +411,13 @@ const AdditionalPaymentModal = ({ order, remainingBalance, onClose, onSave, onPa
                       <button
                         type="button"
                         className="btn btn-outline btn-sm justify-center"
-                        onClick={() => {
-                          navigator.clipboard.writeText(checkoutUrl);
+                        onClick={async () => {
+                          try {
+                            await navigator.clipboard.writeText(checkoutUrl);
+                            toast.success('Payment link copied to clipboard');
+                          } catch {
+                            setError('Failed to copy link. Please copy manually.');
+                          }
                         }}
                       >
                         Copy Payment Link
