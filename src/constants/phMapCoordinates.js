@@ -3,6 +3,12 @@
 // these visual map anchors stay separate from the editable coverage content.
 export const PHILIPPINES_MAP_CENTER = [12.2, 122.1];
 export const PHILIPPINES_MAP_ZOOM = 5;
+// Padded bounds keep the full Philippine service area visible while
+// preventing the map camera from drifting to the rest of the world.
+export const PHILIPPINES_MAP_BOUNDS = [
+  [4.2, 116.5],
+  [21.5, 127.5],
+];
 
 export const PHILIPPINES_MAP_REGIONS = [
   {

@@ -35,6 +35,7 @@ import {
 } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import {
+  PHILIPPINES_MAP_BOUNDS,
   PHILIPPINES_MAP_CENTER,
   PHILIPPINES_MAP_REGIONS,
   PHILIPPINES_MAP_ZOOM,
@@ -163,7 +164,11 @@ const MapViewport = ({ selectedRegion }) => {
 
   useEffect(() => {
     if (!selectedRegion) {
-      map.setView(PHILIPPINES_MAP_CENTER, PHILIPPINES_MAP_ZOOM, { animate: true });
+      map.fitBounds(PHILIPPINES_MAP_BOUNDS, {
+        padding: [20, 20],
+        maxZoom: PHILIPPINES_MAP_ZOOM,
+        animate: true,
+      });
       return;
     }
 
@@ -208,14 +213,19 @@ const InteractiveMap = ({ coverage, selectedRegionId, onSelectRegion }) => {
         className="about-leaflet-map"
         center={PHILIPPINES_MAP_CENTER}
         zoom={PHILIPPINES_MAP_ZOOM}
-        minZoom={4}
+        maxBounds={PHILIPPINES_MAP_BOUNDS}
+        maxBoundsViscosity={1}
+        minZoom={PHILIPPINES_MAP_ZOOM}
         maxZoom={13}
+        worldCopyJump={false}
         scrollWheelZoom={false}
         zoomControl={false}
       >
         <TileLayer
           url={MAP_TILE_URL}
           attribution={MAP_TILE_ATTRIBUTION}
+          bounds={PHILIPPINES_MAP_BOUNDS}
+          noWrap
           maxZoom={19}
         />
         <ZoomControl position="topright" />
