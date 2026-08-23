@@ -654,13 +654,13 @@ const SupportChatPage = () => {
           <MessageSquare size={24} aria-hidden="true" />
           Support Chat
         </h2>
-        <p className="text-secondary text-sm">
-          {isResolved
-            ? 'This conversation was marked resolved by our support team.'
-            : isBotMode
-              ? 'Our virtual assistant is ready to help you 24/7.'
-              : 'You are connected to our support team.'}
-        </p>
+        {(isResolved || isBotMode) && (
+          <p className="text-secondary text-sm">
+            {isResolved
+              ? 'This conversation was marked resolved by our support team.'
+              : 'Our virtual assistant is ready to help you 24/7.'}
+          </p>
+        )}
       </div>
 
       {/* Waiting for admin banner (shown after escalation) */}
