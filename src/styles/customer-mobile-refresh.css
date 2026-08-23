@@ -1757,6 +1757,9 @@ body:has(textarea:focus) .support-chat-page {
      height in the chat page's parent. The composer remains above that reserve
      while the timeline consumes all remaining space. */
   .customer-layout-v2:has(.support-chat-page) > .customer-main:has(.support-chat-page) {
+    /* Give the conversation a little more horizontal room on phones while
+       keeping the normal customer-page gutters on tablets. */
+    padding-inline: clamp(12px, 3vw, 18px);
     padding-bottom: calc(94px + var(--customer-safe-bottom));
     scroll-padding-bottom: calc(94px + var(--customer-safe-bottom));
   }
@@ -1766,5 +1769,30 @@ body:has(textarea:focus) .support-chat-page {
   body:has(textarea:focus) .customer-layout-v2:has(.support-chat-page) > .customer-main:has(.support-chat-page) {
     padding-bottom: calc(8px + var(--customer-safe-bottom));
     scroll-padding-bottom: calc(8px + var(--customer-safe-bottom));
+  }
+}
+
+@media (max-width: 768px) {
+  /* Keep both sides of the same conversation visually consistent on phones. */
+  .customer-layout-v2:has(.support-chat-page) .support-message-stack,
+  .inbox-layout .inbox-message-stack {
+    max-width: 88%;
+  }
+}
+
+@media (max-width: 640px) {
+  /* The chat title is useful context, but it should not consume the message
+     timeline's limited height on a short phone viewport. */
+  .support-chat-page > .mb-16 {
+    margin-bottom: 10px;
+  }
+
+  .support-chat-page > .mb-16 h2 {
+    font-size: clamp(1.0625rem, 4.6vw, 1.25rem);
+  }
+
+  .support-chat-page > .mb-16 h2 svg {
+    width: 20px;
+    height: 20px;
   }
 }
