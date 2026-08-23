@@ -23,6 +23,22 @@ import useFieldErrors from '../../hooks/useFieldErrors';
 import FieldError, { fieldAttrs, invalidClass } from '../../components/ui/FieldError';
 import { motion, useScroll, useTransform, AnimatePresence, MotionConfig } from 'framer-motion';
 import { BrandLogo, BrandWordmark } from '../../components/ui/BrandLogo';
+import L from 'leaflet';
+import {
+  MapContainer,
+  Marker,
+  Polyline,
+  Popup,
+  TileLayer,
+  ZoomControl,
+  useMap,
+} from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
+import {
+  PHILIPPINES_MAP_CENTER,
+  PHILIPPINES_MAP_REGIONS,
+  PHILIPPINES_MAP_ZOOM,
+} from '../../constants/phMapCoordinates';
 
 const getGoogleMapsSearchUrl = (address) => (
   `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address?.trim() || '')}`
@@ -102,365 +118,163 @@ const Lightbox = ({ images, currentIndex, onClose, onNavigate }) => {
 };
 
 // â”€â”€â”€ Interactive Map Component â”€â”€â”€
-const InteractiveMap = ({ coverage, selectedRegionId, onSelectRegion }) => {
-  const mapPins = [
-    { name: 'Metro Manila', x: 150, y: 115, details: 'Manila Hub (Sea Freight Terminal)' },
-    { name: 'Bulacan', x: 148, y: 100, details: 'Bulacan Distribution Network' },
-    { name: 'Cavite', x: 140, y: 125, details: 'Cavite Logistics Center' },
-    { name: 'Laguna', x: 160, y: 130, details: 'Laguna Delivery Hub' },
-    { name: 'Batangas', x: 148, y: 145, details: 'Batangas Shipping Hub' },
-    { name: 'Bohol', x: 193, y: 281, details: 'Bohol Distribution Terminal', isOrigin: true }
+const MAP_TILE_URL = import.meta.env.VITE_MAP_TILE_URL
+  || 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+const MAP_TILE_ATTRIBUTION = import.meta.env.VITE_MAP_TILE_ATTRIBUTION
+  || '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
+const BOHOL_MAP_REGION = PHILIPPINES_MAP_REGIONS.find(region => region.name === 'Bohol');
+const BOHOL_POSITION = BOHOL_MAP_REGION.position;
+
+const getCoverageMatch = (coverage, mapRegion) => (
+  coverage.find(region => {
+    const regionName = region?.name?.toLowerCase() || '';
+    return mapRegion.aliases.some(alias => regionName.includes(alias));
+  })
+);
+
+const createMapPinIcon = (isOrigin, isActive) => L.divIcon({
+  className: 'about-leaflet-marker',
+  html: '<span class="about-leaflet-marker-shell'
+    + (isOrigin ? ' is-origin' : '')
+    + (isActive ? ' is-active' : '')
+    + '"><span class="about-leaflet-marker-dot"></span></span>',
+  iconSize: [28, 28],
+  iconAnchor: [14, 14],
+});
+
+const buildShippingRoute = (from, to) => {
+  const control = [
+    (from[0] + to[0]) / 2 + 1.4,
+    (from[1] + to[1]) / 2 - 1,
   ];
 
-  const [hoveredPin, setHoveredPin] = useState(null);
-
-  const BOHOL = { x: 193, y: 281 };
-
-  // Compute dynamic shipping route from Bohol to the selected non-Bohol pin
-  const selectedPin = selectedRegionId
-    ? mapPins.find(p => {
-        const r = coverage.find(r => r.name.toLowerCase().includes(p.name.toLowerCase()));
-        return r?.id === selectedRegionId && p.name !== 'Bohol';
-      })
-    : null;
-
-  const buildRoute = (from, to) => {
-    // Quadratic bezier control point: midpoint offset left for a graceful arc
-    const cx = (from.x + to.x) / 2 - 22;
-    const cy = (from.y + to.y) / 2;
-    return `M${from.x},${from.y} Q${cx},${cy} ${to.x},${to.y}`;
-  };
-
-  // Arrowhead at destination pointing toward it from the control point
-  const buildArrow = (from, to) => {
-    const cx = (from.x + to.x) / 2 - 22;
-    const cy = (from.y + to.y) / 2;
-    // Direction from ctrl point to destination
-    const dx = to.x - cx;
-    const dy = to.y - cy;
-    const len = Math.sqrt(dx * dx + dy * dy) || 1;
-    const nx = dx / len;
-    const ny = dy / len;
-    const px = -ny;
-    const py = nx;
-    const base = 6;
-    const tip = 9;
+  return Array.from({ length: 25 }, (_, index) => {
+    const t = index / 24;
+    const inverse = 1 - t;
     return [
-      `${to.x + nx * tip},${to.y + ny * tip}`,
-      `${to.x - nx * 0 + px * base},${to.y - ny * 0 + py * base}`,
-      `${to.x - nx * 0 - px * base},${to.y - ny * 0 - py * base}`,
-    ].join(' ');
-  };
+      inverse * inverse * from[0] + 2 * inverse * t * control[0] + t * t * to[0],
+      inverse * inverse * from[1] + 2 * inverse * t * control[1] + t * t * to[1],
+    ];
+  });
+};
+
+const MapViewport = ({ selectedRegion }) => {
+  const map = useMap();
+
+  useEffect(() => {
+    if (!selectedRegion) {
+      map.setView(PHILIPPINES_MAP_CENTER, PHILIPPINES_MAP_ZOOM, { animate: true });
+      return;
+    }
+
+    if (selectedRegion.name === 'Bohol') {
+      map.setView(selectedRegion.position, 8, { animate: true });
+      return;
+    }
+
+    map.fitBounds(
+      L.latLngBounds([BOHOL_POSITION, selectedRegion.position]),
+      { padding: [48, 48], maxZoom: 7, animate: true }
+    );
+  }, [map, selectedRegion]);
+
+  return null;
+};
+
+const InteractiveMap = ({ coverage, selectedRegionId, onSelectRegion }) => {
+  const [hoveredPin, setHoveredPin] = useState(null);
+  const mappedRegions = PHILIPPINES_MAP_REGIONS
+    .map(mapRegion => ({
+      mapRegion,
+      coverageRegion: getCoverageMatch(coverage, mapRegion),
+    }))
+    .filter(({ coverageRegion }) => coverageRegion);
+
+  const selectedMapRegion = mappedRegions.find(
+    ({ coverageRegion }) => coverageRegion.id === selectedRegionId
+  )?.mapRegion || null;
+  const selectedDestination = selectedMapRegion?.name === 'Bohol' ? null : selectedMapRegion;
+  const defaultRouteRegion = mappedRegions.find(
+    ({ mapRegion }) => mapRegion.name === 'Batangas'
+  )?.mapRegion || null;
+  const routeRegion = selectedDestination || defaultRouteRegion;
+  const tooltipRegion = hoveredPin
+    ? mappedRegions.find(({ mapRegion }) => mapRegion.name === hoveredPin)?.mapRegion
+    : selectedMapRegion;
 
   return (
     <div className="about-map-box">
-      <svg viewBox="0 0 280 420" className="about-map-svg" xmlns="http://www.w3.org/2000/svg">
-        <defs>
-          {/* Ocean: deep navy â†’ tropical teal */}
-          <linearGradient id="oceanGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%"   stopColor="#0b2540" />
-            <stop offset="35%"  stopColor="#0d3f61" />
-            <stop offset="70%"  stopColor="#0e5577" />
-            <stop offset="100%" stopColor="#136e8f" />
-          </linearGradient>
-          {/* Land: tropical forest green */}
-          <linearGradient id="landGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%"   stopColor="#52b87a" />
-            <stop offset="45%"  stopColor="#3da066" />
-            <stop offset="100%" stopColor="#2d7a4f" />
-          </linearGradient>
-          {/* Fine contour lines make the land read like a topographic map. */}
-          <pattern id="terrainContours" x="0" y="0" width="16" height="16" patternUnits="userSpaceOnUse">
-            <path d="M-2,12 C3,7 8,15 18,8 M-2,4 C4,-1 11,8 18,1" fill="none" stroke="rgba(236,247,214,0.18)" strokeWidth="0.55" />
-          </pattern>
-          <pattern id="terrainGrain" x="0" y="0" width="7" height="7" patternUnits="userSpaceOnUse">
-            <circle cx="1" cy="1" r="0.5" fill="rgba(255,255,255,0.11)" />
-            <circle cx="5" cy="4" r="0.42" fill="rgba(7,42,26,0.19)" />
-          </pattern>          {/* Bohol: vivid highlight green */}
-          <linearGradient id="boholGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%"   stopColor="#4ade80" />
-            <stop offset="100%" stopColor="#16a34a" />
-          </linearGradient>
-          {/* Vignette */}
-          <radialGradient id="vigGrad" cx="50%" cy="50%" r="72%">
-            <stop offset="0%"   stopColor="transparent" />
-            <stop offset="100%" stopColor="rgba(0,0,0,0.42)" />
-          </radialGradient>
-          {/* Ocean wave texture */}
-          <pattern id="wavePattern" x="0" y="0" width="22" height="22" patternUnits="userSpaceOnUse">
-            <path d="M0,11 Q5.5,8 11,11 Q16.5,14 22,11" fill="none" stroke="rgba(255,255,255,0.045)" strokeWidth="0.7"/>
-            <path d="M0,18 Q5.5,15 11,18 Q16.5,21 22,18" fill="none" stroke="rgba(255,255,255,0.03)"  strokeWidth="0.5"/>
-          </pattern>
-          {/* Drop shadow for land masses */}
-          <filter id="landShadow" x="-12%" y="-12%" width="130%" height="130%">
-            <feDropShadow dx="1.5" dy="3" stdDeviation="3.5" floodColor="#000" floodOpacity="0.45" />
-          </filter>
-          {/* Green glow for Bohol */}
-          <filter id="boholGlow" x="-30%" y="-30%" width="160%" height="160%">
-            <feDropShadow dx="0" dy="0" stdDeviation="6" floodColor="#22c55e" floodOpacity="0.55" />
-          </filter>
-          {/* Pin glow */}
-          <filter id="pinGlow" x="-60%" y="-60%" width="220%" height="220%">
-            <feDropShadow dx="0" dy="0" stdDeviation="4" floodColor="#22c55e" floodOpacity="0.9" />
-          </filter>
-          <filter id="labelShadow" x="-30%" y="-50%" width="160%" height="200%">
-            <feDropShadow dx="0" dy="1" stdDeviation="1.4" floodColor="#031324" floodOpacity="0.95" />
-          </filter>        </defs>
-
-        {/* â”€â”€ Ocean base â”€â”€ */}
-        <rect x="0" y="0" width="280" height="420" fill="url(#oceanGrad)" />
-        <rect x="0" y="0" width="280" height="420" fill="url(#wavePattern)" />
-        <rect x="0" y="0" width="280" height="420" fill="url(#vigGrad)" />
-
-        {/* â”€â”€ Graticule / grid â”€â”€ */}
-        <g stroke="rgba(255,255,255,0.07)" strokeWidth="0.55" strokeDasharray="4 5" fill="none">
-          <line x1="0" y1="55"  x2="280" y2="55" />
-          <line x1="0" y1="160" x2="280" y2="160" />
-          <line x1="0" y1="265" x2="280" y2="265" />
-          <line x1="0" y1="370" x2="280" y2="370" />
-          <line x1="55"  y1="0" x2="55"  y2="420" />
-          <line x1="140" y1="0" x2="140" y2="420" />
-          <line x1="225" y1="0" x2="225" y2="420" />
-        </g>
-
-        {/* â”€â”€ Coordinate labels â”€â”€ */}
-        <g className="about-map-detail" fill="rgba(255,255,255,0.28)" fontSize="5.5" fontWeight="600" fontFamily="Inter,sans-serif" letterSpacing="0.3">
-          <text x="4" y="53">18°N</text>
-          <text x="4" y="158">14°N</text>
-          <text x="4" y="263">10°N</text>
-          <text x="4" y="368">6°N</text>
-          <text x="57"  y="417">118°E</text>
-          <text x="142" y="417">122°E</text>
-          <text x="227" y="417">126°E</text>
-        </g>
-
-        {/* â•â• PHILIPPINE ISLANDS â•â• */}
-
-        {/* LUZON */}
-        <path filter="url(#landShadow)"
-          d="M128,22 L135,19 L143,20 L152,18 L158,22 L163,28 L162,35
-             L168,40 L171,47 L168,55 L172,61 L175,68 L172,76 L176,83
-             L178,90 L175,97 L178,104 L180,111 L177,118 L174,124
-             L178,130 L180,137 L175,143 L170,149 L165,154 L160,159
-             L158,166 L154,171 L150,176 L148,182 L143,187 L138,190
-             L133,188 L128,184 L124,179 L121,173 L118,167 L117,160
-             L114,154 L112,147 L115,141 L113,134 L110,128 L108,121
-             L109,114 L107,107 L105,100 L107,93 L104,86 L103,79
-             L106,72 L105,65 L108,58 L106,51 L110,44 L116,38 L122,32 Z"
-          fill="url(#landGrad)" stroke="rgba(255,255,255,0.3)" strokeWidth="0.85" strokeLinejoin="round"
+      <MapContainer
+        className="about-leaflet-map"
+        center={PHILIPPINES_MAP_CENTER}
+        zoom={PHILIPPINES_MAP_ZOOM}
+        minZoom={4}
+        maxZoom={13}
+        scrollWheelZoom={false}
+        zoomControl={false}
+      >
+        <TileLayer
+          url={MAP_TILE_URL}
+          attribution={MAP_TILE_ATTRIBUTION}
+          maxZoom={19}
         />
-        {/* Luzon central ridge highlight */}
-        <path d="M140,30 L155,46 L160,65 L158,86 L155,106 L148,131 L140,156 L133,171"
-          fill="none" stroke="rgba(255,255,255,0.14)" strokeWidth="1.6" strokeLinecap="round" />
+        <ZoomControl position="topright" />
+        <MapViewport selectedRegion={selectedMapRegion} />
 
-        {/* MINDORO */}
-        <path filter="url(#landShadow)"
-          d="M108,163 Q120,158 122,168 Q124,180 118,186 Q110,191 106,183 Q103,173 108,163 Z"
-          fill="url(#landGrad)" stroke="rgba(255,255,255,0.22)" strokeWidth="0.7"
-        />
-
-        {/* PALAWAN */}
-        <path filter="url(#landShadow)"
-          d="M52,206 L60,209 L68,215 L76,223 L83,232 L89,242
-             L95,253 L100,263 L104,273 L100,278
-             L93,271 L86,261 L79,251 L72,240
-             L64,230 L57,220 L49,213 L47,207 Z"
-          fill="url(#landGrad)" stroke="rgba(255,255,255,0.22)" strokeWidth="0.7" strokeLinejoin="round"
-        />
-
-        {/* SAMAR */}
-        <path filter="url(#landShadow)"
-          d="M196,202 L208,210 L214,220 L218,231 L215,239
-             L208,243 L202,239 L197,229 L194,218 L196,208 Z"
-          fill="url(#landGrad)" stroke="rgba(255,255,255,0.22)" strokeWidth="0.7"
-        />
-
-        {/* LEYTE */}
-        <path filter="url(#landShadow)"
-          d="M198,242 L205,248 L208,259 L206,269 L200,273
-             L194,266 L192,255 L195,245 Z"
-          fill="url(#landGrad)" stroke="rgba(255,255,255,0.22)" strokeWidth="0.7"
-        />
-
-        {/* PANAY */}
-        <path filter="url(#landShadow)"
-          d="M130,231 Q142,224 148,233 Q152,243 148,253
-             Q140,259 132,253 Q125,244 130,231 Z"
-          fill="url(#landGrad)" stroke="rgba(255,255,255,0.22)" strokeWidth="0.7"
-        />
-
-        {/* NEGROS */}
-        <path filter="url(#landShadow)"
-          d="M153,256 Q161,250 165,261 Q167,275 163,285
-             Q157,291 151,284 Q148,271 150,261 Z"
-          fill="url(#landGrad)" stroke="rgba(255,255,255,0.22)" strokeWidth="0.7"
-        />
-
-        {/* CEBU */}
-        <path filter="url(#landShadow)"
-          d="M172,253 L176,259 L178,269 L177,279 L174,286
-             L170,281 L169,269 L170,259 Z"
-          fill="url(#landGrad)" stroke="rgba(255,255,255,0.22)" strokeWidth="0.7"
-        />
-
-        {/* BOHOL â€” highlighted coverage area */}
-        <path filter="url(#boholGlow)"
-          d="M182,272 Q196,265 200,276 Q205,288 197,294
-             Q186,297 181,287 Q178,278 182,272 Z"
-          fill="url(#boholGrad)" stroke="#4ade80" strokeWidth="1.3" strokeLinejoin="round"
-        />
-
-        {/* MINDANAO */}
-        <path filter="url(#landShadow)"
-          d="M161,308 L170,302 L182,298 L194,296 L206,298
-             L218,303 L228,309 L236,317 L240,327 L238,337
-             L232,345 L224,351 L216,355 L207,357 L196,357
-             L185,355 L174,351 L165,345 L158,337 L154,327
-             L155,317 Z"
-          fill="url(#landGrad)" stroke="rgba(255,255,255,0.26)" strokeWidth="0.85" strokeLinejoin="round"
-        />
-        {/* Mindanao ridge */}
-        <path d="M175,309 L195,319 L210,331 L220,346"
-          fill="none" stroke="rgba(255,255,255,0.11)" strokeWidth="1.3" strokeLinecap="round" />
-
-        {/* Topographic texture and simplified primary road corridors. */}
-        <g opacity="0.48" className="about-svg-no-events">
-          <path d="M127,24 L157,22 L169,47 L174,84 L176,113 L158,166 L143,187 L122,171 L108,121 L106,79 Z" fill="url(#terrainContours)" />
-          <path d="M161,309 L194,297 L226,308 L239,327 L222,350 L187,355 L160,338 Z" fill="url(#terrainContours)" />
-          <path d="M127,24 L157,22 L169,47 L174,84 L176,113 L158,166 L143,187 L122,171 L108,121 L106,79 Z" fill="url(#terrainGrain)" />
-          <path d="M161,309 L194,297 L226,308 L239,327 L222,350 L187,355 L160,338 Z" fill="url(#terrainGrain)" />
-        </g>
-        {/* â”€â”€ Dynamic shipping route: Bohol â†” selected pin â”€â”€ */}
-        {/* Default faint route when nothing selected */}
-        {!selectedPin && (
-          <path d="M148,146 Q132,202 193,277"
-            fill="none" stroke="rgba(74,222,128,0.22)" strokeWidth="0.8"
-            strokeDasharray="3 5" strokeLinecap="round"
+        {routeRegion && (
+          <Polyline
+            positions={buildShippingRoute(BOHOL_POSITION, routeRegion.position)}
+            pathOptions={{
+              color: '#22c55e',
+              weight: selectedDestination ? 4 : 3,
+              opacity: selectedDestination ? 0.84 : 0.38,
+              dashArray: selectedDestination ? '8 10' : '5 9',
+              lineCap: 'round',
+              lineJoin: 'round',
+            }}
           />
         )}
-        {/* Active route to selected pin */}
-        {selectedPin && (
-          <>
-            <path
-              d={buildRoute(BOHOL, selectedPin)}
-              fill="none" stroke="#4ade80" strokeWidth="1.4"
-              strokeDasharray="4 5" opacity="0.75" strokeLinecap="round"
-            />
-            <polygon
-              points={buildArrow(BOHOL, selectedPin)}
-              fill="#4ade80" opacity="0.85"
-            />
-          </>
-        )}
 
-        {/* â”€â”€ Sea labels â”€â”€ */}
-        <g className="about-map-detail" fontFamily="Inter,sans-serif" fontStyle="italic" fill="rgba(255,255,255,0.28)" fontSize="6" fontWeight="600" letterSpacing="1.5">
-          <text x="17" y="150" transform="rotate(-90 17 150)">WEST PHILIPPINE SEA</text>
-          <text x="216" y="80">PHILIPPINE</text>
-          <text x="224" y="88">SEA</text>
-          <text x="62"  y="342">SULU SEA</text>
-          <text x="112" y="248">VISAYAN SEA</text>
-        </g>
+        {mappedRegions.map(({ mapRegion, coverageRegion }) => {
+          const isSelected = selectedRegionId === coverageRegion.id;
+          const isActive = isSelected || hoveredPin === mapRegion.name;
 
-        {/* â”€â”€ Island labels â”€â”€ */}
-        <g fontFamily="Inter,sans-serif" fill="rgba(255,255,255,0.62)" fontWeight="700" letterSpacing="1.3">
-          <text x="128" y="79"  fontSize="7.5">LUZON</text>
-          <text x="148" y="265" fontSize="6">VISAYAS</text>
-          <text x="183" y="332" fontSize="7.5">MINDANAO</text>
-        </g>
-
-        {/* Familiar city labels turn the coverage illustration into a readable map. */}
-        <g fontFamily="Inter,sans-serif" fontSize="5.6" fontWeight="700" fill="#f8fbff" filter="url(#labelShadow)" className="about-svg-no-events">
-          <text x="154" y="110">BULACAN</text>
-          <text x="155" y="121">MANILA</text>
-          <text x="116" y="131">CAVITE</text>
-          <text x="164" y="137">LAGUNA</text>
-          <text x="151" y="151">BATANGAS</text>
-          <text x="202" y="286" fill="#d9ffe5">BOHOL</text>
-        </g>
-        {/* â”€â”€ Compass Rose â”€â”€ */}
-        <g className="about-map-detail" transform="translate(30, 360)">
-          <circle cx="0" cy="0" r="15" fill="rgba(0,0,0,0.38)" stroke="rgba(255,255,255,0.28)" strokeWidth="0.8"/>
-          <circle cx="0" cy="0" r="10" fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth="0.5"/>
-          {[0,45,90,135,180,225,270,315].map(a => (
-            <line key={a}
-              x1={Math.sin(a*Math.PI/180)*10}  y1={-Math.cos(a*Math.PI/180)*10}
-              x2={Math.sin(a*Math.PI/180)*14}  y2={-Math.cos(a*Math.PI/180)*14}
-              stroke="rgba(255,255,255,0.38)" strokeWidth={a % 90 === 0 ? 0.9 : 0.4}
-            />
-          ))}
-          <path d="M 0,-16 L 3,-4 L 0,-1 L -3,-4 Z" fill="#22c55e" />
-          <path d="M 0,16  L 2.5,4 L 0,1 L -2.5,4 Z"  fill="rgba(255,255,255,0.32)" />
-          <path d="M 16,0  L 4,2.5  L 1,0  L 4,-2.5 Z"  fill="rgba(255,255,255,0.32)" />
-          <path d="M -16,0 L -4,-2.5 L -1,0 L -4,2.5 Z" fill="rgba(255,255,255,0.32)" />
-          <text x="-2.5" y="-18" fontSize="6.5" fontWeight="900" fill="#22c55e" fontFamily="Inter,sans-serif">N</text>
-        </g>
-
-        {/* â”€â”€ Legend box â”€â”€ */}
-        <g transform="translate(183,14)">
-          <rect x="0" y="0" width="88" height="54" rx="7" fill="rgba(0,0,0,0.48)" stroke="rgba(255,255,255,0.14)" strokeWidth="0.8"/>
-          <text x="8" y="12" fill="rgba(255,255,255,0.68)" fontSize="5.5" fontWeight="800" fontFamily="Inter,sans-serif" letterSpacing="0.8">COVERAGE KEY</text>
-          <line x1="8" y1="16" x2="80" y2="16" stroke="rgba(255,255,255,0.1)" strokeWidth="0.5"/>
-          <circle cx="14" cy="25" r="3"   fill="#22c55e"/>
-          <circle cx="14" cy="25" r="1.2" fill="#fff"/>
-          <text x="22" y="28" fill="rgba(255,255,255,0.62)" fontSize="5" fontFamily="Inter,sans-serif" fontWeight="600">Origin hub</text>
-          <circle cx="14" cy="37" r="2.5" fill="#4ade80" stroke="#fff" strokeWidth="0.5"/>
-          <text x="22" y="40" fill="rgba(255,255,255,0.62)" fontSize="5" fontFamily="Inter,sans-serif" fontWeight="600">Service destination</text>
-          <line x1="10" y1="49" x2="18" y2="49" stroke="#22c55e" strokeWidth="1.2" strokeDasharray="2 2"/>
-          <text x="22" y="52" fill="rgba(255,255,255,0.62)" fontSize="5" fontFamily="Inter,sans-serif" fontWeight="600">Transit Route</text>
-        </g>
-
-        {/* â”€â”€ Interactive Pins â”€â”€ */}
-        {mapPins.map(pin => {
-          const matchedDbRegion = coverage.find(r => r.name.toLowerCase().includes(pin.name.toLowerCase()));
-          if (!matchedDbRegion) return null;
-          const isSelected = selectedRegionId === matchedDbRegion.id;
-          const isHovered  = hoveredPin === pin.name;
-          const active     = isSelected || isHovered;
           return (
-            <g key={pin.name}
-              onClick={() => onSelectRegion(isSelected ? null : matchedDbRegion.id)}
-              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelectRegion(isSelected ? null : matchedDbRegion.id); } }}
-              onMouseEnter={() => setHoveredPin(pin.name)}
-              onMouseLeave={() => setHoveredPin(null)}
-              onFocus={() => setHoveredPin(pin.name)}
-              onBlur={() => setHoveredPin(null)}
-              className="about-map-pin-group"
-              tabIndex={0}
-              role="button"
-              aria-label={`Select ${pin.name} region`}
-              aria-pressed={isSelected}
+            <Marker
+              key={mapRegion.name}
+              position={mapRegion.position}
+              icon={createMapPinIcon(mapRegion.isOrigin, isActive)}
+              keyboard
+              title={'Select ' + mapRegion.name + ' region'}
+              alt={'Select ' + mapRegion.name + ' region'}
+              zIndexOffset={isActive ? 1000 : 0}
+              eventHandlers={{
+                click: () => onSelectRegion(isSelected ? null : coverageRegion.id),
+                mouseover: () => setHoveredPin(mapRegion.name),
+                mouseout: () => setHoveredPin(null),
+                focus: () => setHoveredPin(mapRegion.name),
+                blur: () => setHoveredPin(null),
+              }}
             >
-              {active && (
-                <motion.circle cx={pin.x} cy={pin.y}
-                  initial={{ r: 6, opacity: 0.7 }}
-                  animate={{ r: 20, opacity: 0 }}
-                  transition={{ repeat: Infinity, duration: 1.6, ease: 'easeOut' }}
-                  fill="#22c55e"
-                />
-              )}
-              <circle cx={pin.x} cy={pin.y}
-                r={active ? 7 : 5}
-                fill={pin.isOrigin ? '#22c55e' : active ? '#22c55e' : 'rgba(74,222,128,0.88)'}
-                stroke="#fff" strokeWidth="1.6"
-                className="about-map-pin-circle"
-                filter={active ? 'url(#pinGlow)' : undefined}
-              />
-              <circle cx={pin.x} cy={pin.y} r="2" fill="#fff" />
-            </g>
+              <Popup>
+                <strong>{mapRegion.name}</strong>
+                <br />
+                {mapRegion.details}
+              </Popup>
+            </Marker>
           );
         })}
-      </svg>
+      </MapContainer>
 
       <div className="about-coverage-tag">
         <span className="about-green-dot" /> COVERAGE EXPLORER
       </div>
       <div className="about-map-hint">
-        Illustrative Philippine coverage map · Select a hub for route details
+        Real Philippine map · Select a hub for route details
       </div>
-      {/* Floating Tooltip */}
+
       <AnimatePresence>
-        {(hoveredPin || selectedRegionId) && (
+        {tooltipRegion && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -469,14 +283,8 @@ const InteractiveMap = ({ coverage, selectedRegionId, onSelectRegion }) => {
           >
             <div className="about-map-tooltip-dot" />
             <div className="about-map-tooltip-body">
-              <div className="about-map-tooltip-name">
-                {hoveredPin || mapPins.find(p => coverage.find(r => r.name.toLowerCase().includes(p.name.toLowerCase()))?.id === selectedRegionId)?.name}
-              </div>
-              <div className="about-map-tooltip-detail">
-                {hoveredPin
-                  ? mapPins.find(p => p.name === hoveredPin)?.details
-                  : mapPins.find(p => coverage.find(r => r.name.toLowerCase().includes(p.name.toLowerCase()))?.id === selectedRegionId)?.details}
-              </div>
+              <div className="about-map-tooltip-name">{tooltipRegion.name}</div>
+              <div className="about-map-tooltip-detail">{tooltipRegion.details}</div>
             </div>
           </motion.div>
         )}
@@ -485,7 +293,6 @@ const InteractiveMap = ({ coverage, selectedRegionId, onSelectRegion }) => {
   );
 };
 
-// â”€â”€â”€ Animated Counter Component â”€â”€â”€
 const AnimatedCounter = ({ value }) => {
   const [count, setCount] = useState(0);
   const elementRef = useRef(null);
