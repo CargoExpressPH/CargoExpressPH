@@ -24,6 +24,14 @@ import FieldError, { fieldAttrs, invalidClass } from '../../components/ui/FieldE
 import { motion, useScroll, useTransform, AnimatePresence, MotionConfig } from 'framer-motion';
 import { BrandLogo, BrandWordmark } from '../../components/ui/BrandLogo';
 
+const getGoogleMapsSearchUrl = (hubName, address) => {
+  const query = [address?.trim(), `Cargo Express PH ${hubName} Hub`]
+    .filter(Boolean)
+    .join(', ');
+
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
+};
+
 // â”€â”€â”€ Lightbox Component (with prev/next navigation) â”€â”€â”€
 const Lightbox = ({ images, currentIndex, onClose, onNavigate }) => {
   // Shared hook: ref-counted and iOS-safe. The previous inline version reset
@@ -1446,8 +1454,28 @@ const AboutPage = () => {
                       <div>
                         <div className="about-contact-block-title">Visit Our Hubs</div>
                         <div className="about-contact-block-body about-contact-block-body-lg">
-                          {info.manila_address && <div><strong>Manila:</strong> {info.manila_address}</div>}
-                          {info.bohol_address && <div><strong>Bohol:</strong> {info.bohol_address}</div>}
+                          {info.manila_address && (
+                            <a
+                              href={getGoogleMapsSearchUrl('Manila', info.manila_address)}
+                              className="about-contact-link"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              aria-label="Open Manila Hub in Google Maps"
+                            >
+                              <strong>Manila:</strong> {info.manila_address}
+                            </a>
+                          )}
+                          {info.bohol_address && (
+                            <a
+                              href={getGoogleMapsSearchUrl('Bohol', info.bohol_address)}
+                              className="about-contact-link"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              aria-label="Open Bohol Hub in Google Maps"
+                            >
+                              <strong>Bohol:</strong> {info.bohol_address}
+                            </a>
+                          )}
                         </div>
                       </div>
                     </div>
