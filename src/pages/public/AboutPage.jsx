@@ -25,6 +25,7 @@ import { motion, useScroll, useTransform, AnimatePresence, MotionConfig } from '
 import { BrandLogo, BrandWordmark } from '../../components/ui/BrandLogo';
 import L from 'leaflet';
 import {
+  AttributionControl,
   MapContainer,
   Marker,
   Polyline,
@@ -119,10 +120,13 @@ const Lightbox = ({ images, currentIndex, onClose, onNavigate }) => {
 };
 
 // â”€â”€â”€ Interactive Map Component â”€â”€â”€
-const MAP_TILE_URL = import.meta.env.VITE_MAP_TILE_URL
-  || 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
-const MAP_TILE_ATTRIBUTION = import.meta.env.VITE_MAP_TILE_ATTRIBUTION
-  || '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
+const DEFAULT_MAP_TILE_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+const DEFAULT_MAP_TILE_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
+const CONFIGURED_MAP_TILE_URL = import.meta.env.VITE_MAP_TILE_URL?.trim();
+const MAP_TILE_URL = CONFIGURED_MAP_TILE_URL || DEFAULT_MAP_TILE_URL;
+const MAP_TILE_ATTRIBUTION = CONFIGURED_MAP_TILE_URL
+  ? (import.meta.env.VITE_MAP_TILE_ATTRIBUTION?.trim() || DEFAULT_MAP_TILE_ATTRIBUTION)
+  : DEFAULT_MAP_TILE_ATTRIBUTION;
 const BOHOL_MAP_REGION = PHILIPPINES_MAP_REGIONS.find(region => region.name === 'Bohol');
 const BOHOL_POSITION = BOHOL_MAP_REGION.position;
 
@@ -220,6 +224,7 @@ const InteractiveMap = ({ coverage, selectedRegionId, onSelectRegion }) => {
         worldCopyJump={false}
         scrollWheelZoom={false}
         zoomControl={false}
+        attributionControl={false}
       >
         <TileLayer
           url={MAP_TILE_URL}
@@ -228,6 +233,7 @@ const InteractiveMap = ({ coverage, selectedRegionId, onSelectRegion }) => {
           noWrap
           maxZoom={19}
         />
+        <AttributionControl prefix={false} position="bottomright" />
         <ZoomControl position="topright" />
         <MapViewport selectedRegion={selectedMapRegion} />
 
