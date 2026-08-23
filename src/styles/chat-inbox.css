@@ -55,8 +55,16 @@
   display: flex;
   gap: 8px;
   align-items: flex-end;
-  padding: 8px 4px calc(8px + env(safe-area-inset-bottom, 0px));
-  background: transparent;
+  padding: 8px;
+  padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+  background: color-mix(in srgb, var(--customer-panel-solid) 92%, transparent);
+  border: 1px solid var(--customer-line);
+  border-radius: 999px;
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  box-shadow: var(--customer-shadow-soft);
+  position: relative;
+  z-index: 4;
   min-width: 0;
 }
 .support-chat-textarea {
@@ -159,11 +167,6 @@
 }
 
 @media (max-width: 768px) {
-  .support-chat-page {
-    height: calc(100vh - 140px);
-    height: calc(100dvh - 140px);
-    min-height: 420px;
-  }
   .support-chat-messages {
     padding: 12px;
     border-radius: 20px;
@@ -175,11 +178,6 @@
   }
 }
 @media (max-width: 640px) {
-  .support-chat-page {
-    height: calc(100vh - 140px);
-    height: calc(100dvh - 140px);
-    min-height: 400px;
-  }
   .support-message-stack {
     max-width: 84%;
   }
@@ -199,11 +197,6 @@
   }
 }
 @media (max-width: 480px) {
-  .support-chat-page {
-    height: calc(100vh - 120px);
-    height: calc(100dvh - 120px);
-    min-height: 380px;
-  }
   .support-chat-messages {
     padding: 8px;
     border-radius: 16px;

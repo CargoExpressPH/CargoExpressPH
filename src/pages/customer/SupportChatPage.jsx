@@ -756,7 +756,7 @@ const SupportChatPage = () => {
       </ErrorBoundarySection>
 
       {/* Input */}
-      <div className="support-chat-input-area">
+      <div className="support-chat-input-area flex gap-8 items-end">
         <textarea
           ref={textareaRef}
           className="form-input support-chat-textarea"
