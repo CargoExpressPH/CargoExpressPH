@@ -16,7 +16,7 @@ import AdditionalPaymentModal from '../../components/ui/AdditionalPaymentModal';
 import PrintDocument from '../../components/ui/PrintDocument';
 import MessageCustomerButton from '../../components/ui/MessageCustomerButton';
 import { exportPrintDocumentToPdf } from '../../lib/exportPdf';
-import { CheckCircle, Wallet, Printer, Download, Loader, RefreshCw } from 'lucide-react';
+import { CheckCircle, Wallet, Printer, Download, Loader, RefreshCw, Search } from 'lucide-react';
 import { useToast } from '../../hooks/useToast';
 import usePageTitle from '../../hooks/usePageTitle';
 
@@ -384,14 +384,16 @@ const UnsettledDeliveriesPage = () => {
           label="Settlement state"
           desktopClassName="tabs admin-mobile-tabs"
         />
-        <input
-          type="search"
-          className="form-input unsettled-search"
-          placeholder="Search tracking or customer…"
-          aria-label="Search unsettled deliveries"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-        />
+        <div className="search-box unsettled-search-box" role="search">
+          <Search size={16} className="search-icon" aria-hidden="true" />
+          <input
+            type="search"
+            aria-label="Search unsettled deliveries"
+            placeholder="Search tracking or customer…"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
+        </div>
       </div>
 
       {loading ? (

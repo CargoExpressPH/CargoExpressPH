@@ -380,10 +380,26 @@
   gap: 12px;
 }
 
-.unsettled-search {
-  flex: 1 1 220px;
-  min-width: min(220px, 100%);
-  max-width: 320px;
+/* Search uses the same compact search-box as Customers/Bookings
+   (44px, radius-sm) — not the taller 48px form-input, so it does not
+   read as a card. Fixed 260px on desktop, full-width on phone. */
+.unsettled-search-box {
+  flex: 0 1 260px;
+  width: 260px;
+  max-width: 260px;
+  min-width: 0;
+}
+
+.unsettled-search-box input {
+  width: 100%;
+}
+
+@media (max-width: 640px) {
+  .unsettled-search-box {
+    flex: 1 1 100%;
+    width: 100%;
+    max-width: none;
+  }
 }
 
 /* Pagination inside card footers inherits table card rounding */
