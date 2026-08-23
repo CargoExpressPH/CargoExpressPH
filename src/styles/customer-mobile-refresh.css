@@ -1788,11 +1788,11 @@ body:has(textarea:focus) .support-chat-page {
   }
 
   .support-chat-page > .mb-16 h2 {
-    font-size: clamp(1.0625rem, 4.6vw, 1.25rem);
+    font-size: clamp(1.25rem, 5.4vw, 1.5rem);
   }
 
   .support-chat-page > .mb-16 h2 svg {
-    width: 20px;
-    height: 20px;
+    width: 22px;
+    height: 22px;
   }
 }
