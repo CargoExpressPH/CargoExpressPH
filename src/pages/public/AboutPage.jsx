@@ -24,13 +24,9 @@ import FieldError, { fieldAttrs, invalidClass } from '../../components/ui/FieldE
 import { motion, useScroll, useTransform, AnimatePresence, MotionConfig } from 'framer-motion';
 import { BrandLogo, BrandWordmark } from '../../components/ui/BrandLogo';
 
-const getGoogleMapsSearchUrl = (hubName, address) => {
-  const query = [address?.trim(), `Cargo Express PH ${hubName} Hub`]
-    .filter(Boolean)
-    .join(', ');
-
-  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
-};
+const getGoogleMapsSearchUrl = (address) => (
+  `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address?.trim() || '')}`
+);
 
 // â”€â”€â”€ Lightbox Component (with prev/next navigation) â”€â”€â”€
 const Lightbox = ({ images, currentIndex, onClose, onNavigate }) => {
@@ -1456,7 +1452,7 @@ const AboutPage = () => {
                         <div className="about-contact-block-body about-contact-block-body-lg">
                           {info.manila_address && (
                             <a
-                              href={getGoogleMapsSearchUrl('Manila', info.manila_address)}
+                              href={getGoogleMapsSearchUrl(info.manila_address)}
                               className="about-contact-link"
                               target="_blank"
                               rel="noopener noreferrer"
@@ -1467,7 +1463,7 @@ const AboutPage = () => {
                           )}
                           {info.bohol_address && (
                             <a
-                              href={getGoogleMapsSearchUrl('Bohol', info.bohol_address)}
+                              href={getGoogleMapsSearchUrl(info.bohol_address)}
                               className="about-contact-link"
                               target="_blank"
                               rel="noopener noreferrer"
