@@ -53,6 +53,18 @@ const formatTime = (ts) => {
   return new Date(ts).toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit', hour12: true });
 };
 
+const formatDateLabel = (ts) => {
+  if (!ts) return '';
+  const date = new Date(ts);
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+
+  if (date.toDateString() === today.toDateString()) return 'Today';
+  if (date.toDateString() === yesterday.toDateString()) return 'Yesterday';
+  return date.toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' });
+};
+
 // ── Message bubble ─────────────────────────────────────────────────────────────
 const MessageBubble = ({ m, showResolutionPrompt, onResolve, onEscalate, onRetry, onDiscard, actionsDisabled }) => {
   const isMe    = m.sender_role === 'customer';
@@ -714,31 +726,36 @@ const SupportChatPage = () => {
             </div>
           )}
 
-          {messages.map((m, i) => {
-            const showTimestamp =
-              i === 0 ||
-              (messages[i - 1] && (new Date(m.created_at) - new Date(messages[i - 1].created_at)) > 300000);
-            const isLastBotWithPrompt = m.sender_role === 'bot' && m.id === pendingResolutionId;
+          {(() => {
+            let lastDateLabel = null;
 
-            return (
-              <div key={m.id}>
-                {showTimestamp && (
-                  <div className="text-center mt-12 mb-8 text-tertiary fw-600" style={{ fontSize: '0.6875rem' }}>
-                    {new Date(m.created_at).toLocaleDateString('en-PH', { month: 'short', day: 'numeric' })} · {formatTime(m.created_at)}
-                  </div>
-                )}
-                <MessageBubble
-                  m={m}
-                  showResolutionPrompt={isLastBotWithPrompt}
-                  onResolve={handleResolvedYes}
-                  onEscalate={handleResolvedNo}
-                  onRetry={handleRetryMessage}
-                  onDiscard={handleDiscardMessage}
-                  actionsDisabled={sending || botTyping}
-                />
-              </div>
-            );
-          })}
+            return messages.map((m) => {
+              const dateLabel = formatDateLabel(m.created_at);
+              const showDateDivider = dateLabel && dateLabel !== lastDateLabel;
+              if (showDateDivider) lastDateLabel = dateLabel;
+
+              const isLastBotWithPrompt = m.sender_role === 'bot' && m.id === pendingResolutionId;
+
+              return (
+                <div key={m.id}>
+                  {showDateDivider && (
+                    <div className="support-date-divider">
+                      <span className="support-date-divider-label">{dateLabel}</span>
+                    </div>
+                  )}
+                  <MessageBubble
+                    m={m}
+                    showResolutionPrompt={isLastBotWithPrompt}
+                    onResolve={handleResolvedYes}
+                    onEscalate={handleResolvedNo}
+                    onRetry={handleRetryMessage}
+                    onDiscard={handleDiscardMessage}
+                    actionsDisabled={sending || botTyping}
+                  />
+                </div>
+              );
+            });
+          })()}
 
           {/* Bot typing indicator */}
           {botTyping && (
