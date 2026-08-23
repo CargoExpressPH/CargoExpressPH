@@ -756,15 +756,10 @@ const SupportChatPage = () => {
       </ErrorBoundarySection>
 
       {/* Input */}
-      <div
-        className="flex gap-8 items-end"
-        style={{
-          borderRadius: 24,
-        }}
-      >
+      <div className="support-chat-input-area">
         <textarea
           ref={textareaRef}
-          className="form-input flex-1"
+          className="form-input support-chat-textarea"
           placeholder={
             isWaiting  ? 'Leave more details for the admin...' :
             isResolved ? 'Reply to reopen this conversation…' :
@@ -785,12 +780,6 @@ const SupportChatPage = () => {
             }, 150);
           }}
           style={{
-            borderRadius: 18,
-            paddingLeft: 18, paddingRight: 18,
-            paddingTop: 12,  paddingBottom: 12,
-            resize: 'none',
-            minHeight: '48px', maxHeight: '120px',
-            lineHeight: '1.4', overflowY: 'auto',
             opacity: inputDisabled ? 0.6 : 1,
           }}
           rows={1}
@@ -802,7 +791,6 @@ const SupportChatPage = () => {
           onClick={handleSend}
           disabled={!input.trim() || inputDisabled}
           aria-label={sending || botTyping ? 'Sending…' : 'Send message'}
-          style={{ width: 44, height: 44, marginBottom: 2 }}
         >
           {sending || botTyping
             ? <Loader size={18} className="animate-spin" />

@@ -16,14 +16,21 @@
   display: flex;
   flex-direction: column;
   height: calc(100vh - 160px);
+  height: calc(100dvh - 160px);
   min-height: 500px;
+  min-width: 0;
+}
+@supports (height: 100dvh) {
+  .support-chat-page {
+    height: calc(100dvh - 160px);
+  }
 }
 
 /* Required. A flex item defaults to min-height:auto, which refuses to shrink
-   below its content — so this list pushed .support-chat-page past its
-   declared height, the whole page scrolled "a little", and that scroll slid
-   the composer underneath the floating bottom tab bar. min-height:0 lets the
-   item shrink so the list scrolls internally and the composer stays put. */
+    below its content — so this list pushed .support-chat-page past its
+    declared height, the whole page scrolled "a little", and that scroll slid
+    the composer underneath the floating bottom tab bar. min-height:0 lets the
+    item shrink so the list scrolls internally and the composer stays put. */
 .support-chat-messages {
   flex: 1;
   min-height: 0;
@@ -37,6 +44,38 @@
   border-bottom-right-radius: 28px;
   border-bottom-left-radius: 28px;
   border: 1px solid var(--border-light);
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  container-type: inline-size;
+  container-name: support-chat;
+}
+
+/* Composer — extracted from inline styles for token + safe-area + responsive control */
+.support-chat-input-area {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+  padding: 8px 4px calc(8px + env(safe-area-inset-bottom, 0px));
+  background: transparent;
+  min-width: 0;
+}
+.support-chat-textarea {
+  flex: 1 1 0;
+  min-width: 0;
+  resize: none;
+  overflow-y: auto;
+  border-radius: 18px;
+  padding: 12px 18px;
+  line-height: 1.4;
+  min-height: 48px;
+  max-height: 120px;
+  font-size: 0.9375rem;
+}
+.support-chat-input-area .chat-send-btn {
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  margin-bottom: 2px;
 }
 
 .support-message-row {
@@ -119,14 +158,102 @@
   cursor: default;
 }
 
-@media (max-width: 640px) {
+@media (max-width: 768px) {
   .support-chat-page {
-    height: calc(100vh - 160px);
+    height: calc(100vh - 140px);
+    height: calc(100dvh - 140px);
     min-height: 420px;
   }
-
+  .support-chat-messages {
+    padding: 12px;
+    border-radius: 20px;
+    margin-bottom: 8px;
+  }
+  .support-chat-input-area {
+    padding: 6px 2px calc(6px + env(safe-area-inset-bottom, 0px));
+    gap: 6px;
+  }
+}
+@media (max-width: 640px) {
+  .support-chat-page {
+    height: calc(100vh - 140px);
+    height: calc(100dvh - 140px);
+    min-height: 400px;
+  }
   .support-message-stack {
     max-width: 84%;
+  }
+  .support-chat-messages {
+    padding: 10px;
+  }
+  .support-chat-textarea {
+    font-size: 16px;
+    padding: 10px 14px;
+    border-radius: 16px;
+  }
+  .chat-waiting-banner,
+  .chat-resolved-banner {
+    padding: 8px 12px;
+    font-size: 0.8125rem;
+    gap: 8px;
+  }
+}
+@media (max-width: 480px) {
+  .support-chat-page {
+    height: calc(100vh - 120px);
+    height: calc(100dvh - 120px);
+    min-height: 380px;
+  }
+  .support-chat-messages {
+    padding: 8px;
+    border-radius: 16px;
+  }
+  .support-message-row {
+    gap: 6px;
+    margin-bottom: 6px;
+  }
+  .support-message-stack {
+    max-width: 88%;
+  }
+  .support-message-bubble {
+    padding: 9px 12px;
+    font-size: 0.8125rem;
+    border-radius: 18px;
+  }
+  .chat-avatar {
+    width: 24px;
+    height: 24px;
+  }
+  .support-chat-input-area .chat-send-btn {
+    width: 42px;
+    height: 42px;
+  }
+  .chat-resolution {
+    gap: 6px;
+  }
+  .chat-resolution-btn {
+    min-height: 40px;
+    padding: 0 12px;
+    font-size: 0.75rem;
+  }
+}
+@media (max-width: 360px) {
+  .support-chat-page {
+    min-height: 360px;
+  }
+  .support-message-stack {
+    max-width: 90%;
+  }
+  .support-message-bubble {
+    padding: 8px 10px;
+  }
+  .support-chat-textarea {
+    padding: 10px 12px;
+  }
+}
+@container support-chat (max-width: 320px) {
+  .support-message-stack {
+    max-width: 92%;
   }
 }
 
@@ -906,14 +1033,38 @@
 .inbox-show-resolved {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   margin-top: 8px;
-  font-size: 0.72rem;
+  font-size: 0.78rem;
   color: var(--text-tertiary);
   cursor: pointer;
   user-select: none;
+  min-height: 32px;
+  padding: 4px 6px;
+  border-radius: var(--radius-xs);
+  transition: background 0.15s ease;
 }
-.inbox-show-resolved input { cursor: pointer; margin: 0; }
+.inbox-show-resolved:hover {
+  background: var(--bg-secondary);
+}
+.inbox-show-resolved input {
+  cursor: pointer;
+  margin: 0;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  accent-color: var(--primary);
+}
+@media (max-width: 480px) {
+  .inbox-show-resolved {
+    min-height: 36px;
+    font-size: 0.8125rem;
+  }
+  .inbox-show-resolved input {
+    width: 18px;
+    height: 18px;
+  }
+}
 
 .activity-logs-hide-logins {
   display: flex;
@@ -1066,5 +1217,60 @@
   .message-customer-btn {
     min-height: 32px;
     padding: 6px 10px;
+  }
+}
+
+/* --- RESPONSIVE POLISH: ensures good visibility on every viewport 320px -> 4K --- */
+@media (max-width: 480px) {
+  .inbox-sidebar-header {
+    padding: 14px 14px 10px;
+    gap: 8px;
+  }
+  .inbox-queue-line {
+    font-size: 0.75rem;
+  }
+  .inbox-conversation-item {
+    padding: 12px 14px;
+    gap: 10px;
+  }
+  .inbox-conversation-avatar {
+    width: 36px;
+    height: 36px;
+    font-size: 0.8125rem;
+  }
+  .inbox-conversation-name {
+    font-size: 0.8125rem;
+  }
+  .inbox-conv-preview {
+    font-size: 0.75rem;
+  }
+}
+@media (max-width: 360px) {
+  .inbox-sidebar-header {
+    padding: 12px 12px 8px;
+  }
+  .inbox-conversation-item {
+    padding: 10px 12px;
+  }
+  .inbox-search-box {
+    padding: 6px 8px;
+  }
+  .inbox-search-box input {
+    font-size: 0.8rem;
+  }
+}
+@media (min-width: 1440px) {
+  .support-chat-messages {
+    padding: 20px;
+  }
+  .inbox-chat-messages {
+    padding: 24px;
+  }
+}
+@media (min-width: 1920px) {
+  .support-chat-page,
+  .admin-inbox-page {
+    max-width: 1400px;
+    margin-inline: auto;
   }
 }
