@@ -595,6 +595,13 @@ const OrderDetailPage = () => {
         </div>
       )}
 
+      {canCancel && (
+        <button className="btn btn-danger btn-sm animate-slide-up mb-16" onClick={() => setShowCancelModal(true)} disabled={cancelling}>
+          {cancelling ? <Loader size={14} className="animate-spin" /> : <XCircle size={14} />}
+          Request Cancellation
+        </button>
+      )}
+
       <CancelBookingModal
         isOpen={showCancelModal}
         onClose={() => setShowCancelModal(false)}
@@ -611,15 +618,6 @@ const OrderDetailPage = () => {
             <TrackingTimeline currentStatus={timelineStatus(order)} compact stepTimestamps={stepTimestamps} />
           </div>
         </div>
-      )}
-
-      {/* Destructive action sits BELOW the informational content so the tab
-          order reaches status/timeline first (ledger P3-51). */}
-      {canCancel && (
-        <button className="btn btn-danger btn-sm animate-slide-up mb-16" onClick={() => setShowCancelModal(true)} disabled={cancelling}>
-          {cancelling ? <Loader size={14} className="animate-spin" /> : <XCircle size={14} />}
-          Request Cancellation
-        </button>
       )}
 
       {/* Feedback Banner */}
