@@ -365,15 +365,14 @@
 }
 
 
-/* Mobile-only: show swipe hint AND keep the delete button visible —
-   swipe is a bonus gesture, never the only per-item path (WCAG 2.5.7). */
+/* Mobile-only: swipe is the per-item delete action; Clear all remains available
+   in the notifications header. */
 @media (max-width: 768px) {
   .notification-swipe-hint {
     display: block;
   }
   .notification-delete-btn {
-    display: flex;
-    opacity: 1;
+    display: none;
   }
 }
 
