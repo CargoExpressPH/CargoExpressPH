@@ -149,7 +149,7 @@ const HomePage = () => {
             <div className="customer-snapshot-value">
               <CheckCircle size={16} /> {deliveredOrders.length}
             </div>
-            <div className="customer-snapshot-label">Delivered orders</div>
+            <div className="customer-snapshot-label">Delivered</div>
           </div>
         </StaggerItem>
       )}
