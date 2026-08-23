@@ -1704,36 +1704,67 @@ body:has(textarea:focus) .support-chat-page {
   }
 }
 
-/* â”€â”€ Support chat: bound the column to the viewport â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-   The base rule (height: calc(100vh - 160px)) was winning over the mobile
-   override, so the column rendered 684px tall inside a viewport that only had
-   658px for it. The extra height scrolled the page, and that scroll is what
-   slid the message composer underneath the floating bottom tab bar.
+/* ── Support chat: fixed viewport shell, internal timeline scroll ──────────
+   Match the admin inbox: the app shell and chat column fill the available
+   viewport, while only the message timeline is scrollable. */
+.customer-layout-v2:has(.support-chat-page) {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  min-height: 100vh;
+  overflow: hidden;
+}
 
-   186 = navbar 66 + .customer-main padding-top 16 + padding-bottom 104.
-   Appended last, and scoped with .customer-layout-v2, so it beats both the
-   base rule and the earlier mobile block whichever way the cascade falls. */
-@media (max-width: 899.98px) {
-  .customer-layout-v2 .support-chat-page {
-    min-height: calc(100dvh - 186px - var(--customer-safe-bottom) - var(--app-safe-top));
-    height: calc(100dvh - 186px - var(--customer-safe-bottom) - var(--app-safe-top));
-    /* Keep the composer above the floating navigation's shadow as well as its
-       box. The main-content reserve covers the page flow, but the nav is fixed
-       and its visual shadow reaches farther into the chat column. */
-    padding-bottom: 24px;
-    box-sizing: border-box;
-    overflow: hidden;
+.customer-layout-v2:has(.support-chat-page) > .customer-main:has(.support-chat-page) {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  height: auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.customer-layout-v2:has(.support-chat-page) > .customer-main:has(.support-chat-page) > .support-chat-page {
+  flex: 1 1 auto;
+  height: auto;
+  min-height: 0;
+  padding-bottom: 0;
+  overflow: hidden;
+}
+
+.customer-layout-v2:has(.support-chat-page) .support-chat-messages {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+@supports (height: 100dvh) {
+  .customer-layout-v2:has(.support-chat-page) {
+    height: 100dvh;
+    min-height: 100dvh;
   }
-  .customer-layout-v2 .support-chat-messages {
-    min-height: 0;
+}
+
+@media (min-width: 900px) {
+  .customer-layout-v2:has(.support-chat-page) > .customer-main:has(.support-chat-page) {
+    padding-bottom: 40px;
+    scroll-padding-bottom: 40px;
   }
 }
 
 @media (max-width: 899.98px) {
-  /* When the keyboard is open the bottom navigation is hidden, so do not keep
-     the extra nav clearance and waste message/composer space. */
-  body.keyboard-active .customer-layout-v2 .support-chat-page,
-  body:has(textarea:focus) .customer-layout-v2 .support-chat-page {
-    padding-bottom: 8px;
+  /* The fixed bottom navigation is outside normal flow, so reserve its full
+     height in the chat page's parent. The composer remains above that reserve
+     while the timeline consumes all remaining space. */
+  .customer-layout-v2:has(.support-chat-page) > .customer-main:has(.support-chat-page) {
+    padding-bottom: calc(94px + var(--customer-safe-bottom));
+    scroll-padding-bottom: calc(94px + var(--customer-safe-bottom));
+  }
+
+  /* The nav hides while typing; reclaim its reserved space immediately. */
+  body.keyboard-active .customer-layout-v2:has(.support-chat-page) > .customer-main:has(.support-chat-page),
+  body:has(textarea:focus) .customer-layout-v2:has(.support-chat-page) > .customer-main:has(.support-chat-page) {
+    padding-bottom: calc(8px + var(--customer-safe-bottom));
+    scroll-padding-bottom: calc(8px + var(--customer-safe-bottom));
   }
 }
