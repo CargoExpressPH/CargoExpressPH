@@ -116,6 +116,7 @@ const AdminOrderDetailPage = () => {
   const [showDeliveryModal, setShowDeliveryModal] = useState(false);
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [showDeclineCancelModal, setShowDeclineCancelModal] = useState(false);
+  const [showApproveCancellationModal, setShowApproveCancellationModal] = useState(false);
   const [reviewingCancellation, setReviewingCancellation] = useState(false);
   const [tripHistory, setTripHistory] = useState([]);
   const [activityHistory, setActivityHistory] = useState([]);
@@ -472,6 +473,7 @@ const AdminOrderDetailPage = () => {
     try {
       await reviewOrderCancellation(id, approve, notes);
       setShowDeclineCancelModal(false);
+      setShowApproveCancellationModal(false);
       await loadOrder();
       toast.success(approve
         ? 'Cancellation approved. The order is now cancelled and the customer has been notified.'
@@ -762,7 +764,7 @@ const AdminOrderDetailPage = () => {
               <button
                 type="button"
                 className="btn btn-danger"
-                onClick={() => handleReviewCancellation(true)}
+                onClick={() => setShowApproveCancellationModal(true)}
                 disabled={reviewingCancellation}
               >
                 {reviewingCancellation ? <Loader size={16} className="animate-spin" /> : <Check size={16} />}
@@ -1377,6 +1379,17 @@ const AdminOrderDetailPage = () => {
           submitLabel="Decline Request"
         />
       )}
+      <ConfirmModal
+        isOpen={showApproveCancellationModal}
+        onClose={() => setShowApproveCancellationModal(false)}
+        onConfirm={() => handleReviewCancellation(true)}
+        title="Approve Cancellation Request?"
+        message={`Approve ${order.profiles?.name || 'the customer'}'s request to cancel ${order.tracking_number}? The order will be marked Cancelled and the customer will be notified. This cannot be undone.`}
+        confirmLabel="Approve & Cancel Order"
+        cancelLabel="Keep Order"
+        variant="danger"
+        loading={reviewingCancellation}
+      />
       {showRejectModal && (
         <RejectModal
           isOpen={showRejectModal}
