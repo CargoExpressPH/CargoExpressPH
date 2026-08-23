@@ -4,10 +4,11 @@ import { X, Loader, Smartphone, AlertTriangle, CreditCard, FileText, Trash2, Che
 import FocusTrap from './FocusTrap';
 import AmountInput from './AmountInput';
 import useScrollLock from '../../hooks/useScrollLock';
-import { sanitizeAmount, parseAmount, formatAmount } from '../../utils/currencyInput';
+import { sanitizeAmount, parseAmount, formatAmount, formatMoney } from '../../utils/currencyInput';
 import { uploadPhoto } from '../../lib/storage';
 import QRCode from 'react-qr-code';
 import { createGCashSource, registerSource, pollPaymentStatus } from '../../lib/paymongo';
+import { getPaymentAttemptBySource, getOrderPaymentSnapshot } from '../../lib/database';
 import { supabase } from '../../lib/supabase';
 
 /**
@@ -67,7 +68,7 @@ const AdditionalPaymentModal = ({ order, remainingBalance, onClose, onSave, onPa
     } else if (amountValue <= 0) {
       amountError = 'Amount must be greater than ₱0';
     } else if (amountValue > remainingBalance) {
-      amountError = `Amount cannot exceed balance (₱${remainingBalance.toFixed(2)})`;
+      amountError = `Amount cannot exceed balance (${formatMoney(remainingBalance)})`;
     }
   }
   const amountValid = amountEntered && !amountError && amountValue > 0 && amountValue <= remainingBalance;
@@ -140,18 +141,8 @@ const AdditionalPaymentModal = ({ order, remainingBalance, onClose, onSave, onPa
     setError('');
     try {
       const pollResult = await pollPaymentStatus(paymongoSourceId, order.id).catch(() => null);
-      const { data: attempt, error: attemptError } = await supabase
-        .from('payment_attempts')
-        .select('status, payment_status')
-        .eq('source_id', paymongoSourceId)
-        .maybeSingle();
-      if (attemptError) throw attemptError;
-      const { data, error: orderError } = await supabase
-        .from('orders')
-        .select('amount_paid, remaining_balance, payment_status')
-        .eq('id', order.id)
-        .single();
-      if (orderError) throw orderError;
+      const attempt = await getPaymentAttemptBySource(paymongoSourceId);
+      const data = await getOrderPaymentSnapshot(order.id);
       const sourceReconciled = pollResult?.orderReconciled
         || pollResult?.status === 'paid'
         || attempt?.status === 'reconciled'
@@ -240,7 +231,7 @@ const AdditionalPaymentModal = ({ order, remainingBalance, onClose, onSave, onPa
 
     const amount = (parseAmount(form.amount) || 0);
     if (amountError || !amountValid) {
-      setError(amountError || `Amount must be between ₱1 and ₱${remainingBalance.toFixed(2)}`);
+      setError(amountError || `Amount must be between ₱1 and ${formatMoney(remainingBalance)}`);
       return;
     }
 
@@ -303,7 +294,7 @@ const AdditionalPaymentModal = ({ order, remainingBalance, onClose, onSave, onPa
             <div className="flex justify-between items-center mb-20" style={{ background: 'var(--bg-secondary)', padding: '12px 16px', borderRadius: 'var(--radius-sm)' }}>
               <div>
                 <div className="text-sm text-secondary">Remaining Balance</div>
-                <div className="text-xl fw-700 text-error">₱{remainingBalance.toFixed(2)}</div>
+                <div className="text-xl fw-700 text-error">{formatMoney(remainingBalance)}</div>
               </div>
             </div>
 

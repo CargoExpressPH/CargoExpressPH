@@ -11,6 +11,7 @@ import InfoTooltip from '../../components/ui/InfoTooltip';
 import { ANNOUNCEMENT_CATEGORIES, getAnnouncementCategoryInfo } from '../../lib/announcements';
 import useFieldErrors from '../../hooks/useFieldErrors';
 import FieldError, { fieldAttrs, invalidClass } from '../../components/ui/FieldError';
+import { formatPhDate } from '../../utils/datetime';
 
 const CategoryDropdown = ({ value, onChange }) => {
   const [open, setOpen] = useState(false);
@@ -306,7 +307,7 @@ const AnnouncementsPage = () => {
                     <span
                       className="inline-flex items-center gap-6 px-8 py-2 rounded-full fw-700 text-uppercase"
                       style={{
-                        fontSize: '0.65rem',
+                        fontSize: '0.7rem',
                         letterSpacing: '0.04em',
                         background: cat.badgeBg,
                         color: cat.badgeColor,
@@ -320,7 +321,7 @@ const AnnouncementsPage = () => {
                   <button type="button" className="btn btn-ghost btn-icon admin-card-action" onClick={()=>setDeleteTarget(a)} aria-label={`Delete ${a.title}`}><Trash2 size={16}/></button>
                 </div>
                 <p className="text-sm text-secondary mt-6">{a.content}</p>
-                <div className="text-xs text-tertiary mt-8">by {a.profiles?.name||'Admin'} • {new Date(a.created_at).toLocaleDateString()}</div>
+                <div className="text-xs text-tertiary mt-8">by {a.profiles?.name||'Admin'} • {formatPhDate(a.created_at)}</div>
               </div>
             </div>
           );

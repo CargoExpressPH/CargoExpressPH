@@ -2707,3 +2707,77 @@ export const updateCompanyFeaturesOrder = async (updates) => {
   if (error) throw error;
   return data;
 };
+
+// ── Public tracking (wraps the anon RPC so pages never touch supabase directly) ──
+export const getPublicTrackingResult = async (trackingNumber) => {
+  const { data, error } = await supabase
+    .rpc('track_order_public', { p_tracking_number: trackingNumber })
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+};
+
+// ── Profile self-service update (moved out of PersonalInfoPage) ──
+export const updateOwnProfile = async (userId, fields) => {
+  const { error } = await supabase
+    .from('profiles')
+    .update(fields)
+    .eq('id', userId);
+  if (error) throw error;
+};
+
+// ── Admin inbox directory search (moved out of InboxPage) ──
+export const searchCustomerDirectory = async (term) => {
+  // Strip PostgREST filter delimiters so user input can't break the .or() expression
+  const clean = String(term || '').replace(/[,()]/g, ' ').trim();
+  if (!clean) return [];
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, name, email')
+    .eq('role', 'customer')
+    .or(`name.ilike.%${clean}%,email.ilike.%${clean}%`)
+    .order('name', { ascending: true })
+    .limit(8);
+  if (error) throw error;
+  return data || [];
+};
+
+// ── PayMongo reconcile helpers (moved out of PaymentCollectionPanel / AdditionalPaymentModal) ──
+export const getPaymentAttemptBySource = async (sourceId) => {
+  const { data, error } = await supabase
+    .from('payment_attempts')
+    .select('status, payment_status')
+    .eq('source_id', sourceId)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+};
+
+export const getOrderPaymentSnapshot = async (orderId) => {
+  const { data, error } = await supabase
+    .from('orders')
+    .select('amount_paid, remaining_balance, payment_status, payment_reference')
+    .eq('id', orderId)
+    .single();
+  if (error) throw error;
+  return data;
+};
+
+// ── New-inquiry badge count (moved out of Sidebar) ──
+export const getNewInquiryCount = async () => {
+  const { count, error } = await supabase
+    .from('contact_inquiries')
+    .select('id', { count: 'exact', head: true })
+    .eq('status', 'new');
+  if (error) throw error;
+  return count || 0;
+};
+
+// ── Receipt-cleanup step of Manual Evidence Cleanup (moved out of admin ODP) ──
+export const clearPaymentReceiptUrls = async (orderId) => {
+  const { error } = await supabase
+    .from('payment_transactions')
+    .update({ receipt_url: null })
+    .eq('order_id', orderId);
+  if (error) throw error;
+};

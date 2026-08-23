@@ -17,6 +17,8 @@ import { SkeletonOrderCard, SkeletonText } from '../../components/ui/SkeletonLoa
 import { ArrowLeft, MapPin, User, Phone, Package, CreditCard, Truck, Camera, Image, XCircle, Loader, AlertTriangle, Check } from 'lucide-react';
 import { useToast } from '../../hooks/useToast';
 import usePageTitle from '../../hooks/usePageTitle';
+import { formatPhDate, formatPhDateTime } from '../../utils/datetime';
+import { formatMoney } from '../../utils/currencyInput';
 import { outstandingBalance, getSettlementState, isOrderPriced, SETTLEMENT_STATE, ORDER_STATUS, canCancelOrder, hasPendingCancellation, timelineStatus } from '../../constants/status';
 import { formatPaymentType, formatRecordedBy, getPaymentStatusDisplay, formatPaymentMethod as fmtMethod, getCustomerFriendlyNotes, getCustomerVisibleRef } from '../../utils/paymentDisplay';
 
@@ -593,13 +595,6 @@ const OrderDetailPage = () => {
         </div>
       )}
 
-      {canCancel && (
-        <button className="btn btn-danger btn-sm animate-slide-up mb-16" onClick={() => setShowCancelModal(true)} disabled={cancelling}>
-          {cancelling ? <Loader size={14} className="animate-spin" /> : <XCircle size={14} />}
-          Request Cancellation
-        </button>
-      )}
-
       <CancelBookingModal
         isOpen={showCancelModal}
         onClose={() => setShowCancelModal(false)}
@@ -616,6 +611,15 @@ const OrderDetailPage = () => {
             <TrackingTimeline currentStatus={timelineStatus(order)} compact stepTimestamps={stepTimestamps} />
           </div>
         </div>
+      )}
+
+      {/* Destructive action sits BELOW the informational content so the tab
+          order reaches status/timeline first (ledger P3-51). */}
+      {canCancel && (
+        <button className="btn btn-danger btn-sm animate-slide-up mb-16" onClick={() => setShowCancelModal(true)} disabled={cancelling}>
+          {cancelling ? <Loader size={14} className="animate-spin" /> : <XCircle size={14} />}
+          Request Cancellation
+        </button>
       )}
 
       {/* Feedback Banner */}
@@ -757,11 +761,11 @@ const OrderDetailPage = () => {
           <div className="customer-payment-summary mb-20">
             <div className="text-center">
               <div className="text-xs text-tertiary">Shipping Cost</div>
-              <div className="text-sm font-bold text-primary">{isOrderPriced(order) ? `₱${parseFloat(order.shipping_cost || 0).toFixed(2)}` : '—'}</div>
+              <div className="text-sm font-bold text-primary">{isOrderPriced(order) ? formatMoney(parseFloat(order.shipping_cost || 0)) : '—'}</div>
             </div>
             <div className="text-center">
               <div className="text-xs text-tertiary">Paid</div>
-              <div className="text-sm font-bold text-success">₱{parseFloat(order.amount_paid || 0).toFixed(2)}</div>
+              <div className="text-sm font-bold text-success">{formatMoney(parseFloat(order.amount_paid || 0))}</div>
             </div>
             <div className="text-center">
               <div className="text-xs text-tertiary">Balance</div>
@@ -769,7 +773,7 @@ const OrderDetailPage = () => {
                 <div className="text-sm font-bold text-tertiary">—</div>
               ) : (
                 <div className={`text-sm font-bold ${settlementState === SETTLEMENT_STATE.OWING ? 'text-error' : 'text-success'}`}>
-                  ₱{balance.toFixed(2)}
+                  {formatMoney(balance)}
                 </div>
               )}
             </div>
@@ -792,7 +796,7 @@ const OrderDetailPage = () => {
           </div>
           {order.promised_payment_date && (
             <div className="alert-banner alert-banner-warning mt-12 py-8 px-12" style={{ fontSize: '0.8125rem' }}>
-              <AlertTriangle size={14} /> Payment due: {new Date(order.promised_payment_date).toLocaleDateString()}
+              <AlertTriangle size={14} /> Payment due: {formatPhDate(order.promised_payment_date)}
             </div>
           )}
 
@@ -892,7 +896,7 @@ const OrderDetailPage = () => {
                             </div>
                           </td>
                           <td data-label="Type">{formatPaymentType(tx.payment_type)}</td>
-                          <td data-label="Amount" className="fw-600 text-success">₱{parseFloat(tx.amount).toFixed(2)}</td>
+                          <td data-label="Amount" className="fw-600 text-success">{formatMoney(parseFloat(tx.amount))}</td>
                           <td data-label="Method">
                             <div className="cell-stack">
                               <span>{fmtMethod(tx.payment_method)}</span>
@@ -927,8 +931,8 @@ const OrderDetailPage = () => {
 
       {/* Timestamps */}
       <div className="customer-detail-timestamps flex justify-between mt-16 text-xs text-tertiary">
-        <span>Booked: {new Date(order.created_at).toLocaleDateString()}</span>
-        <span>Updated: {new Date(order.updated_at).toLocaleString()}</span>
+        <span>Booked: {formatPhDate(order.created_at)}</span>
+        <span>Updated: {formatPhDateTime(order.updated_at)}</span>
       </div>
 
       {lightboxIndex >= 0 && lightboxImages.length > 0 && (

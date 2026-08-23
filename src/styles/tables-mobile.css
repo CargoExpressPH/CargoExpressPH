@@ -1,6 +1,7 @@
 /* --- Table-to-card layout, mobile grid spacing, narrow-screen admin table hardening ---
-   Split from remaining.css. Import order in main.css keeps every rule
-   in the original cascade position (pages layer).
+   Split from remaining.css. This file holds the CANONICAL responsive table
+   engine (global). admin-modern-refresh.css currently carries a scoped
+   duplicate at @820px — fix table bugs HERE until that consolidation lands.
    ----------------------------------------------------------------- */
 
 /* -----------------------------------------------------------------------

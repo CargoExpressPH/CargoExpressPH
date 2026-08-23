@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { getActivityLogs } from '../../lib/database';
-import { supabase } from '../../lib/supabase';
+import { getAdminProfiles } from '../../lib/database';
 import Breadcrumb from '../../components/ui/Breadcrumb';
 import { SkeletonText } from '../../components/ui/SkeletonLoader';
 import EmptyState from '../../components/ui/EmptyState';
@@ -90,8 +90,11 @@ const ActivityLogsPage = () => {
 
   // Load admin list for dropdown
   useEffect(() => {
-    supabase.from('profiles').select('id, name').eq('role', 'admin').order('name')
-      .then(({ data }) => setAdminList(data || []));
+    let mounted = true;
+    getAdminProfiles()
+      .then(list => { if (mounted) setAdminList(list || []); })
+      .catch(() => { if (mounted) setAdminList([]); });
+    return () => { mounted = false; };
   }, []);
 
   const loadLogs = useCallback(async () => {
@@ -167,7 +170,7 @@ const ActivityLogsPage = () => {
           <p className="text-secondary text-sm mt-4">Audit trail of admin actions — logs are kept for 7 days, older entries are deleted automatically</p>
         </div>
         <div className="flex items-center gap-8">
-          <button className="btn btn-ghost btn-sm" onClick={loadLogs} title="Refresh">
+          <button className="btn btn-ghost btn-sm" onClick={loadLogs} title="Refresh" aria-label="Refresh activity logs">
             <RefreshCw size={15} className={loading ? 'animate-spin' : ''} />
           </button>
           <button className="btn btn-outline btn-sm" onClick={exportCSV} disabled={logs.length === 0}>

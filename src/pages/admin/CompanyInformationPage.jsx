@@ -564,7 +564,7 @@ const CompanyInformationPage = () => {
         message={confirmModal.message}
         onClose={() => setConfirmModal({ open: false })}
         onConfirm={confirmModal.onConfirm}
-        confirmText="Remove"
+        confirmLabel="Remove"
         variant="danger"
       />
     </div>

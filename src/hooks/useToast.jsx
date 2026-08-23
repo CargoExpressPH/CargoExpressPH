@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { Check, XCircle, AlertTriangle, Info, X } from 'lucide-react';
 
 /* ── Context ─────────────────────────────────────────────────────────── */
@@ -31,8 +31,15 @@ export const ToastProvider = ({ children }) => {
   const warning = useCallback((msg, dur)  => addToast(msg, 'warning', dur), [addToast]);
   const info    = useCallback((msg, dur)  => addToast(msg, 'info',    dur), [addToast]);
 
+  // Stable identity: without this, every toast show/hide re-created the value
+  // object and re-rendered every useToast() consumer in the tree.
+  const value = useMemo(
+    () => ({ success, error, warning, info, addToast }),
+    [success, error, warning, info, addToast]
+  );
+
   return (
-    <ToastContext.Provider value={{ success, error, warning, info, addToast }}>
+    <ToastContext.Provider value={value}>
       {children}
       <ToastContainer toasts={toasts} onRemove={removeToast} />
     </ToastContext.Provider>

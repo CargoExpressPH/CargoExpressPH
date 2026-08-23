@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { getOrderById, updateOrder, createNotification, getTripReassignments, reassignTrip, getActivityLogsByRecord, getPaymentTransactions, recordAdditionalPayment, recordPickupPayment, recordDeliveryPayment, getOrderStatusEvents, reviewOrderCancellation, cancelOrderAsAdmin, getLatestPaymentAttemptByOrder } from '../../lib/database';
+import { getOrderById, updateOrder, createNotification, getTripReassignments, reassignTrip, getActivityLogsByRecord, getPaymentTransactions, recordAdditionalPayment, recordPickupPayment, recordDeliveryPayment, getOrderStatusEvents, reviewOrderCancellation, cancelOrderAsAdmin, getLatestPaymentAttemptByOrder, clearPaymentReceiptUrls } from '../../lib/database';
 import { pollPaymentStatus } from '../../lib/paymongo';
 import { logOrder, logPayment } from '../../lib/activityLog';
 import { buildStatusTimestamps } from '../../utils/statusTimestamps';
@@ -33,6 +33,8 @@ import {
 } from 'lucide-react';
 import { useToast } from '../../hooks/useToast';
 import usePageTitle from '../../hooks/usePageTitle';
+import { formatPhDate, formatPhDateTime } from '../../utils/datetime';
+import { formatMoney } from '../../utils/currencyInput';
 import { truncateRef, isSystemGenerated, getPaymentStatusDisplay, formatRecordedBy as fmtRecordedBy } from '../../utils/paymentDisplay';
 
 const safeFormatDate = (dateStr, options) => {
@@ -40,11 +42,11 @@ const safeFormatDate = (dateStr, options) => {
   try {
     const d = new Date(dateStr);
     if (isNaN(d.getTime())) return '—';
-    return d.toLocaleDateString('en-PH', options);
+    return options ? formatPhDate(d, options) : formatPhDate(d);
   } catch {
     try {
       const d = new Date(dateStr);
-      return isNaN(d.getTime()) ? '—' : d.toLocaleDateString();
+      return isNaN(d.getTime()) ? '—' : formatPhDate(d);
     } catch {
       return '—';
     }
@@ -56,11 +58,13 @@ const safeFormatTime = (dateStr, options) => {
   try {
     const d = new Date(dateStr);
     if (isNaN(d.getTime())) return '';
-    return d.toLocaleTimeString('en-PH', options);
+    // PH-pinned wall clock — en-PH locale alone would still render in the
+    // viewer's zone.
+    return d.toLocaleTimeString('en-PH', { ...(options || {}), timeZone: 'Asia/Manila' });
   } catch {
     try {
       const d = new Date(dateStr);
-      return isNaN(d.getTime()) ? '' : d.toLocaleTimeString();
+      return isNaN(d.getTime()) ? '' : d.toLocaleTimeString('en-PH', { timeZone: 'Asia/Manila' });
     } catch {
       return '';
     }
@@ -72,11 +76,11 @@ const safeFormatDateTime = (dateStr) => {
   try {
     const d = new Date(dateStr);
     if (isNaN(d.getTime())) return '—';
-    return d.toLocaleString('en-PH');
+    return formatPhDateTime(d);
   } catch {
     try {
       const d = new Date(dateStr);
-      return isNaN(d.getTime()) ? '—' : d.toLocaleString();
+      return isNaN(d.getTime()) ? '—' : formatPhDateTime(d);
     } catch {
       return '—';
     }
@@ -585,11 +589,7 @@ const AdminOrderDetailPage = () => {
       await updateOrder(id, { pickup_photos: [], delivery_photos: [] });
       
       if (paymentTransactions.length > 0) {
-        const { error: txError } = await supabase
-          .from('payment_transactions')
-          .update({ receipt_url: null })
-          .eq('order_id', id);
-        if (txError) throw txError;
+        await clearPaymentReceiptUrls(id);
       }
 
       logOrder('Evidence Cleaned Up', id, order.tracking_number, { details: 'Admin manually deleted all evidence photos from storage to conserve space.' });
@@ -684,7 +684,7 @@ const AdminOrderDetailPage = () => {
             <StatusBadge status={order.status} />
             {order.status === 'Delivered' && computedRemainingBalance > 0 && (
               <span className="badge badge-error ml-8 flex items-center gap-4" style={{ height: 28 }}>
-                <AlertTriangle size={14} /> Outstanding Balance: ₱{computedRemainingBalance.toFixed(2)}
+                <AlertTriangle size={14} /> Outstanding Balance: {formatMoney(computedRemainingBalance)}
               </span>
             )}
         </div>
@@ -1053,16 +1053,16 @@ const AdminOrderDetailPage = () => {
           <div className="admin-payment-summary">
             <div className="text-center">
               <div className="text-xs text-tertiary" style={{ marginBottom: 2 }}>Shipping Cost</div>
-              <div className="text-lg fw-800 text-primary">{settlementState === SETTLEMENT_STATE.UNPRICED ? '—' : `₱${computedShippingCost.toFixed(2)}`}</div>
+              <div className="text-lg fw-800 text-primary">{settlementState === SETTLEMENT_STATE.UNPRICED ? '—' : formatMoney(computedShippingCost)}</div>
             </div>
             <div className="text-center">
               <div className="text-xs text-tertiary" style={{ marginBottom: 2 }}>Amount Paid</div>
-              <div className="text-lg fw-800 text-success">{settlementState === SETTLEMENT_STATE.UNPRICED ? '—' : `₱${computedAmountPaid.toFixed(2)}`}</div>
+              <div className="text-lg fw-800 text-success">{settlementState === SETTLEMENT_STATE.UNPRICED ? '—' : formatMoney(computedAmountPaid)}</div>
             </div>
             <div className="text-center">
               <div className="text-xs text-tertiary" style={{ marginBottom: 2 }}>{isOverpaid ? 'Overpaid' : 'Balance'}</div>
               <div className={`text-lg fw-800 ${settlementState === SETTLEMENT_STATE.UNPRICED ? 'text-tertiary' : isOverpaid ? 'text-warning' : computedRemainingBalance > 0 ? 'text-error' : 'text-success'}`}>
-                {settlementState === SETTLEMENT_STATE.UNPRICED ? '—' : isOverpaid ? `+₱${Math.abs(computedRemainingBalance).toFixed(2)}` : `₱${computedRemainingBalance.toFixed(2)}`}
+                {settlementState === SETTLEMENT_STATE.UNPRICED ? '—' : isOverpaid ? `+${formatMoney(Math.abs(computedRemainingBalance))}` : formatMoney(computedRemainingBalance)}
               </div>
             </div>
           </div>
@@ -1098,7 +1098,7 @@ const AdminOrderDetailPage = () => {
                 {order.payment_status && <span className={`badge ${order.payment_status === 'paid' ? 'badge-success' : order.payment_status === 'partial' ? 'badge-warning' : 'badge-error'} text-capitalize`}>{order.payment_status}</span>}
                 {settlementState === SETTLEMENT_STATE.SETTLED
                   ? <span className="badge badge-success">Settled</span>
-                  : <span className="badge badge-error">₱{outstandingBalance(order).toFixed(2)} Remaining Balance</span>}
+                  : <span className="badge badge-error">{formatMoney(outstandingBalance(order))} Remaining Balance</span>}
               </>
             )}
             {order.promised_payment_date && <span className="badge badge-warning">Promised: {safeFormatDate(order.promised_payment_date)}</span>}
@@ -1145,7 +1145,7 @@ const AdminOrderDetailPage = () => {
                             {!tx.payment_date && <span className="text-tertiary ml-4">{safeFormatTime(tx.created_at, {hour: '2-digit', minute:'2-digit'})}</span>}
                           </td>
                           <td data-label="Type">{tx.payment_type || 'Additional Payment'}</td>
-                          <td data-label="Amount" className="fw-600 text-success">₱{parseFloat(tx.amount || 0).toFixed(2)}</td>
+                          <td data-label="Amount" className="fw-600 text-success">{formatMoney(parseFloat(tx.amount || 0))}</td>
                           <td data-label="Method">{formatPaymentMethod(tx.payment_method)}</td>
                           <td data-label="Status">
                             <span className={`badge badge-${statusInfo.tone} badge-sm`}>{statusInfo.label}</span>
@@ -1239,7 +1239,7 @@ const AdminOrderDetailPage = () => {
       )}
 
       {/* Website Feature Section */}
-      {(order.status === 'Completed' || order.status === 'Delivered') && (resolvedPickupPhotos.length > 0 || resolvedDeliveryPhotos.length > 0) && (
+      {order.status === 'Delivered' && (resolvedPickupPhotos.length > 0 || resolvedDeliveryPhotos.length > 0) && (
         <div className="card admin-section-card stagger-item mt-16" style={{ animationDelay: '520ms' }}>
           <div className="card-header">
             <h3><Star size={16} className="inline mr-8 text-warning" />Website Feature</h3>

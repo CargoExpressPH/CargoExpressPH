@@ -5,6 +5,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../hooks/useToast';
 import { MessageSquare, Search, Filter, Eye, EyeOff } from 'lucide-react';
 import usePageTitle from '../../hooks/usePageTitle';
+import { formatPhDateTime } from '../../utils/datetime';
 import { SkeletonCard } from '../../components/ui/SkeletonLoader';
 import EmptyState from '../../components/ui/EmptyState';
 import CustomSelect from '../../components/ui/CustomSelect';
@@ -142,10 +143,11 @@ const FeedbackPage = () => {
                 
                 <div className="flex" style={{gap: 2}}>
                   {[1, 2, 3, 4, 5].map(star => (
-                    <svg key={star} width="16" height="16" viewBox="0 0 24 24" fill={star <= fb.rating ? "var(--warning)" : "var(--border)"} stroke="none">
+                    <svg key={star} width="16" height="16" viewBox="0 0 24 24" fill={star <= fb.rating ? "var(--warning)" : "var(--border)"} stroke="none" aria-hidden="true">
                       <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
                     </svg>
                   ))}
+                  <span className="sr-only">{fb.rating} out of 5 stars</span>
                 </div>
               </div>
               
@@ -162,7 +164,7 @@ const FeedbackPage = () => {
               
               <div className="flex justify-between items-center" style={{marginTop: 'auto'}}>
                 <div className="text-tertiary" style={{ fontSize: '0.75rem',}}>
-                  {new Date(fb.created_at).toLocaleString()}
+                  {formatPhDateTime(fb.created_at)}
                 </div>
                 
                 <button 

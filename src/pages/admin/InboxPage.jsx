@@ -14,6 +14,7 @@ import {
   compareConversations,
   getAdminProfiles,
   searchConversationMessages,
+  searchCustomerDirectory,
   CONVERSATION_STATUS,
 } from '../../lib/database';
 import EmptyState from '../../components/ui/EmptyState';
@@ -452,28 +453,15 @@ const InboxPage = () => {
     let cancelled = false;
     const timer = setTimeout(async () => {
       try {
-        // Strip PostgREST filter delimiters so user input can't break the .or() expression
-        const term = q.replace(/[,()]/g, ' ').trim();
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('id, name, email')
-          .eq('role', 'customer')
-          .or(`name.ilike.%${term}%,email.ilike.%${term}%`)
-          .order('name', { ascending: true })
-          .limit(8);
+        const data = await searchCustomerDirectory(q);
         if (cancelled) return;
-        if (error) {
-          setCustomerResults([]);
-        } else {
-          // Anyone who already has a conversation row is excluded here, empty
-          // or not — during a search those rows are shown in the list above,
-          // so listing them here too would surface the same customer twice.
-          // (The bug this replaced was in the LIST, not here: empty rows were
-          // hidden there while also being excluded here, so such a customer
-          // appeared in neither half of the sidebar.)
-          const existingIds = new Set(conversations.map(c => c.profiles?.id).filter(Boolean));
-          setCustomerResults((data || []).filter(p => !existingIds.has(p.id)));
-        }
+        // Anyone who already has a conversation row is excluded here, empty
+        // or not — during a search those rows are shown in the list above,
+        // so listing them here too would surface the same customer twice.
+        const existingIds = new Set(conversations.map(c => c.profiles?.id).filter(Boolean));
+        setCustomerResults((data || []).filter(p => !existingIds.has(p.id)));
+      } catch {
+        if (!cancelled) setCustomerResults([]);
       } finally {
         if (!cancelled) setSearchingCustomers(false);
       }

@@ -15,6 +15,7 @@ import {
   Sun, CloudSun, Moon,
 } from 'lucide-react';
 import usePageTitle from '../../hooks/usePageTitle';
+import { formatMoney } from '../../utils/currencyInput';
 import { getAnnouncementCategoryInfo } from '../../lib/announcements';
 import { formatPhDate } from '../../utils/datetime';
 import { isOrderPriced } from '../../constants/status';
@@ -105,6 +106,9 @@ const HomePage = () => {
         </span>
         <h1>{userProfile?.name || (user?.email?.split('@')[0]) || 'Welcome'}</h1>
         <p className="mt-8">Track and manage your shipments with ease.</p>
+        {orders.length >= 50 && (
+          <span className="text-xs text-tertiary">Showing your latest 50 orders — older shipments live in Orders.</span>
+        )}
         <form onSubmit={handleTrack} className="customer-track-form flex gap-10 mt-20 relative">
           <div className="search-box flex-1">
             <Search size={16} className="search-icon" />
@@ -223,7 +227,7 @@ const HomePage = () => {
             {/* Price per kilo badge */}
             {activeTrip.price_per_kg && (
               <div className="home-trip-price">
-                ₱{parseFloat(activeTrip.price_per_kg).toFixed(2)} / kg
+                {formatMoney(parseFloat(activeTrip.price_per_kg))} / kg
               </div>
             )}
 
@@ -275,7 +279,7 @@ const HomePage = () => {
                   <div className="customer-list-card-footer">
                     <span>To: {order.receiver_name || 'Receiver'}</span>
                     <span className="customer-list-card-price">
-                      {isOrderPriced(order) ? `₱${parseFloat(order.shipping_cost || 0).toFixed(2)}` : 'Priced at pickup'}
+                      {isOrderPriced(order) ? formatMoney(parseFloat(order.shipping_cost || 0)) : 'Priced at pickup'}
                     </span>
                   </div>
                 </div>
@@ -308,7 +312,7 @@ const HomePage = () => {
                       <span
                         className="inline-flex items-center gap-6 px-8 py-2 rounded-full fw-700 text-uppercase"
                         style={{
-                          fontSize: '0.65rem',
+                          fontSize: '0.7rem',
                           letterSpacing: '0.04em',
                           background: cat.badgeBg,
                           color: cat.badgeColor,

@@ -25,7 +25,8 @@
   width: 82px;
   height: 82px;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--customer-green), #22C55E);
+  /* AA pair — the initial is real text; gradient hit ~2.28:1 light / ~1.74:1 dark */
+  background: var(--primary-fill);
   display: flex;
   align-items: center;
   justify-content: center;

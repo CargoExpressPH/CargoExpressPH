@@ -139,9 +139,11 @@ export default function InstallAppBanner() {
 
   return (
     <>
-      {/* Backdrop — mobile only; desktop shows a corner card instead */}
+      {/* Backdrop — mobile only; desktop shows a corner card instead.
+          Decorative: keyboard users dismiss via Escape or the Close/Not-now buttons. */}
       <div
         onClick={dismiss}
+        aria-hidden="true"
         className="install-banner-backdrop fixed"
         style={{inset: 0,
           background: 'rgba(0,0,0,0.45)',

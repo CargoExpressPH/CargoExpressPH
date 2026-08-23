@@ -8,7 +8,6 @@ const statusToClass = (status) => {
     'scheduled': 'badge-info', 'in_progress': 'badge-warning',
     'arrived': 'badge-success', 'completed': 'badge-delivered',
     'cancelled': 'badge-cancelled',
-    'paid': 'badge-delivered', 'partial': 'badge-warning', 'unpaid': 'badge-cancelled',
   };
   return map[status] || 'badge-info';
 };

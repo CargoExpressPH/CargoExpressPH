@@ -150,7 +150,10 @@
 }
 
 /* container-type creates a stacking context, which would trap the
-   dropdown's z-index inside the card and let later siblings paint over it */
+   dropdown's z-index inside the card and let later siblings paint over it.
+   SUPPORT BOUNDARY: :has() is Baseline 2023. On older engines these escapes
+   don't apply and the dropdown may clip inside such cards — accepted trade-off
+   rather than shipping a JS resize observer. */
 .card:has(.custom-select-menu),
 .modal-body:has(.custom-select-menu),
 .sidebar-widget:has(.custom-select-menu) {

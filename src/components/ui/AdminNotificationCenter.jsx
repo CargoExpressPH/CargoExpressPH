@@ -233,7 +233,7 @@ const AdminNotificationCenter = ({ isOpen, onClose, anchorRef }) => {
               <Trash2 size={14} />
             </button>
           )}
-          <button className="admin-notif-action-btn" onClick={onClose} title="Close">
+          <button className="admin-notif-action-btn" onClick={onClose} title="Close" aria-label="Close notifications panel">
             <X size={14} />
           </button>
         </div>

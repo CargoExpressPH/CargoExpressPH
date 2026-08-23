@@ -1,6 +1,8 @@
 /* -----------------------------------------------------------------------
    Admin modern refresh
    Scoped to .app-layout so all admin screens inherit the same product polish.
+   NOTE: the @820px table block near the bottom DUPLICATES tables-mobile.css.
+   Fix table bugs in tables-mobile.css unless admin-scoped styling differs.
    ----------------------------------------------------------------------- */
 
 .app-layout {

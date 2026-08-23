@@ -500,7 +500,7 @@ const CompanyInfoCoverageTab = ({ coverageAreas, setCoverageAreas }) => {
         }
         onClose={() => setDeleteTarget(null)}
         onConfirm={executeDelete}
-        confirmText={deleting ? 'Deleting...' : 'Delete'}
+        confirmLabel={deleting ? 'Deleting...' : 'Delete'}
         variant="danger"
       />
     </div>

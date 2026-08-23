@@ -218,6 +218,7 @@ const PaymentHistoryPage = () => {
           ) : (
             <div className="table-responsive customer-payment-history-table-wrap">
               <table className="table customer-payment-history-table m-0">
+                <caption className="sr-only">Your recent payments — most recent 12 shown</caption>
                 <thead>
                   <tr>
                     <th scope="col">Date</th>

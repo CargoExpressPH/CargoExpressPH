@@ -12,6 +12,7 @@
 
 import { supabase } from './supabase';
 import { getSettlementState, outstandingBalance, SETTLEMENT_STATE } from '../constants/status';
+import { formatMoney } from '../utils/currencyInput';
 
 // ── Escalation keywords (bypass chatbot entirely → go straight to admin) ──────
 //
@@ -468,7 +469,7 @@ const INTENTS = [
           : '❌ Payment is still outstanding.';
 
       return {
-        text: `${header}\n\n💵 Shipping Fee: ₱${cost.toFixed(2)}\n✅ Amount Paid: ₱${paid.toFixed(2)}\n🔴 Balance: ₱${owed.toFixed(2)}\n\n${paymentLine}`,
+        text: `${header}\n\n💵 Shipping Fee: ${formatMoney(cost)}\n✅ Amount Paid: ${formatMoney(paid)}\n🔴 Balance: ${formatMoney(owed)}\n\n${paymentLine}`,
         askResolved: true,
       };
     },
@@ -608,12 +609,12 @@ const INTENTS = [
       // cannot compute would be a promise the bot has no way to keep.
       return {
         text: [
-          `💰 Standard rate: ₱${pricePerKg.toFixed(2)} per kilogram.`,
+          `💰 Standard rate: ${formatMoney(pricePerKg)} per kilogram.`,
           '',
           'For normal items — boxes, luggage, balikbayan boxes — kilo lang ang basehan:',
-          `• 5 kg = ₱${(5 * pricePerKg).toFixed(2)}`,
-          `• 10 kg = ₱${(10 * pricePerKg).toFixed(2)}`,
-          `• 20 kg = ₱${(20 * pricePerKg).toFixed(2)}`,
+          `• 5 kg = ${formatMoney(5 * pricePerKg)}`,
+          `• 10 kg = ${formatMoney(10 * pricePerKg)}`,
+          `• 20 kg = ${formatMoney(20 * pricePerKg)}`,
           '',
           'This is our standard rate. Some trips have their own rate depending on the route, so your final fee follows the trip your parcel is booked on.',
           '',
@@ -807,9 +808,9 @@ const describeSettlement = (order) => {
   const paid = parseFloat(order.amount_paid || 0) || 0;
   const owed = outstandingBalance(order);
   if (state === SETTLEMENT_STATE.SETTLED) {
-    return `Shipping fee ₱${cost.toFixed(2)} — fully paid. Thank you!`;
+    return `Shipping fee ${formatMoney(cost)} — fully paid. Thank you!`;
   }
-  return `Shipping fee ₱${cost.toFixed(2)} · Paid ₱${paid.toFixed(2)} · Balance ₱${owed.toFixed(2)}`;
+  return `Shipping fee ${formatMoney(cost)} · Paid ${formatMoney(paid)} · Balance ${formatMoney(owed)}`;
 };
 
 // ── Main export ────────────────────────────────────────────────────────────────

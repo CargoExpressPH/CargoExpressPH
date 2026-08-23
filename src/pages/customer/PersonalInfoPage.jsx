@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 import { useNavigate, useBlocker } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { normalizeProfileAddressFields } from '../../lib/address';
-import { supabase } from '../../lib/supabase';
+import { updateOwnProfile } from '../../lib/database';
 import { PH_LOCATIONS, VALID_PROVINCES } from '../../constants/phLocations';
 import {
   ArrowLeft, Loader, Save,
@@ -99,24 +99,19 @@ const PersonalInfoPage = () => {
     try {
       const normalizedAddress = normalizeProfileAddressFields(form);
 
-      const { error: updateError } = await supabase
-        .from('profiles')
-        .update({
-          name:              form.name.trim(),
-          facebook_name:     form.facebook_name.trim(),
-          phone:             form.phone || null,
+      await updateOwnProfile(user.id, {
+        name:              form.name.trim(),
+        facebook_name:     form.facebook_name.trim(),
+        phone:             form.phone || null,
 
-          address_province:  normalizedAddress.address_province || null,
-          address_city:      normalizedAddress.address_city || null,
-          address_barangay:  normalizedAddress.address_barangay || null,
-          address_street:    normalizedAddress.address_street || null,
-          address_lot_block: normalizedAddress.address_lot_block || null,
-          address_landmark:  normalizedAddress.address_landmark || null,
-          updated_at:        new Date().toISOString(),
-        })
-        .eq('id', user.id);
-
-      if (updateError) throw updateError;
+        address_province:  normalizedAddress.address_province || null,
+        address_city:      normalizedAddress.address_city || null,
+        address_barangay:  normalizedAddress.address_barangay || null,
+        address_street:    normalizedAddress.address_street || null,
+        address_lot_block: normalizedAddress.address_lot_block || null,
+        address_landmark:  normalizedAddress.address_landmark || null,
+        updated_at:        new Date().toISOString(),
+      });
       await refreshProfile();
       toast.success('Profile updated successfully!');
       setTimeout(() => navigate(-1), 1200);

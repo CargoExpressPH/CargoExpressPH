@@ -1,6 +1,8 @@
 // Cargo Express PH Order Status System
 // Mirrors the original backend's sequential status flow
 
+import { formatMoney } from '../utils/currencyInput';
+
 export const ORDER_STATUS = {
   PENDING_REVIEW: 'Pending Review',
   PENDING: 'Pending',
@@ -310,7 +312,7 @@ export const canDispatchForDelivery = (order) => {
 
   return {
     allowed: false,
-    reason: `There is a remaining balance of ₱${balance.toFixed(2)} on this order. Settle the balance, or record a Promise Date to dispatch anyway.`,
+    reason: `There is a remaining balance of ${formatMoney(balance)} on this order. Settle the balance, or record a Promise Date to dispatch anyway.`,
   };
 };
 

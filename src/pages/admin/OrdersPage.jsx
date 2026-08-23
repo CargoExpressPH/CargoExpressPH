@@ -12,6 +12,7 @@ import ResponsiveFilterControls from '../../components/ui/ResponsiveFilterContro
 import Pagination from '../../components/ui/Pagination';
 import { Search, Package } from 'lucide-react';
 import usePageTitle from '../../hooks/usePageTitle';
+import { formatMoney } from '../../utils/currencyInput';
 import { isOrderPriced, ORDER_STATUS } from '../../constants/status';
 
 // Eleven chips — one per status — put the whole state machine in the toolbar and
@@ -245,7 +246,7 @@ const AdminOrdersPage = () => {
                     <td data-label="Customer">{o.profiles?.name || o.sender_name}</td>
                     <td data-label="Route" className="text-sm">{o.origin} → {o.destination}</td>
                     <td data-label="Weight">{o.actual_weight ? `${o.actual_weight} kg` : '—'}</td>
-                    <td data-label="Cost" className="fw-600">{isOrderPriced(o) ? `₱${parseFloat(o.shipping_cost || 0).toFixed(2)}` : '—'}</td>
+                    <td data-label="Cost" className="fw-600">{isOrderPriced(o) ? formatMoney(parseFloat(o.shipping_cost || 0)) : '—'}</td>
                     <td data-label="Status"><StatusBadge status={o.status} size="sm" /></td>
                     <td data-label="Date" className="text-xs text-secondary">{new Date(o.created_at).toLocaleDateString('en-PH')}</td>
                   </tr>

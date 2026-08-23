@@ -2,7 +2,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
-import { getAdminInboxUnreadCount } from '../../lib/database';
+import { getAdminInboxUnreadCount, getNewInquiryCount } from '../../lib/database';
 import {
   LayoutDashboard, Package, Truck, Users, BarChart3,
   Megaphone, MessageSquare, LogOut, Mail,
@@ -50,17 +50,14 @@ const Sidebar = ({ isOpen, onClose, isCollapsed, onToggleCollapse }) => {
         // not work owed to an admin, and counting it made this badge report
         // total chat volume instead of the queue depth.
         getAdminInboxUnreadCount(),
-        supabase
-          .from('contact_inquiries')
-          .select('id', { count: 'exact', head: true })
-          .eq('status', 'new'),
+        getNewInquiryCount(),
       ]);
 
       if (!isMounted) return;
 
       setBadges({
         inbox: inboxResult.status === 'fulfilled' ? inboxResult.value || 0 : 0,
-        inquiries: inquiriesResult.status === 'fulfilled' ? inquiriesResult.value.count || 0 : 0,
+        inquiries: inquiriesResult.status === 'fulfilled' ? inquiriesResult.value || 0 : 0,
       });
     };
 

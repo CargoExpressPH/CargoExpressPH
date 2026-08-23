@@ -364,39 +364,16 @@
   font-weight: 600;
 }
 
-.btn-danger {
-  background: linear-gradient(135deg, #ef4444, #dc2626);
-  color: white;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 12px;
-  font-size: 0.875rem;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  transition: transform 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
-}
-.btn-danger:hover {
-  background: linear-gradient(135deg, #dc2626, #b91c1c);
-  box-shadow: 0 4px 14px rgba(239, 68, 68, 0.35);
-  transform: translateY(-1px);
-}
-.btn-danger:active {
-  transform: translateY(0) scale(0.98);
-}
-.btn-danger:disabled {
-  opacity: 0.6;
-  pointer-events: none;
-}
 
-/* Mobile-only: show swipe hint, hide desktop delete button */
+/* Mobile-only: show swipe hint AND keep the delete button visible —
+   swipe is a bonus gesture, never the only per-item path (WCAG 2.5.7). */
 @media (max-width: 768px) {
   .notification-swipe-hint {
     display: block;
   }
   .notification-delete-btn {
-    display: none;
+    display: flex;
+    opacity: 1;
   }
 }
 

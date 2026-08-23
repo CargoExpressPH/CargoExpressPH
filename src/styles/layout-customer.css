@@ -535,7 +535,8 @@
   padding: 13px;
   border: none;
   border-radius: 16px;
-  background: linear-gradient(135deg, var(--customer-green, var(--primary)), #22C55E);
+  /* AA pair — white label text on the old brand gradient measured ~3.3:1 */
+  background: var(--primary-fill);
   color: #ffffff;
   font-size: 0.9375rem;
   font-weight: 700;

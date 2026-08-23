@@ -1,7 +1,6 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { supabase } from '../../lib/supabase';
-import { getPublicOrderEvents } from '../../lib/database';
+import { getPublicOrderEvents, getPublicTrackingResult } from '../../lib/database';
 import { buildStatusTimestamps } from '../../utils/statusTimestamps';
 import { formatPhDate, formatPhDateTime } from '../../utils/datetime';
 import {
@@ -166,10 +165,10 @@ const TrackingPage = ({ embedded = false }) => {
       setStatusEvents([]);
     }
     try {
-      const { data, error: fetchError } = await supabase
-        .rpc('track_order_public', { p_tracking_number: tn })
-        .maybeSingle();
-      if (fetchError) {
+      let data = null;
+      try {
+        data = await getPublicTrackingResult(tn);
+      } catch (fetchError) {
         const rate = detectRateLimit(fetchError);
         if (rate) {
           applyRateLimit(rate.seconds);

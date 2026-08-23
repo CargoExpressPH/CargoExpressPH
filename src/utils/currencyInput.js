@@ -63,3 +63,17 @@ export const isValidAmount = (stored) => {
   const value = parseAmount(stored);
   return Number.isFinite(value) && value >= 0;
 };
+
+/**
+ * "10000.5" → "₱10,000.50" — THE peso renderer.
+ *
+ * Grouped, always ₱, always two decimals, zone-independent. Exists because the
+ * app previously had two money dialects: 28 bare `toFixed(2)` renders
+ * ("₱1200.00") beside `toLocaleString('en-PH')` groupers ("₱1,200.00") for the
+ * same order on different screens. Every peso a user reads goes through here.
+ */
+export const formatMoney = (value) =>
+  `₱${(Number(value) || 0).toLocaleString('en-PH', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;

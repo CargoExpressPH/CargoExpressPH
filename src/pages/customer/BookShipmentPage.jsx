@@ -12,6 +12,7 @@ import CustomSelect from '../../components/ui/CustomSelect';
 import ConfirmModal from '../../components/ui/ConfirmModal';
 import { motion, useReducedMotion } from 'framer-motion';
 import usePageTitle from '../../hooks/usePageTitle';
+import { formatMoney } from '../../utils/currencyInput';
 import { toTitleCase } from '../../utils/string';
 import { formatPhDate } from '../../utils/datetime';
 
@@ -529,6 +530,17 @@ const BookShipmentPage = () => {
             Your package is on its way. Track it anytime from your orders.
           </motion.p>
 
+          {/* Sets the pricing expectation the rest of the app states — the
+              ticket itself carries no amount because the parcel isn't weighed yet. */}
+          <motion.p
+            className="text-xs text-tertiary"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.6, delay: 1.4 }}
+          >
+            Final cost is confirmed when we weigh your parcel at pickup.
+          </motion.p>
+
           {/* Ticket card */}
           <motion.div
             className="booking-success-ticket"
@@ -757,7 +769,7 @@ const BookShipmentPage = () => {
                   </div>
                   <div>
                     <span>Rate</span>
-                    <strong>PHP {parseFloat(selectedTrip.price_per_kg || pricePerKilo).toFixed(2)}/kg</strong>
+                    <strong>{formatMoney(parseFloat(selectedTrip.price_per_kg || pricePerKilo))}/kg</strong>
                   </div>
                   {selectedTripRemainingCapacity !== null && (
                     <div>

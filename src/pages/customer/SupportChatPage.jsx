@@ -809,6 +809,13 @@ const SupportChatPage = () => {
             : <Send size={18} />}
         </button>
       </div>
+      <div
+        className="text-right text-tertiary"
+        aria-hidden="true"
+        style={{ fontSize: '0.6875rem', marginTop: 4, paddingRight: 6 }}
+      >
+        {input.length}/{MAX_MESSAGE_LENGTH}
+      </div>
     </div>
   );
 };

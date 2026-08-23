@@ -12,6 +12,8 @@ import ResponsiveFilterControls from '../../components/ui/ResponsiveFilterContro
 import Pagination from '../../components/ui/Pagination';
 import { Search, Package, AlertCircle, MapPin, ChevronRight } from 'lucide-react';
 import usePageTitle from '../../hooks/usePageTitle';
+import { formatPhDate } from '../../utils/datetime';
+import { formatMoney } from '../../utils/currencyInput';
 import { CUSTOMER_ORDER_FILTERS, isOrderPriced } from '../../constants/status';
 
 // One chip per GROUP, not one per internal status. See CUSTOMER_ORDER_FILTERS.
@@ -22,7 +24,7 @@ const ITEMS_PER_PAGE = 10;
 
 const fmtDate = (iso) => {
   if (!iso) return '—';
-  return new Date(iso).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' });
+  return formatPhDate(iso);
 };
 
 const OrdersPage = () => {
@@ -187,7 +189,7 @@ const OrdersPage = () => {
                   <div className="customer-list-card-footer">
                     <span>To: {order.receiver_name || 'Receiver'}</span>
                     <span className="customer-list-card-price">
-                      {isOrderPriced(order) ? `₱${parseFloat(order.shipping_cost || 0).toFixed(2)}` : 'Priced at pickup'}
+                      {isOrderPriced(order) ? formatMoney(parseFloat(order.shipping_cost || 0)) : 'Priced at pickup'}
                     </span>
                   </div>
                 </div>

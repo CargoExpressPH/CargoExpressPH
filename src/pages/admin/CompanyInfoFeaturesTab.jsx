@@ -360,7 +360,7 @@ const CompanyInfoFeaturesTab = ({ features, setFeatures }) => {
         message={`Are you sure you want to delete "${deleteTarget?.title}"? This cannot be undone.`}
         onClose={() => setDeleteTarget(null)}
         onConfirm={handleDelete}
-        confirmText={deleting ? 'Deleting...' : 'Delete'}
+        confirmLabel={deleting ? 'Deleting...' : 'Delete'}
         variant="danger"
       />
     </div>

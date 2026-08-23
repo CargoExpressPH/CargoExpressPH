@@ -7,6 +7,7 @@ import EmptyState from '../../components/ui/EmptyState';
 import { Calendar, Truck, AlertCircle, ChevronRight, RefreshCw } from 'lucide-react';
 import usePageTitle from '../../hooks/usePageTitle';
 import PullToRefresh from '../../components/ui/PullToRefresh';
+import { formatMoney } from '../../utils/currencyInput';
 import { formatPhDate } from '../../utils/datetime';
 
 // Max ms to wait before showing an error instead of an infinite spinner.
@@ -165,7 +166,7 @@ const TripsPage = () => {
                         <strong>{Math.max(0, (trip.capacity || 0) - (trip.current_weight || 0)).toLocaleString()} kg</strong> space left
                       </span>
                       <span className="badge badge-success text-xs" style={{ padding: '3px 8px', borderRadius: '4px' }}>
-                        <strong>₱{parseFloat(trip.price_per_kg || 70).toFixed(2)}/kg</strong> rate
+                        <strong>{formatMoney(parseFloat(trip.price_per_kg || 70))}/kg</strong> rate
                       </span>
                     </div>
                   </div>

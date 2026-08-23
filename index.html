@@ -104,19 +104,6 @@
                 registration.update();
               }, 60 * 60 * 1000);
 
-              // Handle updates
-              registration.addEventListener('updatefound', () => {
-                const newWorker = registration.installing;
-
-                newWorker.addEventListener('statechange', () => {
-                  if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                    window.dispatchEvent(new CustomEvent('sw-update-available', {
-                      detail: { registration }
-                    }));
-                  }
-                });
-              });
-
               navigator.serviceWorker.addEventListener('controllerchange', () => {
                 // New SW activated — page will use latest assets on next navigation
               });

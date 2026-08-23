@@ -6,6 +6,7 @@ import EmptyState from '../../components/ui/EmptyState';
 import Pagination from '../../components/ui/Pagination';
 import { Search, Users } from 'lucide-react';
 import usePageTitle from '../../hooks/usePageTitle';
+import { formatPhDate } from '../../utils/datetime';
 
 // Debounce delay in ms — avoids firing a DB query on every keystroke
 const SEARCH_DEBOUNCE_MS = 350;
@@ -111,7 +112,7 @@ const CustomersPage = () => {
                     <td data-label="Email" className="text-sm">{c.email}</td>
                     <td data-label="Phone" className="text-sm">{c.phone || '—'}</td>
                     <td data-label="Province" className="text-sm">{c.address_province || '—'}</td>
-                    <td data-label="Joined" className="text-xs text-secondary">{new Date(c.created_at).toLocaleDateString()}</td>
+                    <td data-label="Joined" className="text-xs text-secondary">{formatPhDate(c.created_at)}</td>
                   </tr>
                 ))}
                 {customers.length === 0 && (

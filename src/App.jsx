@@ -124,11 +124,17 @@ const RootRedirect = () => {
   return <Navigate to={userProfile.role === 'admin' ? '/admin' : '/customer'} replace />;
 };
 
-/** Automatically scrolls to top of page on route changes */
+/** Automatically scrolls to top of page on route changes.
+ *  'instant' overrides base.css's global smooth-scroll: navigating from a
+ *  long page should JUMP to the top, not animate through 3,000px of content. */
 const ScrollToTop = () => {
   const { pathname } = useLocation();
   useEffect(() => {
-    window.scrollTo(0, 0);
+    try {
+      window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    } catch {
+      window.scrollTo(0, 0);
+    }
   }, [pathname]);
   return null;
 };

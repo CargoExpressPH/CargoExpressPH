@@ -8,6 +8,7 @@ import AmountInput from './AmountInput';
 import FieldError, { errorId, fieldAttrs, invalidClass } from './FieldError';
 import { sanitizeAmount, parseAmount, formatAmount } from '../../utils/currencyInput';
 import { createGCashSource, registerSource, pollPaymentStatus } from '../../lib/paymongo';
+import { getPaymentAttemptBySource, getOrderPaymentSnapshot } from '../../lib/database';
 import { supabase } from '../../lib/supabase';
 
 /**
@@ -365,18 +366,8 @@ const PaymentCollectionPanel = ({
     if (!silent) { setCheckingPayment(true); patch({ notice: '' }); }
     try {
       const pollResult = await pollPaymentStatus(value.sourceId, order.id).catch(() => null);
-      const { data: attempt, error: attemptError } = await supabase
-        .from('payment_attempts')
-        .select('status, payment_status')
-        .eq('source_id', value.sourceId)
-        .maybeSingle();
-      if (attemptError) throw attemptError;
-      const { data: fresh, error: orderError } = await supabase
-        .from('orders')
-        .select('amount_paid, remaining_balance, payment_status, payment_reference')
-        .eq('id', order.id)
-        .single();
-      if (orderError) throw orderError;
+      const attempt = await getPaymentAttemptBySource(value.sourceId);
+      const fresh = await getOrderPaymentSnapshot(order.id);
       const sourceReconciled = pollResult?.orderReconciled
         || pollResult?.status === 'paid'
         || attempt?.status === 'reconciled'

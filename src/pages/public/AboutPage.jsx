@@ -221,13 +221,13 @@ const InteractiveMap = ({ coverage, selectedRegionId, onSelectRegion }) => {
 
         {/* â”€â”€ Coordinate labels â”€â”€ */}
         <g className="about-map-detail" fill="rgba(255,255,255,0.28)" fontSize="5.5" fontWeight="600" fontFamily="Inter,sans-serif" letterSpacing="0.3">
-          <text x="4" y="53">18Â°N</text>
-          <text x="4" y="158">14Â°N</text>
-          <text x="4" y="263">10Â°N</text>
-          <text x="4" y="368">6Â°N</text>
-          <text x="57"  y="417">118Â°E</text>
-          <text x="142" y="417">122Â°E</text>
-          <text x="227" y="417">126Â°E</text>
+          <text x="4" y="53">18°N</text>
+          <text x="4" y="158">14°N</text>
+          <text x="4" y="263">10°N</text>
+          <text x="4" y="368">6°N</text>
+          <text x="57"  y="417">118°E</text>
+          <text x="142" y="417">122°E</text>
+          <text x="227" y="417">126°E</text>
         </g>
 
         {/* â•â• PHILIPPINE ISLANDS â•â• */}
