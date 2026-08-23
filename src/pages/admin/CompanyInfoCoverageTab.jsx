@@ -76,20 +76,32 @@ const SortableRegion = ({ region, handleEditRegion, setDeleteTarget, handleAddNe
             aria-expanded={isExpanded}
             aria-controls={`coverage-region-${region.id}-municipalities`}
           >
-            <div className="coverage-region-icon-wrap" aria-hidden="true">
-              <MapPin size={16} />
-            </div>
-            <div className="coverage-region-title-wrap">
-              <span className="coverage-region-title" title={region.name}>{region.name}</span>
-              {muniCount > 0 && (
-                <span className="coverage-muni-count-badge">
-                  {muniCount} {muniCount === 1 ? 'muni' : 'munis'}
-                </span>
-              )}
-            </div>
+            <span className="coverage-region-toggle-content">
+              <span className="coverage-region-icon-wrap" aria-hidden="true">
+                <MapPin size={16} />
+              </span>
+              <span className="coverage-region-title-wrap">
+                <span className="coverage-region-title" title={region.name}>{region.name}</span>
+                {muniCount > 0 && (
+                  <span className="coverage-muni-count-badge">
+                    {muniCount} {muniCount === 1 ? 'muni' : 'munis'}
+                  </span>
+                )}
+              </span>
+            </span>
+            <span
+              className="coverage-chevron-indicator"
+              style={{
+                transform: isExpanded ? 'rotate(0deg)' : 'rotate(-90deg)'
+              }}
+              aria-hidden="true"
+            >
+              <ChevronDown size={16} />
+            </span>
           </button>
         </div>
         <div className="coverage-region-actions">
+          <div className="coverage-action-divider" aria-hidden="true" />
           <button
             type="button"
             className="coverage-action-btn"
@@ -108,16 +120,6 @@ const SortableRegion = ({ region, handleEditRegion, setDeleteTarget, handleAddNe
           >
             <Trash2 size={14} />
           </button>
-          <div className="coverage-action-divider" aria-hidden="true" />
-          <div
-            className="coverage-chevron-indicator"
-            style={{
-              transform: isExpanded ? 'rotate(0deg)' : 'rotate(-90deg)'
-            }}
-            aria-hidden="true"
-          >
-            <ChevronDown size={16} />
-          </div>
         </div>
       </div>
 
