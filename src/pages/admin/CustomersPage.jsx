@@ -4,9 +4,8 @@ import { getCustomers } from '../../lib/database';
 import { SkeletonTableRow } from '../../components/ui/SkeletonLoader';
 import EmptyState from '../../components/ui/EmptyState';
 import Pagination from '../../components/ui/Pagination';
-import { Search, Users } from 'lucide-react';
+import { ChevronRight, Search, Users } from 'lucide-react';
 import usePageTitle from '../../hooks/usePageTitle';
-import { formatPhDate } from '../../utils/datetime';
 
 // Debounce delay in ms — avoids firing a DB query on every keystroke
 const SEARCH_DEBOUNCE_MS = 350;
@@ -84,11 +83,11 @@ const CustomersPage = () => {
       {loading ? (
         <div className="card animate-fade-in">
           <div className="table-container">
-            <table className="data-table">
+            <table className="data-table data-table--list">
               <caption className="sr-only">List of registered customers (loading)</caption>
-              <thead><tr><th scope="col">Name</th><th scope="col">Email</th><th scope="col">Phone</th><th scope="col">Province</th><th scope="col">Joined</th></tr></thead>
+              <thead><tr><th scope="col">Name</th></tr></thead>
               <tbody>
-                {Array.from({ length: perPage }, (_, i) => <SkeletonTableRow key={i} cols={5} />)}
+                {Array.from({ length: perPage }, (_, i) => <SkeletonTableRow key={i} cols={1} />)}
               </tbody>
             </table>
           </div>
@@ -102,22 +101,33 @@ const CustomersPage = () => {
       ) : (
         <div className="card admin-section-card admin-table-card animate-fade-in">
           <div className="table-container">
-            <table className="data-table">
+            <table className="data-table data-table--list">
               <caption className="sr-only">List of registered customers</caption>
-              <thead><tr><th scope="col">Name</th><th scope="col">Email</th><th scope="col">Phone</th><th scope="col">Province</th><th scope="col">Joined</th></tr></thead>
+              <thead><tr><th scope="col">Name</th></tr></thead>
               <tbody>
+                {/* One column, on every viewport. Email, Phone, Province and
+                    Joined were removed: none of them is why an admin opens this
+                    screen, which is to FIND a person and go to their record.
+                    Each detail is one tap away on the customer's own page, and
+                    keeping them here cost four columns that the mobile layout
+                    then had to restack into a labelled card per row.
+
+                    The link fills the cell rather than hugging the name, so the
+                    whole row width is the target — a 44px-tall hit area instead
+                    of the width of "Jo". */}
                 {customers.map((c, i) => (
                   <tr key={c.id} className="stagger-item" style={{ animationDelay: `${i * 30}ms` }}>
-                    <td data-label="Name"><Link to={`/admin/customers/${c.id}`} className="fw-700 text-accent">{c.name}</Link></td>
-                    <td data-label="Email" className="text-sm">{c.email}</td>
-                    <td data-label="Phone" className="text-sm">{c.phone || '—'}</td>
-                    <td data-label="Province" className="text-sm">{c.address_province || '—'}</td>
-                    <td data-label="Joined" className="text-xs text-secondary">{formatPhDate(c.created_at)}</td>
+                    <td data-label="Name">
+                      <Link to={`/admin/customers/${c.id}`} className="customer-row-link">
+                        <span className="fw-700 text-accent">{c.name}</span>
+                        <ChevronRight size={16} aria-hidden="true" className="customer-row-chevron" />
+                      </Link>
+                    </td>
                   </tr>
                 ))}
                 {customers.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="empty-state-cell">
+                    <td colSpan={1} className="empty-state-cell">
                       <EmptyState
                         icon={Users}
                         title="No customers found"

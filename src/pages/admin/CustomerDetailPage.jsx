@@ -1,21 +1,22 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { getCustomerById } from '../../lib/database';
 import StatusBadge from '../../components/ui/StatusBadge';
 import AnimatedCounter from '../../components/ui/AnimatedCounter';
 import { SkeletonStatCard, SkeletonText } from '../../components/ui/SkeletonLoader';
-import { ArrowLeft, User, Mail, Phone, MapPin, Package, DollarSign, CheckCircle, Clock } from 'lucide-react';
+import { Package } from 'lucide-react';
 import EmptyState from '../../components/ui/EmptyState';
 import MessageCustomerButton from '../../components/ui/MessageCustomerButton';
 import Breadcrumb from '../../components/ui/Breadcrumb';
 import usePageTitle from '../../hooks/usePageTitle';
 import { formatPhDate } from '../../utils/datetime';
+import { buildProfileAddress } from '../../lib/address';
 import { formatMoney } from '../../utils/currencyInput';
 import { isOrderPriced } from '../../constants/status';
 
 const CustomerDetailPage = () => {
   usePageTitle('Customer Details');
-  const { id } = useParams(); const navigate = useNavigate();
+  const { id } = useParams();
   const [data, setData] = useState(null); const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -67,20 +68,54 @@ const CustomerDetailPage = () => {
         { label: 'Customers', to: '/admin/customers' },
         { label: customer.name },
       ]} />
-      <div className="card stagger-item mb-16 customer-profile-card">
-        <div className="customer-profile-banner" />
-        <div className="customer-profile-body">
-          <div className="customer-profile-avatar">{(customer.name||'U')[0].toUpperCase()}</div>
-          <h2 className="fw-800 mt-8">{customer.name}</h2>
-          <div className="text-sm text-secondary">{customer.email} • {customer.phone || '—'}</div>
-          <div className="text-xs text-tertiary mt-4">{[customer.address_province,customer.address_city].filter(Boolean).join(', ')||'No address'}</div>
-          {/* Not in the brief's four pages, but this is the one screen that is
-              ABOUT a customer — an admin who wants to talk to someone looks
-              here first. Same component, same route as the order-level
-              shortcuts. */}
-          <div className="mt-8">
+      {/* Identity as a plain record, not a profile banner.
+          The green banner + centred avatar spent ~200px of every viewport on a
+          decorative header and a letter, then crammed email, phone and a
+          truncated province into two grey subtitle lines. An admin opens this
+          screen to read those details or to act on them, so they are a
+          label/value list — scannable, full-width, and identical on phone,
+          tablet and desktop.
+
+          Message sits in the header rather than at the foot of the list: it is
+          the one ACTION on a screen that is otherwise all reference, and this
+          is the first place an admin looks when they want to talk to someone. */}
+      <div className="card stagger-item mb-16">
+        <div className="card-body">
+          <div className="customer-detail-head">
+            <h2 className="customer-detail-name">{customer.name}</h2>
             <MessageCustomerButton customerId={customer.id} customerName={customer.name} showLabel />
           </div>
+
+          <dl className="customer-detail-list">
+            <div className="customer-detail-row">
+              <dt>Email</dt>
+              <dd>
+                {customer.email
+                  ? <a href={`mailto:${customer.email}`}>{customer.email}</a>
+                  : <span className="text-tertiary">—</span>}
+              </dd>
+            </div>
+            <div className="customer-detail-row">
+              <dt>Phone</dt>
+              <dd>
+                {/* href is stripped to digits (keeping a leading +) because a
+                    stored number may carry spaces or dashes, and tel: treats
+                    those as part of the number on some dialers. The visible
+                    text keeps whatever the customer actually entered. */}
+                {customer.phone
+                  ? <a href={`tel:${String(customer.phone).replace(/(?!^\+)[^\d]/g, '')}`}>{customer.phone}</a>
+                  : <span className="text-tertiary">—</span>}
+              </dd>
+            </div>
+            <div className="customer-detail-row">
+              <dt>Address</dt>
+              <dd>{buildProfileAddress(customer) || <span className="text-tertiary">No address on file</span>}</dd>
+            </div>
+            <div className="customer-detail-row">
+              <dt>Date Joined</dt>
+              <dd>{formatPhDate(customer.created_at)}</dd>
+            </div>
+          </dl>
         </div>
       </div>
       <div className="grid grid-4 mb-16">

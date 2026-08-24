@@ -439,6 +439,95 @@
   .sidebar-collapse-btn { display: none !important; }
 }
 
+/* ── Customers: index row + detail record ────────────────────────────────
+   Both replace layouts that differed by viewport. These do not: one column in
+   the list and one label/value list on the detail page, phone through desktop.
+   ---------------------------------------------------------------------- */
+
+/* The whole cell is the link, so the tap target is the row's full width
+   rather than the width of the name. */
+.customer-row-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  min-height: 44px;
+  text-decoration: none;
+}
+
+.customer-row-link:hover .fw-700 {
+  text-decoration: underline;
+}
+
+.customer-row-chevron {
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+}
+
+.customer-detail-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.customer-detail-name {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 800;
+}
+
+.customer-detail-list {
+  margin: 0;
+}
+
+/* Label left, value right. `align-items: baseline` keeps the label sitting on
+   the value's first line when a long address wraps to two or three. */
+.customer-detail-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 13px 0;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.customer-detail-row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.customer-detail-row dt {
+  flex-shrink: 0;
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+}
+
+.customer-detail-row dd {
+  margin: 0;
+  min-width: 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text);
+  text-align: right;
+  /* An email or a full door-to-door address is one long unbroken string; without
+     this it pushes the card wider than the viewport on a phone. */
+  overflow-wrap: anywhere;
+}
+
+.customer-detail-row dd a {
+  color: var(--accent-light);
+  text-decoration: none;
+}
+
+.customer-detail-row dd a:hover {
+  text-decoration: underline;
+}
+
 /* ── Activity Logs Page ───────────────────────────────────────────────── */
 .activity-logs-filters {
   animation-delay: 0ms;

@@ -175,6 +175,48 @@
     box-shadow: var(--shadow-sm);
   }
 
+  /* ── Single-column list tables ────────────────────────────────────────
+     The card-per-row treatment above exists to group SEVERAL labelled fields
+     from one record into a readable block. A one-column table has nothing to
+     group: the card chrome, the 16px padding and the first-cell divider turn a
+     single name into a ~240px block with a rule under it leading to nothing.
+
+     `.data-table--list` opts out and renders exactly what it is — a list of
+     names with a chevron, the same shape it has on desktop. Which is the
+     point: this table is meant to look identical at every width. */
+  .data-table--list tbody tr {
+    padding: 0;
+    margin-bottom: 0;
+    background: transparent;
+    border: 0;
+    border-bottom: 1px solid var(--border-light);
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .data-table--list tbody tr:last-child {
+    border-bottom: 0;
+  }
+
+  .data-table--list tbody tr:hover {
+    background: var(--bg-secondary);
+    border-color: var(--border-light);
+    box-shadow: none;
+  }
+
+  /* The first-cell rule and bottom margin separate a record's title from the
+     labelled fields beneath it. There are none here. */
+  .data-table--list td:first-child {
+    padding: 4px 12px;
+    border-bottom: 0;
+    margin-bottom: 0;
+  }
+
+  /* An empty-state row is not a list item — it keeps its own padding. */
+  .data-table--list td.empty-state-cell {
+    padding: 0;
+  }
+
   /* Every td becomes a two-column grid: label | value. */
   .data-table td,
   .report-table td {
