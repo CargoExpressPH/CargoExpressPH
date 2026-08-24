@@ -102,7 +102,7 @@ src/
   styles/             35 CSS files; tokens.css drives theming
 
 supabase/
-  schema.sql          Full DDL: 16 tables, RLS, triggers, RPCs
+  schema.sql          Full DDL: 18 tables, RLS, triggers, RPCs
   migrations/  (84)   Incremental history — add new changes here, never edit old files
   functions/    (5)   Deno Edge Functions
   config.toml         Per-function verify_jwt declarations
@@ -133,7 +133,7 @@ scripts/              smoke-check.mjs, axe-lint.mjs (run by `npm test`)
 
 ## Database
 
-16 tables. `supabase/schema.sql` is the single source of truth; `docs/database_design.md` holds the
+18 tables. `supabase/schema.sql` is the single source of truth; `docs/database_design.md` holds the
 ERD and per-column documentation.
 
 `profiles` · `trips` · `orders` · `order_status_events` · `announcements` · `notifications` ·
@@ -387,7 +387,7 @@ Behaviours that exist for a reason — preserve them when editing `AuthContext.j
 
 ### RLS
 
-Enabled on all 16 tables; `public.is_admin()` is the shared helper. Summary:
+Enabled on all 18 tables; `public.is_admin()` is the shared helper. Summary:
 
 - **profiles** — own read/update; admins all
 - **orders** — own read; admins all; anon reads only `featured_on_website = true`
