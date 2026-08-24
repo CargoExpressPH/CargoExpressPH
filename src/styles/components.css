@@ -399,6 +399,33 @@ input[type="datetime-local"]:hover::-webkit-calendar-picker-indicator {
   overflow: visible;
 }
 
+/* …and lift the whole card while that menu is open.
+   `overflow: visible` above stops the card CLIPPING the dropdown, but it does
+   not stop a later sibling PAINTING OVER it, which is a separate failure with
+   a separate cause.
+
+   Every card carrying `.stagger-item` animates `slideUp` with
+   `animation-fill-mode: both`, so it keeps the final keyframe's
+   `transform: translateY(0)` permanently. A transform other than `none`
+   creates a stacking context — so on a page with two stacked cards, BOTH are
+   stacking contexts at `z-index: auto`, and they paint in DOM order. The
+   dropdown's own `z-index: 100` is sealed inside its card's context and can
+   never rise above the card below it. Measured on the admin Activity Logs
+   page: the open Module menu rendered under the table, with
+   `elementFromPoint` at the menu's own coordinates returning a `<td>`.
+
+   Raising the card is what actually escapes that, and `:has()` scopes it to
+   exactly the moment it is needed — CustomSelect renders the menu only while
+   open, so the card returns to `z-index: auto` the instant it closes.
+
+   `--z-dropdown` (100) deliberately stays below --z-sticky (200), --z-overlay
+   (500) and --z-modal (1000): a card hosting a dropdown must not climb over a
+   sticky header or a dialog. `.card` already sets `position: relative`, so the
+   z-index applies without adding positioning here. */
+.card:has(.custom-select-menu) {
+  z-index: var(--z-dropdown);
+}
+
 /* Ensure the dropdown menu always floats above sibling form groups in auth pages */
 .login-right-panel .custom-select-menu,
 .auth-page .custom-select-menu,
