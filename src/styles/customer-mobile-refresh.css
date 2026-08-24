@@ -1417,7 +1417,13 @@ input:checked + .toggle-slider:before {
   }
 }
 
-/* ── Customer Payment History Table Styling & Responsiveness ────────────── */
+/* ── Per-order payment table (customer OrderDetailPage) ─────────────────
+   Named for the Payment History page, which is where it started. That page
+   no longer uses it — its ledger is now the compact .payment-list below —
+   but the order detail screen still renders this table for the payments on
+   one order, so the rules stay. Renaming the classes would touch a working
+   screen for cosmetic reasons; the note is cheaper.
+   ---------------------------------------------------------------------- */
 .customer-payment-history-table-wrap {
   border: 1px solid var(--customer-line);
   border-radius: 20px;
@@ -1558,6 +1564,241 @@ input:checked + .toggle-slider:before {
     text-align: left;
     min-width: 90px;
     flex-shrink: 0;
+  }
+}
+
+/* ── Customer Payment History — compact statement list ──────────────────
+   The payment ledger reads like a banking statement: one row per payment
+   carrying the three facts a statement is scanned for — when, how much, and
+   whether it landed. Everything else about a payment is a lookup rather than
+   a scan, so it lives behind the row in a modal.
+
+   This replaces a six-column table (Date / Order / Type / Amount / Method /
+   Status) that collapsed into a stacked label-and-value card per payment on
+   phones — six lines of chrome for one payment, with the amount, the one
+   figure the screen exists to show, arriving fourth.
+   ---------------------------------------------------------------------- */
+
+.payment-list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 28px 0 10px;
+  flex-wrap: wrap;
+}
+
+.payment-list-header .profile-section-title {
+  margin: 0 0 0 4px;
+}
+
+/* CustomSelect wraps its trigger in .custom-select-root, which is width:100%
+   so it fills a form column. Here it is a flex item beside the heading, and
+   at full width it would stretch across the row and shove the title. The root
+   is not reachable by prop (the component forwards className to the trigger
+   only), so it is constrained structurally. */
+.payment-list-header .custom-select-root {
+  width: auto;
+  flex: 0 0 auto;
+  min-width: 172px;
+  max-width: 100%;
+}
+
+.payment-month-select {
+  width: 100%;
+  height: 40px;
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+
+.payment-list {
+  border-radius: 20px;
+  overflow: hidden;
+  border: 1px solid var(--customer-line);
+  background: var(--customer-panel);
+}
+
+/* Grid, not flex: the date and amount tracks are fixed so the amounts stack
+   into a readable right-aligned column down the list, the way a statement
+   reads. Under flex each amount would sit wherever its own text width put it
+   and the column would zigzag.
+
+   The status track is `minmax` rather than `auto` for the same reason. With
+   `auto` the track takes each pill's own width, so a row reading "Partial"
+   or "Failed" pushed its amount ~10px left of the "Paid" rows above it and
+   the column of figures — the thing this layout exists to straighten — came
+   out ragged. The floor fits the longest label ("Refunded") and the ceiling
+   lets an unexpected one grow rather than overflow. */
+.payment-row {
+  display: grid;
+  grid-template-columns: 60px 1fr minmax(76px, auto) 16px;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 58px;
+  padding: 12px 14px;
+  background: var(--customer-panel);
+  border: none;
+  border-bottom: 1px solid var(--customer-line);
+  text-align: left;
+  cursor: pointer;
+  transition: var(--transition-fast);
+  font-family: inherit;
+}
+
+.payment-row:last-child {
+  border-bottom: none;
+}
+
+.payment-row:hover {
+  background: var(--customer-green-soft);
+}
+
+.payment-row-date {
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: var(--customer-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+/* Tabular figures so the decimal points line up down the column — the whole
+   reason the amount gets its own grid track. */
+.payment-row-amount {
+  font-size: 0.9375rem;
+  font-weight: 800;
+  color: var(--customer-ink);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.payment-row-pill {
+  justify-self: end;
+  white-space: nowrap;
+}
+
+.payment-row-chevron {
+  color: var(--text-tertiary);
+  justify-self: end;
+}
+
+.payment-list-total {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px 0;
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Payment detail modal ── */
+
+.payment-detail-hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 16px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--customer-line);
+}
+
+.payment-detail-amount {
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: var(--customer-ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.payment-detail-grid {
+  margin: 0;
+}
+
+.payment-detail-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--customer-line);
+}
+
+.payment-detail-row:last-child {
+  border-bottom: none;
+}
+
+.payment-detail-row dt {
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.payment-detail-row dd {
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--customer-ink);
+  text-align: right;
+  /* References and tracking numbers are unbroken strings, long enough to push
+     the dialog wider than the viewport if they are allowed to. */
+  word-break: break-word;
+}
+
+.payment-detail-notes {
+  margin: 14px 0 0;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--bg-secondary);
+}
+
+/* ── Accepted payment options — compact rows ── */
+
+.payment-options-card {
+  border-radius: 20px;
+  overflow: hidden;
+  border: 1px solid var(--customer-line);
+  background: var(--customer-panel);
+}
+
+.payment-option-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--customer-line);
+}
+
+.payment-option-row:last-child {
+  border-bottom: none;
+}
+
+.payment-security-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 20px 0 8px;
+  font-size: 0.75rem;
+  line-height: 1.5;
+  color: var(--customer-muted);
+}
+
+.payment-security-note svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+@media (max-width: 420px) {
+  .payment-row {
+    grid-template-columns: 52px 1fr minmax(70px, auto) 14px;
+    gap: 8px;
+    padding: 12px;
+  }
+
+  .payment-list-header .custom-select-root {
+    width: 100%;
+    flex-basis: 100%;
   }
 }
 
