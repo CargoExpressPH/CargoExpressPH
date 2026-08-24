@@ -9,42 +9,6 @@
   display: flex; align-items: center; gap: 12px;
   padding: 10px 0;
 }
-.payment-method-dot {
-  width: 10px; height: 10px; border-radius: 50%;
-  flex-shrink: 0;
-}
-.payment-method-label {
-  font-size: 0.875rem; font-weight: 500;
-  flex: 1;
-}
-.payment-method-amount {
-  font-size: 0.875rem; font-weight: 700;
-  color: var(--text);
-}
-
-.revenue-bar-container {
-  display: flex; flex-direction: column; gap: 8px;
-}
-.revenue-bar-item {
-  display: flex; align-items: center; gap: 12px;
-}
-.revenue-bar-label {
-  width: 60px; font-size: 0.8125rem; font-weight: 500;
-  color: var(--text-secondary); flex-shrink: 0;
-}
-.revenue-bar-track {
-  flex: 1; height: 8px; background: var(--border-light);
-  border-radius: var(--radius-full); overflow: hidden;
-}
-.revenue-bar-fill {
-  height: 100%; border-radius: var(--radius-full);
-  background: linear-gradient(90deg, var(--primary), var(--primary-light));
-  transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
-}
-.revenue-bar-value {
-  width: 80px; font-size: 0.8125rem; font-weight: 600;
-  text-align: right;
-}
 
 /* ---------------------------------------------------------------------------
    REPORTS PAGE — Premium Report Styles
@@ -428,7 +392,6 @@
     overflow-x: visible;
   }
 }
-
 
 /* -----------------------------------------------------------------------
    WORLD-CLASS MICRO-INTERACTIONS

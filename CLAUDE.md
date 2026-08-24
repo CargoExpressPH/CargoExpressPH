@@ -82,10 +82,10 @@ src/
     customer/ (12)      Home, Orders, OrderDetail, BookShipment, Trips, Notifications,
                         Profile, PersonalInfo, SupportChat, PaymentHistory,
                         HelpGuidelines, AboutVersion
-    admin/    (22)      Dashboard, Orders, OrderDetail, Trips, TripDetail, CreateTrip,
+    admin/    (21)      Dashboard, Orders, OrderDetail, Trips, TripDetail, CreateTrip,
                         Customers, CustomerDetail, Inbox, ContactInquiries, Announcements,
                         ActivityLogs, CompanyInformation (+2 tab components), Feedback,
-                        Profile, SalesReports (+4 section pages)
+                        Profile, SalesReports (+3 section pages)
     shared/    (2)      ChangePasswordPage, ChangeEmailPage — mounted under BOTH roles
     public/    (3)      Tracking, About, NotFound
   components/
@@ -111,11 +111,11 @@ public/               manifest.json, sw.js, firebase-messaging-sw.js, icons/, sc
 scripts/              smoke-check.mjs, axe-lint.mjs (run by `npm test`)
 ```
 
-`SalesReportsPage` is a tab shell composing four sections: `SalesPage`,
-`UnsettledDeliveriesPage`, `ServiceReportsPage`, `ReportsPage`. Routed twice —
+`SalesReportsPage` is a tab shell composing three sections: `SalesPage`,
+`UnsettledDeliveriesPage`, `ReportsPage`. Routed twice —
 `/admin/sales` and `/admin/reports` (the latter via `initialSection="reports"`).
 `CompanyInformationPage` similarly composes `CompanyInfoCoverageTab` and
-`CompanyInfoFeaturesTab`. These six files are sections, not routes.
+`CompanyInfoFeaturesTab`. These five files are sections, not routes.
 
 ### `src/lib/` map
 
@@ -297,9 +297,10 @@ first reply meant the lock was applied by the act of helping, and a thread anoth
 opened read as "not mine". What was actually wanted was attribution, and attribution was
 already in `chat_messages.sender_id` — so the admin inbox names the author of each reply
 instead of naming an owner of the thread. The customer still sees an anonymous "Admin".
-`contact_inquiries.assigned_admin_id` is untouched; only chat is shared. `get_service_summary()`
-therefore no longer returns `queue.unassigned` — a shared inbox has no unowned threads, and a
-constant 0 would have read as an answer rather than an absence.
+`contact_inquiries.assigned_admin_id` is untouched; only chat is shared. (The
+`get_service_summary()` reporting RPC that surfaced these queue counts was dropped with the
+Customer Service report tab in `20260824090000`; the conversation state machine itself is
+unchanged.)
 
 The routing is server-side on purpose: a client PATCH after the insert is two round trips with
 a failure window that loses the message. `SupportChatPage` mirrors the window only to phrase
@@ -514,8 +515,10 @@ backing transaction; it is reported as its own figure rather than folded into Ca
 rule applies to `getReportData()` in `database.js`, where the counts are **payments, not
 orders** — one order can appear in two buckets.
 
-`get_service_summary()` — the customer-service equivalent: queue counts across the four
-conversation states, response times, bot outcomes, and inquiry volume.
+The customer-service reporting equivalent, `get_service_summary()`, and its Customer Service
+report tab were removed in `20260824090000_remove_service_reporting.sql`. Conversations,
+inquiries and feedback are still served by the Inbox, Contact Inquiries and Feedback pages —
+only the aggregate reporting RPC is gone.
 
 ---
 

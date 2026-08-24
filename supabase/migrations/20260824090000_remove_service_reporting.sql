@@ -1,0 +1,27 @@
+-- =============================================================================
+-- 20260824090000_remove_service_reporting.sql
+--
+-- Removes the Customer Service reporting tab's backend.
+--
+-- The tab (admin Sales & Reports → "Customer Service") and its page component
+-- (src/pages/admin/ServiceReportsPage.jsx) are deleted, along with
+-- getServiceSummary() in src/lib/database.js. get_service_summary() was built
+-- for that one surface and had exactly one caller, so it is dropped here
+-- rather than left as an unreachable aggregate.
+--
+-- Scope note: this drops the *aggregate reporting* function only. The data it
+-- read over — conversations, chat_messages, contact_inquiries,
+-- customer_feedback — is untouched and still serves the admin Inbox, Contact
+-- Inquiries, Feedback and customer Support Chat pages. No table, column,
+-- trigger, policy or grant on those tables changes.
+--
+-- Supersedes the definitions in:
+--   20260804250000_service_summary_rpc.sql        (original)
+--   20260804270000_service_summary_four_states.sql (four conversation states)
+--   20260808150000_remove_chat_assignment.sql      (dropped queue.unassigned)
+-- Those files stay as-is — applied migrations are never edited.
+--
+-- Reversible: re-run 20260808150000's CREATE OR REPLACE block to restore.
+-- =============================================================================
+
+DROP FUNCTION IF EXISTS public.get_service_summary();

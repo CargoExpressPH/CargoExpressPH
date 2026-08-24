@@ -3,7 +3,6 @@
    Final override layer for a cleaner, Figma-quality logistics PWA.
    ----------------------------------------------------------------------- */
 
-
 [data-theme="dark"] {
   --glass-bg-heavy: rgba(13, 26, 43, 0.86);
 }
@@ -45,25 +44,6 @@ body {
   box-shadow: 0 0 0 3px var(--primary-glow);
 }
 
-/* Login floating chatbot dark-mode polish */
-[data-theme="dark"] .chat-window {
-  background: var(--surface);
-  border-color: color-mix(in srgb, var(--border-hover) 70%, transparent);
-  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(148, 163, 184, 0.08);
-}
-
-[data-theme="dark"] .chat-intro,
-[data-theme="dark"] .chatbox-quick,
-[data-theme="dark"] .chatbox-input,
-[data-theme="dark"] .chat-window-powered {
-  background: var(--surface);
-  border-color: var(--border-light);
-}
-
-[data-theme="dark"] .chat-window-messages {
-  background: linear-gradient(180deg, var(--bg-secondary) 0%, var(--bg) 100%);
-}
-
 [data-theme="dark"] .bot-bubble,
 [data-theme="dark"] .chat-typing-indicator {
   background: var(--surface-raised);
@@ -72,39 +52,14 @@ body {
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
 }
 
-[data-theme="dark"] .chat-name-input,
-[data-theme="dark"] .chat-input,
-[data-theme="dark"] .chat-intro-quick-btn,
-[data-theme="dark"] .quick-reply-btn {
+[data-theme="dark"] .chat-input {
   background: var(--bg-secondary);
   color: var(--text);
   border-color: var(--border);
 }
 
-[data-theme="dark"] .chat-name-input:focus,
 [data-theme="dark"] .chat-input:focus {
   background: var(--surface-raised);
-}
-
-[data-theme="dark"] .chat-intro-quick-btn:hover,
-[data-theme="dark"] .quick-reply-btn:hover {
-  background: color-mix(in srgb, var(--primary-bg) 78%, var(--surface) 22%);
-  color: var(--primary-dark);
-  border-color: var(--primary);
-}
-
-[data-theme="dark"] .chat-fab-tooltip {
-  background: var(--bg);
-  color: var(--text);
-  border: 1px solid var(--border);
-}
-
-[data-theme="dark"] .chat-fab-tooltip::after {
-  border-top-color: var(--bg);
-}
-
-[data-theme="dark"] .chat-fab-badge {
-  border-color: var(--surface);
 }
 
 .topbar,
@@ -972,15 +927,6 @@ body {
   filter: drop-shadow(0 0 8px color-mix(in srgb, currentColor 22%, transparent));
 }
 
-[data-theme="dark"] .about-mission {
-  background: linear-gradient(135deg, rgba(22, 163, 74, 0.16), rgba(96, 165, 250, 0.08));
-  border-left-color: var(--primary-dark);
-}
-
-[data-theme="dark"] .about-mission p {
-  color: var(--text-secondary);
-}
-
 [data-theme="dark"] .public-about-contact-link {
   color: var(--info-dark);
 }
@@ -1217,11 +1163,6 @@ body {
     gap: 6px;
   }
 
-  .customer-navbar-brand {
-    font-size: 1rem;
-    overflow-wrap: anywhere;
-  }
-
   .customer-navbar-right {
     gap: 4px;
   }
@@ -1298,9 +1239,6 @@ body {
 }
 
 @media (max-width: 360px) {
-  .customer-navbar-brand {
-    font-size: 0.9rem;
-  }
 
   .customer-bottom-nav {
     padding-inline: 8px;
@@ -1316,78 +1254,6 @@ body {
     width: 44px;
     height: 44px;
   }
-}
-
-/* ═══════════════════════════════════════════════════════════════════════
-   Glassmorphism and Live Tracker components
-   ═══════════════════════════════════════════════════════════════════════ */
-
-/* Glassmorphism card elements */
-.glass-card {
-  background: var(--glass-bg);
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
-  border: 1px solid var(--glass-border);
-  box-shadow: var(--shadow-md);
-  border-radius: var(--radius-lg);
-  transition: var(--transition);
-}
-
-.glass-card-interactive:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-lg), 0 0 24px rgba(22, 163, 74, 0.08);
-  border-color: color-mix(in srgb, var(--primary) 30%, var(--glass-border));
-}
-
-/* Live progress tracker */
-.live-tracker {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  position: relative;
-  padding: 12px 0 6px;
-  margin-top: 16px;
-}
-.live-tracker-line {
-  position: absolute;
-  top: 23px;
-  left: 24px;
-  right: 24px;
-  height: 3px;
-  background: var(--border);
-  z-index: 1;
-}
-.live-tracker-line-fill {
-  height: 100%;
-  background: linear-gradient(90deg, var(--primary), var(--primary-light));
-  transition: width 0.4s ease-in-out;
-}
-.live-tracker-step {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  position: relative;
-  z-index: 2;
-  flex: 1;
-}
-.live-tracker-node {
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  background: var(--surface);
-  border: 2.5px solid var(--border);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: var(--transition-slow);
-}
-.live-tracker-node::after {
-  content: '';
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--border);
-  transition: var(--transition-slow);
 }
 .live-tracker-step.completed .live-tracker-node {
   border-color: var(--primary);
@@ -1407,14 +1273,6 @@ body {
 .live-tracker-step.active .live-tracker-node::after {
   background: white;
   transform: scale(1);
-}
-.live-tracker-label {
-  font-size: 0.72rem;
-  font-weight: 700;
-  color: var(--text-tertiary);
-  margin-top: 8px;
-  transition: color 0.25s ease;
-  letter-spacing: -0.01em;
 }
 .live-tracker-step.completed .live-tracker-label,
 .live-tracker-step.active .live-tracker-label {

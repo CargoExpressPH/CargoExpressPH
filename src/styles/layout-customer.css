@@ -37,11 +37,6 @@
   min-height: 44px;
   padding: 6px 0;
 }
-.customer-navbar-brand {
-  font-weight: 800;
-  font-size: 1.03rem;
-  letter-spacing: 0;
-}
 
 /* Desktop Nav Links */
 .customer-navbar-links {
@@ -547,5 +542,4 @@
   filter: brightness(1.05);
 }
 /* StatusBadge keeps its own badge colors — do not force inherit on .badge */
-
 

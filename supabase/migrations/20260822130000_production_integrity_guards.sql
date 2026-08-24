@@ -7,6 +7,12 @@
 
 -- A customer may review only an order they own, and only after delivery.
 DROP POLICY IF EXISTS "Customers can insert own feedback" ON public.customer_feedback;
+-- Guard added 2026-08-24: this migration's effects reached the live database
+-- before it was recorded in the migration ledger, so a replay hit SQLSTATE
+-- 42710 on the CREATE below. Dropping the new name first makes the migration
+-- convergent (drop-then-create inside the migration transaction, so there is
+-- no window where the table sits without an INSERT policy).
+DROP POLICY IF EXISTS "Customers can insert own delivered-order feedback" ON public.customer_feedback;
 CREATE POLICY "Customers can insert own delivered-order feedback"
   ON public.customer_feedback
   FOR INSERT

@@ -3,15 +3,13 @@ import { useSearchParams } from 'react-router-dom';
 import SalesPage from './SalesPage';
 import ReportsPage from './ReportsPage';
 import UnsettledDeliveriesPage from './UnsettledDeliveriesPage';
-import ServiceReportsPage from './ServiceReportsPage';
 import ErrorBoundarySection from '../../components/ui/ErrorBoundarySection';
 
 /**
  * SalesReportsPage — Combined Sales & Reports page.
- * All four views live behind a single admin navigation entry.
+ * All three views live behind a single admin navigation entry.
  * Sales = all-time revenue/collection overview; Unsettled = shipments that
- * still owe money, row by row; Customer Service = queue health and response
- * times; Reports = period-based operational analytics.
+ * still owe money, row by row; Reports = period-based operational analytics.
  * The /admin/reports route opens this page with the Reports section active
  * (initialSection="reports").
  *
@@ -24,7 +22,6 @@ import ErrorBoundarySection from '../../components/ui/ErrorBoundarySection';
 const SECTIONS = [
   { value: 'sales', label: 'Sales Overview' },
   { value: 'unsettled', label: 'Unsettled Deliveries' },
-  { value: 'service', label: 'Customer Service' },
   { value: 'reports', label: 'Reports & Analytics' },
 ];
 
@@ -70,11 +67,6 @@ const SalesReportsPage = ({ initialSection }) => {
       {section === 'unsettled' && (
         <ErrorBoundarySection key="unsettled" message="Unsettled deliveries report failed to load.">
           <UnsettledDeliveriesPage />
-        </ErrorBoundarySection>
-      )}
-      {section === 'service' && (
-        <ErrorBoundarySection key="service" message="Customer service reports failed to load.">
-          <ServiceReportsPage />
         </ErrorBoundarySection>
       )}
       {section === 'reports' && (

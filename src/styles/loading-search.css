@@ -7,8 +7,6 @@
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
 }
-.spinner-sm { width: 20px; height: 20px; border-width: 2px; }
-.spinner-lg { width: 56px; height: 56px; border-width: 4px; }
 
 .loading-screen {
   display: flex; flex-direction: column;
@@ -28,7 +26,6 @@
   font-size: 0.9375rem;
   animation: pulse 2s ease-in-out infinite;
 }
-
 
 /* --- SKELETON LOADERS ------------------------------------------------- */
 
@@ -78,7 +75,6 @@
 .skeleton-chat-msg-row.end .skeleton-chat-bubble-col { align-items: flex-end; }
 .skeleton-chat-bubble-start { border-radius: 4px 16px 16px 16px; }
 .skeleton-chat-bubble-end { border-radius: 16px 4px 16px 16px; }
-
 
 /* --- EMPTY STATE ------------------------------------------------------- */
 
@@ -130,7 +126,6 @@
 .empty-state h3 { font-size: 1.125rem; font-weight: 700; margin-bottom: 8px; }
 .empty-state p { color: var(--text-secondary); max-width: 400px; }
 
-
 /* --- SEARCH ------------------------------------------------------------ */
 
 .search-box {
@@ -159,5 +154,4 @@
 .search-box input:focus + .search-icon {
   color: var(--primary);
 }
-
 

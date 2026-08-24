@@ -1411,23 +1411,6 @@ export const qualifiesAsUnsettled = (order) => {
   return outstandingBalance(order) > 0.005;
 };
 
-// ==================== SERVICE REPORTING ====================
-
-/**
- * Customer-service metrics for the Service tab, in one admin-gated round
- * trip. Same pattern as getSalesData/get_sales_summary.
- *
- * Returns measurements only — no targets, no breach counts. Chat support has
- * not carried real customer traffic yet, so any target would be invented and
- * every comparison against it meaningless. Targets get set from a real month
- * of data, which is why the instrumentation shipped before launch.
- */
-export const getServiceSummary = async () => {
-  const { data, error } = await supabase.rpc('get_service_summary');
-  if (error) throw error;
-  return data || null;
-};
-
 // ==================== SETTINGS ====================
 export const getSettings = async () => {
   const { data, error } = await supabase

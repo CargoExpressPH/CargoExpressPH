@@ -66,7 +66,6 @@ Substantive system changes since the last revision:
 | Payments | Atomic pickup/delivery payment RPCs; the ledger is now the sole writer of order totals |
 | Settlement | Warehouse-hold rules enforced in the database, with a Freight Collect exemption |
 | Customer service | Conversation state machine rebuilt around four derived states |
-| Reporting | New `get_service_summary()` RPC and Customer Service reporting section |
 | Storage | `cargo-photos` taken **fully private**; reads now require signed URLs |
 | Realtime | Publication membership asserted by migration rather than assumed |
 | PWA | `beforeinstallprompt` install banner, manifest screenshots, build-time asset precaching |
@@ -781,11 +780,11 @@ a delivered order recomputes it (`20260805120000_payment_status_on_weight_edit.s
 | RPC | Returns |
 |---|---|
 | `get_sales_summary()` | Admin-gated: totals, per-method breakdown, 24-month series, and up to 100 unpaid/partial orders in a single round trip |
-| `get_service_summary()` | Customer-service equivalent: queue counts across the four conversation states, response times, bot outcomes, inquiry volume |
 
-Both are exposed through the admin **Sales & Reports** screen, which is a tab shell
-(`SalesReportsPage`) composing four sections: Sales Overview, Unsettled Deliveries, Customer
-Service, and Reports & Analytics.
+It is exposed through the admin **Sales & Reports** screen, which is a tab shell
+(`SalesReportsPage`) composing three sections: Sales Overview, Unsettled Deliveries, and
+Reports & Analytics. (A fourth, Customer Service, and its `get_service_summary()` RPC were
+removed in `20260824090000_remove_service_reporting.sql`.)
 
 ---
 
@@ -811,7 +810,7 @@ Selected endpoints of architectural significance:
 | `cancel_own_pending_order` | Customer self-service cancellation |
 | `record_pickup_payment`, `record_delivery_payment` | Atomic counter payments |
 | `reconcile_paymongo_payment_attempt` | Gateway reconciliation (`service_role` only) |
-| `get_sales_summary`, `get_service_summary` | Aggregated reporting |
+| `get_sales_summary` | Aggregated reporting |
 | `search_conversation_messages` | Trigram-backed inbox search |
 | `reassign_trip` | Trip reassignment with history logging |
 | `create_admin_notifications_rpc` | Fan-out notification creation |
@@ -895,7 +894,7 @@ CargoExpressPH-main/
 └── docs/                       Design studies and diagnostic SQL
 ```
 
-Note that `SalesPage`, `UnsettledDeliveriesPage`, `ServiceReportsPage`, `ReportsPage`,
+Note that `SalesPage`, `UnsettledDeliveriesPage`, `ReportsPage`,
 `CompanyInfoCoverageTab`, and `CompanyInfoFeaturesTab` are **sections composed into parent
 pages**, not independently routed screens.
 

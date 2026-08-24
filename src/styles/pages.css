@@ -53,18 +53,6 @@
   border: 1.5px dashed var(--border);
 }
 
-.about-mission {
-  background: linear-gradient(135deg, var(--primary-bg), #F0FDF4);
-  border-left: 3px solid var(--primary);
-  padding: 16px 18px; border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
-  margin-top: 4px;
-}
-.about-mission p {
-  font-style: italic; font-size: 0.875rem;
-  color: var(--text); font-weight: 500;
-}
-
-
 /* --- CONTACT ---------------------------------------------------------- */
 
 .contact-card {
@@ -85,7 +73,6 @@
 .facebook-card { border-color: #BFDBFE; }
 .facebook-card:hover { border-color: #3B82F6; }
 .facebook-icon { background: linear-gradient(135deg, #1877F2, #42A5F5); }
-
 
 /* --- HERO -------------------------------------------------------------- */
 
@@ -334,5 +321,4 @@
   gap: 0.75rem;
   margin-top: 0.25rem;
 }
-
 

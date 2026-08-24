@@ -5,7 +5,6 @@
 
 /* --- PROFILE CARD ----------------------------------------------------- */
 
-
 .profile-card-premium {
   border-top-left-radius: 30px;
   border-top-right-radius: 30px;
@@ -91,29 +90,6 @@
   margin-left: auto; color: var(--text-tertiary);
 }
 
-.profile-quick-stats {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
-  background: transparent;
-  border: 0;
-  box-shadow: none;
-}
-.profile-stat-item {
-  text-align: center;
-  padding: 14px 8px;
-  background: var(--customer-panel);
-}
-.profile-stat-value {
-  font-size: 1.25rem; font-weight: 800; color: var(--text);
-}
-.profile-stat-label {
-  font-size: 0.6875rem; font-weight: 600;
-  color: var(--text-tertiary); text-transform: uppercase;
-  letter-spacing: 0.04em; margin-top: 2px;
-}
-
-
 /* --- SECTION HEADER --------------------------------------------------- */
 
 .section-header {
@@ -128,5 +104,4 @@
   font-size: 0.8125rem; color: var(--text-secondary);
   margin-top: 2px;
 }
-
 

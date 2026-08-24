@@ -211,20 +211,6 @@
 }
 .pw-rule.met svg { opacity: 1; }
 
-/* -- Address note -- */
-.reg-address-note {
-  display: flex; align-items: flex-start; gap: 8px;
-  background: var(--warning-bg);
-  border: 1px solid rgba(22, 163, 74, 0.22);
-  border-radius: var(--radius-md); padding: 10px 14px;
-  margin-bottom: 20px;
-}
-.reg-address-note svg { color: var(--primary); flex-shrink: 0; margin-top: 1px; }
-.reg-address-note p {
-  font-size: 0.79rem; color: var(--warning-dark);
-  line-height: 1.5; margin: 0; font-weight: 500;
-}
-
 /* -- Required legal acceptance -- */
 .reg-legal-consent {
   display: flex;
@@ -324,15 +310,6 @@
 }
 .auth-link:hover { color: var(--primary-dark); text-decoration: underline; }
 
-.auth-trust-row {
-  display: flex; align-items: center; justify-content: center; gap: 12px;
-}
-.auth-trust-badge {
-  display: flex; align-items: center; gap: 4px;
-  font-size: 0.7rem; font-weight: 600; color: var(--text-tertiary);
-}
-.auth-trust-badge svg { color: var(--success-text); }
-
 /* -- Success card -- */
 .auth-success-card {
   text-align: center; padding: 56px 40px;
@@ -379,7 +356,6 @@
 @media (max-width: 380px) {
   .auth-card { padding: 28px 18px 24px; }
 }
-
 
 /* --- FORGOT PASSWORD & RESET PASSWORD ---------------------------------- */
 
@@ -735,6 +711,4 @@
   outline: 2px solid var(--primary);
   outline-offset: 2px;
 }
-
-
 
