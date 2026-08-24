@@ -443,10 +443,51 @@
 .activity-logs-filters {
   animation-delay: 0ms;
 }
-.activity-logs-filter-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  gap: 12px;
+/* One row: Search grows, Module is fixed, the checkbox and Clear sit at the
+   end. `flex-wrap` is the only concession to narrow screens — below ~720px the
+   controls stack rather than compress the search box to nothing. */
+.activity-logs-filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* The one control that should take the leftover width. min-width lets it
+   shrink on a tablet without collapsing; flex: 1 makes it claim the rest. */
+.activity-logs-search {
+  flex: 1 1 240px;
+  min-width: 200px;
+  margin: 0;
+}
+
+.activity-logs-module {
+  flex: 0 0 auto;
+  width: 170px;
+}
+
+/* Pushes the checkbox and Clear to the right edge of the row. */
+.activity-logs-filter-bar .activity-logs-hide-logins {
+  margin-left: auto;
+}
+
+.activity-logs-clear {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+@media (max-width: 720px) {
+  .activity-logs-search,
+  .activity-logs-module {
+    flex: 1 1 100%;
+    width: 100%;
+  }
+
+  /* With everything stacked, the auto margin would shove the checkbox to the
+     far right of its own line, away from the control it modifies. */
+  .activity-logs-filter-bar .activity-logs-hide-logins {
+    margin-left: 0;
+  }
 }
 .activity-logs-table-card {
   animation-delay: 60ms;

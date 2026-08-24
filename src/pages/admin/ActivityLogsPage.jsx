@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
 import { getActivityLogs } from '../../lib/database';
-import { getAdminProfiles } from '../../lib/database';
 import Breadcrumb from '../../components/ui/Breadcrumb';
 import { SkeletonText } from '../../components/ui/SkeletonLoader';
 import EmptyState from '../../components/ui/EmptyState';
@@ -8,7 +7,7 @@ import CustomSelect from '../../components/ui/CustomSelect';
 import usePageTitle from '../../hooks/usePageTitle';
 import { useToast } from '../../hooks/useToast';
 import {
-  ClipboardList, Search, Filter, ChevronLeft, ChevronRight,
+  ClipboardList, Search, ChevronLeft, ChevronRight,
   Download, Package, Truck, CreditCard, MessageSquare, Shield, Settings, FileText,
   RefreshCw, Clock, User
 } from 'lucide-react';
@@ -70,14 +69,17 @@ const ActivityLogsPage = () => {
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 50;
 
-  // Filters
+  // Filters. Three, deliberately.
+  //
+  // A free-text Action box, an Admin dropdown and a From/To date pair were
+  // removed here. The first two were already covered: getActivityLogs' `search`
+  // does an OR ilike across action, admin_name, record_ref AND details, so
+  // typing a name or an action into Search matches strictly more than the
+  // dedicated inputs did. The dates were unreachable in practice —
+  // purge_old_activity_logs deletes anything older than 7 days, so a date
+  // range could only ever narrow a week.
   const [search, setSearch] = useState('');
   const [module, setModule] = useState('');
-  const [actionFilter, setActionFilter] = useState('');
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
-  const [adminList, setAdminList] = useState([]);
-  const [adminId, setAdminId] = useState('');
   const [hideLogins, setHideLogins] = useState(true);
 
   // Debounced search
@@ -88,24 +90,16 @@ const ActivityLogsPage = () => {
     return () => clearTimeout(t);
   }, [searchInput]);
 
-  // Load admin list for dropdown
-  useEffect(() => {
-    let mounted = true;
-    getAdminProfiles()
-      .then(list => { if (mounted) setAdminList(list || []); })
-      .catch(() => { if (mounted) setAdminList([]); });
-    return () => { mounted = false; };
-  }, []);
-
   const loadLogs = useCallback(async () => {
     setLoading(true);
     try {
+      // action / adminId / dateFrom / dateTo are simply not passed. Every one
+      // of them already defaults to null in getActivityLogs, and each clause is
+      // applied only `if (value)` — so omitting them and passing null produce
+      // the identical query. Omitting keeps the call describing what this
+      // screen actually offers.
       const result = await getActivityLogs({
         module: module || null,
-        action: actionFilter || null,
-        adminId: adminId || null,
-        dateFrom: dateFrom ? `${dateFrom}T00:00:00` : null,
-        dateTo: dateTo ? `${dateTo}T23:59:59` : null,
         search: search || null,
         hideLogins,
         page,
@@ -122,11 +116,11 @@ const ActivityLogsPage = () => {
     } finally {
       setLoading(false);
     }
-  }, [module, actionFilter, adminId, dateFrom, dateTo, search, hideLogins, page, showError]);
+  }, [module, search, hideLogins, page, showError]);
 
   useEffect(() => {
     setPage(1);
-  }, [module, actionFilter, adminId, dateFrom, dateTo, search, hideLogins]);
+  }, [module, search, hideLogins]);
 
   useEffect(() => {
     loadLogs();
@@ -179,80 +173,53 @@ const ActivityLogsPage = () => {
         </div>
       </div>
 
-      {/* Filters */}
+      {/* Filters — one row: Search, Module, Hide sign-ins, Clear.
+          The old layout was a `repeat(auto-fill, minmax(180px, 1fr))` grid of
+          seven controls under a "Filters" heading, with the checkbox orphaned
+          on a line of its own below it. With three controls left, the heading
+          and the grid were both scaffolding for a complexity that is gone. */}
       <div className="card mb-16 stagger-item activity-logs-filters">
         <div className="card-body">
-          <div className="flex items-center gap-8 mb-12">
-            <Filter size={14} color="var(--text-secondary)" />
-            <span className="text-xs text-secondary font-bold text-uppercase">Filters</span>
-          </div>
-          <div className="activity-logs-filter-grid">
-            <div className="form-group m-0">
-              <label className="form-label" htmlFor="activity-search">Search</label>
-              <div className="form-input-wrapper">
-                <Search size={15} className="form-input-icon" aria-hidden="true" />
-                <input
-                  id="activity-search"
-                  type="text"
-                  className="form-input form-input-icon-left"
-                  placeholder="Action, admin, ref..."
-                  value={searchInput}
-                  onChange={e => setSearchInput(e.target.value)}
-                />
-              </div>
-            </div>
-
-            <div className="form-group m-0">
-              <label className="form-label">Module</label>
-              <CustomSelect className="form-control" value={module} onChange={e => setModule(e.target.value)}>
-                {MODULES.map(m => <option key={m} value={m === 'All' ? '' : m}>{m}</option>)}
-              </CustomSelect>
-            </div>
-
-            <div className="form-group m-0">
-              <label className="form-label" htmlFor="activity-action-filter">Action</label>
+          <div className="activity-logs-filter-bar">
+            <div className="form-input-wrapper activity-logs-search">
+              <Search size={15} className="form-input-icon" aria-hidden="true" />
               <input
-                id="activity-action-filter"
+                id="activity-search"
                 type="text"
-                className="form-control"
-                placeholder="Filter by action..."
-                value={actionFilter}
-                onChange={e => setActionFilter(e.target.value)}
+                className="form-input form-input-icon-left"
+                placeholder="Search actions, admins, or refs..."
+                aria-label="Search activity logs by action, admin, or reference"
+                value={searchInput}
+                onChange={e => setSearchInput(e.target.value)}
               />
             </div>
 
-            <div className="form-group m-0">
-              <label className="form-label">Admin</label>
-              <CustomSelect className="form-control" value={adminId} onChange={e => setAdminId(e.target.value)}>
-                <option value="">All Admins</option>
-                {adminList.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-              </CustomSelect>
-            </div>
+            <CustomSelect
+              className="form-control activity-logs-module"
+              value={module}
+              onChange={e => setModule(e.target.value)}
+              aria-label="Filter by module"
+            >
+              {MODULES.map(m => <option key={m} value={m === 'All' ? '' : m}>{m}</option>)}
+            </CustomSelect>
 
-            <div className="form-group m-0">
-              <label className="form-label" htmlFor="log-date-from">From Date</label>
-              <input id="log-date-from" type="date" className="form-control" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
-            </div>
+            <label className="activity-logs-hide-logins">
+              <input
+                type="checkbox"
+                checked={hideLogins}
+                onChange={e => setHideLogins(e.target.checked)}
+              />
+              Hide sign-ins
+            </label>
 
-            <div className="form-group m-0">
-              <label className="form-label" htmlFor="log-date-to">To Date</label>
-              <input id="log-date-to" type="date" className="form-control" value={dateTo} onChange={e => setDateTo(e.target.value)} />
-            </div>
-
-            <div className="form-group m-0 flex items-end">
-              <button className="btn btn-ghost btn-sm w-full" onClick={() => {
-                setSearchInput(''); setSearch(''); setModule(''); setActionFilter(''); setAdminId(''); setDateFrom(''); setDateTo(''); setHideLogins(true);
-              }}>Clear Filters</button>
-            </div>
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm activity-logs-clear"
+              onClick={() => { setSearchInput(''); setSearch(''); setModule(''); setHideLogins(true); }}
+            >
+              Clear Filters
+            </button>
           </div>
-          <label className="activity-logs-hide-logins">
-            <input
-              type="checkbox"
-              checked={hideLogins}
-              onChange={e => setHideLogins(e.target.checked)}
-            />
-            Hide sign-ins
-          </label>
         </div>
       </div>
       {/* Results summary */}

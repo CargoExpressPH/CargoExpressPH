@@ -1107,17 +1107,33 @@
   }
 }
 
+/* Sits inline in .activity-logs-filter-bar. The `margin-top: 12px` that used
+   to be here was for the old layout, where this checkbox was orphaned on its
+   own line below the filter grid; inline it just pushed the label out of
+   vertical alignment with the search box and dropdown beside it. Note this
+   file is in the `pages` layer and layout-admin.css is in `layout`, so any
+   property set here wins over the bar's rules regardless of specificity —
+   which is why the fix belongs at the definition rather than as an override. */
 .activity-logs-hide-logins {
   display: flex;
   align-items: center;
   gap: 6px;
-  margin-top: 12px;
   font-size: 0.72rem;
   color: var(--text-tertiary);
   cursor: pointer;
   user-select: none;
 }
-.activity-logs-hide-logins input { cursor: pointer; margin: 0; }
+/* Matches .inbox-show-resolved input, the same control on the admin Inbox —
+   brand accent instead of the browser's default blue, and a fixed 16px box so
+   it lines up with the search field and dropdown beside it. */
+.activity-logs-hide-logins input {
+  cursor: pointer;
+  margin: 0;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  accent-color: var(--primary);
+}
 
 /* --- INBOX — Close the open conversation ------------------------------- */
 /* The back arrow is mobile-only, so on desktop opening a chat was a one-way
