@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { getCustomerById } from '../../lib/database';
 import StatusBadge from '../../components/ui/StatusBadge';
 import AnimatedCounter from '../../components/ui/AnimatedCounter';
@@ -140,7 +140,7 @@ const CustomerDetailPage = () => {
             <thead><tr><th scope="col">Tracking</th><th scope="col">Route</th><th scope="col">Cost</th><th scope="col">Status</th><th scope="col">Date</th></tr></thead>
             <tbody>
               {orders.map(o=>(
-                <tr key={o.id}><td data-label="Tracking" className="fw-600">{o.tracking_number}</td><td data-label="Route" className="text-sm">{o.origin} → {o.destination}</td>
+                <tr key={o.id}><td data-label="Tracking"><Link to={`/admin/orders/${o.id}`} className="fw-700 text-accent">{o.tracking_number}</Link></td><td data-label="Route" className="text-sm">{o.origin} → {o.destination}</td>
                 <td data-label="Cost">{isOrderPriced(o) ? formatMoney(parseFloat(o.shipping_cost || 0)) : '—'}</td><td data-label="Status"><StatusBadge status={o.status} size="sm"/></td>
                 <td data-label="Date" className="text-xs text-secondary">{formatPhDate(o.created_at)}</td></tr>
               ))}
