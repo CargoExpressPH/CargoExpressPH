@@ -190,8 +190,12 @@ async function sendWebPush(
       title,
       body,
       icon:  '/icons/icon-192.png',
-      badge: '/icons/icon-72.png',
-      notification: { title, body, icon: '/icons/icon-192.png', badge: '/icons/icon-72.png' },
+      // Transparent alpha-mask silhouette. Android paints the opaque pixels in
+      // the accent colour, so a full-colour icon here renders as a solid white
+      // square. This value overrides the service worker's own fallback, so it
+      // is the one that decides what a real push shows.
+      badge: '/icons/badge-72.png',
+      notification: { title, body, icon: '/icons/icon-192.png', badge: '/icons/badge-72.png' },
       data:  { url: clickUrl, title, body },
     }))
 

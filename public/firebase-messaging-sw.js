@@ -31,7 +31,12 @@ messaging.onBackgroundMessage((payload) => {
   self.registration.showNotification(title, {
     body,
     icon:     '/icons/icon-192.png',
-    badge:    '/icons/icon-72.png',
+    // Android reads ONLY the alpha channel of `badge` and paints it in the
+    // system accent colour. icon-72.png is fully opaque, so the mask was the
+    // whole 72x72 square — the solid white block in the status bar.
+    // badge-72.png is a transparent silhouette. Do not point this at a
+    // full-colour icon.
+    badge:    '/icons/badge-72.png',
     data:     { url },
     vibrate:  [200, 100, 200],
     tag:      'cargoexpress-fcm',

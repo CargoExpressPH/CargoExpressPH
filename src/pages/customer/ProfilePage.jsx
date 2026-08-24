@@ -275,16 +275,6 @@ const ProfilePage = () => {
               </label>
             )}
           </div>
-          <button type="button" onClick={() => navigate('/customer/notifications')} className="profile-menu-item">
-            <div className="profile-menu-icon-wrap info">
-              <Bell size={18} />
-            </div>
-            <div className="flex-1 text-left">
-              <div className="text-sm font-bold">In-App Notification History</div>
-              <div className="text-xs text-secondary">Read order alerts and service updates</div>
-            </div>
-            <ChevronRight size={16} color="var(--text-tertiary)" />
-          </button>
         </div>
 
         {/* Section 3: Help & Support */}

@@ -22,6 +22,8 @@ const APP_SHELL = [
   '/icons/icon-32.png',
   '/icons/icon-192.png',
   '/icons/icon-72.png',
+  // Precached so the notification badge resolves even on a cold push.
+  '/icons/badge-72.png',
 ];
 
 // Hashed entry bundles (JS + CSS), injected at build time by swVersionPlugin
@@ -493,7 +495,9 @@ self.addEventListener('push', (event) => {
     notif.click_action ||
     '/customer/notifications';
   const icon = notif.icon || data.icon || '/icons/icon-192.png';
-  const badge = notif.badge || data.badge || '/icons/icon-72.png';
+  // Alpha-mask silhouette, not a full-colour icon — see badge-72.png. Android
+  // tints the opaque pixels, so an opaque icon renders as a solid square.
+  const badge = notif.badge || data.badge || '/icons/badge-72.png';
 
   const notifOptions = {
     body,
