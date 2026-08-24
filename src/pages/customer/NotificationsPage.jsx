@@ -3,14 +3,15 @@ import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
-import { getNotifications, getUnreadNotificationCount, markNotificationRead, markAllNotificationsRead, deleteNotification, deleteAllNotifications } from '../../lib/database';
-import { AlertTriangle, Bell, ChevronDown, Package, Truck, Megaphone, CheckCheck, Loader, RefreshCw, Trash2, X } from 'lucide-react';
+import { getNotifications, getUnreadNotificationCount, getAnnouncementById, markNotificationRead, markAllNotificationsRead, deleteNotification, deleteAllNotifications } from '../../lib/database';
+import { AlertTriangle, Bell, ChevronDown, Clock, Package, Truck, Megaphone, CheckCheck, Loader, RefreshCw, Trash2, X } from 'lucide-react';
 import { useToast } from '../../hooks/useToast';
 import EmptyState from '../../components/ui/EmptyState';
 import { SkeletonText } from '../../components/ui/SkeletonLoader';
 import FocusTrap from '../../components/ui/FocusTrap';
 import usePageTitle from '../../hooks/usePageTitle';
 import PullToRefresh from '../../components/ui/PullToRefresh';
+import { getAnnouncementCategoryInfo } from '../../lib/announcements';
 
 const iconMap = { order_update: Package, trip_update: Truck, announcement: Megaphone, general: Bell };
 
@@ -152,6 +153,96 @@ const SwipeableNotificationCard = ({ notification, onRead, onDelete, onClick, in
   );
 };
 
+// ── Announcement detail modal ──────────────────────────────────────────────
+/**
+ * The full announcement, opened from its notification.
+ *
+ * The notification itself only carries the announcement's TITLE — the fan-out
+ * in createAnnouncement writes `message: announcement.title` — so the body has
+ * to be fetched by `reference_id`. Until it lands, the title the notification
+ * already holds is shown, so the modal opens with content rather than with a
+ * spinner in an empty frame.
+ *
+ * `reference_id` carries no foreign key to announcements, so the row can be
+ * gone while the notification survives. That is a real state, not an error:
+ * the modal falls back to what the notification itself says and tells the
+ * customer the rest is no longer available, rather than showing an empty body.
+ */
+const AnnouncementModal = ({ open, notification, announcement, loading, failed, onClose }) => {
+  useEffect(() => {
+    if (!open) return undefined;
+    const onEscape = (e) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', onEscape);
+    return () => document.removeEventListener('keydown', onEscape);
+  }, [open, onClose]);
+
+  if (!open || !notification) return null;
+
+  // The announcement is the better source for both; the notification is the
+  // fallback that is always present.
+  const title = announcement?.title || notification.message || notification.title;
+  const postedAt = announcement?.created_at || notification.created_at;
+  const category = getAnnouncementCategoryInfo(announcement || { title, content: '' });
+  const CategoryIcon = category.icon;
+
+  return createPortal(
+    <FocusTrap active={open}>
+      <div
+        className="notification-modal-overlay"
+        onClick={onClose}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="announcement-modal-title"
+      >
+        <div className="notification-modal announcement-modal" onClick={e => e.stopPropagation()}>
+          <button className="notification-modal-close" type="button" onClick={onClose} aria-label="Close announcement">
+            <X size={18} />
+          </button>
+
+          <span
+            className="announcement-modal-category"
+            style={{ background: category.badgeBg, color: category.badgeColor }}
+          >
+            <CategoryIcon size={13} aria-hidden="true" />
+            {category.label}
+          </span>
+
+          <h3 id="announcement-modal-title" className="announcement-modal-title">{title}</h3>
+
+          <div className="announcement-modal-meta">
+            <Clock size={13} aria-hidden="true" />
+            {new Date(postedAt).toLocaleDateString('en-PH', {
+              month: 'long', day: 'numeric', year: 'numeric',
+            })}
+          </div>
+
+          <div className="announcement-modal-body">
+            {loading && (
+              <p className="announcement-modal-loading">
+                <Loader size={15} className="animate-spin" aria-hidden="true" /> Loading the full announcement…
+              </p>
+            )}
+            {!loading && announcement?.content && (
+              <p className="announcement-modal-content">{announcement.content}</p>
+            )}
+            {!loading && !announcement?.content && (
+              <p className="announcement-modal-missing">
+                The full text of this announcement is no longer available.
+                {failed ? ' Please check your connection and try again.' : ''}
+              </p>
+            )}
+          </div>
+
+          <div className="notification-modal-actions">
+            <button className="btn btn-primary" type="button" onClick={onClose}>Close</button>
+          </div>
+        </div>
+      </div>
+    </FocusTrap>,
+    document.body
+  );
+};
+
 // ── Confirmation Modal ─────────────────────────────────────────────────────
 const ConfirmModal = ({ open, title, message, confirmLabel, onConfirm, onCancel, loading }) => {
   if (!open) return null;
@@ -206,6 +297,9 @@ const NotificationsPage = () => {
   const [markingAll, setMarkingAll] = useState(false);
   const [confirmModal, setConfirmModal] = useState({ open: false, type: null, id: null });
   const [clearingAll, setClearingAll] = useState(false);
+  const [announcementModal, setAnnouncementModal] = useState({
+    open: false, notification: null, announcement: null, loading: false, failed: false,
+  });
 
   // Mirrors `notifications` for the handlers that need to know whether the row
   // they are about to change was unread. That question cannot be answered
@@ -344,22 +438,47 @@ const NotificationsPage = () => {
   };
 
   /**
-   * Only notifications that have somewhere specific to go, go anywhere.
+   * Announcements open in place; everything else with a destination navigates.
    *
    * An announcement used to navigate to /customer, which promised a detail
-   * page and delivered the dashboard the customer had just left — the
-   * announcement itself is already fully rendered on the card in front of
-   * them, so there was nothing further to open. Clicking one now just marks it
-   * read, which SwipeableNotificationCard has already done by the time this
-   * runs.
+   * page and delivered the dashboard the customer had just left. The card here
+   * stays compact, so the full text now opens in a modal on this page — the
+   * customer reads the announcement without losing their place in the list.
    */
-  const handleNotificationClick = (n) => {
+  const handleNotificationClick = async (n) => {
+    if (n.type === 'announcement') {
+      setAnnouncementModal({
+        open: true, notification: n, announcement: null, loading: true, failed: false,
+      });
+      try {
+        const announcement = await getAnnouncementById(n.reference_id);
+        // Guard against a second card being opened while this was in flight:
+        // without it, a slow fetch would overwrite whichever announcement the
+        // customer is actually looking at now.
+        setAnnouncementModal(prev => (
+          prev.open && prev.notification?.id === n.id
+            ? { ...prev, announcement, loading: false }
+            : prev
+        ));
+      } catch {
+        setAnnouncementModal(prev => (
+          prev.open && prev.notification?.id === n.id
+            ? { ...prev, announcement: null, loading: false, failed: true }
+            : prev
+        ));
+      }
+      return;
+    }
     if (n.type === 'order_update' && n.reference_id) {
       navigate(`/customer/orders/${n.reference_id}`);
     } else if (n.type === 'trip_update') {
       navigate('/customer/trips');
     }
   };
+
+  const closeAnnouncementModal = useCallback(() => {
+    setAnnouncementModal({ open: false, notification: null, announcement: null, loading: false, failed: false });
+  }, []);
 
   const groups = groupByDate(notifications);
 
@@ -470,6 +589,15 @@ const NotificationsPage = () => {
           </button>
         </div>
       )}
+
+      <AnnouncementModal
+        open={announcementModal.open}
+        notification={announcementModal.notification}
+        announcement={announcementModal.announcement}
+        loading={announcementModal.loading}
+        failed={announcementModal.failed}
+        onClose={closeAnnouncementModal}
+      />
 
       {/* Confirmation Modal */}
       <ConfirmModal

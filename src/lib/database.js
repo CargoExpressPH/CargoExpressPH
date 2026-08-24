@@ -877,14 +877,55 @@ export const getTripReassignments = async (orderId) => {
 };
 
 // ==================== ANNOUNCEMENTS ====================
+/**
+ * Announcements are news, and news expires. Anything past this window stops
+ * being served — a schedule change from four months ago is not information,
+ * it is clutter that pushes the current notice down the page.
+ */
+export const ANNOUNCEMENT_MAX_AGE_DAYS = 60;
+
+/**
+ * The live announcements: active, and posted within the last 60 days.
+ *
+ * The cutoff is applied here rather than at each call site because both
+ * surfaces that read announcements — the customer HomePage feed and the admin
+ * Announcements page — want the same answer. It does mean an admin stops
+ * seeing announcements older than the window, which is intended: they are
+ * already invisible to every customer, so there is nothing left to manage.
+ * Nothing is deleted; the rows stay, they are just no longer served.
+ */
 export const getAnnouncements = async () => {
+  const cutoff = new Date(Date.now() - ANNOUNCEMENT_MAX_AGE_DAYS * 24 * 60 * 60 * 1000).toISOString();
   const { data, error } = await supabase
     .from('announcements')
     .select(`*, profiles:author_id (name)`)
     .eq('is_active', true)
+    .gte('created_at', cutoff)
     .order('created_at', { ascending: false });
   if (error) throw error;
   return data;
+};
+
+/**
+ * One announcement by id, for the detail modal an announcement notification
+ * opens.
+ *
+ * Deliberately NOT filtered by is_active or by the 60-day window. Those two
+ * rules govern what gets *pushed* at a customer; this is a customer opening a
+ * specific notification they still hold, and answering "that announcement is
+ * too old to show you" when they are looking straight at the notification for
+ * it would be nonsense. Returns null when the row is genuinely gone, which the
+ * caller renders from the notification's own title and message instead.
+ */
+export const getAnnouncementById = async (id) => {
+  if (!id) return null;
+  const { data, error } = await supabase
+    .from('announcements')
+    .select(`*, profiles:author_id (name)`)
+    .eq('id', id)
+    .maybeSingle();
+  if (error) throw error;
+  return data || null;
 };
 
 export const createAnnouncement = async (announcement) => {

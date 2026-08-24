@@ -152,6 +152,12 @@ ERD and per-column documentation.
   (`isTripBookable`) — admins keep seeing them so they can be closed.
 - One conversation per customer (UNIQUE on `conversations.customer_id`).
 - One feedback per order (UNIQUE on `customer_feedback.order_id`).
+- Announcements expire from view after **60 days** (`ANNOUNCEMENT_MAX_AGE_DAYS`,
+  applied inside `getAnnouncements`). Nothing is deleted — the rows stay and are
+  simply no longer served, to the admin list as well as the customer feed.
+  `getAnnouncementById` deliberately ignores both this window and `is_active`:
+  it backs the detail modal a customer opens from a notification they still
+  hold, and refusing to show that would be nonsense.
 
 ### Weight and pricing — read this before touching booking
 
