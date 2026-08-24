@@ -73,7 +73,7 @@ const LoadingScreen = () => (
       <h1><BrandWordmark /></h1>
     </div>
     <div className="spinner" />
-    <p>Loading Cargo Express PH...</p>
+    <p>Loading CargoExpress PH...</p>
   </div>
 );
 

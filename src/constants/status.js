@@ -1,4 +1,4 @@
-// Cargo Express PH Order Status System
+// CargoExpress PH Order Status System
 // Mirrors the original backend's sequential status flow
 
 import { formatMoney } from '../utils/currencyInput';

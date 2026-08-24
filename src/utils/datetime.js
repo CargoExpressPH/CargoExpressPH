@@ -1,7 +1,7 @@
 /**
  * Philippine-time date helpers.
  *
- * Cargo Express operates on a single route inside one country, so every date a
+ * CargoExpress operates on a single route inside one country, so every date a
  * user reads or types is Philippine Standard Time (UTC+8, no DST). Two places
  * previously let the browser decide instead, and they cancelled out into an
  * off-by-one-day ETA:

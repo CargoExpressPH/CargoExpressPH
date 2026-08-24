@@ -659,7 +659,7 @@ const InboxPage = () => {
               )}
               {isBot && (
                 <div className="inbox-msg-sender-label">
-                  <Bot size={11} aria-hidden="true" /> Cargo Express Assistant
+                  <Bot size={11} aria-hidden="true" /> CargoExpress Assistant
                 </div>
               )}
               {isCustomer && (

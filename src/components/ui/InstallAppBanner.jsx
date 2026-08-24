@@ -155,7 +155,7 @@ export default function InstallAppBanner() {
 
       <div
         role="dialog"
-        aria-label="Install Cargo Express PH"
+        aria-label="Install CargoExpress PH"
         className="install-banner-card fixed"
         style={{zIndex: 9999,
           background: 'var(--surface, #1e293b)',
@@ -194,7 +194,7 @@ export default function InstallAppBanner() {
             </div>
             <div>
               <h2 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700, color: 'var(--text)' }}>
-                Install Cargo Express PH
+                Install CargoExpress PH
               </h2>
               <p style={{ margin: '2px 0 0', fontSize: '0.8rem', color: 'var(--text-secondary, #94a3b8)' }}>
                 Add the app to your device — no app store needed

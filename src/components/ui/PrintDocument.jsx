@@ -35,7 +35,7 @@ const PrintDocument = ({ title, subtitle, generatedAt, preparedBy, children }) =
     <div className="print-doc" aria-hidden="true">
       {/* ── Letterhead ── */}
       <header className="pd-letterhead">
-        <div className="pd-company-name">{company?.name || 'Cargo Express PH'}</div>
+        <div className="pd-company-name">{company?.name || 'CargoExpress PH'}</div>
         <div className="pd-company-tagline">Cargo Delivery &amp; Logistics Services</div>
         {contactBits.map((line, i) => (
           <div key={i} className="pd-company-contact">{line}</div>

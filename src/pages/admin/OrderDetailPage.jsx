@@ -1278,7 +1278,7 @@ const AdminOrderDetailPage = () => {
                     id="order-featured-caption"
                     className="form-textarea"
                     rows={2}
-                    placeholder="Thank you for trusting Cargo Express PH..."
+                    placeholder="Thank you for trusting CargoExpress PH..."
                     value={featureForm.featured_caption}
                     onChange={e => setFeatureForm({ ...featureForm, featured_caption: e.target.value })}
                   />

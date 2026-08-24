@@ -94,7 +94,7 @@ const AdditionalPaymentModal = ({ order, remainingBalance, onClose, onSave, onPa
         phone: order.sender_phone,
       };
       
-      const source = await createGCashSource(amount, `Cargo Express PH - ${order.tracking_number} Additional Payment`, billing, true, order.id);
+      const source = await createGCashSource(amount, `CargoExpress PH - ${order.tracking_number} Additional Payment`, billing, true, order.id);
       await registerSource(source.sourceId, amount, { orderId: order.id });
       
       setPaymongoSourceId(source.sourceId);

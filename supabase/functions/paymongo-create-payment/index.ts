@@ -140,7 +140,7 @@ const capturePayment = async (sourceId: string, amount: number, description: str
           amount: Math.round(amount * 100),
           source: { id: sourceId, type: 'source' },
           currency: 'PHP',
-          description: description || 'Cargo Express PH Shipping Payment',
+          description: description || 'CargoExpress PH Shipping Payment',
         },
       },
     }),

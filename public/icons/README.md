@@ -1,4 +1,4 @@
-This directory holds PWA icons for Cargo Express PH.
+This directory holds PWA icons for CargoExpress PH.
 
 All icons use the same artwork as `public/logo.png`; the source is resized
 locally for each platform size so the brand stays consistent without sending

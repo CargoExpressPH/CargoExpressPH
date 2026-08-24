@@ -92,6 +92,6 @@ test.describe('harness smoke check', () => {
     await page.waitForTimeout(3_300);
 
     await expect(page.locator('.trk-page')).toBeVisible();
-    await expect(page.getByRole('dialog', { name: 'Install Cargo Express PH' })).toHaveCount(0);
+    await expect(page.getByRole('dialog', { name: 'Install CargoExpress PH' })).toHaveCount(0);
   });
 });

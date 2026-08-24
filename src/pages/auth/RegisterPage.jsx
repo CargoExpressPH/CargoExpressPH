@@ -418,7 +418,7 @@ const RegisterPage = () => {
             <CheckCircle2 size={48} />
           </div>
           <h2 className="auth-success-title">Account Created!</h2>
-          <p className="auth-success-sub">Welcome to Cargo Express PH. Redirecting you now…</p>
+          <p className="auth-success-sub">Welcome to CargoExpress PH. Redirecting you now…</p>
           <div className="auth-success-loader">
             <div className="auth-success-bar" />
           </div>

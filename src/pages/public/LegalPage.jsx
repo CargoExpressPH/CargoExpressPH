@@ -7,7 +7,7 @@ const TERMS_SECTIONS = [
   {
     heading: '1. Agreement and scope',
     body: [
-      'These Terms of Service govern your access to and use of Cargo Express PH’s website, account portal, booking, tracking, payment and customer-support services (collectively, the “Services”). By creating an account, placing a booking, or otherwise using the Services, you agree to these Terms and our Privacy Policy.',
+      'These Terms of Service govern your access to and use of CargoExpress PH’s website, account portal, booking, tracking, payment and customer-support services (collectively, the “Services”). By creating an account, placing a booking, or otherwise using the Services, you agree to these Terms and our Privacy Policy.',
       'If you use the Services for an organisation, you confirm that you are authorised to accept these Terms on that organisation’s behalf.',
     ],
   },
@@ -47,7 +47,7 @@ const TERMS_SECTIONS = [
   {
     heading: '7. Intellectual property',
     body: [
-      'The Services, including their software, design, branding, and content, are owned by or licensed to Cargo Express PH and are protected by applicable intellectual-property laws. These Terms give you a limited, personal, non-transferable right to use the Services in accordance with these Terms; they do not transfer ownership to you.',
+      'The Services, including their software, design, branding, and content, are owned by or licensed to CargoExpress PH and are protected by applicable intellectual-property laws. These Terms give you a limited, personal, non-transferable right to use the Services in accordance with these Terms; they do not transfer ownership to you.',
     ],
   },
   {
@@ -65,7 +65,7 @@ const TERMS_SECTIONS = [
   {
     heading: '10. Contact and governing law',
     body: [
-      'For questions, complaints, or notices about these Terms, contact Cargo Express PH through the Contact Us section of our website. These Terms are governed by the applicable laws of the Republic of the Philippines, subject to any mandatory consumer-protection rights that apply to you.',
+      'For questions, complaints, or notices about these Terms, contact CargoExpress PH through the Contact Us section of our website. These Terms are governed by the applicable laws of the Republic of the Philippines, subject to any mandatory consumer-protection rights that apply to you.',
     ],
   },
 ];
@@ -74,7 +74,7 @@ const PRIVACY_SECTIONS = [
   {
     heading: '1. Who we are and this policy',
     body: [
-      'Cargo Express PH provides cargo delivery and related digital services. This Privacy Policy explains how we handle personal information when you use our website, create an account, make or receive a shipment, contact us, or otherwise interact with our Services.',
+      'CargoExpress PH provides cargo delivery and related digital services. This Privacy Policy explains how we handle personal information when you use our website, create an account, make or receive a shipment, contact us, or otherwise interact with our Services.',
       'We handle personal information in accordance with applicable Philippine privacy law, including the Data Privacy Act of 2012 and its implementing rules where applicable.',
     ],
   },
@@ -141,7 +141,7 @@ const LegalPage = ({ documentKey }) => {
   const backLabel = 'Back';
   const relatedPath = `${other.path}${returnToRegister ? '?returnTo=register' : ''}`;
 
-  usePageTitle(document.title, `${document.title} for Cargo Express PH. Effective ${document.effectiveDate}.`);
+  usePageTitle(document.title, `${document.title} for CargoExpress PH. Effective ${document.effectiveDate}.`);
 
   return (
     <main className="legal-page">
@@ -154,7 +154,7 @@ const LegalPage = ({ documentKey }) => {
       <section className="legal-hero" aria-labelledby="legal-title">
         <div className="legal-eyebrow"><Icon size={16} /> Legal information</div>
         <h1 id="legal-title">{document.title}</h1>
-        <p>Clear terms for using Cargo Express PH and transparent information about your rights.</p>
+        <p>Clear terms for using CargoExpress PH and transparent information about your rights.</p>
         <p className="legal-effective-date">Effective date: {document.effectiveDate}</p>
       </section>
 
@@ -164,7 +164,7 @@ const LegalPage = ({ documentKey }) => {
           <Link to={relatedPath} state={returnToRegister ? location.state : undefined}>{other.title} <ArrowLeft size={15} /></Link>
         </aside>
         <article className="legal-document">
-          <p className="legal-intro">Please read this document carefully. By using Cargo Express PH, you acknowledge the terms that apply to the Services.</p>
+          <p className="legal-intro">Please read this document carefully. By using CargoExpress PH, you acknowledge the terms that apply to the Services.</p>
           {CONTENT[documentKey].map((section) => (
             <section key={section.heading} className="legal-section" aria-labelledby={section.heading.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}>
               <h2 id={section.heading.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}>{section.heading}</h2>
@@ -175,7 +175,7 @@ const LegalPage = ({ documentKey }) => {
       </div>
 
       <footer className="legal-footer">
-        <span>© {new Date().getFullYear()} Cargo Express PH</span>
+        <span>© {new Date().getFullYear()} CargoExpress PH</span>
         <div>
           <Link to="/terms">Terms</Link>
           <Link to="/privacy">Privacy</Link>

@@ -8,7 +8,7 @@ const ONBOARDING_KEY = 'cargoexpress_onboarding_done';
 const STEPS = [
   {
     icon: Package,
-    title: 'Welcome to Cargo Express PH',
+    title: 'Welcome to CargoExpress PH',
     description: 'Your one-stop cargo delivery service between Bohol and Manila. Let us show you around!',
     color: 'linear-gradient(135deg, var(--primary), var(--primary-light))',
   },

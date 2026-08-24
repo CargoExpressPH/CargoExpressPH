@@ -51,7 +51,7 @@ export default function AuthHeroPanel({ ariaHidden = false }) {
 
       {/* Bottom attribution */}
       <div className="login-left-footer">
-        <div>© {new Date().getFullYear()} Cargo Express PH. All rights reserved.</div>
+        <div>© {new Date().getFullYear()} CargoExpress PH. All rights reserved.</div>
       </div>
     </div>
   );

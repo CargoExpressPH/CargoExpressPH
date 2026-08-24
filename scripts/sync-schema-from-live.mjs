@@ -365,7 +365,7 @@ async function main() {
   const now = new Date().toISOString().slice(0, 10);
 
   lines.push('-- ============================================================');
-  lines.push('-- Cargo Express PH — Complete Supabase PostgreSQL Schema');
+  lines.push('-- CargoExpress PH — Complete Supabase PostgreSQL Schema');
   lines.push('-- Single source-of-truth for the entire database.');
   lines.push(`-- Synced from LIVE database on ${now}`);
   lines.push('-- Run this in: Supabase Dashboard → SQL Editor → New Query');

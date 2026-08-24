@@ -669,7 +669,7 @@ const AboutPage = () => {
   // ─── Loading state ───
   if (fetching) return <LoadingSkeleton />;
 
-  const companyName = info?.name || 'Cargo Express PH';
+  const companyName = info?.name || 'CargoExpress PH';
   const heroImage = info?.hero_image_url || 'https://images.unsplash.com/photo-1586528116311-ad8ed3891db8?auto=format&fit=crop&q=80&w=2000';
 
   // Framer motion variants for staggered children
@@ -790,7 +790,7 @@ const AboutPage = () => {
           <div className="about-grid-2">
             <div>
               <h2 className="about-story-heading">
-                About <span className="about-text-gradient">Cargo Express PH</span>.
+                About <span className="about-text-gradient">CargoExpress PH</span>.
               </h2>
               <p className="about-story-body">
                 {info?.long_description || 'We are a dedicated logistics provider ensuring safe and timely delivery of your cargo.'}
@@ -857,7 +857,7 @@ const AboutPage = () => {
             <>
               <div className="about-section-header">
                 <div className="about-section-label">Why Choose Us</div>
-                <h2 className="about-section-title">The Cargo Express Advantage</h2>
+                <h2 className="about-section-title">The CargoExpress Advantage</h2>
               </div>
               <motion.div
                 className="about-features-grid"

@@ -97,7 +97,7 @@ const ProfilePage = () => {
         if (result.reason === 'denied') {
           toast.error('Permission denied. Enable notifications in device settings.');
         } else if (result.reason === 'ios_not_installed') {
-          toast.error('Add Cargo Express to your Home Screen first to enable push.');
+          toast.error('Add CargoExpress to your Home Screen first to enable push.');
         } else if (result.reason === 'ios_version') {
           toast.error('Push requires iOS 16.4 or later.');
         } else {
@@ -321,7 +321,7 @@ const ProfilePage = () => {
             </div>
             <div className="flex-1 text-left">
               <div className="text-sm font-bold">About & Version</div>
-              <div className="text-xs text-secondary">Cargo Express PH v1.0.0</div>
+              <div className="text-xs text-secondary">CargoExpress PH v1.0.0</div>
             </div>
             <ChevronRight size={16} color="var(--text-tertiary)" />
           </button>

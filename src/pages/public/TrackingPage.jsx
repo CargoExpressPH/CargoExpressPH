@@ -333,7 +333,7 @@ const TrackingPage = ({ embedded = false }) => {
       {/* ══════════ HEADER ══════════ */}
       <header className="trk-header animate-fade-in">
         {!embedded && (
-          <Link to="/login" className="trk-brand text-no-underline" aria-label="Cargo Express PH home">
+          <Link to="/login" className="trk-brand text-no-underline" aria-label="CargoExpress PH home">
             <BrandLockup size={36} />
           </Link>
         )}
@@ -617,7 +617,7 @@ const TrackingPage = ({ embedded = false }) => {
           </div>
           <h3 className="trk-empty-title">Enter Your Tracking Number</h3>
           <p className="trk-empty-sub">
-            Paste or type your Cargo Express PH tracking number above to get live shipment updates.
+            Paste or type your CargoExpress PH tracking number above to get live shipment updates.
           </p>
           <div className="trk-empty-tips">
             <div className="trk-empty-tip">
@@ -626,7 +626,7 @@ const TrackingPage = ({ embedded = false }) => {
             </div>
             <div className="trk-empty-tip">
               <Package size={14} color="var(--primary)" style={{ flexShrink: 0 }} aria-hidden="true" />
-              <span>Contact Cargo Express PH staff if you need help locating it</span>
+              <span>Contact CargoExpress PH staff if you need help locating it</span>
             </div>
           </div>
         </div>
@@ -636,7 +636,7 @@ const TrackingPage = ({ embedded = false }) => {
       {!embedded && (
       <footer className="trk-footer">
         <p>Have an account? <Link to="/login" className="trk-footer-link">Sign In</Link></p>
-        <p className="trk-footer-copy">© {new Date().getFullYear()} Cargo Express PH</p>
+        <p className="trk-footer-copy">© {new Date().getFullYear()} CargoExpress PH</p>
       </footer>
       )}
     </RootTag>

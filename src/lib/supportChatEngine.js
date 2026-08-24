@@ -1,7 +1,7 @@
 /**
  * supportChatEngine.js
  *
- * Authenticated, database-aware chatbot engine for Cargo Express PH customer support.
+ * Authenticated, database-aware chatbot engine for CargoExpress PH customer support.
  * Unlike the previous public chatbot, this engine runs in an authenticated session
  * and can safely query the logged-in customer's own orders, payments, and trips.
  *
@@ -544,7 +544,7 @@ const INTENTS = [
     handler: async () => ({
       // No "enter package weight" step: weight enters the system once, from the
       // scale at pickup, so the booking form does not ask for it.
-      text: `📦 To book a shipment with Cargo Express PH:\n\n1️⃣ Go to the Book Shipment page from your dashboard\n2️⃣ Fill in sender & receiver details\n3️⃣ Describe your package contents\n4️⃣ Choose a route (Bohol → Manila or Manila → Bohol)\n5️⃣ Select a trip (optional) or let admin assign one\n6️⃣ Submit your booking\n\nYour parcel is weighed at pickup, and the shipping fee is computed from that weight. Payment is collected upon pickup.`,
+      text: `📦 To book a shipment with CargoExpress PH:\n\n1️⃣ Go to the Book Shipment page from your dashboard\n2️⃣ Fill in sender & receiver details\n3️⃣ Describe your package contents\n4️⃣ Choose a route (Bohol → Manila or Manila → Bohol)\n5️⃣ Select a trip (optional) or let admin assign one\n6️⃣ Submit your booking\n\nYour parcel is weighed at pickup, and the shipping fee is computed from that weight. Payment is collected upon pickup.`,
       askResolved: true,
     }),
   },
@@ -859,7 +859,7 @@ export const getBotReply = async (text, userId) => {
  * BOT_GREETING — Sent automatically when customer opens chat for the first time
  */
 export const BOT_GREETING = `Hello! 👋 Kumusta! Maayong adlaw!
-Welcome to Cargo Express PH Support.
+Welcome to CargoExpress PH Support.
 
 I'm your virtual assistant. Pwede kang mag-message sa English, Tagalog, o Bisaya — kung unsa'y sayon nimo.
 

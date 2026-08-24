@@ -39,9 +39,9 @@ export const createGCashSource = async (amount, description, billing = {}, isAdm
           },
           type: 'gcash',
           currency: 'PHP',
-          description: description || 'Cargo Express PH Shipping Payment',
+          description: description || 'CargoExpress PH Shipping Payment',
           billing: {
-            name: billing.name || 'Cargo Express PH Customer',
+            name: billing.name || 'CargoExpress PH Customer',
             phone: billing.phone || '09000000000',
             email: billing.email || 'noreply@cargoexpress.ph',
           },
@@ -150,7 +150,7 @@ export const registerSource = async (sourceId, amount, orderUpdate) => {
   const body = { 
     sourceId, 
     amount, 
-    description: `Cargo Express PH - Order ${orderUpdate.orderId}`, 
+    description: `CargoExpress PH - Order ${orderUpdate.orderId}`,
     orderUpdate, 
     action: 'register' 
   };
@@ -179,7 +179,7 @@ export const registerSource = async (sourceId, amount, orderUpdate) => {
  * @returns {string} sourceId - To poll for payment status
  */
 export const initiateGCashPayment = async (amount, trackingNumber, customer = {}, isAdmin = false, orderId = null) => {
-  const description = `Cargo Express PH - Order ${trackingNumber}`;
+  const description = `CargoExpress PH - Order ${trackingNumber}`;
   const { sourceId, checkoutUrl } = await createGCashSource(amount, description, customer, isAdmin, orderId);
 
   return { sourceId, checkoutUrl };
