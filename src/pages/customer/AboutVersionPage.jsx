@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, Bell, Building2, ExternalLink, FileText, Globe,
@@ -6,6 +6,8 @@ import {
 } from 'lucide-react';
 import { getCompanyInformation } from '../../lib/database';
 import usePageTitle from '../../hooks/usePageTitle';
+import { useAuth } from '../../contexts/AuthContext';
+import { getCurrentPushStatus } from '../../lib/push-notifications';
 
 const APP_VERSION = '1.0.0';
 
@@ -18,9 +20,11 @@ const releaseItems = [
 const AboutVersionPage = () => {
   usePageTitle('About & Version');
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [companyInfo, setCompanyInfo] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isOnline, setIsOnline] = useState(typeof navigator === 'undefined' ? true : navigator.onLine);
+  const [notificationStatus, setNotificationStatus] = useState('Checking...');
 
   useEffect(() => {
     let isMounted = true;
@@ -41,12 +45,48 @@ const AboutVersionPage = () => {
     };
   }, []);
 
-  const notificationStatus = useMemo(() => {
-    if (typeof Notification === 'undefined') return 'Not supported';
-    if (Notification.permission === 'granted') return 'Enabled';
-    if (Notification.permission === 'denied') return 'Blocked';
-    return 'Not enabled';
-  }, []);
+  useEffect(() => {
+    let active = true;
+
+    const refreshNotificationStatus = async () => {
+      try {
+        const status = await getCurrentPushStatus(user?.id);
+        if (!active) return;
+
+        if (status.isIosDevice && !status.isIosInstalled) {
+          setNotificationStatus(status.iosPushSupported ? 'Add to Home Screen' : 'Not supported');
+          return;
+        }
+        if (!status.supported) {
+          setNotificationStatus('Not supported');
+          return;
+        }
+        if (status.permission === 'denied') {
+          setNotificationStatus('Blocked');
+          return;
+        }
+        setNotificationStatus(status.subscribed ? 'Enabled' : 'Not enabled');
+      } catch {
+        if (active) setNotificationStatus('Not enabled');
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') refreshNotificationStatus();
+    };
+
+    refreshNotificationStatus();
+    window.addEventListener('focus', refreshNotificationStatus);
+    window.addEventListener('pageshow', refreshNotificationStatus);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      active = false;
+      window.removeEventListener('focus', refreshNotificationStatus);
+      window.removeEventListener('pageshow', refreshNotificationStatus);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [user?.id]);
 
   const contacts = [
     { label: 'Smart', value: companyInfo?.smart_phone, icon: Phone, href: companyInfo?.smart_phone ? `tel:${companyInfo.smart_phone}` : '', action: 'Tap to call' },

@@ -42,13 +42,15 @@ Supabase
    └── Edge Functions  ← the only place secrets live
           ├── paymongo-create-payment   (verify_jwt = true)
           ├── paymongo-webhook          (verify_jwt = false — HMAC instead)
-          ├── send-push                 (verify_jwt = true)
+          ├── send-push                 (verify_jwt = false — public contact path; internal JWT checks)
           ├── store-photo-fallback
           └── get-photo-fallback
 ```
 
-JWT verification per function is declared in `supabase/config.toml`. The webhook is the one
-public entry point and authenticates by HMAC signature, not JWT.
+JWT verification per function is declared in `supabase/config.toml`. The webhook is public and
+authenticates by HMAC signature; `send-push` is also gateway-public only so the anonymous contact
+form can trigger its narrowly scoped inquiry event, while every other send-push event verifies the
+caller JWT and authorization inside the function.
 
 The browser talks directly to PostgreSQL through PostgREST. **All authorization is enforced
 in the database**, not in React. Route guards in `src/App.jsx` are UX only.
@@ -101,7 +103,7 @@ src/
 
 supabase/
   schema.sql          Full DDL: 16 tables, RLS, triggers, RPCs
-  migrations/  (63)   Incremental history — add new changes here, never edit old files
+  migrations/  (84)   Incremental history — add new changes here, never edit old files
   functions/    (5)   Deno Edge Functions
   config.toml         Per-function verify_jwt declarations
 
@@ -537,9 +539,9 @@ into a per-event callback.
 
 **Push is dual-protocol** (`send-push`): FCM HTTP v1 for Android/Chrome/desktop, raw
 VAPID-signed Web Push for iOS 16.4+ PWAs — Apple does not support the FCM JS SDK in Safari,
-so both paths are required. Tokens live in `user_device_tokens` (refreshed if >12 h old,
-deleted on logout); delivery outcomes are logged to `notification_delivery_attempts` and
-stale tokens are pruned.
+so both paths are required. `user_device_tokens` stores one registration per user/device while
+preserving registrations on the same user’s other devices; logout removes only the current device.
+Delivery outcomes are logged to `notification_delivery_attempts` and stale tokens are pruned.
 
 Support chat bot (`supportChatEngine.js`) is **regex-based**, runs authenticated, and queries
 the signed-in customer's own orders. ~20 escalation patterns (complaint, damaged, refund,

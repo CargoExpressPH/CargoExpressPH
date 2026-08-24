@@ -1,180 +1,50 @@
-// usePushNotification.js
-// Dual-path push notification subscription:
-//   • Android / Chrome / Edge  →  Firebase Cloud Messaging (FCM) token
-//   • iOS Safari PWA (16.4+)   →  Native Web Push subscription (VAPID)
-//
-// iOS Safari does NOT support the Firebase Messaging SDK at all.
-// The native PushManager API is the only way to get push on iPhone.
-
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { supabase } from '../lib/supabase';
+import { onForegroundMessage } from '../lib/firebase-messaging';
 import {
-  requestNotificationPermission,
+  disablePushForCurrentDevice,
+  getCurrentPushStatus,
+  isIosDevice,
+  isIosPwa,
+  isIosPushSupported,
   refreshFCMTokenIfNeeded,
-  disableNotificationsForDevice,
-  onForegroundMessage,
-} from '../lib/firebase-messaging';
-
-// ── Helpers ──────────────────────────────────────────────────────────────────
-
-/** True when running as installed PWA on iOS (Add to Home Screen) */
-const isIosPwa = () => {
-  const ua = window.navigator.userAgent.toLowerCase();
-  const isIos = /iphone|ipad|ipod/.test(ua);
-  const isStandalone =
-    window.navigator.standalone === true ||
-    window.matchMedia('(display-mode: standalone)').matches;
-  return isIos && isStandalone;
-};
-
-/** True on any iOS device (browser or installed) */
-const isIos = () => /iphone|ipad|ipod/i.test(window.navigator.userAgent);
-
-/** True on iOS 16.4 or later (minimum for Web Push support) */
-const isIosPushSupported = () => {
-  if (!isIos()) return false;
-  // UA looks like: CPU iPhone OS 16_4_1 like Mac OS X
-  const match = window.navigator.userAgent.match(/OS (\d+)_(\d+)/);
-  if (!match) return false;
-  const major = parseInt(match[1], 10);
-  const minor = parseInt(match[2], 10);
-  return major > 16 || (major === 16 && minor >= 4);
-};
+  requestNotificationPermission,
+  subscribeIosPush,
+} from '../lib/push-notifications';
 
 /**
- * Convert a base64url VAPID public key to a Uint8Array
- * required by PushManager.subscribe()
- */
-function urlBase64ToUint8Array(base64String) {
-  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
-  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
-  const rawData = window.atob(base64);
-  return Uint8Array.from([...rawData].map((char) => char.charCodeAt(0)));
-}
-
-// ── iOS Web Push subscription ─────────────────────────────────────────────────
-
-/**
- * Subscribe an iOS PWA user via the native Web Push API.
- * Saves the subscription JSON as the "token" in user_device_tokens
- * with a prefix so the edge function knows to use Web Push delivery.
- */
-async function subscribeIosPush(userId) {
-  try {
-    if (!('PushManager' in window)) return null;
-
-    const swReg =
-      (await navigator.serviceWorker.getRegistration('/')) ||
-      (await navigator.serviceWorker.ready);
-
-    if (!swReg) return null;
-
-    // Use the standard VAPID public key for iOS Web Push
-    // (VITE_VAPID_PUBLIC_KEY) — distinct from the Firebase-specific VAPID key
-    const vapidKey = import.meta.env.VITE_VAPID_PUBLIC_KEY || import.meta.env.VITE_FIREBASE_VAPID_KEY;
-    if (!vapidKey) return null;
-
-    // Check for existing subscription first
-    let subscription = await swReg.pushManager.getSubscription();
-
-    if (!subscription) {
-      subscription = await swReg.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(vapidKey),
-      });
-    }
-
-    if (!subscription) return null;
-
-    // Prefix "webpush:" so the edge function routes it correctly
-    const token = 'webpush:' + JSON.stringify(subscription.toJSON());
-
-    const { error } = await supabase
-      .from('user_device_tokens')
-      .upsert({ user_id: userId, token }, { onConflict: 'token' });
-
-    if (error) throw error;
-
-    try {
-      localStorage.setItem('ios_push_subscribed', 'true');
-      localStorage.setItem('fcm_enabled', 'true');
-    } catch {}
-
-    return token;
-  } catch (err) {
-    console.warn('[PushNotification] iOS Web Push subscription failed:', err);
-    return null;
-  }
-}
-
-/**
- * Unsubscribe iOS Web Push and remove from database
- */
-async function unsubscribeIosPush(userId) {
-  try {
-    const swReg = await navigator.serviceWorker.getRegistration('/');
-    if (swReg) {
-      const subscription = await swReg.pushManager.getSubscription();
-      if (subscription) {
-        const token = 'webpush:' + JSON.stringify(subscription.toJSON());
-
-        await supabase
-          .from('user_device_tokens')
-          .delete()
-          .eq('token', token)
-          .eq('user_id', userId);
-
-        await subscription.unsubscribe();
-      }
-    }
-
-    try {
-      localStorage.removeItem('ios_push_subscribed');
-      localStorage.setItem('fcm_enabled', 'false');
-    } catch {}
-
-    return true;
-  } catch (err) {
-    console.warn('[PushNotification] iOS unsubscribe failed:', err);
-    return false;
-  }
-}
-
-// ── Main hook ─────────────────────────────────────────────────────────────────
-
-/**
- * usePushNotification
+ * Unified push hook:
+ * - Android/Chrome/Edge/desktop use Firebase Cloud Messaging.
+ * - Installed iOS PWAs use native Web Push.
  *
- * Unified push notification hook — handles both FCM (Android) and
- * native Web Push (iOS PWA) transparently.
- *
- * @param {string} userId   - Supabase user ID
- * @param {function} onMsg  - Callback for in-app foreground messages
+ * The hook reports server-backed registration state, not a localStorage flag.
  */
 export function usePushNotification(userId, onMsg) {
-  const [permissionState, setPermissionState] = useState('default');
+  const [permissionState, setPermissionState] = useState(() => (
+    typeof window !== 'undefined' && 'Notification' in window
+      ? Notification.permission
+      : 'unsupported'
+  ));
   const [isSubscribed, setIsSubscribed] = useState(false);
-  const [isIosDevice] = useState(isIos);
+  const [isIosDeviceState] = useState(isIosDevice);
   const [isIosInstalled] = useState(isIosPwa);
   const [iosPushSupported] = useState(isIosPushSupported);
 
-  // ── Request / enable push ────────────────────────────────────────────────
   const enablePush = useCallback(async () => {
     if (!userId) return { success: false, reason: 'no_user' };
-    if (!('Notification' in window)) return { success: false, reason: 'not_supported' };
+    if (typeof window === 'undefined' || !('Notification' in window)) {
+      return { success: false, reason: 'not_supported' };
+    }
 
-    // iOS Safari (not installed) cannot use Web Push — do not fall through to FCM
-    if (isIos() && !isIosPwa()) {
+    // iOS Safari (not installed) cannot use Web Push.
+    if (isIosDevice() && !isIosPwa()) {
       if (!isIosPushSupported()) return { success: false, reason: 'ios_version' };
       return { success: false, reason: 'ios_not_installed' };
     }
 
     const permission = await Notification.requestPermission();
     setPermissionState(permission);
-
     if (permission !== 'granted') return { success: false, reason: 'denied' };
 
-    // iOS PWA path — use native Web Push
     if (isIosPwa()) {
       const token = await subscribeIosPush(userId);
       if (token) {
@@ -184,8 +54,9 @@ export function usePushNotification(userId, onMsg) {
       return { success: false, reason: 'ios_subscribe_failed' };
     }
 
-    // Android / Chrome / Desktop — use FCM
-    const token = await requestNotificationPermission(userId);
+    // Permission was already requested above, so the FCM helper must not ask
+    // a second time. It only registers the token here.
+    const token = await requestNotificationPermission(userId, { permissionAlreadyGranted: true });
     if (token) {
       setIsSubscribed(true);
       return { success: true, platform: 'fcm' };
@@ -193,59 +64,56 @@ export function usePushNotification(userId, onMsg) {
     return { success: false, reason: 'fcm_failed' };
   }, [userId]);
 
-  // ── Disable push ─────────────────────────────────────────────────────────
   const disablePush = useCallback(async () => {
     if (!userId) return { success: false, reason: 'no_user' };
 
-    if (isIosPwa()) {
-      const ok = await unsubscribeIosPush(userId);
-      if (ok) setIsSubscribed(false);
-      return ok
-        ? { success: true, platform: 'ios-webpush' }
-        : { success: false, reason: 'ios_unsubscribe_failed' };
+    const ios = isIosDevice();
+    const ok = await disablePushForCurrentDevice(userId);
+    if (!ok) {
+      return {
+        success: false,
+        reason: ios ? 'ios_unsubscribe_failed' : 'fcm_unsubscribe_failed',
+      };
     }
 
-    const ok = await disableNotificationsForDevice(userId);
-    if (ok) {
-      setIsSubscribed(false);
-      return { success: true, platform: 'fcm' };
-    }
-
-    // Token may already be gone — clear local flag so UI matches user intent
-    try { localStorage.setItem('fcm_enabled', 'false'); } catch {}
     setIsSubscribed(false);
-    return { success: true, platform: 'fcm' };
+    return { success: true, platform: ios ? 'ios-webpush' : 'fcm' };
   }, [userId]);
 
-  // ── Auto-init on mount ───────────────────────────────────────────────────
+  // Sync silently on mount, but only refresh an existing registration. A
+  // granted browser permission must never re-enable a user who disabled push.
   useEffect(() => {
-    if (!userId || !('Notification' in window)) return;
+    let cancelled = false;
+    if (!userId || typeof window === 'undefined') return undefined;
 
-    const perm = Notification.permission;
-    setPermissionState(perm);
+    const sync = async () => {
+      const status = await getCurrentPushStatus(userId);
+      if (cancelled) return;
 
-    if (perm !== 'granted') return;
+      setPermissionState(status.permission);
+      setIsSubscribed(status.subscribed);
+      if (status.permission !== 'granted' || !status.registered) return;
 
-    // Already subscribed — refresh silently in background
-    if (isIosPwa()) {
-      // Check existing subscription
-      navigator.serviceWorker.getRegistration('/').then(async (reg) => {
-        if (!reg) return;
-        const sub = await reg.pushManager.getSubscription();
-        setIsSubscribed(!!sub);
-        // Re-register if missing (e.g. after SW update)
-        if (!sub) {
+      if (status.platform === 'ios-webpush') {
+        // The database row proves prior opt-in. Recreate a missing browser
+        // subscription after a service-worker replacement, but never after an
+        // explicit disable (which removes the row).
+        if (!status.subscribed) {
           const token = await subscribeIosPush(userId);
-          setIsSubscribed(!!token);
+          if (!cancelled) setIsSubscribed(Boolean(token));
         }
-      });
-    } else {
-      // FCM refresh check
-      refreshFCMTokenIfNeeded(userId).then(() => {
-        setIsSubscribed(localStorage.getItem('fcm_enabled') === 'true');
-      });
-      setIsSubscribed(localStorage.getItem('fcm_enabled') === 'true');
-    }
+        return;
+      }
+
+      const refreshed = await refreshFCMTokenIfNeeded(userId);
+      if (!cancelled) setIsSubscribed(refreshed);
+    };
+
+    sync().catch(() => {
+      if (!cancelled) setIsSubscribed(false);
+    });
+
+    return () => { cancelled = true; };
   }, [userId]);
 
   const onMsgRef = useRef(onMsg);
@@ -255,26 +123,27 @@ export function usePushNotification(userId, onMsg) {
 
   const hasOnMsg = typeof onMsg === 'function';
 
-  // ── Foreground FCM message listener (Android/Chrome) ────────────────────
+  // Foreground FCM message listener (Android/Chrome/desktop).
   useEffect(() => {
-    if (!userId || isIosPwa() || !hasOnMsg) return;
-    const unsub = onForegroundMessage((payload) => {
+    if (!userId || isIosPwa() || !hasOnMsg) return undefined;
+
+    const unsubscribe = onForegroundMessage((payload) => {
       if (typeof onMsgRef.current !== 'function') return;
-      const notif = payload.notification || {};
-      const data  = payload.data         || {};
+      const notification = payload.notification || {};
+      const data = payload.data || {};
       onMsgRef.current({
-        title: notif.title || 'Cargo Express PH',
-        body:  notif.body  || 'You have a new update',
-        url:   data.url    || '/customer/notifications',
+        title: notification.title || 'Cargo Express PH',
+        body: notification.body || 'You have a new update',
+        url: data.url || '/customer/notifications',
       });
     });
-    return unsub;
+    return unsubscribe;
   }, [userId, hasOnMsg]);
 
   return {
     permissionState,
     isSubscribed,
-    isIosDevice,
+    isIosDevice: isIosDeviceState,
     isIosInstalled,
     iosPushSupported,
     enablePush,

@@ -1,167 +1,157 @@
-// Firebase Cloud Messaging — Push Notifications
-// Handles FCM token registration, foreground message listening, and token refresh
-// Works on Firebase Free (Spark) plan — FCM is free & unlimited
+// Firebase Cloud Messaging for Android, Chrome, Edge, and desktop browsers.
+// Push registration is verified against Supabase; browser storage is never
+// treated as proof that a token is active.
 
 import { deleteToken, getMessaging, getToken, onMessage } from 'firebase/messaging';
 import app from './firebase';
-import { supabase } from './supabase';
+import {
+  clearLegacyPushState,
+  hasPushDeviceRegistration,
+  registerPushDevice,
+  removePushDeviceRegistration,
+} from './push-device';
 
-// Key for localStorage timestamp tracking token freshness
-const TOKEN_REFRESH_KEY = 'fcm_token_last_refresh';
-const TOKEN_REFRESH_INTERVAL_MS = 12 * 60 * 60 * 1000; // 12 hours
+const isFcmSupported = () => (
+  typeof window !== 'undefined'
+  && 'Notification' in window
+  && 'serviceWorker' in navigator
+);
+
+const getMessagingContext = async () => {
+  if (!app || !isFcmSupported() || Notification.permission !== 'granted') return null;
+
+  const messaging = getMessaging(app);
+  const swRegistration = await navigator.serviceWorker.getRegistration('/')
+    || await navigator.serviceWorker.ready;
+  const vapidKey = import.meta.env.VITE_FIREBASE_VAPID_KEY;
+  const options = { serviceWorkerRegistration: swRegistration };
+  if (vapidKey) options.vapidKey = vapidKey;
+
+  return { messaging, token: await getToken(messaging, options) };
+};
+
+/** Read the current browser token without asking for permission. */
+export const getCurrentFcmToken = async () => {
+  try {
+    const context = await getMessagingContext();
+    return context?.token || null;
+  } catch {
+    return null;
+  }
+};
+
+/** Return actual FCM registration state for the current user/device. */
+export const getFcmPushStatus = async (userId) => {
+  const supported = isFcmSupported();
+  const permission = supported ? Notification.permission : 'unsupported';
+
+  if (!supported || permission !== 'granted') {
+    return {
+      platform: 'fcm',
+      supported,
+      permission,
+      registered: false,
+      subscribed: false,
+    };
+  }
+
+  const token = await getCurrentFcmToken();
+  if (!token) {
+    return {
+      platform: 'fcm',
+      supported: true,
+      permission,
+      registered: false,
+      subscribed: false,
+    };
+  }
+
+  const registered = await hasPushDeviceRegistration(userId, token);
+  return {
+    platform: 'fcm',
+    supported: true,
+    permission,
+    registered,
+    subscribed: registered,
+  };
+};
 
 /**
- * Request notification permission and register FCM token
- * @param {string} userId - Supabase user ID to save the token against
- * @returns {string|null} - FCM token or null if permission denied
+ * Request permission when needed and register the current FCM token.
+ * `permissionAlreadyGranted` prevents the Profile screen from prompting
+ * twice: it owns the permission prompt, then calls this helper to register.
  */
-export const requestNotificationPermission = async (userId) => {
-  // Check browser support
-  if (!('Notification' in window) || !('serviceWorker' in navigator)) {
-    return null;
-  }
-
-  // Don't re-ask if already denied
-  if (Notification.permission === 'denied') {
-    return null;
-  }
+export const requestNotificationPermission = async (userId, { permissionAlreadyGranted = false } = {}) => {
+  if (!userId || !isFcmSupported()) return null;
+  if (Notification.permission === 'denied') return null;
 
   try {
-    // Request permission
-    const permission = await Notification.requestPermission();
+    let permission = Notification.permission;
     if (permission !== 'granted') {
-      return null;
+      if (permissionAlreadyGranted) return null;
+      permission = await Notification.requestPermission();
     }
+    if (permission !== 'granted') return null;
 
-    // Firebase app must be initialized
-    if (!app) {
-      return null;
-    }
+    const token = await getCurrentFcmToken();
+    if (!token) return null;
 
-    const messaging = getMessaging(app);
+    const registered = await registerPushDevice(userId, token);
+    if (!registered) return null;
 
-    // Wait for the service worker registered with scope '/' (matches index.html registration)
-    const swRegistration = await navigator.serviceWorker.getRegistration('/')
-      || await navigator.serviceWorker.ready;
-
-    const vapidKey = import.meta.env.VITE_FIREBASE_VAPID_KEY;
-
-    const token = await getToken(messaging, {
-      vapidKey: vapidKey,
-      serviceWorkerRegistration: swRegistration,
-    });
-
-    if (!token) {
-      return null;
-    }
-
-    // Save token to user's device tokens list in Supabase
-    const { error: tokenSaveError } = await supabase
-      .from('user_device_tokens')
-      .upsert({ user_id: userId, token: token }, { onConflict: 'token' });
-    if (tokenSaveError) throw tokenSaveError;
-
-    // Track when we last refreshed so we can skip redundant refreshes
-    try {
-      localStorage.setItem(TOKEN_REFRESH_KEY, String(Date.now()));
-      localStorage.setItem('fcm_enabled', 'true');
-    } catch {}
-
+    clearLegacyPushState();
     return token;
-  } catch (err) {
+  } catch {
     return null;
   }
 };
 
 /**
- * Refresh the FCM token if it's stale (older than 12 hours).
- * Call this on app mount — it's lightweight and non-blocking.
- * @param {string} userId - Supabase user ID
- * @returns {boolean} true if token was refreshed, false otherwise
+ * Refresh a token only when this user already enabled push on this device.
+ * Permission alone is not consent and must never silently opt an account in.
  */
 export const refreshFCMTokenIfNeeded = async (userId) => {
-  try {
-    const lastRefresh = parseInt(localStorage.getItem(TOKEN_REFRESH_KEY) || '0', 10);
-    if (Date.now() - lastRefresh < TOKEN_REFRESH_INTERVAL_MS) return false;
+  if (!userId || !isFcmSupported() || Notification.permission !== 'granted') return false;
 
-    if (!app || !('Notification' in window) || Notification.permission !== 'granted') return false;
+  const token = await getCurrentFcmToken();
+  if (!token) return false;
 
-    const messaging = getMessaging(app);
-    const swRegistration = await navigator.serviceWorker.getRegistration('/')
-      || await navigator.serviceWorker.ready;
-    const vapidKey = import.meta.env.VITE_FIREBASE_VAPID_KEY;
+  // A missing registration means the user disabled push or this is a new
+  // account on the device. In both cases, wait for an explicit enable action.
+  const wasRegistered = await hasPushDeviceRegistration(userId, token);
+  if (!wasRegistered) return false;
 
-    const freshToken = await getToken(messaging, {
-      vapidKey,
-      serviceWorkerRegistration: swRegistration,
-    });
-
-    if (!freshToken) return false;
-
-    // Check if the token is already registered for this user
-    const { data, error: tokenLookupError } = await supabase
-      .from('user_device_tokens')
-      .select('id')
-      .eq('token', freshToken)
-      .eq('user_id', userId)
-      .maybeSingle();
-    if (tokenLookupError) throw tokenLookupError;
-
-    if (!data) {
-      const { error: tokenInsertError } = await supabase
-        .from('user_device_tokens')
-        .insert({ user_id: userId, token: freshToken });
-      if (tokenInsertError) throw tokenInsertError;
-    }
-
-    try { localStorage.setItem(TOKEN_REFRESH_KEY, String(Date.now())); } catch {}
-    return true;
-  } catch {
-    return false;
-  }
+  const registered = await registerPushDevice(userId, token);
+  if (registered) clearLegacyPushState();
+  return registered;
 };
 
 /**
- * Unregister/delete the current FCM token from the database for this device
- * @param {string} userId - Supabase user ID
+ * Remove only the current browser/device registration.
+ * Database removal must succeed before the helper reports success. Firebase
+ * token deletion is also required when a live token is available.
  */
 export const disableNotificationsForDevice = async (userId) => {
-  try {
-    if (!app || !('Notification' in window) || Notification.permission !== 'granted') return false;
+  if (!userId) return false;
 
-    const messaging = getMessaging(app);
-    const swRegistration = await navigator.serviceWorker.getRegistration('/')
-      || await navigator.serviceWorker.ready;
-    const vapidKey = import.meta.env.VITE_FIREBASE_VAPID_KEY;
+  const token = await getCurrentFcmToken();
+  const removedFromDatabase = await removePushDeviceRegistration(userId, token);
+  if (!removedFromDatabase) return false;
 
-    const token = await getToken(messaging, {
-      vapidKey,
-      serviceWorkerRegistration: swRegistration,
-    });
-
-    if (!token) return false;
-
-    const { error: deleteError } = await supabase
-      .from('user_device_tokens')
-      .delete()
-      .eq('token', token)
-      .eq('user_id', userId);
-    if (deleteError) throw deleteError;
-
-    await deleteToken(messaging);
-    try { localStorage.setItem('fcm_enabled', 'false'); } catch {}
-    return true;
-  } catch {
-    return false;
+  if (token && app) {
+    try {
+      const deleted = await deleteToken(getMessaging(app));
+      if (deleted === false) return false;
+    } catch {
+      return false;
+    }
   }
+
+  clearLegacyPushState();
+  return true;
 };
 
-/**
- * Listen for foreground messages (when app is open)
- * Shows a toast/in-app notification instead of system notification
- * @param {function} callback - Called with message payload
- * @returns {function} unsubscribe function
- */
+/** Listen for foreground FCM messages. */
 export const onForegroundMessage = (callback) => {
   if (!app) return () => {};
 
@@ -170,7 +160,7 @@ export const onForegroundMessage = (callback) => {
     return onMessage(messaging, (payload) => {
       callback(payload);
     });
-  } catch (err) {
+  } catch {
     return () => {};
   }
 };

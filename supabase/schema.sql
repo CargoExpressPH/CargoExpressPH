@@ -95,7 +95,8 @@ CREATE TABLE IF NOT EXISTS contact_inquiries (
   contact_email TEXT,
   assigned_admin_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
   first_response_at TIMESTAMPTZ,
-  resolved_at TIMESTAMPTZ
+  resolved_at TIMESTAMPTZ,
+  push_dispatched_at TIMESTAMPTZ
 );
 
 
@@ -342,8 +343,84 @@ CREATE TABLE IF NOT EXISTS user_device_tokens (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
   token TEXT NOT NULL UNIQUE,
+  device_id TEXT,
   created_at TIMESTAMPTZ DEFAULT now()
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS user_device_tokens_user_device_key
+  ON public.user_device_tokens (user_id, device_id)
+  WHERE device_id IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS user_device_tokens_device_id_idx
+  ON public.user_device_tokens (device_id)
+  WHERE device_id IS NOT NULL;
+
+CREATE OR REPLACE FUNCTION public.claim_push_device_registration(
+  p_device_id TEXT,
+  p_token TEXT
+)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_catalog, pg_temp
+AS $function$
+DECLARE
+  v_device_id TEXT := NULLIF(btrim(p_device_id), '');
+  v_token TEXT := NULLIF(btrim(p_token), '');
+BEGIN
+  IF auth.uid() IS NULL THEN
+    RAISE EXCEPTION 'Authentication required';
+  END IF;
+  IF v_device_id IS NULL OR v_token IS NULL THEN
+    RAISE EXCEPTION 'A device ID and push token are required';
+  END IF;
+  IF char_length(v_device_id) > 200 OR char_length(v_token) > 20000 THEN
+    RAISE EXCEPTION 'Push registration value is too long';
+  END IF;
+
+  PERFORM pg_advisory_xact_lock(hashtext(v_device_id));
+
+  DELETE FROM public.user_device_tokens
+   WHERE device_id = v_device_id
+      OR token = v_token;
+
+  INSERT INTO public.user_device_tokens (user_id, device_id, token)
+  VALUES (auth.uid(), v_device_id, v_token);
+END;
+$function$;
+
+CREATE OR REPLACE FUNCTION public.remove_push_device_registration(
+  p_device_id TEXT DEFAULT NULL,
+  p_token TEXT DEFAULT NULL
+)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_catalog, pg_temp
+AS $function$
+DECLARE
+  v_device_id TEXT := NULLIF(btrim(p_device_id), '');
+  v_token TEXT := NULLIF(btrim(p_token), '');
+BEGIN
+  IF auth.uid() IS NULL THEN
+    RAISE EXCEPTION 'Authentication required';
+  END IF;
+
+  DELETE FROM public.user_device_tokens
+   WHERE user_id = auth.uid()
+     AND (
+       (v_device_id IS NOT NULL AND device_id = v_device_id)
+       OR (v_token IS NOT NULL AND token = v_token)
+     );
+END;
+$function$;
+
+REVOKE ALL ON FUNCTION public.claim_push_device_registration(TEXT, TEXT) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.remove_push_device_registration(TEXT, TEXT) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.claim_push_device_registration(TEXT, TEXT) FROM anon;
+REVOKE ALL ON FUNCTION public.remove_push_device_registration(TEXT, TEXT) FROM anon;
+GRANT EXECUTE ON FUNCTION public.claim_push_device_registration(TEXT, TEXT) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.remove_push_device_registration(TEXT, TEXT) TO authenticated;
 
 
 -- ============================================================
@@ -3181,4 +3258,3 @@ ALTER PUBLICATION supabase_realtime ADD TABLE IF NOT EXISTS public.contact_inqui
 ALTER PUBLICATION supabase_realtime ADD TABLE IF NOT EXISTS public.conversations;
 ALTER PUBLICATION supabase_realtime ADD TABLE IF NOT EXISTS public.notifications;
 ALTER PUBLICATION supabase_realtime ADD TABLE IF NOT EXISTS public.orders;
-

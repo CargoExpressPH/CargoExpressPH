@@ -5,7 +5,7 @@
 **Architecture pattern:** Serverless Single-Page Application (SPA) with a Backend-as-a-Service (BaaS) core
 **Document revised:** 5 August 2026
 **Basis:** Direct analysis of the project source tree — `package.json`, `vite.config.js`,
-`supabase/schema.sql`, the 63 files in `supabase/migrations/`, `database_design.md`, and the
+`supabase/schema.sql`, the 84 files in `supabase/migrations/`, `database_design.md`, and the
 full `src/` tree.
 
 ---
@@ -263,12 +263,17 @@ Five functions, each deployed independently. JWT verification is declared per fu
 |---|---|---|
 | `paymongo-create-payment` | `true` | Registers a payment source, polls status, captures with the secret key, triggers reconciliation |
 | `paymongo-webhook` | `false` | Receives PayMongo callbacks; authenticates by HMAC signature instead of JWT |
-| `send-push` | `true` | Dual-protocol push delivery (§7.3) |
+| `send-push` | `false`* | Dual-protocol push delivery (§7.3) |
 | `store-photo-fallback` | — | Writes a data-URL photo copy to Firestore when Storage fails |
 | `get-photo-fallback` | — | Reads a fallback photo back |
 
-The webhook is the sole public entry point by necessity — PayMongo cannot present a user JWT.
-It compensates with HMAC-SHA256 verification performed *before* the body is parsed.
+\* `send-push` disables gateway JWT verification only because its anonymous contact-inquiry
+mode is required; authenticated events verify the caller JWT inside the function.
+
+The webhook is public by necessity — PayMongo cannot present a user JWT — and compensates with
+HMAC-SHA256 verification performed *before* the body is parsed. `send-push` is gateway-public
+because the anonymous contact form needs its inquiry event; that event derives its payload from
+the saved inquiry, while every other event verifies the caller JWT and authorization internally.
 
 These functions exist for exactly one reason: they hold secrets. `PAYMONGO_SECRET_KEY`,
 `PAYMONGO_WEBHOOK_SECRET`, `SUPABASE_SERVICE_ROLE_KEY`, `FIREBASE_SERVICE_ACCOUNT_B64`, and
@@ -295,7 +300,7 @@ wrapped in `withTimeout()`. Pages never call `supabase.from(...)` directly.
 ### 4.1 Engine
 
 PostgreSQL, managed by Supabase. `supabase/schema.sql` holds the complete DDL — tables, RLS
-policies, functions, triggers, and indexes. `supabase/migrations/` holds 63 timestamped
+policies, functions, triggers, and indexes. `supabase/migrations/` holds 84 timestamped
 incremental migrations forming the change history. `database_design.md` carries the ERD and
 per-column documentation for thesis presentation.
 
@@ -657,9 +662,11 @@ platform receives an FCM token. iOS Safari that is *not* installed is refused ex
 rather than falling through to FCM, because Apple requires Home Screen installation before
 Web Push is available.
 
-Tokens live in `user_device_tokens` (refreshed when older than 12 hours, deleted on logout).
-Every delivery outcome is written to `notification_delivery_attempts`, and stale tokens are
-pruned — the operational hardening added in `20260711190000`.
+Tokens live in `user_device_tokens` with a stable browser/PWA `device_id`: one account can keep
+registrations on many devices, while account switching claims only the current device. Logout
+removes the current device registration. Every delivery outcome is written to
+`notification_delivery_attempts`, and stale tokens are pruned — the operational hardening added
+in `20260711190000` and `20260824000726`.
 
 ### 7.4 Support chat and the rule-based assistant
 
@@ -878,7 +885,7 @@ CargoExpressPH-main/
 ├── supabase/
 │   ├── schema.sql              Full DDL — 16 tables, 54 policies, triggers, RPCs, 29 indexes
 │   ├── config.toml             Per-function verify_jwt declarations
-│   ├── migrations/    (63)     Timestamped change history
+│   ├── migrations/    (84)     Timestamped change history
 │   └── functions/      (5)     Deno Edge Functions
 │
 ├── scripts/

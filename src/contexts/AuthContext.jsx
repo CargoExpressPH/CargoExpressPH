@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
-import { disableNotificationsForDevice } from '../lib/firebase-messaging';
+import { disablePushForCurrentDevice } from '../lib/push-notifications';
 import { normalizeProfileAddressFields } from '../lib/address';
 import { LEGAL_DOCUMENT_VERSION } from '../constants/legalDocuments';
 import { getProfile, createProfile } from '../lib/database';
@@ -274,10 +274,16 @@ export const AuthProvider = ({ children }) => {
       });
     }
 
-    // A browser token must not remain associated with an account after logout.
-    // This avoids token conflicts when a different account signs in on this device.
+    // Remove only this browser/device registration before signOut(). The
+    // database RPC uses the current auth session and leaves the same account's
+    // registrations on other phones untouched.
     if (signedInUserId) {
-      await disableNotificationsForDevice(signedInUserId);
+      try {
+        await disablePushForCurrentDevice(signedInUserId);
+      } catch {
+        // Logout must still complete if the browser push API or network is
+        // unavailable. The next account's explicit enable can claim the device.
+      }
     }
 
     // Clear local state immediately so user is logged out even if offline
@@ -292,6 +298,7 @@ export const AuthProvider = ({ children }) => {
         .filter(k => k.startsWith('sb-') || k === 'supabase.auth.token')
         .forEach(k => localStorage.removeItem(k));
       sessionStorage.removeItem('fcm_asked');
+      sessionStorage.removeItem('admin_fcm_asked');
     } catch (e) {
       // Storage access can fail in some browsers (e.g. incognito Safari)
     }

@@ -12,7 +12,12 @@ import ThemeToggle from '../ui/ThemeToggle';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { getUnreadNotificationCount } from '../../lib/database';
-import { requestNotificationPermission, refreshFCMTokenIfNeeded } from '../../lib/firebase-messaging';
+import {
+  getCurrentPushStatus,
+  refreshFCMTokenIfNeeded,
+  requestNotificationPermission,
+  subscribeIosPush,
+} from '../../lib/push-notifications';
 import { useToast } from '../../hooks/useToast';
 
 const COLLAPSE_KEY = 'sidebar_collapsed';
@@ -98,18 +103,58 @@ const AdminLayout = () => {
   useEffect(() => {
     if (!user) return;
 
-    if (sessionStorage.getItem('admin_fcm_asked')) {
-      refreshFCMTokenIfNeeded(user.id);
-      return;
-    }
+    let cancelled = false;
+    const hasAskedThisSession = () => {
+      try {
+        return sessionStorage.getItem('admin_fcm_asked') === '1';
+      } catch {
+        return false;
+      }
+    };
+
+    const markAsked = () => {
+      try { sessionStorage.setItem('admin_fcm_asked', '1'); } catch { /* optional storage */ }
+    };
+
+    const syncPush = async () => {
+      const status = await getCurrentPushStatus(user.id);
+      if (cancelled) return;
+
+      if (status.platform === 'ios-webpush') {
+        if (!status.supported) return;
+        if (status.registered) {
+          if (!status.subscribed) await subscribeIosPush(user.id);
+          return;
+        }
+
+        // Admin push has historically been opt-out through browser permission,
+        // so preserve its first-session prompt while using the iOS path when
+        // the admin is running the installed PWA.
+        if (!hasAskedThisSession()) {
+          const permission = await Notification.requestPermission();
+          if (permission === 'granted') await subscribeIosPush(user.id);
+          markAsked();
+        }
+        return;
+      }
+
+      if (hasAskedThisSession()) {
+        await refreshFCMTokenIfNeeded(user.id);
+        return;
+      }
+
+      await requestNotificationPermission(user.id);
+      markAsked();
+    };
 
     const timer = setTimeout(() => {
-      requestNotificationPermission(user.id).finally(() => {
-        sessionStorage.setItem('admin_fcm_asked', '1');
-      });
+      syncPush().catch(() => { markAsked(); });
     }, 3000);
 
-    return () => clearTimeout(timer);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
   }, [user]);
 
   // ── Foreground push: show in-app toast ─────────────────────────────────────

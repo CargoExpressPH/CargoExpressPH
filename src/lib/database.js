@@ -442,6 +442,14 @@ export const requestOrderCancellation = async (orderId, reason) => {
     p_reason: trimmed,
   });
   if (error) throw error;
+
+  // The RPC creates the admin notification rows atomically. The Edge Function
+  // validates ownership and derives the push text from the saved order, so the
+  // customer cannot forge a staff push payload.
+  void supabase.functions.invoke('send-push', {
+    body: { event: 'cancellation_request', order_id: orderId },
+  }).catch(() => {});
+
   return data;
 };
 
@@ -463,6 +471,18 @@ export const reviewOrderCancellation = async (orderId, approve, notes = null) =>
     p_notes: notes || null,
   });
   if (error) throw error;
+
+  // The RPC has already written the customer's in-app notification. Push is
+  // a non-blocking delivery channel and is derived from the reviewed order on
+  // the server.
+  void supabase.functions.invoke('send-push', {
+    body: {
+      event: 'cancellation_review',
+      order_id: orderId,
+      approved: Boolean(approve),
+    },
+  }).catch(() => {});
+
   return data;
 };
 
@@ -1468,24 +1488,37 @@ export const createAdminNotification = async (title, message, type = 'general', 
 export const createContactInquiry = async (data) => {
   const contactPhone = data.contact_phone || null;
   const contactEmail = data.contact_email || null;
+  const inquiryId = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+    ? crypto.randomUUID()
+    : null;
 
   // Legacy dual-write, matching the old "phone | email" encoding that
   // ContactInquiriesPage's splitContact() understands.
   const legacyPhone = [contactPhone, contactEmail].filter(Boolean).join(' | ') || null;
 
+  const inquiry = {
+    ...(inquiryId ? { id: inquiryId } : {}),
+    name: data.name,
+    message: data.message,
+    contact_phone: contactPhone,
+    contact_email: contactEmail,
+    phone: legacyPhone,
+  };
+
   const { error } = await supabase
     .from('contact_inquiries')
-    .insert({
-      name: data.name,
-      message: data.message,
-      contact_phone: contactPhone,
-      contact_email: contactEmail,
-      phone: legacyPhone,
-    });
+    .insert(inquiry);
   if (error) throw error;
 
   // Admin in-app notifications are created by the database trigger so an
   // anonymous browser cannot forge the recipient, title, or message.
+  // The Edge Function receives only the generated inquiry ID and derives the
+  // staff push payload from the saved row.
+  if (inquiryId) {
+    void supabase.functions.invoke('send-push', {
+      body: { event: 'contact_inquiry', inquiry_id: inquiryId },
+    }).catch(() => {});
+  }
 };
 
 export const getContactInquiries = async () => {
