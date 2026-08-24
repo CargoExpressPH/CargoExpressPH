@@ -8,7 +8,7 @@ import { SkeletonStatCard, SkeletonTableRow, SkeletonDonut } from '../../compone
 import AnimatedCounter from '../../components/ui/AnimatedCounter';
 import PageTransition, { StaggerItem } from '../../components/ui/PageTransition';
 import ErrorBoundarySection from '../../components/ui/ErrorBoundarySection';
-import { Package, Truck, Users, Clock, ArrowRight, Gauge, PieChart, AlertTriangle, LayoutDashboard } from 'lucide-react';
+import { Package, PackageCheck, Truck, Map, Clock, ArrowRight, Gauge, PieChart, AlertTriangle, LayoutDashboard } from 'lucide-react';
 import usePageTitle from '../../hooks/usePageTitle';
 import EmptyState from '../../components/ui/EmptyState';
 
@@ -76,11 +76,29 @@ const DashboardPage = () => {
     </PageTransition>
   );
 
+  /**
+   * Four numbers an admin can act on, in the order cargo moves through the
+   * business. "Total Orders" and "Customers" were removed: both only ever go
+   * up, so neither tells anyone what to do this morning.
+   *
+   * A note on the second tile. It counts `status = 'Picked Up'`, which in this
+   * system's flow sits between Assigned and In Transit — cargo collected from
+   * the sender and sitting on a trip that has not departed yet. It is NOT
+   * "held at hub" (that is the later `Arrived at Hub` status, where the
+   * settlement gate gets applied) and it is NOT "waiting to be assigned to a
+   * trip" (an order with no trip is `Pending`). Labelled for what it counts,
+   * because a dispatcher reading "Held at Hub" would go looking for parcels in
+   * the wrong warehouse.
+   */
   const statCards = [
-    { label: 'Total Orders', value: stats?.totalOrders || 0, icon: Package, tone: 'primary' },
-    { label: 'Pending', value: stats?.pendingOrders || 0, icon: Clock, tone: 'warning' },
-    { label: 'Active Trips', value: stats?.activeTrips || 0, icon: Truck, tone: 'info' },
-    { label: 'Customers', value: stats?.totalCustomers || 0, icon: Users, tone: 'success' },
+    // Needs a human: priced at pickup, so these are unpriced and unassigned.
+    { label: 'Pending Bookings', value: stats?.pendingOrders || 0, icon: Clock, tone: 'warning' },
+    // Collected and loaded — the action is to dispatch the trip.
+    { label: 'Awaiting Departure', value: stats?.pickedUp || 0, icon: PackageCheck, tone: 'accent' },
+    // Moving. Healthy state, shown for situational awareness rather than action.
+    { label: 'In Transit', value: stats?.inTransit || 0, icon: Truck, tone: 'info' },
+    // Trips that are scheduled or in progress.
+    { label: 'Active Trips', value: stats?.activeTrips || 0, icon: Map, tone: 'primary' },
   ];
   const totalOrders = stats?.totalOrders || 0;
   const knownOrderSegments = [
