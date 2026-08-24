@@ -948,15 +948,37 @@ export const deleteAnnouncement = async (id) => {
 };
 
 // ==================== NOTIFICATIONS ====================
-export const getNotifications = async (userId) => {
+/**
+ * A page of the user's notifications, newest first.
+ *
+ * `offset` is safe to derive from the length of what the caller already holds,
+ * because the loaded list is always a PREFIX of this ordering: realtime
+ * arrivals are newer than everything on screen so they land at the head, and a
+ * delete removes the row from both sides. Nothing is ever inserted into the
+ * middle, so "how many do I have" and "where does the next page start" are the
+ * same number.
+ *
+ * The `id` tiebreak is what makes that true. `created_at` is not unique: a trip
+ * status change cascades to every order on the trip inside ONE transaction, and
+ * now() is the transaction timestamp — so a customer with two parcels on the
+ * same trip gets two notifications stamped identically to the microsecond.
+ * Ordering by `created_at` alone leaves their relative order up to the planner,
+ * which may return them in a different order on the next query and step over
+ * one at a page boundary.
+ *
+ * The default limit of 50 preserves the original unpaginated behaviour for
+ * callers that just want "the recent ones".
+ */
+export const getNotifications = async (userId, { limit = 50, offset = 0 } = {}) => {
   const { data, error } = await supabase
     .from('notifications')
     .select('*')
     .eq('user_id', userId)
     .order('created_at', { ascending: false })
-    .limit(50);
+    .order('id', { ascending: false })
+    .range(offset, offset + limit - 1);
   if (error) throw error;
-  return data;
+  return data || [];
 };
 
 export const markNotificationRead = async (id) => {

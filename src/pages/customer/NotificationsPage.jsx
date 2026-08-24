@@ -3,8 +3,8 @@ import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
-import { getNotifications, markNotificationRead, markAllNotificationsRead, deleteNotification, deleteAllNotifications } from '../../lib/database';
-import { AlertTriangle, Bell, Package, Truck, Megaphone, CheckCheck, Loader, RefreshCw, Trash2, X } from 'lucide-react';
+import { getNotifications, getUnreadNotificationCount, markNotificationRead, markAllNotificationsRead, deleteNotification, deleteAllNotifications } from '../../lib/database';
+import { AlertTriangle, Bell, ChevronDown, Package, Truck, Megaphone, CheckCheck, Loader, RefreshCw, Trash2, X } from 'lucide-react';
 import { useToast } from '../../hooks/useToast';
 import EmptyState from '../../components/ui/EmptyState';
 import { SkeletonText } from '../../components/ui/SkeletonLoader';
@@ -13,6 +13,8 @@ import usePageTitle from '../../hooks/usePageTitle';
 import PullToRefresh from '../../components/ui/PullToRefresh';
 
 const iconMap = { order_update: Package, trip_update: Truck, announcement: Megaphone, general: Bell };
+
+const PAGE_SIZE = 10;
 
 const groupByDate = (notifications) => {
   const groups = {};
@@ -192,10 +194,26 @@ const NotificationsPage = () => {
   const toast = useToast();
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+  // Counted at the server, not derived from the loaded page. With only ten
+  // notifications on screen, `notifications.filter(n => !n.is_read).length`
+  // would report "2 new" to someone holding thirty unread — and the Mark all
+  // read button beside it has always acted on the whole account, so the count
+  // has to describe the same population the button does.
+  const [unreadCount, setUnreadCount] = useState(0);
   const [error, setError] = useState('');
   const [markingAll, setMarkingAll] = useState(false);
   const [confirmModal, setConfirmModal] = useState({ open: false, type: null, id: null });
   const [clearingAll, setClearingAll] = useState(false);
+
+  // Mirrors `notifications` for the handlers that need to know whether the row
+  // they are about to change was unread. That question cannot be answered
+  // inside a setNotifications updater: StrictMode double-invokes updaters to
+  // surface impurity, so a setUnreadCount(c => c - 1) in there decrements
+  // twice in development and the badge drifts below the truth.
+  const notificationsRef = useRef([]);
+  useEffect(() => { notificationsRef.current = notifications; }, [notifications]);
 
   useEffect(() => { if (user) loadData(); }, [user]);
 
@@ -203,13 +221,46 @@ const NotificationsPage = () => {
     setLoading(true);
     setError('');
     try {
-      setNotifications(await getNotifications(user.id));
+      const [firstPage, unread] = await Promise.all([
+        getNotifications(user.id, { limit: PAGE_SIZE }),
+        getUnreadNotificationCount(user.id).catch(() => 0),
+      ]);
+      setNotifications(firstPage);
+      setUnreadCount(unread);
+      // A full page means there is probably another one. This can be wrong by a
+      // single request when the total is an exact multiple of PAGE_SIZE — the
+      // button shows once more and comes back empty — which is the harmless
+      // direction to be wrong in. The alternative is a COUNT on every load to
+      // save a request the user may never make.
+      setHasMore(firstPage.length === PAGE_SIZE);
     } catch (e) {
       const message = 'Failed to load notifications.';
       setError(message);
       toast.error(message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleLoadMore = async () => {
+    setLoadingMore(true);
+    try {
+      // The offset is the length of what is already on screen — see
+      // getNotifications: the loaded list is always a prefix of the server
+      // ordering, so realtime arrivals and deletions both keep this exact.
+      const next = await getNotifications(user.id, { limit: PAGE_SIZE, offset: notifications.length });
+      setNotifications(prev => {
+        // Belt and braces: a row that raced in through the realtime channel
+        // while this request was in flight would otherwise appear twice and
+        // trip React's duplicate-key warning.
+        const seen = new Set(prev.map(n => n.id));
+        return [...prev, ...next.filter(n => !seen.has(n.id))];
+      });
+      setHasMore(next.length === PAGE_SIZE);
+    } catch (e) {
+      toast.error('Failed to load more notifications.');
+    } finally {
+      setLoadingMore(false);
     }
   };
 
@@ -223,20 +274,25 @@ const NotificationsPage = () => {
         table: 'notifications',
         filter: `user_id=eq.${user.id}`,
       }, (payload) => {
-        setNotifications(prev => {
-          // Prevent duplicates (same pattern as SupportChatPage)
-          if (prev.some(n => n.id === payload.new.id)) return prev;
-          setError('');
-          return [payload.new, ...prev];
-        });
+        // Prevent duplicates (same pattern as SupportChatPage). Checked against
+        // the ref rather than inside the updater so the count below is only
+        // bumped for a row that is genuinely new.
+        if (notificationsRef.current.some(n => n.id === payload.new.id)) return;
+        setError('');
+        setNotifications(prev => (
+          prev.some(n => n.id === payload.new.id) ? prev : [payload.new, ...prev]
+        ));
+        if (!payload.new.is_read) setUnreadCount(count => count + 1);
       }).subscribe();
 
     return () => { supabase.removeChannel(channel); };
   }, [user]);
 
   const handleRead = async (id) => {
+    const wasUnread = notificationsRef.current.some(n => n.id === id && !n.is_read);
     await markNotificationRead(id);
     setNotifications(prev => prev.map(n => n.id === id ? { ...n, is_read: true } : n));
+    if (wasUnread) setUnreadCount(count => Math.max(0, count - 1));
   };
 
   const handleMarkAllRead = async () => {
@@ -245,6 +301,7 @@ const NotificationsPage = () => {
       // Single batch DB call instead of N individual calls
       await markAllNotificationsRead(user.id);
       setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+      setUnreadCount(0);
     } catch (e) { /* silently handled */ }
     finally { setMarkingAll(false); }
   };
@@ -252,8 +309,10 @@ const NotificationsPage = () => {
   // ── Delete handlers ──────────────────────────────────────────────────────
   const handleDeleteSingle = useCallback(async (id) => {
     try {
+      const wasUnread = notificationsRef.current.some(n => n.id === id && !n.is_read);
       await deleteNotification(id);
       setNotifications(prev => prev.filter(n => n.id !== id));
+      if (wasUnread) setUnreadCount(count => Math.max(0, count - 1));
       toast.success('Notification removed');
     } catch (e) {
       toast.error('Failed to delete notification');
@@ -265,6 +324,8 @@ const NotificationsPage = () => {
     try {
       await deleteAllNotifications(user.id);
       setNotifications([]);
+      setUnreadCount(0);
+      setHasMore(false);
       toast.success('All notifications cleared');
     } catch (e) {
       toast.error('Failed to clear notifications');
@@ -282,17 +343,24 @@ const NotificationsPage = () => {
     });
   };
 
+  /**
+   * Only notifications that have somewhere specific to go, go anywhere.
+   *
+   * An announcement used to navigate to /customer, which promised a detail
+   * page and delivered the dashboard the customer had just left — the
+   * announcement itself is already fully rendered on the card in front of
+   * them, so there was nothing further to open. Clicking one now just marks it
+   * read, which SwipeableNotificationCard has already done by the time this
+   * runs.
+   */
   const handleNotificationClick = (n) => {
     if (n.type === 'order_update' && n.reference_id) {
       navigate(`/customer/orders/${n.reference_id}`);
     } else if (n.type === 'trip_update') {
       navigate('/customer/trips');
-    } else if (n.type === 'announcement') {
-      navigate('/customer');
     }
   };
 
-  const unreadCount = notifications.filter(n => !n.is_read).length;
   const groups = groupByDate(notifications);
 
   return (
@@ -386,6 +454,21 @@ const NotificationsPage = () => {
             ))}
           </div>
         ))
+      )}
+
+      {!loading && !error && hasMore && (
+        <div className="notification-load-more">
+          <button
+            type="button"
+            className="btn btn-outline"
+            onClick={handleLoadMore}
+            disabled={loadingMore}
+          >
+            {loadingMore
+              ? <><Loader size={15} className="animate-spin" /> Loading…</>
+              : <><ChevronDown size={15} /> Load more</>}
+          </button>
+        </div>
       )}
 
       {/* Confirmation Modal */}
