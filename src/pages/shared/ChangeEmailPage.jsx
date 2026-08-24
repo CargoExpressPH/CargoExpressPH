@@ -12,6 +12,40 @@ import FieldError, { fieldAttrs, invalidClass } from '../../components/ui/FieldE
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+/**
+ * Autofill sink styling.
+ *
+ * NOT `display: none` and NOT `visibility: hidden`. Chromium skips fields
+ * hidden that way when it looks for somewhere to put a saved credential, which
+ * would defeat the entire point of the decoys below — they have to be
+ * fillable. So they are rendered, given a real (1x1) box, and made invisible
+ * and inert instead: transparent, behind the page, and unclickable.
+ */
+const AUTOFILL_SINK_STYLE = {
+  position: 'absolute',
+  top: 0,
+  left: 0,
+  width: 1,
+  height: 1,
+  opacity: 0,
+  zIndex: -1,
+  pointerEvents: 'none',
+  border: 0,
+  padding: 0,
+};
+
+/**
+ * Attributes that ask the third-party password managers to stay out. Each
+ * vendor invented its own opt-out because none of them honour
+ * `autocomplete="off"` either.
+ */
+const NO_MANAGER = {
+  'data-1p-ignore': 'true',      // 1Password
+  'data-lpignore': 'true',       // LastPass
+  'data-bwignore': 'true',       // Bitwarden
+  'data-form-type': 'other',     // Dashlane
+};
+
 const ChangeEmailPage = () => {
   usePageTitle('Change Email');
   const { user, userProfile, changeEmail } = useAuth();
@@ -184,6 +218,44 @@ const ChangeEmailPage = () => {
           <div className="card">
             <div className="card-body">
 
+              {/*
+                ── Autofill sink ──────────────────────────────────────────
+                Chromium classifies this page as a sign-in form: it sees email
+                inputs followed by a password input and does not care that
+                there is no <form> element. It then picks ONE field as "the
+                username" — in practice the last email field before the
+                password, which is Confirm New Email — and writes the saved
+                address into it. `autocomplete="off"` does not stop this;
+                Chromium has deliberately ignored it on credential fields
+                since 2014, because sites were using it to defeat password
+                managers.
+
+                So rather than asking it not to fill, give it somewhere
+                harmless to fill. These two decoys sit FIRST in the DOM and
+                carry the exact tokens the classifier wants (`username` +
+                `current-password`), so the sign-in pattern binds to them and
+                the real fields below are left alone.
+
+                They are inert for people: tabIndex -1 keeps them out of the
+                tab order, aria-hidden keeps them out of the accessibility
+                tree, and pointer-events: none makes them unclickable. Nobody
+                but the autofill heuristic ever sees them.
+              */}
+              <input
+                type="email"
+                autoComplete="username"
+                tabIndex={-1}
+                aria-hidden="true"
+                style={AUTOFILL_SINK_STYLE}
+              />
+              <input
+                type="password"
+                autoComplete="current-password"
+                tabIndex={-1}
+                aria-hidden="true"
+                style={AUTOFILL_SINK_STYLE}
+              />
+
               {/* Current Email */}
               <div className="form-group">
                 <label className="form-label" htmlFor="change-current-email">Current Email</label>
@@ -216,10 +288,15 @@ const ChangeEmailPage = () => {
                     placeholder="newemail@example.com"
                     value={newEmail}
                     onChange={e => { setNewEmail(e.target.value); clearError('new_email'); }}
-                    autoComplete="email"
+                    // Was `autocomplete="email"`, which actively invited the
+                    // browser to put the CURRENT address here — the one value
+                    // this field must not contain, since the whole point is to
+                    // enter a different one.
+                    autoComplete="off"
                     autoCapitalize="none"
                     spellCheck="false"
                     aria-required="true"
+                    {...NO_MANAGER}
                     {...fieldAttrs('new_email', shownErrors)}
                   />
                 </div>
@@ -241,13 +318,14 @@ const ChangeEmailPage = () => {
                       shownErrors.confirm_email ? invalidClass('confirm_email', shownErrors) :
                       confirmEmail && emailsMatch && validEmail && isDifferent ? 'success' : ''
                     }`}
-                    placeholder="Repeat new email"
+                    placeholder="Re-enter new email"
                     value={confirmEmail}
                     onChange={e => { setConfirmEmail(e.target.value); clearError('confirm_email'); }}
                     autoComplete="off"
                     autoCapitalize="none"
                     spellCheck="false"
                     aria-required="true"
+                    {...NO_MANAGER}
                     {...fieldAttrs('confirm_email', shownErrors)}
                   />
                 </div>
