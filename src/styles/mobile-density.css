@@ -307,3 +307,146 @@
     font-size: 0.72rem;
   }
 }
+
+
+/* ── 6. CUSTOMER DASHBOARD ──────────────────────────────────────────────
+   The customer home screen, measured on a 390px viewport before this block:
+
+     .customer-home-hero h1     33.6px   ← the whole complaint, in one number
+     .customer-home-hero        314px tall (26/22 padding + 226px min-height)
+     .customer-home-page        18px gap between every section
+     hero <p>                   16px
+     list card title / price    16px
+
+   WHY THE HEADING WAS 33.6px, when responsive.css already sets
+   `.hero h1 { font-size: 1.375rem }` at ≤768px and section 1 above lowered
+   --font-h1-fluid to a 1.3125rem floor: neither reaches it.
+   customer-mobile-refresh.css declares `.customer-home-hero h1` at
+   `clamp(2.1rem, 8vw, 3rem)`, and it sits in the `refresh` layer while
+   responsive.css sits in `responsive`. Layer order decides that outright —
+   specificity and media queries never enter into it — so `refresh` wins and
+   the clamp floor of 2.1rem applies at every phone width (8vw is 31px at
+   390px, below the floor). Same failure mode the header of this file
+   describes, one layer further along.
+
+   This block is in `density`, the last screen layer, so it lands. Selectors
+   are scoped to .customer-layout-v2 to match the shape of what they override
+   and to keep the public/auth heroes — which are a different design on a
+   different background — out of it.
+
+   TOUCH TARGETS ARE THE FLOOR, NOT A VARIABLE. The hero search input, the
+   Track button and the trip CTA come down to 44px and stop. Apple asks 44pt
+   and WCAG 2.5.8 asks 44px; below that this stops being a density change and
+   becomes an accessibility regression. Type shrinks; tap targets do not. */
+
+@media (max-width: 768px) {
+  /* Hero. 314px of a 780px viewport was ~40% of the first screen spent on a
+     greeting, before a single shipment was visible. */
+  .customer-layout-v2 .customer-home-hero {
+    min-height: 0;
+    padding: 20px 18px;
+    border-radius: 24px;
+  }
+
+  .customer-layout-v2 .customer-home-hero h1,
+  .customer-layout-v2 .customer-home-hero h2 {
+    font-size: 1.375rem;   /* 22px, down from 33.6px */
+    line-height: 1.15;
+    margin-bottom: 6px;
+  }
+
+  .customer-layout-v2 .customer-home-hero p {
+    font-size: 0.8125rem;
+    line-height: 1.45;
+  }
+
+  /* The greeting chip above the name. */
+  .customer-layout-v2 .customer-home-hero > .text-sm:first-child {
+    min-height: 26px;
+    margin-bottom: 8px;
+    padding: 4px 9px;
+    font-size: 0.75rem;
+  }
+
+  .customer-layout-v2 .customer-home-hero .customer-track-form {
+    margin-top: 14px;
+    gap: 8px;
+  }
+
+  /* 44px, the floor — see note above. */
+  .customer-layout-v2 .customer-home-hero .customer-track-form .search-box input,
+  .customer-layout-v2 .customer-home-hero .customer-track-form .btn {
+    height: 44px;
+    min-height: 44px;
+    font-size: 0.8125rem;
+  }
+
+  /* Section rhythm. 18px between every block on a phone is scroll, not
+     structure. */
+  .customer-layout-v2 .customer-home-page {
+    gap: 13px;
+  }
+
+  /* Shipment / order list cards. */
+  .customer-layout-v2 .customer-list-card-title {
+    font-size: 0.9375rem;
+  }
+
+  .customer-layout-v2 .customer-list-card-price {
+    font-size: 0.9375rem;
+  }
+
+  .customer-layout-v2 .customer-list-card-booked-date {
+    font-size: 0.7rem;
+  }
+
+  /* `p-16` is an inline utility on most customer cards, so the section-3
+     .card-body rule does not reach them. */
+  .customer-layout-v2 .card-body.p-16 {
+    padding: 13px;
+  }
+
+  /* Icon chips. These are CSS-sized, unlike the lucide icons inside them
+     which take a JSX `size` prop — shrinking the chip tightens the row
+     without touching every call site. */
+  .customer-layout-v2 .profile-menu-icon-wrap {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+  }
+
+  .customer-layout-v2 .home-trip-cta {
+    min-height: 44px;
+    font-size: 0.875rem;
+  }
+}
+
+@media (max-width: 400px) {
+  .customer-layout-v2 .customer-home-hero {
+    padding: 17px 15px;
+    border-radius: 20px;
+  }
+
+  .customer-layout-v2 .customer-home-hero h1,
+  .customer-layout-v2 .customer-home-hero h2 {
+    font-size: 1.25rem;    /* 20px */
+  }
+
+  /* The hero subtitle is NOT reduced again at this tier. 0.8125rem (13px) is
+     the floor for a full sentence of body copy on the dark hero; the earlier
+     0.78125rem here measured 12.5px, which is small for the one line on the
+     screen explaining what the app does. */
+
+  .customer-layout-v2 .customer-home-page {
+    gap: 11px;
+  }
+
+  .customer-layout-v2 .customer-list-card-title,
+  .customer-layout-v2 .customer-list-card-price {
+    font-size: 0.90625rem;
+  }
+
+  .customer-layout-v2 .card-body.p-16 {
+    padding: 12px;
+  }
+}
