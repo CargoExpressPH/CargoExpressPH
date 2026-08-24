@@ -73,50 +73,6 @@
       "purpose": "maskable"
     }
   ],
-  "screenshots": [
-    {
-      "src": "/screenshots/wide-1-dashboard.png",
-      "sizes": "2560x1440",
-      "type": "image/png",
-      "form_factor": "wide",
-      "label": "Track every shipment from one dashboard"
-    },
-    {
-      "src": "/screenshots/wide-2-booking.png",
-      "sizes": "2560x1440",
-      "type": "image/png",
-      "form_factor": "wide",
-      "label": "Book a Manila to Bohol delivery in a few steps"
-    },
-    {
-      "src": "/screenshots/wide-3-tracking.png",
-      "sizes": "2560x1440",
-      "type": "image/png",
-      "form_factor": "wide",
-      "label": "Follow your cargo through every status update"
-    },
-    {
-      "src": "/screenshots/narrow-1-home.png",
-      "sizes": "1080x1920",
-      "type": "image/png",
-      "form_factor": "narrow",
-      "label": "Your shipments at a glance"
-    },
-    {
-      "src": "/screenshots/narrow-2-booking.png",
-      "sizes": "1080x1920",
-      "type": "image/png",
-      "form_factor": "narrow",
-      "label": "Book a delivery from your phone"
-    },
-    {
-      "src": "/screenshots/narrow-3-tracking.png",
-      "sizes": "1080x1920",
-      "type": "image/png",
-      "form_factor": "narrow",
-      "label": "Real-time tracking timeline"
-    }
-  ],
   "categories": ["logistics", "business", "shipping"],
   "shortcuts": [
     {

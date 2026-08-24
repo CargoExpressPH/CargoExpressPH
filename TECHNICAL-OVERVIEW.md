@@ -68,7 +68,7 @@ Substantive system changes since the last revision:
 | Customer service | Conversation state machine rebuilt around four derived states |
 | Storage | `cargo-photos` taken **fully private**; reads now require signed URLs |
 | Realtime | Publication membership asserted by migration rather than assumed |
-| PWA | `beforeinstallprompt` install banner, manifest screenshots, build-time asset precaching |
+| PWA | `beforeinstallprompt` install banner, build-time asset precaching |
 
 ---
 
@@ -190,7 +190,7 @@ The PWA layer is **hand-authored**. The project uses no `vite-plugin-pwa`, no Wo
 
 | Element | File | Function |
 |---|---|---|
-| Manifest | `public/manifest.json` | Installability: name, short_name, start_url, `display: standalone`, theme/background colour, 10 icons (72→512 px, incl. 2 maskable), 6 screenshots, 2 shortcuts |
+| Manifest | `public/manifest.json` | Installability: name, short_name, start_url, `display: standalone`, theme/background colour, 10 icons (72→512 px, incl. 2 maskable), 2 shortcuts |
 | Service worker | `public/sw.js` | Precache, offline caching, push receipt, notification click routing |
 | Registration | `index.html` | Automatic on `window.load`, scope `/`, hourly `registration.update()` |
 | FCM worker | `public/firebase-messaging-sw.js` | Background FCM message handling |
@@ -852,7 +852,6 @@ CargoExpressPH-main/
 │   ├── sw.js                   Service worker
 │   ├── firebase-messaging-sw.js
 │   ├── icons/                  10 PWA icons (72→512, incl. maskable)
-│   └── screenshots/            Install-dialog screenshots (+ capture spec)
 │
 ├── src/
 │   ├── main.jsx                React root — StrictMode + ErrorBoundary

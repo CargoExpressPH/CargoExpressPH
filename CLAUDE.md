@@ -107,7 +107,7 @@ supabase/
   functions/    (5)   Deno Edge Functions
   config.toml         Per-function verify_jwt declarations
 
-public/               manifest.json, sw.js, firebase-messaging-sw.js, icons/, screenshots/
+public/               manifest.json, sw.js, firebase-messaging-sw.js, icons/
 scripts/              smoke-check.mjs, axe-lint.mjs (run by `npm test`)
 ```
 
@@ -566,7 +566,7 @@ Hand-rolled — there is **no** `vite-plugin-pwa`, Workbox, or equivalent. The P
 
 | Element | File |
 |---|---|
-| Manifest | `public/manifest.json` — 10 icons (72→512, incl. maskable), 6 screenshots, 2 shortcuts |
+| Manifest | `public/manifest.json` — 10 icons (72→512, incl. maskable), 2 shortcuts |
 | Service worker | `public/sw.js` — 3 versioned caches, 4 routing strategies, offline fallback, push |
 | FCM worker | `public/firebase-messaging-sw.js` |
 | Install prompt (Android/desktop) | `src/components/ui/InstallAppBanner.jsx` — `beforeinstallprompt` |
@@ -588,8 +588,10 @@ the placeholder names, change them in **both** files or offline boot silently de
 Precached assets live in `STATIC_CACHE`, so `staleWhileRevalidate` falls back to a cross-cache
 `caches.match()` and `STATIC_CACHE` is never trimmed. Both behaviours are load-bearing.
 
-`public/screenshots/README.md` documents the exact filenames and dimensions the manifest
-declares.
+The manifest declares **no `screenshots`**. They were removed (along with the 4.5 MB of PNGs
+in `public/screenshots/`) at the client's request: the array's only effect is to give Chromium
+a richer install dialog, and nothing in the app reads it. Re-adding screenshots means adding
+back both the files and the array — the manifest is the only reference.
 
 ---
 

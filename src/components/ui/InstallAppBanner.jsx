@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { X, Download, Zap, WifiOff, Bell } from 'lucide-react';
+import { X, Download, Zap, Bell } from 'lucide-react';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 const isIos = () => /iphone|ipad|ipod/i.test(window.navigator.userAgent);
@@ -53,9 +53,13 @@ function wasDismissedRecently() {
   }
 }
 
+// No offline claim here. The service worker precaches the app shell so a
+// reopen is fast, but the screens a customer actually wants — orders,
+// tracking, payments — are live Supabase reads that fail without a network.
+// "Keeps working when your connection drops" promised an offline mode this
+// app does not have.
 const perks = [
   { icon: Zap, label: 'Launches instantly from your home screen or desktop' },
-  { icon: WifiOff, label: 'Keeps working when your connection drops' },
   { icon: Bell, label: 'Push alerts the moment a shipment status changes' },
 ];
 
