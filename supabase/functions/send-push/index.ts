@@ -271,12 +271,34 @@ async function sendWebPush(
 // ─────────────────────────────────────────────────────────────────────────────
 
 serve(async (req) => {
+  const supabaseUrl    = Deno.env.get('SUPABASE_URL')              ?? ''
+  const anonKey        = Deno.env.get('SUPABASE_ANON_KEY')         ?? ''
+  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+  const supabase = createClient(supabaseUrl, serviceRoleKey)
+  let contactDispatchClaimed = false
+  let contactInquiryId = ''
+  let contactDispatchClaimId: string | null = null
+
+  const finishContactDispatch = async (delivered: boolean) => {
+    if (!contactDispatchClaimed || !contactInquiryId) return
+
+    const { error } = await supabase.rpc(
+      delivered ? 'complete_contact_inquiry_push' : 'release_contact_inquiry_push',
+      { p_inquiry_id: contactInquiryId, p_claim_id: contactDispatchClaimId },
+    )
+    if (error) console.error('[send-push] unable to finish contact dispatch lease:', error.message)
+    contactDispatchClaimed = false
+    contactDispatchClaimId = null
+  }
+
   try {
     if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS_HEADERS })
 
     const payload = await req.json()
     const {
-      notification_id,
+      notification_id: requestedNotificationId,
+      reference_id: requestedReferenceId,
+      notification_type: requestedNotificationType,
       user_id: requestedUserId,
       title: requestedTitle,
       body: requestedBody,
@@ -287,12 +309,17 @@ serve(async (req) => {
       inquiry_id,
     } = payload
 
-    const supabaseUrl    = Deno.env.get('SUPABASE_URL')              ?? ''
-    const anonKey        = Deno.env.get('SUPABASE_ANON_KEY')         ?? ''
-    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    const supabase = createClient(supabaseUrl, serviceRoleKey)
     const isContactEvent = event === 'contact_inquiry'
 
+    let notification_id: string | null = typeof requestedNotificationId === 'string' && requestedNotificationId
+      ? requestedNotificationId
+      : null
+    let notification_reference_id: string | null = typeof requestedReferenceId === 'string' && requestedReferenceId
+      ? requestedReferenceId
+      : null
+    let notification_type: string | null = typeof requestedNotificationType === 'string' && requestedNotificationType
+      ? requestedNotificationType
+      : null
     let user_id: string | null = requestedUserId || null
     let title: string | null = requestedTitle || null
     let body: string | null = requestedBody || null
@@ -309,28 +336,30 @@ serve(async (req) => {
 
       const { data: inquiry, error: inquiryError } = await supabase
         .from('contact_inquiries')
-        .select('id, name, message, created_at, push_dispatched_at')
+        .select('id, name, message, created_at')
         .eq('id', inquiry_id)
         .maybeSingle()
       if (inquiryError) return jsonResp({ error: inquiryError.message }, 500)
       if (!inquiry) return jsonResp({ error: 'Inquiry not found' }, 404)
 
-      // Claim once so a public retry or duplicate browser callback cannot
-      // repeatedly alert every admin about the same inquiry.
-      const { data: claimed, error: claimError } = await supabase
-        .from('contact_inquiries')
-        .update({ push_dispatched_at: new Date().toISOString() })
-        .eq('id', inquiry_id)
-        .is('push_dispatched_at', null)
-        .select('id')
-        .maybeSingle()
+      // Claim with a short lease. The marker is completed only after at least
+      // one provider accepts the push, so a temporary provider failure can be
+      // retried without permanently suppressing the inquiry.
+      const { data: claimed, error: claimError } = await supabase.rpc('claim_contact_inquiry_push', {
+        p_inquiry_id: inquiry_id,
+      })
       if (claimError) return jsonResp({ error: claimError.message }, 500)
       if (!claimed) return jsonResp({ success: true, skipped: true, already_dispatched: true })
+      contactDispatchClaimed = true
+      contactInquiryId = inquiry_id
+      contactDispatchClaimId = claimed
 
       user_id = 'all_admins'
       title = 'New Contact Inquiry'
       body = `Inquiry from ${String(inquiry.name || 'Visitor').trim() || 'Visitor'}: ${String(inquiry.message || '').trim().slice(0, 80)}`
       url = '/admin'
+      notification_reference_id = inquiry_id
+      notification_type = 'inquiry'
     } else {
       const authHeader = req.headers.get('Authorization') || ''
       if (!authHeader.startsWith('Bearer ')) return jsonResp({ error: 'Authentication required' }, 401)
@@ -365,6 +394,8 @@ serve(async (req) => {
         title = 'Cancellation Requested'
         body = `Order ${order.tracking_number}: the customer asked to cancel. Reason: ${String(order.cancellation_reason || '').trim()}`
         url = '/admin'
+        notification_reference_id = order_id
+        notification_type = 'order_update'
       } else if (event === 'cancellation_review') {
         if (!isRequesterAdmin) return jsonResp({ error: 'Admin privileges required' }, 403)
         if (typeof order_id !== 'string' || !order_id) return jsonResp({ error: 'order_id required' }, 400)
@@ -391,6 +422,8 @@ serve(async (req) => {
           : `Order ${order.tracking_number} was not cancelled and is back to "${restoredStatus}".`
         if (order.cancellation_review_notes) body += ` Note from our team: ${order.cancellation_review_notes}`
         url = '/customer/notifications'
+        notification_reference_id = order_id
+        notification_type = 'order_update'
       } else {
         if (!user_id || !title) return jsonResp({ error: 'user_id and title required' }, 400)
 
@@ -460,6 +493,7 @@ serve(async (req) => {
     }
 
     if (devErr || !devices || devices.length === 0) {
+      if (isContactEvent) await finishContactDispatch(false)
       if (user_id !== 'all_customers' && user_id !== 'all_admins') {
         await supabase.from('notification_delivery_attempts').insert({
           notification_id: notification_id || null,
@@ -468,6 +502,63 @@ serve(async (req) => {
         })
       }
       return jsonResp({ error: 'No device tokens for user', skipped: true })
+    }
+
+    // Resolve the in-app notification for each recipient when a broadcast is
+    // used. A broadcast has one notification row per user, so one shared id
+    // would make delivery audits point at the wrong recipient.
+    const notificationIdByUser = new Map<string, string>()
+    if (notification_reference_id && title) {
+      let notificationQuery = supabase
+        .from('notifications')
+        .select('id, user_id, created_at')
+        .eq('reference_id', notification_reference_id)
+        .eq('title', title)
+        .order('created_at', { ascending: false })
+        .limit(1000)
+      if (notification_type) notificationQuery = notificationQuery.eq('type', notification_type)
+
+      const { data: relatedNotifications, error: notificationLookupError } = await notificationQuery
+      if (notificationLookupError) {
+        console.warn('[send-push] notification correlation lookup failed:', notificationLookupError.message)
+      } else {
+        for (const row of relatedNotifications || []) {
+          if (row.user_id && row.id && !notificationIdByUser.has(row.user_id)) {
+            notificationIdByUser.set(row.user_id, row.id)
+          }
+        }
+      }
+    }
+
+    const directNotificationId = user_id === 'all_customers' || user_id === 'all_admins'
+      ? null
+      : notification_id
+    const notificationIdForDevice = (deviceUserId: string) =>
+      directNotificationId || notificationIdByUser.get(deviceUserId) || null
+
+    // A client retry after a provider accepted the message must not show the
+    // same push twice. Existing sent attempts are skipped for the same
+    // notification/device pair.
+    const sentDeliveryKeys = new Set<string>()
+    const correlationIds = devices
+      .map((device) => notificationIdForDevice(device.user_id))
+      .filter(Boolean)
+    if (correlationIds.length > 0) {
+      const { data: sentAttempts, error: sentAttemptLookupError } = await supabase
+        .from('notification_delivery_attempts')
+        .select('notification_id, device_token_id')
+        .in('notification_id', [...new Set(correlationIds)])
+        .in('device_token_id', devices.map((device) => device.id))
+        .eq('status', 'sent')
+      if (sentAttemptLookupError) {
+        console.warn('[send-push] sent-attempt lookup failed:', sentAttemptLookupError.message)
+      } else {
+        for (const attempt of sentAttempts || []) {
+          if (attempt.notification_id && attempt.device_token_id) {
+            sentDeliveryKeys.add(`${attempt.notification_id}:${attempt.device_token_id}`)
+          }
+        }
+      }
     }
 
     // Load FCM service account (for Android / Chrome tokens)
@@ -486,9 +577,9 @@ serve(async (req) => {
     const vapidPrivateKey = Deno.env.get('VAPID_PRIVATE_KEY') ?? ''
     const vapidSubject    = Deno.env.get('VAPID_SUBJECT')     ?? 'mailto:admin@cargoexpress.ph'
 
-    const logDelivery = async (targetUserId: string, deviceTokenId: string, status: string, providerMessageId?: string, errorMessage?: string) => {
+    const logDelivery = async (targetUserId: string, deviceTokenId: string, status: string, providerMessageId?: string, errorMessage?: string, deliveryNotificationId?: string | null) => {
       await supabase.from('notification_delivery_attempts').insert({
-        notification_id: notification_id || null,
+        notification_id: deliveryNotificationId || null,
         user_id: targetUserId, device_token_id: deviceTokenId, status,
         provider_message_id: providerMessageId || null,
         error_message:       errorMessage      || null,
@@ -498,12 +589,18 @@ serve(async (req) => {
     const results = []
 
     for (const dev of devices) {
+      const deliveryNotificationId = notificationIdForDevice(dev.user_id)
+      const deliveryKey = deliveryNotificationId ? `${deliveryNotificationId}:${dev.id}` : null
+      if (deliveryKey && sentDeliveryKeys.has(deliveryKey)) {
+        results.push({ success: true, skipped: true, alreadySent: true, platform: dev.token.startsWith('webpush:') ? 'webpush' : 'fcm' })
+        continue
+      }
       const isWebPush = dev.token.startsWith('webpush:')
 
       if (isWebPush) {
         // ── iOS / Safari Web Push path ────────────────────────────────────
         if (!vapidPublicKey || !vapidPrivateKey) {
-          await logDelivery(dev.user_id, dev.id, 'skipped', undefined, 'VAPID keys not configured')
+          await logDelivery(dev.user_id, dev.id, 'skipped', undefined, 'VAPID keys not configured', deliveryNotificationId)
           results.push({ success: false, platform: 'webpush', error: 'VAPID keys not configured' })
           continue
         }
@@ -511,7 +608,7 @@ serve(async (req) => {
         try {
           subscriptionJson = JSON.parse(dev.token.slice('webpush:'.length))
         } catch {
-          await logDelivery(dev.user_id, dev.id, 'failed', undefined, 'Invalid subscription JSON')
+          await logDelivery(dev.user_id, dev.id, 'failed', undefined, 'Invalid subscription JSON', deliveryNotificationId)
           results.push({ success: false, platform: 'webpush', error: 'Invalid subscription JSON' })
           continue
         }
@@ -520,26 +617,30 @@ serve(async (req) => {
           vapidPublicKey, vapidPrivateKey, vapidSubject,
           title, body || 'You have a new update', clickUrl,
         )
-        if (res.stale) await supabase.from('user_device_tokens').delete().eq('token', dev.token)
-        await logDelivery(dev.user_id, dev.id, res.ok ? 'sent' : 'failed', res.messageId, res.error)
+        if (res.stale) await supabase.from('user_device_tokens').delete().eq('id', dev.id)
+        await logDelivery(dev.user_id, dev.id, res.ok ? 'sent' : 'failed', res.messageId, res.error, deliveryNotificationId)
         results.push({ success: res.ok, platform: 'webpush', ...(res.error && { error: res.error }), ...(res.stale && { stale: true }) })
 
       } else {
         // ── FCM path (Android / Chrome / Desktop) ─────────────────────────
         if (!fcmAccessToken) {
-          await logDelivery(dev.user_id, dev.id, 'skipped', undefined, 'FIREBASE_SERVICE_ACCOUNT_B64 not configured')
+          await logDelivery(dev.user_id, dev.id, 'skipped', undefined, 'FIREBASE_SERVICE_ACCOUNT_B64 not configured', deliveryNotificationId)
           results.push({ success: false, platform: 'fcm', error: 'Firebase not configured' })
           continue
         }
         const res = await sendFcm(dev.token, fcmProjectId, fcmAccessToken, title, body || 'You have a new update', clickUrl, webpushLink)
-        if (res.stale) await supabase.from('user_device_tokens').delete().eq('token', dev.token)
-        await logDelivery(dev.user_id, dev.id, res.ok ? 'sent' : 'failed', res.messageId, res.error)
+        if (res.stale) await supabase.from('user_device_tokens').delete().eq('id', dev.id)
+        await logDelivery(dev.user_id, dev.id, res.ok ? 'sent' : 'failed', res.messageId, res.error, deliveryNotificationId)
         results.push({ success: res.ok, platform: 'fcm', ...(res.messageId && { providerMessageId: res.messageId }), ...(res.error && { error: res.error }), ...(res.stale && { stale: true }) })
       }
     }
 
-    return jsonResp({ success: results.some((r) => r.success), results })
+    const delivered = results.some((r) => r.success)
+    if (isContactEvent) await finishContactDispatch(delivered)
+
+    return jsonResp({ success: delivered, results })
   } catch (err) {
+    if (contactDispatchClaimed) await finishContactDispatch(false)
     return jsonResp({ error: err.message }, 500)
   }
 })

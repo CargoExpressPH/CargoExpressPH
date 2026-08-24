@@ -96,7 +96,9 @@ CREATE TABLE IF NOT EXISTS contact_inquiries (
   assigned_admin_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
   first_response_at TIMESTAMPTZ,
   resolved_at TIMESTAMPTZ,
-  push_dispatched_at TIMESTAMPTZ
+  push_dispatched_at TIMESTAMPTZ,
+  push_dispatch_started_at TIMESTAMPTZ,
+  push_dispatch_claim_id UUID
 );
 
 
@@ -465,7 +467,7 @@ $function$
 
 
 CREATE OR REPLACE FUNCTION public.create_admin_notifications_rpc(p_title text, p_message text, p_type text, p_reference_id uuid DEFAULT NULL::uuid)
- RETURNS TABLE(admin_id uuid, notification_title text, notification_message text)
+ RETURNS TABLE(admin_id uuid, notification_id uuid, notification_title text, notification_message text)
  LANGUAGE plpgsql
  SECURITY DEFINER
  SET search_path TO 'public'
@@ -547,11 +549,88 @@ BEGIN
     SELECT p.id, v_title, v_message, p_type, p_reference_id
       FROM public.profiles AS p
      WHERE p.role = 'admin'
-    RETURNING user_id
+    RETURNING id, user_id
   )
-  SELECT user_id, v_title, v_message FROM inserted;
+  SELECT user_id, id, v_title, v_message FROM inserted;
 END;
-$function$
+$function$;
+
+
+
+CREATE OR REPLACE FUNCTION public.claim_contact_inquiry_push(p_inquiry_id uuid)
+ RETURNS uuid
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public', 'pg_catalog', 'pg_temp'
+AS $function$
+DECLARE
+  v_dispatched_at TIMESTAMPTZ;
+  v_started_at TIMESTAMPTZ;
+  v_claim_id UUID := gen_random_uuid();
+BEGIN
+  SELECT push_dispatched_at, push_dispatch_started_at
+    INTO v_dispatched_at, v_started_at
+    FROM public.contact_inquiries
+   WHERE id = p_inquiry_id
+   FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Inquiry not found';
+  END IF;
+
+  IF v_dispatched_at IS NOT NULL THEN
+    RETURN NULL;
+  END IF;
+
+  IF v_started_at IS NOT NULL AND v_started_at > now() - INTERVAL '5 minutes' THEN
+    RETURN NULL;
+  END IF;
+
+  UPDATE public.contact_inquiries
+     SET push_dispatch_started_at = now(),
+         push_dispatch_claim_id = v_claim_id
+   WHERE id = p_inquiry_id;
+
+  RETURN v_claim_id;
+END;
+$function$;
+
+
+
+CREATE OR REPLACE FUNCTION public.complete_contact_inquiry_push(p_inquiry_id uuid, p_claim_id uuid)
+ RETURNS void
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public', 'pg_catalog', 'pg_temp'
+AS $function$
+BEGIN
+  UPDATE public.contact_inquiries
+     SET push_dispatched_at = now(),
+         push_dispatch_started_at = NULL,
+         push_dispatch_claim_id = NULL
+   WHERE id = p_inquiry_id
+     AND push_dispatch_claim_id = p_claim_id
+     AND push_dispatched_at IS NULL;
+END;
+$function$;
+
+
+
+CREATE OR REPLACE FUNCTION public.release_contact_inquiry_push(p_inquiry_id uuid, p_claim_id uuid)
+ RETURNS void
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public', 'pg_catalog', 'pg_temp'
+AS $function$
+BEGIN
+  UPDATE public.contact_inquiries
+     SET push_dispatch_started_at = NULL,
+         push_dispatch_claim_id = NULL
+   WHERE id = p_inquiry_id
+     AND push_dispatch_claim_id = p_claim_id
+     AND push_dispatched_at IS NULL;
+END;
+$function$;
 
 
 
@@ -2564,9 +2643,23 @@ GRANT EXECUTE ON FUNCTION public.cancel_own_pending_order(p_order_id uuid) TO se
 
 REVOKE ALL ON FUNCTION public.create_admin_notifications_rpc(p_title text, p_message text, p_type text, p_reference_id uuid) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.create_admin_notifications_rpc(p_title text, p_message text, p_type text, p_reference_id uuid) FROM anon;
-REVOKE ALL ON FUNCTION public.create_admin_notifications_rpc(p_title text, p_message text, p_type text, p_reference_id uuid) FROM authenticated;
 GRANT EXECUTE ON FUNCTION public.create_admin_notifications_rpc(p_title text, p_message text, p_type text, p_reference_id uuid) TO service_role;
 GRANT EXECUTE ON FUNCTION public.create_admin_notifications_rpc(p_title text, p_message text, p_type text, p_reference_id uuid) TO authenticated;
+
+REVOKE ALL ON FUNCTION public.claim_contact_inquiry_push(p_inquiry_id uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.claim_contact_inquiry_push(p_inquiry_id uuid) FROM anon;
+REVOKE ALL ON FUNCTION public.claim_contact_inquiry_push(p_inquiry_id uuid) FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.claim_contact_inquiry_push(p_inquiry_id uuid) TO service_role;
+
+REVOKE ALL ON FUNCTION public.complete_contact_inquiry_push(p_inquiry_id uuid, p_claim_id uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.complete_contact_inquiry_push(p_inquiry_id uuid, p_claim_id uuid) FROM anon;
+REVOKE ALL ON FUNCTION public.complete_contact_inquiry_push(p_inquiry_id uuid, p_claim_id uuid) FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.complete_contact_inquiry_push(p_inquiry_id uuid, p_claim_id uuid) TO service_role;
+
+REVOKE ALL ON FUNCTION public.release_contact_inquiry_push(p_inquiry_id uuid, p_claim_id uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.release_contact_inquiry_push(p_inquiry_id uuid, p_claim_id uuid) FROM anon;
+REVOKE ALL ON FUNCTION public.release_contact_inquiry_push(p_inquiry_id uuid, p_claim_id uuid) FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.release_contact_inquiry_push(p_inquiry_id uuid, p_claim_id uuid) TO service_role;
 
 REVOKE ALL ON FUNCTION public.derive_payment_status(p_shipping_cost numeric, p_amount_paid numeric) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.derive_payment_status(p_shipping_cost numeric, p_amount_paid numeric) FROM anon;

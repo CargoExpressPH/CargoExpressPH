@@ -14,6 +14,46 @@ export const withTimeout = (promise, ms = 60000) => {
   return promise;
 };
 
+const PUSH_RETRY_ATTEMPTS = 2;
+const PUSH_RETRY_DELAY_MS = 600;
+
+const waitForPushRetry = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * Push is a secondary channel: the database notification is already the
+ * durable record. It still deserves a bounded retry so a transient Edge
+ * Function/network error is not silently lost while the page is open.
+ * send-push deduplicates attempts when a notification id is available.
+ */
+const invokePushWithRetry = async (body, context = 'notification') => {
+  let lastError = null;
+
+  for (let attempt = 1; attempt <= PUSH_RETRY_ATTEMPTS; attempt += 1) {
+    try {
+      const { data, error } = await supabase.functions.invoke('send-push', { body });
+
+      // A user without a registered device is an expected, successful skip;
+      // retrying that response only adds needless traffic.
+      if (!error && data?.skipped) return data;
+      if (!error && data?.success !== false) return data;
+
+      lastError = error || new Error(data?.error || 'Push delivery failed');
+    } catch (error) {
+      lastError = error;
+    }
+
+    if (attempt < PUSH_RETRY_ATTEMPTS) {
+      await waitForPushRetry(PUSH_RETRY_DELAY_MS * attempt);
+    }
+  }
+
+  console.warn(
+    `[push] ${context} failed after ${PUSH_RETRY_ATTEMPTS} attempts:`,
+    lastError?.message || lastError,
+  );
+  return null;
+};
+
 const generateTrackingNumber = () => {
   const now = new Date();
   const date = now.toISOString().slice(0, 10).replace(/-/g, '');
@@ -446,9 +486,10 @@ export const requestOrderCancellation = async (orderId, reason) => {
   // The RPC creates the admin notification rows atomically. The Edge Function
   // validates ownership and derives the push text from the saved order, so the
   // customer cannot forge a staff push payload.
-  void supabase.functions.invoke('send-push', {
-    body: { event: 'cancellation_request', order_id: orderId },
-  }).catch(() => {});
+  await invokePushWithRetry(
+    { event: 'cancellation_request', order_id: orderId, reference_id: orderId, notification_type: 'order_update' },
+    'cancellation request',
+  );
 
   return data;
 };
@@ -475,13 +516,16 @@ export const reviewOrderCancellation = async (orderId, approve, notes = null) =>
   // The RPC has already written the customer's in-app notification. Push is
   // a non-blocking delivery channel and is derived from the reviewed order on
   // the server.
-  void supabase.functions.invoke('send-push', {
-    body: {
+  await invokePushWithRetry(
+    {
       event: 'cancellation_review',
       order_id: orderId,
       approved: Boolean(approve),
+      reference_id: orderId,
+      notification_type: 'order_update',
     },
-  }).catch(() => {});
+    'cancellation review',
+  );
 
   return data;
 };
@@ -874,14 +918,17 @@ export const createAnnouncement = async (announcement) => {
         await supabase.from('notifications').insert(notifications);
 
         // Send push notifications via Edge Function in a single broadcast call
-        void supabase.functions.invoke('send-push', {
-          body: {
+        await invokePushWithRetry(
+          {
             user_id: 'all_customers',
             title: 'New Announcement',
             body: announcement.title,
             url: '/customer/notifications',
+            reference_id: data.id,
+            notification_type: 'announcement',
           },
-        }).catch(() => {});
+          'announcement',
+        );
       }
     } catch (notifErr) {
       // Non-critical — log but do not surface to the user
@@ -1407,8 +1454,10 @@ export const updateSettings = async (key, value) => {
 
 // ==================== NOTIFICATIONS HELPER ====================
 export const createNotification = async (userId, title, message, type = 'general', referenceId = null) => {
+  let notificationId = null;
+
   try {
-    const { error } = await supabase
+    const { data: insertedNotification, error } = await supabase
       .from('notifications')
       .insert({
         user_id: userId,
@@ -1416,7 +1465,10 @@ export const createNotification = async (userId, title, message, type = 'general
         message,
         type,
         reference_id: referenceId,
-      });
+      })
+      .select('id')
+      .single();
+    notificationId = insertedNotification?.id || null;
     // Insert error is non-critical — the ledger/order write that spawned this
     // notification has already succeeded, and a failed notice must not roll
     // the user's action back.
@@ -1427,11 +1479,20 @@ export const createNotification = async (userId, title, message, type = 'general
     // for a notice nobody is waiting on.
   }
 
-  // Fire-and-forget: send push notification via Edge Function
-  // Non-blocking — never slows down the UI even if it fails
-  void supabase.functions.invoke('send-push', {
-    body: { user_id: userId, title, body: message, url: '/customer/notifications' },
-  }).catch(() => { /* Edge function failure is non-critical */ });
+  await invokePushWithRetry(
+    {
+      user_id: userId,
+      title,
+      body: message,
+      url: '/customer/notifications',
+      notification_id: notificationId,
+      reference_id: referenceId,
+      notification_type: type,
+    },
+    `${type} notification`,
+  );
+
+  return notificationId;
 };
 
 export const createAdminNotification = async (title, message, type = 'general', referenceId = null) => {
@@ -1447,23 +1508,22 @@ export const createAdminNotification = async (title, message, type = 'general', 
       if (error) throw error;
       if (!notifiedAdmins || notifiedAdmins.length === 0) return;
 
-      // Push notification to each admin device (fire-and-forget)
-      notifiedAdmins.forEach(row => {
-        if (row.admin_id) {
-          // Use only the server-generated notification payload. The caller's
-          // title/message are customer-controlled and must never reach a
-          // staff push notification, even though the RPC ignores them for the
-          // in-app notification row.
-          void supabase.functions.invoke('send-push', {
-            body: {
-              user_id: row.admin_id,
-              title: row.notification_title || 'New admin notification',
-              body: row.notification_message || 'Open the admin dashboard to review this update.',
-              url: '/admin',
-            },
-          }).catch(() => {});
-        }
-      });
+      // Use only the server-generated notification payload. The caller's
+      // title/message are customer-controlled and must never reach a staff
+      // push notification, even though the RPC ignores them for the in-app
+      // notification row.
+      await Promise.all(notifiedAdmins.filter(row => row.admin_id).map(row => invokePushWithRetry(
+        {
+          user_id: row.admin_id,
+          title: row.notification_title || 'New admin notification',
+          body: row.notification_message || 'Open the admin dashboard to review this update.',
+          url: '/admin',
+          notification_id: row.notification_id || null,
+          reference_id: referenceId,
+          notification_type: type,
+        },
+        `${type} admin notification`,
+      )));
     } catch {
       // Admin notification fan-out is non-critical
     }
@@ -1515,9 +1575,15 @@ export const createContactInquiry = async (data) => {
   // The Edge Function receives only the generated inquiry ID and derives the
   // staff push payload from the saved row.
   if (inquiryId) {
-    void supabase.functions.invoke('send-push', {
-      body: { event: 'contact_inquiry', inquiry_id: inquiryId },
-    }).catch(() => {});
+    await invokePushWithRetry(
+      {
+        event: 'contact_inquiry',
+        inquiry_id: inquiryId,
+        reference_id: inquiryId,
+        notification_type: 'inquiry',
+      },
+      'contact inquiry',
+    );
   }
 };
 
