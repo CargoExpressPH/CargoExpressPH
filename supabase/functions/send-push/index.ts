@@ -38,6 +38,11 @@ function getHttpsUrl(value?: string): string | null {
   }
 }
 
+function isUuid(value: unknown): value is string {
+  return typeof value === 'string'
+    && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // FCM v1 helpers (Android / Chrome)
 // ─────────────────────────────────────────────────────────────────────────────
@@ -427,13 +432,45 @@ serve(async (req) => {
       } else {
         if (!user_id || !title) return jsonResp({ error: 'user_id and title required' }, 400)
 
-        // Authorization: must be admin, sending to self, or sending to an admin.
+        // Authorization: admins may use the generic path. A customer may send
+        // to self, but customer-to-admin pushes must point to a notification
+        // row created by the hardened server-side notification RPC. Without
+        // this check, a customer could call the Edge Function directly with
+        // arbitrary title/body text and make it appear as an admin alert.
         const { data: targetUser, error: targetError } = user_id === 'all_customers'
           ? { data: null, error: null }
           : await supabase.from('profiles').select('role').eq('id', user_id).single()
         const isTargetAdmin = targetUser?.role === 'admin'
         if (targetError || (!isRequesterAdmin && requesterUserId !== user_id && !isTargetAdmin)) {
           return jsonResp({ error: 'Access denied' }, 403)
+        }
+
+        if (!isRequesterAdmin && isTargetAdmin) {
+          if (!isUuid(notification_id)) {
+            return jsonResp({ error: 'A server-created notification is required' }, 403)
+          }
+
+          const { data: trustedNotification, error: trustedNotificationError } = await supabase
+            .from('notifications')
+            .select('id, user_id, title, message, type, reference_id')
+            .eq('id', notification_id)
+            .eq('user_id', user_id)
+            .maybeSingle()
+
+          if (trustedNotificationError) {
+            return jsonResp({ error: 'Unable to verify notification source' }, 500)
+          }
+          if (!trustedNotification) {
+            return jsonResp({ error: 'Notification source is not valid for this admin' }, 403)
+          }
+
+          // Never trust the caller's title, body, URL, reference, or type for
+          // this path. The RPC-created row is the source of truth.
+          title = trustedNotification.title
+          body = trustedNotification.message
+          url = '/admin'
+          notification_reference_id = trustedNotification.reference_id
+          notification_type = trustedNotification.type
         }
       }
     }
