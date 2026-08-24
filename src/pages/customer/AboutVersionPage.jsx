@@ -1,49 +1,63 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-  ArrowLeft, Bell, Building2, ExternalLink, FileText, Globe,
-  Info, Mail, MapPin, MessageCircle, Phone, ShieldCheck, Wifi,
-} from 'lucide-react';
-import { getCompanyInformation } from '../../lib/database';
+import { ArrowLeft, Bell, ChevronRight, Globe, MessageCircle } from 'lucide-react';
 import usePageTitle from '../../hooks/usePageTitle';
 import { useAuth } from '../../contexts/AuthContext';
 import { getCurrentPushStatus } from '../../lib/push-notifications';
+import { BrandLogo, BrandWordmark } from '../../components/ui/BrandLogo';
 
 const APP_VERSION = '1.0.0';
 
-const releaseItems = [
-  'Customer booking, tracking, notifications, and support chat.',
-  'Order payment history and balance visibility.',
-  'Mobile-first customer navigation with protected account access.',
-];
+/**
+ * AboutVersionPage — the customer's "About this app" screen.
+ *
+ * Deliberately a settings screen, not a dashboard: a centred app identity
+ * block over one list of things a customer can actually do. Everything here
+ * is either the app's identity or a destination.
+ *
+ * What it does NOT carry, and why:
+ *
+ *   Hubs, phone numbers, email, Facebook — all of it lives on the public
+ *   About page, which is one row away and is the page that is actually
+ *   maintained. Two copies of the company's contact details is one copy that
+ *   silently goes stale, and this was the copy nobody would remember to
+ *   update.
+ *
+ *   Network online/offline — a browser status readout, not a customer fact.
+ *   An offline customer cannot load this page to read that they are offline,
+ *   and a customer who is online learns nothing.
+ *
+ *   Release notes — a hardcoded array with no version behind it. It described
+ *   the whole product rather than a release, and it could only ever be as
+ *   current as the last person who remembered to edit the constant.
+ *
+ * Removing the company fetch also removes this page's only network round
+ * trip: it now renders instantly from the bundle, with the notification row
+ * the single thing that resolves asynchronously.
+ */
+
+/**
+ * The notification row's right-hand value.
+ *
+ * Reported as measured, including the states we cannot fix from here: an iOS
+ * customer browsing in Safari genuinely cannot receive push until the app is
+ * on their Home Screen, and saying "Not enabled" would describe that as a
+ * setting they could go and flip.
+ */
+const NOTIFICATION_HINTS = {
+  'Enabled': 'Shipment updates are on',
+  'Not enabled': 'Turn on shipment alerts',
+  'Blocked': 'Allow in browser settings',
+  'Add to Home Screen': 'Install to get alerts',
+  'Not supported': 'Unavailable in this browser',
+  'Checking...': 'Checking…',
+};
 
 const AboutVersionPage = () => {
   usePageTitle('About & Version');
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [companyInfo, setCompanyInfo] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [isOnline, setIsOnline] = useState(typeof navigator === 'undefined' ? true : navigator.onLine);
   const [notificationStatus, setNotificationStatus] = useState('Checking...');
-
-  useEffect(() => {
-    let isMounted = true;
-
-    getCompanyInformation()
-      .then(info => { if (isMounted) setCompanyInfo(info); })
-      .catch(() => { if (isMounted) setCompanyInfo(null); })
-      .finally(() => { if (isMounted) setLoading(false); });
-
-    const updateOnlineState = () => setIsOnline(navigator.onLine);
-    window.addEventListener('online', updateOnlineState);
-    window.addEventListener('offline', updateOnlineState);
-
-    return () => {
-      isMounted = false;
-      window.removeEventListener('online', updateOnlineState);
-      window.removeEventListener('offline', updateOnlineState);
-    };
-  }, []);
 
   useEffect(() => {
     let active = true;
@@ -71,6 +85,8 @@ const AboutVersionPage = () => {
       }
     };
 
+    // Permission can change in browser settings while this tab sits open, so
+    // the status is re-read on every return to the page rather than once.
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') refreshNotificationStatus();
     };
@@ -88,139 +104,60 @@ const AboutVersionPage = () => {
     };
   }, [user?.id]);
 
-  const contacts = [
-    { label: 'Smart', value: companyInfo?.smart_phone, icon: Phone, href: companyInfo?.smart_phone ? `tel:${companyInfo.smart_phone}` : '', action: 'Tap to call' },
-    { label: 'Globe', value: companyInfo?.globe_phone, icon: Phone, href: companyInfo?.globe_phone ? `tel:${companyInfo.globe_phone}` : '', action: 'Tap to call' },
-    { label: 'Email', value: companyInfo?.email, icon: Mail, href: companyInfo?.email ? `mailto:${companyInfo.email}` : '', action: 'Tap to send email' },
-    { label: 'Facebook', value: companyInfo?.facebook, icon: Globe, href: companyInfo?.facebook || '', action: 'Tap to open' },
-  ].filter(item => item.value);
-
   return (
     <div className="page-transition customer-about-version-page">
       <button type="button" onClick={() => navigate(-1)} className="btn btn-ghost customer-back-action mb-16">
         <ArrowLeft size={18} /> Back
       </button>
 
-      <div className="customer-page-heading mb-20">
-        <div>
-          <h1 className="fw-800 flex items-center gap-8">
-            <FileText size={24} aria-hidden="true" /> About & Version
-          </h1>
-          <p className="text-sm text-secondary mt-4">
-            App details, company contact information, and current browser service status.
-          </p>
-        </div>
+      {/* ── App identity ──────────────────────────────────────────── */}
+      <div className="about-app-identity">
+        <BrandLogo size={84} decorative className="about-app-mark" />
+        <BrandWordmark />
+        <p className="about-app-tagline">Customer Portal</p>
+        <p className="about-app-version">Version {APP_VERSION}</p>
       </div>
 
-      <div className="card card-body mb-16">
-        <div className="flex items-center gap-12 flex-wrap">
-          <div className="profile-menu-icon-wrap success">
-            <Info size={18} />
+      {/* ── Settings cells ────────────────────────────────────────── */}
+      <div className="card profile-menu-card">
+        <button type="button" onClick={() => navigate('/about')} className="profile-menu-item">
+          <div className="profile-menu-icon-wrap info">
+            <Globe size={18} />
           </div>
-          <div className="flex-1">
-            <div className="text-xs text-tertiary">CargoExpress PH Customer Portal</div>
-            <div className="text-xl fw-800">Version {APP_VERSION}</div>
+          <div className="flex-1 text-left">
+            <div className="text-sm font-bold">About CargoExpress PH</div>
+            <div className="text-xs text-secondary">Our hubs, coverage, and contact details</div>
           </div>
-          <span className="badge badge-success">Active</span>
-        </div>
-      </div>
+          <ChevronRight size={16} color="var(--text-tertiary)" />
+        </button>
 
-      <div className="grid grid-2 gap-12 mb-16">
-        <div className="card card-body">
-          <Wifi size={18} className={isOnline ? 'text-success' : 'text-error'} />
-          <div className="text-xs text-tertiary mt-8">Network</div>
-          <div className="fw-800">{isOnline ? 'Online' : 'Offline'}</div>
-        </div>
-        <div className="card card-body">
-          <Bell size={18} className="text-primary" />
-          <div className="text-xs text-tertiary mt-8">Notifications</div>
-          <div className="fw-800">{notificationStatus}</div>
-        </div>
-      </div>
+        <button type="button" onClick={() => navigate('/customer/support')} className="profile-menu-item">
+          <div className="profile-menu-icon-wrap primary">
+            <MessageCircle size={18} />
+          </div>
+          <div className="flex-1 text-left">
+            <div className="text-sm font-bold">Contact Support</div>
+            <div className="text-xs text-secondary">Chat with our team about a shipment</div>
+          </div>
+          <ChevronRight size={16} color="var(--text-tertiary)" />
+        </button>
 
-      <h3 className="profile-section-title">Company</h3>
-      <div className="card card-body mb-16">
-        <div className="flex items-center gap-8 mb-12">
-          <Building2 size={18} className="text-primary" />
-          <div className="fw-800">{companyInfo?.name || 'CargoExpress PH'}</div>
-        </div>
-        <p className="text-sm text-secondary m-0">
-          {loading
-            ? 'Loading company information...'
-            : companyInfo?.short_description || companyInfo?.long_description || 'CargoExpress PH connects customers with cargo delivery service between supported routes.'}
-        </p>
-        <button type="button" className="btn btn-outline w-full justify-center mt-12" onClick={() => navigate('/about')}>
-          <Globe size={16} /> View Public About Page
+        <button type="button" onClick={() => navigate('/customer/notifications')} className="profile-menu-item">
+          <div className="profile-menu-icon-wrap warning">
+            <Bell size={18} />
+          </div>
+          <div className="flex-1 text-left">
+            <div className="text-sm font-bold">Notifications</div>
+            <div className="text-xs text-secondary">{NOTIFICATION_HINTS[notificationStatus] || 'Shipment alerts'}</div>
+          </div>
+          <span className="about-app-cell-value">{notificationStatus}</span>
+          <ChevronRight size={16} color="var(--text-tertiary)" />
         </button>
       </div>
 
-      {(companyInfo?.manila_address || companyInfo?.bohol_address) && (
-        <>
-          <h3 className="profile-section-title">Hubs</h3>
-          <div className="grid grid-2 gap-12 mb-16">
-            {companyInfo?.manila_address && (
-              <div className="card card-body">
-                <div className="fw-800 flex items-center gap-8 mb-8"><MapPin size={16} /> Manila Hub</div>
-                <p className="text-sm text-secondary m-0">{companyInfo.manila_address}</p>
-              </div>
-            )}
-            {companyInfo?.bohol_address && (
-              <div className="card card-body">
-                <div className="fw-800 flex items-center gap-8 mb-8"><MapPin size={16} /> Bohol Hub</div>
-                <p className="text-sm text-secondary m-0">{companyInfo.bohol_address}</p>
-              </div>
-            )}
-          </div>
-        </>
-      )}
-
-      {contacts.length > 0 && (
-        <>
-          <h3 className="profile-section-title">Contact Channels</h3>
-          <div className="card mb-16 profile-menu-card">
-            {contacts.map(item => (
-              <a
-                key={item.label}
-                className="profile-menu-item text-no-underline"
-                href={item.href}
-                target={item.href.startsWith('http') ? '_blank' : undefined}
-                rel={item.href.startsWith('http') ? 'noreferrer' : undefined}
-                aria-label={`${item.label} — ${item.action}`}
-              >
-                <div className="profile-menu-icon-wrap info">
-                  <item.icon size={18} />
-                </div>
-                <div className="flex-1 text-left">
-                  <div className="text-sm font-bold">{item.label}</div>
-                  <div className="text-xs text-secondary">{item.action}</div>
-                </div>
-                <ExternalLink size={16} color="var(--text-tertiary)" />
-              </a>
-            ))}
-          </div>
-        </>
-      )}
-
-      <h3 className="profile-section-title">Release Notes</h3>
-      <div className="card card-body mb-16">
-        <div className="flex flex-col gap-8">
-          {releaseItems.map(item => (
-            <div className="flex gap-8 text-sm text-secondary" key={item}>
-              <ShieldCheck size={15} className="text-success shrink-0" style={{ marginTop: 2 }} />
-              <span>{item}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="grid grid-2 gap-12">
-        <button type="button" className="btn btn-primary justify-center" onClick={() => navigate('/customer/support')}>
-          <MessageCircle size={16} /> Contact Support
-        </button>
-        <button type="button" className="btn btn-outline justify-center" onClick={() => navigate('/customer/notifications')}>
-          <Bell size={16} /> Notification Center
-        </button>
-      </div>
+      <p className="about-app-footnote">
+        © {new Date().getFullYear()} CargoExpress PH
+      </p>
     </div>
   );
 };

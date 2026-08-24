@@ -1769,3 +1769,76 @@ body:has(textarea:focus) .support-chat-page {
     height: 22px;
   }
 }
+
+/* --- ABOUT & VERSION -------------------------------------------------
+   The customer "About this app" screen: a centred identity block over a
+   single settings list. The mark, wordmark and version stack on the centre
+   line the way a native About screen does, so the app names itself once and
+   the list below carries every action.
+   --------------------------------------------------------------------- */
+
+.about-app-identity {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 6px;
+  padding: 12px 16px 28px;
+}
+
+/* The badge artwork is a circle on an opaque white ground (see BrandLogo),
+   so it needs the same clip here that the navbar gives it — square, it reads
+   as a white tile in dark mode. */
+.about-app-mark {
+  border-radius: 50%;
+  margin-bottom: 10px;
+  box-shadow: var(--customer-shadow-soft);
+}
+
+.about-app-tagline {
+  margin: 2px 0 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.about-app-version {
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--customer-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The right-hand value on a settings cell, iOS-style: the measured state sits
+   just before the chevron.
+   `nowrap` is load-bearing. The longest value is the phrase "Add to Home
+   Screen", and letting it wrap made it and the subtitle fight for the same
+   row at 390px — the subtitle collapsed to four one-word lines. Held on one
+   line, the value takes the width it needs and the subtitle (kept to about
+   three words for the same reason) wraps beneath the title instead. */
+.about-app-cell-value {
+  flex-shrink: 0;
+  white-space: nowrap;
+  text-align: right;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+/* At the narrowest phones even a nowrap value plus a label does not fit, so
+   the value drops to its own line under the title rather than truncating. */
+@media (max-width: 380px) {
+  .profile-menu-item .about-app-cell-value {
+    max-width: 120px;
+    white-space: normal;
+  }
+}
+
+.about-app-footnote {
+  margin: 24px 0 8px;
+  text-align: center;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--customer-muted);
+}
