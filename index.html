@@ -39,6 +39,11 @@
     <link rel="manifest" href="/manifest.json" crossorigin="use-credentials" />
 
     <!-- ====== Favicon & Icons ====== -->
+    <!-- favicon.ico first: browsers request /favicon.ico implicitly whether or
+         not it is declared, and a 404 there is what leaves a stale or default
+         icon in the tab. Multi-resolution (16/32/48) so the browser picks its
+         own size rather than rescaling one. -->
+    <link rel="icon" href="/favicon.ico" sizes="48x48" />
     <link rel="icon" type="image/png" sizes="32x32" href="/icons/icon-32.png" />
     <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />
     <link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-180.png" />
