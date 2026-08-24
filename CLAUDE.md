@@ -133,7 +133,7 @@ scripts/              smoke-check.mjs, axe-lint.mjs (run by `npm test`)
 
 ## Database
 
-16 tables. `supabase/schema.sql` is the single source of truth; `database_design.md` holds the
+16 tables. `supabase/schema.sql` is the single source of truth; `docs/database_design.md` holds the
 ERD and per-column documentation.
 
 `profiles` · `trips` · `orders` · `order_status_events` · `announcements` · `notifications` ·
@@ -647,7 +647,7 @@ that way, and never reference it from client code.
 - Style with existing CSS custom properties from `src/styles/tokens.css`; both light and dark
   themes must work (`data-theme` on `<html>`).
 - Schema changes: add a **new** timestamped file in `supabase/migrations/` and mirror the
-  result into `schema.sql`. Never edit an applied migration. Update `database_design.md` when
+  result into `schema.sql`. Never edit an applied migration. Update `docs/database_design.md` when
   columns change.
 - Never auto-retry a non-idempotent request. `fetchWithRetry` in `supabase.js` retries `GET`
   only — a retried write would duplicate bookings or payments.

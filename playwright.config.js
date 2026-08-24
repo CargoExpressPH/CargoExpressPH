@@ -2,7 +2,6 @@ import { defineConfig, devices } from '@playwright/test';
 import dotenv from 'dotenv';
 
 dotenv.config({ path: '.env' });
-dotenv.config({ path: '.env.test', override: true });
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
 /**

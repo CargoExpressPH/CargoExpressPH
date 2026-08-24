@@ -6,7 +6,7 @@ project configured in `.env`**. Point it at a development or staging project.
 ## Setup
 
 ```bash
-cp .env.test.example .env.test     # then fill in E2E_ADMIN_EMAIL / E2E_ADMIN_PASSWORD
+cp .env.example .env               # then fill in E2E_ADMIN_EMAIL / E2E_ADMIN_PASSWORD
 npm run test:e2e
 ```
 
@@ -18,7 +18,7 @@ one is already running.
 The suite cannot create it. `guard_profile_write` forces every self-registered
 profile to `role='customer'`, so an admin can only be minted with SQL or a
 service-role key — neither belongs in a browser test. Create one in the
-Supabase dashboard, then put its credentials in `.env.test`.
+Supabase dashboard, then put its credentials in `.env`.
 
 The **customer** is registered fresh by the suite on every run, with a
 timestamped address on the reserved `.test` TLD, so runs never collide on

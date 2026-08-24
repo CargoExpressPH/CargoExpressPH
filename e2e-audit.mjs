@@ -5,7 +5,6 @@ import { mkdirSync } from 'fs';
 import path from 'path';
 
 dotenv.config({ path: '.env' });
-dotenv.config({ path: '.env.test', override: true });
 
 const BASE = 'http://localhost:5173';
 const OUT = 'e2e-audit-screenshots';

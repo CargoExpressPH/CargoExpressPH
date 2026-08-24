@@ -1,9 +1,9 @@
 import dotenv from 'dotenv';
 
-// .env supplies the Supabase/Vite settings; .env.test supplies the test
-// credentials and wins where both define a key.
+// One local env file. The E2E credentials used to live in a separate
+// .env.test that was loaded over the top of this; both now sit in .env, so
+// the project has a single source of truth for local configuration.
 dotenv.config({ path: '.env' });
-dotenv.config({ path: '.env.test', override: true });
 
 // Allow Node.js db client to connect even in environments with local TLS interception
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
@@ -15,14 +15,14 @@ process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
  * `guard_profile_write` forces every self-registered profile to
  * role='customer', so an admin can only be minted with SQL or a service-role
  * key — neither of which belongs in a browser test. Put the credentials in
- * .env.test (gitignored) or export them in the shell.
+ * .env (gitignored) or export them in the shell.
  */
 const required = (name) => {
   const value = process.env[name];
   if (!value) {
     throw new Error(
-      `Missing ${name}. Copy .env.test.example to .env.test and fill in the ` +
-      `admin credentials, or export ${name} before running the suite.`
+      `Missing ${name}. Copy .env.example to .env and fill in the admin ` +
+      `credentials, or export ${name} before running the suite.`
     );
   }
   return value;
