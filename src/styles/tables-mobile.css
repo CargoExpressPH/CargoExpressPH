@@ -290,6 +290,23 @@
     content: none;
   }
 
+  /* …and the same for whatever is inside them.
+     `td:first-child > *` above sets `text-align: left`, which is correct for a
+     row's title line. But a colspan cell is the ONLY cell in its row, so it is
+     `:first-child` too — and the EmptyState inside it inherited that
+     left-alignment. The flex column still centred the BOXES, so the icon and
+     the title looked right; what gave it away was the description, which wraps
+     to two lines and left-aligned its second line against a centred box.
+     That rule is in the `pages` layer and `.empty-state-premium`'s own
+     `text-align: center` is in `components`, so the component could never win
+     on its own — the reset has to happen here.
+     (`justify-self` is not reset: the cell is `display: block`, so its children
+     are not grid items and the property is inert.) */
+  .data-table td[colspan] > *,
+  .report-table td[colspan] > * {
+    text-align: center;
+  }
+
   /* tfoot summary row — not a card, a single summary bar */
   .data-table tfoot,
   .report-table tfoot {
@@ -560,6 +577,23 @@
   .data-table--wide td[colspan]::before,
   .report-table--wide td[colspan]::before {
     content: none;
+  }
+
+  /* …and the same for whatever is inside them.
+     `td:first-child > *` above sets `text-align: left`, which is correct for a
+     row's title line. But a colspan cell is the ONLY cell in its row, so it is
+     `:first-child` too — and the EmptyState inside it inherited that
+     left-alignment. The flex column still centred the BOXES, so the icon and
+     the title looked right; what gave it away was the description, which wraps
+     to two lines and left-aligned its second line against a centred box.
+     That rule is in the `pages` layer and `.empty-state-premium`'s own
+     `text-align: center` is in `components`, so the component could never win
+     on its own — the reset has to happen here.
+     (`justify-self` is not reset: the cell is `display: block`, so its children
+     are not grid items and the property is inert.) */
+  .data-table--wide td[colspan] > *,
+  .report-table--wide td[colspan] > * {
+    text-align: center;
   }
 
   .data-table--wide tfoot,
