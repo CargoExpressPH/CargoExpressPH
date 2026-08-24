@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { X, Download, Zap, Bell } from 'lucide-react';
+import { X, Download, Zap, Bell, Smartphone, ShieldCheck } from 'lucide-react';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 const isIos = () => /iphone|ipad|ipod/i.test(window.navigator.userAgent);
@@ -53,14 +53,33 @@ function wasDismissedRecently() {
   }
 }
 
-// No offline claim here. The service worker precaches the app shell so a
-// reopen is fast, but the screens a customer actually wants — orders,
-// tracking, payments — are live Supabase reads that fail without a network.
-// "Keeps working when your connection drops" promised an offline mode this
-// app does not have.
+/**
+ * Why installing is worth it. Four claims, each one true of this build:
+ *
+ *   One tap      — an installed PWA opens standalone from the home screen.
+ *   Live alerts  — FCM + VAPID web push, fired on every status change.
+ *   Under 2 MB   — the service worker precaches ~1.5 MB (measured against the
+ *                  build's PRECACHE_ASSETS). "Installs in" is deliberate: what
+ *                  the install itself stores, not the lifetime cache, which
+ *                  grows as route chunks and images load on demand.
+ *   Never stored — card and wallet details go to PayMongo, never to us. The
+ *                  same promise is printed on the Payment History page.
+ *
+ * There is still no offline claim, and there should not be one: the service
+ * worker precaches the app shell so a reopen is fast, but orders, tracking and
+ * payments are live Supabase reads that fail without a network. The removed
+ * "Keeps working when your connection drops" promised an offline mode this app
+ * does not have — do not let a rewrite quietly reintroduce it.
+ *
+ * Keep labels to roughly 50 characters. The desktop card is 380px wide, which
+ * is about 32 characters a line; past two lines per perk the Install button
+ * starts getting pushed off a small phone screen.
+ */
 const perks = [
-  { icon: Zap, label: 'Launches instantly from your home screen or desktop' },
-  { icon: Bell, label: 'Push alerts the moment a shipment status changes' },
+  { icon: Zap, label: 'One tap from your home screen — no URL to type' },
+  { icon: Bell, label: 'Know the moment your cargo moves, in real time' },
+  { icon: Smartphone, label: 'Installs in under 2 MB — a fraction of a normal app' },
+  { icon: ShieldCheck, label: 'Secure GCash checkout, card details never stored' },
 ];
 
 // ── Component ────────────────────────────────────────────────────────────────
