@@ -20,11 +20,28 @@ const json = (body: unknown, status = 200) =>
     headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
   })
 
+/**
+ * The caller's IP, taken from the header the PLATFORM wrote — not the one the
+ * caller sent.
+ *
+ * `x-forwarded-for` is a chain: each proxy APPENDS the address it saw, so the
+ * left-hand entries are whatever the client claimed and the right-hand entry
+ * is the one our edge added. Reading `split(',')[0]` — the previous
+ * implementation — reads the attacker-supplied end of the chain, so anyone
+ * could send `X-Forwarded-For: 1.2.3.4` and get a fresh rate-limit bucket per
+ * request. `cf-connecting-ip` is likewise just a header unless the deployment
+ * actually sits behind Cloudflare, so it is no longer trusted at all.
+ *
+ * This is defence in depth rather than the whole defence: `ip` is now a
+ * server-owned column (migration 20260825140000), so a client that skips this
+ * function entirely cannot write one.
+ */
 function getClientIp(req: Request): string {
-  const cfIp = req.headers.get('cf-connecting-ip')
-  if (cfIp) return cfIp.trim()
   const xff = req.headers.get('x-forwarded-for')
-  if (xff) return xff.split(',')[0].trim()
+  if (xff) {
+    const hops = xff.split(',').map(part => part.trim()).filter(Boolean)
+    if (hops.length > 0) return hops[hops.length - 1]
+  }
   const realIp = req.headers.get('x-real-ip')
   if (realIp) return realIp.trim()
   return 'unknown'
@@ -82,7 +99,11 @@ serve(async (req) => {
       if (error.code === '23514') {
         return json({ error: 'Please check name (2-100), contact (7-20), message (10-2000).' }, 400)
       }
-      return json({ error: error.message }, 400)
+      // Anything else is an internal fault. The raw driver message names
+      // tables, columns and constraints — free schema reconnaissance for an
+      // anonymous caller, and useless to the person filling in the form.
+      console.error('submit-inquiry insert failed', error)
+      return json({ error: 'Could not send your message right now. Please try again.' }, 400)
     }
 
     // Non-blocking: trigger staff push via send-push (fire and forget, don't await)
@@ -96,7 +117,7 @@ serve(async (req) => {
 
     return json({ success: true, id: inquiryId })
   } catch (err) {
-    const msg = err instanceof Error ? err.message : 'Unexpected error'
-    return json({ error: msg }, 500)
+    console.error('submit-inquiry failed', err)
+    return json({ error: 'Could not send your message right now. Please try again.' }, 500)
   }
 })

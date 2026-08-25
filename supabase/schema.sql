@@ -2776,10 +2776,23 @@ CREATE POLICY "Admins can view inquiries" ON public.contact_inquiries
   WHERE ((profiles.id = auth.uid()) AND ((profiles.role)::text = 'admin'::text)))));
 
 DROP POLICY IF EXISTS "Anyone can submit inquiry" ON public.contact_inquiries;
+-- Client may supply only what the public form collects. `ip` and every
+-- service-state column are server-owned: the per-IP rate limit in
+-- guard_contact_inquiry_rate_limit keys on `ip`, so a client able to set it
+-- could mint a fresh allowance per request (20260825140000).
 CREATE POLICY "Anyone can submit inquiry" ON public.contact_inquiries
   FOR INSERT
   TO public
-  WITH CHECK (true);
+  WITH CHECK (
+    ip IS NULL
+    AND assigned_admin_id IS NULL
+    AND first_response_at IS NULL
+    AND resolved_at IS NULL
+    AND push_dispatched_at IS NULL
+    AND push_dispatch_started_at IS NULL
+    AND push_dispatch_claim_id IS NULL
+    AND status = 'new'
+  );
 
 ALTER TABLE public.conversations ENABLE ROW LEVEL SECURITY;
 
