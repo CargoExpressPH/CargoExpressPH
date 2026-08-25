@@ -360,3 +360,77 @@
   background: #4ADE80;
   color: #0F172A;
 }
+
+
+/* ── Global on-screen keyboard handling ───────────────────────────────────
+   `--keyboard-inset` is the measured height of the on-screen keyboard,
+   published to <html> by useKeyboardInset (mounted at the root in App.jsx);
+   `body.keyboard-open` is set while it is above zero. Both are absent/0 on
+   desktop and on any browser without visualViewport, so every rule here is
+   inert until a keyboard actually appears.
+
+   Why any of this is needed: index.html sets
+   `interactive-widget=resizes-visual`, under which the Android keyboard does
+   NOT shrink the layout viewport or `dvh`. Page heights and bottom paddings go
+   on describing a screen whose bottom third is covered, so the last fields of
+   a form sit behind the keyboard with no way to scroll them up — there is no
+   overflow to scroll, as far as the layout is concerned. */
+
+/* Anything the browser or `scrollIntoView` brings into view should land ABOVE
+   the keyboard, not behind it. scroll-padding costs nothing when the inset is
+   0, so it is set unconditionally. */
+html,
+.customer-main,
+.page-content,
+.auth-page,
+.login-split-page,
+.login-right-panel,
+.modal-body,
+.table-container {
+  scroll-padding-bottom: var(--keyboard-inset, 0px);
+}
+
+/* Extra room at the bottom of the scrollable page so the last field CAN be
+   scrolled clear of the keyboard. Applied only while one is open, and on top
+   of each container's own resting padding rather than replacing it. */
+body.keyboard-open .customer-main:not(:has(.support-chat-page)) {
+  /* The bottom tab bar is hidden while typing, so its reserve is not needed;
+     what replaces it is the keyboard's own height.
+
+     The support chat is excluded deliberately. It does not scroll — its shell
+     is already sized to `100dvh - var(--keyboard-inset)` so the composer sits
+     directly above the keyboard. Adding the inset again as padding would count
+     it twice and leave a gap the height of the keyboard under the composer. */
+  padding-bottom: calc(24px + var(--keyboard-inset, 0px));
+}
+
+body.keyboard-open .page-content {
+  padding-bottom: calc(28px + var(--keyboard-inset, 0px));
+}
+
+body.keyboard-open .auth-page {
+  padding-bottom: calc(48px + var(--keyboard-inset, 0px));
+}
+
+body.keyboard-open .login-right-panel {
+  padding-bottom: calc(52px + var(--keyboard-inset, 0px));
+}
+
+/* A modal is centred in the layout viewport, so the keyboard covers its lower
+   half and its own scroll area cannot reach past it. Shrinking the modal to
+   the visible height puts its body back within reach — this is what makes the
+   fields in admin forms (pickup, delivery, trip assignment) usable with a
+   keyboard up. */
+body.keyboard-open .modal,
+body.keyboard-open .confirm-modal {
+  max-height: calc(100dvh - 32px - var(--keyboard-inset, 0px));
+}
+
+/* Bottom-anchored fixed furniture would otherwise sit on top of the keyboard.
+   The customer tab bar already hides on `keyboard-active`; this covers the
+   measured case and the chat bubble, which is fixed to the same edge. */
+body.keyboard-open .customer-bottom-nav,
+body.keyboard-open .customer-chat-fab {
+  opacity: 0;
+  pointer-events: none;
+}

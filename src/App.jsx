@@ -4,6 +4,7 @@ import PageLoader from './components/ui/PageLoader';
 import InstallAppBanner from './components/ui/InstallAppBanner';
 import IosInstallBanner from './components/ui/IosInstallBanner';
 import { createBrowserRouter, RouterProvider, Navigate, Outlet, useLocation } from 'react-router-dom';
+import useKeyboardInset, { scrollFocusedFieldIntoView } from './hooks/useKeyboardInset';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { ToastProvider } from './hooks/useToast';
@@ -240,7 +241,30 @@ const router = createBrowserRouter([
 ]);
 
 
+/**
+ * Defined at module scope rather than inline so the hook's subscriber identity
+ * is stable across renders. rAF-deferred because the inset changes as the
+ * keyboard animates, and measuring an element's position mid-animation reads a
+ * layout that is about to change again.
+ */
+const handleKeyboardInset = (inset) => {
+  if (inset <= 0) return;
+  requestAnimationFrame(scrollFocusedFieldIntoView);
+};
+
 function App() {
+  // Mounted once, at the root, so `--keyboard-inset` and `body.keyboard-open`
+  // are published on EVERY page — auth, customer and admin alike — rather than
+  // only on the one page that first needed them. Pages that want their own
+  // reaction (SupportChatPage scrolls its timeline) mount the same hook; it is
+  // a shared listener, not a second one.
+  //
+  // The callback is the global half of the fix: when the keyboard appears, any
+  // focused field it now covers is scrolled back into the visible area. The
+  // browser will not do this itself under `interactive-widget=resizes-visual`,
+  // because as far as the layout viewport is concerned the field never moved.
+  useKeyboardInset(handleKeyboardInset);
+
   return (
     <ThemeProvider>
     <ToastProvider>
