@@ -11,7 +11,7 @@ import { PH_LOCATIONS, VALID_PROVINCES } from '../../constants/phLocations';
 import CustomSelect from '../../components/ui/CustomSelect';
 import BarangaySelect from '../../components/ui/BarangaySelect';
 import usePageTitle from '../../hooks/usePageTitle';
-import { toTitleCase } from '../../utils/string';
+import { toTitleCase, normalizeName } from '../../utils/string';
 import { getPasswordStrength } from '../../utils/password';
 import FieldError from '../../components/ui/FieldError';
 import { BrandLogo, BrandWordmark } from '../../components/ui/BrandLogo';
@@ -355,9 +355,13 @@ const RegisterPage = () => {
     try {
       const normalizedAddress = normalizeProfileAddressFields(form);
       const result = await register(form.email.trim(), form.password, {
-        name:             form.name,
+        // Normalised here rather than trusting the keystroke handler: a value
+        // that was pasted, autofilled, or restored from the saved draft never
+        // passed through it, and only the trimmed/collapsed form should reach
+        // the database.
+        name:             normalizeName(form.name),
         phone:            form.phone,
-        facebook_name:    form.facebook_name,
+        facebook_name:    normalizeName(form.facebook_name),
         address_province: normalizedAddress.address_province,
         address_city:     normalizedAddress.address_city,
         address_barangay: normalizedAddress.address_barangay,

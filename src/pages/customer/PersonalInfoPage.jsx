@@ -13,7 +13,7 @@ import CustomSelect from '../../components/ui/CustomSelect';
 import BarangaySelect from '../../components/ui/BarangaySelect';
 import ConfirmModal from '../../components/ui/ConfirmModal';
 import usePageTitle from '../../hooks/usePageTitle';
-import { toTitleCase } from '../../utils/string';
+import { toTitleCase, normalizeName } from '../../utils/string';
 import FieldError from '../../components/ui/FieldError';
 
 const validatePhone = (phone) => {
@@ -101,8 +101,10 @@ const PersonalInfoPage = () => {
       const normalizedAddress = normalizeProfileAddressFields(form);
 
       await updateOwnProfile(user.id, {
-        name:              form.name.trim(),
-        facebook_name:     form.facebook_name.trim(),
+        // Same reason as RegisterPage: trim() alone leaves "bea  sarong"
+        // double-spaced and lower-cased in the database.
+        name:              normalizeName(form.name),
+        facebook_name:     normalizeName(form.facebook_name),
         phone:             form.phone || null,
 
         address_province:  normalizedAddress.address_province || null,
@@ -166,6 +168,10 @@ const PersonalInfoPage = () => {
                 placeholder="Juan Dela Cruz"
                 value={form.name}
                 onChange={handleTitleCase('name')}
+                autoCapitalize="words"
+                autoComplete="name"
+                required
+                aria-required="true"
                 aria-invalid={fieldErrors.name ? 'true' : undefined}
                 aria-describedby={fieldErrors.name ? 'profile-name-error' : undefined}
               />
@@ -183,7 +189,10 @@ const PersonalInfoPage = () => {
                 className={`form-input form-input-icon-left ${fieldErrors.facebook_name ? 'field-invalid' : ''}`}
                 placeholder="Juan Dela Cruz on FB"
                 value={form.facebook_name}
-                onChange={e => setField('facebook_name', e.target.value)}
+                onChange={handleTitleCase('facebook_name')}
+                autoCapitalize="words"
+                required
+                aria-required="true"
                 aria-invalid={fieldErrors.facebook_name ? 'true' : undefined}
                 aria-describedby={fieldErrors.facebook_name ? 'profile-facebook-name-error' : undefined}
               />
