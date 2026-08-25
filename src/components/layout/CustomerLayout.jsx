@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Outlet, NavLink, useNavigate, Link, useLocation } from 'react-router-dom';
-import { Bell, User, LogOut, MessageSquare, MessageCircle, Package, MapPin, Plus, Home, ChevronRight } from 'lucide-react';
+import { Bell, User, LogOut, MessageSquare, MessageCircle, Bot, Package, MapPin, Plus, Home, ChevronRight } from 'lucide-react';
 import BrandLockup from '../ui/BrandLogo';
 import ThemeToggle from '../ui/ThemeToggle';
 import { useAuth } from '../../contexts/AuthContext';
@@ -18,7 +18,7 @@ const desktopNavItems = [
   { to: '/customer/book', icon: Plus, label: 'Book Shipment' },
   { to: '/customer/orders', icon: Package, label: 'Bookings' },
   { to: '/customer/trips', icon: MapPin, label: 'Trips' },
-  { to: '/customer/support', icon: MessageSquare, MessageCircle, label: 'Chat Support' },
+  { to: '/customer/support', icon: MessageSquare, MessageCircle, Bot, label: 'Chat Support' },
 ];
 
 const bottomNavItems = [
