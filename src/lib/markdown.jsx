@@ -46,7 +46,13 @@ export const renderMarkdown = (text) => {
             currentText = '';
             const linkText = line.substring(i + 1, endBracket);
             const linkUrl = line.substring(endBracket + 2, endParen);
-            elements.push(<a key={i} href={linkUrl} target="_blank" rel="noreferrer" className="text-primary hover:underline">{linkText}</a>);
+            // Only allow safe URL schemes — block javascript:, data:, vbscript: etc.
+            const isSafeUrl = /^(https?:\/\/|\/(?!\/))/i.test(linkUrl.trim());
+            if (isSafeUrl) {
+              elements.push(<a key={i} href={linkUrl} target="_blank" rel="noreferrer noopener" className="text-primary hover:underline">{linkText}</a>);
+            } else {
+              elements.push(<span key={i}>{linkText}</span>);
+            }
             i = endParen + 1;
             continue;
           }
