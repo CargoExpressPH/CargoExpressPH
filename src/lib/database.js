@@ -1,6 +1,6 @@
 import { supabase } from './supabase';
 import { logOrder, logPayment, logChat } from './activityLog';
-import { validateStatusTransition, outstandingBalance, ORDER_STATUS } from '../constants/status';
+import { validateStatusTransition, outstandingBalance, ORDER_STATUS, tripCapacityState, tripCapacityRefusal } from '../constants/status';
 import { detectPickupLocation } from '../constants/phLocations';
 import { phDayRangeISO, formatPhDate } from '../utils/datetime';
 
@@ -103,9 +103,37 @@ const getTripCurrentWeight = async (tripId, excludeOrderId = null) => {
   );
 };
 
+/**
+ * Refuses cargo that would put a trip past its absolute ceiling — planned
+ * capacity + TRIP_CAPACITY_ALLOWANCE_KG (200 kg).
+ *
+ * Every path that puts weight on a trip funnels through here: a customer
+ * booking onto a chosen trip, an admin assigning a booking to one, and an
+ * admin recording a weight at pickup. That is why the check lives in this
+ * function rather than in the three call sites.
+ *
+ * The exclusion of `excludeOrderId` matters on the weight path: re-weighing an
+ * order already on the trip must compare the NEW weight against the trip
+ * without that order's old weight, or correcting 100 kg to 101 kg would be
+ * measured as if 101 kg were being added on top of the 100 already counted.
+ *
+ * This is a UX guard, not the enforcement. It runs in the browser, so a direct
+ * PostgREST call still writes whatever it likes — `20260526010000` removed the
+ * database's capacity trigger on purpose. Making this a real invariant needs
+ * that trigger back.
+ */
 const assertTripCapacity = async (trip, incomingWeight, excludeOrderId = null) => {
-  // Removed strict capacity blocking. The UI now only serves as a visual 
-  // tracker, allowing administrators to intentionally exceed capacity limits.
+  if (!trip) return;
+  const state = tripCapacityState(trip, 0, 0);
+  // No capacity recorded on the trip: nothing to enforce, and refusing every
+  // booking over a blank field would be worse than not enforcing it.
+  if (!state.hasLimit) return;
+
+  const currentWeight = await getTripCurrentWeight(trip.id, excludeOrderId);
+  const check = tripCapacityState(trip, currentWeight, incomingWeight);
+  if (check.wouldExceed) {
+    throw new Error(tripCapacityRefusal(trip, currentWeight, incomingWeight));
+  }
 };
 
 const effectiveTripPrice = async (trip) => {
@@ -403,9 +431,15 @@ export const updateOrder = async (orderId, updates) => {
         .eq('id', tripId)
         .single();
       trip = tripData;
-      if (updates.actual_weight !== undefined) {
-        await assertTripCapacity(trip, weight, orderId);
-      }
+      // Deliberately NOT capacity-checked. The ceiling governs ACCEPTING a
+      // booking onto a trip; this path is an admin recording what the scale
+      // said about cargo that is already physically there. Refusing it would
+      // not un-load the van, it would only stop the system from knowing the
+      // truth — and every downstream figure (price, balance, the trip's own
+      // load) is derived from that weight. An overloaded trip is a dispatch
+      // problem to be solved by reassigning cargo, which the assign and
+      // reassign paths police.
+      void weight;
     }
     const pricePerKilo = trip ? await effectiveTripPrice(trip) : await getGlobalPricePerKilo();
     updates.shipping_cost = weight * pricePerKilo;
@@ -860,6 +894,20 @@ export const deleteTrip = async (tripId) => {
 };
 
 export const reassignTrip = async (orderId, newTripId, reason) => {
+  // Reassignment moves weight onto a trip exactly as a first assignment does,
+  // so it answers to the same ceiling. It goes through the `reassign_trip` RPC
+  // rather than updateOrder, which is why the check has to be repeated here —
+  // without it, "move it to another trip" would be the way around the limit.
+  if (newTripId) {
+    const [{ data: trip }, { data: order }] = await Promise.all([
+      supabase.from('trips').select('id, capacity').eq('id', newTripId).single(),
+      supabase.from('orders').select('actual_weight').eq('id', orderId).single(),
+    ]);
+    if (trip) {
+      await assertTripCapacity(trip, parseFloat(order?.actual_weight || 0) || 0, orderId);
+    }
+  }
+
   const { data, error } = await supabase.rpc('reassign_trip', {
     p_order_id: orderId,
     p_new_trip_id: newTripId,

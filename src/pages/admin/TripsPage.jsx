@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { tripCapacityState } from '../../constants/status';
 import { Link, useNavigate } from 'react-router-dom';
 import { getTrips, withTimeout } from '../../lib/database';
 import StatusBadge from '../../components/ui/StatusBadge';
@@ -17,13 +18,23 @@ const formatTripDate = (value) => {
   return date.toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' });
 };
 
+/**
+ * The bar is measured against PLANNED capacity — that is what the admin is
+ * planning to. `isFull` comes from the shared rule instead, because "can this
+ * trip still take a booking" is answered by the absolute ceiling (planned +
+ * 200 kg allowance), not by the bar.
+ */
 const getCapacityState = (current = 0, max = 0) => {
   const percent = max > 0 ? (current / max) * 100 : 0;
+  const cap = tripCapacityState({ capacity: max }, current);
   return {
     percent,
     barPercent: Math.min(100, percent),
     isOver: percent > 100,
     isWarning: percent > 80,
+    isFull: cap.isFull,
+    max: cap.max,
+    allowance: cap.allowance,
   };
 };
 
@@ -107,7 +118,17 @@ const AdminTripsPage = () => {
             <div className="card-body">
               <div className="flex items-center justify-between mb-8">
                 <span className="fw-700 text-accent">{trip.trip_number}</span>
-                <StatusBadge status={trip.status} size="sm" />
+                <span className="flex items-center gap-6">
+                  {tripCapacityState(trip, trip.current_weight || 0).isFull && (
+                    <span
+                      className="badge badge-sm rounded-full"
+                      style={{ background: 'var(--error-bg)', color: 'var(--error-text)', fontWeight: 700 }}
+                    >
+                      FULL
+                    </span>
+                  )}
+                  <StatusBadge status={trip.status} size="sm" />
+                </span>
               </div>
               <div className="flex items-center gap-8 text-sm"><MapPin size={14} className="text-primary" />{trip.origin} → {trip.destination}</div>
               <div className="flex items-center gap-8 text-xs text-secondary mt-4">
@@ -127,10 +148,12 @@ const AdminTripsPage = () => {
                           />
                         </div>
                         <div className="flex justify-between text-xs text-tertiary mt-4">
-                          <span>{current.toFixed(1)} / {trip.capacity} kg</span>
-                          <span>{capacity.percent.toFixed(0)}%</span>
+                          <span>Booked: {current.toFixed(1)} / {trip.capacity} kg</span>
+                          <span>Max: {capacity.max} kg</span>
                         </div>
-                        {capacity.isOver && <div className="capacity-note">Over planned capacity</div>}
+                        {capacity.isFull
+                          ? <div className="capacity-note">FULL — at the {capacity.max} kg maximum. No further bookings.</div>
+                          : capacity.isOver && <div className="capacity-note">Over planned capacity — using the {capacity.allowance} kg allowance</div>}
                       </>
                     );
                   })()}

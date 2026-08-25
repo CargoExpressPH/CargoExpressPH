@@ -450,3 +450,85 @@ export const isTripBookable = (trip) => {
   startOfToday.setHours(0, 0, 0, 0);
   return departure >= startOfToday;
 };
+
+// ── Trip van capacity ────────────────────────────────────────────────────────
+/**
+ * Slack the van can physically take beyond its planned capacity, in kilograms.
+ *
+ * A trip's `capacity` is the figure the admin plans against; this allowance is
+ * the hard ceiling on top of it. A 1000 kg trip accepts cargo up to 1200 kg and
+ * not a gram more.
+ *
+ * Note what this reverses: `20260526010000_remove_capacity_guard.sql` removed
+ * the database's capacity check specifically so admins could overbook by
+ * judgement. Overbooking is still allowed — that is what the allowance IS —
+ * but it now stops at a fixed line instead of being unbounded.
+ */
+export const TRIP_CAPACITY_ALLOWANCE_KG = 200;
+
+/**
+ * The absolute ceiling for a trip: planned capacity + the allowance.
+ *
+ * Returns Infinity for a trip with no capacity recorded. A missing capacity is
+ * unknown, not zero, and treating it as zero would block every booking on that
+ * trip — refusing work over a blank field is worse than not enforcing a limit
+ * nobody has set.
+ */
+export const tripMaxCapacity = (capacity) => {
+  const base = parseFloat(capacity ?? 0) || 0;
+  return base > 0 ? base + TRIP_CAPACITY_ALLOWANCE_KG : Infinity;
+};
+
+/**
+ * Everything the UI and the guard need to say about a trip's load, derived in
+ * one place so a badge, a progress bar and a thrown error cannot disagree.
+ *
+ * IMPORTANT — what `currentWeight` actually counts. Weight enters this system
+ * exactly once, from the scale at pickup (`orders.actual_weight`; the
+ * customer-declared estimate was removed in `20260805130000`). A booking that
+ * has not been weighed yet therefore contributes 0 kg to the total, so the
+ * ceiling only bites once cargo has been weighed. This is a property of the
+ * data, not a shortcut here: there is no honest number to count for a parcel
+ * nobody has put on a scale.
+ *
+ * @param {object}  trip            the trip, or anything carrying `capacity`
+ * @param {number}  currentWeight   kg already committed to the trip
+ * @param {number} [incomingWeight] kg about to be added
+ */
+export const tripCapacityState = (trip, currentWeight, incomingWeight = 0) => {
+  const base = parseFloat(trip?.capacity ?? 0) || 0;
+  const used = parseFloat(currentWeight ?? 0) || 0;
+  const incoming = parseFloat(incomingWeight ?? 0) || 0;
+  const max = tripMaxCapacity(base);
+  const hasLimit = Number.isFinite(max);
+
+  return {
+    base,
+    max,
+    used,
+    hasLimit,
+    allowance: TRIP_CAPACITY_ALLOWANCE_KG,
+    // Headroom to the ABSOLUTE ceiling, which is the only figure that governs
+    // whether a booking can be accepted.
+    remaining: hasLimit ? Math.max(0, max - used) : Infinity,
+    // Headroom to the PLANNED capacity — what the admin is working to. Goes
+    // negative into the allowance, which is the state worth showing.
+    remainingToPlanned: hasLimit ? base - used : Infinity,
+    isOverPlanned: hasLimit && used > base,
+    isFull: hasLimit && used >= max,
+    wouldExceed: hasLimit && used + incoming > max,
+    overBy: hasLimit ? Math.max(0, (used + incoming) - max) : 0,
+  };
+};
+
+/**
+ * The message shown when the ceiling refuses a booking. Shared so the toast
+ * raised by the data layer and the text printed beside a disabled trip in the
+ * assign modal are the same sentence.
+ */
+export const tripCapacityRefusal = (trip, currentWeight, incomingWeight = 0) => {
+  const { base, max, used, overBy } = tripCapacityState(trip, currentWeight, incomingWeight);
+  return `Cannot accept booking: exceeds maximum van capacity of ${max} kg `
+    + `(${base} kg planned + ${TRIP_CAPACITY_ALLOWANCE_KG} kg allowance). `
+    + `This trip is carrying ${used.toFixed(1)} kg and this booking would put it ${overBy.toFixed(1)} kg over.`;
+};

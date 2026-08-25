@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { getTrips } from '../../lib/database';
 import { X, Truck, Loader, MapPin, Edit3, AlertTriangle } from 'lucide-react';
 import FocusTrap from './FocusTrap';
+import { tripCapacityState } from '../../constants/status';
 import useScrollLock from '../../hooks/useScrollLock';
 
 /**
@@ -153,18 +154,26 @@ const TripReassignModal = ({ order, onClose, onReassign }) => {
                 const isSelected = selectedTrip?.id === trip.id;
                 const capPct = trip.capacity > 0 ? (trip.current_weight / trip.capacity) * 100 : 0;
                 const orderWeight = parseFloat(order.actual_weight || 0);
-                const availableWeight = trip.capacity > 0 ? Number(trip.capacity) - Number(trip.current_weight || 0) : Infinity;
-                const exceedsCapacity = trip.capacity > 0 && orderWeight > availableWeight;
-                const overloadWeight = Math.max(0, orderWeight - availableWeight);
+                // Same ceiling as the assign modal. Reassignment moves weight
+                // onto a trip exactly like a first assignment does, so a full
+                // trip has to refuse it here too — otherwise "move it to
+                // another trip" is a way around the limit.
+                const cap = tripCapacityState(trip, trip.current_weight || 0, orderWeight);
+                const exceedsCapacity = cap.wouldExceed || cap.isFull;
+                const overloadWeight = cap.overBy;
 
                 return (
                   <button
                     type="button"
                     key={trip.id}
-                    onClick={() => setSelectedTrip(trip)}
+                    onClick={() => { if (exceedsCapacity) return; setSelectedTrip(trip); }}
+                    disabled={exceedsCapacity}
                     aria-pressed={isSelected}
-                    aria-label={`Select trip ${trip.trip_number}`}
-                    className="block w-full cursor-pointer text-left"
+                    aria-label={
+                      `Select trip ${trip.trip_number}`
+                      + (exceedsCapacity ? `. Unavailable: at or over the ${cap.max} kilogram maximum.` : '')
+                    }
+                    className={`block w-full text-left ${exceedsCapacity ? 'cursor-not-allowed' : 'cursor-pointer'}`}
                     style={{padding: 14, borderRadius: 'var(--radius-sm)', border: `2px solid ${isSelected ? 'var(--primary)' : 'var(--border)'}`,
                       background: isSelected ? 'var(--primary-glow)' : 'var(--surface)',
                       color: 'inherit',
@@ -188,6 +197,7 @@ const TripReassignModal = ({ order, onClose, onReassign }) => {
                       <div className="flex items-center gap-6">
                         <span style={{ color: exceedsCapacity ? 'var(--error-text)' : 'inherit' }}>
                           {(trip.current_weight || 0).toFixed(1)} / {trip.capacity || '∞'} kg
+                          {cap.hasLimit && <> (max {cap.max})</>}
                         </span>
                         <div className="w-40 h-4" style={{background: 'var(--border)', borderRadius: 'var(--radius-full)', overflow: 'hidden'}}>
                           <div className="h-full" style={{background: exceedsCapacity ? 'var(--error)' : capPct > 80 ? 'var(--warning)' : 'var(--success)',
@@ -199,8 +209,10 @@ const TripReassignModal = ({ order, onClose, onReassign }) => {
 
                     {exceedsCapacity && (
                       <div className="text-xs mt-6 flex items-center gap-4" style={{ color: 'var(--error-text)' }}>
-                        <AlertTriangle size={12} />
-                        Overloads trip by {overloadWeight.toFixed(1)} kg
+                        <AlertTriangle size={12} aria-hidden="true" />
+                        {cap.isFull
+                          ? `Full at the ${cap.max} kg maximum`
+                          : `Would exceed the ${cap.max} kg maximum by ${overloadWeight.toFixed(1)} kg`}
                       </div>
                     )}
                   </button>

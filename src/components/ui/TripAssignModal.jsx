@@ -6,6 +6,7 @@ import FocusTrap from './FocusTrap';
 import useScrollLock from '../../hooks/useScrollLock';
 import useFieldErrors from '../../hooks/useFieldErrors';
 import FieldError, { errorId } from './FieldError';
+import { tripCapacityState } from '../../constants/status';
 
 /**
  * TripAssignModal — Assign an order to an available trip
@@ -45,11 +46,28 @@ const TripAssignModal = ({ order, onClose, onAssign }) => {
     }
   };
 
+  const orderWeight = parseFloat(order.actual_weight || 0) || 0;
+
+  /** The capacity verdict for one trip, given this order's weight. */
+  const capacityFor = (trip) =>
+    tripCapacityState(trip, trip.current_weight || 0, orderWeight);
+
   const handleAssign = async () => {
     // The confirm button used to be disabled until a trip was picked, which
     // silently refused the click without ever saying a trip was what was
     // missing. It is enabled now and rejects out loud, like every other form.
-    if (!validate({ trip: !selectedTrip ? 'Please select a trip to assign this order to.' : null })) return;
+    const cap = selectedTrip ? capacityFor(selectedTrip) : null;
+    if (!validate({
+      trip: !selectedTrip
+        ? 'Please select a trip to assign this order to.'
+        // Belt and braces with the disabled option below: a full trip cannot be
+        // selected, so this only fires if one filled up between the modal
+        // opening and the click. The data layer refuses it as well.
+        : cap.wouldExceed
+          ? `Cannot accept booking: exceeds maximum van capacity of ${cap.max} kg `
+            + `(${cap.base} kg planned + ${cap.allowance} kg allowance).`
+          : null,
+    })) return;
 
     setSaving(true);
     try {
@@ -110,23 +128,33 @@ const TripAssignModal = ({ order, onClose, onAssign }) => {
               {trips.map(trip => {
                 const isSelected = selectedTrip?.id === trip.id;
                 const capPct = trip.capacity > 0 ? (trip.current_weight / trip.capacity) * 100 : 0;
-                const orderWeight = parseFloat(order.actual_weight || 0);
-                const availableWeight = trip.capacity > 0 ? Number(trip.capacity) - Number(trip.current_weight || 0) : Infinity;
-                const exceedsCapacity = trip.capacity > 0 && orderWeight > availableWeight;
-                const overloadWeight = Math.max(0, orderWeight - availableWeight);
+                const cap = capacityFor(trip);
+                // Two different refusals: the trip is already at its ceiling,
+                // or it has room but not enough for THIS parcel. Both block.
+                const blocked = cap.wouldExceed || cap.isFull;
+                // Still worth flagging the softer state — past the planned
+                // capacity but inside the 200 kg allowance — because that is
+                // an overbook the admin is choosing, not one being refused.
+                const usingAllowance = !blocked && cap.isOverPlanned;
 
                 return (
                   <button
                     type="button"
                     key={trip.id}
-                    onClick={() => { setSelectedTrip(trip); clearError('trip'); }}
+                    onClick={() => { if (blocked) return; setSelectedTrip(trip); clearError('trip'); }}
+                    disabled={blocked}
                     aria-pressed={isSelected}
-                    aria-label={`Select trip ${trip.trip_number}, ${trip.status}, ${(trip.current_weight || 0).toFixed(1)} of ${trip.capacity} kilograms used`}
-                    className="block w-full cursor-pointer text-left"
+                    aria-label={
+                      `Select trip ${trip.trip_number}, ${trip.status}, `
+                      + `${(trip.current_weight || 0).toFixed(1)} of ${trip.capacity} kilograms used`
+                      + (blocked ? `. Unavailable: at or over the ${cap.max} kilogram maximum.` : '')
+                    }
+                    className={`block w-full text-left ${blocked ? 'cursor-not-allowed' : 'cursor-pointer'}`}
                     style={{padding: 14, borderRadius: 'var(--radius-sm)', border: `2px solid ${isSelected ? 'var(--primary)' : 'var(--border)'}`,
                       background: isSelected ? 'var(--primary-glow)' : 'var(--surface)',
                       color: 'inherit',
                       font: 'inherit',
+                      opacity: blocked ? 0.55 : 1,
                       transition: 'all 0.2s ease',
                     }}
                   >
@@ -135,10 +163,10 @@ const TripAssignModal = ({ order, onClose, onAssign }) => {
                       <span style={{
                         fontSize: '0.6875rem', fontWeight: 600, padding: '2px 8px',
                         borderRadius: 'var(--radius-xs)',
-                        background: trip.status === 'scheduled' ? 'var(--info-bg)' : 'var(--primary-bg)',
-                        color: trip.status === 'scheduled' ? 'var(--info)' : 'var(--primary)',
+                        background: cap.isFull ? 'var(--error-bg)' : trip.status === 'scheduled' ? 'var(--info-bg)' : 'var(--primary-bg)',
+                        color: cap.isFull ? 'var(--error-text)' : trip.status === 'scheduled' ? 'var(--info)' : 'var(--primary)',
                       }}>
-                        {trip.status}
+                        {cap.isFull ? 'FULL' : trip.status}
                       </span>
                     </div>
                     <div className="text-secondary mb-6" style={{ fontSize: '0.8125rem' }}>
@@ -151,12 +179,22 @@ const TripAssignModal = ({ order, onClose, onAssign }) => {
                       />
                     </div>
                     <div className="text-tertiary mt-4" style={{ fontSize: '0.6875rem' }}>
-                      {(trip.current_weight || 0).toFixed(1)} / {trip.capacity} kg
+                      Booked: {(trip.current_weight || 0).toFixed(1)} / {trip.capacity} kg
+                      {cap.hasLimit && <> (Max allowance: {cap.max} kg)</>}
                     </div>
-                    {exceedsCapacity && (
+                    {blocked && (
+                      <div className="flex items-center gap-4 mt-6" style={{ fontSize: '0.6875rem', color: 'var(--error-text)' }}>
+                        <AlertTriangle size={12} aria-hidden="true" />
+                        {cap.isFull
+                          ? `Full — at the ${cap.max} kg maximum. No further bookings.`
+                          : `Would exceed the ${cap.max} kg maximum by ${cap.overBy.toFixed(1)} kg.`}
+                      </div>
+                    )}
+                    {usingAllowance && (
                       <div className="flex items-center gap-4 mt-6 text-warning" style={{ fontSize: '0.6875rem' }}>
-                        <AlertTriangle size={12} />
-                        Exceeds capacity by {overloadWeight.toFixed(1)} kg. Admin override allowed.
+                        <AlertTriangle size={12} aria-hidden="true" />
+                        Over planned capacity — using the {cap.allowance} kg allowance
+                        ({cap.remaining.toFixed(1)} kg left).
                       </div>
                     )}
                   </button>
@@ -173,7 +211,7 @@ const TripAssignModal = ({ order, onClose, onAssign }) => {
           <button
             className="btn btn-primary"
             onClick={handleAssign}
-            disabled={saving || trips.length === 0}
+            disabled={saving || trips.length === 0 || (selectedTrip && capacityFor(selectedTrip).wouldExceed)}
           >
             {saving ? <Loader size={16} className="animate-spin" /> : null}
             Assign to {selectedTrip?.trip_number || 'Trip'}
