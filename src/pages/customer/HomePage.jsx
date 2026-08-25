@@ -17,6 +17,7 @@ import {
 import usePageTitle from '../../hooks/usePageTitle';
 import { formatMoney } from '../../utils/currencyInput';
 import { getAnnouncementCategoryInfo } from '../../lib/announcements';
+import AnnouncementComments from '../../components/ui/AnnouncementComments';
 import { formatPhDate } from '../../utils/datetime';
 import { isOrderPriced } from '../../constants/status';
 
@@ -287,6 +288,13 @@ const HomePage = () => {
                     <div className="text-sm text-secondary" style={{ lineHeight: 1.5 }}>
                       {a.content}
                     </div>
+                    <AnnouncementComments
+                      announcementId={a.id}
+                      comments={a.comments}
+                      onCommentsChange={comments => setAnnouncements(prev =>
+                        prev.map(item => (item.id === a.id ? { ...item, comments } : item))
+                      )}
+                    />
                   </div>
                 </div>
               </StaggerItem>

@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Outlet, NavLink, useNavigate, Link, useLocation } from 'react-router-dom';
-import { Bell, User, LogOut, MessageSquare, Package, MapPin, Plus, Home, ChevronRight } from 'lucide-react';
+import { Bell, User, LogOut, MessageSquare, MessageCircle, Package, MapPin, Plus, Home, ChevronRight } from 'lucide-react';
 import BrandLockup from '../ui/BrandLogo';
 import ThemeToggle from '../ui/ThemeToggle';
 import { useAuth } from '../../contexts/AuthContext';
@@ -18,7 +18,7 @@ const desktopNavItems = [
   { to: '/customer/book', icon: Plus, label: 'Place Order' },
   { to: '/customer/orders', icon: Package, label: 'Orders' },
   { to: '/customer/trips', icon: MapPin, label: 'Trips' },
-  { to: '/customer/support', icon: MessageSquare, label: 'Chat Support' },
+  { to: '/customer/support', icon: MessageSquare, MessageCircle, label: 'Chat Support' },
 ];
 
 const bottomNavItems = [
@@ -380,6 +380,34 @@ const CustomerLayout = () => {
         </ErrorBoundary>
       </PageTransition>
 
+      {/* ─── Floating chat support bubble (mobile only) ───
+          Not rendered on the support page itself: at bottom 85px it sits
+          exactly over the chat composer, so on the one screen where it has
+          nothing left to do it would be in the way. Everywhere else it is the
+          mobile stand-in for the "Chat Support" link in the desktop navbar,
+          which the 900px breakpoint hides.
+
+          Mobile-only is a media query rather than a matchMedia hook on
+          purpose. A JS breakpoint re-renders this whole layout — navbar,
+          bottom nav and the entire routed page beneath it — on every rotation
+          and every resize tick, to decide something the compositor already
+          knows. The FAB is one <a>; hiding it in CSS costs nothing at all.
+
+          A plain Link, not a modal: mounting SupportChatPage over the DOM
+          means its realtime subscription, its message list and its composer
+          all live on top of whatever page the customer is on. The route
+          already exists and already has its own transition. */}
+      {location.pathname !== '/customer/support' && (
+        <Link
+          to="/customer/support"
+          className="customer-chat-fab"
+          aria-label="Chat support"
+          title="Chat support"
+        >
+          <MessageCircle size={24} aria-hidden="true" />
+        </Link>
+      )}
+
       {/* ─── Bottom Tab Bar (Mobile Only) ─── */}
       <nav className="customer-bottom-nav" aria-label="Customer navigation">
         <div className="customer-bottom-nav-inner">
@@ -425,8 +453,19 @@ const CustomerLayout = () => {
       confirmLabel="Sign Out"
       variant="primary"
     />
+
+    {location.pathname !== '/customer/support' && (
+      <Link 
+        to="/customer/support" 
+        className="floating-chat-fab d-md-none" 
+        aria-label="Chat Support"
+      >
+        <MessageCircle size={24} color="#fff" />
+      </Link>
+    )}
     </>
   );
+
 };
 
 export default CustomerLayout;

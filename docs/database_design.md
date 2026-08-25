@@ -128,6 +128,7 @@ erDiagram
         text content
         uuid author_id FK
         boolean is_active
+        jsonb comments
         timestamp_with_time_zone created_at
         timestamp_with_time_zone updated_at
     }
@@ -409,6 +410,7 @@ erDiagram
 | content | text | Stores the full body text of the announcement. |
 | author_id | uuid | Stores the identifier of the admin who created the announcement. |
 | is_active | boolean | Indicates whether the announcement is currently visible to users. |
+| comments | jsonb | Stores the comment thread as an append-only array of objects `{id, user_id, name, text, created_at}`. Written only by `add_announcement_comment()`; customers hold no UPDATE privilege on this table. |
 | created_at | timestamp with time zone | Records the date and time when the announcement was created. |
 | updated_at | timestamp with time zone | Records the date and time when the announcement was last updated. |
 

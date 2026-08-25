@@ -980,6 +980,30 @@ export const createAnnouncement = async (announcement) => {
   return data;
 };
 
+/**
+ * Post a comment on an announcement.
+ *
+ * Customers hold SELECT on `announcements` and nothing else, so this cannot be
+ * an UPDATE from here — `add_announcement_comment` is SECURITY DEFINER and
+ * derives the author from the JWT rather than from anything we send. We pass
+ * the text and nothing else on purpose: a client-supplied name or id would be
+ * a client-supplied identity.
+ *
+ * Returns the announcement's FULL comment array as the database now holds it,
+ * not just the new comment, so a caller can render the thread including
+ * whatever else landed while this one was in flight.
+ */
+export const addAnnouncementComment = async (announcementId, text) => {
+  const { data, error } = await withTimeout(
+    supabase.rpc('add_announcement_comment', {
+      p_announcement_id: announcementId,
+      p_text: text,
+    })
+  );
+  if (error) throw error;
+  return data || [];
+};
+
 export const deleteAnnouncement = async (id) => {
   const { error } = await supabase
     .from('announcements')

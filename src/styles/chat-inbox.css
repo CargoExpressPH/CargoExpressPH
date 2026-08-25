@@ -1369,3 +1369,30 @@
     margin-inline: auto;
   }
 }
+
+/* Floating Chat Bubble (Mobile) */
+.floating-chat-fab {
+  position: fixed;
+  bottom: 85px; /* Above the bottom nav */
+  right: 20px;
+  width: 56px;
+  height: 56px;
+  background-color: var(--primary);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 50;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.floating-chat-fab:active {
+  transform: scale(0.92);
+}
+
+@media (min-width: 768px) {
+  .floating-chat-fab {
+    display: none !important;
+  }
+}

@@ -12,6 +12,7 @@ import FocusTrap from '../../components/ui/FocusTrap';
 import usePageTitle from '../../hooks/usePageTitle';
 import PullToRefresh from '../../components/ui/PullToRefresh';
 import { getAnnouncementCategoryInfo } from '../../lib/announcements';
+import AnnouncementComments from '../../components/ui/AnnouncementComments';
 
 const iconMap = { order_update: Package, trip_update: Truck, announcement: Megaphone, general: Bell };
 
@@ -168,7 +169,7 @@ const SwipeableNotificationCard = ({ notification, onRead, onDelete, onClick, in
  * the modal falls back to what the notification itself says and tells the
  * customer the rest is no longer available, rather than showing an empty body.
  */
-const AnnouncementModal = ({ open, notification, announcement, loading, failed, onClose }) => {
+const AnnouncementModal = ({ open, notification, announcement, loading, failed, onClose, onCommentsChange }) => {
   useEffect(() => {
     if (!open) return undefined;
     const onEscape = (e) => { if (e.key === 'Escape') onClose(); };
@@ -230,6 +231,17 @@ const AnnouncementModal = ({ open, notification, announcement, loading, failed, 
                 The full text of this announcement is no longer available.
                 {failed ? ' Please check your connection and try again.' : ''}
               </p>
+            )}
+
+            {/* Only once the row itself is in hand: without an announcement id
+                there is nothing to comment on, and a composer over a
+                notification whose announcement is gone would fail on submit. */}
+            {!loading && announcement?.id && (
+              <AnnouncementComments
+                announcementId={announcement.id}
+                comments={announcement.comments}
+                onCommentsChange={onCommentsChange}
+              />
             )}
           </div>
 
@@ -476,6 +488,12 @@ const NotificationsPage = () => {
     }
   };
 
+  const handleAnnouncementComments = useCallback((comments) => {
+    setAnnouncementModal(prev => (
+      prev.announcement ? { ...prev, announcement: { ...prev.announcement, comments } } : prev
+    ));
+  }, []);
+
   const closeAnnouncementModal = useCallback(() => {
     setAnnouncementModal({ open: false, notification: null, announcement: null, loading: false, failed: false });
   }, []);
@@ -597,6 +615,7 @@ const NotificationsPage = () => {
         loading={announcementModal.loading}
         failed={announcementModal.failed}
         onClose={closeAnnouncementModal}
+        onCommentsChange={handleAnnouncementComments}
       />
 
       {/* Confirmation Modal */}

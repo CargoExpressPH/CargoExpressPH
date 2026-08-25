@@ -476,3 +476,85 @@
   }
 }
 
+
+/* ── Announcement comments ────────────────────────────────────────────────
+   One block for all three surfaces the thread appears on (customer feed card,
+   customer notification modal, admin announcement list). Tokens only, so both
+   themes follow. */
+.announcement-comments {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-light);
+}
+
+.announcement-comments-heading {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-tertiary);
+}
+
+.announcement-comments-empty {
+  margin: 8px 0 0;
+  font-size: 0.8125rem;
+  color: var(--text-tertiary);
+}
+
+.announcement-comment-list {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.announcement-comment-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.announcement-comment-author {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.announcement-comment-time {
+  font-size: 0.6875rem;
+  color: var(--text-tertiary);
+}
+
+/* pre-wrap for the same reason the announcement body uses it: the comment is
+   typed into a plain input and its own line breaks are all the structure it
+   has. */
+.announcement-comment-text {
+  margin: 2px 0 0;
+  font-size: 0.8125rem;
+  line-height: 1.55;
+  color: var(--text-secondary);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.announcement-comment-form {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.announcement-comment-form .form-input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.announcement-comment-form .btn {
+  flex: 0 0 auto;
+}

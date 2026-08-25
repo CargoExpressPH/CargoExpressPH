@@ -405,10 +405,71 @@
   display: none;
 }
 
+/* ── Floating chat support bubble (mobile) ────────────────────────────────
+   Hidden by default and switched on at the same 900px breakpoint that hides
+   the desktop "Chat Support" navbar link, so exactly one of the two is ever
+   reachable.
+
+   Everything that moves here is transform + opacity, and nothing else. Both
+   are composited off the main thread, so the press state cannot be delayed by
+   React work or by a scroll — which is the whole point of a control that has
+   to feel instant under a thumb. Deliberately NOT animated: width, height,
+   top/bottom, box-shadow's geometry, or background-position, each of which
+   forces layout or paint on every frame.
+
+   `will-change: transform` promotes the bubble to its own layer once, at rest,
+   rather than at the moment of the tap — a layer created on :active is created
+   during the frame that has to render the tap, which is the stutter it is
+   meant to prevent. One 56px layer is a rounding error in memory; this is the
+   only element in the customer layout that gets one. */
+.customer-chat-fab {
+  display: none;
+  position: fixed;
+  right: 18px;
+  /* Clears the floating tab bar (~89px tall incl. its own bottom padding) and
+     the notch inset underneath it. */
+  bottom: calc(85px + var(--customer-safe-bottom));
+  z-index: var(--z-sticky);
+  width: 56px;
+  height: 56px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--customer-green), #22C55E);
+  color: #FFFFFF;
+  box-shadow: 0 16px 34px rgba(18, 138, 90, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.2s ease;
+  will-change: transform;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.customer-chat-fab:hover {
+  transform: scale(1.06);
+}
+
+.customer-chat-fab:active {
+  transform: scale(0.94);
+}
+
+.customer-chat-fab:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 3px;
+}
+
+/* The keyboard takes the bottom of the screen; the FAB would otherwise sit on
+   top of whatever is being typed into. Same rule the bottom nav follows. */
+body.keyboard-active .customer-chat-fab {
+  opacity: 0;
+  pointer-events: none;
+}
+
 /* Responsive: show bottom nav on phones and portrait tablets */
 @media (max-width: 899.98px) {
   .customer-navbar-links { display: none; }
   .customer-bottom-nav { display: block; }
+  .customer-chat-fab { display: flex; }
   .customer-navbar-inner {
     padding: 0 16px;
     height: 66px;
@@ -431,6 +492,7 @@
 }
 @media (min-width: 900px) {
   .customer-bottom-nav { display: none; }
+  .customer-chat-fab { display: none; }
   .customer-main { padding-bottom: 40px; }
 }
 /* --- HOME NEXT-AVAILABLE TRIP CARD ---

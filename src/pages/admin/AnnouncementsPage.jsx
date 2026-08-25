@@ -8,6 +8,7 @@ import { Plus, Trash2, Megaphone, Loader, ChevronDown, Check } from 'lucide-reac
 import { useToast } from '../../hooks/useToast';
 import usePageTitle from '../../hooks/usePageTitle';
 import InfoTooltip from '../../components/ui/InfoTooltip';
+import AnnouncementComments from '../../components/ui/AnnouncementComments';
 import { ANNOUNCEMENT_CATEGORIES, getAnnouncementCategoryInfo } from '../../lib/announcements';
 import useFieldErrors from '../../hooks/useFieldErrors';
 import FieldError, { fieldAttrs, invalidClass } from '../../components/ui/FieldError';
@@ -227,6 +228,17 @@ const AnnouncementsPage = () => {
     }
   };
 
+  /**
+   * Fold a posted comment back into the loaded list.
+   *
+   * Cheaper than reloading and, more to the point, correct: the RPC returns
+   * the array the database now holds, so this is the same value a refetch
+   * would bring back without discarding the rest of the page.
+   */
+  const handleCommentsChange = (id, comments) => {
+    setItems(prev => prev.map(a => (a.id === id ? { ...a, comments } : a)));
+  };
+
   const handleDelete = async () => {
     if (!deleteTarget) return;
     setDeleting(true);
@@ -322,6 +334,11 @@ const AnnouncementsPage = () => {
                 </div>
                 <p className="text-sm text-secondary mt-6">{a.content}</p>
                 <div className="text-xs text-tertiary mt-8">by {a.profiles?.name||'Admin'} • {formatPhDate(a.created_at)}</div>
+                <AnnouncementComments
+                  announcementId={a.id}
+                  comments={a.comments}
+                  onCommentsChange={comments => handleCommentsChange(a.id, comments)}
+                />
               </div>
             </div>
           );
