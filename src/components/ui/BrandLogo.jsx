@@ -23,8 +23,8 @@
  *
  *   It is 2000×2000 and ~949 KB. Into a 40 px slot on every page of a PWA that
  *   is the entire image budget spent on a favicon-sized element, so
- *   `/logo-nav.png` is an optimized, downscaled derivative (256 px, ~38 KB).
- *   `/logo.png` remains the untouched master.
+ *   `/images/logo-nav.png` is an optimized, downscaled derivative (256 px, ~38 KB).
+ *   `/images/logo.png` remains the untouched master.
  *
  * `tone` picks the wordmark colours: "default" on light surfaces, "on-dark" for
  * the auth hero panels and the transparent About header, which sit on dark
@@ -40,7 +40,7 @@
  */
 export const BrandLogo = ({ size = 40, decorative = false, className = '' }) => (
   <img
-    src="/logo-nav.png"
+    src="/images/logo-nav.png"
     alt={decorative ? '' : 'CargoExpress PH'}
     // Intrinsic size, so the row reserves the box before the image lands and
     // does not jolt sideways on first paint.
