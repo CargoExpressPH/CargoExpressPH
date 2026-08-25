@@ -558,3 +558,24 @@
 .announcement-comment-form .btn {
   flex: 0 0 auto;
 }
+
+/* A flat focus state for the comment box, overriding the global
+   `.form-input:focus` ring (`0 0 0 3px var(--primary-glow)`) in
+   components.css. The comment box sits inside an announcement card rather than
+   in a form, and the green halo read as the loudest thing on the card.
+
+   The border still changes on focus, and :focus-visible still gets the outline
+   below — the ring is a decoration, but "which field am I in" is not, and a
+   keyboard user has nothing else to go on. `--border-hover` is the neutral the
+   client's `--border-strong` describes; that token does not exist in
+   tokens.css, and an undefined custom property fails token-lint precisely
+   because it silently renders as no border at all. */
+.announcement-comment-form .form-input:focus {
+  border-color: var(--border-hover);
+  box-shadow: none;
+}
+
+.announcement-comment-form .form-input:focus-visible {
+  outline: 2px solid var(--border-hover);
+  outline-offset: 1px;
+}

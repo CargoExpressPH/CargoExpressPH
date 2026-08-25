@@ -244,10 +244,6 @@ const AnnouncementModal = ({ open, notification, announcement, loading, failed, 
               />
             )}
           </div>
-
-          <div className="notification-modal-actions">
-            <button className="btn btn-primary" type="button" onClick={onClose}>Close</button>
-          </div>
         </div>
       </div>
     </FocusTrap>,

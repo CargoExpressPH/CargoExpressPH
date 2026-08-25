@@ -9,6 +9,36 @@ import { formatPhDateTime } from '../../utils/datetime';
 const MAX_COMMENT_LENGTH = 500;
 
 /**
+ * Turn a failed post into a sentence the customer can act on.
+ *
+ * Every branch says the comment was NOT posted, because that is the one thing
+ * the person needs to know and the one thing a raw driver message never says
+ * — "Failed to fetch" and "AbortError" both leave someone staring at an input
+ * that still holds their text, unable to tell whether it went through.
+ *
+ * The SQLSTATEs are the ones `add_announcement_comment` raises deliberately;
+ * PostgREST passes them through as `error.code`. Anything else is an unplanned
+ * failure, and there the RPC's own message is more use than a guess, so it is
+ * appended rather than swallowed.
+ */
+const describePostFailure = (e) => {
+  const code = e?.code;
+  if (code === '42501') return 'Your comment was not posted — your session has expired. Please sign in again.';
+  if (code === '22023') return `Your comment was not posted — ${(e.message || 'it was rejected.').toLowerCase()}`;
+  if (code === 'P0002') return 'Your comment was not posted — this announcement is no longer available.';
+
+  // A dropped connection or a timeout from withTimeout: the request may or may
+  // not have reached the database, so the honest instruction is to check
+  // rather than to blindly resend.
+  const message = e?.message || '';
+  if (/fetch|network|timeout|abort/i.test(message)) {
+    return 'Your comment was not posted — the connection dropped. Check your signal, then refresh before trying again.';
+  }
+
+  return `Your comment was not posted. ${message || 'Please try again.'}`;
+};
+
+/**
  * The comment thread under an announcement — one component for all three
  * surfaces (customer feed card, customer notification modal, admin list) so
  * the posting path and the empty state cannot drift apart between them.
@@ -47,7 +77,10 @@ const AnnouncementComments = ({ announcementId, comments, onCommentsChange }) =>
       setText('');
       onCommentsChange?.(Array.isArray(updated) ? updated : thread);
     } catch (e) {
-      toast.error(e.message || 'Failed to post your comment.');
+      // The text is deliberately left in the input — setText('') runs only on
+      // success. Clearing it here would destroy what they wrote at the exact
+      // moment they have to type it again.
+      toast.error(describePostFailure(e));
     } finally {
       setPosting(false);
     }
@@ -95,6 +128,7 @@ const AnnouncementComments = ({ announcementId, comments, onCommentsChange }) =>
             className="form-input"
             value={text}
             maxLength={MAX_COMMENT_LENGTH}
+            spellCheck="false"
             placeholder="Write a comment…"
             aria-label="Write a comment"
             onChange={e => setText(e.target.value)}
