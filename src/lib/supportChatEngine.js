@@ -144,6 +144,28 @@ const NO_LOCATIVE = (source) => unless(LOCATIVE_WORDS, source);
 // belong to two intents ("magkano", "numero", "naabot") always require a
 // disambiguating noun rather than matching bare.
 const INTENTS = [
+  // Who am I. First in the array on purpose: "kumusta, sino ka?" and "hi,
+  // what's your name?" both open with a greeting, and `greeting` matches on a
+  // ^-anchored hello. Placed after it, the question would be answered with a
+  // menu that never says the name that was asked for.
+  {
+    id: 'bot_identity',
+    patterns: [
+      // The negative lookahead keeps "who are you sending it to" — a question
+      // about the RECIPIENT — out of the bot's own-name answer.
+      /who\s*are\s*you\b(?!\s*(sending|shipping|delivering|talking|calling|texting|referring))|what'?s?\s*(is\s*)?your\s*name/i, // EN
+      /\b(are\s*you|r\s*u)\s*(a\s*)?(bot|robot|human|real\s*person|ai)\b/i,  // EN
+      /ano(ng)?\s*pangalan\s*mo|sino\s*ka/i,                                  // TL
+      /ano\s*(po\s*)?(ang|ung|yung)\s*pangalan\s*(mo|ninyo|niyo)/i,           // TL
+      /unsa('?y)?\s*(name|ngalan)\s*nim[uo]|kinsa\s*ka/i,                      // CEB
+      /unsa\s*(man\s*)?(imong|imo\s*nga)\s*(name|ngalan)/i,                   // CEB
+    ],
+    handler: async () => ({
+      text: "I am CargoMate PH, your virtual assistant! 🤖\n\nAko si CargoMate PH — pwede kang magtanong sa English, Tagalog, o Bisaya.\n\nI can help you track your shipments, check our pricing (kada kilo / tagpila kada kilo), and get your booking details. How can I help you today?",
+      askResolved: false,
+    }),
+  },
+
   // Greeting / hi / hello
   {
     id: 'greeting',
@@ -861,7 +883,7 @@ export const getBotReply = async (text, userId) => {
 export const BOT_GREETING = `Hello! 👋 Kumusta! Maayong adlaw!
 Welcome to CargoExpress PH Support.
 
-I'm your virtual assistant. Pwede kang mag-message sa English, Tagalog, o Bisaya — kung unsa'y sayon nimo.
+I'm CargoMate PH, your virtual assistant. 🤖 Pwede kang mag-message sa English, Tagalog, o Bisaya — kung unsa'y sayon nimo.
 
 I can help you with:
 
