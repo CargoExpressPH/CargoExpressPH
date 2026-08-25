@@ -14,7 +14,7 @@ import ConfirmModal from '../../components/ui/ConfirmModal';
 import { motion, useReducedMotion } from 'framer-motion';
 import usePageTitle from '../../hooks/usePageTitle';
 import { formatMoney } from '../../utils/currencyInput';
-import { toTitleCase } from '../../utils/string';
+import { toTitleCase, normalizeName } from '../../utils/string';
 import { formatPhDate } from '../../utils/datetime';
 
 const luxeEase = [0.22, 1, 0.36, 1];
@@ -343,10 +343,10 @@ const BookShipmentPage = () => {
       const payload = {
         user_id: user.id,
         origin: selectedRoute.origin, destination: selectedRoute.destination, trip_id: selectedTrip ? form.trip_id : null,
-        sender_name: form.sender_name, sender_phone: form.sender_phone, sender_address: fullSenderAddress,
-        sender_facebook: form.sender_facebook, sender_city: form.sender_city, sender_province: form.sender_province === 'Other Area' ? form.sender_other_province : form.sender_province,
-        receiver_name: form.receiver_name, receiver_phone: form.receiver_phone, receiver_address: fullReceiverAddress,
-        receiver_facebook: form.receiver_facebook, receiver_city: form.receiver_city, receiver_province: form.receiver_province,
+        sender_name: normalizeName(form.sender_name), sender_phone: form.sender_phone, sender_address: fullSenderAddress,
+        sender_facebook: normalizeName(form.sender_facebook), sender_city: form.sender_city, sender_province: form.sender_province === 'Other Area' ? form.sender_other_province : form.sender_province,
+        receiver_name: normalizeName(form.receiver_name), receiver_phone: form.receiver_phone, receiver_address: fullReceiverAddress,
+        receiver_facebook: normalizeName(form.receiver_facebook), receiver_city: form.receiver_city, receiver_province: form.receiver_province,
         package_description: form.package_description,
         payer_type: form.payer_type, payment_preference: form.payment_preference, notes: form.notes,
       };
