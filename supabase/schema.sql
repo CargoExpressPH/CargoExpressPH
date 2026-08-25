@@ -1,7 +1,7 @@
 -- ============================================================
 -- CargoExpress PH — Complete Supabase PostgreSQL Schema
 -- Single source-of-truth for the entire database.
--- Synced from LIVE database on 2026-08-22
+-- Synced from LIVE database on 2026-08-25
 -- Run this in: Supabase Dashboard → SQL Editor → New Query
 -- ============================================================
 
@@ -39,11 +39,9 @@ CREATE TABLE IF NOT EXISTS announcements (
   content TEXT NOT NULL,
   author_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
   is_active BOOLEAN DEFAULT true,
-  -- Append-only array of {id, user_id, name, text, created_at}; written only
-  -- by add_announcement_comment(), never by a client.
-  comments JSONB DEFAULT '[]'::jsonb,
   created_at TIMESTAMPTZ DEFAULT now(),
-  updated_at TIMESTAMPTZ DEFAULT now()
+  updated_at TIMESTAMPTZ DEFAULT now(),
+  comments JSONB DEFAULT '[]'::jsonb
 );
 
 
@@ -89,9 +87,9 @@ CREATE TABLE IF NOT EXISTS company_information (
 -- ===================== 5. CONTACT_INQUIRIES =====================
 CREATE TABLE IF NOT EXISTS contact_inquiries (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  name TEXT NOT NULL CHECK (char_length(btrim(name)) BETWEEN 2 AND 100),
-  phone TEXT NOT NULL CHECK (char_length(btrim(phone)) BETWEEN 7 AND 20),
-  message TEXT NOT NULL CHECK (char_length(btrim(message)) BETWEEN 10 AND 2000),
+  name TEXT NOT NULL CHECK (char_length(btrim(name)) >= 2 AND char_length(btrim(name)) <= 100),
+  phone TEXT NOT NULL CHECK (char_length(btrim(phone)) >= 7 AND char_length(btrim(phone)) <= 20),
+  message TEXT NOT NULL CHECK (char_length(btrim(message)) >= 10 AND char_length(btrim(message)) <= 2000),
   status TEXT NOT NULL DEFAULT 'new'::text CHECK (status = ANY (ARRAY['new'::text, 'read'::text, 'resolved'::text])),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   contact_phone TEXT,
@@ -132,31 +130,7 @@ CREATE TABLE IF NOT EXISTS customer_feedback (
 );
 
 
--- ===================== 8. LEGAL_DOCUMENTS =====================
--- Must exist before legal_consents: the consent table carries a composite
--- foreign key into this one.
-CREATE TABLE IF NOT EXISTS legal_documents (
-  document_type TEXT CHECK (document_type = ANY (ARRAY['terms_of_service'::text, 'privacy_policy'::text])),
-  version TEXT CHECK (length(TRIM(BOTH FROM version)) > 0),
-  url_path TEXT NOT NULL CHECK (url_path = ANY (ARRAY['/terms'::text, '/privacy'::text])),
-  effective_at TIMESTAMPTZ NOT NULL,
-  published_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  is_current BOOLEAN NOT NULL DEFAULT false,
-  PRIMARY KEY (document_type, version)
-);
-
--- Version registry seed — must match src/constants/legalDocuments.js.
--- handle_new_user() refuses every signup while either document lacks a
--- current version, so a fresh database is not functional without these rows
--- (20260822120000_restore_versioned_legal_consent.sql).
-INSERT INTO public.legal_documents (document_type, version, url_path, effective_at, is_current)
-VALUES
-  ('terms_of_service', '2026-08-22', '/terms', '2026-08-22T00:00:00+08:00', true),
-  ('privacy_policy', '2026-08-22', '/privacy', '2026-08-22T00:00:00+08:00', true)
-ON CONFLICT (document_type, version) DO NOTHING;
-
-
--- ===================== 9. LEGAL_CONSENTS =====================
+-- ===================== 8. LEGAL_CONSENTS =====================
 CREATE TABLE IF NOT EXISTS legal_consents (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -166,6 +140,18 @@ CREATE TABLE IF NOT EXISTS legal_consents (
   source TEXT NOT NULL DEFAULT 'registration'::text CHECK (source = ANY (ARRAY['registration'::text, 'account_update'::text])),
   FOREIGN KEY (document_type, document_version) REFERENCES legal_documents(document_type, version),
   UNIQUE (user_id, document_type, document_version)
+);
+
+
+-- ===================== 9. LEGAL_DOCUMENTS =====================
+CREATE TABLE IF NOT EXISTS legal_documents (
+  document_type TEXT CHECK (document_type = ANY (ARRAY['terms_of_service'::text, 'privacy_policy'::text])),
+  version TEXT CHECK (length(TRIM(BOTH FROM version)) > 0),
+  url_path TEXT NOT NULL CHECK (url_path = ANY (ARRAY['/terms'::text, '/privacy'::text])),
+  effective_at TIMESTAMPTZ NOT NULL,
+  published_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  is_current BOOLEAN NOT NULL DEFAULT false,
+  PRIMARY KEY (document_type, version)
 );
 
 
@@ -346,84 +332,9 @@ CREATE TABLE IF NOT EXISTS user_device_tokens (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
   token TEXT NOT NULL UNIQUE,
-  device_id TEXT,
-  created_at TIMESTAMPTZ DEFAULT now()
+  created_at TIMESTAMPTZ DEFAULT now(),
+  device_id TEXT
 );
-
-CREATE UNIQUE INDEX IF NOT EXISTS user_device_tokens_user_device_key
-  ON public.user_device_tokens (user_id, device_id)
-  WHERE device_id IS NOT NULL;
-
-CREATE INDEX IF NOT EXISTS user_device_tokens_device_id_idx
-  ON public.user_device_tokens (device_id)
-  WHERE device_id IS NOT NULL;
-
-CREATE OR REPLACE FUNCTION public.claim_push_device_registration(
-  p_device_id TEXT,
-  p_token TEXT
-)
-RETURNS VOID
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public, pg_catalog, pg_temp
-AS $function$
-DECLARE
-  v_device_id TEXT := NULLIF(btrim(p_device_id), '');
-  v_token TEXT := NULLIF(btrim(p_token), '');
-BEGIN
-  IF auth.uid() IS NULL THEN
-    RAISE EXCEPTION 'Authentication required';
-  END IF;
-  IF v_device_id IS NULL OR v_token IS NULL THEN
-    RAISE EXCEPTION 'A device ID and push token are required';
-  END IF;
-  IF char_length(v_device_id) > 200 OR char_length(v_token) > 20000 THEN
-    RAISE EXCEPTION 'Push registration value is too long';
-  END IF;
-
-  PERFORM pg_advisory_xact_lock(hashtext(v_device_id));
-
-  DELETE FROM public.user_device_tokens
-   WHERE device_id = v_device_id
-      OR token = v_token;
-
-  INSERT INTO public.user_device_tokens (user_id, device_id, token)
-  VALUES (auth.uid(), v_device_id, v_token);
-END;
-$function$;
-
-CREATE OR REPLACE FUNCTION public.remove_push_device_registration(
-  p_device_id TEXT DEFAULT NULL,
-  p_token TEXT DEFAULT NULL
-)
-RETURNS VOID
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public, pg_catalog, pg_temp
-AS $function$
-DECLARE
-  v_device_id TEXT := NULLIF(btrim(p_device_id), '');
-  v_token TEXT := NULLIF(btrim(p_token), '');
-BEGIN
-  IF auth.uid() IS NULL THEN
-    RAISE EXCEPTION 'Authentication required';
-  END IF;
-
-  DELETE FROM public.user_device_tokens
-   WHERE user_id = auth.uid()
-     AND (
-       (v_device_id IS NOT NULL AND device_id = v_device_id)
-       OR (v_token IS NOT NULL AND token = v_token)
-     );
-END;
-$function$;
-
-REVOKE ALL ON FUNCTION public.claim_push_device_registration(TEXT, TEXT) FROM PUBLIC;
-REVOKE ALL ON FUNCTION public.remove_push_device_registration(TEXT, TEXT) FROM PUBLIC;
-REVOKE ALL ON FUNCTION public.claim_push_device_registration(TEXT, TEXT) FROM anon;
-REVOKE ALL ON FUNCTION public.remove_push_device_registration(TEXT, TEXT) FROM anon;
-GRANT EXECUTE ON FUNCTION public.claim_push_device_registration(TEXT, TEXT) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.remove_push_device_registration(TEXT, TEXT) TO authenticated;
 
 
 -- ============================================================
@@ -455,8 +366,10 @@ BEGIN
     RAISE EXCEPTION 'Comment must be 500 characters or less.' USING ERRCODE = '22023';
   END IF;
 
-  -- Identity comes from auth.uid(), never from an argument: a caller cannot
-  -- post as somebody else, the same rule guard_chat_message_insert enforces.
+  -- The display name is read here, not passed in, for the same reason the id
+  -- is: it is the author's identity and the client does not get to assert it.
+  -- A profile with no name is left as the honest placeholder rather than
+  -- backfilled with an email or an id.
   SELECT name INTO v_name FROM profiles WHERE id = v_user_id;
 
   v_comment := jsonb_build_object(
@@ -467,6 +380,10 @@ BEGIN
     'created_at', to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')
   );
 
+  -- Concurrent appends are safe: UPDATE locks the row and, under READ
+  -- COMMITTED, the second writer re-reads the freshly committed array before
+  -- concatenating. A read-then-write from the client could not make that
+  -- promise — it would lose whichever comment landed first.
   UPDATE announcements
      SET comments = COALESCE(comments, '[]'::jsonb) || jsonb_build_array(v_comment)
    WHERE id = p_announcement_id
@@ -519,8 +436,97 @@ $function$
 
 
 
+CREATE OR REPLACE FUNCTION public.claim_contact_inquiry_push(p_inquiry_id uuid)
+ RETURNS uuid
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public', 'pg_catalog', 'pg_temp'
+AS $function$
+DECLARE
+  v_dispatched_at TIMESTAMPTZ;
+  v_started_at TIMESTAMPTZ;
+  v_claim_id UUID := gen_random_uuid();
+BEGIN
+  SELECT push_dispatched_at, push_dispatch_started_at
+    INTO v_dispatched_at, v_started_at
+    FROM public.contact_inquiries
+   WHERE id = p_inquiry_id
+   FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Inquiry not found';
+  END IF;
+
+  IF v_dispatched_at IS NOT NULL THEN
+    RETURN NULL;
+  END IF;
+
+  IF v_started_at IS NOT NULL AND v_started_at > now() - INTERVAL '5 minutes' THEN
+    RETURN NULL;
+  END IF;
+
+  UPDATE public.contact_inquiries
+     SET push_dispatch_started_at = now(),
+         push_dispatch_claim_id = v_claim_id
+   WHERE id = p_inquiry_id;
+
+  RETURN v_claim_id;
+END;
+$function$
+
+
+
+CREATE OR REPLACE FUNCTION public.claim_push_device_registration(p_device_id text, p_token text)
+ RETURNS void
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public', 'pg_catalog', 'pg_temp'
+AS $function$
+DECLARE
+  v_device_id TEXT := NULLIF(btrim(p_device_id), '');
+  v_token TEXT := NULLIF(btrim(p_token), '');
+BEGIN
+  IF auth.uid() IS NULL THEN
+    RAISE EXCEPTION 'Authentication required';
+  END IF;
+  IF v_device_id IS NULL OR v_token IS NULL THEN
+    RAISE EXCEPTION 'A device ID and push token are required';
+  END IF;
+  IF char_length(v_device_id) > 200 OR char_length(v_token) > 20000 THEN
+    RAISE EXCEPTION 'Push registration value is too long';
+  END IF;
+  PERFORM pg_advisory_xact_lock(hashtext(v_device_id));
+  DELETE FROM public.user_device_tokens
+   WHERE device_id = v_device_id
+      OR token = v_token;
+  INSERT INTO public.user_device_tokens (user_id, device_id, token)
+  VALUES (auth.uid(), v_device_id, v_token);
+END;
+$function$
+
+
+
+CREATE OR REPLACE FUNCTION public.complete_contact_inquiry_push(p_inquiry_id uuid, p_claim_id uuid)
+ RETURNS void
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public', 'pg_catalog', 'pg_temp'
+AS $function$
+BEGIN
+  UPDATE public.contact_inquiries
+     SET push_dispatched_at = now(),
+         push_dispatch_started_at = NULL,
+         push_dispatch_claim_id = NULL
+   WHERE id = p_inquiry_id
+     AND push_dispatch_claim_id = p_claim_id
+     AND push_dispatched_at IS NULL;
+END;
+$function$
+
+
+
 CREATE OR REPLACE FUNCTION public.create_admin_notifications_rpc(p_title text, p_message text, p_type text, p_reference_id uuid DEFAULT NULL::uuid)
- RETURNS TABLE(admin_id uuid, notification_id uuid, notification_title text, notification_message text)
+ RETURNS TABLE(admin_id uuid, notification_title text, notification_message text)
  LANGUAGE plpgsql
  SECURITY DEFINER
  SET search_path TO 'public'
@@ -602,88 +608,11 @@ BEGIN
     SELECT p.id, v_title, v_message, p_type, p_reference_id
       FROM public.profiles AS p
      WHERE p.role = 'admin'
-    RETURNING id, user_id
+    RETURNING user_id
   )
-  SELECT user_id, id, v_title, v_message FROM inserted;
+  SELECT user_id, v_title, v_message FROM inserted;
 END;
-$function$;
-
-
-
-CREATE OR REPLACE FUNCTION public.claim_contact_inquiry_push(p_inquiry_id uuid)
- RETURNS uuid
- LANGUAGE plpgsql
- SECURITY DEFINER
- SET search_path TO 'public', 'pg_catalog', 'pg_temp'
-AS $function$
-DECLARE
-  v_dispatched_at TIMESTAMPTZ;
-  v_started_at TIMESTAMPTZ;
-  v_claim_id UUID := gen_random_uuid();
-BEGIN
-  SELECT push_dispatched_at, push_dispatch_started_at
-    INTO v_dispatched_at, v_started_at
-    FROM public.contact_inquiries
-   WHERE id = p_inquiry_id
-   FOR UPDATE;
-
-  IF NOT FOUND THEN
-    RAISE EXCEPTION 'Inquiry not found';
-  END IF;
-
-  IF v_dispatched_at IS NOT NULL THEN
-    RETURN NULL;
-  END IF;
-
-  IF v_started_at IS NOT NULL AND v_started_at > now() - INTERVAL '5 minutes' THEN
-    RETURN NULL;
-  END IF;
-
-  UPDATE public.contact_inquiries
-     SET push_dispatch_started_at = now(),
-         push_dispatch_claim_id = v_claim_id
-   WHERE id = p_inquiry_id;
-
-  RETURN v_claim_id;
-END;
-$function$;
-
-
-
-CREATE OR REPLACE FUNCTION public.complete_contact_inquiry_push(p_inquiry_id uuid, p_claim_id uuid)
- RETURNS void
- LANGUAGE plpgsql
- SECURITY DEFINER
- SET search_path TO 'public', 'pg_catalog', 'pg_temp'
-AS $function$
-BEGIN
-  UPDATE public.contact_inquiries
-     SET push_dispatched_at = now(),
-         push_dispatch_started_at = NULL,
-         push_dispatch_claim_id = NULL
-   WHERE id = p_inquiry_id
-     AND push_dispatch_claim_id = p_claim_id
-     AND push_dispatched_at IS NULL;
-END;
-$function$;
-
-
-
-CREATE OR REPLACE FUNCTION public.release_contact_inquiry_push(p_inquiry_id uuid, p_claim_id uuid)
- RETURNS void
- LANGUAGE plpgsql
- SECURITY DEFINER
- SET search_path TO 'public', 'pg_catalog', 'pg_temp'
-AS $function$
-BEGIN
-  UPDATE public.contact_inquiries
-     SET push_dispatch_started_at = NULL,
-         push_dispatch_claim_id = NULL
-   WHERE id = p_inquiry_id
-     AND push_dispatch_claim_id = p_claim_id
-     AND push_dispatched_at IS NULL;
-END;
-$function$;
+$function$
 
 
 
@@ -1005,11 +934,35 @@ $function$
 
 
 
+CREATE OR REPLACE FUNCTION public.gin_extract_query_trgm(text, internal, smallint, internal, internal, internal, internal)
+ RETURNS internal
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/pg_trgm', $function$gin_extract_query_trgm$function$
 
 
 
+CREATE OR REPLACE FUNCTION public.gin_extract_value_trgm(text, internal)
+ RETURNS internal
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/pg_trgm', $function$gin_extract_value_trgm$function$
 
 
+
+CREATE OR REPLACE FUNCTION public.gin_trgm_consistent(internal, smallint, text, integer, internal, internal, internal, internal)
+ RETURNS boolean
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/pg_trgm', $function$gin_trgm_consistent$function$
+
+
+
+CREATE OR REPLACE FUNCTION public.gin_trgm_triconsistent(internal, smallint, text, integer, internal, internal, internal)
+ RETURNS "char"
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/pg_trgm', $function$gin_trgm_triconsistent$function$
 
 
 
@@ -1024,25 +977,91 @@ $function$
 
 
 
+CREATE OR REPLACE FUNCTION public.gtrgm_compress(internal)
+ RETURNS internal
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/pg_trgm', $function$gtrgm_compress$function$
 
 
 
+CREATE OR REPLACE FUNCTION public.gtrgm_consistent(internal, text, smallint, oid, internal)
+ RETURNS boolean
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/pg_trgm', $function$gtrgm_consistent$function$
 
 
 
+CREATE OR REPLACE FUNCTION public.gtrgm_decompress(internal)
+ RETURNS internal
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/pg_trgm', $function$gtrgm_decompress$function$
 
 
 
+CREATE OR REPLACE FUNCTION public.gtrgm_distance(internal, text, smallint, oid, internal)
+ RETURNS double precision
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/pg_trgm', $function$gtrgm_distance$function$
 
 
 
+CREATE OR REPLACE FUNCTION public.gtrgm_in(cstring)
+ RETURNS gtrgm
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/pg_trgm', $function$gtrgm_in$function$
 
 
 
+CREATE OR REPLACE FUNCTION public.gtrgm_options(internal)
+ RETURNS void
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE
+AS '$libdir/pg_trgm', $function$gtrgm_options$function$
 
 
 
+CREATE OR REPLACE FUNCTION public.gtrgm_out(gtrgm)
+ RETURNS cstring
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/pg_trgm', $function$gtrgm_out$function$
 
+
+
+CREATE OR REPLACE FUNCTION public.gtrgm_penalty(internal, internal, internal)
+ RETURNS internal
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/pg_trgm', $function$gtrgm_penalty$function$
+
+
+
+CREATE OR REPLACE FUNCTION public.gtrgm_picksplit(internal, internal)
+ RETURNS internal
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/pg_trgm', $function$gtrgm_picksplit$function$
+
+
+
+CREATE OR REPLACE FUNCTION public.gtrgm_same(gtrgm, gtrgm, internal)
+ RETURNS internal
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/pg_trgm', $function$gtrgm_same$function$
+
+
+
+CREATE OR REPLACE FUNCTION public.gtrgm_union(internal, internal)
+ RETURNS gtrgm
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/pg_trgm', $function$gtrgm_union$function$
 
 
 
@@ -1104,6 +1123,35 @@ BEGIN
     NEW.sender_role := actual_role;
   END IF;
   
+  RETURN NEW;
+END;
+$function$
+
+
+
+CREATE OR REPLACE FUNCTION public.guard_contact_inquiry_rate_limit()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$ 
+BEGIN
+  IF NEW.ip IS NOT NULL AND btrim(NEW.ip) <> '' THEN
+    IF (SELECT COUNT(*) FROM public.contact_inquiries WHERE ip = NEW.ip AND created_at > now() - interval '10 minutes') >= 5 THEN
+      RAISE EXCEPTION 'Too many inquiries from your network. Please wait 10 minutes before submitting again.' USING ERRCODE = '42501';
+    END IF;
+  ELSE
+    IF (SELECT COUNT(*) FROM public.contact_inquiries WHERE phone = NEW.phone AND created_at > now() - interval '10 minutes') >= 3 THEN
+      RAISE EXCEPTION 'Too many inquiries from this phone number. Please wait 10 minutes before submitting again.' USING ERRCODE = '42501';
+    END IF;
+  END IF;
+  IF (SELECT COUNT(*) FROM public.contact_inquiries WHERE created_at > now() - interval '1 minute') >= 15 THEN
+    RAISE EXCEPTION 'Too many inquiries right now. Please try again in a minute.' USING ERRCODE = '42501';
+  END IF;
+  NEW.name := btrim(NEW.name);
+  NEW.phone := btrim(NEW.phone);
+  NEW.message := btrim(NEW.message);
+  IF NEW.ip IS NOT NULL THEN NEW.ip := btrim(NEW.ip); END IF;
   RETURN NEW;
 END;
 $function$
@@ -1982,6 +2030,48 @@ $function$
 
 
 
+CREATE OR REPLACE FUNCTION public.release_contact_inquiry_push(p_inquiry_id uuid, p_claim_id uuid)
+ RETURNS void
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public', 'pg_catalog', 'pg_temp'
+AS $function$
+BEGIN
+  UPDATE public.contact_inquiries
+     SET push_dispatch_started_at = NULL,
+         push_dispatch_claim_id = NULL
+   WHERE id = p_inquiry_id
+     AND push_dispatch_claim_id = p_claim_id
+     AND push_dispatched_at IS NULL;
+END;
+$function$
+
+
+
+CREATE OR REPLACE FUNCTION public.remove_push_device_registration(p_device_id text DEFAULT NULL::text, p_token text DEFAULT NULL::text)
+ RETURNS void
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public', 'pg_catalog', 'pg_temp'
+AS $function$
+DECLARE
+  v_device_id TEXT := NULLIF(btrim(p_device_id), '');
+  v_token TEXT := NULLIF(btrim(p_token), '');
+BEGIN
+  IF auth.uid() IS NULL THEN
+    RAISE EXCEPTION 'Authentication required';
+  END IF;
+  DELETE FROM public.user_device_tokens
+   WHERE user_id = auth.uid()
+     AND (
+       (v_device_id IS NOT NULL AND device_id = v_device_id)
+       OR (v_token IS NOT NULL AND token = v_token)
+     );
+END;
+$function$
+
+
+
 CREATE OR REPLACE FUNCTION public.request_order_cancellation(p_order_id uuid, p_reason text)
  RETURNS orders
  LANGUAGE plpgsql
@@ -2198,15 +2288,51 @@ $function$
 
 
 
+CREATE OR REPLACE FUNCTION public.set_limit(real)
+ RETURNS real
+ LANGUAGE c
+ STRICT
+AS '$libdir/pg_trgm', $function$set_limit$function$
 
 
 
+CREATE OR REPLACE FUNCTION public.show_limit()
+ RETURNS real
+ LANGUAGE c
+ STABLE PARALLEL SAFE STRICT
+AS '$libdir/pg_trgm', $function$show_limit$function$
 
 
 
+CREATE OR REPLACE FUNCTION public.show_trgm(text)
+ RETURNS text[]
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/pg_trgm', $function$show_trgm$function$
 
 
 
+CREATE OR REPLACE FUNCTION public.similarity(text, text)
+ RETURNS real
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/pg_trgm', $function$similarity$function$
+
+
+
+CREATE OR REPLACE FUNCTION public.similarity_dist(text, text)
+ RETURNS real
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/pg_trgm', $function$similarity_dist$function$
+
+
+
+CREATE OR REPLACE FUNCTION public.similarity_op(text, text)
+ RETURNS boolean
+ LANGUAGE c
+ STABLE PARALLEL SAFE STRICT
+AS '$libdir/pg_trgm', $function$similarity_op$function$
 
 
 
@@ -2215,16 +2341,7 @@ CREATE OR REPLACE FUNCTION public.stamp_conversation_resolved_at()
  LANGUAGE plpgsql
  SECURITY DEFINER
  SET search_path TO 'public'
-AS $function$
-BEGIN
-  IF NEW.status = 'resolved' AND OLD.status IS DISTINCT FROM 'resolved' THEN
-    NEW.resolved_at := COALESCE(NEW.resolved_at, now());
-  ELSIF NEW.status <> 'resolved' THEN
-    NEW.resolved_at := NULL;
-  END IF;
-  RETURN NEW;
-END;
-$function$
+AS $function$ BEGIN IF NEW.status = 'resolved' AND OLD.status IS DISTINCT FROM 'resolved' THEN NEW.resolved_at := COALESCE(NEW.resolved_at, now()); ELSIF NEW.status <> 'resolved' THEN NEW.resolved_at := NULL; END IF; RETURN NEW; END; $function$
 
 
 
@@ -2233,32 +2350,47 @@ CREATE OR REPLACE FUNCTION public.stamp_inquiry_service_state()
  LANGUAGE plpgsql
  SECURITY DEFINER
  SET search_path TO 'public'
-AS $function$
-BEGIN
-  IF NEW.status IS DISTINCT FROM OLD.status THEN
-    IF NEW.status <> 'new' THEN
-      NEW.first_response_at := COALESCE(NEW.first_response_at, now());
-    END IF;
-
-    IF NEW.status = 'resolved' THEN
-      NEW.resolved_at := COALESCE(NEW.resolved_at, now());
-    ELSE
-      NEW.resolved_at := NULL;
-    END IF;
-  END IF;
-  RETURN NEW;
-END;
-$function$
+AS $function$ BEGIN IF NEW.status IS DISTINCT FROM OLD.status THEN IF NEW.status <> 'new' THEN NEW.first_response_at := COALESCE(NEW.first_response_at, now()); END IF; IF NEW.status = 'resolved' THEN NEW.resolved_at := COALESCE(NEW.resolved_at, now()); ELSE NEW.resolved_at := NULL; END IF; END IF; RETURN NEW; END; $function$
 
 
 
+CREATE OR REPLACE FUNCTION public.strict_word_similarity(text, text)
+ RETURNS real
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/pg_trgm', $function$strict_word_similarity$function$
 
 
 
+CREATE OR REPLACE FUNCTION public.strict_word_similarity_commutator_op(text, text)
+ RETURNS boolean
+ LANGUAGE c
+ STABLE PARALLEL SAFE STRICT
+AS '$libdir/pg_trgm', $function$strict_word_similarity_commutator_op$function$
 
 
 
+CREATE OR REPLACE FUNCTION public.strict_word_similarity_dist_commutator_op(text, text)
+ RETURNS real
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/pg_trgm', $function$strict_word_similarity_dist_commutator_op$function$
 
+
+
+CREATE OR REPLACE FUNCTION public.strict_word_similarity_dist_op(text, text)
+ RETURNS real
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/pg_trgm', $function$strict_word_similarity_dist_op$function$
+
+
+
+CREATE OR REPLACE FUNCTION public.strict_word_similarity_op(text, text)
+ RETURNS boolean
+ LANGUAGE c
+ STABLE PARALLEL SAFE STRICT
+AS '$libdir/pg_trgm', $function$strict_word_similarity_op$function$
 
 
 
@@ -2279,40 +2411,6 @@ BEGIN
 END;
 $function$
 
-
-
-
-CREATE OR REPLACE FUNCTION public.guard_contact_inquiry_rate_limit()
- RETURNS trigger
- LANGUAGE plpgsql
- SECURITY DEFINER
- SET search_path TO 'public'
-AS $function$
-BEGIN
-  -- World-class IP-based rate limit (no captcha)
-  -- IP is populated by submit-inquiry Edge Function; direct anon inserts without IP fall back to phone/global
-  IF NEW.ip IS NOT NULL AND btrim(NEW.ip) <> '' THEN
-    -- Per-IP: max 5 inquiries per 10 minutes (real network limit, not form data)
-    IF (SELECT COUNT(*) FROM public.contact_inquiries WHERE ip = NEW.ip AND created_at > now() - interval '10 minutes') >= 5 THEN
-      RAISE EXCEPTION 'Too many inquiries from your network. Please wait 10 minutes before submitting again.' USING ERRCODE = '42501';
-    END IF;
-  ELSE
-    -- Fallback for legacy direct inserts without IP (phone-based)
-    IF (SELECT COUNT(*) FROM public.contact_inquiries WHERE phone = NEW.phone AND created_at > now() - interval '10 minutes') >= 3 THEN
-      RAISE EXCEPTION 'Too many inquiries from this phone number. Please wait 10 minutes before submitting again.' USING ERRCODE = '42501';
-    END IF;
-  END IF;
-  -- Global flood protection: max 15 inquiries per minute across all IPs (raised slightly for legit burst)
-  IF (SELECT COUNT(*) FROM public.contact_inquiries WHERE created_at > now() - interval '1 minute') >= 15 THEN
-    RAISE EXCEPTION 'Too many inquiries right now. Please try again in a minute.' USING ERRCODE = '42501';
-  END IF;
-  NEW.name := btrim(NEW.name);
-  NEW.phone := btrim(NEW.phone);
-  NEW.message := btrim(NEW.message);
-  IF NEW.ip IS NOT NULL THEN NEW.ip := btrim(NEW.ip); END IF;
-  RETURN NEW;
-END;
-$function$;
 
 
 CREATE OR REPLACE FUNCTION public.track_order_public(p_tracking_number text)
@@ -2386,22 +2484,47 @@ CREATE OR REPLACE FUNCTION public.update_updated_at()
  LANGUAGE plpgsql
  SECURITY DEFINER
  SET search_path TO 'public'
-AS $function$
-BEGIN
-  NEW.updated_at = NOW();
-  RETURN NEW;
-END;
-$function$
+AS $function$ BEGIN NEW.updated_at = NOW(); RETURN NEW; END; $function$
 
 
 
+CREATE OR REPLACE FUNCTION public.word_similarity(text, text)
+ RETURNS real
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/pg_trgm', $function$word_similarity$function$
 
 
 
+CREATE OR REPLACE FUNCTION public.word_similarity_commutator_op(text, text)
+ RETURNS boolean
+ LANGUAGE c
+ STABLE PARALLEL SAFE STRICT
+AS '$libdir/pg_trgm', $function$word_similarity_commutator_op$function$
 
 
 
+CREATE OR REPLACE FUNCTION public.word_similarity_dist_commutator_op(text, text)
+ RETURNS real
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/pg_trgm', $function$word_similarity_dist_commutator_op$function$
 
+
+
+CREATE OR REPLACE FUNCTION public.word_similarity_dist_op(text, text)
+ RETURNS real
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/pg_trgm', $function$word_similarity_dist_op$function$
+
+
+
+CREATE OR REPLACE FUNCTION public.word_similarity_op(text, text)
+ RETURNS boolean
+ LANGUAGE c
+ STABLE PARALLEL SAFE STRICT
+AS '$libdir/pg_trgm', $function$word_similarity_op$function$
 
 
 
@@ -2410,10 +2533,6 @@ $function$
 -- (Only emitted for functions with non-default access.)
 -- (Default: anon, authenticated, service_role all have EXECUTE)
 -- ============================================================
-
-REVOKE ALL ON FUNCTION public.add_announcement_comment(p_announcement_id uuid, p_text text) FROM PUBLIC;
-REVOKE ALL ON FUNCTION public.add_announcement_comment(p_announcement_id uuid, p_text text) FROM anon;
-GRANT EXECUTE ON FUNCTION public.add_announcement_comment(p_announcement_id uuid, p_text text) TO authenticated;
 
 REVOKE ALL ON FUNCTION public.auto_resolve_stale_conversations() FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.auto_resolve_stale_conversations() FROM anon;
@@ -2425,25 +2544,27 @@ REVOKE ALL ON FUNCTION public.cancel_own_pending_order(p_order_id uuid) FROM ano
 REVOKE ALL ON FUNCTION public.cancel_own_pending_order(p_order_id uuid) FROM authenticated;
 GRANT EXECUTE ON FUNCTION public.cancel_own_pending_order(p_order_id uuid) TO service_role;
 
-REVOKE ALL ON FUNCTION public.create_admin_notifications_rpc(p_title text, p_message text, p_type text, p_reference_id uuid) FROM PUBLIC;
-REVOKE ALL ON FUNCTION public.create_admin_notifications_rpc(p_title text, p_message text, p_type text, p_reference_id uuid) FROM anon;
-GRANT EXECUTE ON FUNCTION public.create_admin_notifications_rpc(p_title text, p_message text, p_type text, p_reference_id uuid) TO service_role;
-GRANT EXECUTE ON FUNCTION public.create_admin_notifications_rpc(p_title text, p_message text, p_type text, p_reference_id uuid) TO authenticated;
-
 REVOKE ALL ON FUNCTION public.claim_contact_inquiry_push(p_inquiry_id uuid) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.claim_contact_inquiry_push(p_inquiry_id uuid) FROM anon;
 REVOKE ALL ON FUNCTION public.claim_contact_inquiry_push(p_inquiry_id uuid) FROM authenticated;
 GRANT EXECUTE ON FUNCTION public.claim_contact_inquiry_push(p_inquiry_id uuid) TO service_role;
+
+REVOKE ALL ON FUNCTION public.claim_push_device_registration(p_device_id text, p_token text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.claim_push_device_registration(p_device_id text, p_token text) FROM anon;
+REVOKE ALL ON FUNCTION public.claim_push_device_registration(p_device_id text, p_token text) FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.claim_push_device_registration(p_device_id text, p_token text) TO service_role;
+GRANT EXECUTE ON FUNCTION public.claim_push_device_registration(p_device_id text, p_token text) TO authenticated;
 
 REVOKE ALL ON FUNCTION public.complete_contact_inquiry_push(p_inquiry_id uuid, p_claim_id uuid) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.complete_contact_inquiry_push(p_inquiry_id uuid, p_claim_id uuid) FROM anon;
 REVOKE ALL ON FUNCTION public.complete_contact_inquiry_push(p_inquiry_id uuid, p_claim_id uuid) FROM authenticated;
 GRANT EXECUTE ON FUNCTION public.complete_contact_inquiry_push(p_inquiry_id uuid, p_claim_id uuid) TO service_role;
 
-REVOKE ALL ON FUNCTION public.release_contact_inquiry_push(p_inquiry_id uuid, p_claim_id uuid) FROM PUBLIC;
-REVOKE ALL ON FUNCTION public.release_contact_inquiry_push(p_inquiry_id uuid, p_claim_id uuid) FROM anon;
-REVOKE ALL ON FUNCTION public.release_contact_inquiry_push(p_inquiry_id uuid, p_claim_id uuid) FROM authenticated;
-GRANT EXECUTE ON FUNCTION public.release_contact_inquiry_push(p_inquiry_id uuid, p_claim_id uuid) TO service_role;
+REVOKE ALL ON FUNCTION public.create_admin_notifications_rpc(p_title text, p_message text, p_type text, p_reference_id uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.create_admin_notifications_rpc(p_title text, p_message text, p_type text, p_reference_id uuid) FROM anon;
+REVOKE ALL ON FUNCTION public.create_admin_notifications_rpc(p_title text, p_message text, p_type text, p_reference_id uuid) FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.create_admin_notifications_rpc(p_title text, p_message text, p_type text, p_reference_id uuid) TO service_role;
+GRANT EXECUTE ON FUNCTION public.create_admin_notifications_rpc(p_title text, p_message text, p_type text, p_reference_id uuid) TO authenticated;
 
 REVOKE ALL ON FUNCTION public.derive_payment_status(p_shipping_cost numeric, p_amount_paid numeric) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.derive_payment_status(p_shipping_cost numeric, p_amount_paid numeric) FROM anon;
@@ -2456,8 +2577,6 @@ REVOKE ALL ON FUNCTION public.get_order_status_counts() FROM anon;
 REVOKE ALL ON FUNCTION public.get_order_status_counts() FROM authenticated;
 GRANT EXECUTE ON FUNCTION public.get_order_status_counts() TO service_role;
 GRANT EXECUTE ON FUNCTION public.get_order_status_counts() TO authenticated;
-
-REVOKE ALL ON FUNCTION public.notify_admins_of_contact_inquiry() FROM PUBLIC;
 
 REVOKE ALL ON FUNCTION public.purge_old_activity_logs() FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.purge_old_activity_logs() FROM anon;
@@ -2486,6 +2605,17 @@ REVOKE ALL ON FUNCTION public.record_pickup_payment(p_order_id uuid, p_actual_we
 REVOKE ALL ON FUNCTION public.record_pickup_payment(p_order_id uuid, p_actual_weight numeric, p_payment_method text, p_payer_type text, p_pickup_photos jsonb, p_promised_payment_date date, p_amount numeric, p_reference text, p_payment_date date, p_receipt_url text, p_payment_type text, p_notes text) FROM authenticated;
 GRANT EXECUTE ON FUNCTION public.record_pickup_payment(p_order_id uuid, p_actual_weight numeric, p_payment_method text, p_payer_type text, p_pickup_photos jsonb, p_promised_payment_date date, p_amount numeric, p_reference text, p_payment_date date, p_receipt_url text, p_payment_type text, p_notes text) TO service_role;
 GRANT EXECUTE ON FUNCTION public.record_pickup_payment(p_order_id uuid, p_actual_weight numeric, p_payment_method text, p_payer_type text, p_pickup_photos jsonb, p_promised_payment_date date, p_amount numeric, p_reference text, p_payment_date date, p_receipt_url text, p_payment_type text, p_notes text) TO authenticated;
+
+REVOKE ALL ON FUNCTION public.release_contact_inquiry_push(p_inquiry_id uuid, p_claim_id uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.release_contact_inquiry_push(p_inquiry_id uuid, p_claim_id uuid) FROM anon;
+REVOKE ALL ON FUNCTION public.release_contact_inquiry_push(p_inquiry_id uuid, p_claim_id uuid) FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.release_contact_inquiry_push(p_inquiry_id uuid, p_claim_id uuid) TO service_role;
+
+REVOKE ALL ON FUNCTION public.remove_push_device_registration(p_device_id text, p_token text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.remove_push_device_registration(p_device_id text, p_token text) FROM anon;
+REVOKE ALL ON FUNCTION public.remove_push_device_registration(p_device_id text, p_token text) FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.remove_push_device_registration(p_device_id text, p_token text) TO service_role;
+GRANT EXECUTE ON FUNCTION public.remove_push_device_registration(p_device_id text, p_token text) TO authenticated;
 
 REVOKE ALL ON FUNCTION public.request_order_cancellation(p_order_id uuid, p_reason text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.request_order_cancellation(p_order_id uuid, p_reason text) FROM anon;
@@ -2573,13 +2703,6 @@ CREATE TRIGGER trips_guard_completion BEFORE UPDATE OF status ON trips FOR EACH 
 DROP TRIGGER IF EXISTS trips_updated_at ON public.trips;
 CREATE TRIGGER trips_updated_at BEFORE UPDATE ON trips FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
--- Auth triggers (handle_new_user + sync email) — missing from earlier dumps, required for fresh DB
-DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
-CREATE TRIGGER on_auth_user_created AFTER INSERT ON auth.users FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
-
-DROP TRIGGER IF EXISTS on_auth_email_sync ON auth.users;
-CREATE TRIGGER on_auth_email_sync AFTER UPDATE OF email ON auth.users FOR EACH ROW EXECUTE FUNCTION public.sync_auth_email_to_profile();
-
 
 -- ============================================================
 -- INDEXES
@@ -2603,9 +2726,9 @@ CREATE INDEX IF NOT EXISTS idx_chat_messages_unread ON public.chat_messages USIN
 
 CREATE INDEX IF NOT EXISTS idx_contact_inquiries_created_at ON public.contact_inquiries USING btree (created_at);
 
-CREATE INDEX IF NOT EXISTS idx_contact_inquiries_status ON public.contact_inquiries USING btree (status);
+CREATE INDEX IF NOT EXISTS idx_contact_inquiries_ip ON public.contact_inquiries USING btree (ip) WHERE (ip IS NOT NULL);
 
-CREATE INDEX IF NOT EXISTS idx_contact_inquiries_ip ON public.contact_inquiries USING btree (ip) WHERE ip IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_contact_inquiries_status ON public.contact_inquiries USING btree (status);
 
 CREATE INDEX IF NOT EXISTS idx_customer_feedback_customer_id ON public.customer_feedback USING btree (customer_id);
 
@@ -2654,6 +2777,10 @@ CREATE INDEX IF NOT EXISTS idx_trips_status ON public.trips USING btree (status)
 CREATE UNIQUE INDEX IF NOT EXISTS trips_unique_route_departure_day ON public.trips USING btree (origin, destination, ph_calendar_day(departure_date)) WHERE ((status)::text <> 'cancelled'::text);
 
 CREATE INDEX IF NOT EXISTS idx_user_device_tokens_user_id ON public.user_device_tokens USING btree (user_id);
+
+CREATE INDEX IF NOT EXISTS user_device_tokens_device_id_idx ON public.user_device_tokens USING btree (device_id) WHERE (device_id IS NOT NULL);
+
+CREATE UNIQUE INDEX IF NOT EXISTS user_device_tokens_user_device_key ON public.user_device_tokens USING btree (user_id, device_id) WHERE (device_id IS NOT NULL);
 
 
 -- ============================================================
@@ -2776,23 +2903,10 @@ CREATE POLICY "Admins can view inquiries" ON public.contact_inquiries
   WHERE ((profiles.id = auth.uid()) AND ((profiles.role)::text = 'admin'::text)))));
 
 DROP POLICY IF EXISTS "Anyone can submit inquiry" ON public.contact_inquiries;
--- Client may supply only what the public form collects. `ip` and every
--- service-state column are server-owned: the per-IP rate limit in
--- guard_contact_inquiry_rate_limit keys on `ip`, so a client able to set it
--- could mint a fresh allowance per request (20260825140000).
 CREATE POLICY "Anyone can submit inquiry" ON public.contact_inquiries
   FOR INSERT
   TO public
-  WITH CHECK (
-    ip IS NULL
-    AND assigned_admin_id IS NULL
-    AND first_response_at IS NULL
-    AND resolved_at IS NULL
-    AND push_dispatched_at IS NULL
-    AND push_dispatch_started_at IS NULL
-    AND push_dispatch_claim_id IS NULL
-    AND status = 'new'
-  );
+  WITH CHECK (((ip IS NULL) AND (assigned_admin_id IS NULL) AND (first_response_at IS NULL) AND (resolved_at IS NULL) AND (push_dispatched_at IS NULL) AND (push_dispatch_started_at IS NULL) AND (push_dispatch_claim_id IS NULL) AND (status = 'new'::text)));
 
 ALTER TABLE public.conversations ENABLE ROW LEVEL SECURITY;
 
@@ -2881,7 +2995,10 @@ CREATE POLICY "Published legal documents are public" ON public.legal_documents
 ALTER TABLE public.notification_delivery_attempts ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Admins can view delivery attempts" ON public.notification_delivery_attempts;
-CREATE POLICY "Admins can view delivery attempts" ON public.notification_delivery_attempts FOR SELECT TO authenticated USING (is_admin());
+CREATE POLICY "Admins can view delivery attempts" ON public.notification_delivery_attempts
+  FOR SELECT
+  TO authenticated
+  USING (is_admin());
 
 ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
 
@@ -3129,23 +3246,27 @@ CREATE POLICY "Users read own cargo photos" ON storage.objects
 -- ============================================================
 -- CRON JOBS (pg_cron)
 -- ============================================================
--- Idempotent: unschedule first if exists to allow re-running schema.sql without duplicate error
-SELECT CASE WHEN EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'purge_old_activity_logs') THEN cron.unschedule('purge_old_activity_logs') END;
-SELECT cron.schedule('purge_old_activity_logs', '0 3 * * *', $cron$SELECT public.purge_old_activity_logs()$cron$);
-SELECT CASE WHEN EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'auto_resolve_stale_conversations') THEN cron.unschedule('auto_resolve_stale_conversations') END;
-SELECT cron.schedule('auto_resolve_stale_conversations', '30 3 * * *', $cron$SELECT public.auto_resolve_stale_conversations()$cron$);
+SELECT cron.schedule('0 3 * * *', $cron$SELECT public.purge_old_activity_logs()$cron$);
+SELECT cron.schedule('30 3 * * *', $cron$SELECT public.auto_resolve_stale_conversations()$cron$);
+SELECT cron.schedule('0 3 * * *', $cron$SELECT public.purge_old_activity_logs()$cron$);
+SELECT cron.schedule('30 3 * * *', $cron$SELECT public.auto_resolve_stale_conversations()$cron$);
 
 
 -- ============================================================
 -- COLUMN COMMENTS
 -- ============================================================
+COMMENT ON COLUMN public.announcements.comments IS 'Append-only array of {id, user_id, name, text, created_at}. Written only by add_announcement_comment().';
 COMMENT ON COLUMN public.contact_inquiries.assigned_admin_id IS 'Who owns this inquiry. NULL = unclaimed.';
 COMMENT ON COLUMN public.contact_inquiries.first_response_at IS 'When an admin first actioned it. Stamped by trigger on the move out of ''new''.';
+COMMENT ON COLUMN public.contact_inquiries.push_dispatched_at IS 'Set after the public contact inquiry push dispatch is claimed.';
+COMMENT ON COLUMN public.contact_inquiries.push_dispatch_started_at IS 'Start time of the current short-lived push dispatch lease.';
+COMMENT ON COLUMN public.contact_inquiries.push_dispatch_claim_id IS 'Lease token used to complete or release the current contact push dispatch.';
 COMMENT ON COLUMN public.conversations.escalated IS 'Bot matched an escalation pattern, or the customer asked for a human. A flag, not a state.';
 COMMENT ON COLUMN public.conversations.first_response_at IS 'First admin message in this conversation. Set once, server-side; never rewritten.';
 COMMENT ON COLUMN public.conversations.bot_resolved IS 'NULL = unknown. TRUE/FALSE only once the customer answers the thumbs prompt.';
 COMMENT ON COLUMN public.orders.cancellation_reason IS 'Customer-stated reason for the cancellation request. Required — a cancellation with no reason is the case this column exists to stop.';
 COMMENT ON COLUMN public.orders.cancellation_previous_status IS 'Where the order was standing when the request was made, so a rejection can put it back exactly there rather than guessing.';
+COMMENT ON COLUMN public.user_device_tokens.device_id IS 'Stable browser/PWA installation identifier. One user may have many device rows.';
 
 
 -- ============================================================
@@ -3157,3 +3278,4 @@ ALTER PUBLICATION supabase_realtime ADD TABLE IF NOT EXISTS public.contact_inqui
 ALTER PUBLICATION supabase_realtime ADD TABLE IF NOT EXISTS public.conversations;
 ALTER PUBLICATION supabase_realtime ADD TABLE IF NOT EXISTS public.notifications;
 ALTER PUBLICATION supabase_realtime ADD TABLE IF NOT EXISTS public.orders;
+
