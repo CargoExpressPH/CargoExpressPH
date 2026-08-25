@@ -428,7 +428,7 @@
   right: 18px;
   /* Clears the floating tab bar (~89px tall incl. its own bottom padding) and
      the notch inset underneath it. */
-  bottom: calc(85px + var(--customer-safe-bottom));
+  bottom: calc(105px + var(--customer-safe-bottom));
   z-index: var(--z-sticky);
   width: 56px;
   height: 56px;
