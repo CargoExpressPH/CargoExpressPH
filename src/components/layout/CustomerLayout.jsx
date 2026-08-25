@@ -454,15 +454,7 @@ const CustomerLayout = () => {
       variant="primary"
     />
 
-    {location.pathname !== '/customer/support' && (
-      <Link 
-        to="/customer/support" 
-        className="floating-chat-fab d-md-none" 
-        aria-label="Chat Support"
-      >
-        <MessageCircle size={24} color="#fff" />
-      </Link>
-    )}
+
     </>
   );
 
