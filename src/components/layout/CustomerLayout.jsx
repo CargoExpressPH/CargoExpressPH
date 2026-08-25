@@ -408,7 +408,6 @@ const CustomerLayout = () => {
           title="Ask CargoMate — chat support"
         >
           <Bot size={20} aria-hidden="true" />
-          <span className="customer-chat-fab-label">Ask CargoMate</span>
         </Link>
       )}
 
