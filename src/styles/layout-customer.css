@@ -415,59 +415,102 @@
    React work or by a scroll — which is the whole point of a control that has
    to feel instant under a thumb. Deliberately NOT animated: width, height,
    top/bottom, box-shadow's geometry, or background-position, each of which
-   reachable. */
+   forces layout or paint on every frame.
+
+   `will-change: transform` promotes the bubble to its own layer once, at rest,
+   rather than at the moment of the tap — a layer created on :active is created
+   during the frame that has to render the tap, which is the stutter it is
+   meant to prevent. One 56px layer is a rounding error in memory; this is the
+   only element in the customer layout that gets one. */
 .customer-chat-fab {
   display: none;
   position: fixed;
   right: 18px;
+  /* Clears the floating tab bar (~89px tall incl. its own bottom padding) and
+     the notch inset underneath it. */
   bottom: calc(105px + var(--customer-safe-bottom));
   z-index: var(--z-sticky);
-  width: 56px;
-  height: 56px;
+  /* A pill, not a disc: `width: auto` lets the label size the control, and the
+     min-height keeps it a 48px touch target even if the label is ever
+     shortened. `max-width` is the guard against the one way this can go wrong
+     — a longer label on a 320px phone would otherwise push the pill off the
+     left edge; it truncates instead of overflowing. */
+  width: auto;
+  max-width: calc(100vw - 36px);
+  min-height: 48px;
+  padding: 0 20px;
+  gap: 8px;
   align-items: center;
   justify-content: center;
-  border-radius: 999px;
+  border-radius: 30px;
   background: linear-gradient(135deg, var(--customer-green), #22C55E);
   color: #FFFFFF;
-  box-shadow: 0 16px 34px rgba(18, 138, 90, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.3);
-  transition: opacity 0.2s ease;
+  box-shadow: 0 16px 34px rgba(18, 138, 90, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.2s ease;
+  will-change: transform;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
-  animation: customer-chat-float 3s ease-in-out infinite;
 }
 
+.customer-chat-fab-label {
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  line-height: 1;
+  /* One line, always. A wrapped label would change the pill's height, and the
+     height is what the `bottom` offset above is measured against. */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* "Alive" without a repaint: the pulse runs on a pseudo-element and animates
+   only transform and opacity, both composited. The ring is what pulses rather
+   than the pill itself — an infinite transform animation on the pill would
+   OVERRIDE the hover/press `transform` below (animated values beat normal
+   declarations, paused or not), so the button would stop responding to a tap.
+   Same pattern as .book-tab-icon::before, which pulses the Book tab. */
 .customer-chat-fab::after {
   content: '';
   position: absolute;
-  inset: -6px;
+  inset: -4px;
   border-radius: inherit;
-  border: 2px solid var(--customer-green);
+  border: 2px solid var(--primary-light);
   opacity: 0;
-  z-index: -1;
   pointer-events: none;
-  animation: customer-chat-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  animation: chatFabPulse 3s ease-in-out infinite;
+}
+
+@keyframes chatFabPulse {
+  0%, 100% { transform: scale(0.96); opacity: 0; }
+  50%      { transform: scale(1.05); opacity: 0.45; }
+}
+
+.customer-chat-fab:hover {
+  transform: scale(1.04);
 }
 
 .customer-chat-fab:active {
-  transform: scale(0.95) translateY(0) !important;
-  animation: none;
+  transform: scale(0.96);
 }
 
+.customer-chat-fab:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 3px;
+}
+
+/* Drop the ring while the button is being pressed, so the press reads as one
+   solid shape. `animation: none` is required, not just `opacity: 0` — an
+   animated property ignores a plain declaration, which is the same rule that
+   put the pulse on this pseudo-element instead of on the pill. */
 .customer-chat-fab:active::after {
   animation: none;
+  opacity: 0;
 }
 
-@keyframes customer-chat-float {
-  0% { transform: translateY(0); }
-  50% { transform: translateY(-8px); }
-  100% { transform: translateY(0); }
-}
-
-@keyframes customer-chat-pulse {
-  0% { transform: scale(0.9); opacity: 0; }
-  50% { opacity: 0.6; }
-  100% { transform: scale(1.3); opacity: 0; }
-}
+/* The keyboard takes the bottom of the screen; the FAB would otherwise sit on
+   top of whatever is being typed into. Same rule the bottom nav follows. */
 body.keyboard-active .customer-chat-fab {
   opacity: 0;
   pointer-events: none;
