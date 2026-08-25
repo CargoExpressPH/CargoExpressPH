@@ -122,6 +122,12 @@ const LOCATIVE_WORDS = 'nasaan|nasa\'?n|saan|san|asa|hain|diin|wala\\s*pa|hindi\
 // `hub_arrival`, which is matched after `delivery_status`.
 const HUB_WORDS = 'hub|bodega|warehouse|terminal|pier|port';
 
+// Payment terms that merely CONTAIN the word "delivery": "cash on delivery",
+// "COD", "freight collect". Without this guard the bare `deliver(y|ed|ing)`
+// pattern in `delivery_status` claims them and answers "your parcel is In
+// Transit" to somebody asking whether they can pay at the door.
+const PAYMENT_TERM_WORDS = 'cash|g-?cash|c\\.?o\\.?d|collect|paymongo';
+
 // Duration cues — "ilang araw ang delivery" asks for the timeline, not for the
 // state of this customer's parcel.
 const DURATION_WORDS = 'ilang|ilan\\s*ka|pila\\s*ka|pila|gaano|ga\'?no|katagal|kadugay|how\\s*long|how\\s*many';
@@ -135,6 +141,12 @@ const DURATION_WORDS = 'ilang|ilan\\s*ka|pila\\s*ka|pila|gaano|ga\'?no|katagal|k
 const unless = (words, source) => new RegExp(`^(?!.*\\b(${words})\\b).*${source}`, 'i');
 
 const NO_LOCATIVE = (source) => unless(LOCATIVE_WORDS, source);
+
+// Places customers actually name when asking whether we go there. Used by
+// `service_areas`: a bare "pwede ba sa …" is too loose to be an intent on its
+// own — "pwede ba sa Lunes?" is not a coverage question — so both of its
+// open-ended patterns require one of these to appear.
+const PLACE_WORDS = 'cebu|davao|iloilo|bacolod|leyte|samar|negros|siquijor|dumaguete|cagayan|zamboanga|butuan|surigao|mindanao|luzon|visayas|manila|maynila|makati|quezon|caloocan|pasig|paranaque|bohol|tagbilaran|panglao|ubay|talibon|tubigon|jagna|cavite|laguna|batangas|bulacan|rizal|pampanga|bicol|palawan|baguio|province|probinsya|probinsiya';
 
 // ── Intent matchers ────────────────────────────────────────────────────────────
 //
@@ -181,6 +193,169 @@ const INTENTS = [
     handler: async () => ({
       text: 'Hi there! 👋 Kumusta! Maayong adlaw!\n\nHow can I help you today? You can write in English, Tagalog, or Bisaya — kahit anong lengguwahe, sabihin lang po.\n\nYou can ask me about your:\n• Shipment status — asa na ang padala ko?\n• Booking information — may booking ba ako?\n• Payment details — magkano ang bayad ko?\n• Tracking number\n• Delivery process',
       askResolved: false,
+    }),
+  },
+
+  // ── Business FAQ block ─────────────────────────────────────────────────────
+  // Positioned here, ABOVE booking_status and the locative intents, because
+  // these six ask about the SERVICE while everything below asks about the
+  // customer's own parcel, and several phrasings are shared between the two.
+  // "Hanggang saan ang padala niyo?" is a coverage question, but
+  // shipment_location's `saan … padala` pattern would read it as "where is my
+  // parcel"; whichever intent comes first wins, so the general question has to
+  // be claimed before the personal one. Each pattern below is scoped tightly
+  // enough that a message about one specific parcel still falls through.
+
+  // Where we deliver / coverage
+  {
+    id: 'service_areas',
+    patterns: [
+      /where\s*(do|can)\s*(you|u|i)\s*(deliver|ship|send)/i,                   // EN
+      /\bcoverage\b/i,                                                          // EN
+      /\bservice\s*areas?\b/i,                                                  // EN
+      /\bdo\s*(you|u)\s*(deliver|ship|serve|send)\s*(to|in)\b/i,                // EN
+      /\bwhat\s*(areas?|places?|provinces?|routes?)\s*(do\s*)?(you|u)\s*(serve|cover|deliver)/i, // EN
+      /\b(available|possible)\s*(ba)?\s*(ang)?\s*(delivery|shipping)\s*(to|sa)\b/i, // EN/TL
+      // TL — "hanggang saan ang delivery", "may delivery ba sa Laguna"
+      /\bhanggang\s*(saan|san)\b/i,
+      /\b(saan|san|nasaan)\s*(po|ba)?\s*(kayo|kau|sila)\s*(naghahatid|nagdedeliver|nagpapadala|nagseserbisyo)\b/i,
+      /\bmay\s*(delivery|hatid|padala|biyahe)\s*(po|ba)?\s*(kayo)?\s*(sa|hanggang)\b/i,
+      /\b(sakop|saklaw)\b/i,                                                    // TL/CEB "covered area"
+      // CEB — "asa mo maghatod", "unsa inyong sakop", "makahatod ba mo sa"
+      /\b(asa|hain)\s*(man)?\s*(mo|kamo|inyo|inyong)\s*(mag)?-?\s*(hatod|deliver|padala|serbisyo)\b/i,
+      /\b(asa|unsa)\s*(man)?\s*(ang)?\s*(inyong|inyo\s*nga)\s*(coverage|serbisyo|ruta)\b/i,
+      /\bmakahatod\s*(ba)?\s*(mo|kamo)\b/i,
+      // "pwede ba sa Cebu?" / "do you ship to Cavite?" — a bare "pwede ba sa"
+      // is far too loose on its own ("pwede ba sa Lunes?"), so both of these
+      // require an actual place name.
+      new RegExp(`\\b(pwede|puydi|puede|possible|available|may|naa)\\b.*\\b(sa|to|in)\\s*(${PLACE_WORDS})\\b`, 'i'),
+      new RegExp(`\\b(deliver|ship|hatod|padala)\\w*\\s*(ba|man|po)?\\s*(kayo|mo|you)?\\s*(sa|to|in)\\s*(${PLACE_WORDS})\\b`, 'i'),
+    ],
+    handler: async () => {
+      // Read live for the same reason `pricing` reads the rate live: coverage
+      // is admin-editable (company_information.coverage, the JSONB the About
+      // page and the admin Coverage tab both render). A region list typed into
+      // this string would start lying the first time an admin adds one.
+      let regions = [];
+      try {
+        const { data } = await supabase
+          .from('company_information')
+          .select('coverage')
+          .single();
+        regions = (data?.coverage || [])
+          .slice()
+          .sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0))
+          .map(r => r.name)
+          .filter(Boolean);
+      } catch { /* fall through to the static answer */ }
+
+      const areaLine = regions.length
+        ? `We also cover ${regions.join(', ')}.`
+        : 'We also cover nearby areas like Cavite, Laguna, Batangas, and Bulacan.';
+
+      return {
+        text: `We specialize in sea freight connecting Bohol and Metro Manila! 🚢\n\n${areaLine}\n\nWe do not support other inter-island routes yet. Kung wala sa listahan ang lugar mo, tap “Talk to an Agent” and our admin will check it for you.`,
+        askResolved: true,
+      };
+    },
+  },
+
+  // What we cannot carry
+  {
+    id: 'prohibited_items',
+    patterns: [
+      /\bprohibit(ed|ion|s)?\b/i,                                              // EN
+      /\brestricted\s*items?\b/i,                                               // EN
+      /\b(banned|contraband|not\s*allowed)\b/i,                                 // EN
+      /\billegal\b/i,                                                           // EN
+      /what\s*(items?|things?|kind)?\s*(can'?t|cannot|can\s*not|are\s*not)\s*(be\s*)?(ship|shipped|send|sent|carried)/i, // EN
+      // TL — "bawal ipadala", "ano ang bawal", "pwede ba magpadala NG bigas"
+      // ("ng" marks the item; "sa" marks a destination and belongs to
+      // service_areas above, which is why the two are split on that word.)
+      /\bbawal\b/i,
+      /\b(anong|ano\s*ang|ano'?ng)\s*(mga)?\s*(bawal|hindi\s*pwede|di\s*pwede)\b/i,
+      /\b(pwede|puede)\s*(po|ba)?\s*(mag)?-?\s*(padala|ipadala)\s*(ng|nang)\b/i,
+      // CEB — "unsay bawal", "gidili", "pwede ba magpadala UG"
+      /\bunsa('?y|\s*ang|\s*man)?\s*(ang)?\s*(bawal|gidili|dili\s*pwede)\b/i,
+      /\bgidili\b/i,
+      /\b(pwede|puydi)\s*(ba|man)?\s*(ko|mo)?\s*(mag)?-?\s*(padala|ipadala)\s*(ug|og)\b/i,
+    ],
+    handler: async () => ({
+      text: "For safety, we DO NOT ship illegal items, firearms, highly perishable goods without proper containers, and hazardous chemicals. 🚫\n\nBawal din ang mga ipinagbabawal ng batas at mga delikadong kemikal.\n\nIf you are unsure about your item, just say “Talk to an agent” and our admin will confirm it for you.",
+      askResolved: true,
+    }),
+  },
+
+  // How to pack
+  {
+    id: 'packaging_guidelines',
+    patterns: [
+      /\bpackag(ing|e\s*requirement)/i,                                        // EN
+      /\bpacking\b/i,                                                           // EN
+      /how\s*(do\s*i|to|should\s*i)\s*pack\b/i,                                 // EN
+      /\bdo\s*i\s*need\s*(a|an)?\s*(box|carton|sack|crate)\b/i,                 // EN
+      /\b(box|carton|sack|crate)\s*(required|needed|necessary)\b/i,             // EN
+      /\bbubble\s*wrap\b/i,                                                     // EN
+      /\bfragile\b/i,                                                           // EN
+      // TL — "kailangan ba ng karton", "paano magbalot"
+      /\b(kailangan|kelangan)\s*(po|ba)?\s*(ng|nang|ba\s*ng)?\s*(karton|kahon|box|sako|kaha|balot)\b/i,
+      /\b(paano|pano|panu)\s*(po|ba)?\s*(ang)?\s*(mag)?-?\s*(balot|balutan|impake|empake|pack)\b/i,
+      // CEB — "unsaon pag putos", "kinahanglan ba ug kahon"
+      /\bunsa-?on\s*(man)?\s*(pag)?-?\s*(putos|pagputos|empake|pack)\b/i,
+      /\b(kinahanglan|gikinahanglan)\s*(ba)?\s*(ug|og|ang)?\s*(kahon|karton|box|sako)\b/i,
+    ],
+    handler: async () => ({
+      // "measured during pickup" is the actual system rule, not a
+      // simplification: package_weight was removed, so weight enters once from
+      // the scale at pickup and the fee is computed from it.
+      text: "Please ensure your items are packed securely in a sturdy box or sack! 📦\n\nFragile items must be well bubble-wrapped — siguraduhing maayos ang balot para hindi masira sa biyahe.\n\nThe exact shipping weight will be measured during pickup to calculate your final fee.",
+      askResolved: true,
+    }),
+  },
+
+  // Weight limits
+  {
+    id: 'weight_limits',
+    patterns: [
+      /\b(minimum|maximum|max|min)\s*(weight|kilo|kilos|kg|bigat|timbang)\b/i,  // EN/TL
+      /\bweight\s*(limit|restriction|cap|requirement)\b/i,                      // EN
+      /\b(limit|limitasyon)\b.*\b(weight|kilo|kg|bigat|timbang|gramo)\b/i,      // EN/TL
+      /\bhow\s*(heavy|many\s*kilos?)\b/i,                                       // EN
+      /\b(oversized|overweight)\b/i,                                            // EN
+      // TL — "may limit ba", "pinakamabigat na pwede"
+      /\bmay\s*(limit|limitasyon)\s*(po|ba)\b/i,
+      /\b(pinaka)?(mabigat|magaan)\s*(na|ng)?\s*(pwede|kaya)\b/i,
+      /\b(ilang|ilan)\s*(po|ba)?\s*(ang)?\s*(kilo|kilos)\b/i,
+      // CEB — "pila ang minimum", "naa bay limit"
+      /\bpila\s*(man|ba)?\s*(ang|ka)?\s*(minimum|maximum|max|limit)\b/i,
+      /\bnaa\s*ba'?y?\s*(limit|limitasyon)\b/i,
+      /\b(kinabug-?atan|pinakabug-?at)\b/i,
+    ],
+    handler: async () => ({
+      text: "We can handle anything from small parcels to bulky cargo! ⚖️\n\nYour shipping fee is computed based on the actual weight recorded at pickup — walang estimate, timbang sa pickup ang basehan.\n\nIf your cargo is extremely heavy or oversized, please let our admin know in advance so they can plan the space for it.",
+      askResolved: true,
+    }),
+  },
+
+  // Office / terminal location
+  //
+  // Ahead of contact_info, which also answers "asa ang opisina" — but with
+  // phone numbers. A drop-off question wants a place, so it is answered with
+  // the terminals and a hand-off for the exact pin.
+  {
+    id: 'office_location',
+    patterns: [
+      /\b(where|saan|san|nasaan|asa|hain)\b.*\b(office|opisina|branch|sangay|hub|terminal|warehouse|bodega)\b/i, // EN/TL/CEB
+      /\b(office|hub|terminal|branch|warehouse)\s*(location|address)\b/i,       // EN
+      /\b(address|lokasyon|location)\s*(ninyo|niyo|nimo|ninyu|inyo|inyong|mo)\b/i, // TL/CEB
+      /\b(pinned?\s*location|google\s*maps?|waze)\b/i,                          // EN
+      /\bdrop\s*-?\s*off\s*(point|location|area|site)\b/i,                       // EN
+      /\b(saan|san)\s*(po|ba)?\s*(ako|kami)?\s*(pwedeng?|puwedeng?)?\s*(mag)?-?\s*(drop|dala|hulog|deposit)\b/i, // TL
+      /\b(asa|hain)\s*(man)?\s*(ko|mi)?\s*(mo|mu)?-?\s*(hatod|deposit|drop)\b/i, // CEB
+    ],
+    handler: async () => ({
+      text: "We have Distribution Terminals in both Bohol and Manila. 📍\n\nIf you plan to drop off your cargo instead of having it picked up, please say “Talk to an agent” so we can provide you with the exact pinned location!",
+      askResolved: true,
     }),
   },
 
@@ -355,7 +530,7 @@ const INTENTS = [
       /when\s*(will|is)\s*(my)?\s*(package|shipment)?\s*(be)?\s*deliver/i,     // EN
       // Bare "delivery" must not swallow "ilang araw ang delivery" (timeline) or
       // "nadeliver na sa bodega" (hub arrival) — both are matched further down.
-      unless(`${DURATION_WORDS}|${HUB_WORDS}`, 'deliver(y|ed|ing)'),           // EN
+      unless(`${DURATION_WORDS}|${HUB_WORDS}|${PAYMENT_TERM_WORDS}`, 'deliver(y|ed|ing)'), // EN
       // TL — "nadeliver na ba", "dumating na ba", "kailan darating/ihahatid"
       /\bna\s*-?\s*deliver\s*(na)?\s*(ba|po)?\b/i,
       unless(HUB_WORDS, '\\b(dumating|nakarating|narating|naihatid|naidala|nahatid)\\s*na\\b'),
@@ -495,6 +670,49 @@ const INTENTS = [
         askResolved: true,
       };
     },
+  },
+
+  // How to pay — the METHODS, as opposed to payment_info above, which answers
+  // "what do I owe on my parcel".
+  //
+  // Deliberately placed AFTER payment_info: a message carrying a balance noun
+  // ("magkano pa ang bayad ko", "naa pa koy utang?") is about that customer's
+  // own ledger and is claimed there first. What falls through to here is the
+  // general question — "pwede ba GCash?", "do you accept cash?" — which
+  // payment_info has no pattern for.
+  {
+    id: 'mode_of_payment',
+    patterns: [
+      /how\s*(do\s*i|to|can\s*i)\s*pay\b/i,                                    // EN
+      /\bcan\s*i\s*pay\b/i,                                                     // EN
+      /modes?\s*of\s*payment|payment\s*(method|option|mode)s?/i,                // EN
+      /\bdo\s*(you|u)\s*(accept|take|allow)\b/i,                                // EN
+      /\bg-?cash\b/i,                                                           // EN/TL/CEB
+      /\bpaymongo\b/i,                                                          // EN
+      /\bcash\s*on\s*delivery\b|\bc\.?o\.?d\b/i,                                // EN
+      /\bfreight\s*collect\b/i,                                                 // EN
+      /\bpay\s*(via|thru|through|using|with|online|in\s*cash)\b/i,              // EN
+      // TL — "paano magbayad", "pwede ba gcash", "tumatanggap ba kayo ng cash"
+      /\b(paano|pano|panu|papaano)\s*(po|ba)?\s*(ako|kami)?\s*(mag)?-?\s*(bayad|babayad|magbayad|bayaran)\b/i,
+      /\b(pwede|puede)\s*(po|ba)?\s*(ang|mag)?\s*-?(cash|online|bank|maya|card)\b/i,
+      /\b(anong|ano\s*ang|ano'?ng)\s*(mga)?\s*(paraan|mode|option|pwede)\s*(ng|sa|para\s*sa)?\s*(bayad|pagbabayad|magbayad)\b/i,
+      /\b(tumatanggap|tanggap|nagtatanggap)\s*(po|ba)?\s*(kayo)\b/i,
+      /\bsaan\s*(po|ba)?\s*(ako|kami)?\s*(magbabayad|magbayad|pwedeng\s*magbayad)\b/i,
+      // CEB — "unsaon pag bayad", "modawat ba mo ug cash"
+      /\bunsa-?on\s*(man)?\s*(pag|nako|ko)?-?\s*(bayad|pagbayad|mobayad|mubayad)\b/i,
+      /\b(modawat|nagdawat|gadawat|dawat)\s*(ba)?\s*(mo|kamo)\b/i,
+      /\b(asa|hain)\s*(man)?\s*(ko|mi)\s*(mo|mu)?-?bayad\b/i,
+      /\bunsa\s*(man)?\s*(ang)?\s*(paagi|modo)\s*sa\s*(pag)?bayad\b/i,
+    ],
+    handler: async () => ({
+      // Three methods, because the schema has three: payment_method is
+      // cash | gcash | paylater, and payer_type = 'receiver' is Freight
+      // Collect — the settlement rules exempt it from the warehouse hold
+      // precisely because it is paid at the door. Answering with only GCash
+      // and cash would leave the most-asked local case ("COD ba?") unanswered.
+      text: "We accept payments via GCash (securely powered by PayMongo) directly from your dashboard! 💳\n\nYou can also opt to pay in Cash during pickup/drop-off. 💰\n\nFreight Collect is available too — the receiver pays upon delivery. Pwede rin pong bayaran ng tatanggap sa oras ng delivery.\n\nTake note: your parcel is weighed at pickup and the fee is computed from that weight, so the exact amount is known then.",
+      askResolved: true,
+    }),
   },
 
   // Trip assignment
@@ -871,7 +1089,7 @@ export const getBotReply = async (text, userId) => {
 
   // 3. Fallback — no match
   return {
-    text: "I'm sorry, I didn't quite understand that. 🤔\nPasensya na po — hindi ko masyadong nakuha. Pasaylo, wala nako masabti.\n\nI can help you with:\n• Shipment status & location — asa na / nasaan na\n• Tracking number\n• Payment details — magkano / tagpila ang bayad\n• Booking information\n• Delivery timeline — ilang araw / pila ka adlaw\n• Pricing & rates — presyo kada kilo\n\nYou can also give me a tracking number like CE-20260807-1234 for one specific parcel.\n\nIf you'd rather speak to a person, tap “Talk to an Agent” below.",
+    text: "I'm sorry, I didn't quite understand that. 🤔\nPasensya na po — hindi ko masyadong nakuha. Pasaylo, wala nako masabti.\n\nI can help you with:\n• Shipment status & location — asa na / nasaan na\n• Tracking number\n• Payment details — magkano / tagpila ang bayad\n• Modes of payment — GCash, cash, Freight Collect\n• Booking information\n• Delivery timeline — ilang araw / pila ka adlaw\n• Pricing & rates — presyo kada kilo\n• Service areas — hanggang saan ang delivery\n• Prohibited items & packaging — bawal ipadala / unsaon pag putos\n• Weight limits & office locations\n\nYou can also give me a tracking number like CE-20260807-1234 for one specific parcel.\n\nIf you'd rather speak to a person, tap “Talk to an Agent” below.",
     escalate: false,
     askResolved: true,
   };
@@ -890,8 +1108,11 @@ I can help you with:
 • Shipment status & location
 • Booking information
 • Payment details & balance
+• Modes of payment — GCash, Cash, Freight Collect
 • Tracking numbers
 • Delivery process & timeline
-• Frequently asked questions
+• Service areas & coverage
+• Prohibited items & packaging guidelines
+• Weight limits & office / drop-off locations
 
 How can I help you today?`;

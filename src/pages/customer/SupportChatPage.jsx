@@ -37,6 +37,13 @@ const BOT_WELCOME_BACK = `Welcome back! 👋
 
 I'm CargoMate PH.
 
+Ask me about:
+• Shipment status, tracking & delivery timeline
+• Payment details & modes of payment (GCash, Cash, Freight Collect)
+• Pricing, weight limits & service areas
+• Prohibited items & packaging guidelines
+• Booking process & office / drop-off locations
+
 How can I help you today?`;
 
 const normalizeError = (err) => {
