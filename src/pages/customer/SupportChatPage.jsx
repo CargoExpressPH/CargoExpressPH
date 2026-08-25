@@ -1,4 +1,5 @@
 import { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 import {
@@ -15,7 +16,7 @@ import {
 import { getBotReply, BOT_GREETING } from '../../lib/supportChatEngine';
 import {
   Send, Bot, Loader, MessageSquare, AlertTriangle,
-  RefreshCw, Clock, User, AlertCircle, CheckCircle2,
+  RefreshCw, Clock, User, AlertCircle, CheckCircle2, X,
 } from 'lucide-react';
 import EmptyState from '../../components/ui/EmptyState';
 import { useToast } from '../../hooks/useToast';
@@ -138,10 +139,53 @@ const MessageBubble = ({ m, showResolutionPrompt, onResolve, onEscalate, onRetry
 };
 
 // ── Main component ─────────────────────────────────────────────────────────────
+/**
+ * The chat window's title bar: compact, sticky, and inside the chat shell
+ * rather than above it, so the whole thing reads as one surface the way
+ * Messenger and WhatsApp do.
+ *
+ * The close button uses navigate(-1) rather than a fixed route because the
+ * page is reached from three places — the bottom-nav-adjacent chat FAB, the
+ * desktop navbar link, and a direct URL — and only history knows which.
+ * `canGoBack` guards the one case where history has nothing to go back to (a
+ * cold load straight onto /customer/support, e.g. from a push notification):
+ * navigate(-1) there leaves the app, so that case goes home instead.
+ */
+const ChatHeader = ({ subtitle, onClose }) => (
+  <header className="support-chat-header">
+    <span className="support-chat-header-avatar" aria-hidden="true">
+      <Bot size={18} />
+    </span>
+    <div className="support-chat-header-text">
+      <h2 className="support-chat-header-title">Support Chat</h2>
+      {subtitle && <p className="support-chat-header-subtitle">{subtitle}</p>}
+    </div>
+    <button
+      type="button"
+      className="support-chat-header-close"
+      onClick={onClose}
+      aria-label="Close chat"
+      title="Close chat"
+    >
+      <X size={18} aria-hidden="true" />
+    </button>
+  </header>
+);
+
 const SupportChatPage = () => {
   usePageTitle('Support Chat');
   const { user } = useAuth();
   const toast = useToast();
+  const navigate = useNavigate();
+
+  // window.history.state.idx is React Router's own position in the history
+  // stack; 0 means this page IS the first entry, so there is nothing of ours
+  // behind it.
+  const handleClose = useCallback(() => {
+    const canGoBack = (window.history.state?.idx ?? 0) > 0;
+    if (canGoBack) navigate(-1);
+    else navigate('/customer');
+  }, [navigate]);
 
   const [conversationId, setConversationId] = useState(null);
   const [convStatus, setConvStatus] = useState(CONVERSATION_STATUS.BOT_ACTIVE);
@@ -631,14 +675,9 @@ const SupportChatPage = () => {
     return (
       <div className="page-transition support-chat-page">
         <h1 className="sr-only">Support Chat</h1>
-        <div className="mb-16">
-          <h2 className="fw-800 mb-4 flex items-center gap-8">
-            <MessageSquare size={24} aria-hidden="true" />
-            Support Chat
-          </h2>
-          <p className="text-secondary text-sm">Message our support team for help with your shipments.</p>
-        </div>
-        <div className="card animate-scale-in text-center" role="alert" style={{ padding: 40 }}>
+        <div className="support-chat-shell">
+          <ChatHeader subtitle="Message our support team." onClose={handleClose} />
+          <div className="card animate-scale-in text-center" role="alert" style={{ padding: 40, border: 'none', boxShadow: 'none' }}>
           <div className="flex items-center justify-center mx-auto mb-16"
             style={{ width: 56, height: 56, borderRadius: '50%', background: 'var(--error-bg)' }}>
             <AlertTriangle size={28} color="var(--error)" aria-hidden="true" />
@@ -648,6 +687,7 @@ const SupportChatPage = () => {
           <button className="btn btn-primary flex items-center gap-8 mx-auto" onClick={initChat}>
             <RefreshCw size={16} /> Try Again
           </button>
+          </div>
         </div>
       </div>
     );
@@ -666,160 +706,161 @@ const SupportChatPage = () => {
 
   return (
     <div className="support-chat-page page-transition">
-      {/* Header */}
       <h1 className="sr-only">Support Chat</h1>
-      <div className="mb-16">
-        <h2 className="fw-800 mb-4 flex items-center gap-8">
-          <MessageSquare size={24} aria-hidden="true" />
-          Support Chat
-        </h2>
-        {(isResolved || isBotMode) && (
-          <p className="text-secondary text-sm">
-            {isResolved
-              ? 'This conversation was marked resolved by our support team.'
-              : 'Our virtual assistant is ready to help you 24/7.'}
-          </p>
-        )}
-      </div>
 
-      {/* Waiting for admin banner (shown after escalation) */}
-      {isWaiting && (
-        <div className="chat-waiting-banner" role="status">
-          <Clock size={16} />
-          <span>Connecting you to an admin. You can keep adding details here while you wait.</span>
-        </div>
-      )}
-
-      {/* Resolved banner. Says what replying will DO, because the composer stays
-          enabled and a resolved thread that silently accepts messages is how the
-          customer ended up talking to nobody. */}
-      {isResolved && (
-        <div className="chat-resolved-banner" role="status">
-          <CheckCircle2 size={16} aria-hidden="true" />
-          <span>This conversation was resolved. Replying will reopen it and bring back our support team.</span>
-        </div>
-      )}
-
-      {/* Messages area */}
-      <ErrorBoundarySection message="Chat timeline failed to display.">
-        <div
-          className={`support-chat-messages${messages.length === 0 && !botTyping ? ' is-empty' : ''}`}
-          ref={messagesContainerRef}
-          onScroll={handleMessagesScroll}
-          role="log"
-          aria-live="polite"
-          aria-label="Support chat messages"
-        >
-          {messages.length === 0 && !botTyping && (
-            <EmptyState
-              icon={MessageSquare}
-              title="No Messages Yet"
-              description="Send a message to start chatting with our support team!"
-            />
-          )}
-
-          {hasMoreMessages && messages.length > 0 && (
-            <div className="support-load-older">
-              <button
-                type="button"
-                className="btn btn-ghost btn-sm"
-                onClick={handleLoadOlder}
-                disabled={loadingOlder}
-              >
-                {loadingOlder
-                  ? <Loader size={14} className="animate-spin" aria-hidden="true" />
-                  : 'Load earlier messages'}
-              </button>
-            </div>
-          )}
-
-          {(() => {
-            let lastDateLabel = null;
-
-            return messages.map((m) => {
-              const dateLabel = formatDateLabel(m.created_at);
-              const showDateDivider = dateLabel && dateLabel !== lastDateLabel;
-              if (showDateDivider) lastDateLabel = dateLabel;
-
-              const isLastBotWithPrompt = m.sender_role === 'bot' && m.id === pendingResolutionId;
-
-              return (
-                <div key={m.id}>
-                  {showDateDivider && (
-                    <div className="support-date-divider">
-                      <span className="support-date-divider-label">{dateLabel}</span>
-                    </div>
-                  )}
-                  <MessageBubble
-                    m={m}
-                    showResolutionPrompt={isLastBotWithPrompt}
-                    onResolve={handleResolvedYes}
-                    onEscalate={handleResolvedNo}
-                    onRetry={handleRetryMessage}
-                    onDiscard={handleDiscardMessage}
-                    actionsDisabled={sending || botTyping}
-                  />
-                </div>
-              );
-            });
-          })()}
-
-          {/* Bot typing indicator */}
-          {botTyping && (
-            <div className="support-message-row is-admin" role="status" aria-label="Assistant is typing">
-              <div className="chat-avatar bot-avatar"><Bot size={12} /></div>
-              <div className="support-message-stack">
-                <div className="chat-sender-label bot-label"><Bot size={11} aria-hidden="true" /> CargoMate PH</div>
-                <div className="chat-typing-dots"><span /><span /><span /></div>
-              </div>
-            </div>
-          )}
-
-          <div ref={messagesEndRef} />
-        </div>
-      </ErrorBoundarySection>
-
-      {/* Input */}
-      <div className="support-chat-input-area flex gap-8 items-end">
-        <textarea
-          ref={textareaRef}
-          className="form-input support-chat-textarea"
-          placeholder={
-            isWaiting  ? 'Leave more details for the admin...' :
-            isResolved ? 'Reply to reopen this conversation…' :
-            botTyping  ? 'Assistant is typing…' :
-            isBotMode  ? 'Ask about your shipment…' :
-                         'Type your message…'
+      {/* One surface: header, banners, timeline and composer are children of a
+          single bordered shell, so the composer is glued to the bottom of the
+          conversation instead of floating below it as its own card. */}
+      <div className="support-chat-shell">
+        <ChatHeader
+          subtitle={
+            isResolved ? 'Marked resolved by our support team.'
+              : isWaiting ? 'Connecting you to an admin…'
+              : isBotMode ? 'CargoMate PH is ready to help 24/7.'
+              : 'Our support team is on this thread.'
           }
-          aria-label="Type your support message"
-          maxLength={MAX_MESSAGE_LENGTH}
-          value={input}
-          onChange={e => setInput(e.target.value)}
-          onKeyDown={e => {
-            if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
-          }}
-          onFocus={() => {
-            setTimeout(() => {
-              scrollToEnd(true);
-            }, 150);
-          }}
-          style={{
-            opacity: inputDisabled ? 0.6 : 1,
-          }}
-          rows={1}
-          disabled={inputDisabled}
+          onClose={handleClose}
         />
-        <button
-          className="chat-send-btn"
-          type="button"
-          onClick={handleSend}
-          disabled={!input.trim() || inputDisabled}
-          aria-label={sending || botTyping ? 'Sending…' : 'Send message'}
-        >
-          {sending || botTyping
-            ? <Loader size={18} className="animate-spin" />
-            : <Send size={18} />}
-        </button>
+
+        {/* Waiting for admin banner (shown after escalation) */}
+        {isWaiting && (
+          <div className="chat-waiting-banner" role="status">
+            <Clock size={16} />
+            <span>Connecting you to an admin. You can keep adding details here while you wait.</span>
+          </div>
+        )}
+
+        {/* Resolved banner. Says what replying will DO, because the composer stays
+            enabled and a resolved thread that silently accepts messages is how the
+            customer ended up talking to nobody. */}
+        {isResolved && (
+          <div className="chat-resolved-banner" role="status">
+            <CheckCircle2 size={16} aria-hidden="true" />
+            <span>This conversation was resolved. Replying will reopen it and bring back our support team.</span>
+          </div>
+        )}
+
+        {/* Messages area */}
+        <ErrorBoundarySection message="Chat timeline failed to display.">
+          <div
+            className={`support-chat-messages${messages.length === 0 && !botTyping ? ' is-empty' : ''}`}
+            ref={messagesContainerRef}
+            onScroll={handleMessagesScroll}
+            role="log"
+            aria-live="polite"
+            aria-label="Support chat messages"
+          >
+            {messages.length === 0 && !botTyping && (
+              <EmptyState
+                icon={MessageSquare}
+                title="No Messages Yet"
+                description="Send a message to start chatting with our support team!"
+              />
+            )}
+
+            {hasMoreMessages && messages.length > 0 && (
+              <div className="support-load-older">
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  onClick={handleLoadOlder}
+                  disabled={loadingOlder}
+                >
+                  {loadingOlder
+                    ? <Loader size={14} className="animate-spin" aria-hidden="true" />
+                    : 'Load earlier messages'}
+                </button>
+              </div>
+            )}
+
+            {(() => {
+              let lastDateLabel = null;
+
+              return messages.map((m) => {
+                const dateLabel = formatDateLabel(m.created_at);
+                const showDateDivider = dateLabel && dateLabel !== lastDateLabel;
+                if (showDateDivider) lastDateLabel = dateLabel;
+
+                const isLastBotWithPrompt = m.sender_role === 'bot' && m.id === pendingResolutionId;
+
+                return (
+                  <div key={m.id}>
+                    {showDateDivider && (
+                      <div className="support-date-divider">
+                        <span className="support-date-divider-label">{dateLabel}</span>
+                      </div>
+                    )}
+                    <MessageBubble
+                      m={m}
+                      showResolutionPrompt={isLastBotWithPrompt}
+                      onResolve={handleResolvedYes}
+                      onEscalate={handleResolvedNo}
+                      onRetry={handleRetryMessage}
+                      onDiscard={handleDiscardMessage}
+                      actionsDisabled={sending || botTyping}
+                    />
+                  </div>
+                );
+              });
+            })()}
+
+            {/* Bot typing indicator */}
+            {botTyping && (
+              <div className="support-message-row is-admin" role="status" aria-label="Assistant is typing">
+                <div className="chat-avatar bot-avatar"><Bot size={12} /></div>
+                <div className="support-message-stack">
+                  <div className="chat-sender-label bot-label"><Bot size={11} aria-hidden="true" /> CargoMate PH</div>
+                  <div className="chat-typing-dots"><span /><span /><span /></div>
+                </div>
+              </div>
+            )}
+
+            <div ref={messagesEndRef} />
+          </div>
+        </ErrorBoundarySection>
+
+        {/* Input */}
+        <div className="support-chat-input-area flex gap-8 items-end">
+          <textarea
+            ref={textareaRef}
+            className="form-input support-chat-textarea"
+            placeholder={
+              isWaiting  ? 'Leave more details for the admin...' :
+              isResolved ? 'Reply to reopen this conversation…' :
+              botTyping  ? 'Assistant is typing…' :
+              isBotMode  ? 'Ask about your shipment…' :
+                           'Type your message…'
+            }
+            aria-label="Type your support message"
+            maxLength={MAX_MESSAGE_LENGTH}
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            onKeyDown={e => {
+              if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
+            }}
+            onFocus={() => {
+              setTimeout(() => {
+                scrollToEnd(true);
+              }, 150);
+            }}
+            style={{
+              opacity: inputDisabled ? 0.6 : 1,
+            }}
+            rows={1}
+            disabled={inputDisabled}
+          />
+          <button
+            className="chat-send-btn"
+            type="button"
+            onClick={handleSend}
+            disabled={!input.trim() || inputDisabled}
+            aria-label={sending || botTyping ? 'Sending…' : 'Send message'}
+          >
+            {sending || botTyping
+              ? <Loader size={18} className="animate-spin" />
+              : <Send size={18} />}
+          </button>
+        </div>
       </div>
     </div>
   );

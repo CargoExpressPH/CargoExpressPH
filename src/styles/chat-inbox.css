@@ -26,24 +26,125 @@
   }
 }
 
-/* Required. A flex item defaults to min-height:auto, which refuses to shrink
-    below its content — so this list pushed .support-chat-page past its
-    declared height, the whole page scrolled "a little", and that scroll slid
-    the composer underneath the floating bottom tab bar. min-height:0 lets the
-    item shrink so the list scrolls internally and the composer stays put. */
+/* ── The chat shell ───────────────────────────────────────────────────────
+   Header, banners, timeline and composer in ONE bordered surface. The border,
+   radius and background live here now rather than on the timeline and the
+   composer separately — that separation is what made the composer read as a
+   detached card floating under the conversation.
+
+   `overflow: hidden` is what makes the children respect the rounded corners;
+   the timeline is the only scrollable part inside it. */
+.support-chat-shell {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  /* A flex item defaults to min-height:auto and refuses to shrink below its
+     content. Without this the timeline pushes the shell past its height, the
+     page gains a scroll, and that scroll is what used to slide the composer
+     under the floating tab bar. */
+  min-height: 0;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--customer-panel-solid) 88%, var(--bg) 12%);
+  border: 1px solid var(--customer-line, var(--border-light));
+  border-radius: 24px;
+  box-shadow: var(--customer-shadow-soft);
+}
+
+/* Compact title bar. `position: sticky` + top:0 keeps it pinned if the shell
+   itself ever scrolls; the timeline scrolling underneath it is handled by the
+   flex layout, not by the header. */
+.support-chat-header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 0 0 auto;
+  padding: 10px 12px;
+  background: color-mix(in srgb, var(--customer-panel-solid) 94%, transparent);
+  border-bottom: 1px solid var(--customer-line, var(--border-light));
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+.support-chat-header-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--customer-green), #22C55E);
+  color: #FFFFFF;
+}
+
+.support-chat-header-text {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+/* 1rem, not the old clamp(1.7rem, 5vw, 2.25rem): on a short phone the title
+   was eating height the message list needs. */
+.support-chat-header-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 800;
+  line-height: 1.2;
+  color: var(--customer-ink, var(--text));
+}
+
+.support-chat-header-subtitle {
+  margin: 2px 0 0;
+  font-size: 0.75rem;
+  line-height: 1.3;
+  color: var(--text-secondary);
+  /* One line — the subtitle changes with conversation state and a two-line
+     variant would resize the header under the customer. */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.support-chat-header-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.support-chat-header-close:hover {
+  background: var(--bg-secondary);
+  color: var(--text);
+}
+
+.support-chat-header-close:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* The timeline is now the middle band of the shell: no border, no radius, no
+   margin — the shell owns all of that. */
 .support-chat-messages {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  margin-bottom: 12px;
   background: linear-gradient(180deg, color-mix(in srgb, var(--customer-green-soft) 42%, transparent), transparent 44%),
-    color-mix(in srgb, var(--customer-panel-solid) 88%, var(--bg) 12%);
+    transparent;
   padding: 16px;
-  border-top-left-radius: 28px;
-  border-top-right-radius: 28px;
-  border-bottom-right-radius: 28px;
-  border-bottom-left-radius: 28px;
-  border: 1px solid var(--border-light);
+  border: none;
+  border-radius: 0;
+  margin-bottom: 0;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
   container-type: inline-size;
@@ -66,18 +167,23 @@
 }
 
 /* Composer — extracted from inline styles for token + safe-area + responsive control */
+/* Composer — the bottom band of the shell. A top border only: it is part of
+   the same surface as the conversation above it, not a card of its own. The
+   safe-area inset stays, because on a phone this sits at the bottom of the
+   viewport whenever the tab bar is hidden by the keyboard. */
 .support-chat-input-area {
   display: flex;
   gap: 8px;
   align-items: flex-end;
+  flex: 0 0 auto;
   padding: 8px;
   padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
   background: color-mix(in srgb, var(--customer-panel-solid) 92%, transparent);
-  border: 1px solid var(--customer-line);
-  border-radius: 999px;
+  border: none;
+  border-top: 1px solid var(--customer-line);
+  border-radius: 0;
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
-  box-shadow: var(--customer-shadow-soft);
   position: relative;
   z-index: 4;
   min-width: 0;
@@ -225,8 +331,6 @@
   }
   .support-chat-messages {
     padding: 12px;
-    border-radius: 20px;
-    margin-bottom: 8px;
   }
   .support-chat-input-area {
     padding: 6px 2px calc(6px + env(safe-area-inset-bottom, 0px));
@@ -252,7 +356,9 @@
 @media (max-width: 480px) {
   .support-chat-messages {
     padding: 8px;
-    border-radius: 16px;
+  }
+  .support-chat-shell {
+    border-radius: 18px;
   }
   .support-message-row {
     gap: 6px;
@@ -438,6 +544,18 @@
   border: 1px solid var(--border-light);
   font-size: 0.875rem; font-weight: 500;
   animation: slideDown 0.3s ease;
+}
+
+/* Inside the chat shell these are status strips spanning the surface, not
+   free-floating cards: no rounded corners, no bottom margin, and — the part
+   that matters — `flex: 0 0 auto`, since a flex child otherwise shrinks and a
+   two-line banner would be squashed by a long conversation. */
+.support-chat-shell > .chat-waiting-banner,
+.support-chat-shell > .chat-resolved-banner {
+  flex: 0 0 auto;
+  margin-bottom: 0;
+  border-radius: 0;
+  border-width: 0 0 1px 0;
 }
 
 /* --- INBOX — Status Badges --------------------------------------------- */

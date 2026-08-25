@@ -1184,28 +1184,22 @@ input:checked + .toggle-slider:before {
   transform: translateY(-50%);
 }
 
+/* No gap: the chat is one shell now (.support-chat-shell in chat-inbox.css),
+   and the page is just the box it fills. The old `> .mb-16` page header and
+   the 2.25rem <h2> that went with it are gone — the title lives in the
+   compact sticky header inside the shell. */
 .support-chat-page {
-  gap: 12px;
-}
-
-.support-chat-page > .mb-16 {
-  margin-bottom: 4px ;
-}
-
-.support-chat-page h2 {
-  color: var(--customer-ink);
-  font-size: clamp(1.7rem, 5vw, 2.25rem);
-  font-weight: 900;
-  letter-spacing: 0;
+  gap: 0;
 }
 
 /* See tables-mobile.css: a flex item defaults to min-height:auto and refuses to
    shrink below its content, which pushed the chat column past its height and
    scrolled the composer under the tab bar. Re-asserted here because this
    file loads after tables-mobile.css. */
-.support-chat-messages {
-  border-color: var(--customer-line);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+/* The border and the inner highlight moved to the shell, which is what draws
+   the outline of the whole chat surface now. */
+.support-chat-shell {
+  box-shadow: var(--customer-shadow-soft), inset 0 1px 0 rgba(255, 255, 255, 0.6);
 }
 
 .support-message-bubble {
@@ -1246,18 +1240,6 @@ input:checked + .toggle-slider:before {
   background: linear-gradient(135deg, var(--primary), var(--primary-light));
   color: #FFFFFF;
   opacity: 0.55;
-}
-
-.support-chat-page > .flex.gap-8:last-child {
-  position: relative;
-  z-index: 4;
-  padding: 8px;
-  border: 1px solid var(--customer-line);
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--customer-panel-solid) 92%, transparent);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
-  box-shadow: var(--customer-shadow-soft);
 }
 
 .customer-main:has(.support-chat-page) {
@@ -1946,6 +1928,11 @@ body:has(textarea:focus) .support-chat-page {
   overflow: hidden;
 }
 
+.customer-layout-v2:has(.support-chat-page) .support-chat-shell {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
 .customer-layout-v2:has(.support-chat-page) .support-chat-messages {
   flex: 1 1 auto;
   min-height: 0;
@@ -1995,19 +1982,20 @@ body:has(textarea:focus) .support-chat-page {
 }
 
 @media (max-width: 640px) {
-  /* The chat title is useful context, but it should not consume the message
-     timeline's limited height on a short phone viewport. */
-  .support-chat-page > .mb-16 {
-    margin-bottom: 10px;
+  /* Tighter still on a short phone viewport: every pixel the header does not
+     take is a pixel of message timeline. */
+  .support-chat-header {
+    padding: 8px 10px;
+    gap: 8px;
   }
 
-  .support-chat-page > .mb-16 h2 {
-    font-size: clamp(1.25rem, 5.4vw, 1.5rem);
+  .support-chat-header-avatar {
+    width: 30px;
+    height: 30px;
   }
 
-  .support-chat-page > .mb-16 h2 svg {
-    width: 22px;
-    height: 22px;
+  .support-chat-header-title {
+    font-size: 0.9375rem;
   }
 }
 
