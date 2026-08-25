@@ -15,14 +15,19 @@
 .support-chat-page {
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 160px);
-  height: calc(100dvh - 160px);
-  min-height: 500px;
+  height: calc(100vh - 160px - var(--keyboard-inset, 0px));
+  height: calc(100dvh - 160px - var(--keyboard-inset, 0px));
+  /* No fixed min-height: with the keyboard up the remaining space can be
+     smaller than any figure worth naming, and a min-height taller than the
+     space available pushes the composer off the bottom — the bug this whole
+     block exists to prevent. The shell's own bands (header + composer) are
+     what stop it collapsing to nothing. */
+  min-height: 0;
   min-width: 0;
 }
 @supports (height: 100dvh) {
   .support-chat-page {
-    height: calc(100dvh - 160px);
+    height: calc(100dvh - 160px - var(--keyboard-inset, 0px));
   }
 }
 
@@ -387,9 +392,6 @@
   }
 }
 @media (max-width: 360px) {
-  .support-chat-page {
-    min-height: 360px;
-  }
   .support-chat-textarea {
     padding: 10px 12px;
   }

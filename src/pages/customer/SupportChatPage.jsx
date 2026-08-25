@@ -22,6 +22,7 @@ import EmptyState from '../../components/ui/EmptyState';
 import { useToast } from '../../hooks/useToast';
 import { SkeletonChat } from '../../components/ui/SkeletonLoader';
 import usePageTitle from '../../hooks/usePageTitle';
+import useKeyboardInset from '../../hooks/useKeyboardInset';
 import ErrorBoundarySection from '../../components/ui/ErrorBoundarySection';
 
 // Max ms to wait for chat to initialize before showing an error.
@@ -436,6 +437,24 @@ const SupportChatPage = () => {
   const scrollToEnd = (smooth) => {
     messagesEndRef.current?.scrollIntoView({ behavior: smooth && !prefersReducedMotion() ? 'smooth' : 'auto' });
   };
+
+  /**
+   * Keep the newest message in view as the keyboard opens and closes.
+   *
+   * The shell shrinks to the visible viewport (see `--keyboard-inset` in
+   * customer-mobile-refresh.css), which means the timeline gets shorter while
+   * its scroll position stays where it was — the last message slides out of
+   * sight at the very moment the customer is about to reply to it. Scrolling
+   * on the inset CHANGE, rather than only on focus, also covers the keyboard
+   * being dismissed and swapped for an emoji panel of a different height.
+   *
+   * Not smooth: this fires while the keyboard is still animating, and a smooth
+   * scroll racing that animation lands somewhere arbitrary.
+   */
+  useKeyboardInset(useCallback(() => {
+    if (!nearBottomRef.current) return;
+    requestAnimationFrame(() => scrollToEnd(false));
+  }, []));
 
   // Auto-scroll: instant on open; afterwards only when the customer is near the
   // bottom or just sent a message (respects prefers-reduced-motion)

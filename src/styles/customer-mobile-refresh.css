@@ -1315,8 +1315,8 @@ input:checked + .toggle-slider:before {
        Must stay in step with .customer-main:has(.support-chat-page) in
        layout-customer.css; if the two stop summing to 100dvh the page gains a
        scroll and the composer slides under the bottom tab bar. */
-    min-height: calc(100dvh - 186px - var(--customer-safe-bottom) - var(--app-safe-top));
-    height: calc(100dvh - 186px - var(--customer-safe-bottom) - var(--app-safe-top));
+    min-height: 0;
+    height: calc(100dvh - 186px - var(--customer-safe-bottom) - var(--app-safe-top) - var(--keyboard-inset, 0px));
     /* The column is a fixed-height viewport for the message list. Without this
        an overflowing child still grew the page, and that scroll is what slid
        the composer under the floating tab bar. */
@@ -1801,10 +1801,15 @@ body:has(textarea:focus) .customer-main:has(.support-chat-page) {
   scroll-padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px)) ;
 }
 
+/* The column inside the (already shortened) shell. `--keyboard-inset` is
+   subtracted for the same reason as above; the fixed min-height is gone
+   because on a short phone with the keyboard up it was LARGER than the space
+   that remains, and a min-height that exceeds its container is precisely how
+   the composer got pushed out of view. */
 body.keyboard-active .support-chat-page,
 body:has(textarea:focus) .support-chat-page {
-  height: calc(100dvh - 76px) ;
-  min-height: 280px ;
+  height: calc(100dvh - 76px - var(--keyboard-inset, 0px)) ;
+  min-height: 0 ;
 }
 
 /* --- Premium Shipment List Cards ---------------------------------------- */
@@ -1903,11 +1908,21 @@ body:has(textarea:focus) .support-chat-page {
 /* ── Support chat: fixed viewport shell, internal timeline scroll ──────────
    Match the admin inbox: the app shell and chat column fill the available
    viewport, while only the message timeline is scrollable. */
+/* `--keyboard-inset` is published by useKeyboardInset (mounted by
+   SupportChatPage) and is 0 whenever no keyboard is up.
+   
+   It is subtracted here because `dvh` does NOT account for the keyboard under
+   this app's `interactive-widget=resizes-visual` viewport: the layout viewport
+   keeps its full height while the bottom of the screen is covered, so a shell
+   sized at 100dvh puts its own last band — the composer — underneath the
+   keyboard. Shrinking the shell to the VISIBLE area is what lifts the composer
+   above it, and because the shell is a flex column the timeline absorbs the
+   difference. */
 .customer-layout-v2:has(.support-chat-page) {
   display: flex;
   flex-direction: column;
-  height: 100vh;
-  min-height: 100vh;
+  height: calc(100vh - var(--keyboard-inset, 0px));
+  min-height: 0;
   overflow: hidden;
 }
 
@@ -1941,8 +1956,8 @@ body:has(textarea:focus) .support-chat-page {
 
 @supports (height: 100dvh) {
   .customer-layout-v2:has(.support-chat-page) {
-    height: 100dvh;
-    min-height: 100dvh;
+    height: calc(100dvh - var(--keyboard-inset, 0px));
+    min-height: 0;
   }
 }
 

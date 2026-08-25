@@ -36,6 +36,12 @@ const RUNTIME_DEFINED = new Set([
   // Injected as an inline style by BrandLogo (src/components/ui/BrandLogo.jsx)
   // so responsive rules can still override it; the 40px fallbacks are the rest.
   '--brand-logo-size',
+  // Written to <html> by useKeyboardInset (src/hooks/useKeyboardInset.js) while
+  // SupportChatPage is mounted: the height of the on-screen keyboard, which
+  // `dvh` does not report under this app's `interactive-widget=resizes-visual`
+  // viewport. The 0px fallbacks are the no-keyboard resting state, and it is a
+  // length rather than a colour, so no theme can be got wrong by it.
+  '--keyboard-inset',
 ]);
 
 /**

@@ -24,7 +24,7 @@
   }
 
   .support-chat-page {
-    height: calc(100dvh - 160px);
+    height: calc(100dvh - 160px - var(--keyboard-inset, 0px));
   }
 
   @media (max-width: 1024px) {
