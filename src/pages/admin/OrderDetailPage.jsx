@@ -716,7 +716,7 @@ const AdminOrderDetailPage = () => {
         <div className="card admin-section-card stagger-item mb-16" style={{ animationDelay: '40ms' }}>
           <div className="card-body">
             <h3 className="flex items-center gap-8 text-sm fw-700 mb-8">
-              <AlertTriangle size={16} aria-hidden="true" /> Cancellation Reason
+              <AlertTriangle size={16} aria-hidden="true" /> Cancellation Details
             </h3>
             <p className="text-xs text-secondary mb-8">
               {order.cancellation_requested_at
@@ -726,12 +726,36 @@ const AdminOrderDetailPage = () => {
                 ? ` • ${safeFormatDate(order.cancellation_reviewed_at, { month: 'short', day: 'numeric', year: 'numeric' })}`
                 : ''}
             </p>
+            <div className="text-xs text-tertiary fw-700 text-uppercase mb-4">
+              {order.cancellation_requested_at ? "Customer's reason" : 'Reason given'}
+            </div>
             <blockquote
               className="text-sm m-0"
               style={{ borderLeft: '3px solid var(--border)', paddingLeft: 12 }}
             >
               {order.cancellation_reason}
             </blockquote>
+
+            {/* Only for an approved REQUEST: on an admin-initiated cancellation
+                the reason above is already the admin's own, and repeating it
+                under a second heading would read as two separate remarks. */}
+            {order.cancellation_requested_at && (
+              <>
+                <div className="text-xs text-tertiary fw-700 text-uppercase mb-4 mt-12">
+                  Admin note
+                </div>
+                <blockquote
+                  className="text-sm m-0"
+                  style={{ borderLeft: '3px solid var(--border)', paddingLeft: 12 }}
+                >
+                  {order.cancellation_review_notes || (
+                    <span className="text-tertiary">
+                      No note was recorded — this request was approved before notes were required.
+                    </span>
+                  )}
+                </blockquote>
+              </>
+            )}
           </div>
         </div>
       )}
@@ -1379,17 +1403,23 @@ const AdminOrderDetailPage = () => {
           submitLabel="Decline Request"
         />
       )}
-      <ConfirmModal
-        isOpen={showApproveCancellationModal}
-        onClose={() => setShowApproveCancellationModal(false)}
-        onConfirm={() => handleReviewCancellation(true)}
-        title="Approve Cancellation Request?"
-        message={`Approve ${order.profiles?.name || 'the customer'}'s request to cancel ${order.tracking_number}? The order will be marked Cancelled and the customer will be notified. This cannot be undone.`}
-        confirmLabel="Approve & Cancel Order"
-        cancelLabel="Keep Order"
-        variant="danger"
-        loading={reviewingCancellation}
-      />
+      {/* Approving takes a note like declining does. It used to be a bare
+          confirm, which meant the one decision that actually ends a booking was
+          the only one leaving no admin remark behind — the customer's reason
+          was on the record, ours was not. */}
+      {showApproveCancellationModal && (
+        <ReasonModal
+          isOpen={showApproveCancellationModal}
+          onClose={() => setShowApproveCancellationModal(false)}
+          onConfirm={(notes) => handleReviewCancellation(true, notes)}
+          loading={reviewingCancellation}
+          title="Approve Cancellation Request?"
+          description={`${order.tracking_number} will be marked Cancelled and ${order.profiles?.name || 'the customer'} will be notified. This cannot be undone. Your note is saved on the booking and sent to them.`}
+          label="Note for the record *"
+          placeholder="e.g. Confirmed by phone; parcel never dropped off, nothing to return."
+          submitLabel="Approve & Cancel Order"
+        />
+      )}
       {showRejectModal && (
         <RejectModal
           isOpen={showRejectModal}

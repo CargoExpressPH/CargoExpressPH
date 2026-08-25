@@ -638,12 +638,44 @@ const OrderDetailPage = () => {
       )}
 
       {/* Cancelled status display */}
+      {/* Cancellation details. The banner used to say only "this booking has
+          been cancelled", which is the one thing the status badge above already
+          says — the questions a customer opens a cancelled booking to answer
+          are "what reason did I give?" and "what did they say?". Both are on
+          the row; neither was being shown.
+
+          `cancellation_requested_at` is what separates the two routes in: a
+          request this customer made, or a cancellation the team made without
+          one. Labelling an admin's reason as "your reason" would be a small
+          lie that reads as the app losing track of who did what. */}
       {isCancelled && (
-        <div className="alert-banner alert-banner-error animate-scale-in mb-16 text-center" style={{ padding: '20px 24px' }}>
-          <div className="flex flex-col items-center gap-8">
-            <XCircle size={32} />
-            <div className="fw-700 text-base">Booking Cancelled</div>
-            <p className="text-sm m-0" style={{ opacity: 0.8 }}>This booking has been cancelled and cannot be modified.</p>
+        <div className="alert-banner alert-banner-error animate-scale-in mb-16" style={{ padding: '20px 24px' }}>
+          <div className="flex flex-col gap-8" style={{ width: '100%' }}>
+            <div className="flex items-center gap-8">
+              <XCircle size={20} aria-hidden="true" />
+              <span className="fw-700 text-base">Booking Cancelled</span>
+            </div>
+            <p className="text-sm m-0" style={{ opacity: 0.8 }}>
+              {order.cancellation_requested_at
+                ? 'This booking was cancelled at your request and cannot be modified.'
+                : 'This booking was cancelled by our team and cannot be modified.'}
+            </p>
+
+            {order.cancellation_reason && (
+              <div className="text-sm">
+                <div className="fw-700">
+                  {order.cancellation_requested_at ? 'Your reason' : 'Reason'}
+                </div>
+                <p className="m-0" style={{ opacity: 0.9 }}>“{order.cancellation_reason}”</p>
+              </div>
+            )}
+
+            {order.cancellation_requested_at && order.cancellation_review_notes && (
+              <div className="text-sm">
+                <div className="fw-700">Note from our team</div>
+                <p className="m-0" style={{ opacity: 0.9 }}>“{order.cancellation_review_notes}”</p>
+              </div>
+            )}
           </div>
         </div>
       )}
