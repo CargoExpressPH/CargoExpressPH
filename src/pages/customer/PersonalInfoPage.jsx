@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '../../hooks/useToast';
 import CustomSelect from '../../components/ui/CustomSelect';
+import BarangaySelect from '../../components/ui/BarangaySelect';
 import ConfirmModal from '../../components/ui/ConfirmModal';
 import usePageTitle from '../../hooks/usePageTitle';
 import { toTitleCase } from '../../utils/string';
@@ -222,7 +223,14 @@ const PersonalInfoPage = () => {
                 id="profile-province"
                 className="form-select form-input-icon-left"
                 value={form.address_province}
-                onChange={e => { setField('address_province', e.target.value); setField('address_city', ''); }}
+                onChange={e => {
+                  // Barangay belongs to a city and city belongs to a province,
+                  // so both have to go: a barangay left behind from the old
+                  // province would be saved against a city it is not in.
+                  setField('address_province', e.target.value);
+                  setField('address_city', '');
+                  setField('address_barangay', '');
+                }}
               >
                 <option value="">Select Province</option>
                 {VALID_PROVINCES.map(p => <option key={p} value={p}>{p}</option>)}
@@ -239,7 +247,7 @@ const PersonalInfoPage = () => {
                 id="profile-city"
                 className="form-select form-input-icon-left"
                 value={form.address_city}
-                onChange={e => setField('address_city', e.target.value)}
+                onChange={e => { setField('address_city', e.target.value); setField('address_barangay', ''); }}
               >
                 <option value="">Select City</option>
                 {cities.map(c => <option key={c} value={c}>{c}</option>)}
@@ -252,12 +260,13 @@ const PersonalInfoPage = () => {
             <label className="form-label" htmlFor="profile-barangay">Barangay</label>
             <div className="form-input-wrapper">
               <MapPin size={15} className="form-input-icon" />
-              <input
+              <BarangaySelect
                 id="profile-barangay"
-                className="form-input form-input-icon-left"
-                placeholder="Barangay name"
+                className="form-input-icon-left"
+                province={form.address_province}
+                city={form.address_city}
                 value={form.address_barangay}
-                onChange={handleTitleCase('address_barangay')}
+                onChange={e => setField('address_barangay', e.target.value)}
               />
             </div>
           </div>

@@ -36,7 +36,7 @@ const normalizeError = (err) => {
 };
 
 const OrderDetailPage = () => {
-  usePageTitle('Order Details');
+  usePageTitle('Booking Details');
   const { id } = useParams();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -343,7 +343,7 @@ const OrderDetailPage = () => {
 
     void beginVerification();
     // The URL is cleaned by the preceding effect. This effect intentionally
-    // starts once for this order-return event.
+    // starts once for this booking-return event.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
@@ -505,7 +505,7 @@ const OrderDetailPage = () => {
         <div className="flex items-center justify-center mx-auto mb-16" style={{ width: 56, height: 56, borderRadius: '50%', background: 'var(--error-bg)' }}>
           <AlertTriangle size={28} color="var(--error)" aria-hidden="true" />
         </div>
-        <h3 className="mb-8" style={{ color: 'var(--error-dark)' }}>Unable to Load Order</h3>
+        <h3 className="mb-8" style={{ color: 'var(--error-dark)' }}>Unable to Load Booking</h3>
         <p className="text-secondary text-sm mb-20">{error}</p>
         <div className="flex gap-12 justify-center flex-wrap">
           <button className="btn btn-primary" onClick={loadOrder}>Try Again</button>
@@ -523,8 +523,8 @@ const OrderDetailPage = () => {
       </button>
       <div className="card animate-scale-in text-center" style={{ padding: 40 }}>
         <Package size={40} style={{ opacity: 0.3, margin: '0 auto 16px' }} />
-        <h3 className="mb-8">Order Not Found</h3>
-        <p className="text-secondary text-sm mb-20">This order does not exist or you don't have permission to view it.</p>
+        <h3 className="mb-8">Booking Not Found</h3>
+        <p className="text-secondary text-sm mb-20">This booking does not exist or you don't have permission to view it.</p>
         <button className="btn btn-primary" onClick={() => navigate('/customer/orders')}>Back to Orders</button>
       </div>
     </div>
@@ -642,8 +642,8 @@ const OrderDetailPage = () => {
         <div className="alert-banner alert-banner-error animate-scale-in mb-16 text-center" style={{ padding: '20px 24px' }}>
           <div className="flex flex-col items-center gap-8">
             <XCircle size={32} />
-            <div className="fw-700 text-base">Order Cancelled</div>
-            <p className="text-sm m-0" style={{ opacity: 0.8 }}>This order has been cancelled and cannot be modified.</p>
+            <div className="fw-700 text-base">Booking Cancelled</div>
+            <p className="text-sm m-0" style={{ opacity: 0.8 }}>This booking has been cancelled and cannot be modified.</p>
           </div>
         </div>
       )}
@@ -869,7 +869,7 @@ const OrderDetailPage = () => {
               <h5 className="text-xs text-tertiary font-bold mb-8">Payment History</h5>
               <div className="table-responsive customer-payment-history-table-wrap">
                 <table className="table customer-payment-history-table m-0">
-                  <caption className="sr-only">Payment history for this order</caption>
+                  <caption className="sr-only">Payment history for this booking</caption>
                   <thead>
                     <tr>
                       <th scope="col">Date</th>
@@ -956,7 +956,7 @@ const OrderDetailPage = () => {
             >
               <h3 id="feedback-modal-title" className="fw-800 text-center mb-8">How was your delivery?</h3>
               <p className="text-secondary text-center text-sm mb-24">
-                We'd love to hear your feedback on order {order?.tracking_number}.
+                We'd love to hear your feedback on booking {order?.tracking_number}.
               </p>
               
               <div className="flex justify-center gap-8 mb-24">

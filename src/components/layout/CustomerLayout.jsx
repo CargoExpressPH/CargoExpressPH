@@ -15,7 +15,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import PageTransition from '../ui/PageTransition';
 
 const desktopNavItems = [
-  { to: '/customer/book', icon: Plus, label: 'Place Order' },
+  { to: '/customer/book', icon: Plus, label: 'Book Shipment' },
   { to: '/customer/orders', icon: Package, label: 'Bookings' },
   { to: '/customer/trips', icon: MapPin, label: 'Trips' },
   { to: '/customer/support', icon: MessageSquare, MessageCircle, label: 'Chat Support' },
@@ -398,13 +398,17 @@ const CustomerLayout = () => {
           all live on top of whatever page the customer is on. The route
           already exists and already has its own transition. */}
       {location.pathname !== '/customer/support' && (
+        // The accessible name begins with the visible text on purpose: WCAG
+        // 2.5.3 (Label in Name) means a voice-control user saying "Ask
+        // CargoMate" — what they can see — must hit this control.
         <Link
           to="/customer/support"
           className="customer-chat-fab"
-          aria-label="Chat support"
-          title="Chat support"
+          aria-label="Ask CargoMate — chat support"
+          title="Ask CargoMate — chat support"
         >
-          <MessageCircle size={24} aria-hidden="true" />
+          <Bot size={20} aria-hidden="true" />
+          <span className="customer-chat-fab-label">Ask CargoMate</span>
         </Link>
       )}
 

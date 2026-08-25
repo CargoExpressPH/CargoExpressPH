@@ -9,6 +9,7 @@ import { isTripBookable } from '../../constants/status';
 import { ArrowLeft, Loader, CheckCircle, Copy, Check, Package, MapPin, User, Truck, AlertTriangle, Info } from 'lucide-react';
 import { useToast } from '../../hooks/useToast';
 import CustomSelect from '../../components/ui/CustomSelect';
+import BarangaySelect from '../../components/ui/BarangaySelect';
 import ConfirmModal from '../../components/ui/ConfirmModal';
 import { motion, useReducedMotion } from 'framer-motion';
 import usePageTitle from '../../hooks/usePageTitle';
@@ -401,7 +402,7 @@ const BookShipmentPage = () => {
         <div className="form-group"><label className="form-label" htmlFor={id('phone')}>Mobile Number <span className="required">*</span></label><input id={id('phone')} className={`form-input ${fc('phone')}`} value={form[`${prefix}_phone`]} onChange={handlePhoneChange(`${prefix}_phone`)} inputMode="numeric" maxLength={11} placeholder="09xxxxxxxxx" autoComplete="tel" required {...a11y('phone')} />{errEl('phone')}</div>
         <div className="form-group"><label className="form-label" htmlFor={id('facebook')}>Facebook Name <span className="required">*</span></label><input id={id('facebook')} className={`form-input ${fc('facebook')}`} value={form[`${prefix}_facebook`]} onChange={handleTextChange(`${prefix}_facebook`)} placeholder="Your name on Facebook" autoCapitalize="words" required {...a11y('facebook')} />{errEl('facebook')}</div>
         <div className="form-group"><label className="form-label" htmlFor={id('province')}>Province <span className="required">*</span></label>
-          <CustomSelect id={id('province')} className={`form-select ${fc('province')}`} value={form[`${prefix}_province`]} onChange={e => { u(`${prefix}_province`, e.target.value); u(`${prefix}_city`, ''); }} {...a11y('province')}>
+          <CustomSelect id={id('province')} className={`form-select ${fc('province')}`} value={form[`${prefix}_province`]} onChange={e => { u(`${prefix}_province`, e.target.value); u(`${prefix}_city`, ''); u(`${prefix}_barangay`, ''); }} {...a11y('province')}>
             <option value="">Select Province</option>
             {getProvinces().map(p => <option key={p} value={p}>{p}</option>)}
           </CustomSelect>{errEl('province')}
@@ -411,16 +412,30 @@ const BookShipmentPage = () => {
         )}
         <div className="form-group"><label className="form-label" htmlFor={id('city')}>City / Municipality <span className="required">*</span></label>
           {isSender && form[`${prefix}_province`] === 'Other Area' ? (
-            <input id={id('city')} className={`form-input ${fc('city')}`} value={form[`${prefix}_city`] || ''} onChange={handleTextChange(`${prefix}_city`)} autoCapitalize="words" required {...a11y('city')} />
+            <input id={id('city')} className={`form-input ${fc('city')}`} value={form[`${prefix}_city`] || ''} onChange={e => { handleTextChange(`${prefix}_city`)(e); u(`${prefix}_barangay`, ''); }} autoCapitalize="words" required {...a11y('city')} />
           ) : (
-            <CustomSelect id={id('city')} className={`form-select ${fc('city')}`} value={form[`${prefix}_city`]} onChange={e => u(`${prefix}_city`, e.target.value)} disabled={!form[`${prefix}_province`]} {...a11y('city')}>
+            <CustomSelect id={id('city')} className={`form-select ${fc('city')}`} value={form[`${prefix}_city`]} onChange={e => { u(`${prefix}_city`, e.target.value); u(`${prefix}_barangay`, ''); }} disabled={!form[`${prefix}_province`]} {...a11y('city')}>
               <option value="">Select City</option>
               {cities.map(c => <option key={c} value={c}>{c}</option>)}
             </CustomSelect>
           )}
           {errEl('city')}
         </div>
-        <div className="form-group"><label className="form-label" htmlFor={id('barangay')}>Barangay <span className="required">*</span></label><input id={id('barangay')} className={`form-input ${fc('barangay')}`} value={form[`${prefix}_barangay`]} onChange={handleTextChange(`${prefix}_barangay`)} autoComplete="address-level3" autoCapitalize="words" required {...a11y('barangay')} />{errEl('barangay')}</div>
+        <div className="form-group"><label className="form-label" htmlFor={id('barangay')}>Barangay <span className="required">*</span></label>
+          {/* An "Other Area" sender types their own city, so no barangay list
+              exists for it — BarangaySelect degrades to a text input there
+              rather than to an empty dropdown that cannot be satisfied. */}
+          <BarangaySelect
+            id={id('barangay')}
+            className={fc('barangay')}
+            province={isSender && form[`${prefix}_province`] === 'Other Area' ? '' : form[`${prefix}_province`]}
+            city={form[`${prefix}_city`]}
+            value={form[`${prefix}_barangay`]}
+            onChange={e => u(`${prefix}_barangay`, e.target.value)}
+            {...a11y('barangay')}
+          />
+          {errEl('barangay')}
+        </div>
         <div className="form-group"><label className="form-label" htmlFor={id('street')}>Street <span className="required">*</span></label><input id={id('street')} className={`form-input ${fc('street')}`} value={form[`${prefix}_street`]} onChange={handleTextChange(`${prefix}_street`)} autoComplete="address-line1" autoCapitalize="words" required {...a11y('street')} />{errEl('street')}</div>
         <div className="form-group"><label className="form-label" htmlFor={id('lot-block')}>Lot / Block / Purok <span className="required">*</span></label><input id={id('lot-block')} className={`form-input ${fc('lot_block')}`} value={form[`${prefix}_lot_block`]} onChange={handleTextChange(`${prefix}_lot_block`)} autoComplete="address-line2" autoCapitalize="words" required {...a11y('lot_block')} />{errEl('lot_block')}</div>
         <div className="form-group"><label className="form-label" htmlFor={id('landmark')}>Landmark <span className="required">*</span></label><input id={id('landmark')} className={`form-input ${fc('landmark')}`} value={form[`${prefix}_landmark`]} onChange={handleTextChange(`${prefix}_landmark`)} placeholder="Near what building/place?" autoCapitalize="words" required {...a11y('landmark')} />{errEl('landmark')}</div>
@@ -527,7 +542,7 @@ const BookShipmentPage = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.9, delay: 1.15, ease: luxeEase }}
           >
-            Your package is on its way. Track it anytime from your orders.
+            Your package is on its way. Track it anytime from your bookings.
           </motion.p>
 
           {/* Sets the pricing expectation the rest of the app states — the
@@ -604,7 +619,7 @@ const BookShipmentPage = () => {
             transition={{ duration: 0.8, delay: 1.5, ease: luxeEase }}
           >
             <button type="button" className="btn booking-success-btn-primary" onClick={() => navigate(orderPath)}>
-              View Order
+              View Booking
             </button>
             <button
               type="button"

@@ -108,7 +108,7 @@ const HomePage = () => {
         <h1>{userProfile?.name || (user?.email?.split('@')[0]) || 'Welcome'}</h1>
         <p className="mt-8">Track and manage your shipments with ease.</p>
         {orders.length >= 50 && (
-          <span className="text-xs text-tertiary">Showing your latest 50 orders — older shipments live in Orders.</span>
+          <span className="text-xs text-tertiary">Showing your latest 50 bookings — older shipments live in Bookings.</span>
         )}
         <form onSubmit={handleTrack} className="customer-track-form flex gap-10 mt-20 relative">
           <div className="search-box flex-1">
@@ -138,7 +138,7 @@ const HomePage = () => {
             <div className="customer-snapshot-value">
               <Package size={16} /> {orders.length}
             </div>
-            <div className="customer-snapshot-label">Total orders</div>
+            <div className="customer-snapshot-label">Total Bookings</div>
           </div>
           <div className="customer-snapshot-pill">
             <div className="customer-snapshot-value">

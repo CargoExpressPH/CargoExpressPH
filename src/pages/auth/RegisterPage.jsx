@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { PH_LOCATIONS, VALID_PROVINCES } from '../../constants/phLocations';
 import CustomSelect from '../../components/ui/CustomSelect';
+import BarangaySelect from '../../components/ui/BarangaySelect';
 import usePageTitle from '../../hooks/usePageTitle';
 import { toTitleCase } from '../../utils/string';
 import { getPasswordStrength } from '../../utils/password';
@@ -781,6 +782,7 @@ const RegisterPage = () => {
                     onChange={e => {
                       update('address_province', e.target.value);
                       update('address_city', '');
+                      update('address_barangay', '');
                     }}
                     autoComplete="address-level1"
                     aria-required="true"
@@ -805,7 +807,7 @@ const RegisterPage = () => {
                     id="reg-city"
                     className={`form-select form-input-icon-left ${fieldErrors.address_city ? 'field-invalid' : form.address_city ? 'success' : ''}`}
                     value={form.address_city}
-                    onChange={e => update('address_city', e.target.value)}
+                    onChange={e => { update('address_city', e.target.value); update('address_barangay', ''); }}
                     autoComplete="address-level2"
                     disabled={!form.address_province}
                     aria-required="true"
@@ -826,17 +828,21 @@ const RegisterPage = () => {
                 <label className="form-label" htmlFor="reg-barangay">Barangay <span className="required">*</span></label>
                 <div className="form-input-wrapper">
                   <Home size={15} className="form-input-icon" aria-hidden="true" />
-                  <input
+                  <BarangaySelect
                     id="reg-barangay"
-                    className={`form-input form-input-icon-left ${fieldErrors.address_barangay ? 'field-invalid' : touchedFields.address_barangay && form.address_barangay.trim() ? 'success' : ''}`}
-                    placeholder="e.g. Barangay Poblacion"
+                    className={`form-input-icon-left ${fieldErrors.address_barangay ? 'field-invalid' : touchedFields.address_barangay && form.address_barangay.trim() ? 'success' : ''}`}
+                    province={form.address_province}
+                    city={form.address_city}
                     value={form.address_barangay}
-                    onChange={handleTitleCase('address_barangay')}
-                    onBlur={() => handleBlur('address_barangay')}
-                    required
-                    autoComplete="address-level3"
-                    autoCapitalize="words"
-                    spellCheck="false"
+                    // Not handleBlur(): it validates `form[field]`, which in
+                    // this same tick still holds the value being replaced, so
+                    // picking a barangay would flag "Barangay is required".
+                    // Marking it touched is enough — `update` validates the
+                    // new value from here on.
+                    onChange={e => {
+                      setTouchedFields(prev => ({ ...prev, address_barangay: true }));
+                      update('address_barangay', e.target.value);
+                    }}
                     aria-required="true"
                     aria-invalid={!!fieldErrors.address_barangay}
                     aria-describedby={fieldErrors.address_barangay ? 'reg-barangay-error' : undefined}

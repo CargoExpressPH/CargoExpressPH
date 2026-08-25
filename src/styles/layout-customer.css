@@ -430,11 +430,19 @@
      the notch inset underneath it. */
   bottom: calc(105px + var(--customer-safe-bottom));
   z-index: var(--z-sticky);
-  width: 56px;
-  height: 56px;
+  /* A pill, not a disc: `width: auto` lets the label size the control, and the
+     min-height keeps it a 48px touch target even if the label is ever
+     shortened. `max-width` is the guard against the one way this can go wrong
+     — a longer label on a 320px phone would otherwise push the pill off the
+     left edge; it truncates instead of overflowing. */
+  width: auto;
+  max-width: calc(100vw - 36px);
+  min-height: 48px;
+  padding: 0 20px;
+  gap: 8px;
   align-items: center;
   justify-content: center;
-  border-radius: 999px;
+  border-radius: 30px;
   background: linear-gradient(135deg, var(--customer-green), #22C55E);
   color: #FFFFFF;
   box-shadow: 0 16px 34px rgba(18, 138, 90, 0.28),
@@ -445,17 +453,60 @@
   touch-action: manipulation;
 }
 
+.customer-chat-fab-label {
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  line-height: 1;
+  /* One line, always. A wrapped label would change the pill's height, and the
+     height is what the `bottom` offset above is measured against. */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* "Alive" without a repaint: the pulse runs on a pseudo-element and animates
+   only transform and opacity, both composited. The ring is what pulses rather
+   than the pill itself — an infinite transform animation on the pill would
+   OVERRIDE the hover/press `transform` below (animated values beat normal
+   declarations, paused or not), so the button would stop responding to a tap.
+   Same pattern as .book-tab-icon::before, which pulses the Book tab. */
+.customer-chat-fab::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: inherit;
+  border: 2px solid var(--primary-light);
+  opacity: 0;
+  pointer-events: none;
+  animation: chatFabPulse 3s ease-in-out infinite;
+}
+
+@keyframes chatFabPulse {
+  0%, 100% { transform: scale(0.96); opacity: 0; }
+  50%      { transform: scale(1.05); opacity: 0.45; }
+}
+
 .customer-chat-fab:hover {
-  transform: scale(1.06);
+  transform: scale(1.04);
 }
 
 .customer-chat-fab:active {
-  transform: scale(0.94);
+  transform: scale(0.96);
 }
 
 .customer-chat-fab:focus-visible {
   outline: 2px solid var(--primary);
   outline-offset: 3px;
+}
+
+/* Drop the ring while the button is being pressed, so the press reads as one
+   solid shape. `animation: none` is required, not just `opacity: 0` — an
+   animated property ignores a plain declaration, which is the same rule that
+   put the pulse on this pseudo-element instead of on the pill. */
+.customer-chat-fab:active::after {
+  animation: none;
+  opacity: 0;
 }
 
 /* The keyboard takes the bottom of the screen; the FAB would otherwise sit on

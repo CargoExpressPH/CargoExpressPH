@@ -24,6 +24,11 @@ const CustomSelect = ({
   const generatedId = useId();
   const listboxId = `${generatedId}-listbox`;
   const rootRef = useRef(null);
+  const menuRef = useRef(null);
+  // Type-to-jump buffer. Kept in a ref, not state: it must not re-render on
+  // every keystroke, and the timer that clears it would be reset by the
+  // re-render it caused.
+  const typeaheadRef = useRef({ query: '', timer: null });
 
   const options = Children.toArray(children)
     .filter(isValidElement)
@@ -89,6 +94,15 @@ const CustomSelect = ({
     };
   }, [open, options.length]);
 
+  // Keep the keyboard cursor on screen. Without this the arrow keys move a
+  // highlight the user cannot see the moment a list is longer than the menu —
+  // which the barangay lists are (Quezon City has 142).
+  useEffect(() => {
+    if (!open || !menuRef.current) return;
+    const node = menuRef.current.children[highlightedIndex];
+    node?.scrollIntoView({ block: 'nearest' });
+  }, [open, highlightedIndex]);
+
   const emitChange = (nextValue) => {
     onChange?.({ target: { value: nextValue } });
     setOpen(false);
@@ -126,8 +140,33 @@ const CustomSelect = ({
       }
     } else if (event.key === 'Tab') {
       if (open) setOpen(false);
+    } else if (event.key.length === 1 && !event.metaKey && !event.ctrlKey && !event.altKey) {
+      // Type-to-jump, the behaviour a native <select> has and this one did
+      // not: typing "san" walks to the first option starting with it. Repeated
+      // presses of the SAME letter cycle through the options beginning with
+      // it, again matching the native control.
+      event.preventDefault();
+      if (!open) openMenu();
+
+      const state = typeaheadRef.current;
+      const char = event.key.toLowerCase();
+      const repeatedChar = state.query.length === 1 && state.query === char;
+      state.query = repeatedChar ? char : state.query + char;
+
+      clearTimeout(state.timer);
+      state.timer = setTimeout(() => { state.query = ''; }, 700);
+
+      const startAt = repeatedChar ? highlightedIndex + 1 : 0;
+      const match = options.findIndex((option, i) =>
+        i >= startAt && !option.disabled && option.label.toLowerCase().startsWith(state.query));
+      const wrapped = match === -1
+        ? options.findIndex(option => !option.disabled && option.label.toLowerCase().startsWith(state.query))
+        : match;
+      if (wrapped !== -1) setHighlightedIndex(wrapped);
     }
   };
+
+  useEffect(() => () => clearTimeout(typeaheadRef.current.timer), []);
 
   return (
     <div className="custom-select-root" ref={rootRef}>
@@ -153,6 +192,7 @@ const CustomSelect = ({
 
       {open && !disabled && (
         <div
+          ref={menuRef}
           className={`custom-select-menu ${menuPlacement === 'top' ? 'open-up' : ''}`.trim()}
           id={listboxId}
           role="listbox"
