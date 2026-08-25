@@ -422,56 +422,73 @@
    during the frame that has to render the tap, which is the stutter it is
    meant to prevent. One 56px layer is a rounding error in memory; this is the
    only element in the customer layout that gets one. */
+/* ── Floating chat support bubble (mobile) ────────────────────────────────
+   Two elements, and the split is the whole design:
+
+     .customer-chat-fab        — the positioned box. Owns the FLOAT.
+     .customer-chat-fab-inner  — the visible disc. Owns the PRESS.
+
+   Both effects are transforms, and one element has exactly one `transform`.
+   An infinite keyframe on the same element as the `:active` scale wins over
+   it — animated values beat plain declarations, running or paused — so the
+   button would drift up and down while no longer reacting to a tap. Giving
+   each its own element is what keeps a floating button a reliable touch
+   target; the two transforms then compose through the normal parent/child
+   matrix instead of fighting for one property.
+
+   Everything animated here is transform or opacity, both composited, so the
+   loop never touches layout or paint. */
 .customer-chat-fab {
   display: none;
   position: fixed;
   right: 18px;
   /* Clears the floating tab bar (~89px tall incl. its own bottom padding) and
-     the notch inset underneath it. */
+     the notch inset underneath it. The float travels 6px, well inside that. */
   bottom: calc(105px + var(--customer-safe-bottom));
   z-index: var(--z-sticky);
-  /* A pill, not a disc: `width: auto` lets the label size the control, and the
-     min-height keeps it a 48px touch target even if the label is ever
-     shortened. `max-width` is the guard against the one way this can go wrong
-     — a longer label on a 320px phone would otherwise push the pill off the
-     left edge; it truncates instead of overflowing. */
-  width: auto;
-  max-width: calc(100vw - 36px);
-  min-height: 48px;
-  padding: 0 20px;
-  gap: 8px;
+  width: 56px;
+  height: 56px;
   align-items: center;
   justify-content: center;
-  border-radius: 30px;
+  border-radius: 999px;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  animation: chatFabFloat 3.2s ease-in-out infinite;
+  will-change: transform;
+  /* opacity is NOT animated by the float, so the keyboard-active rule below
+     is a plain declaration that still wins. */
+  transition: opacity 0.2s ease;
+}
+
+.customer-chat-fab-inner {
+  /* Containing block for the pulse ring below. */
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  border-radius: 999px;
   background: linear-gradient(135deg, var(--customer-green), #22C55E);
   color: #FFFFFF;
   box-shadow: 0 16px 34px rgba(18, 138, 90, 0.28),
     inset 0 1px 0 rgba(255, 255, 255, 0.3);
-  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.2s ease;
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
   will-change: transform;
-  -webkit-tap-highlight-color: transparent;
-  touch-action: manipulation;
 }
 
-.customer-chat-fab-label {
-  font-size: 14px;
-  font-weight: 600;
-  letter-spacing: 0.01em;
-  line-height: 1;
-  /* One line, always. A wrapped label would change the pill's height, and the
-     height is what the `bottom` offset above is measured against. */
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+/* A 6px rise and fall. Small on purpose: the bubble sits above the tab bar and
+   a taller travel reads as drift rather than as breathing. */
+@keyframes chatFabFloat {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  50%      { transform: translate3d(0, -6px, 0); }
 }
 
-/* "Alive" without a repaint: the pulse runs on a pseudo-element and animates
-   only transform and opacity, both composited. The ring is what pulses rather
-   than the pill itself — an infinite transform animation on the pill would
-   OVERRIDE the hover/press `transform` below (animated values beat normal
-   declarations, paused or not), so the button would stop responding to a tap.
-   Same pattern as .book-tab-icon::before, which pulses the Book tab. */
-.customer-chat-fab::after {
+/* The ring rides on the disc, so it inherits the float from the parent and the
+   press scale from the disc, and only has to pulse. Same 3.2s duration and
+   same easing as the float, started in the same frame, so its widest point
+   lands on the top of the rise instead of beating against it. */
+.customer-chat-fab-inner::after {
   content: '';
   position: absolute;
   inset: -4px;
@@ -479,20 +496,20 @@
   border: 2px solid var(--primary-light);
   opacity: 0;
   pointer-events: none;
-  animation: chatFabPulse 3s ease-in-out infinite;
+  animation: chatFabPulse 3.2s ease-in-out infinite;
 }
 
 @keyframes chatFabPulse {
   0%, 100% { transform: scale(0.96); opacity: 0; }
-  50%      { transform: scale(1.05); opacity: 0.45; }
+  50%      { transform: scale(1.06); opacity: 0.45; }
 }
 
-.customer-chat-fab:hover {
-  transform: scale(1.04);
+.customer-chat-fab:hover .customer-chat-fab-inner {
+  transform: scale(1.06);
 }
 
-.customer-chat-fab:active {
-  transform: scale(0.96);
+.customer-chat-fab:active .customer-chat-fab-inner {
+  transform: scale(0.94);
 }
 
 .customer-chat-fab:focus-visible {
@@ -500,11 +517,11 @@
   outline-offset: 3px;
 }
 
-/* Drop the ring while the button is being pressed, so the press reads as one
-   solid shape. `animation: none` is required, not just `opacity: 0` — an
-   animated property ignores a plain declaration, which is the same rule that
-   put the pulse on this pseudo-element instead of on the pill. */
-.customer-chat-fab:active::after {
+/* Drop the ring while the button is held, so the press reads as one solid
+   shape. `animation: none` is required, not just `opacity: 0` — an animated
+   property ignores a plain declaration, the same rule that put the float and
+   the press on separate elements. */
+.customer-chat-fab:active .customer-chat-fab-inner::after {
   animation: none;
   opacity: 0;
 }

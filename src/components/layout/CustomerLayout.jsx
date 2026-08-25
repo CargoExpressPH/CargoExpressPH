@@ -398,17 +398,18 @@ const CustomerLayout = () => {
           all live on top of whatever page the customer is on. The route
           already exists and already has its own transition. */}
       {location.pathname !== '/customer/support' && (
-        // The accessible name begins with the visible text on purpose: WCAG
-        // 2.5.3 (Label in Name) means a voice-control user saying "Ask
-        // CargoMate" — what they can see — must hit this control.
+        // Icon-only, so the aria-label IS the accessible name — nothing on
+        // screen conveys what this opens. It names the bot rather than saying
+        // "chat" alone, which is what a screen-reader user hears.
         <Link
           to="/customer/support"
           className="customer-chat-fab"
           aria-label="Ask CargoMate — chat support"
           title="Ask CargoMate — chat support"
         >
-          <Bot size={20} aria-hidden="true" />
-          <span className="customer-chat-fab-label">Ask CargoMate</span>
+          <span className="customer-chat-fab-inner">
+            <Bot size={24} aria-hidden="true" />
+          </span>
         </Link>
       )}
 
