@@ -1624,44 +1624,56 @@ export const createAdminNotification = async (title, message, type = 'general', 
  * 20260803140000_contact_inquiries_normalize.sql.
  */
 export const createContactInquiry = async (data) => {
-  const contactPhone = data.contact_phone || null;
-  const contactEmail = data.contact_email || null;
-  const inquiryId = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
-    ? crypto.randomUUID()
-    : null;
-
-  // Legacy dual-write, matching the old "phone | email" encoding that
-  // ContactInquiriesPage's splitContact() understands.
-  const legacyPhone = [contactPhone, contactEmail].filter(Boolean).join(' | ') || null;
-
-  const inquiry = {
-    ...(inquiryId ? { id: inquiryId } : {}),
-    name: data.name,
-    message: data.message,
-    contact_phone: contactPhone,
-    contact_email: contactEmail,
-    phone: legacyPhone,
-  };
-
-  const { error } = await supabase
-    .from('contact_inquiries')
-    .insert(inquiry);
-  if (error) throw error;
-
-  // Admin in-app notifications are created by the database trigger so an
-  // anonymous browser cannot forge the recipient, title, or message.
-  // The Edge Function receives only the generated inquiry ID and derives the
-  // staff push payload from the saved row.
-  if (inquiryId) {
-    await invokePushWithRetry(
-      {
-        event: 'contact_inquiry',
-        inquiry_id: inquiryId,
-        reference_id: inquiryId,
-        notification_type: 'inquiry',
+  // World-class IP-based: route through Edge Function so IP is captured server-side
+  // (direct anon INSERT cannot provide trustworthy IP). Falls back to direct
+  // insert only if Edge Function is unreachable — DB trigger then enforces phone/global limit.
+  try {
+    const { data: fnData, error: fnError } = await supabase.functions.invoke('submit-inquiry', {
+      body: {
+        name: data.name,
+        message: data.message,
+        contact_phone: data.contact_phone || null,
+        contact_email: data.contact_email || null,
+        phone: [data.contact_phone, data.contact_email].filter(Boolean).join(' | ') || null,
       },
-      'contact inquiry',
-    );
+    })
+    if (!fnError && fnData?.success) return
+    // If Edge Function not deployed yet (local dev without supabase functions serve),
+    // the invoke will error — fall through to direct insert for backward compat
+    if (fnError && fnData?.error) throw new Error(fnData.error || fnError.message)
+    if (fnError && !fnData) {
+      // Network / function not found — fallback
+      throw new Error('__FALLBACK__')
+    }
+    if (fnData?.error) throw new Error(fnData.error)
+  } catch (e) {
+    if (e.message !== '__FALLBACK__' && !e.message?.includes('Failed to send a request to the Edge Function')) {
+      // Real validation/rate-limit error from Edge Function — surface it
+      if (e.message && !e.message.includes('__FALLBACK__')) throw e
+    }
+    // Fallback: direct anon insert (DB trigger enforces phone/global + length CHECKs)
+    const contactPhone = data.contact_phone || null
+    const contactEmail = data.contact_email || null
+    const inquiryId = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+      ? crypto.randomUUID()
+      : null
+    const legacyPhone = [contactPhone, contactEmail].filter(Boolean).join(' | ') || null
+    const inquiry = {
+      ...(inquiryId ? { id: inquiryId } : {}),
+      name: data.name,
+      message: data.message,
+      contact_phone: contactPhone,
+      contact_email: contactEmail,
+      phone: legacyPhone,
+    }
+    const { error } = await supabase.from('contact_inquiries').insert(inquiry)
+    if (error) throw error
+    if (inquiryId) {
+      await invokePushWithRetry(
+        { event: 'contact_inquiry', inquiry_id: inquiryId, reference_id: inquiryId, notification_type: 'inquiry' },
+        'contact inquiry',
+      )
+    }
   }
 };
 

@@ -89,9 +89,9 @@ CREATE TABLE IF NOT EXISTS company_information (
 -- ===================== 5. CONTACT_INQUIRIES =====================
 CREATE TABLE IF NOT EXISTS contact_inquiries (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  name TEXT NOT NULL,
-  phone TEXT NOT NULL,
-  message TEXT NOT NULL,
+  name TEXT NOT NULL CHECK (char_length(btrim(name)) BETWEEN 2 AND 100),
+  phone TEXT NOT NULL CHECK (char_length(btrim(phone)) BETWEEN 7 AND 20),
+  message TEXT NOT NULL CHECK (char_length(btrim(message)) BETWEEN 10 AND 2000),
   status TEXT NOT NULL DEFAULT 'new'::text CHECK (status = ANY (ARRAY['new'::text, 'read'::text, 'resolved'::text])),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   contact_phone TEXT,
@@ -101,7 +101,8 @@ CREATE TABLE IF NOT EXISTS contact_inquiries (
   resolved_at TIMESTAMPTZ,
   push_dispatched_at TIMESTAMPTZ,
   push_dispatch_started_at TIMESTAMPTZ,
-  push_dispatch_claim_id UUID
+  push_dispatch_claim_id UUID,
+  ip TEXT
 );
 
 
@@ -1004,35 +1005,11 @@ $function$
 
 
 
-CREATE OR REPLACE FUNCTION public.gin_extract_query_trgm(text, internal, smallint, internal, internal, internal, internal)
- RETURNS internal
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/pg_trgm', $function$gin_extract_query_trgm$function$
 
 
 
-CREATE OR REPLACE FUNCTION public.gin_extract_value_trgm(text, internal)
- RETURNS internal
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/pg_trgm', $function$gin_extract_value_trgm$function$
 
 
-
-CREATE OR REPLACE FUNCTION public.gin_trgm_consistent(internal, smallint, text, integer, internal, internal, internal, internal)
- RETURNS boolean
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/pg_trgm', $function$gin_trgm_consistent$function$
-
-
-
-CREATE OR REPLACE FUNCTION public.gin_trgm_triconsistent(internal, smallint, text, integer, internal, internal, internal)
- RETURNS "char"
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/pg_trgm', $function$gin_trgm_triconsistent$function$
 
 
 
@@ -1047,91 +1024,25 @@ $function$
 
 
 
-CREATE OR REPLACE FUNCTION public.gtrgm_compress(internal)
- RETURNS internal
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/pg_trgm', $function$gtrgm_compress$function$
 
 
 
-CREATE OR REPLACE FUNCTION public.gtrgm_consistent(internal, text, smallint, oid, internal)
- RETURNS boolean
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/pg_trgm', $function$gtrgm_consistent$function$
 
 
 
-CREATE OR REPLACE FUNCTION public.gtrgm_decompress(internal)
- RETURNS internal
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/pg_trgm', $function$gtrgm_decompress$function$
 
 
 
-CREATE OR REPLACE FUNCTION public.gtrgm_distance(internal, text, smallint, oid, internal)
- RETURNS double precision
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/pg_trgm', $function$gtrgm_distance$function$
 
 
 
-CREATE OR REPLACE FUNCTION public.gtrgm_in(cstring)
- RETURNS gtrgm
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/pg_trgm', $function$gtrgm_in$function$
 
 
 
-CREATE OR REPLACE FUNCTION public.gtrgm_options(internal)
- RETURNS void
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE
-AS '$libdir/pg_trgm', $function$gtrgm_options$function$
 
 
 
-CREATE OR REPLACE FUNCTION public.gtrgm_out(gtrgm)
- RETURNS cstring
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/pg_trgm', $function$gtrgm_out$function$
 
-
-
-CREATE OR REPLACE FUNCTION public.gtrgm_penalty(internal, internal, internal)
- RETURNS internal
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/pg_trgm', $function$gtrgm_penalty$function$
-
-
-
-CREATE OR REPLACE FUNCTION public.gtrgm_picksplit(internal, internal)
- RETURNS internal
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/pg_trgm', $function$gtrgm_picksplit$function$
-
-
-
-CREATE OR REPLACE FUNCTION public.gtrgm_same(gtrgm, gtrgm, internal)
- RETURNS internal
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/pg_trgm', $function$gtrgm_same$function$
-
-
-
-CREATE OR REPLACE FUNCTION public.gtrgm_union(internal, internal)
- RETURNS gtrgm
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/pg_trgm', $function$gtrgm_union$function$
 
 
 
@@ -2287,57 +2198,23 @@ $function$
 
 
 
-CREATE OR REPLACE FUNCTION public.set_limit(real)
- RETURNS real
- LANGUAGE c
- STRICT
-AS '$libdir/pg_trgm', $function$set_limit$function$
 
 
 
-CREATE OR REPLACE FUNCTION public.show_limit()
- RETURNS real
- LANGUAGE c
- STABLE PARALLEL SAFE STRICT
-AS '$libdir/pg_trgm', $function$show_limit$function$
 
 
 
-CREATE OR REPLACE FUNCTION public.show_trgm(text)
- RETURNS text[]
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/pg_trgm', $function$show_trgm$function$
 
 
 
-CREATE OR REPLACE FUNCTION public.similarity(text, text)
- RETURNS real
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/pg_trgm', $function$similarity$function$
-
-
-
-CREATE OR REPLACE FUNCTION public.similarity_dist(text, text)
- RETURNS real
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/pg_trgm', $function$similarity_dist$function$
-
-
-
-CREATE OR REPLACE FUNCTION public.similarity_op(text, text)
- RETURNS boolean
- LANGUAGE c
- STABLE PARALLEL SAFE STRICT
-AS '$libdir/pg_trgm', $function$similarity_op$function$
 
 
 
 CREATE OR REPLACE FUNCTION public.stamp_conversation_resolved_at()
  RETURNS trigger
  LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
 AS $function$
 BEGIN
   IF NEW.status = 'resolved' AND OLD.status IS DISTINCT FROM 'resolved' THEN
@@ -2354,6 +2231,8 @@ $function$
 CREATE OR REPLACE FUNCTION public.stamp_inquiry_service_state()
  RETURNS trigger
  LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
 AS $function$
 BEGIN
   IF NEW.status IS DISTINCT FROM OLD.status THEN
@@ -2373,43 +2252,13 @@ $function$
 
 
 
-CREATE OR REPLACE FUNCTION public.strict_word_similarity(text, text)
- RETURNS real
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/pg_trgm', $function$strict_word_similarity$function$
 
 
 
-CREATE OR REPLACE FUNCTION public.strict_word_similarity_commutator_op(text, text)
- RETURNS boolean
- LANGUAGE c
- STABLE PARALLEL SAFE STRICT
-AS '$libdir/pg_trgm', $function$strict_word_similarity_commutator_op$function$
 
 
 
-CREATE OR REPLACE FUNCTION public.strict_word_similarity_dist_commutator_op(text, text)
- RETURNS real
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/pg_trgm', $function$strict_word_similarity_dist_commutator_op$function$
 
-
-
-CREATE OR REPLACE FUNCTION public.strict_word_similarity_dist_op(text, text)
- RETURNS real
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/pg_trgm', $function$strict_word_similarity_dist_op$function$
-
-
-
-CREATE OR REPLACE FUNCTION public.strict_word_similarity_op(text, text)
- RETURNS boolean
- LANGUAGE c
- STABLE PARALLEL SAFE STRICT
-AS '$libdir/pg_trgm', $function$strict_word_similarity_op$function$
 
 
 
@@ -2430,6 +2279,40 @@ BEGIN
 END;
 $function$
 
+
+
+
+CREATE OR REPLACE FUNCTION public.guard_contact_inquiry_rate_limit()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+BEGIN
+  -- World-class IP-based rate limit (no captcha)
+  -- IP is populated by submit-inquiry Edge Function; direct anon inserts without IP fall back to phone/global
+  IF NEW.ip IS NOT NULL AND btrim(NEW.ip) <> '' THEN
+    -- Per-IP: max 5 inquiries per 10 minutes (real network limit, not form data)
+    IF (SELECT COUNT(*) FROM public.contact_inquiries WHERE ip = NEW.ip AND created_at > now() - interval '10 minutes') >= 5 THEN
+      RAISE EXCEPTION 'Too many inquiries from your network. Please wait 10 minutes before submitting again.' USING ERRCODE = '42501';
+    END IF;
+  ELSE
+    -- Fallback for legacy direct inserts without IP (phone-based)
+    IF (SELECT COUNT(*) FROM public.contact_inquiries WHERE phone = NEW.phone AND created_at > now() - interval '10 minutes') >= 3 THEN
+      RAISE EXCEPTION 'Too many inquiries from this phone number. Please wait 10 minutes before submitting again.' USING ERRCODE = '42501';
+    END IF;
+  END IF;
+  -- Global flood protection: max 15 inquiries per minute across all IPs (raised slightly for legit burst)
+  IF (SELECT COUNT(*) FROM public.contact_inquiries WHERE created_at > now() - interval '1 minute') >= 15 THEN
+    RAISE EXCEPTION 'Too many inquiries right now. Please try again in a minute.' USING ERRCODE = '42501';
+  END IF;
+  NEW.name := btrim(NEW.name);
+  NEW.phone := btrim(NEW.phone);
+  NEW.message := btrim(NEW.message);
+  IF NEW.ip IS NOT NULL THEN NEW.ip := btrim(NEW.ip); END IF;
+  RETURN NEW;
+END;
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.track_order_public(p_tracking_number text)
@@ -2501,6 +2384,7 @@ $function$
 CREATE OR REPLACE FUNCTION public.update_updated_at()
  RETURNS trigger
  LANGUAGE plpgsql
+ SECURITY DEFINER
  SET search_path TO 'public'
 AS $function$
 BEGIN
@@ -2511,43 +2395,13 @@ $function$
 
 
 
-CREATE OR REPLACE FUNCTION public.word_similarity(text, text)
- RETURNS real
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/pg_trgm', $function$word_similarity$function$
 
 
 
-CREATE OR REPLACE FUNCTION public.word_similarity_commutator_op(text, text)
- RETURNS boolean
- LANGUAGE c
- STABLE PARALLEL SAFE STRICT
-AS '$libdir/pg_trgm', $function$word_similarity_commutator_op$function$
 
 
 
-CREATE OR REPLACE FUNCTION public.word_similarity_dist_commutator_op(text, text)
- RETURNS real
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/pg_trgm', $function$word_similarity_dist_commutator_op$function$
 
-
-
-CREATE OR REPLACE FUNCTION public.word_similarity_dist_op(text, text)
- RETURNS real
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/pg_trgm', $function$word_similarity_dist_op$function$
-
-
-
-CREATE OR REPLACE FUNCTION public.word_similarity_op(text, text)
- RETURNS boolean
- LANGUAGE c
- STABLE PARALLEL SAFE STRICT
-AS '$libdir/pg_trgm', $function$word_similarity_op$function$
 
 
 
@@ -2671,6 +2525,9 @@ CREATE TRIGGER chat_messages_maintain_service_state AFTER INSERT ON chat_message
 DROP TRIGGER IF EXISTS trigger_log_customer_chat ON public.chat_messages;
 CREATE TRIGGER trigger_log_customer_chat AFTER INSERT ON chat_messages FOR EACH ROW EXECUTE FUNCTION log_customer_chat_message();
 
+DROP TRIGGER IF EXISTS contact_inquiries_guard_rate_limit ON public.contact_inquiries;
+CREATE TRIGGER contact_inquiries_guard_rate_limit BEFORE INSERT ON contact_inquiries FOR EACH ROW EXECUTE FUNCTION guard_contact_inquiry_rate_limit();
+
 DROP TRIGGER IF EXISTS contact_inquiries_notify_admins ON public.contact_inquiries;
 CREATE TRIGGER contact_inquiries_notify_admins AFTER INSERT ON contact_inquiries FOR EACH ROW EXECUTE FUNCTION notify_admins_of_contact_inquiry();
 
@@ -2716,6 +2573,13 @@ CREATE TRIGGER trips_guard_completion BEFORE UPDATE OF status ON trips FOR EACH 
 DROP TRIGGER IF EXISTS trips_updated_at ON public.trips;
 CREATE TRIGGER trips_updated_at BEFORE UPDATE ON trips FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
+-- Auth triggers (handle_new_user + sync email) — missing from earlier dumps, required for fresh DB
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created AFTER INSERT ON auth.users FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+DROP TRIGGER IF EXISTS on_auth_email_sync ON auth.users;
+CREATE TRIGGER on_auth_email_sync AFTER UPDATE OF email ON auth.users FOR EACH ROW EXECUTE FUNCTION public.sync_auth_email_to_profile();
+
 
 -- ============================================================
 -- INDEXES
@@ -2740,6 +2604,8 @@ CREATE INDEX IF NOT EXISTS idx_chat_messages_unread ON public.chat_messages USIN
 CREATE INDEX IF NOT EXISTS idx_contact_inquiries_created_at ON public.contact_inquiries USING btree (created_at);
 
 CREATE INDEX IF NOT EXISTS idx_contact_inquiries_status ON public.contact_inquiries USING btree (status);
+
+CREATE INDEX IF NOT EXISTS idx_contact_inquiries_ip ON public.contact_inquiries USING btree (ip) WHERE ip IS NOT NULL;
 
 CREATE INDEX IF NOT EXISTS idx_customer_feedback_customer_id ON public.customer_feedback USING btree (customer_id);
 
@@ -3001,6 +2867,9 @@ CREATE POLICY "Published legal documents are public" ON public.legal_documents
 
 ALTER TABLE public.notification_delivery_attempts ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Admins can view delivery attempts" ON public.notification_delivery_attempts;
+CREATE POLICY "Admins can view delivery attempts" ON public.notification_delivery_attempts FOR SELECT TO authenticated USING (is_admin());
+
 ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Admins can insert notifications" ON public.notifications;
@@ -3247,8 +3116,11 @@ CREATE POLICY "Users read own cargo photos" ON storage.objects
 -- ============================================================
 -- CRON JOBS (pg_cron)
 -- ============================================================
-SELECT cron.schedule('0 3 * * *', $cron$SELECT public.purge_old_activity_logs()$cron$);
-SELECT cron.schedule('30 3 * * *', $cron$SELECT public.auto_resolve_stale_conversations()$cron$);
+-- Idempotent: unschedule first if exists to allow re-running schema.sql without duplicate error
+SELECT CASE WHEN EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'purge_old_activity_logs') THEN cron.unschedule('purge_old_activity_logs') END;
+SELECT cron.schedule('purge_old_activity_logs', '0 3 * * *', $cron$SELECT public.purge_old_activity_logs()$cron$);
+SELECT CASE WHEN EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'auto_resolve_stale_conversations') THEN cron.unschedule('auto_resolve_stale_conversations') END;
+SELECT cron.schedule('auto_resolve_stale_conversations', '30 3 * * *', $cron$SELECT public.auto_resolve_stale_conversations()$cron$);
 
 
 -- ============================================================

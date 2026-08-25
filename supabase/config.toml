@@ -8,3 +8,12 @@ verify_jwt = false
 # The function has one narrowly scoped anonymous mode for a public contact
 # inquiry. All other modes verify the caller's JWT inside the function.
 verify_jwt = false
+
+[functions.store-photo-fallback]
+verify_jwt = false
+
+[functions.get-photo-fallback]
+verify_jwt = false
+
+[functions.submit-inquiry]
+verify_jwt = false
