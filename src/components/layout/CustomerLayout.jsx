@@ -16,14 +16,14 @@ import PageTransition from '../ui/PageTransition';
 
 const desktopNavItems = [
   { to: '/customer/book', icon: Plus, label: 'Place Order' },
-  { to: '/customer/orders', icon: Package, label: 'Orders' },
+  { to: '/customer/orders', icon: Package, label: 'Bookings' },
   { to: '/customer/trips', icon: MapPin, label: 'Trips' },
   { to: '/customer/support', icon: MessageSquare, MessageCircle, label: 'Chat Support' },
 ];
 
 const bottomNavItems = [
   { to: '/customer', icon: Home, label: 'Home', end: true },
-  { to: '/customer/orders', icon: Package, label: 'Orders' },
+  { to: '/customer/orders', icon: Package, label: 'Bookings' },
   { to: '/customer/book', icon: Plus, label: 'Book', isBookTab: true },
   { to: '/customer/trips', icon: MapPin, label: 'Trips' },
   { to: '/customer/profile', icon: User, label: 'Profile' },

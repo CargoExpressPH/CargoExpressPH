@@ -28,7 +28,7 @@ const fmtDate = (iso) => {
 };
 
 const OrdersPage = () => {
-  usePageTitle('My Orders');
+  usePageTitle('My Bookings');
   const { user } = useAuth();
   const navigate = useNavigate();
   const [orders, setOrders] = useState([]);
@@ -110,7 +110,7 @@ const OrdersPage = () => {
       <PageTransition className="customer-orders-page">
       <div className="customer-page-heading">
         <div>
-          <h1 className="fw-800 mb-4">My Orders</h1>
+          <h1 className="fw-800 mb-4">My Bookings</h1>
           <p className="text-sm text-secondary">Search, filter, and follow every shipment.</p>
         </div>
         {!loading && <span className="badge badge-info">{filtered.length} shown</span>}
@@ -118,7 +118,7 @@ const OrdersPage = () => {
       <StaggerItem className="search-box customer-orders-search mb-16" role="search" delay={0}>
         <Search size={16} className="search-icon" aria-hidden="true" />
         <input
-          aria-label="Search orders"
+          aria-label="Search bookings"
           placeholder="Search tracking, sender, receiver, destination..."
           value={search}
           onChange={handleSearchChange}
@@ -129,7 +129,7 @@ const OrdersPage = () => {
           options={filterOptions}
           value={activeTab}
           onChange={handleTabChange}
-          ariaLabel="Order status filters"
+          ariaLabel="Booking status filters"
           label="Status"
           desktopClassName="tabs customer-order-tabs"
         />
@@ -147,7 +147,7 @@ const OrdersPage = () => {
           <div className="flex items-center justify-center mx-auto mb-16" style={{ width: 56, height: 56, borderRadius: '50%', background: 'var(--error-bg)' }}>
             <AlertCircle size={28} color="var(--error)" aria-hidden="true" />
           </div>
-          <h3 className="mb-8" style={{ color: 'var(--error-dark)' }}>Error Loading Orders</h3>
+          <h3 className="mb-8" style={{ color: 'var(--error-dark)' }}>Error Loading Bookings</h3>
           <p className="text-secondary text-sm mb-20">{error}</p>
           <button type="button" className="btn btn-primary" onClick={() => loadOrders()}>Retry</button>
         </div>
@@ -155,7 +155,7 @@ const OrdersPage = () => {
         <div className="animate-scale-in">
           <EmptyState
             icon={Package}
-            title={search || activeTab !== 'all' ? 'No orders found' : 'No Orders Yet'}
+            title={search || activeTab !== 'all' ? 'No bookings found' : 'No Bookings Yet'}
             description={search || activeTab !== 'all' ? 'Try adjusting your search or filter criteria.' : 'Book your first shipment to get started!'}
             actionLabel={!search && activeTab === 'all' ? 'Book Shipment' : undefined}
             onAction={!search && activeTab === 'all' ? () => navigate('/customer/book') : undefined}
