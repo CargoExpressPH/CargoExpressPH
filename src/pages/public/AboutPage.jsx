@@ -670,7 +670,7 @@ const AboutPage = () => {
   if (fetching) return <LoadingSkeleton />;
 
   const companyName = info?.name || 'CargoExpress PH';
-  const heroImage = info?.hero_image_url || 'https://images.unsplash.com/photo-1586528116311-ad8ed3891db8?auto=format&fit=crop&q=80&w=2000';
+  const bannerImage = info?.banner_image_url || 'https://images.unsplash.com/photo-1586528116311-ad8ed3891db8?auto=format&fit=crop&q=80&w=2000';
 
   // Framer motion variants for staggered children
   const containerVariants = {
@@ -730,7 +730,7 @@ const AboutPage = () => {
         <motion.div 
           className="about-hero-bg"
           style={{ 
-            backgroundImage: `url(${heroImage})`,
+            backgroundImage: `url(${bannerImage})`,
             y: yHero,
             opacity: opacityHero
           }}
@@ -751,18 +751,18 @@ const AboutPage = () => {
             Trusted Logistics Partner
           </div>
           <h2 className="about-hero-heading">
-            {info?.hero_title || 'Deliveries Made Simple.'}
+            {info?.banner_title || 'Deliveries Made Simple.'}
           </h2>
           <p className="about-hero-subtext">
-            {info?.hero_description || info?.short_description || 'Connecting businesses and families through reliable logistics.'}
+            {info?.banner_description || info?.short_description || 'Connecting businesses and families through reliable logistics.'}
           </p>
           <div className="about-hero-cta-row">
             <a href="#contact" className="about-hero-cta-primary">
               Contact Us <Send size={18} />
             </a>
-            {info?.hero_button_text && info?.hero_button_link && (
-              <Link to={info.hero_button_link} className="about-hero-cta-secondary">
-                {info.hero_button_text}
+            {info?.banner_button_text && info?.banner_button_link && (
+              <Link to={info.banner_button_link} className="about-hero-cta-secondary">
+                {info.banner_button_text}
               </Link>
             )}
           </div>
@@ -828,13 +828,13 @@ const AboutPage = () => {
               <div className="about-story-img-wrap">
                 <div className="about-story-img-glow" />
                 <img 
-                  src={heroImage} 
+                  src={bannerImage} 
                   alt={`${companyName} Logistics`} 
                   className="about-story-main-img"
                   fetchPriority="high"
                 />
                 <img 
-                  src={heroImage} 
+                  src={bannerImage} 
                   alt={`${companyName} Delivery`} 
                   className="about-story-overlay-img"
                   fetchPriority="high"

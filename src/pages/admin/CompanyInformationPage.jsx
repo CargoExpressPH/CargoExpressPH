@@ -47,7 +47,7 @@ const FIELD_TAB = {
 const getEmptyCompanyInfo = () => ({
   name: '', short_description: '', long_description: '', story: '',
   core_values: '',
-  hero_image_url: '', hero_title: '', hero_description: '', hero_button_text: '', hero_button_link: '',
+  banner_image_url: '', banner_title: '', banner_description: '', banner_button_text: '', banner_button_link: '',
   email: '', facebook: '', messenger: '', website: '', smart_phone: '', globe_phone: '',
   manila_address: '', bohol_address: '',
   default_price_per_kg: 0,
@@ -170,7 +170,7 @@ const CompanyInformationPage = () => {
     try {
       setUploadingField(fieldName);
       const fileLabel = fieldName.replace(/_url$/, '').replace(/_/g, '-');
-      const path = `hero/${fileLabel}.jpg`;
+      const path = `banner/${fileLabel}.jpg`;
       const url = await uploadPublicAsset(file, path);
       handleInfoChange(fieldName, url);
       logCompany('Image Uploaded', { details: `Uploaded new image for ${fieldName}` });
@@ -349,19 +349,19 @@ const CompanyInformationPage = () => {
                   style={{height: 200,
                     overflow: 'hidden',
                     marginBottom: 16,
-                    background: companyInfo.hero_image_url ? 'none' : 'var(--bg-secondary)',
+                    background: companyInfo.banner_image_url ? 'none' : 'var(--bg-secondary)',
                     border: '1.5px dashed var(--border)',
                   }}
                 >
-                  {companyInfo.hero_image_url ? (
+                  {companyInfo.banner_image_url ? (
                     <>
                       <img
-                        src={companyInfo.hero_image_url}
-                        alt="Hero Banner"
+                        src={companyInfo.banner_image_url}
+                        alt="Banner Image"
                         className="w-full h-full object-cover"
                       />
                       <button
-                        onClick={() => handleRemoveImage('hero_image_url')}
+                        onClick={() => handleRemoveImage('banner_image_url')}
                         className="btn btn-sm btn-danger absolute"
                         style={{top: 8, right: 8, minHeight: 32, opacity: 0.9}}
                       >
@@ -380,19 +380,19 @@ const CompanyInformationPage = () => {
                 <div className="flex items-center gap-12">
                   <label
                     className="btn btn-outline btn-sm"
-                    style={{ cursor: uploadingField === 'hero_image_url' ? 'not-allowed' : 'pointer' }}
+                    style={{ cursor: uploadingField === 'banner_image_url' ? 'not-allowed' : 'pointer' }}
                   >
-                    {uploadingField === 'hero_image_url' ? (
+                    {uploadingField === 'banner_image_url' ? (
                       <><Loader size={13} className="animate-spin" /> Uploading...</>
                     ) : (
-                      <><Upload size={13} /> {companyInfo.hero_image_url ? 'Replace Image' : 'Upload Image'}</>
+                      <><Upload size={13} /> {companyInfo.banner_image_url ? 'Replace Image' : 'Upload Image'}</>
                     )}
                     <input
                       type="file"
                       accept="image/jpeg,image/png,image/webp"
                       style={{ display: 'none' }}
                       disabled={!!uploadingField}
-                      onChange={e => handleImageUpload(e, 'hero_image_url')}
+                      onChange={e => handleImageUpload(e, 'banner_image_url')}
                     />
                   </label>
                   <span className="form-helper m-0">
@@ -409,20 +409,20 @@ const CompanyInformationPage = () => {
               <div className="card-body">
                 <div className="form-group">
                   <label className="form-label" htmlFor="company-hero-title">Headline</label>
-                  <input id="company-hero-title" className="form-input" value={companyInfo.hero_title || ''} onChange={e => handleInfoChange('hero_title', e.target.value)} placeholder="e.g. Connecting Bohol and Manila" />
+                  <input id="company-hero-title" className="form-input" value={companyInfo.banner_title || ''} onChange={e => handleInfoChange('banner_title', e.target.value)} placeholder="e.g. Connecting Bohol and Manila" />
                 </div>
                 <div className="form-group">
                   <label className="form-label" htmlFor="company-hero-description">Subheadline</label>
-                  <textarea id="company-hero-description" className="form-textarea" rows={3} value={companyInfo.hero_description || ''} onChange={e => handleInfoChange('hero_description', e.target.value)} placeholder="Subtitle text displayed below the headline..." />
+                  <textarea id="company-hero-description" className="form-textarea" rows={3} value={companyInfo.banner_description || ''} onChange={e => handleInfoChange('banner_description', e.target.value)} placeholder="Subtitle text displayed below the headline..." />
                 </div>
                 <div className="grid grid-2" style={{ gap: 16 }}>
                   <div className="form-group mb-0">
                     <label className="form-label" htmlFor="company-hero-button-text">Button Label <span className="text-tertiary" style={{fontWeight: 400}}>(optional)</span></label>
-                    <input id="company-hero-button-text" className="form-input" value={companyInfo.hero_button_text || ''} onChange={e => handleInfoChange('hero_button_text', e.target.value)} placeholder="e.g. Book a Shipment" />
+                    <input id="company-hero-button-text" className="form-input" value={companyInfo.banner_button_text || ''} onChange={e => handleInfoChange('banner_button_text', e.target.value)} placeholder="e.g. Book a Shipment" />
                   </div>
                   <div className="form-group mb-0">
                     <label className="form-label" htmlFor="company-hero-button-link">Button Link <span className="text-tertiary" style={{fontWeight: 400}}>(optional)</span></label>
-                    <input id="company-hero-button-link" className="form-input" value={companyInfo.hero_button_link || ''} onChange={e => handleInfoChange('hero_button_link', e.target.value)} placeholder="e.g. /login or /customer/book" />
+                    <input id="company-hero-button-link" className="form-input" value={companyInfo.banner_button_link || ''} onChange={e => handleInfoChange('banner_button_link', e.target.value)} placeholder="e.g. /login or /customer/book" />
                   </div>
                 </div>
               </div>
