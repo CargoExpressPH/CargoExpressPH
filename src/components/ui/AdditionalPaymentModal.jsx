@@ -256,8 +256,8 @@ const AdditionalPaymentModal = ({ order, remainingBalance, onClose, onSave, onPa
       let receiptUrl = null;
       if (receiptPhoto) {
         setUploadProgress('Uploading receipt...');
-        const rResult = await uploadPhoto(receiptPhoto, 'receipts', order.tracking_number, 1);
-        receiptUrl = rResult.path || rResult.url;
+        const rResult = await uploadPhoto(receiptPhoto, 'receipts', order.tracking_number, 1, order.id);
+        receiptUrl = rResult.firestore_path ? rResult.firestore_path : (rResult.path || rResult.url);
       }
       setUploadProgress('Saving...');
 

@@ -152,14 +152,15 @@ const DeliveryModal = ({ order, onClose, onSave }) => {
         photos,
         'delivery-proofs',
         order.tracking_number,
-        (current, total) => setUploadProgress(`Uploading photo ${current}/${total}...`)
+        (current, total) => setUploadProgress(`Uploading photo ${current}/${total}...`),
+        order.id
       );
 
       let receiptUrl = null;
       if (payment.receiptFile) {
         setUploadProgress('Uploading receipt...');
-        const rResult = await uploadPhoto(payment.receiptFile, 'receipts', order.tracking_number, 1);
-        receiptUrl = rResult.path || rResult.url;
+        const rResult = await uploadPhoto(payment.receiptFile, 'receipts', order.tracking_number, 1, order.id);
+        receiptUrl = rResult.firestore_path ? rResult.firestore_path : (rResult.path || rResult.url);
       }
 
       setUploadProgress('Finalizing...');

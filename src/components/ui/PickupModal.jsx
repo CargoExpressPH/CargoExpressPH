@@ -187,14 +187,16 @@ const PickupModal = ({ order, onClose, onSave, pricePerKilo = 70 }) => {
         photos,
         'pickup-proofs',
         order.tracking_number,
-        (current, total) => setUploadProgress(`Uploading pickup proof ${current}/${total}...`)
+        (current, total) => setUploadProgress(`Uploading pickup proof ${current}/${total}...`),
+        order.id
       );
 
       let receiptUrl = null;
       if (payment.receiptFile) {
         setUploadProgress('Uploading receipt...');
-        const rResult = await uploadPhoto(payment.receiptFile, 'receipts', order.tracking_number, 1);
-        receiptUrl = rResult.path || rResult.url;
+        const rResult = await uploadPhoto(payment.receiptFile, 'receipts', order.tracking_number, 1, order.id);
+        // Fallback descriptors have firestore_path — persist it; supabase descriptors have path.
+        receiptUrl = rResult.firestore_path ? rResult.firestore_path : (rResult.path || rResult.url);
       }
 
       setUploadProgress('Processing Payment...');
