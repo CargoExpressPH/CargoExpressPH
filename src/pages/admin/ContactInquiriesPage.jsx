@@ -354,11 +354,11 @@ const ContactInquiriesPage = () => {
               <div style={{
                 background: 'var(--bg-secondary)', borderRadius: 'var(--radius-sm)',
               }} className="p-16 mb-16 inquiry-identity-row">
-                <div className="sidebar-user-avatar text-base flex-shrink-0" style={{ width: 44, height: 44 }}>
+                <div className="sidebar-user-avatar text-base flex-shrink-0" style={{ width: 36, height: 36 }}>
                   {(selectedInquiry.name || '?')[0].toUpperCase()}
                 </div>
                 <div>
-                  <div className="fw-700 text-base">{selectedInquiry.name}</div>
+                  <div className="fw-700 text-sm">{selectedInquiry.name}</div>
                   {selectedContact.phone && (
                     <div className="text-sm text-secondary flex items-center gap-4 mt-2">
                       <Phone size={12} />
@@ -421,7 +421,7 @@ const ContactInquiriesPage = () => {
                 </div>
                 <div className="p-16" style={{
                   background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)',
-                  fontSize: '0.9375rem', lineHeight: 1.7, whiteSpace: 'pre-wrap',
+                  fontSize: '0.875rem', lineHeight: 1.6, whiteSpace: 'pre-wrap', wordBreak: 'break-word',
                 }}>
                   {selectedInquiry.message}
                 </div>
