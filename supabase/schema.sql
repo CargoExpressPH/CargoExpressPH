@@ -3239,8 +3239,7 @@ CREATE POLICY "Users read own cargo photos" ON storage.objects
 -- ============================================================
 SELECT cron.schedule('0 3 * * *', $cron$SELECT public.purge_old_activity_logs()$cron$);
 SELECT cron.schedule('30 3 * * *', $cron$SELECT public.auto_resolve_stale_conversations()$cron$);
-SELECT cron.schedule('0 3 * * *', $cron$SELECT public.purge_old_activity_logs()$cron$);
-SELECT cron.schedule('30 3 * * *', $cron$SELECT public.auto_resolve_stale_conversations()$cron$);
+SELECT cron.schedule('0 4 * * *', $cron$SELECT public.purge_old_delivery_attempts()$cron$);
 
 
 -- ============================================================
@@ -3269,3 +3268,15 @@ ALTER PUBLICATION supabase_realtime ADD TABLE IF NOT EXISTS public.conversations
 ALTER PUBLICATION supabase_realtime ADD TABLE IF NOT EXISTS public.notifications;
 ALTER PUBLICATION supabase_realtime ADD TABLE IF NOT EXISTS public.orders;
 
+
+CREATE OR REPLACE FUNCTION public.purge_old_delivery_attempts()
+ RETURNS void
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+BEGIN
+  DELETE FROM public.notification_delivery_attempts
+  WHERE attempted_at < now() - interval '7 days';
+END;
+$function$;
