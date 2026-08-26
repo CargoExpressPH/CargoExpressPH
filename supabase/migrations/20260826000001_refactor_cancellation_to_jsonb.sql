@@ -2,16 +2,23 @@
 ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS cancellation_details JSONB;
 
 -- 2. Migrate existing data
-UPDATE public.orders
-SET cancellation_details = jsonb_strip_nulls(jsonb_build_object(
-  'reason', cancellation_reason,
-  'requested_at', cancellation_requested_at,
-  'previous_status', cancellation_previous_status,
-  'reviewed_at', cancellation_reviewed_at,
-  'reviewed_by', cancellation_reviewed_by,
-  'review_notes', cancellation_review_notes
-))
-WHERE cancellation_reason IS NOT NULL OR cancellation_requested_at IS NOT NULL;
+
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='orders' AND column_name='cancellation_reason') THEN
+    EXECUTE '
+    UPDATE public.orders
+    SET cancellation_details = jsonb_strip_nulls(jsonb_build_object(
+      ''reason'', cancellation_reason,
+      ''requested_at'', cancellation_requested_at,
+      ''previous_status'', cancellation_previous_status,
+      ''reviewed_at'', cancellation_reviewed_at,
+      ''reviewed_by'', cancellation_reviewed_by,
+      ''review_notes'', cancellation_review_notes
+    ))
+    WHERE cancellation_reason IS NOT NULL OR cancellation_requested_at IS NOT NULL';
+  END IF;
+END $$;
 
 -- 3. Update the request_order_cancellation RPC
 CREATE OR REPLACE FUNCTION public.request_order_cancellation(p_order_id uuid, p_reason text)
