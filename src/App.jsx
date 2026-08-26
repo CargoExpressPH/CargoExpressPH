@@ -57,6 +57,7 @@ const ContactInquiriesPage = lazyWithRetry(() => import('./pages/admin/ContactIn
 const AdminProfilePage = lazyWithRetry(() => import('./pages/admin/ProfilePage'));
 const ActivityLogsPage = lazyWithRetry(() => import('./pages/admin/ActivityLogsPage'));
 const CompanyInformationPage = lazyWithRetry(() => import('./pages/admin/CompanyInformationPage'));
+const AdminCreateBookingPage = lazyWithRetry(() => import('./pages/admin/AdminCreateBookingPage'));
 
 // Public Pages
 const TrackingPage = lazyWithRetry(() => import('./pages/public/TrackingPage'));
@@ -215,6 +216,7 @@ const router = createBrowserRouter([
           { index: true, element: <Suspense fallback={<PageLoader />}><DashboardPage /></Suspense> },
           { path: 'orders', element: <Suspense fallback={<PageLoader />}><AdminOrdersPage /></Suspense> },
           { path: 'orders/:id', element: <Suspense fallback={<PageLoader />}><AdminOrderDetailPage /></Suspense> },
+          { path: 'create-booking', element: <Suspense fallback={<PageLoader />}><AdminCreateBookingPage /></Suspense> },
           { path: 'trips', element: <Suspense fallback={<PageLoader />}><AdminTripsPage /></Suspense> },
           { path: 'trips/create', element: <Suspense fallback={<PageLoader />}><CreateTripPage /></Suspense> },
           { path: 'trips/:id', element: <Suspense fallback={<PageLoader />}><TripDetailPage /></Suspense> },

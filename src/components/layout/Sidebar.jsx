@@ -6,7 +6,7 @@ import { getAdminInboxUnreadCount, getNewInquiryCount } from '../../lib/database
 import {
   LayoutDashboard, Package, Truck, Users, BarChart3,
   Megaphone, MessageSquare, LogOut, Mail,
-  ChevronsLeft, ArrowLeft, ClipboardList, Building, ChevronUp, User
+  ChevronsLeft, ArrowLeft, ClipboardList, Building, ChevronUp, User, PackagePlus
 } from 'lucide-react';
 import ConfirmModal from '../ui/ConfirmModal';
 import { BrandLogo, BrandWordmark } from '../ui/BrandLogo';

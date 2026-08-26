@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { getOrders, getOrderStatusCounts, withTimeout } from '../../lib/database';
 import useNetworkRecovery from '../../hooks/useNetworkRecovery';
 import useRealtimeOrders from '../../hooks/useRealtimeOrders';
@@ -10,7 +10,7 @@ import EmptyState from '../../components/ui/EmptyState';
 import PageTransition from '../../components/ui/PageTransition';
 import ResponsiveFilterControls from '../../components/ui/ResponsiveFilterControls';
 import Pagination from '../../components/ui/Pagination';
-import { Search, Package } from 'lucide-react';
+import { Search, Package, Plus } from 'lucide-react';
 import usePageTitle from '../../hooks/usePageTitle';
 import { formatMoney } from '../../utils/currencyInput';
 import { isOrderPriced, ORDER_STATUS } from '../../constants/status';
@@ -52,6 +52,7 @@ const SEARCH_DEBOUNCE_MS = 350;
 
 const AdminOrdersPage = () => {
   usePageTitle('Bookings');
+  const navigate = useNavigate();
   const { user } = useAuth();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -186,6 +187,9 @@ const AdminOrdersPage = () => {
         <div className="admin-page-meta">
           <span className="badge badge-info">{loading ? 'Loading' : `${paginated.length} shown`}</span>
           <span className="badge">{loading ? 'Checking orders' : `${totalFiltered} total`}</span>
+          <button type="button" className="btn btn-primary" onClick={() => navigate('/admin/create-booking')}>
+            <Plus size={16} /> Add Booking
+          </button>
         </div>
       </div>
       <div className="admin-toolbar">
@@ -257,7 +261,9 @@ const AdminOrdersPage = () => {
                       <EmptyState
                         icon={Package}
                         title="No orders found"
-                        description="Try adjusting your search or filter criteria."
+                        description={search ? "Try adjusting your search or filter criteria." : "There are no bookings here yet. Create one manually or wait for customers to book."}
+                        actionLabel={!search && activeTab === 'All' ? 'Add Booking' : undefined}
+                        onAction={!search && activeTab === 'All' ? () => navigate('/admin/create-booking') : undefined}
                       />
                     </td>
                   </tr>
