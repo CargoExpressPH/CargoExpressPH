@@ -6,6 +6,7 @@ import { logOrder, logPayment } from '../../lib/activityLog';
 import { buildStatusTimestamps } from '../../utils/statusTimestamps';
 import { resolvePhotoUrls, deletePhoto } from '../../lib/storage';
 import { supabase } from '../../lib/supabase';
+import { motion, AnimatePresence } from 'framer-motion';
 import StatusBadge from '../../components/ui/StatusBadge';
 import TrackingTimeline from '../../components/ui/TrackingTimeline';
 import PickupModal from '../../components/ui/PickupModal';
@@ -29,7 +30,7 @@ import {
 } from '../../constants/status';
 import {
   ArrowLeft, Check, Package, CreditCard, User, Phone, MapPin,
-  Truck, Loader, Save, Camera, AlertTriangle, X, Image, Clock, Trash2, Star
+  Truck, Loader, Save, Camera, AlertTriangle, X, Image, Clock, Trash2, Star, ChevronDown
 } from 'lucide-react';
 import { useToast } from '../../hooks/useToast';
 import usePageTitle from '../../hooks/usePageTitle';
@@ -112,6 +113,7 @@ const AdminOrderDetailPage = () => {
   const [showReassignModal, setShowReassignModal] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [isFeatureExpanded, setIsFeatureExpanded] = useState(false);
 
   const [showDeliveryModal, setShowDeliveryModal] = useState(false);
   const [showRejectModal, setShowRejectModal] = useState(false);
@@ -1210,77 +1212,99 @@ const AdminOrderDetailPage = () => {
       {/* Website Feature Section */}
       {order.status === 'Delivered' && (resolvedPickupPhotos.length > 0 || resolvedDeliveryPhotos.length > 0) && (
         <div className="card admin-section-card stagger-item mt-16" style={{ animationDelay: '520ms' }}>
-          <div className="card-header">
+          <div 
+            className="card-header flex items-center justify-between cursor-pointer"
+            onClick={() => setIsFeatureExpanded(!isFeatureExpanded)}
+            style={{ paddingBottom: isFeatureExpanded ? 16 : 24 }}
+          >
             <h3><Star size={16} className="inline mr-8 text-warning" />Website Feature</h3>
+            <button type="button" className="icon-btn p-4" aria-label="Toggle Website Feature section" onClick={(e) => { e.stopPropagation(); setIsFeatureExpanded(!isFeatureExpanded); }}>
+              <motion.div animate={{ rotate: isFeatureExpanded ? 180 : 0 }} transition={{ duration: 0.3 }}>
+                <ChevronDown size={18} />
+              </motion.div>
+            </button>
           </div>
-          <div className="card-body">
-            <div className="form-group flex items-center gap-12 mb-16">
-              <input
-                type="checkbox"
-                id="feature-website"
-                checked={featureForm.featured_on_website}
-                onChange={e => setFeatureForm({ ...featureForm, featured_on_website: e.target.checked })}
-                className="w-18"
-                style={{height: 18}}
-              />
-              <label htmlFor="feature-website" className="font-semibold text-lg cursor-pointer m-0">Feature this shipment on the website</label>
-            </div>
+          
+          <AnimatePresence>
+            {isFeatureExpanded && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.3, ease: 'easeInOut' }}
+                style={{ overflow: 'hidden' }}
+              >
+                <div className="card-body" style={{ paddingTop: 0, borderTop: '1px solid var(--border-color)', marginTop: 16 }}>
+                  <div className="form-group flex items-center gap-12 mb-16" style={{ marginTop: 16 }}>
+                    <input
+                      type="checkbox"
+                      id="feature-website"
+                      checked={featureForm.featured_on_website}
+                      onChange={e => setFeatureForm({ ...featureForm, featured_on_website: e.target.checked })}
+                      className="w-18"
+                      style={{height: 18}}
+                    />
+                    <label htmlFor="feature-website" className="font-semibold text-lg cursor-pointer m-0">Feature this shipment on the website</label>
+                  </div>
 
-            {featureForm.featured_on_website && (
-              <div className="grid grid-2 gap-16 mt-16 p-16" style={{ background: 'var(--bg-secondary)', borderRadius: 'var(--radius-md)' }}>
-                <div className="form-group col-full">
-                  <label className="form-label" htmlFor="order-featured-title">Highlight Title</label>
-                  <input
-                    id="order-featured-title"
-                    type="text"
-                    className="form-input"
-                    placeholder="e.g. Bound for Jagna"
-                    value={featureForm.featured_title}
-                    onChange={e => setFeatureForm({ ...featureForm, featured_title: e.target.value })}
-                  />
+                  {featureForm.featured_on_website && (
+                    <div className="grid grid-2 gap-16 mt-16 p-16" style={{ background: 'var(--bg-secondary)', borderRadius: 'var(--radius-md)' }}>
+                      <div className="form-group col-full">
+                        <label className="form-label" htmlFor="order-featured-title">Highlight Title</label>
+                        <input
+                          id="order-featured-title"
+                          type="text"
+                          className="form-input"
+                          placeholder="e.g. Bound for Jagna"
+                          value={featureForm.featured_title}
+                          onChange={e => setFeatureForm({ ...featureForm, featured_title: e.target.value })}
+                        />
+                      </div>
+                      <div className="form-group col-full">
+                        <label className="form-label" htmlFor="order-featured-caption">Caption</label>
+                        <textarea
+                          id="order-featured-caption"
+                          className="form-textarea"
+                          rows={2}
+                          placeholder="Thank you for trusting CargoExpress PH..."
+                          value={featureForm.featured_caption}
+                          onChange={e => setFeatureForm({ ...featureForm, featured_caption: e.target.value })}
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label className="form-label" htmlFor="order-featured-image">Featured Image</label>
+                        {/* CustomSelect for consistency with every other dropdown in
+                            the admin UI; a native select opens the OS picker instead. */}
+                        <CustomSelect
+                          id="order-featured-image"
+                          className="form-select"
+                          value={featureForm.featured_image_type}
+                          onChange={e => setFeatureForm({ ...featureForm, featured_image_type: e.target.value })}
+                        >
+                          {resolvedPickupPhotos.length > 0 && <option value="pickup">Use Pickup Proof</option>}
+                          {resolvedDeliveryPhotos.length > 0 && <option value="delivery">Use Delivery Proof</option>}
+                        </CustomSelect>
+                      </div>
+                      
+                      <div className="form-group flex justify-end col-full" style={{marginTop: 12}}>
+                        <button className="btn btn-primary" onClick={handleSaveFeature} disabled={savingFeature}>
+                          {savingFeature ? <Loader size={16} className="animate-spin" /> : <><Save size={16} /> Save Feature Settings</>}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {!featureForm.featured_on_website && order.featured_on_website && (
+                     <div className="form-group flex justify-end" style={{ marginTop: 12 }}>
+                       <button className="btn btn-primary" onClick={handleSaveFeature} disabled={savingFeature}>
+                         {savingFeature ? <Loader size={16} className="animate-spin" /> : 'Save (Remove from Website)'}
+                       </button>
+                     </div>
+                  )}
                 </div>
-                <div className="form-group col-full">
-                  <label className="form-label" htmlFor="order-featured-caption">Caption</label>
-                  <textarea
-                    id="order-featured-caption"
-                    className="form-textarea"
-                    rows={2}
-                    placeholder="Thank you for trusting CargoExpress PH..."
-                    value={featureForm.featured_caption}
-                    onChange={e => setFeatureForm({ ...featureForm, featured_caption: e.target.value })}
-                  />
-                </div>
-                <div className="form-group">
-                  <label className="form-label" htmlFor="order-featured-image">Featured Image</label>
-                  {/* CustomSelect for consistency with every other dropdown in
-                      the admin UI; a native select opens the OS picker instead. */}
-                  <CustomSelect
-                    id="order-featured-image"
-                    className="form-select"
-                    value={featureForm.featured_image_type}
-                    onChange={e => setFeatureForm({ ...featureForm, featured_image_type: e.target.value })}
-                  >
-                    {resolvedPickupPhotos.length > 0 && <option value="pickup">Use Pickup Proof</option>}
-                    {resolvedDeliveryPhotos.length > 0 && <option value="delivery">Use Delivery Proof</option>}
-                  </CustomSelect>
-                </div>
-                
-                <div className="form-group flex justify-end col-full" style={{marginTop: 12}}>
-                  <button className="btn btn-primary" onClick={handleSaveFeature} disabled={savingFeature}>
-                    {savingFeature ? <Loader size={16} className="animate-spin" /> : <><Save size={16} /> Save Feature Settings</>}
-                  </button>
-                </div>
-              </div>
+              </motion.div>
             )}
-            
-            {!featureForm.featured_on_website && order.featured_on_website && (
-               <div className="form-group flex justify-end" style={{ marginTop: 12 }}>
-                 <button className="btn btn-primary" onClick={handleSaveFeature} disabled={savingFeature}>
-                   {savingFeature ? <Loader size={16} className="animate-spin" /> : 'Save (Remove from Website)'}
-                 </button>
-               </div>
-            )}
-          </div>
+          </AnimatePresence>
         </div>
       )}
 
