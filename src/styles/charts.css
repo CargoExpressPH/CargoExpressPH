@@ -140,8 +140,6 @@
   color: var(--text-tertiary);
   font-size: 0.875rem;
   font-weight: 500;
-  border: 2px dashed var(--border);
-  border-radius: 50%;
 }
 
 

@@ -35,7 +35,7 @@ const DonutChart = ({
   const total = segments.reduce((sum, s) => sum + (s.value || 0), 0);
   if (total === 0) {
     return (
-      <div className="donut-chart-empty" style={{ width: size, height: size }}>
+      <div className="donut-chart-empty" style={{ width: '100%', minHeight: size }}>
         <span>No data</span>
       </div>
     );

@@ -225,7 +225,7 @@ const SalesPage = () => {
         {/* Payment Methods */}
         <div className="card admin-section-card stagger-item" style={{ animationDelay: '240ms' }}>
           <div className="card-header"><h3>Payment Methods</h3></div>
-          <div className="card-body flex justify-center" style={{ padding: '24px 16px' }}>
+          <div className="card-body" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px 16px', minHeight: '260px' }}>
             {loading ? <SkeletonDonut size={170} /> : (
               <DonutChart
                 size={170}

@@ -285,7 +285,7 @@ const ReportsPage = () => {
                       Status Distribution
                     </h3>
                   </div>
-                  <div className="card-body flex justify-center" style={{ padding: '24px 16px' }}>
+                  <div className="card-body" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px 16px', minHeight: '260px' }}>
                     <DonutChart
                       size={170}
                       thickness={24}
