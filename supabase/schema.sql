@@ -237,12 +237,7 @@ CREATE TABLE IF NOT EXISTS orders (
   featured_at TIMESTAMPTZ,
   reassignment_history JSONB DEFAULT '[]'::jsonb,
   payment_preference TEXT DEFAULT 'unspecified'::text,
-  cancellation_reason TEXT,
-  cancellation_requested_at TIMESTAMPTZ,
-  cancellation_previous_status VARCHAR(30),
-  cancellation_reviewed_at TIMESTAMPTZ,
-  cancellation_reviewed_by UUID REFERENCES profiles(id) ON DELETE SET NULL,
-  cancellation_review_notes TEXT,
+  cancellation_details JSONB,
   CONSTRAINT orders_trip_required_for_active_status CHECK ((status::text = ANY (ARRAY['Pending Review'::character varying, 'Pending'::character varying, 'Pending Cancellation'::character varying, 'Cancelled'::character varying]::text[])) OR trip_id IS NOT NULL)
 );
 
@@ -1253,7 +1248,7 @@ BEGIN
   -- ── Cancellation review hold ──────────────────────────────────────────────
   IF OLD.status = 'Pending Cancellation'
      AND NEW.status IS DISTINCT FROM OLD.status
-     AND NEW.status NOT IN ('Cancelled', COALESCE(OLD.cancellation_previous_status, 'Pending'))
+     AND NEW.status NOT IN ('Cancelled', COALESCE(OLD.cancellation_details->>'previous_status', 'Pending'))
   THEN
     RAISE EXCEPTION
       'Order % has a cancellation request awaiting review. Approve or reject it before changing its status.',
@@ -1696,12 +1691,7 @@ BEGIN
   NEW.delivery_photos := '[]'::jsonb;
 
   -- A booking cannot be born already asking to be cancelled.
-  NEW.cancellation_reason          := NULL;
-  NEW.cancellation_requested_at    := NULL;
-  NEW.cancellation_previous_status := NULL;
-  NEW.cancellation_reviewed_at     := NULL;
-  NEW.cancellation_reviewed_by     := NULL;
-  NEW.cancellation_review_notes    := NULL;
+  NEW.cancellation_details         := NULL;
 
   IF NEW.trip_id IS NOT NULL THEN
     SELECT * INTO trip_row FROM public.trips WHERE id = NEW.trip_id;
@@ -2118,12 +2108,11 @@ BEGIN
 
   UPDATE public.orders
      SET status                       = 'Pending Cancellation',
-         cancellation_reason          = v_reason,
-         cancellation_requested_at    = now(),
-         cancellation_previous_status = v_order.status,
-         cancellation_reviewed_at     = NULL,
-         cancellation_reviewed_by     = NULL,
-         cancellation_review_notes    = NULL
+         cancellation_details = jsonb_build_object(
+           'reason', v_reason,
+           'requested_at', now(),
+           'previous_status', v_order.status
+         )
    WHERE id = p_order_id
    RETURNING * INTO v_order;
 
@@ -2143,7 +2132,7 @@ BEGIN
           'order',
           v_order.id,
           v_order.tracking_number,
-          jsonb_build_object('status', v_order.cancellation_previous_status),
+          jsonb_build_object('status', v_order.cancellation_details->>'previous_status'),
           jsonb_build_object('status', 'Pending Cancellation'),
           'Customer requested cancellation. Reason: ' || v_reason);
 
@@ -2180,13 +2169,15 @@ BEGIN
   -- 'Pending' is the fallback only for rows that predate this migration and so
   -- have no recorded previous status. It is a guess, and it is confined to the
   -- one case where nothing better is knowable.
-  v_restore := COALESCE(v_order.cancellation_previous_status, 'Pending');
+  v_restore := COALESCE(v_order.cancellation_details->>'previous_status', 'Pending');
 
   UPDATE public.orders
      SET status                    = CASE WHEN p_approve THEN 'Cancelled' ELSE v_restore END,
-         cancellation_reviewed_at  = now(),
-         cancellation_reviewed_by  = auth.uid(),
-         cancellation_review_notes = v_notes
+         cancellation_details      = COALESCE(v_order.cancellation_details, '{}'::jsonb) || jsonb_strip_nulls(jsonb_build_object(
+           'reviewed_at', now(),
+           'reviewed_by', auth.uid(),
+           'review_notes', v_notes
+         ))
    WHERE id = p_order_id
    RETURNING * INTO v_order;
 
@@ -2214,7 +2205,7 @@ BEGIN
                ELSE 'Rejected the customer''s cancellation request; order restored to "' || v_restore || '".'
           END
           || COALESCE(' Note: ' || v_notes, '')
-          || COALESCE(' Customer''s stated reason: ' || v_order.cancellation_reason, ''));
+          || COALESCE(' Customer''s stated reason: ' || (v_order.cancellation_details->>'reason'), ''));
 
   RETURN v_order;
 END;
@@ -2748,7 +2739,7 @@ CREATE INDEX IF NOT EXISTS idx_orders_created_at ON public.orders USING btree (c
 
 CREATE INDEX IF NOT EXISTS idx_orders_featured ON public.orders USING btree (featured_at DESC) WHERE (featured_on_website = true);
 
-CREATE INDEX IF NOT EXISTS idx_orders_pending_cancellation ON public.orders USING btree (cancellation_requested_at) WHERE ((status)::text = 'Pending Cancellation'::text);
+CREATE INDEX IF NOT EXISTS idx_orders_pending_cancellation ON public.orders USING btree (updated_at) WHERE ((status)::text = 'Pending Cancellation'::text);
 
 CREATE INDEX IF NOT EXISTS idx_orders_status ON public.orders USING btree (status);
 
@@ -3264,8 +3255,7 @@ COMMENT ON COLUMN public.contact_inquiries.push_dispatch_claim_id IS 'Lease toke
 COMMENT ON COLUMN public.conversations.escalated IS 'Bot matched an escalation pattern, or the customer asked for a human. A flag, not a state.';
 COMMENT ON COLUMN public.conversations.first_response_at IS 'First admin message in this conversation. Set once, server-side; never rewritten.';
 COMMENT ON COLUMN public.conversations.bot_resolved IS 'NULL = unknown. TRUE/FALSE only once the customer answers the thumbs prompt.';
-COMMENT ON COLUMN public.orders.cancellation_reason IS 'Customer-stated reason for the cancellation request. Required — a cancellation with no reason is the case this column exists to stop.';
-COMMENT ON COLUMN public.orders.cancellation_previous_status IS 'Where the order was standing when the request was made, so a rejection can put it back exactly there rather than guessing.';
+COMMENT ON COLUMN public.orders.cancellation_details IS 'JSONB object containing all cancellation metadata: reason, requested_at, previous_status, reviewed_by, reviewed_at, review_notes.';
 COMMENT ON COLUMN public.user_device_tokens.device_id IS 'Stable browser/PWA installation identifier. One user may have many device rows.';
 
 

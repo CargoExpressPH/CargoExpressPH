@@ -448,7 +448,7 @@ const AdminOrderDetailPage = () => {
       await cancelOrderAsAdmin(id, reason);
       logOrder('Order Cancelled', id, order.tracking_number, {
         previousValue: { status: order.status },
-        newValue: { status: 'Cancelled', cancellation_reason: reason },
+        newValue: { status: 'Cancelled', cancellation_details: { reason } },
         details: `Cancelled by admin. Reason: ${reason}`,
       });
       await createNotification(order.user_id, 'Order Cancelled', `Order ${order.tracking_number} has been cancelled. Reason: ${reason}`, 'order_update', order.id);
@@ -712,34 +712,34 @@ const AdminOrderDetailPage = () => {
           a cancelled order has. Covers both routes in: an approved customer
           request (which carries cancellation_requested_at) and an admin
           cancelling outright (which does not). */}
-      {order.status === 'Cancelled' && order.cancellation_reason && (
+      {order.status === 'Cancelled' && order.cancellation_details?.reason && (
         <div className="card admin-section-card stagger-item mb-16" style={{ animationDelay: '40ms' }}>
           <div className="card-body">
             <h3 className="flex items-center gap-8 text-sm fw-700 mb-8">
               <AlertTriangle size={16} aria-hidden="true" /> Cancellation Details
             </h3>
             <p className="text-xs text-secondary mb-8">
-              {order.cancellation_requested_at
+              {order.cancellation_details?.requested_at
                 ? `Requested by ${order.profiles?.name || 'the customer'}`
                 : 'Cancelled by an admin'}
-              {order.cancellation_reviewed_at
-                ? ` • ${safeFormatDate(order.cancellation_reviewed_at, { month: 'short', day: 'numeric', year: 'numeric' })}`
+              {order.cancellation_details?.reviewed_at
+                ? ` • ${safeFormatDate(order.cancellation_details?.reviewed_at, { month: 'short', day: 'numeric', year: 'numeric' })}`
                 : ''}
             </p>
             <div className="text-xs text-tertiary fw-700 text-uppercase mb-4">
-              {order.cancellation_requested_at ? "Customer's reason" : 'Reason given'}
+              {order.cancellation_details?.requested_at ? "Customer's reason" : 'Reason given'}
             </div>
             <blockquote
               className="text-sm m-0"
               style={{ borderLeft: '3px solid var(--border)', paddingLeft: 12 }}
             >
-              {order.cancellation_reason}
+              {order.cancellation_details?.reason}
             </blockquote>
 
             {/* Only for an approved REQUEST: on an admin-initiated cancellation
                 the reason above is already the admin's own, and repeating it
                 under a second heading would read as two separate remarks. */}
-            {order.cancellation_requested_at && (
+            {order.cancellation_details?.requested_at && (
               <>
                 <div className="text-xs text-tertiary fw-700 text-uppercase mb-4 mt-12">
                   Admin note
@@ -748,7 +748,7 @@ const AdminOrderDetailPage = () => {
                   className="text-sm m-0"
                   style={{ borderLeft: '3px solid var(--border)', paddingLeft: 12 }}
                 >
-                  {order.cancellation_review_notes || (
+                  {order.cancellation_details?.review_notes || (
                     <span className="text-tertiary">
                       No note was recorded — this request was approved before notes were required.
                     </span>
@@ -772,17 +772,17 @@ const AdminOrderDetailPage = () => {
             </h3>
             <p className="text-sm mb-8" style={{ color: 'var(--warning-dark)' }}>
               <strong>{order.profiles?.name || 'The customer'}</strong> asked to cancel this booking
-              {order.cancellation_requested_at
-                ? ` on ${safeFormatDate(order.cancellation_requested_at, { month: 'short', day: 'numeric', year: 'numeric' })}`
+              {order.cancellation_details?.requested_at
+                ? ` on ${safeFormatDate(order.cancellation_details?.requested_at, { month: 'short', day: 'numeric', year: 'numeric' })}`
                 : ''}.
-              It was <strong>{order.cancellation_previous_status || 'Pending'}</strong> at the time
+              It was <strong>{order.cancellation_details?.previous_status || 'Pending'}</strong> at the time
               and goes back there if you decline.
             </p>
             <blockquote
               className="text-sm mb-16"
               style={{ color: 'var(--warning-dark)', borderLeft: '3px solid var(--warning)', paddingLeft: 12, margin: '0 0 16px' }}
             >
-              {order.cancellation_reason || 'No reason recorded.'}
+              {order.cancellation_details?.reason || 'No reason recorded.'}
             </blockquote>
             <div className="admin-action-group">
               <button
@@ -1397,7 +1397,7 @@ const AdminOrderDetailPage = () => {
           onConfirm={(notes) => handleReviewCancellation(false, notes)}
           loading={reviewingCancellation}
           title="Decline Cancellation Request"
-          description={`This booking goes back to "${order.cancellation_previous_status || 'Pending'}" and keeps its trip slot. Your note is sent to the customer, so say why the request cannot be accommodated.`}
+          description={`This booking goes back to "${order.cancellation_details?.previous_status || 'Pending'}" and keeps its trip slot. Your note is sent to the customer, so say why the request cannot be accommodated.`}
           label="Reason for Declining *"
           placeholder="e.g. The parcel is already loaded on today's manifest and departs in an hour."
           submitLabel="Decline Request"

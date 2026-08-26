@@ -572,9 +572,9 @@ const OrderDetailPage = () => {
               This booking is still active while our team reviews your request. You will be
               notified once it is approved or declined.
             </span>
-            {order.cancellation_reason && (
+            {order.cancellation_details?.reason && (
               <span className="text-sm" style={{ opacity: 0.9 }}>
-                Your reason: “{order.cancellation_reason}”
+                Your reason: “{order.cancellation_details?.reason}”
               </span>
             )}
           </div>
@@ -582,14 +582,14 @@ const OrderDetailPage = () => {
       )}
 
       {/* Declined request — the order carried on, and the note says why. */}
-      {!awaitingCancellation && !isCancelled && order.cancellation_reviewed_at && order.cancellation_reason && (
+      {!awaitingCancellation && !isCancelled && order.cancellation_details?.reviewed_at && order.cancellation_details?.reason && (
         <div className="alert-banner alert-banner-info animate-slide-up mb-16" role="status">
           <AlertTriangle size={16} aria-hidden="true" />
           <div className="flex flex-col gap-4">
             <span className="fw-700">Your cancellation request was declined</span>
             <span className="text-sm">
               This booking is still going ahead.
-              {order.cancellation_review_notes ? ` Note from our team: ${order.cancellation_review_notes}` : ''}
+              {order.cancellation_details?.review_notes ? ` Note from our team: ${order.cancellation_details?.review_notes}` : ''}
             </span>
           </div>
         </div>
@@ -656,24 +656,24 @@ const OrderDetailPage = () => {
               <span className="fw-700 text-base">Booking Cancelled</span>
             </div>
             <p className="text-sm m-0" style={{ opacity: 0.8 }}>
-              {order.cancellation_requested_at
+              {order.cancellation_details?.requested_at
                 ? 'This booking was cancelled at your request and cannot be modified.'
                 : 'This booking was cancelled by our team and cannot be modified.'}
             </p>
 
-            {order.cancellation_reason && (
+            {order.cancellation_details?.reason && (
               <div className="text-sm">
                 <div className="fw-700">
-                  {order.cancellation_requested_at ? 'Your reason' : 'Reason'}
+                  {order.cancellation_details?.requested_at ? 'Your reason' : 'Reason'}
                 </div>
-                <p className="m-0" style={{ opacity: 0.9 }}>“{order.cancellation_reason}”</p>
+                <p className="m-0" style={{ opacity: 0.9 }}>“{order.cancellation_details?.reason}”</p>
               </div>
             )}
 
-            {order.cancellation_requested_at && order.cancellation_review_notes && (
+            {order.cancellation_details?.requested_at && order.cancellation_details?.review_notes && (
               <div className="text-sm">
                 <div className="fw-700">Note from our team</div>
-                <p className="m-0" style={{ opacity: 0.9 }}>“{order.cancellation_review_notes}”</p>
+                <p className="m-0" style={{ opacity: 0.9 }}>“{order.cancellation_details?.review_notes}”</p>
               </div>
             )}
           </div>

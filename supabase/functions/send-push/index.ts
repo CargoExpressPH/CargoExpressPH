@@ -391,7 +391,7 @@ serve(async (req) => {
         if (typeof order_id !== 'string' || !order_id) return jsonResp({ error: 'order_id required' }, 400)
         const { data: order, error: orderError } = await supabase
           .from('orders')
-          .select('id, user_id, tracking_number, status, cancellation_reason')
+          .select('id, user_id, tracking_number, status, cancellation_details')
           .eq('id', order_id)
           .maybeSingle()
         if (orderError) return jsonResp({ error: orderError.message }, 500)
@@ -401,7 +401,7 @@ serve(async (req) => {
 
         user_id = 'all_admins'
         title = 'Cancellation Requested'
-        body = `Order ${order.tracking_number}: the customer asked to cancel. Reason: ${String(order.cancellation_reason || '').trim()}`
+        body = `Order ${order.tracking_number}: the customer asked to cancel. Reason: ${String(order.cancellation_details?.reason || '').trim()}`
         url = '/admin'
         notification_reference_id = order_id
         notification_type = 'order_update'
@@ -410,11 +410,11 @@ serve(async (req) => {
         if (typeof order_id !== 'string' || !order_id) return jsonResp({ error: 'order_id required' }, 400)
         const { data: order, error: orderError } = await supabase
           .from('orders')
-          .select('id, user_id, tracking_number, status, cancellation_previous_status, cancellation_review_notes, cancellation_requested_at')
+          .select('id, user_id, tracking_number, status, cancellation_details')
           .eq('id', order_id)
           .maybeSingle()
         if (orderError) return jsonResp({ error: orderError.message }, 500)
-        if (!order || !order.cancellation_requested_at) {
+        if (!order || !order.cancellation_details?.requested_at) {
           return jsonResp({ error: 'Cancellation review is not valid' }, 403)
         }
 
@@ -423,13 +423,13 @@ serve(async (req) => {
           return jsonResp({ error: 'Cancellation review state does not match the order' }, 409)
         }
 
-        const restoredStatus = order.cancellation_previous_status || 'Pending'
+        const restoredStatus = order.cancellation_details?.previous_status || 'Pending'
         user_id = order.user_id
         title = approvedReview ? 'Cancellation Approved' : 'Cancellation Declined'
         body = approvedReview
           ? `Order ${order.tracking_number} has been cancelled as you requested.`
           : `Order ${order.tracking_number} was not cancelled and is back to "${restoredStatus}".`
-        if (order.cancellation_review_notes) body += ` Note from our team: ${order.cancellation_review_notes}`
+        if (order.cancellation_details?.review_notes) body += ` Note from our team: ${order.cancellation_details?.review_notes}`
         url = '/customer/notifications'
         notification_reference_id = order_id
         notification_type = 'order_update'

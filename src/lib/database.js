@@ -489,9 +489,11 @@ export const cancelOrderAsAdmin = async (orderId, reason) => {
   const { data: auth } = await supabase.auth.getUser();
   return updateOrder(orderId, {
     status: 'Cancelled',
-    cancellation_reason: trimmed,
-    cancellation_reviewed_at: new Date().toISOString(),
-    cancellation_reviewed_by: auth?.user?.id || null,
+    cancellation_details: {
+      reason: trimmed,
+      reviewed_at: new Date().toISOString(),
+      reviewed_by: auth?.user?.id || null,
+    },
   });
 };
 
@@ -570,7 +572,7 @@ export const getPendingCancellations = async () => {
     .from('orders')
     .select('*, profiles:user_id (name, email, phone)')
     .eq('status', ORDER_STATUS.PENDING_CANCELLATION)
-    .order('cancellation_requested_at', { ascending: true });
+    .order('updated_at', { ascending: true });
   if (error) throw error;
   return data || [];
 };

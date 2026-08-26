@@ -158,7 +158,7 @@ export const hasPendingCancellation = (order) =>
 export const timelineStatus = (order) => {
   if (!order?.status) return undefined;
   if (order.status !== ORDER_STATUS.PENDING_CANCELLATION) return order.status;
-  return order.cancellation_previous_status || ORDER_STATUS.PENDING;
+  return order.cancellation_details?.previous_status || ORDER_STATUS.PENDING;
 };
 
 /**
