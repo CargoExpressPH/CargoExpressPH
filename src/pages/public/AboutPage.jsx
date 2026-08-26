@@ -1040,7 +1040,14 @@ const AboutPage = () => {
                   aria-label={`View delivery photo for ${highlight.featured_title}`}
                   variants={itemVariants}
                 >
-                  <img src={highlight.resolved_image} alt={highlight.featured_title || 'Delivery photo'} loading="lazy" />
+                  <img 
+                    src={highlight.resolved_image} 
+                    alt={highlight.featured_title || 'Delivery photo'} 
+                    loading="lazy" 
+                    onError={(e) => {
+                      e.target.closest('.about-highlight-card').style.display = 'none';
+                    }}
+                  />
                   <div className="about-highlight-overlay">
                     <div className="about-highlight-title about-highlight-title-inner">
                       <Package size={18} className="about-highlight-pkg-icon" />
@@ -1146,7 +1153,15 @@ const AboutPage = () => {
                       
                       {fb.resolved_image && (
                         <div className="about-review-photo">
-                          <img src={fb.resolved_image} alt="Delivery Proof" loading="lazy" />
+                          <img 
+                            src={fb.resolved_image} 
+                            alt="Delivery Proof" 
+                            loading="lazy" 
+                            onError={(e) => {
+                              const photoContainer = e.target.closest('.about-review-photo');
+                              if (photoContainer) photoContainer.style.display = 'none';
+                            }}
+                          />
                         </div>
                       )}
 

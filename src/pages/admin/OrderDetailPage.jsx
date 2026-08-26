@@ -112,7 +112,7 @@ const AdminOrderDetailPage = () => {
   const [showReassignModal, setShowReassignModal] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
-  const [showCleanupConfirm, setShowCleanupConfirm] = useState(false);
+
   const [showDeliveryModal, setShowDeliveryModal] = useState(false);
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [showDeclineCancelModal, setShowDeclineCancelModal] = useState(false);
@@ -562,47 +562,6 @@ const AdminOrderDetailPage = () => {
     }
   };
 
-  const handleManualCleanup = async () => {
-    setShowCleanupConfirm(false);
-    setSaving(true);
-    try {
-      // 1. Delete Pickup Photos
-      if (order.pickup_photos && order.pickup_photos.length > 0) {
-        for (const photo of order.pickup_photos) {
-          try { await deletePhoto(photo); } catch(e) { console.error('Failed to delete pickup photo', photo, e); }
-        }
-      }
-      
-      // 2. Delete Delivery Photos
-      if (order.delivery_photos && order.delivery_photos.length > 0) {
-        for (const photo of order.delivery_photos) {
-          try { await deletePhoto(photo); } catch(e) { console.error('Failed to delete delivery photo', photo, e); }
-        }
-      }
-
-      // 3. Delete Receipts
-      for (const tx of paymentTransactions) {
-        if (tx.receipt_url) {
-          try { await deletePhoto(tx.receipt_url); } catch(e) { console.error('Failed to delete receipt photo', tx.receipt_url, e); }
-        }
-      }
-
-      // 4. Update DB
-      await updateOrder(id, { pickup_photos: [], delivery_photos: [] });
-      
-      if (paymentTransactions.length > 0) {
-        await clearPaymentReceiptUrls(id);
-      }
-
-      logOrder('Evidence Cleaned Up', id, order.tracking_number, { details: 'Admin manually deleted all evidence photos from storage to conserve space.' });
-      await loadOrder();
-      toast.success('Evidence photos deleted from storage.');
-    } catch (e) {
-      toast.error('Failed to cleanup evidence: ' + e.message);
-    } finally {
-      setSaving(false);
-    }
-  };
 
   if (loading) return (
     <div className="page-transition">
@@ -896,22 +855,6 @@ const AdminOrderDetailPage = () => {
         </div>
       )}
 
-      {/* Terminal Order Actions */}
-      {isTerminal && (resolvedPickupPhotos.length > 0 || resolvedDeliveryPhotos.length > 0) && (
-        <div className="card admin-section-card admin-action-card stagger-item mb-16" style={{ animationDelay: '60ms' }}>
-          <div className="card-body">
-            <div className="flex items-center justify-between">
-              <div>
-                <h4 className="fw-700 text-sm mb-4">Storage Optimization</h4>
-                <p className="text-xs text-secondary">This order is completed. You can delete its evidence photos from storage to free up space.</p>
-              </div>
-              <button type="button" className="btn btn-danger btn-sm flex items-center gap-6" onClick={() => setShowCleanupConfirm(true)} disabled={saving}>
-                {saving ? <Loader size={14} className="animate-spin" /> : <Trash2 size={14} />} Manual Evidence Cleanup
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Trip Warning */}
       {needsTrip && (
@@ -1376,17 +1319,7 @@ const AdminOrderDetailPage = () => {
           submitLabel="Cancel Order"
         />
       )}
-      <ConfirmModal
-        isOpen={showCleanupConfirm}
-        onClose={() => setShowCleanupConfirm(false)}
-        onConfirm={handleManualCleanup}
-        title="Delete All Evidence Photos"
-        message="Are you sure you want to permanently delete all photo evidence (pickup, delivery, receipts) for this order from storage? This action cannot be undone."
-        confirmLabel="Delete Evidence"
-        cancelLabel="Keep Photos"
-        variant="danger"
-        loading={saving}
-      />
+
       {lightboxIndex >= 0 && lightboxImages.length > 0 && (
         <ImageLightbox images={lightboxImages} initialIndex={lightboxIndex} onClose={() => setLightboxIndex(-1)} />
       )}
