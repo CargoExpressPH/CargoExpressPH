@@ -1234,7 +1234,7 @@ const AdminOrderDetailPage = () => {
                 transition={{ duration: 0.3, ease: 'easeInOut' }}
                 style={{ overflow: 'hidden' }}
               >
-                <div className="card-body" style={{ paddingTop: 0, borderTop: '1px solid var(--border-color)', marginTop: 16 }}>
+                <div className="card-body" style={{ paddingTop: 0, borderTop: '1px solid var(--border)', marginTop: 16 }}>
                   <div className="form-group flex items-center gap-12 mb-16" style={{ marginTop: 16 }}>
                     <input
                       type="checkbox"
