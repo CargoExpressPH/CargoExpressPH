@@ -521,7 +521,7 @@ $function$
 
 
 CREATE OR REPLACE FUNCTION public.create_admin_notifications_rpc(p_title text, p_message text, p_type text, p_reference_id uuid DEFAULT NULL::uuid)
- RETURNS TABLE(admin_id uuid, notification_title text, notification_message text)
+ RETURNS TABLE(admin_id uuid, notification_id uuid, notification_title text, notification_message text)
  LANGUAGE plpgsql
  SECURITY DEFINER
  SET search_path TO 'public'
@@ -603,9 +603,9 @@ BEGIN
     SELECT p.id, v_title, v_message, p_type, p_reference_id
       FROM public.profiles AS p
      WHERE p.role = 'admin'
-    RETURNING user_id
+    RETURNING id, user_id
   )
-  SELECT user_id, v_title, v_message FROM inserted;
+  SELECT user_id, id, v_title, v_message FROM inserted;
 END;
 $function$
 
