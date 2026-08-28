@@ -12,7 +12,7 @@ import {
   Package, Search, Plus, ArrowRight,
   Container, MapPin, Calendar, Weight, ChevronRight,
   Truck, CheckCircle, Zap, AlertTriangle, Bell, Megaphone, Clock,
-  Sun, CloudSun, Moon, TrendingUp,
+  Sun, CloudSun, Moon, LayoutDashboard,
 } from 'lucide-react';
 import usePageTitle from '../../hooks/usePageTitle';
 import { formatMoney } from '../../utils/currencyInput';
@@ -137,7 +137,7 @@ const HomePage = () => {
       {!loading && (
         <StaggerItem delay={30} className="mb-lg">
           <h3 className="customer-section-title fw-700 mb-12 flex items-center gap-8">
-            <TrendingUp size={18} color="var(--primary)" /> Overview
+            <LayoutDashboard size={18} color="var(--primary)" /> Overview
           </h3>
           <div className="customer-home-snapshot" style={{ marginTop: 0 }}>
             <div className="customer-snapshot-pill">
