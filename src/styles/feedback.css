@@ -130,29 +130,71 @@
 }
 
 
-/* --- PAYMENT RESULT MODAL ---------------------------------------------- */
+/* --- PAYMENT RESULT MODAL — Reference: shutterstock 2801168859 (tinted card, solid icon, inner transaction card, pill buttons) --- */
 
 .payment-result-modal {
+  position: relative;
   background: var(--surface);
-  border-radius: var(--radius-xl);
+  border: 1px solid var(--border);
+  border-radius: 20px;
   width: 100%;
-  max-width: min(100%, 420px);
-  padding: 36px 32px 28px;
+  max-width: min(100%, 400px);
+  padding: 28px 24px 24px;
   box-shadow: var(--shadow-2xl);
   animation: scaleIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
   text-align: center;
+  overflow: hidden;
 }
+.payment-result-modal.variant-success {
+  background: var(--success-bg);
+  border-color: color-mix(in srgb, var(--success) 16%, var(--border));
+}
+.payment-result-modal.variant-error {
+  background: var(--error-bg);
+  border-color: color-mix(in srgb, var(--error) 16%, var(--border));
+}
+.payment-result-modal.variant-processing {
+  background: var(--info-bg);
+  border-color: color-mix(in srgb, var(--info) 16%, var(--border));
+}
+[data-theme="dark"] .payment-result-modal.variant-success {
+  background: color-mix(in srgb, var(--success-bg) 92%, var(--surface));
+}
+[data-theme="dark"] .payment-result-modal.variant-error {
+  background: color-mix(in srgb, var(--error-bg) 92%, var(--surface));
+}
+.pr-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  border: none;
+  background: transparent;
+  color: var(--text-tertiary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.pr-close:hover { background: rgba(15, 23, 42, 0.06); color: var(--text-secondary); }
+.pr-close:focus-visible { outline: 2px solid var(--primary-light); outline-offset: 2px; }
+[data-theme="dark"] .pr-close:hover { background: rgba(255,255,255,0.08); color: var(--text); }
+
 .pr-icon-wrap {
-  width: 72px; height: 72px;
+  width: 64px; height: 64px;
   border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
-  margin: 0 auto 20px;
+  margin: 8px auto 16px;
   position: relative;
+  flex-shrink: 0;
 }
-.pr-icon-wrap.success { background: var(--success-bg); color: var(--success-text); }
-.pr-icon-wrap.error   { background: var(--error-bg);   color: var(--error-text-strong); }
-.pr-icon-wrap.processing { background: var(--info-bg); color: var(--info-text); }
-.pr-icon-svg { width: 44px; height: 44px; }
+.pr-icon-wrap.success { background: var(--success); color: white; box-shadow: 0 4px 16px color-mix(in srgb, var(--success) 28%, transparent); }
+.pr-icon-wrap.error   { background: var(--error); color: white; box-shadow: 0 4px 16px color-mix(in srgb, var(--error) 28%, transparent); }
+.pr-icon-wrap.processing { background: var(--info-bg); color: var(--info-text); border: 1px solid color-mix(in srgb, var(--info) 18%, transparent); }
+.pr-icon-svg { width: 36px; height: 36px; }
 .pr-icon-check {
   stroke-dasharray: 48; stroke-dashoffset: 48;
   animation: prCheckDraw 0.45s ease-out 0.35s forwards;
@@ -171,20 +213,20 @@
 @keyframes prCrossDraw { to { stroke-dashoffset: 0; } }
 .pr-icon-wrap.success::before {
   content: ''; position: absolute; inset: -4px;
-  border-radius: 50%; border: 2px solid var(--success-text);
+  border-radius: 50%; border: 2px solid var(--success);
   opacity: 0; animation: prRingPulse 1.8s ease-out 0.6s forwards;
 }
 @keyframes prRingPulse {
-  0%   { transform: scale(1);    opacity: 0.5; }
+  0%   { transform: scale(1);    opacity: 0.45; }
   100% { transform: scale(1.35); opacity: 0; }
 }
 .pr-confetti {
-  position: absolute; inset: -20px; border-radius: 50%; pointer-events: none;
+  position: absolute; inset: -18px; border-radius: 50%; pointer-events: none;
   background:
-    radial-gradient(circle 3px, var(--success-text) 99%, transparent 100%) 10% 5%,
+    radial-gradient(circle 3px, var(--success) 99%, transparent 100%) 10% 5%,
     radial-gradient(circle 2.5px, var(--primary) 99%, transparent 100%) 85% 12%,
     radial-gradient(circle 2px, var(--accent) 99%, transparent 100%) 92% 70%,
-    radial-gradient(circle 3px, var(--success-text) 99%, transparent 100%) 15% 88%,
+    radial-gradient(circle 3px, var(--success) 99%, transparent 100%) 15% 88%,
     radial-gradient(circle 2px, var(--primary) 99%, transparent 100%) 5% 55%,
     radial-gradient(circle 2.5px, var(--accent) 99%, transparent 100%) 80% 90%;
   background-repeat: no-repeat;
@@ -197,29 +239,62 @@
   100% { opacity: 0;   transform: scale(1.4); }
 }
 .pr-icon-spinner { display: flex; align-items: center; justify-content: center; }
-.pr-title { color: var(--text); font-size: 1.125rem; font-weight: 700; margin-bottom: 8px; }
-.pr-message {
-  color: var(--text-secondary); font-size: 0.9375rem;
-  line-height: 1.5; margin-bottom: 20px;
+.pr-title { color: var(--text); font-size: 1.1875rem; font-weight: 800; margin-bottom: 6px; letter-spacing: -0.015em; line-height: 1.25; }
+.pr-subtitle {
+  color: var(--text-secondary); font-size: 0.875rem;
+  line-height: 1.5; margin: 0 auto 16px; max-width: 280px;
 }
-.pr-body { margin-bottom: 20px; }
-.pr-amount {
-  font-size: 1.625rem; font-weight: 800; color: var(--success-text);
-  letter-spacing: -0.02em; margin-bottom: 4px;
+.pr-message { display: none; }
+.pr-transaction-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px 16px;
+  margin: 16px 0 0;
+  text-align: left;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
 }
-.pr-tracking {
-  font-size: 0.8125rem; color: var(--text-secondary);
-  font-variant-numeric: tabular-nums; margin-bottom: 8px;
+.pr-transaction-header {
+  font-size: 0.6875rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--text-tertiary); margin-bottom: 10px;
 }
-.pr-method-badge {
-  display: inline-flex; align-items: center;
-  font-size: 0.6875rem; font-weight: 600;
-  padding: 2px 10px; border-radius: 999px;
-  background: var(--info-bg); color: var(--info-text);
-  letter-spacing: 0.03em; text-transform: uppercase;
+.pr-transaction-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 9px 0;
 }
-.pr-actions { display: flex; flex-direction: column; gap: 8px; margin-top: 24px; }
-.pr-actions .btn { min-height: 44px; }
+.pr-transaction-row + .pr-transaction-row { border-top: 1px solid var(--border-light); }
+.pr-transaction-label { color: var(--text-tertiary); font-size: 0.75rem; font-weight: 600; }
+.pr-transaction-value { color: var(--text); font-size: 0.8125rem; font-weight: 700; text-align: right; overflow-wrap: anywhere; }
+.pr-transaction-value.pr-transaction-date { font-weight: 600; color: var(--text-secondary); font-size: 0.75rem; }
+.pr-transaction-id { font-variant-numeric: tabular-nums; letter-spacing: 0.02em; }
+.pr-body { margin-bottom: 0; }
+.pr-amount { display: none; }
+.pr-tracking { display: none; }
+.pr-method-badge { display: none; }
+.pr-actions { display: flex; flex-direction: column; gap: 10px; margin-top: 20px; }
+.pr-actions .btn { min-height: 44px; border-radius: 999px; font-weight: 700; font-size: 0.875rem; letter-spacing: 0.01em; }
+.pr-btn-success {
+  background: var(--success);
+  color: white;
+  border: 1px solid var(--success);
+  box-shadow: 0 2px 10px color-mix(in srgb, var(--success) 24%, transparent);
+}
+.pr-btn-success:hover { background: color-mix(in srgb, var(--success) 92%, black); border-color: color-mix(in srgb, var(--success) 92%, black); }
+.pr-btn-danger {
+  background: var(--error);
+  color: white;
+  border: 1px solid var(--error);
+  box-shadow: 0 2px 10px color-mix(in srgb, var(--error) 20%, transparent);
+}
+.pr-btn-danger:hover { background: color-mix(in srgb, var(--error) 92%, black); border-color: color-mix(in srgb, var(--error) 92%, black); }
+.pr-btn-primary {
+  background: var(--primary-fill);
+  color: white;
+  border: 1px solid var(--primary-fill);
+  border-radius: 999px;
+}
+.pr-btn-outline { border-color: var(--border); background: var(--surface); color: var(--text); }
+.pr-btn-outline:hover { background: var(--bg-secondary); border-color: var(--border-hover); }
 
 @media (prefers-reduced-motion: reduce) {
   .pr-icon-check, .pr-icon-ring, .pr-icon-cross { animation: none; stroke-dashoffset: 0; }

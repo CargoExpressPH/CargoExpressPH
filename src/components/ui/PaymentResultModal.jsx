@@ -1,17 +1,19 @@
 import { useEffect, useId, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Loader } from 'lucide-react';
+import { Loader, X } from 'lucide-react';
 import FocusTrap from './FocusTrap';
 import useScrollLock from '../../hooks/useScrollLock';
 
 /**
  * PaymentResultModal — Premium modal for GCash payment outcomes.
+ * Reference: shutterstock light card with tinted outer (pink/green), solid
+ * red/green icon, transaction details inner card, pill buttons.
  *
  * @param {boolean}   isOpen         - Whether the modal is visible
  * @param {function}  onClose        - Called when the modal is dismissed
  * @param {'success'|'error'|'processing'} variant - Visual mode
  * @param {number}    [amount]       - Payment amount (e.g. 1250)
- * @param {string}    [trackingNumber] - Order tracking number
+ * @param {string}    [trackingNumber] - Order tracking number -> Transaction ID
  * @param {string}    [paymentMethod]  - e.g. "GCash"
  * @param {function}  [onRetry]      - If provided, shows a retry/refresh button
  */
@@ -49,16 +51,23 @@ const PaymentResultModal = ({
   const isError = variant === 'error';
   const isProcessing = variant === 'processing';
 
-  const title = isSuccess ? 'Payment Confirmed!'
-    : isError ? 'Payment Not Completed'
+  const title = isSuccess ? 'Payment Successful!'
+    : isError ? 'Payment Failed!'
     : 'Payment Processing';
+
+  const subtitle = isSuccess ? 'Your payment was processed successfully!'
+    : isError ? 'Please choose another payment method.'
+    : `Your ${paymentMethod} payment is being confirmed. This usually takes a few seconds.`;
 
   const formattedAmount = typeof amount === 'number' && amount > 0
     ? `₱${amount.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
     : null;
 
+  // Reference date format: "23 Jun 2026, 7:47 PM" — PH time
+  const now = new Date();
+  const formattedDate = `${now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Asia/Manila' })}, ${now.toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'Asia/Manila' })}`;
+
   const handleOverlay = (e) => {
-    // Don't dismiss on overlay click while processing
     if (e.target === e.currentTarget && !isProcessing) onClose();
   };
 
@@ -80,10 +89,14 @@ const PaymentResultModal = ({
         aria-describedby={descId}
       >
         <div
-          className="payment-result-modal"
+          className={`payment-result-modal variant-${variant}`}
           onClick={(e) => e.stopPropagation()}
           tabIndex={-1}
         >
+          <button type="button" className="pr-close" onClick={onClose} aria-label="Close dialog">
+            <X size={16} aria-hidden="true" />
+          </button>
+
           {/* ── Icon ─────────────────────────────────────────────── */}
           <div className={`pr-icon-wrap ${variant}`}>
             {isSuccess && (
@@ -94,7 +107,7 @@ const PaymentResultModal = ({
             )}
             {isError && (
               <svg className="pr-icon-svg" viewBox="0 0 52 52" fill="none" aria-hidden="true">
-                <circle cx="26" cy="26" r="24" stroke="currentColor" strokeWidth="3" opacity="0.3" />
+                <circle cx="26" cy="26" r="24" stroke="currentColor" strokeWidth="3" opacity="0.25" />
                 <path className="pr-icon-cross" d="M18 18l16 16M34 18l-16 16" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" fill="none" />
               </svg>
             )}
@@ -108,30 +121,39 @@ const PaymentResultModal = ({
 
           {/* ── Content ──────────────────────────────────────────── */}
           <h3 id={titleId} className="pr-title">{title}</h3>
+          <p id={descId} className="pr-subtitle">{subtitle}</p>
 
-          {isSuccess && (
-            <div id={descId} className="pr-body">
+          {isSuccess && (formattedAmount || trackingNumber) && (
+            <div className="pr-transaction-card">
+              <div className="pr-transaction-header">Transaction Details</div>
               {formattedAmount && (
-                <div className="pr-amount">{formattedAmount}</div>
+                <div className="pr-transaction-row">
+                  <span className="pr-transaction-label">Amount Paid</span>
+                  <span className="pr-transaction-value">{formattedAmount}</span>
+                </div>
               )}
+              <div className="pr-transaction-row">
+                <span className="pr-transaction-label">Date</span>
+                <span className="pr-transaction-value pr-transaction-date">{formattedDate}</span>
+              </div>
               {trackingNumber && (
-                <div className="pr-tracking">{trackingNumber}</div>
-              )}
-              {paymentMethod && (
-                <span className="pr-method-badge">{paymentMethod}</span>
+                <div className="pr-transaction-row">
+                  <span className="pr-transaction-label">Transaction ID</span>
+                  <span className="pr-transaction-value pr-transaction-id">#{trackingNumber}</span>
+                </div>
               )}
             </div>
           )}
 
           {isError && (
-            <p id={descId} className="pr-message">
-              Your {paymentMethod} payment was not completed. No charges were made to your account.
+            <p className="pr-message" style={{ display: 'none' }} aria-hidden="true">
+              Your {paymentMethod} payment was not completed. No charges were made.
             </p>
           )}
 
           {isProcessing && (
-            <p id={descId} className="pr-message">
-              Your {paymentMethod} payment is being confirmed. This usually takes a few seconds.
+            <p className="pr-message" style={{ display: 'none' }} aria-hidden="true">
+              {subtitle}
             </p>
           )}
 
@@ -141,7 +163,7 @@ const PaymentResultModal = ({
               <button
                 ref={btnRef}
                 type="button"
-                className="btn btn-success w-full justify-center"
+                className="btn pr-btn-success w-full justify-center"
                 onClick={onClose}
               >
                 Done
@@ -152,7 +174,7 @@ const PaymentResultModal = ({
               <button
                 ref={btnRef}
                 type="button"
-                className="btn btn-primary w-full justify-center"
+                className="btn pr-btn-primary w-full justify-center"
                 onClick={handleRetry}
               >
                 Try Again
@@ -163,7 +185,7 @@ const PaymentResultModal = ({
               <button
                 ref={btnRef}
                 type="button"
-                className="btn btn-primary w-full justify-center"
+                className="btn pr-btn-primary w-full justify-center"
                 onClick={handleRetry}
               >
                 Refresh Status
@@ -174,10 +196,10 @@ const PaymentResultModal = ({
               <button
                 ref={!onRetry ? btnRef : undefined}
                 type="button"
-                className="btn btn-outline w-full justify-center"
+                className={`btn w-full justify-center ${isError ? 'pr-btn-danger' : 'btn-outline pr-btn-outline'}`}
                 onClick={onClose}
               >
-                Close
+                {isError ? 'Back' : 'Close'}
               </button>
             )}
           </div>
