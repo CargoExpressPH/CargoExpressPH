@@ -196,6 +196,8 @@ const AdminOrdersPage = () => {
         <div className="search-box" role="search">
           <Search size={16} className="search-icon" aria-hidden="true" />
           <input
+            id="admin-orders-search"
+            name="qorders"
             aria-label="Search orders"
             placeholder="Search tracking, sender, or receiver..."
             value={search}

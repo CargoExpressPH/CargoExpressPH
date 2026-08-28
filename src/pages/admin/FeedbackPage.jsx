@@ -85,6 +85,8 @@ const FeedbackPage = () => {
             <div className="relative">
               <Search size={18} aria-hidden="true" className="absolute text-tertiary" style={{left: 16, top: '50%', transform: 'translateY(-50%)',}} />
               <input
+                id="admin-feedback-search"
+                name="qfeedback"
                 type="text"
                 className="form-input"
                 aria-label="Search feedback"

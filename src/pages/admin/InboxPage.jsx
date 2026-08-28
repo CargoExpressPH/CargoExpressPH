@@ -734,6 +734,8 @@ const InboxPage = () => {
             <div className="inbox-search-box" role="search">
               <Search size={14} className="text-secondary" aria-hidden="true" />
               <input
+                id="admin-inbox-search"
+                name="qinbox"
                 type="text"
                 aria-label="Search conversations"
                 placeholder="Search or message a customer…"
@@ -764,6 +766,8 @@ const InboxPage = () => {
 
             <label className="inbox-show-resolved">
               <input
+                id="admin-inbox-show-resolved"
+                name="showResolved"
                 type="checkbox"
                 checked={showResolved}
                 onChange={e => setShowResolved(e.target.checked)}
@@ -1057,6 +1061,8 @@ const InboxPage = () => {
                 }}
               >
                 <textarea
+                  id="admin-inbox-reply"
+                  name="reply"
                   ref={textareaRef}
                   className="form-input flex-1 inbox-textarea"
                   aria-label="Type a reply"

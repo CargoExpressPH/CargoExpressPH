@@ -72,6 +72,8 @@ const CustomersPage = () => {
         <div className="search-box" role="search">
           <Search size={16} className="search-icon" aria-hidden="true" />
           <input
+            id="admin-customers-search"
+            name="qcustomers"
             aria-label="Search customers"
             placeholder="Search by name, email, phone, or province…"
             value={search}

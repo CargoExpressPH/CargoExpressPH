@@ -387,6 +387,8 @@ const UnsettledDeliveriesPage = () => {
         <div className="search-box unsettled-search-box" role="search">
           <Search size={16} className="search-icon" aria-hidden="true" />
           <input
+            id="admin-unsettled-search"
+            name="qunsettled"
             type="search"
             aria-label="Search unsettled deliveries"
             placeholder="Search tracking or customer…"

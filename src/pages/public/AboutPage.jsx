@@ -926,6 +926,8 @@ const AboutPage = () => {
                     <div className="about-coverage-search-inner">
                       <Search size={18} className="about-coverage-search-icon" />
                       <input 
+                        id="about-coverage-search"
+                        name="qmunicipality"
                         type="search"
                         maxLength={100}
                         enterKeyHint="search"

@@ -132,6 +132,8 @@ const OrdersPage = () => {
       <StaggerItem className="search-box customer-orders-search mb-16" role="search" delay={0}>
         <Search size={16} className="search-icon" aria-hidden="true" />
         <input
+          id="customer-orders-search"
+          name="qbookings"
           aria-label="Search bookings"
           placeholder="Search tracking, sender, receiver, destination..."
           value={search}

@@ -114,6 +114,8 @@ const HomePage = () => {
           <div className="search-box flex-1">
             <Search size={16} className="search-icon" />
             <input
+              id="home-tracking-search"
+              name="tracking_number"
               aria-label="Tracking number"
               placeholder="Enter tracking number (CE-XXXXXXXX)"
               value={trackingSearch}
