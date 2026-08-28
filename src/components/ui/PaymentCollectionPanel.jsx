@@ -581,8 +581,13 @@ const PaymentCollectionPanel = ({
               </div>
               <div className="text-xs" style={{ color: 'var(--success-text)', lineHeight: 1.8 }}>
                 <div className="flex justify-between">
-                  <span>Total paid</span><strong>₱{formatAmount(value.confirmed.amountPaid.toFixed(2))}</strong>
+                  <span>Amount paid</span><strong>₱{formatAmount(value.confirmed.received.toFixed(2))}</strong>
                 </div>
+                {value.confirmed.amountPaid > value.confirmed.received && (
+                  <div className="flex justify-between">
+                    <span>Total paid to date</span><strong>₱{formatAmount(value.confirmed.amountPaid.toFixed(2))}</strong>
+                  </div>
+                )}
                 <div className="flex justify-between">
                   <span>Remaining balance</span><strong>₱{formatAmount(value.confirmed.remaining.toFixed(2))}</strong>
                 </div>
