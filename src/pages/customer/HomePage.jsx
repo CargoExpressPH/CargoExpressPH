@@ -248,9 +248,9 @@ const HomePage = () => {
             {activeTrip.capacity > 0 && (
               <div className="home-trip-capacity-strip mb-16">
                 <div className="flex items-center justify-between text-xs mb-6">
-                  <span className="home-trip-capacity-lbl">Available Capacity</span>
+                  <span className="home-trip-capacity-lbl font-semibold">Available Space</span>
                   <span className="home-trip-capacity-pct font-bold">
-                    {Math.round((availableSlots / activeTrip.capacity) * 100)}% ({Math.round(availableSlots).toLocaleString()} / {Number(activeTrip.capacity).toLocaleString()} kg)
+                    {Math.round(availableSlots).toLocaleString()} kg left of {Number(activeTrip.capacity).toLocaleString()} kg ({Math.round((availableSlots / activeTrip.capacity) * 100)}%)
                   </span>
                 </div>
                 <div className="home-trip-progress-track">
