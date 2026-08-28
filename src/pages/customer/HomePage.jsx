@@ -92,7 +92,7 @@ const HomePage = () => {
   const totalCapacity = Number(activeTrip?.capacity) || 0;
   const currentWeight = Number(activeTrip?.current_weight) || 0;
   const availableSlots = activeTrip ? Math.max(0, totalCapacity - currentWeight) : 0;
-  const capacityPct = totalCapacity > 0 ? Math.min(100, Math.max(0, Math.round((availableSlots / totalCapacity) * 100))) : 0;
+  const usedPct = totalCapacity > 0 ? Math.min(100, Math.max(0, Math.round((currentWeight / totalCapacity) * 100))) : 0;
 
   const greetingInfo = getGreetingData();
   const GreetingIcon = greetingInfo.icon;
@@ -249,15 +249,17 @@ const HomePage = () => {
             {totalCapacity > 0 && (
               <div className="home-trip-capacity-strip mb-16">
                 <div className="flex items-center justify-between text-xs mb-6">
-                  <span className="home-trip-capacity-lbl">Available Capacity</span>
-                  <span className="home-trip-capacity-pct font-bold">
-                    {capacityPct}% ({Math.round(availableSlots).toLocaleString()} / {totalCapacity.toLocaleString()} kg)
+                  <span className="home-trip-capacity-lbl">
+                    Trip Load: <strong style={{ color: 'var(--customer-ink)' }}>{usedPct}%</strong> ({Math.round(currentWeight).toLocaleString()} / {totalCapacity.toLocaleString()} kg booked)
+                  </span>
+                  <span className="home-trip-capacity-pct font-bold" style={{ color: availableSlots > 0 ? '#10b981' : '#ef4444' }}>
+                    {availableSlots > 0 ? `${Math.round(availableSlots).toLocaleString()} kg Available` : 'Fully Booked'}
                   </span>
                 </div>
                 <div className="home-trip-progress-track">
                   <div
-                    className="home-trip-progress-bar"
-                    style={{ width: `${capacityPct}%` }}
+                    className={`home-trip-progress-bar ${usedPct >= 90 ? 'bar-danger' : usedPct >= 70 ? 'bar-warning' : 'bar-normal'}`}
+                    style={{ width: `${usedPct}%` }}
                   />
                 </div>
               </div>
