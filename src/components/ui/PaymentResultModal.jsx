@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Loader, X } from 'lucide-react';
+import { Loader } from 'lucide-react';
 import FocusTrap from './FocusTrap';
 import useScrollLock from '../../hooks/useScrollLock';
 
@@ -13,7 +13,7 @@ import useScrollLock from '../../hooks/useScrollLock';
  * @param {function}  onClose        - Called when the modal is dismissed
  * @param {'success'|'error'|'processing'} variant - Visual mode
  * @param {number}    [amount]       - Payment amount (e.g. 1250)
- * @param {string}    [trackingNumber] - Order tracking number -> Transaction ID
+ * @param {string}    [trackingNumber] - Order tracking number -> Tracking Number
  * @param {string}    [paymentMethod]  - e.g. "GCash"
  * @param {function}  [onRetry]      - If provided, shows a retry/refresh button
  */
@@ -68,7 +68,7 @@ const PaymentResultModal = ({
   const formattedDate = `${now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Asia/Manila' })}, ${now.toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'Asia/Manila' })}`;
 
   const handleOverlay = (e) => {
-    if (e.target === e.currentTarget && !isProcessing) onClose();
+    if (e.target === e.currentTarget) onClose();
   };
 
   const handleRetry = () => {
@@ -93,9 +93,6 @@ const PaymentResultModal = ({
           onClick={(e) => e.stopPropagation()}
           tabIndex={-1}
         >
-          <button type="button" className="pr-close" onClick={onClose} aria-label="Close dialog">
-            <X size={16} aria-hidden="true" />
-          </button>
 
           {/* ── Icon ─────────────────────────────────────────────── */}
           <div className={`pr-icon-wrap ${variant}`}>
@@ -138,7 +135,7 @@ const PaymentResultModal = ({
               </div>
               {trackingNumber && (
                 <div className="pr-transaction-row">
-                  <span className="pr-transaction-label">Transaction ID</span>
+                  <span className="pr-transaction-label">Tracking Number</span>
                   <span className="pr-transaction-value pr-transaction-id">#{trackingNumber}</span>
                 </div>
               )}
