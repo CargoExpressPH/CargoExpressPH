@@ -101,7 +101,7 @@ const HomePage = () => {
       <PageTransition className="customer-home-page">
 
       {/* ── Hero ─────────────────────────────────────────────────── */}
-      <div className={`hero customer-home-hero hero-${greetingInfo.period} animate-slide-up mb-lg`}>
+      <div className={`hero customer-home-hero hero-${greetingInfo.period} animate-slide-up`}>
         <span className="text-sm">
           <GreetingIcon size={14} aria-hidden="true" />
           {greetingInfo.text},
@@ -136,7 +136,7 @@ const HomePage = () => {
       </div>
 
       {!loading && (
-        <StaggerItem delay={30} className="mb-lg">
+        <StaggerItem delay={30}>
           <h3 className="customer-section-title fw-700 mb-12 flex items-center gap-8">
             <LayoutDashboard size={18} color="var(--primary)" /> Overview
           </h3>
@@ -179,7 +179,7 @@ const HomePage = () => {
 
       {/* ── Nearest Active / Scheduled Trip Card ────────────────── */}
       {!loading && activeTrip && (
-        <StaggerItem delay={0} className="mb-lg">
+        <StaggerItem delay={0}>
           <h3 className="customer-section-title fw-700 mb-12 flex items-center gap-8">
             <Truck size={18} color="var(--primary)" /> Next Available Trip
           </h3>
@@ -255,7 +255,7 @@ const HomePage = () => {
 
       {/* ── Announcements ────────────────────────────────────────── */}
       {!loading && announcements.length > 0 && (
-        <StaggerItem delay={60} className="mb-lg">
+        <StaggerItem delay={60}>
           <div className="flex items-center justify-between mb-md">
             <h3 className="customer-section-title fw-700">Announcements</h3>
             <span className="text-xs text-tertiary fw-600">{Math.min(announcements.length, 5)} Latest</span>
@@ -313,7 +313,7 @@ const HomePage = () => {
 
       {/* ── Active Shipments ─────────────────────────────────────── */}
       {!loading && activeOrders.length > 0 && (
-        <StaggerItem delay={120} className="mb-lg">
+        <StaggerItem delay={120}>
           <div className="flex items-center justify-between mb-md">
             <h3 className="customer-section-title fw-700">Active Shipments</h3>
             <Link to="/customer/orders" className="customer-inline-action text-sm text-primary font-medium">
