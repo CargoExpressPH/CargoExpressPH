@@ -548,55 +548,61 @@ const BookShipmentPage = () => {
             Final cost is confirmed when we weigh your parcel at pickup.
           </motion.p>
 
-          {/* Ticket card */}
+          {/* Booking Details Card — Clean, high-precision receipt layout */}
           <motion.div
-            className="booking-success-ticket"
+            className="pr-transaction-card booking-success-card"
             initial={{ opacity: 0, y: 40 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 1, delay: 1.3, ease: luxeEase }}
           >
-            <div className="booking-success-ticket-top">
-              <div className="booking-success-ticket-cell">
-                <span className="booking-success-ticket-label">Sender</span>
-                <span className="booking-success-ticket-value">{success.sender_name}</span>
-              </div>
-              <div className="booking-success-ticket-divider" />
-              <div className="booking-success-ticket-cell">
-                <span className="booking-success-ticket-label">Route</span>
-                <span className="booking-success-ticket-value">{routeLabel}</span>
-              </div>
-              <div className="booking-success-ticket-divider" />
-              <div className="booking-success-ticket-cell">
-                <span className="booking-success-ticket-label">Items</span>
-                <span className="booking-success-ticket-value">{success.package_description || '—'}</span>
+            <div className="pr-transaction-header">Booking Details</div>
+
+            <div className="pr-transaction-row">
+              <span className="pr-transaction-label">Tracking Number</span>
+              <div className="flex items-center gap-8">
+                <span className="pr-transaction-value pr-transaction-id">#{success.tracking_number}</span>
+                <button
+                  type="button"
+                  className={`booking-success-copy-btn${trackingCopied ? ' is-copied' : ''}`}
+                  onClick={() => {
+                    fallbackCopy(success.tracking_number);
+                    setTrackingCopied(true);
+                    setTimeout(() => setTrackingCopied(false), 2000);
+                  }}
+                  aria-label="Copy tracking number"
+                  title="Copy tracking number"
+                >
+                  {trackingCopied ? <Check size={13} aria-hidden="true" /> : <Copy size={13} aria-hidden="true" />}
+                </button>
               </div>
             </div>
 
-            <div className="booking-success-ticket-perforation">
-              <span className="booking-success-ticket-hole booking-success-ticket-hole-left" />
-              <span className="booking-success-ticket-hole booking-success-ticket-hole-right" />
-              <div className="booking-success-ticket-dash" />
+            <div className="pr-transaction-row">
+              <span className="pr-transaction-label">Route</span>
+              <span className="pr-transaction-value">{routeLabel}</span>
             </div>
 
-            <div className="booking-success-ticket-bottom">
-              <div>
-                <span className="booking-success-ticket-label">Tracking Number</span>
-                <div className="booking-success-tracking-row">
-                  <span className="booking-success-ticket-tracking">{success.tracking_number}</span>
-                  <button
-                    type="button"
-                    className={`booking-success-copy-btn${trackingCopied ? ' is-copied' : ''}`}
-                    onClick={() => {
-                      fallbackCopy(success.tracking_number);
-                      setTrackingCopied(true);
-                      setTimeout(() => setTrackingCopied(false), 2000);
-                    }}
-                    aria-label="Copy tracking number"
-                  >
-                    {trackingCopied ? <Check size={14} /> : <Copy size={14} />}
-                  </button>
-                </div>
+            <div className="pr-transaction-row">
+              <span className="pr-transaction-label">Sender</span>
+              <span className="pr-transaction-value">{success.sender_name}</span>
+            </div>
+
+            <div className="pr-transaction-row">
+              <span className="pr-transaction-label">Receiver</span>
+              <span className="pr-transaction-value">{success.receiver_name}</span>
+            </div>
+
+            {success.package_description && (
+              <div className="pr-transaction-row">
+                <span className="pr-transaction-label">Package Items</span>
+                <span className="pr-transaction-value" style={{ maxWidth: '60%', textAlign: 'right' }}>
+                  {success.package_description}
+                </span>
               </div>
+            )}
+
+            <div className="pr-transaction-row">
+              <span className="pr-transaction-label">Status</span>
               <span className={`booking-success-status-pill ${isAssigned ? 'is-assigned' : 'is-pending'}`}>
                 {statusLabel}
               </span>

@@ -367,123 +367,60 @@ body {
 }
 
 /* ── Ticket card ── */
-.booking-success-ticket {
+/* ── Booking details receipt card ── */
+.booking-success-card {
   width: 100%;
   margin-top: 24px;
-  overflow: hidden;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  background: var(--surface);
-  box-shadow:
-    0 1px 2px rgba(15, 23, 42, 0.06),
-    0 24px 48px -24px rgba(15, 23, 42, 0.18);
   text-align: left;
+  border-radius: var(--radius-lg);
+  padding: 16px 20px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.04),
+    0 16px 36px -16px rgba(15, 23, 42, 0.12);
 }
 
-.booking-success-ticket-top {
-  display: grid;
-  grid-template-columns: 1fr auto 1fr auto 1fr;
-  align-items: center;
-  gap: 0;
-  padding: 20px 24px;
-}
-
-.booking-success-ticket-cell {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0;
-  padding: 0 12px;
-}
-
-.booking-success-ticket-cell:first-child {
-  padding-left: 0;
-}
-
-.booking-success-ticket-cell:last-child {
-  padding-right: 0;
-}
-
-.booking-success-ticket-label {
-  display: block;
-  color: var(--text-tertiary);
-  font-size: 0.6rem;
-  font-weight: 700;
-  letter-spacing: 0.3em;
+.booking-success-card .pr-transaction-header {
+  font-size: 0.6875rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
+  color: var(--text-tertiary);
+  margin-bottom: 12px;
 }
 
-.booking-success-ticket-value {
-  display: block;
-  overflow-wrap: break-word;
-  color: var(--text);
-  font-size: 0.92rem;
-  font-weight: 700;
-  line-height: 1.35;
-}
-
-.booking-success-ticket-divider {
-  width: 1px;
-  height: 36px;
-  background: repeating-linear-gradient(
-    to bottom,
-    var(--border) 0px,
-    var(--border) 4px,
-    transparent 4px,
-    transparent 8px
-  );
-}
-
-/* ── Perforation ── */
-.booking-success-ticket-perforation {
-  position: relative;
-  padding: 0 24px;
-}
-
-.booking-success-ticket-hole {
-  position: absolute;
-  top: 50%;
-  width: 24px;
-  height: 24px;
-  border-radius: 999px;
-  background: var(--bg);
-  transform: translateY(-50%);
-}
-
-.booking-success-ticket-hole-left {
-  left: -12px;
-}
-
-.booking-success-ticket-hole-right {
-  right: -12px;
-}
-
-.booking-success-ticket-dash {
-  border-top: 1px dashed var(--border);
-}
-
-/* ── Ticket bottom ── */
-.booking-success-ticket-bottom {
+.booking-success-card .pr-transaction-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 16px 24px;
+  padding: 10px 0;
 }
 
-.booking-success-ticket-bottom > div {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+.booking-success-card .pr-transaction-row + .pr-transaction-row {
+  border-top: 1px solid var(--border-light);
 }
 
-.booking-success-ticket-tracking {
-  font-family: var(--font-mono);
-  font-size: 0.88rem;
+.booking-success-card .pr-transaction-label {
+  color: var(--text-tertiary);
+  font-size: 0.78125rem;
   font-weight: 600;
-  letter-spacing: 0.02em;
+  flex-shrink: 0;
+}
+
+.booking-success-card .pr-transaction-value {
   color: var(--text);
+  font-size: 0.84375rem;
+  font-weight: 700;
+  text-align: right;
   overflow-wrap: anywhere;
+}
+
+.booking-success-card .pr-transaction-id {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
 }
 
 .booking-success-tracking-row {
@@ -595,16 +532,12 @@ body {
   background: var(--bg);
 }
 
-[data-theme="dark"] .booking-success-ticket {
+[data-theme="dark"] .booking-success-card {
   background: var(--surface);
   border-color: var(--border);
   box-shadow:
     0 1px 2px rgba(0, 0, 0, 0.4),
-    0 24px 48px -24px rgba(0, 0, 0, 0.5);
-}
-
-[data-theme="dark"] .booking-success-ticket-hole {
-  background: var(--bg);
+    0 20px 40px -20px rgba(0, 0, 0, 0.5);
 }
 
 [data-theme="dark"] .booking-success-btn-outline {
@@ -647,33 +580,21 @@ body {
     font-size: 0.82rem;
   }
 
-  .booking-success-ticket {
+  .booking-success-card {
     margin-top: 16px;
+    padding: 14px 16px;
   }
 
-  .booking-success-ticket-top {
-    padding: 12px 14px;
+  .booking-success-card .pr-transaction-row {
+    padding: 8px 0;
   }
 
-  .booking-success-ticket-cell {
-    padding: 0 4px;
+  .booking-success-card .pr-transaction-label {
+    font-size: 0.75rem;
   }
 
-  .booking-success-ticket-label {
-    font-size: 0.5rem;
-  }
-
-  .booking-success-ticket-value {
-    font-size: 0.78rem;
-  }
-
-  .booking-success-ticket-bottom {
-    flex-wrap: wrap;
-    padding: 10px 14px;
-  }
-
-  .booking-success-ticket-tracking {
-    font-size: 0.76rem;
+  .booking-success-card .pr-transaction-value {
+    font-size: 0.8125rem;
   }
 
   .booking-success-status-pill {
