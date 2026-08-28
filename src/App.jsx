@@ -3,6 +3,7 @@ import { lazyWithRetry } from './lib/lazyWithRetry';
 import PageLoader from './components/ui/PageLoader';
 import InstallAppBanner from './components/ui/InstallAppBanner';
 import IosInstallBanner from './components/ui/IosInstallBanner';
+import UpdateAvailableBanner from './components/ui/UpdateAvailableBanner';
 import { createBrowserRouter, RouterProvider, Navigate, Outlet, useLocation } from 'react-router-dom';
 import useKeyboardInset, { scrollFocusedFieldIntoView } from './hooks/useKeyboardInset';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -156,6 +157,9 @@ const RootLayout = () => (
   <Suspense fallback={<LoadingScreen />}>
     <ScrollToTop />
     <InstallPrompts />
+    {/* Every route, logged in or not — an admin mid-shift and a customer on
+        the public tracking page both need the same notice. */}
+    <UpdateAvailableBanner />
     <Outlet />
   </Suspense>
 );

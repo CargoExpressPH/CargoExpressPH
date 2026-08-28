@@ -18,7 +18,16 @@ const APP_SHELL = [
   '/',
   '/index.html',
   '/manifest.json',
-  '/logo-nav.png',
+  // The actual file lives under /images/ — every <BrandLogo> in the app
+  // (navbar, sidebar, auth panels, and critically the boot-time loading
+  // screen) requests it from there. The old '/logo-nav.png' entry pointed at
+  // a file that has never existed at the site root, so it 404'd silently
+  // during install (this whole list is fetched with Promise.allSettled
+  // specifically so one bad URL doesn't cost the other, valid ones) — the
+  // real logo was never cached at all, which is exactly what produced a
+  // broken-image icon on the loading screen the moment the app opened
+  // offline.
+  '/images/logo-nav.png',
   '/icons/icon-32.png',
   '/icons/icon-192.png',
   '/icons/icon-72.png',

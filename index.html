@@ -104,14 +104,29 @@
             });
 
             if (!isDev) {
-              // Check for updates periodically (every 60 minutes)
+              // Check for updates periodically (every 60 minutes)...
               setInterval(() => {
                 registration.update();
               }, 60 * 60 * 1000);
 
-              navigator.serviceWorker.addEventListener('controllerchange', () => {
-                // New SW activated — page will use latest assets on next navigation
+              // ...and the moment the installed app is actually reopened or
+              // refocused, since that is exactly when a returning customer or
+              // admin most wants "did I get the latest version" answered —
+              // not up to an hour later. A backgrounded tab/app resuming is
+              // the case the hourly interval alone can miss for a long time.
+              document.addEventListener('visibilitychange', () => {
+                if (document.visibilityState === 'visible') registration.update();
               });
+
+              // sw.js calls self.skipWaiting() on install and
+              // self.clients.claim() on activate, so a new worker takes over
+              // every open tab the instant it activates — no waiting for tabs
+              // to close. This script's job stops at making sure that check
+              // happens often; what to DO once a new worker is in control
+              // (tell the customer/admin and let them choose when to reload,
+              // rather than reloading out from under them) is handled by
+              // useServiceWorkerUpdate + <UpdateAvailableBanner> once React
+              // has mounted, not here — see src/hooks/useServiceWorkerUpdate.js.
             }
           } catch (error) {
             // SW registration failed — app continues working without offline support
