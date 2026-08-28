@@ -67,10 +67,6 @@ const PaymentResultModal = ({
   const now = new Date();
   const formattedDate = `${now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Asia/Manila' })}, ${now.toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'Asia/Manila' })}`;
 
-  const handleOverlay = (e) => {
-    if (e.target === e.currentTarget) onClose();
-  };
-
   const handleRetry = () => {
     if (onRetry) {
       onClose();
@@ -82,7 +78,6 @@ const PaymentResultModal = ({
     <FocusTrap active={isOpen}>
       <div
         className="modal-overlay"
-        onClick={handleOverlay}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}

@@ -279,7 +279,7 @@ const AdditionalPaymentModal = ({ order, remainingBalance, onClose, onSave, onPa
 
   return createPortal(
     <FocusTrap active>
-      <div className="modal-overlay" onClick={handleSafeClose} role="dialog" aria-modal="true" aria-labelledby="add-payment-modal-title">
+      <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="add-payment-modal-title">
         <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 450 }}>
           <div className="modal-header">
             <h3 id="add-payment-modal-title">Record Payment</h3>
