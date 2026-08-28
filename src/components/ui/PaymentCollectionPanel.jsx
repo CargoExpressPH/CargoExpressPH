@@ -286,10 +286,8 @@ const PaymentCollectionPanel = ({
   const handleProceedToGCash = async () => {
     try {
       patch({ paymentStep: 'generating', notice: '' });
-      // Charge what is being collected, not always the full figure: under Pay
-      // Later those differ, and billing the full amount for a part-payment
-      // takes money the customer did not agree to hand over.
-      const amount = d.isPayLater ? d.collected : d.expected;
+      // Charge what is being collected (the exact amount entered, or the full balance)
+      const amount = d.collected > 0 ? d.collected : (d.isPayLater ? 0 : d.expected);
       if (amount <= 0) {
         config.onError?.('Payment amount must be greater than 0.');
         patch({ paymentStep: 'setup' });
@@ -583,11 +581,6 @@ const PaymentCollectionPanel = ({
                 <div className="flex justify-between">
                   <span>Amount paid</span><strong>₱{formatAmount(value.confirmed.received.toFixed(2))}</strong>
                 </div>
-                {value.confirmed.amountPaid > value.confirmed.received && (
-                  <div className="flex justify-between">
-                    <span>Total paid to date</span><strong>₱{formatAmount(value.confirmed.amountPaid.toFixed(2))}</strong>
-                  </div>
-                )}
                 <div className="flex justify-between">
                   <span>Remaining balance</span><strong>₱{formatAmount(value.confirmed.remaining.toFixed(2))}</strong>
                 </div>
@@ -622,7 +615,7 @@ const PaymentCollectionPanel = ({
                   GCash
                 </span>
                 <span className="text-sm fw-700" style={{ color: 'var(--info-dark)' }}>
-                  ₱{formatAmount((value.payment_type === 'paylater' ? d.collected : d.expected).toFixed(2))} via GCash
+                  ₱{formatAmount((d.collected > 0 ? d.collected : d.expected).toFixed(2))} via GCash
                 </span>
               </div>
 
