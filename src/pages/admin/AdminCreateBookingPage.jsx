@@ -5,6 +5,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { ROUTES, PH_LOCATIONS, VALID_PROVINCES, detectPickupLocation, validateRouteProvinces } from '../../constants/phLocations';
 import { buildFullAddress } from '../../lib/address';
 import { normalizeName, toTitleCase } from '../../utils/string';
+import { validatePhone } from '../../utils/phone';
 import CustomSelect from '../../components/ui/CustomSelect';
 import BarangaySelect from '../../components/ui/BarangaySelect';
 import {
@@ -18,15 +19,6 @@ import useFieldErrors from '../../hooks/useFieldErrors';
 import FieldError, { invalidClass, fieldAttrs } from '../../components/ui/FieldError';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
-
-const validatePhone = (phone) => {
-  const val = (phone || '').trim();
-  if (!val) return 'Phone number is required.';
-  if (!/^\d+$/.test(val)) return 'Phone number must contain numbers only.';
-  if (!val.startsWith('09')) return 'Phone number must start with 09.';
-  if (val.length !== 11) return 'Phone number must be exactly 11 digits.';
-  return null;
-};
 
 /** Clipboard fallback for browsers without navigator.clipboard (e.g. HTTP). */
 function fallbackCopy(text) {

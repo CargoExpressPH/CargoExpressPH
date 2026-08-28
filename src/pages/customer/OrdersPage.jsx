@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { getOrders } from '../../lib/database';
 import useNetworkRecovery from '../../hooks/useNetworkRecovery';
+import useRealtimeOrders from '../../hooks/useRealtimeOrders';
 import StatusBadge from '../../components/ui/StatusBadge';
 import { SkeletonOrderCard } from '../../components/ui/SkeletonLoader';
 import EmptyState from '../../components/ui/EmptyState';
@@ -51,6 +52,19 @@ const OrdersPage = () => {
     loadOrders(isMounted);
     return () => { isMounted = false; };
   }, [user]);
+
+  // Live updates: an admin advancing a status, assigning a trip, or a payment
+  // webhook landing all change rows in `orders` out from under whatever the
+  // customer already has on screen. Without this the list only ever refreshes
+  // on mount, network recovery, or a manual pull-to-refresh — RLS scopes the
+  // subscription to this customer's own rows, same as every other list here.
+  useRealtimeOrders({
+    enabled: Boolean(user?.id),
+    channelName: 'customer_orders_list',
+    userId: user?.id,
+    debounceMs: 1000,
+    onBatch: refreshOrders,
+  });
 
   const loadOrders = async (isMounted = true) => {
     setError(null);

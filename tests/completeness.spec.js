@@ -3,7 +3,7 @@ import { ADMIN, CUSTOMER, BOOKING, TRIP, RUN_ID } from './helpers/config.js';
 import { login, dismissOverlays, selectCustom, fillById, suppressOnboarding, awaitOrderPageOrRetry } from './helpers/actions.js';
 import {
   findTripByNotes, findLatestE2ETrip, findProfileByEmail, findLatestE2ECustomer,
-  seedAssignedOrder, getOrderByTracking,
+  seedAssignedOrder, seedPickedUpOrder, seedInTransitOrder, getOrderByTracking, customerClient,
 } from './helpers/db.js';
 
 /**
@@ -16,6 +16,12 @@ import {
  *      lands back in the customer's thread.
  *   4. Public tracking renders a real shipment's masked timeline.
  *   5. Forgot-password UI reaches its "check your email" state.
+ *   6. The Picked-Up cutoff: a customer can no longer even see "Request
+ *      Cancellation" once picked up, and a direct RPC call is refused too.
+ *   7. ...but an admin can still force-cancel a Picked-Up order — the whole
+ *      point of splitting canCancelOrder from canAdminCancelOrder.
+ *   8. One status later, In Transit, nobody can cancel any more — not even
+ *      the admin override.
  *
  * Depends on the journey spec having run first (or any E2E artifacts being
  * present), so it reuses a real trip + customer.
@@ -55,7 +61,9 @@ test.describe('completeness — cancellation, chat, tracking, password recovery'
     await fillById(page, 'sender-facebook', CUSTOMER.facebook);
     await selectCustom(page, 'sender-province', CUSTOMER.address.province);
     await selectCustom(page, 'sender-city', CUSTOMER.address.city);
-    await fillById(page, 'sender-barangay', CUSTOMER.address.barangay);
+    // BarangaySelect is the same custom dropdown as province/city once the
+    // city has a known barangay list — not the plain text input it used to be.
+    await selectCustom(page, 'sender-barangay', CUSTOMER.address.barangay);
     await fillById(page, 'sender-street', CUSTOMER.address.street);
     await fillById(page, 'sender-lot-block', CUSTOMER.address.lotBlock);
     await fillById(page, 'sender-landmark', CUSTOMER.address.landmark);
@@ -66,7 +74,7 @@ test.describe('completeness — cancellation, chat, tracking, password recovery'
     await fillById(page, 'receiver-facebook', BOOKING.receiver.facebook);
     await selectCustom(page, 'receiver-province', BOOKING.receiver.province);
     await selectCustom(page, 'receiver-city', BOOKING.receiver.city);
-    await fillById(page, 'receiver-barangay', BOOKING.receiver.barangay);
+    await selectCustom(page, 'receiver-barangay', BOOKING.receiver.barangay);
     await fillById(page, 'receiver-street', BOOKING.receiver.street);
     await fillById(page, 'receiver-lot-block', BOOKING.receiver.lotBlock);
     await fillById(page, 'receiver-landmark', BOOKING.receiver.landmark);
@@ -100,8 +108,11 @@ test.describe('completeness — cancellation, chat, tracking, password recovery'
 
     const row = await getOrderByTracking(trackingNumber);
     expect(row.status).toBe('Pending Cancellation');
-    expect(row.cancellation_previous_status).toBe('Assigned');
-    console.log(`  → request recorded: ${row.status} (was ${row.cancellation_previous_status})`);
+    // cancellation_previous_status/cancellation_reason/etc. were flat columns
+    // pre-refactor; 20260826000001_refactor_cancellation_to_jsonb.sql folded
+    // all of them into this single JSONB column.
+    expect(row.cancellation_details?.previous_status).toBe('Assigned');
+    console.log(`  → request recorded: ${row.status} (was ${row.cancellation_details?.previous_status})`);
 
     // Admin side: approve.
     await login(page, ADMIN.email, ADMIN.password, { expectPath: '/admin' });
@@ -109,7 +120,15 @@ test.describe('completeness — cancellation, chat, tracking, password recovery'
     await dismissOverlays(page);
     const heading = page.getByRole('heading', { name: 'Cancellation Request', exact: true });
     await awaitOrderPageOrRetry(page, heading);
+    // Opens ReasonModal, not the RPC directly — approving now takes a note,
+    // same as declining does below. The trigger and the modal's own submit
+    // button share the accessible name "Approve & Cancel Order", so the
+    // confirm click is scoped to the dialog the same way the decline test
+    // scopes its own same-named buttons.
     await page.getByRole('button', { name: /approve & cancel order/i }).click();
+    const approveDialog = page.getByLabel('Approve Cancellation Request');
+    await fillById(page, 'reason-modal-input', `E2E: confirmed by phone, nothing to return (${RUN_ID})`);
+    await approveDialog.getByRole('button', { name: 'Approve & Cancel Order' }).click();
 
     // The approve RPC is one transaction (status + notification + activity log),
     // but it lands after the click returns. Reading the DB immediately raced
@@ -222,5 +241,98 @@ test.describe('completeness — cancellation, chat, tracking, password recovery'
     // The sent state is the only place the "Check Your Inbox" heading exists.
     await expect(page.getByRole('heading', { name: 'Check Your Inbox' })).toBeVisible({ timeout: 30_000 });
     console.log('  → forgot-password confirmation state shown');
+  });
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // The Picked-Up cancellation cutoff.
+  //
+  // canCancelOrder (customer) and canAdminCancelOrder (admin) used to be the
+  // same function. Tightening it for customers — a Picked-Up order can no
+  // longer be requested for cancellation, matching what
+  // request_order_cancellation() already refused server-side — would have
+  // silently taken the admin's "Cancel Order" button away too, on the one
+  // status where the business explicitly wants an admin override to survive.
+  // These three tests pin both halves of that split, plus the one status
+  // later where neither side may cancel any more.
+  // ──────────────────────────────────────────────────────────────────────────
+
+  test('6. customer cannot request cancellation once Picked Up', async ({ page }) => {
+    const order = await seedPickedUpOrder({
+      userId: fixture.customer.id,
+      customerEmail: fixture.customer.email,
+      tripId: fixture.tripId,
+      runId: RUN_ID,
+    });
+    console.log(`  → seeded picked-up order: ${order.tracking_number}`);
+
+    // UI: the button this used to show is gone — canCancelOrder() now
+    // excludes Picked Up.
+    await login(page, fixture.customer.email, CUSTOMER.password, { expectPath: '/customer' });
+    await suppressOnboarding(page);
+    await page.goto(`/customer/orders/${order.id}`);
+    await dismissOverlays(page);
+    await expect(page.getByText(order.tracking_number).first()).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByRole('button', { name: /request cancellation/i })).toHaveCount(0);
+
+    // Server: request_order_cancellation() refuses it independent of the UI —
+    // this is the actual authority, the button is only its reflection.
+    const asCustomer = await customerClient(fixture.customer.email);
+    const { error } = await asCustomer.rpc('request_order_cancellation', {
+      p_order_id: order.id,
+      p_reason: `E2E: attempted after pickup (${RUN_ID})`,
+    });
+    expect(error).toBeTruthy();
+    expect(error.message).toMatch(/too late to cancel/i);
+    console.log(`  → server refused the direct RPC call: ${error.message}`);
+  });
+
+  test('7. admin can still force-cancel an order that is Picked Up', async ({ page }) => {
+    const order = await seedPickedUpOrder({
+      userId: fixture.customer.id,
+      customerEmail: fixture.customer.email,
+      tripId: fixture.tripId,
+      runId: RUN_ID,
+    });
+    console.log(`  → seeded picked-up order: ${order.tracking_number}`);
+
+    await login(page, ADMIN.email, ADMIN.password, { expectPath: '/admin' });
+    await page.goto(`/admin/orders/${order.id}`);
+    await dismissOverlays(page);
+
+    const cancelButton = page.getByRole('button', { name: /^cancel order$/i });
+    await expect(cancelButton).toBeVisible({ timeout: 30_000 });
+    await cancelButton.click();
+
+    // Trigger and modal submit share the accessible name "Cancel Order" —
+    // same disambiguation the approve/decline tests above use.
+    const dialog = page.getByLabel('Cancel Order');
+    await fillById(page, 'reason-modal-input', `E2E: admin force-cancel while Picked Up (${RUN_ID})`);
+    await dialog.getByRole('button', { name: /^cancel order$/i }).click();
+
+    await expect(dialog).toBeHidden({ timeout: 30_000 });
+    const after = await getOrderByTracking(order.tracking_number);
+    expect(after.status).toBe('Cancelled');
+    console.log(`  → admin cancelled a Picked Up order: ${after.status}`);
+  });
+
+  test('8. admin cannot cancel an order that is In Transit', async ({ page }) => {
+    const order = await seedInTransitOrder({
+      userId: fixture.customer.id,
+      customerEmail: fixture.customer.email,
+      tripId: fixture.tripId,
+      runId: RUN_ID,
+    });
+    console.log(`  → seeded in-transit order: ${order.tracking_number}`);
+
+    await login(page, ADMIN.email, ADMIN.password, { expectPath: '/admin' });
+    await page.goto(`/admin/orders/${order.id}`);
+    await dismissOverlays(page);
+
+    // The page has fully rendered — status badge visible — before asserting
+    // the button's absence, so a slow load cannot be mistaken for a page that
+    // correctly has no cancel option.
+    await expect(page.getByText(order.tracking_number).first()).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByRole('button', { name: /^cancel order$/i })).toHaveCount(0);
+    console.log('  → no "Cancel Order" button once In Transit — the admin override stops here');
   });
 });

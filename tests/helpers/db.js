@@ -240,6 +240,100 @@ export const seedAssignedOrder = async ({ userId, customerEmail, tripId, runId }
   return advanced;
 };
 
+/**
+ * Builds an order that sits at 'Picked Up' on a trip — the shape a booking
+ * takes once the courier has collected the parcel from the sender but it has
+ * not yet moved. This is the exact boundary the cancellation cutoff sits on:
+ * a customer can no longer request cancellation from here (canCancelOrder /
+ * request_order_cancellation both refuse it), but an admin still can
+ * (canAdminCancelOrder). See seedInTransitOrder for the status one step past
+ * this, where NEITHER can cancel any more.
+ */
+export const seedPickedUpOrder = async ({ userId, customerEmail, tripId, runId }) => {
+  const asCustomer = await customerClient(customerEmail);
+  const asAdmin = await adminClient();
+
+  const { data: inserted, error: insertError } = await asCustomer
+    .from('orders')
+    .insert({
+      user_id: userId,
+      origin: 'Manila',
+      destination: 'Bohol',
+      sender_name: 'Pickup Cutoff Sender',
+      sender_phone: '09170000005',
+      sender_address: 'Taft Avenue, Malate, Manila, Metro Manila',
+      sender_city: 'Manila',
+      sender_province: 'Metro Manila',
+      receiver_name: 'Pickup Cutoff Receiver',
+      receiver_phone: '09170000006',
+      receiver_address: 'Gallares Street, Cogon, Tagbilaran City, Bohol',
+      receiver_city: 'Tagbilaran City',
+      receiver_province: 'Bohol',
+      package_description: `E2E pickup-cutoff fixture ${runId}`,
+      payer_type: 'sender',
+      status: 'Pending',
+    })
+    .select()
+    .single();
+
+  if (insertError) throw new Error(`seedPickedUpOrder insert: ${insertError.message}`);
+
+  const { data: advanced, error: updateError } = await asAdmin
+    .from('orders')
+    .update({ trip_id: tripId, status: 'Picked Up' })
+    .eq('id', inserted.id)
+    .select()
+    .single();
+
+  if (updateError) throw new Error(`seedPickedUpOrder advance: ${updateError.message}`);
+  return advanced;
+};
+
+/**
+ * Builds an order at 'In Transit' — one status past the Picked-Up cutoff
+ * above. The shipment has left for the other island, so cancellation is
+ * refused for everyone here, admins included.
+ */
+export const seedInTransitOrder = async ({ userId, customerEmail, tripId, runId }) => {
+  const asCustomer = await customerClient(customerEmail);
+  const asAdmin = await adminClient();
+
+  const { data: inserted, error: insertError } = await asCustomer
+    .from('orders')
+    .insert({
+      user_id: userId,
+      origin: 'Manila',
+      destination: 'Bohol',
+      sender_name: 'In-Transit Cutoff Sender',
+      sender_phone: '09170000007',
+      sender_address: 'Taft Avenue, Malate, Manila, Metro Manila',
+      sender_city: 'Manila',
+      sender_province: 'Metro Manila',
+      receiver_name: 'In-Transit Cutoff Receiver',
+      receiver_phone: '09170000008',
+      receiver_address: 'Gallares Street, Cogon, Tagbilaran City, Bohol',
+      receiver_city: 'Tagbilaran City',
+      receiver_province: 'Bohol',
+      package_description: `E2E in-transit-cutoff fixture ${runId}`,
+      payer_type: 'sender',
+      status: 'Pending',
+    })
+    .select()
+    .single();
+
+  if (insertError) throw new Error(`seedInTransitOrder insert: ${insertError.message}`);
+
+  const { data: advanced, error: updateError } = await asAdmin
+    .from('orders')
+    .update({ trip_id: tripId, status: 'In Transit' })
+    .eq('id', inserted.id)
+    .select()
+    .single();
+
+  if (updateError) throw new Error(`seedInTransitOrder advance: ${updateError.message}`);
+  return advanced;
+};
+
 export const deleteOrder = async (orderId) => {
   const db = await adminClient();
   await db.from('orders').delete().eq('id', orderId);

@@ -206,8 +206,13 @@ export const AuthProvider = ({ children }) => {
       isAuthAction.current = true;
 
       // These fields are written during the same auth transaction. The database
-      // trigger validates the version against its published-document registry
-      // and records both consents before the account can be created.
+      // trigger validates the version against its published-document registry,
+      // records both consents, AND inserts a minimal `profiles` row (id, email,
+      // name, role) atomically with the auth user — see handle_new_user() /
+      // on_auth_user_created. That guarantee is what the recovery path below
+      // depends on: a signed-up user always has SOME profile row, so a failure
+      // in the detailed upsert that follows is never "no profile exists," only
+      // "the address/phone details never made it in."
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -223,8 +228,7 @@ export const AuthProvider = ({ children }) => {
       if (error) throw error;
 
       const normalizedAddress = normalizeProfileAddressFields(profileFields);
-
-      await createProfile({
+      const profilePayload = {
         id: data.user.id,
         email,
         name: profileFields.name,
@@ -237,15 +241,51 @@ export const AuthProvider = ({ children }) => {
         address_city: normalizedAddress.address_city || null,
         address_province: normalizedAddress.address_province || null,
         address_landmark: normalizedAddress.address_landmark || null,
-      });
+      };
 
-      // Profile row now exists — safe to fetch
-      await fetchProfile(data.user.id);
+      // The auth user now exists — Supabase has already handed this browser a
+      // live session for it, whether or not the rest of this function
+      // succeeds. That means a thrown error from here on must never just
+      // report failure: ProtectedRoute requires a `userProfile`, and with none
+      // set this account would be signed in but permanently bounced back to
+      // /login, with no profile row for a retry and "already registered"
+      // blocking a second signUp(). Every path below ends in fetchProfile()
+      // so the account is always left usable.
+      let profileSaved = true;
+      try {
+        await createProfile(profilePayload);
+      } catch (profileError) {
+        // One retry: registration is a multi-request sequence, and the most
+        // likely cause of a failure here is a transient network blip rather
+        // than a real conflict — worth one more try before accepting the
+        // address/phone details are lost.
+        await new Promise(resolve => setTimeout(resolve, 800));
+        try {
+          await createProfile(profilePayload);
+        } catch (retryError) {
+          profileSaved = false;
+        }
+      }
 
-      // Clear flag so future sign-ins work normally
+      // Always attempt to load the profile. The trigger's baseline row means
+      // this succeeds even when both createProfile attempts above failed —
+      // that is what turns a failed detail-write into "the account exists and
+      // is usable, please finish your profile" instead of a dead end.
+      const fetchResult = await fetchProfile(data.user.id);
       isAuthAction.current = false;
 
-      return { success: true, user: data.user };
+      if (!fetchResult.success) {
+        // Genuinely nothing usable came back (e.g. the network is down for
+        // this whole request sequence) — surface the real failure rather than
+        // pretending the account is ready.
+        throw new Error(
+          profileSaved
+            ? `Account created, but we could not load your profile: ${fetchResult.error?.message || 'Unknown error'}. Please try logging in.`
+            : 'Your account was created, but we could not save your address and phone number. Please log in and complete your profile from the Profile page.'
+        );
+      }
+
+      return { success: true, user: data.user, profileIncomplete: !profileSaved };
     } catch (error) {
       isAuthAction.current = false;
       setLoading(false);

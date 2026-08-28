@@ -393,6 +393,12 @@
   color: var(--info);
   box-shadow: 0 4px 16px rgba(59,130,246,0.1);
 }
+.fp-hero-icon-error {
+  background: linear-gradient(135deg, rgba(220,38,38,0.08), rgba(220,38,38,0.04));
+  border-color: rgba(220,38,38,0.2);
+  color: var(--error);
+  box-shadow: 0 4px 16px rgba(220,38,38,0.1);
+}
 .fp-title {
   font-size: 1.375rem; font-weight: 800;
   color: var(--text); letter-spacing: -0.025em;

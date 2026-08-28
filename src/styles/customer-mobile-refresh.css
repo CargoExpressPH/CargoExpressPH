@@ -1306,7 +1306,7 @@ input:checked + .toggle-slider:before {
   }
 
   .customer-contact-grid,
-  .grid.grid-2:not(.no-collapse-mobile) {
+  .grid.grid-2 {
     grid-template-columns: minmax(0, 1fr);
   }
 

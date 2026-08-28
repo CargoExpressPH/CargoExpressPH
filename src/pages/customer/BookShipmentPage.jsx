@@ -16,6 +16,7 @@ import usePageTitle from '../../hooks/usePageTitle';
 import { formatMoney } from '../../utils/currencyInput';
 import { toTitleCase, normalizeName } from '../../utils/string';
 import { formatPhDate } from '../../utils/datetime';
+import { validatePhone } from '../../utils/phone';
 
 const luxeEase = [0.22, 1, 0.36, 1];
 
@@ -33,15 +34,6 @@ function fallbackCopy(text) {
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
-
-const validatePhone = (phone) => {
-  const val = (phone || '').trim();
-  if (!val) return 'Phone number is required.';
-  if (!/^\d+$/.test(val)) return 'Phone number must contain numbers only.';
-  if (!val.startsWith('09')) return 'Phone number must start with 09.';
-  if (val.length !== 11) return 'Phone number must be exactly 11 digits.';
-  return null;
-};
 
 // Trip dates render in Asia/Manila regardless of the device zone — see
 // src/utils/datetime.js for why the naive-timestamp path shifted the day.
@@ -904,7 +896,7 @@ const BookShipmentPage = () => {
             <div className="booking-summary-label">Route</div>
             <div className="booking-summary-value">{form.route}</div>
           </div>
-          <div className="grid grid-2 gap-12 mb-16 no-collapse-mobile">
+          <div className="grid grid-2 gap-12 mb-16">
             <div className="booking-summary-card">
               <div className="booking-summary-label">Sender</div>
               <div className="text-sm font-bold">{form.sender_name}</div>

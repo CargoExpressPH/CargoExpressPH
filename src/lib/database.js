@@ -1,6 +1,6 @@
 import { supabase } from './supabase';
 import { logOrder, logPayment, logChat } from './activityLog';
-import { validateStatusTransition, outstandingBalance, ORDER_STATUS, tripCapacityState, tripCapacityRefusal } from '../constants/status';
+import { validateStatusTransition, outstandingBalance, ORDER_STATUS, tripCapacityState, tripCapacityRefusal, canAdminCancelOrder } from '../constants/status';
 import { detectPickupLocation } from '../constants/phLocations';
 import { phDayRangeISO, formatPhDate } from '../utils/datetime';
 
@@ -475,17 +475,44 @@ export const updateOrder = async (orderId, updates) => {
  * trips that can be lost; the row cannot be left saying 'Cancelled' with no
  * explanation beside it.
  *
- * `cancellation_requested_at` stays NULL, which is what tells an
- * admin-initiated cancellation apart from an approved customer request.
- * `cancellation_previous_status` also stays NULL on purpose: it exists so a
- * *rejected* request can be put back exactly where it was, and there is nothing
- * to put back here.
+ * `requested_at` stays unset in the JSONB, which is what tells an
+ * admin-initiated cancellation apart from an approved customer request (see
+ * OrderDetailPage's "cancelled at your request" vs "cancelled by our team").
+ * `previous_status` also stays unset on purpose: it exists so a *rejected*
+ * request can be put back exactly where it was, and there is nothing to put
+ * back here.
+ *
+ * The eligibility check re-fetches status rather than trusting a caller's
+ * cached copy — this is the last line of defense before the write, not a
+ * pre-flight convenience, so a stale `order` object sitting in a page that
+ * hasn't refreshed cannot force a cancellation the current row no longer
+ * allows. It only re-implements the same rule the admin console's button
+ * visibility already enforces (canAdminCancelOrder); it is not a substitute
+ * for a database-level guarantee, which would need a dedicated RPC — nothing
+ * stops a caller with an admin session from bypassing this file entirely and
+ * writing to `orders` directly.
  */
 export const cancelOrderAsAdmin = async (orderId, reason) => {
   const trimmed = (reason || '').trim();
   if (trimmed.length < 5) {
     throw new Error('Please state why this booking is being cancelled (at least 5 characters).');
   }
+
+  const { data: current, error: fetchError } = await supabase
+    .from('orders')
+    .select('status')
+    .eq('id', orderId)
+    .single();
+  if (fetchError) throw fetchError;
+
+  if (!canAdminCancelOrder(current)) {
+    throw new Error(
+      current.status === ORDER_STATUS.PENDING_CANCELLATION
+        ? 'This order has a cancellation request awaiting review. Approve or decline it instead.'
+        : `An order that is "${current.status}" can no longer be cancelled — it has already left for the other island.`
+    );
+  }
+
   const { data: auth } = await supabase.auth.getUser();
   return updateOrder(orderId, {
     status: 'Cancelled',

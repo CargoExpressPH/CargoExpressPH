@@ -35,6 +35,14 @@ const normalizeError = (err) => {
   return msg || 'Failed to load order. Please try again.';
 };
 
+// Pure — no component state — so both the payment-return flow and the
+// generic live-order listener can check settlement without either one
+// needing to depend on the other's callback identity.
+const isPaymentSettled = (row) => (
+  row?.payment_status === 'paid'
+  || (Number(row?.amount_paid) > 0 && Number(row?.remaining_balance) <= 0)
+);
+
 const OrderDetailPage = () => {
   usePageTitle('Booking Details');
   const { id } = useParams();
@@ -84,6 +92,16 @@ const OrderDetailPage = () => {
   const paymentConfirmedRef = useRef(false);
   const paymentVerificationInFlightRef = useRef(false);
 
+  // Mirror the two payment-verification booleans into refs so applyOrderData
+  // (below) can read their current value without depending on them — that
+  // dependency would otherwise recreate applyOrderData (and everything built
+  // on it, including the live-tracking channel further down) every time a
+  // payment starts or finishes verifying.
+  const paymentVerificationPendingRef = useRef(false);
+  const verifyingPaymentRef = useRef(false);
+  useEffect(() => { paymentVerificationPendingRef.current = paymentVerificationPending; }, [paymentVerificationPending]);
+  useEffect(() => { verifyingPaymentRef.current = verifyingPayment; }, [verifyingPayment]);
+
   const clearLoadTimeout = useCallback(() => {
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
@@ -101,6 +119,81 @@ const OrderDetailPage = () => {
     }, LOAD_TIMEOUT_MS);
   }, [clearLoadTimeout]);
 
+  // Tears down the payment-reconciliation realtime channel (opened only
+  // during the PayMongo-return flow below). Declared here, ahead of
+  // applyOrderData, because applyOrderData calls it directly.
+  const clearPaymentReconciliation = useCallback(() => {
+    if (paymentChannelRef.current) {
+      void supabase.removeChannel(paymentChannelRef.current);
+      paymentChannelRef.current = null;
+    }
+  }, []);
+
+  // Applies a freshly-fetched order (+ its payment/status rows) to state, and
+  // runs the Delivered-feedback check. Shared by the full loader below and by
+  // the realtime-triggered silent refresh, so a live status change into
+  // 'Delivered' offers the feedback prompt exactly like a fresh page load
+  // would, instead of only checking once at mount.
+  const applyOrderData = useCallback((data, pmts, events) => {
+    if (!isMountedRef.current) return;
+    setOrder(data);
+    setPaymentTransactions(pmts);
+    setStatusEvents(events || []);
+
+    // A payment can settle while the payment-return banner is still telling
+    // the customer "still being confirmed" — a late webhook, or an admin
+    // recording payment manually. That banner is driven by its own state,
+    // not by `order`, so without this the live-tracking listener above could
+    // update the balance in the Payment Details card while the button area
+    // right below it keeps insisting nothing has happened yet. Gated on the
+    // verification flags (not just "is this order paid") so opening an
+    // already-settled order doesn't fire a stray "Payment confirmed!" toast
+    // the first time any unrelated field on it changes.
+    if (
+      isPaymentSettled(data)
+      && !paymentConfirmedRef.current
+      && (paymentVerificationPendingRef.current || verifyingPaymentRef.current)
+    ) {
+      paymentConfirmedRef.current = true;
+      clearPaymentReconciliation();
+      localStorage.removeItem(`pending_payment_${id}`);
+      setPaymentVerificationPending(false);
+      setVerifyingPayment(false);
+      toast.success('Payment confirmed! Your order has been updated.');
+    }
+
+    if (data.status === 'Delivered') {
+      checkIfFeedbackExists(id).then(exists => {
+        if (isMountedRef.current) {
+          setHasFeedback(exists);
+          if (!exists) {
+            const skipped = localStorage.getItem(`feedback_skipped_${id}`);
+            if (!skipped) {
+              setShowFeedbackModal(true);
+            }
+          }
+        }
+      }).catch(console.error);
+    }
+  }, [id, toast, clearPaymentReconciliation]);
+
+  const fetchOrderData = useCallback(async () => {
+    const data = await getOrderById(id);
+    let pmts = [];
+    let events = [];
+    try {
+      pmts = await getPaymentTransactions(id);
+    } catch (err) {
+      if (import.meta.env.DEV) console.warn('Failed to fetch payment history', err);
+    }
+    try {
+      events = await getOrderStatusEvents(id);
+    } catch (err) {
+      if (import.meta.env.DEV) console.warn('Failed to fetch status events', err);
+    }
+    return { data, pmts, events };
+  }, [id]);
+
   const loadOrder = useCallback(async () => {
     if (!id) {
       setError('No order ID provided.');
@@ -113,40 +206,11 @@ const OrderDetailPage = () => {
     startLoadTimeout();
 
     try {
-      const data = await getOrderById(id);
-      let pmts = [];
-      let events = [];
-      try {
-        pmts = await getPaymentTransactions(id);
-      } catch (err) {
-        if (import.meta.env.DEV) console.warn('Failed to fetch payment history', err);
-      }
-      try {
-        events = await getOrderStatusEvents(id);
-      } catch (err) {
-        if (import.meta.env.DEV) console.warn('Failed to fetch status events', err);
-      }
+      const { data, pmts, events } = await fetchOrderData();
       clearLoadTimeout();
       if (isMountedRef.current) {
-        setOrder(data);
-        setPaymentTransactions(pmts);
-        setStatusEvents(events || []);
+        applyOrderData(data, pmts, events);
         setLoading(false);
-        
-        // Check if we should show feedback modal
-        if (data.status === 'Delivered') {
-          checkIfFeedbackExists(id).then(exists => {
-            if (isMountedRef.current) {
-              setHasFeedback(exists);
-              if (!exists) {
-                const skipped = localStorage.getItem(`feedback_skipped_${id}`);
-                if (!skipped) {
-                  setShowFeedbackModal(true);
-                }
-              }
-            }
-          }).catch(console.error);
-        }
       }
     } catch (err) {
       clearLoadTimeout();
@@ -155,7 +219,23 @@ const OrderDetailPage = () => {
         setLoading(false);
       }
     }
-  }, [id, startLoadTimeout, clearLoadTimeout]);
+  }, [id, startLoadTimeout, clearLoadTimeout, fetchOrderData, applyOrderData]);
+
+  // Refetches without touching `loading`/`error` — used by the realtime
+  // listener below. A realtime tick means the page already has good data on
+  // screen; routing it through the same `loading` flag as the initial load
+  // would flash the whole page back to its skeleton state on every status
+  // change, which is worse than the staleness this is fixing.
+  const refreshOrderSilently = useCallback(async () => {
+    if (!id || !isMountedRef.current) return;
+    try {
+      const { data, pmts, events } = await fetchOrderData();
+      if (isMountedRef.current) applyOrderData(data, pmts, events);
+    } catch {
+      // Silent: a failed background refresh shouldn't disturb data already
+      // on screen. The next realtime event, or a manual action, retries.
+    }
+  }, [id, fetchOrderData, applyOrderData]);
 
   // Load order on mount and when id changes
   useEffect(() => {
@@ -166,6 +246,27 @@ const OrderDetailPage = () => {
       clearLoadTimeout();
     };
   }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Live tracking ─────────────────────────────────────────────────────────
+  // Without this, a status advance, weigh-in, or payment recorded by staff
+  // while this exact page is open only ever shows up after a manual refresh —
+  // the one screen whose entire purpose is showing where the shipment is
+  // right now. Scoped to this single row (not the generic useRealtimeOrders
+  // hook, which has no per-row filter) since only one order is on screen here.
+  useEffect(() => {
+    if (!id) return undefined;
+    const channel = supabase
+      .channel(`customer_order_detail_${id}`)
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'orders',
+        filter: `id=eq.${id}`,
+      }, () => { void refreshOrderSilently(); })
+      .subscribe();
+
+    return () => { void supabase.removeChannel(channel); };
+  }, [id, refreshOrderSilently]);
 
   // ── Payment Return Handler ───────────────────────────────────────────────
   // When the customer returns from PayMongo with ?payment=success,
@@ -187,19 +288,7 @@ const OrderDetailPage = () => {
     }
   }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const clearPaymentReconciliation = useCallback(() => {
-    if (paymentChannelRef.current) {
-      void supabase.removeChannel(paymentChannelRef.current);
-      paymentChannelRef.current = null;
-    }
-  }, []);
-
   useEffect(() => () => clearPaymentReconciliation(), [clearPaymentReconciliation]);
-
-  const isPaymentSettled = (row) => (
-    row?.payment_status === 'paid'
-    || (Number(row?.amount_paid) > 0 && Number(row?.remaining_balance) <= 0)
-  );
 
   const markPaymentConfirmed = useCallback(async () => {
     if (paymentConfirmedRef.current) return true;
@@ -533,9 +622,11 @@ const OrderDetailPage = () => {
   const isCancelled = order.status === ORDER_STATUS.CANCELLED;
   const awaitingCancellation = hasPendingCancellation(order);
   // Was `order.status === 'Pending'`, which hid the button the moment an admin
-  // put the booking on a trip — the exact point at which a customer is most
-  // likely to want out. canCancelOrder() is the shared rule: anything not yet
-  // loaded onto a vehicle, and not already under review.
+  // put the booking on a trip. canCancelOrder() is the shared rule, kept in
+  // sync with request_order_cancellation()'s server-side check: anything not
+  // yet picked up, and not already under review. Once the courier has
+  // physically collected the parcel, cancelling is an admin-only call — see
+  // canCancelOrder's own doc comment in constants/status.js.
   const canCancel = canCancelOrder(order);
   const hasPhotos = resolvedPickupPhotos.length > 0;
   const balance = outstandingBalance(order);

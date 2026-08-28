@@ -124,10 +124,15 @@ test.describe('CargoExpress PH — admin + customer end-to-end journey', () => {
     await expect(page.locator('#reg-province')).toBeVisible();
     await selectCustom(page, 'reg-province', CUSTOMER.address.province);
     await selectCustom(page, 'reg-city', CUSTOMER.address.city);
-    await fillById(page, 'reg-barangay', CUSTOMER.address.barangay);
+    // BarangaySelect renders the same custom dropdown as province/city once a
+    // city has a known barangay list — not the plain text input it used to be.
+    await selectCustom(page, 'reg-barangay', CUSTOMER.address.barangay);
     await fillById(page, 'reg-street', CUSTOMER.address.street);
     await fillById(page, 'reg-lot', CUSTOMER.address.lotBlock);
     await fillById(page, 'reg-landmark', CUSTOMER.address.landmark);
+    // Required affirmative legal consent, added after this test was written —
+    // submitting without it re-shows this same step with a validation error.
+    await page.locator('#reg-legal-consent').check();
 
     await page.getByRole('button', { name: /create account|register|sign up/i }).last().click();
 
@@ -192,7 +197,7 @@ test.describe('CargoExpress PH — admin + customer end-to-end journey', () => {
     await fillById(page, 'sender-facebook', CUSTOMER.facebook);
     await selectCustom(page, 'sender-province', CUSTOMER.address.province);
     await selectCustom(page, 'sender-city', CUSTOMER.address.city);
-    await fillById(page, 'sender-barangay', CUSTOMER.address.barangay);
+    await selectCustom(page, 'sender-barangay', CUSTOMER.address.barangay);
     await fillById(page, 'sender-street', CUSTOMER.address.street);
     await fillById(page, 'sender-lot-block', CUSTOMER.address.lotBlock);
     await fillById(page, 'sender-landmark', CUSTOMER.address.landmark);
@@ -204,7 +209,7 @@ test.describe('CargoExpress PH — admin + customer end-to-end journey', () => {
     await fillById(page, 'receiver-facebook', BOOKING.receiver.facebook);
     await selectCustom(page, 'receiver-province', BOOKING.receiver.province);
     await selectCustom(page, 'receiver-city', BOOKING.receiver.city);
-    await fillById(page, 'receiver-barangay', BOOKING.receiver.barangay);
+    await selectCustom(page, 'receiver-barangay', BOOKING.receiver.barangay);
     await fillById(page, 'receiver-street', BOOKING.receiver.street);
     await fillById(page, 'receiver-lot-block', BOOKING.receiver.lotBlock);
     await fillById(page, 'receiver-landmark', BOOKING.receiver.landmark);

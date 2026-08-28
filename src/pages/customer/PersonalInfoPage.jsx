@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useNavigate, useBlocker } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { normalizeProfileAddressFields } from '../../lib/address';
@@ -15,15 +15,9 @@ import ConfirmModal from '../../components/ui/ConfirmModal';
 import usePageTitle from '../../hooks/usePageTitle';
 import { toTitleCase, normalizeName } from '../../utils/string';
 import FieldError from '../../components/ui/FieldError';
+import { validatePhone as validatePhoneShared } from '../../utils/phone';
 
-const validatePhone = (phone) => {
-  const val = (phone || '').trim();
-  if (!val) return 'Mobile number is required.';
-  if (!/^\d+$/.test(val)) return 'Mobile number must contain numbers only.';
-  if (!val.startsWith('09')) return 'Mobile number must start with 09.';
-  if (val.length !== 11) return `Mobile number must be exactly 11 digits (${val.length}/11).`;
-  return null;
-};
+const validatePhone = (phone) => validatePhoneShared(phone, { showDigitCount: true });
 
 const PersonalInfoPage = () => {
   usePageTitle('Personal Info');
@@ -45,6 +39,32 @@ const PersonalInfoPage = () => {
 
   const [loading,     setLoading]     = useState(false);
   const [fieldErrors, setFieldErrors] = useState({});
+
+  // True once the customer has actually typed/selected something. Gates the
+  // sync effect below so it can only ever fill the form in, never clobber an
+  // edit already in progress.
+  const hasEditedRef = useRef(false);
+
+  // `userProfile` was only read once, via the useState initializer above —
+  // if it arrives or changes after this page has already mounted (a slow
+  // fetchProfile still in flight, a background refreshProfile() from
+  // useNetworkRecovery elsewhere in the app), the open form kept showing
+  // whatever it started with. This brings it back in sync for as long as the
+  // customer hasn't started editing.
+  useEffect(() => {
+    if (hasEditedRef.current) return;
+    setForm({
+      name:              userProfile?.name              || '',
+      facebook_name:     userProfile?.facebook_name     || '',
+      phone:             userProfile?.phone             || '',
+      address_province:  userProfile?.address_province  || '',
+      address_city:      userProfile?.address_city      || '',
+      address_barangay:  userProfile?.address_barangay  || '',
+      address_street:    userProfile?.address_street    || '',
+      address_lot_block: userProfile?.address_lot_block || '',
+      address_landmark:  userProfile?.address_landmark  || '',
+    });
+  }, [userProfile]);
 
   // C-4 fix: Track dirty state and block navigation when form has unsaved changes
   const isFormDirty = useCallback(() => {
@@ -68,7 +88,10 @@ const PersonalInfoPage = () => {
 
   const cities = form.address_province ? PH_LOCATIONS[form.address_province] || [] : [];
 
-  const setField = (key, value) => setForm(prev => ({ ...prev, [key]: value }));
+  const setField = (key, value) => {
+    hasEditedRef.current = true;
+    setForm(prev => ({ ...prev, [key]: value }));
+  };
 
   const handleTitleCase = (key) => (e) => {
     setField(key, toTitleCase(e.target.value));

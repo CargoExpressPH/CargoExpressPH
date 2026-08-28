@@ -13,6 +13,7 @@ import BarangaySelect from '../../components/ui/BarangaySelect';
 import usePageTitle from '../../hooks/usePageTitle';
 import { toTitleCase, normalizeName } from '../../utils/string';
 import { getPasswordStrength } from '../../utils/password';
+import { isPhoneValid, validatePhone } from '../../utils/phone';
 import FieldError from '../../components/ui/FieldError';
 import { BrandLogo, BrandWordmark } from '../../components/ui/BrandLogo';
 import AuthHeroPanel from '../../components/auth/AuthHeroPanel';
@@ -20,7 +21,6 @@ import { LEGAL_DOCUMENTS } from '../../constants/legalDocuments';
 
 /* ── Helpers ──────────────────────────────────────────────────────────── */
 
-const isPhoneValid = (phone) => /^09\d{9}$/.test(phone);
 const isEmailValid = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
 
 const getPasswordError = (password) => {
@@ -95,6 +95,10 @@ const RegisterPage = () => {
   const [touchedFields, setTouchedFields] = useState({});
   const [loading,       setLoading]       = useState(false);
   const [success,       setSuccess]       = useState(false);
+  // Set when the account was created but the address/phone details couldn't
+  // be saved (see AuthContext.register's recovery path) — the account is
+  // real and usable, it just needs a trip to Profile to finish.
+  const [profileIncomplete, setProfileIncomplete] = useState(false);
   const [legalConsent,  setLegalConsent]  = useState(false);
   const topRef = useRef(null);
   const errorRef = useRef(null);
@@ -143,9 +147,7 @@ const RegisterPage = () => {
         if (!isEmailValid(value)) return 'Please enter a valid email address.';
         return '';
       case 'phone':
-        if (!value) return 'Mobile Number is required.';
-        if (!isPhoneValid(value)) return 'Mobile number must be 11 digits starting with 09.';
-        return '';
+        return validatePhone(value) || '';
       case 'password':
         return getPasswordError(value);
       case 'confirmPassword':
@@ -378,8 +380,10 @@ const RegisterPage = () => {
       setLoading(false);
       if (result.success) {
         try { sessionStorage.removeItem('reg_draft'); } catch (e) {}
+        setProfileIncomplete(Boolean(result.profileIncomplete));
         setSuccess(true);
-        setTimeout(() => navigate('/'), 1400);
+        // Longer pause when there's a follow-up message to actually read.
+        setTimeout(() => navigate('/'), result.profileIncomplete ? 3200 : 1400);
       } else {
         const errorMsg = result.error || 'Registration failed. Please try again.';
         setError(errorMsg);
@@ -423,7 +427,11 @@ const RegisterPage = () => {
             <CheckCircle2 size={48} />
           </div>
           <h2 className="auth-success-title">Account Created!</h2>
-          <p className="auth-success-sub">Welcome to CargoExpress PH. Redirecting you now…</p>
+          <p className="auth-success-sub">
+            {profileIncomplete
+              ? "Welcome to CargoExpress PH. We couldn't save your address and phone number — please add them from Profile after you sign in."
+              : 'Welcome to CargoExpress PH. Redirecting you now…'}
+          </p>
           <div className="auth-success-loader">
             <div className="auth-success-bar" />
           </div>

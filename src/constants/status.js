@@ -115,19 +115,42 @@ export const isTripControlledAdvance = (order) => {
 };
 
 /**
- * Statuses at which the cargo is already loaded and moving. Past this line the
- * parcel is in the network — on a vehicle, in a hub, or on a doorstep run — and
- * "cancel" no longer describes anything that can physically happen. Unwinding
- * it is a return or a refund, which is a different act with different money.
+ * Statuses at which the cargo has already left the customer's hands. Past
+ * this line the parcel is in the network — collected, on a vehicle, in a hub,
+ * or on a doorstep run — and a customer-initiated "cancel" no longer
+ * describes anything that can physically happen. Unwinding it is a return or
+ * a refund, which is a different act with different money, and is a decision
+ * only an admin makes — see canAdminCancelOrder below, which is deliberately
+ * NOT built on this list.
+ *
+ * Mirrors the status list enforced server-side in request_order_cancellation()
+ * (supabase/migrations/20260826000001_refactor_cancellation_to_jsonb.sql). The
+ * two used to disagree — this list stopped at IN_TRANSIT while the RPC also
+ * blocked PICKED_UP, so a customer could submit a cancellation request on a
+ * Picked Up order that the server would always reject. This is the client
+ * copy of that same line, kept in sync on purpose.
  */
 export const IN_NETWORK_STATUSES = [
+  ORDER_STATUS.PICKED_UP,
   ORDER_STATUS.IN_TRANSIT,
   ORDER_STATUS.ARRIVED_HUB,
   ORDER_STATUS.OUT_FOR_DELIVERY,
   ORDER_STATUS.DELIVERED,
 ];
 
-/** Can this order still be cancelled outright? */
+/**
+ * Can the CUSTOMER still request cancellation of this order?
+ *
+ * This governs only the customer-facing "Request Cancellation" button and the
+ * request_order_cancellation() RPC behind it — it has no bearing on an admin's
+ * ability to force-cancel a booking. Use canAdminCancelOrder for that; the two
+ * used to be the same function, which meant tightening this one for customers
+ * (adding PICKED_UP above) would have silently taken the "Cancel Order"
+ * button away from admins on picked-up orders too — the opposite of the
+ * intended effect, since ending an already-picked-up booking (a return, a
+ * refund, cargo lost in transit) is exactly the kind of judgment call that
+ * should stay an admin decision.
+ */
 export const canCancelOrder = (order) => {
   if (!order?.status) return false;
   if (order.status === ORDER_STATUS.CANCELLED) return false;
@@ -135,6 +158,53 @@ export const canCancelOrder = (order) => {
   // a booking that is by definition already frozen waiting on the first.
   if (order.status === ORDER_STATUS.PENDING_CANCELLATION) return false;
   return !IN_NETWORK_STATUSES.includes(order.status);
+};
+
+/**
+ * Statuses at which the shipment has physically left the origin island —
+ * on the ferry/truck between Manila and Bohol, already arrived at the
+ * destination hub, out on a doorstep run, or delivered. Business rule: past
+ * this line NOBODY cancels the booking from the app, not even an admin. Once
+ * it is In Transit the cargo already left for the other island; turning it
+ * back is a logistics/refund matter handled outside the ordinary
+ * cancellation flow, not a button click.
+ *
+ * One step later than IN_NETWORK_STATUSES on purpose: Picked Up (collected
+ * from the sender, not yet moved) is still an admin-cancellable state — the
+ * parcel could still be turned back before it boards. In Transit means it
+ * already left.
+ */
+export const ADMIN_LOCKED_STATUSES = [
+  ORDER_STATUS.IN_TRANSIT,
+  ORDER_STATUS.ARRIVED_HUB,
+  ORDER_STATUS.OUT_FOR_DELIVERY,
+  ORDER_STATUS.DELIVERED,
+];
+
+/**
+ * Can an ADMIN force-cancel this order directly — the "Cancel Order" action
+ * in the admin console, backed by cancelOrderAsAdmin() in lib/database.js?
+ *
+ * Allows Pending Review / Pending / Assigned / Picked Up — everything up to
+ * and including the moment the courier collects the parcel from the sender.
+ * Blocks ADMIN_LOCKED_STATUSES (In Transit onward: the shipment already left
+ * for the other island) exactly as strictly as canCancelOrder blocks a
+ * customer from IN_NETWORK_STATUSES — the two lists differ by exactly one
+ * status (Picked Up), which is the entire point of having two functions.
+ *
+ * Pending Cancellation is excluded for a different reason: that status has
+ * its own dedicated Approve/Decline review flow (reviewOrderCancellation),
+ * which MERGES into the existing cancellation_details JSONB. Force-cancelling
+ * through this path instead would overwrite that object outright —
+ * cancelOrderAsAdmin() writes a brand-new { reason, reviewed_at, reviewed_by }
+ * — silently discarding the customer's original stated reason and
+ * requested_at. Route that case through the review modal instead.
+ */
+export const canAdminCancelOrder = (order) => {
+  if (!order?.status) return false;
+  if (order.status === ORDER_STATUS.CANCELLED) return false;
+  if (order.status === ORDER_STATUS.PENDING_CANCELLATION) return false;
+  return !ADMIN_LOCKED_STATUSES.includes(order.status);
 };
 
 /** Is this order frozen waiting for an admin to rule on a cancellation? */

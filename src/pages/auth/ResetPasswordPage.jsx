@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { supabase } from '../../lib/supabase';
 import {
   Lock, Loader, CheckCircle2,
   Eye, EyeOff, ShieldCheck, AlertTriangle, Check,
-  ArrowLeft,
+  ArrowLeft, KeyRound,
 } from 'lucide-react';
 import usePageTitle from '../../hooks/usePageTitle';
 import { getPasswordStrength } from '../../utils/password';
@@ -25,13 +26,54 @@ const ResetPasswordPage = () => {
   const [error,           setError]           = useState('');
   const [success,         setSuccess]         = useState(false);
   const [ready,           setReady]           = useState(false);
+  // Set once verification finishes with no usable session — the link is
+  // missing, malformed, expired, or already used. Distinct from `ready`,
+  // which only means "we're done checking," not "the link was good."
+  const [linkInvalid,     setLinkInvalid]     = useState(false);
   const { changePassword } = useAuth();
   const navigate = useNavigate();
 
-  // Give Supabase time to process the recovery token from the URL hash
+  // Verify there is an actual usable session instead of assuming a flat delay
+  // was enough. Two things can produce one here:
+  //   1. `getSession()` already reflects it — the GoTrue client parses a
+  //      recovery link's token out of the URL hash at construction time
+  //      (detectSessionInUrl), which on this route usually finishes before
+  //      this page even mounts (the client is a module-level singleton
+  //      created well before routing).
+  //   2. It hasn't finished yet — PASSWORD_RECOVERY (or any event carrying a
+  //      session) fires once processing completes, covering the case where
+  //      this effect subscribed just ahead of it.
+  // If neither ever produces a session, the link itself is bad (expired,
+  // already used, or the hash never had one), and the customer is told that
+  // immediately instead of being handed a form that can only fail at submit.
   useEffect(() => {
-    const timer = setTimeout(() => setReady(true), 1500);
-    return () => clearTimeout(timer);
+    let cancelled = false;
+    let settled = false;
+
+    const settle = (valid) => {
+      if (cancelled || settled) return;
+      settled = true;
+      setReady(true);
+      setLinkInvalid(!valid);
+    };
+
+    supabase.auth.getSession()
+      .then(({ data }) => { if (data?.session) settle(true); })
+      .catch(() => {});
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (session && (event === 'PASSWORD_RECOVERY' || event === 'SIGNED_IN' || event === 'INITIAL_SESSION')) {
+        settle(true);
+      }
+    });
+
+    const timer = setTimeout(() => settle(false), 4000);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+      subscription.unsubscribe();
+    };
   }, []);
 
   const pwStrength = getPasswordStrength(password);
@@ -105,6 +147,43 @@ const ResetPasswordPage = () => {
             </div>
             <p className="rp-verifying-text">Verifying your reset link…</p>
             <p className="rp-verifying-sub">This only takes a moment</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  /* ── Invalid / expired link state ── */
+  if (linkInvalid) {
+    return (
+      <div className="auth-page">
+        <div className="auth-orb auth-orb-1" aria-hidden="true" />
+        <div className="auth-orb auth-orb-2" aria-hidden="true" />
+        <div className="auth-card fp-card">
+          <div className="auth-brand flex flex-row items-center justify-center" style={{ gap: 8 }}>
+            <BrandLogo size={34} decorative />
+            <div className="auth-brand-text"><BrandWordmark /></div>
+          </div>
+          <div className="fp-hero">
+            <div className="fp-hero-icon fp-hero-icon-error">
+              <KeyRound size={26} />
+            </div>
+            <h1 className="fp-title">Link Expired or Invalid</h1>
+            <p className="fp-subtitle">
+              This password reset link is no longer valid — it may have already been used, or it has expired.
+              Request a new one and we'll send a fresh link.
+            </p>
+          </div>
+          <Link to="/forgot-password" className="auth-submit-btn text-no-underline mt-12">
+            Request New Link
+          </Link>
+          <div className="auth-card-footer">
+            <p>
+              <Link to="/login" className="auth-link">
+                <ArrowLeft size={12} style={{ verticalAlign: 'middle', marginRight: 2 }} />
+                Back to Sign In
+              </Link>
+            </p>
           </div>
         </div>
       </div>

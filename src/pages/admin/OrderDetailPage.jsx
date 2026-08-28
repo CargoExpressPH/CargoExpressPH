@@ -26,7 +26,7 @@ import {
   STATUS_FLOW, STATUS_TIMELINE, validateStatusTransition,
   getSettlementState, SETTLEMENT_STATE, outstandingBalance,
   PAYMENT_METHODS, PAYMENT_STATUSES, ORDER_STATUS,
-  isTripControlledAdvance, canCancelOrder, hasPendingCancellation, timelineStatus
+  isTripControlledAdvance, canAdminCancelOrder, hasPendingCancellation, timelineStatus
 } from '../../constants/status';
 import {
   ArrowLeft, Check, Package, CreditCard, User, Phone, MapPin,
@@ -440,9 +440,13 @@ const AdminOrderDetailPage = () => {
   // on the order, written into the activity log, and told to the customer —
   // who is otherwise the last person to learn their booking is gone.
   const handleCancel = async (reason) => {
-    if (!canCancelOrder(order)) {
+    if (!canAdminCancelOrder(order)) {
       setShowCancelConfirm(false);
-      toast.error(`An order that is "${order.status}" is already in the network and cannot be cancelled.`);
+      toast.error(
+        order.status === ORDER_STATUS.PENDING_CANCELLATION
+          ? 'This order has a cancellation request awaiting review — use Approve or Decline instead.'
+          : `An order that is "${order.status}" cannot be cancelled.`
+      );
       return;
     }
     setSaving(true);
@@ -606,7 +610,7 @@ const AdminOrderDetailPage = () => {
   // sets the status. Two buttons for one action invited the click that produced
   // an Assigned order with no trip.
   const showAdvanceButton = Boolean(nextStatus) && !tripOwnsNextStep && !needsTrip;
-  const showCancelButton = canCancelOrder(order);
+  const showCancelButton = canAdminCancelOrder(order);
   const awaitingCancellationReview = hasPendingCancellation(order);
   const hasPhotos = resolvedPickupPhotos.length > 0;
   const canReassignTrip = order.trip_id && [ORDER_STATUS.PENDING, ORDER_STATUS.ASSIGNED].includes(order.status);
