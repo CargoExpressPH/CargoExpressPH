@@ -10,6 +10,7 @@ import { initiateGCashPayment, registerSource, pollPaymentStatus } from '../../l
 import StatusBadge from '../../components/ui/StatusBadge';
 import TrackingTimeline from '../../components/ui/TrackingTimeline';
 import ConfirmModal from '../../components/ui/ConfirmModal';
+import PaymentResultModal from '../../components/ui/PaymentResultModal';
 import CancelBookingModal from '../../components/ui/CancelBookingModal';
 import FocusTrap from '../../components/ui/FocusTrap';
 import ImageLightbox from '../../components/ui/ImageLightbox';
@@ -80,6 +81,7 @@ const OrderDetailPage = () => {
   const [processingPayment, setProcessingPayment] = useState(false);
   const [verifyingPayment, setVerifyingPayment] = useState(false);
   const [paymentVerificationPending, setPaymentVerificationPending] = useState(false);
+  const [paymentResultModal, setPaymentResultModal] = useState(null);
 
   // Statuses where payment is allowed (cargo has been picked up and weighed)
   const PAYABLE_STATUSES = ['Picked Up', 'In Transit', 'Arrived at Hub', 'Out for Delivery'];
@@ -159,7 +161,7 @@ const OrderDetailPage = () => {
       localStorage.removeItem(`pending_payment_${id}`);
       setPaymentVerificationPending(false);
       setVerifyingPayment(false);
-      toast.success('Payment confirmed! Your order has been updated.');
+      setPaymentResultModal({ variant: 'success' });
     }
 
     if (data.status === 'Delivered') {
@@ -175,7 +177,7 @@ const OrderDetailPage = () => {
         }
       }).catch(console.error);
     }
-  }, [id, toast, clearPaymentReconciliation]);
+  }, [id, clearPaymentReconciliation]);
 
   const fetchOrderData = useCallback(async () => {
     const data = await getOrderById(id);
@@ -284,7 +286,7 @@ const OrderDetailPage = () => {
     // realtime order updates, fallback polling, and a manual refresh action.
     if (paymentResult === 'failed') {
       localStorage.removeItem(`pending_payment_${id}`);
-      toast.error('Payment was not completed. You can try again.');
+      setPaymentResultModal({ variant: 'error' });
     }
   }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -298,11 +300,11 @@ const OrderDetailPage = () => {
     if (isMountedRef.current) {
       setPaymentVerificationPending(false);
       setVerifyingPayment(false);
-      toast.success('Payment confirmed! Your order has been updated.');
+      setPaymentResultModal({ variant: 'success' });
       await loadOrder();
     }
     return true;
-  }, [clearPaymentReconciliation, id, loadOrder, toast]);
+  }, [clearPaymentReconciliation, id, loadOrder]);
 
   /**
    * Reconcile a returned PayMongo source for about 20 seconds. The webhook is
@@ -346,13 +348,13 @@ const OrderDetailPage = () => {
       if (isMountedRef.current && !paymentConfirmedRef.current) {
         setVerifyingPayment(false);
         setPaymentVerificationPending(true);
-        toast.info('Payment is still being confirmed. Refresh status in a moment.');
+        setPaymentResultModal({ variant: 'processing' });
       }
       return false;
     } finally {
       paymentVerificationInFlightRef.current = false;
     }
-  }, [id, markPaymentConfirmed, toast]);
+  }, [id, markPaymentConfirmed]);
 
   const handleRefreshPaymentStatus = useCallback(async () => {
     if (paymentSourceRef.current) {
@@ -394,7 +396,7 @@ const OrderDetailPage = () => {
           const attempt = await getLatestPaymentAttemptByOrder(id);
           if (attempt?.status === 'reconciled') {
             localStorage.removeItem(`pending_payment_${id}`);
-            toast.success('Payment confirmed! Your order has been updated.');
+            setPaymentResultModal({ variant: 'success' });
             await loadOrder();
             return;
           }
@@ -407,7 +409,7 @@ const OrderDetailPage = () => {
       if (!sourceId) {
         setVerifyingPayment(false);
         setPaymentVerificationPending(true);
-        toast.info('Payment is being verified. Refresh status in a moment.');
+        setPaymentResultModal({ variant: 'processing' });
         return;
       }
 
@@ -1132,6 +1134,20 @@ const OrderDetailPage = () => {
         </FocusTrap>,
         document.body
       )}
+
+      <PaymentResultModal
+        isOpen={!!paymentResultModal}
+        onClose={() => setPaymentResultModal(null)}
+        variant={paymentResultModal?.variant || 'success'}
+        amount={Number(order?.amount_paid || order?.shipping_fee || 0)}
+        trackingNumber={order?.tracking_number}
+        paymentMethod="GCash"
+        onRetry={
+          paymentResultModal?.variant === 'error' ? handlePayNow
+          : paymentResultModal?.variant === 'processing' ? handleRefreshPaymentStatus
+          : undefined
+        }
+      />
     </div>
   );
 };

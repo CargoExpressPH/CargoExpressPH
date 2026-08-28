@@ -16,6 +16,7 @@ import AssignCustomerModal from '../../components/ui/AssignCustomerModal';
 import AdditionalPaymentModal from '../../components/ui/AdditionalPaymentModal';
 import DeliveryModal from '../../components/ui/DeliveryModal';
 import ConfirmModal from '../../components/ui/ConfirmModal';
+import PaymentResultModal from '../../components/ui/PaymentResultModal';
 import ImageLightbox from '../../components/ui/ImageLightbox';
 import Breadcrumb from '../../components/ui/Breadcrumb';
 import FocusTrap from '../../components/ui/FocusTrap';
@@ -115,6 +116,7 @@ const AdminOrderDetailPage = () => {
   const [showAssignCustomerModal, setShowAssignCustomerModal] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [paymentResultModal, setPaymentResultModal] = useState(null);
   const [isFeatureExpanded, setIsFeatureExpanded] = useState(false);
 
   const [showDeliveryModal, setShowDeliveryModal] = useState(false);
@@ -189,7 +191,7 @@ const AdminOrderDetailPage = () => {
     navigate(`/admin/orders/${id}`, { replace: true });
 
     if (paymentResult === 'failed') {
-      toast.error('GCash payment was not completed. You can try again.');
+      setPaymentResultModal({ variant: 'error' });
       return;
     }
 
@@ -209,7 +211,7 @@ const AdminOrderDetailPage = () => {
         }
         confirmed = true;
         if (channel) void supabase.removeChannel(channel);
-        toast.success('GCash payment received — recorded automatically.');
+        setPaymentResultModal({ variant: 'success' });
         await loadOrder();
       };
 
@@ -220,6 +222,7 @@ const AdminOrderDetailPage = () => {
           return;
         }
         if (attempt.status === 'reconciled') {
+          setPaymentResultModal({ variant: 'success' });
           await loadOrder();
           return;
         }
@@ -254,7 +257,7 @@ const AdminOrderDetailPage = () => {
           }
         }
         if (!confirmed) {
-          toast.info('GCash payment is still processing. Check the order again in a moment.');
+          setPaymentResultModal({ variant: 'processing' });
           await loadOrder();
           setTimeout(() => { if (channel && !confirmed) void supabase.removeChannel(channel); }, 30000);
         }
@@ -1448,6 +1451,20 @@ const AdminOrderDetailPage = () => {
           loading={saving}
         />
       )}
+
+      <PaymentResultModal
+        isOpen={!!paymentResultModal}
+        onClose={() => setPaymentResultModal(null)}
+        variant={paymentResultModal?.variant || 'success'}
+        amount={Number(order?.amount_paid || order?.shipping_fee || 0)}
+        trackingNumber={order?.tracking_number}
+        paymentMethod="GCash"
+        onRetry={
+          paymentResultModal?.variant === 'processing'
+            ? () => { setPaymentResultModal(null); loadOrder(); }
+            : undefined
+        }
+      />
     </div>
   );
 };

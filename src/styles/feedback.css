@@ -130,7 +130,107 @@
 }
 
 
+/* --- PAYMENT RESULT MODAL ---------------------------------------------- */
+
+.payment-result-modal {
+  background: var(--surface);
+  border-radius: var(--radius-xl);
+  width: 100%;
+  max-width: min(100%, 420px);
+  padding: 36px 32px 28px;
+  box-shadow: var(--shadow-2xl);
+  animation: scaleIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  text-align: center;
+}
+.pr-icon-wrap {
+  width: 72px; height: 72px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 20px;
+  position: relative;
+}
+.pr-icon-wrap.success { background: var(--success-bg); color: var(--success-text); }
+.pr-icon-wrap.error   { background: var(--error-bg);   color: var(--error-text-strong); }
+.pr-icon-wrap.processing { background: var(--info-bg); color: var(--info-text); }
+.pr-icon-svg { width: 44px; height: 44px; }
+.pr-icon-check {
+  stroke-dasharray: 48; stroke-dashoffset: 48;
+  animation: prCheckDraw 0.45s ease-out 0.35s forwards;
+}
+.pr-icon-ring {
+  stroke-dasharray: 151; stroke-dashoffset: 151;
+  animation: prRingDraw 0.5s ease-out 0.15s forwards;
+  opacity: 0.25;
+}
+@keyframes prCheckDraw { to { stroke-dashoffset: 0; } }
+@keyframes prRingDraw  { to { stroke-dashoffset: 0; } }
+.pr-icon-cross {
+  stroke-dasharray: 22.6; stroke-dashoffset: 22.6;
+  animation: prCrossDraw 0.35s ease-out 0.25s forwards;
+}
+@keyframes prCrossDraw { to { stroke-dashoffset: 0; } }
+.pr-icon-wrap.success::before {
+  content: ''; position: absolute; inset: -4px;
+  border-radius: 50%; border: 2px solid var(--success-text);
+  opacity: 0; animation: prRingPulse 1.8s ease-out 0.6s forwards;
+}
+@keyframes prRingPulse {
+  0%   { transform: scale(1);    opacity: 0.5; }
+  100% { transform: scale(1.35); opacity: 0; }
+}
+.pr-confetti {
+  position: absolute; inset: -20px; border-radius: 50%; pointer-events: none;
+  background:
+    radial-gradient(circle 3px, var(--success-text) 99%, transparent 100%) 10% 5%,
+    radial-gradient(circle 2.5px, var(--primary) 99%, transparent 100%) 85% 12%,
+    radial-gradient(circle 2px, var(--accent) 99%, transparent 100%) 92% 70%,
+    radial-gradient(circle 3px, var(--success-text) 99%, transparent 100%) 15% 88%,
+    radial-gradient(circle 2px, var(--primary) 99%, transparent 100%) 5% 55%,
+    radial-gradient(circle 2.5px, var(--accent) 99%, transparent 100%) 80% 90%;
+  background-repeat: no-repeat;
+  opacity: 0; transform: scale(0.5);
+  animation: prConfetti 0.7s ease-out 0.5s forwards;
+}
+@keyframes prConfetti {
+  0%   { opacity: 0;   transform: scale(0.5); }
+  40%  { opacity: 0.9; transform: scale(1.1); }
+  100% { opacity: 0;   transform: scale(1.4); }
+}
+.pr-icon-spinner { display: flex; align-items: center; justify-content: center; }
+.pr-title { color: var(--text); font-size: 1.125rem; font-weight: 700; margin-bottom: 8px; }
+.pr-message {
+  color: var(--text-secondary); font-size: 0.9375rem;
+  line-height: 1.5; margin-bottom: 20px;
+}
+.pr-body { margin-bottom: 20px; }
+.pr-amount {
+  font-size: 1.625rem; font-weight: 800; color: var(--success-text);
+  letter-spacing: -0.02em; margin-bottom: 4px;
+}
+.pr-tracking {
+  font-size: 0.8125rem; color: var(--text-secondary);
+  font-variant-numeric: tabular-nums; margin-bottom: 8px;
+}
+.pr-method-badge {
+  display: inline-flex; align-items: center;
+  font-size: 0.6875rem; font-weight: 600;
+  padding: 2px 10px; border-radius: 999px;
+  background: var(--info-bg); color: var(--info-text);
+  letter-spacing: 0.03em; text-transform: uppercase;
+}
+.pr-actions { display: flex; flex-direction: column; gap: 8px; margin-top: 24px; }
+.pr-actions .btn { min-height: 44px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .pr-icon-check, .pr-icon-ring, .pr-icon-cross { animation: none; stroke-dashoffset: 0; }
+  .pr-confetti { display: none; }
+  .pr-icon-wrap.success::before { animation: none; }
+  .payment-result-modal { animation-duration: 0.01s; }
+}
+
+
 /* --- TOAST ------------------------------------------------------------- */
+
 
 .toast-container {
   position: fixed;
