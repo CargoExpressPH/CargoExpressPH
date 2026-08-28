@@ -527,7 +527,7 @@ const AdminOrderDetailPage = () => {
       await recordAdditionalPayment(id, amount, method, ref, notes, date, receiptUrl, skipInsert);
       setShowPaymentModal(false);
       await loadOrder();
-      toast.success('Payment recorded successfully.');
+      setPaymentResultModal({ variant: 'success', amount: Number(amount), paymentMethod: method });
     } catch (err) {
       throw err;
     }
@@ -1456,9 +1456,9 @@ const AdminOrderDetailPage = () => {
         isOpen={!!paymentResultModal}
         onClose={() => setPaymentResultModal(null)}
         variant={paymentResultModal?.variant || 'success'}
-        amount={Number(order?.amount_paid || order?.shipping_fee || 0)}
+        amount={paymentResultModal?.amount ?? Number(order?.amount_paid || order?.shipping_fee || 0)}
         trackingNumber={order?.tracking_number}
-        paymentMethod="GCash"
+        paymentMethod={paymentResultModal?.paymentMethod || 'GCash'}
         onRetry={
           paymentResultModal?.variant === 'processing'
             ? () => { setPaymentResultModal(null); loadOrder(); }
