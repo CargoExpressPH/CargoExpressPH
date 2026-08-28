@@ -68,7 +68,7 @@
 }
 .trk-brand:hover { opacity: 0.85; }
 .trk-brand-icon {
-  width: 40px; height: 40px; border-radius: 11px; flex-shrink: 0;
+  width: 40px; height: 40px; border-radius: var(--radius-md); flex-shrink: 0;
   background: linear-gradient(135deg, var(--primary), var(--primary-light));
   display: flex; align-items: center; justify-content: center;
   box-shadow: 0 4px 14px rgba(22, 163, 74, 0.35);
@@ -235,10 +235,10 @@
   gap: 16px; flex-wrap: wrap;
 }
 .trk-status-left {
-  display: flex; align-items: center; gap: 14px;
+  display: flex; align-items: center; gap: var(--spacing-sm);
 }
 .trk-status-icon-wrap {
-  width: 52px; height: 52px; border-radius: 14px; flex-shrink: 0;
+  width: 52px; height: 52px; border-radius: var(--radius-lg); flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;
 }
 .trk-status-label {
@@ -253,9 +253,27 @@
   font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
   letter-spacing: 0.08em; color: var(--text-tertiary); margin-bottom: 3px;
 }
-.trk-tracking-num-value {
-  font-size: 1rem; font-weight: 800; color: var(--text);
-  letter-spacing: 0.04em; font-variant-numeric: tabular-nums;
+.trk-tracking-num-val {
+  font-family: var(--font-mono);
+  font-size: 0.95rem; font-weight: 700; color: var(--primary-text);
+  letter-spacing: 0.04em;
+}
+
+/* -- Progress bar top strip -- */
+.trk-progress-strip {
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 28px;
+  border-bottom: 1px solid var(--border-light);
+  background: var(--bg);
+}
+.trk-progress-bar {
+  flex: 1; height: 6px; background: var(--border-light);
+  border-radius: var(--radius-full); overflow: hidden;
+}
+.trk-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--primary), var(--primary-light));
+  border-radius: var(--radius-full); font-variant-numeric: tabular-nums;
 }
 
 /* -- ETA banner -- */

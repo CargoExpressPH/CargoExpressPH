@@ -208,7 +208,7 @@ export default function InstallAppBanner() {
             <div className="flex items-center justify-center" style={{
               width: 52,
               height: 52,
-              borderRadius: 12,
+              borderRadius: 'var(--radius-md)',
               background: 'linear-gradient(135deg, #16A34A, #15803D)',
               flexShrink: 0,
               boxShadow: '0 4px 16px rgba(22,163,74,0.35)',
@@ -231,7 +231,7 @@ export default function InstallAppBanner() {
               <div key={label} className="flex items-center" style={{gap: 12,
                 padding: '10px 14px',
                 background: 'rgba(22,163,74,0.08)',
-                borderRadius: 10,
+                borderRadius: 'var(--radius-md)',
                 border: '1px solid rgba(22,163,74,0.15)',
               }}>
                 <Icon size={18} color="var(--primary-text)" aria-hidden="true" style={{ flexShrink: 0 }} />
@@ -250,7 +250,7 @@ export default function InstallAppBanner() {
               background: 'linear-gradient(135deg, #16A34A, #15803D)',
               color: '#fff',
               border: 'none',
-              borderRadius: 14,
+              borderRadius: 'var(--radius-lg)',
               fontSize: '0.95rem',
               fontWeight: 700,
               cursor: installing ? 'wait' : 'pointer',
@@ -270,7 +270,7 @@ export default function InstallAppBanner() {
               background: 'transparent',
               color: 'var(--text-secondary, #94a3b8)',
               border: 'none',
-              borderRadius: 14,
+              borderRadius: 'var(--radius-lg)',
               fontSize: '0.85rem',
             }}
           >

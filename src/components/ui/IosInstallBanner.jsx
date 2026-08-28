@@ -96,7 +96,7 @@ export default function IosInstallBanner() {
           right: 0,
           zIndex: 9999,
           background: 'var(--surface)',
-          borderRadius: '24px 24px 0 0',
+          borderRadius: 'var(--radius-2xl) var(--radius-2xl) 0 0',
           padding: '0 0 env(safe-area-inset-bottom, 16px)',
           boxShadow: '0 -8px 40px rgba(0,0,0,0.4)',
           animation: 'slideUp 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)',
@@ -106,7 +106,7 @@ export default function IosInstallBanner() {
       >
         {/* Drag handle */}
         <div className="flex justify-center" style={{paddingTop: 12}}>
-          <div className="w-40 h-4" style={{borderRadius: 2,
+          <div className="w-40 h-4" style={{borderRadius: 'var(--radius-full)',
             background: 'var(--border-hover)',
           }} />
         </div>
@@ -134,7 +134,7 @@ export default function IosInstallBanner() {
                 <div className="flex items-center justify-center" style={{
                   width: 52,
                   height: 52,
-                  borderRadius: 12,
+                  borderRadius: 'var(--radius-md)',
                   background: 'linear-gradient(135deg, var(--primary), var(--primary-dark))',
                   flexShrink: 0,
                   boxShadow: '0 4px 16px rgba(22,163,74,0.35)',
@@ -163,7 +163,7 @@ export default function IosInstallBanner() {
                   <div key={label} className="flex items-center" style={{gap: 12,
                     padding: '10px 14px',
                     background: 'rgba(var(--primary-rgb), 0.08)',
-                    borderRadius: 10,
+                    borderRadius: 'var(--radius-md)',
                     border: '1px solid rgba(var(--primary-rgb), 0.15)',
                   }}>
                     <Icon size={18} color="var(--primary-text)" aria-hidden="true" style={{ flexShrink: 0 }} />
@@ -178,7 +178,7 @@ export default function IosInstallBanner() {
                 <div className="flex items-start" style={{
                   padding: '10px 14px',
                   background: 'rgba(var(--warning-rgb), 0.1)',
-                  borderRadius: 10,
+                  borderRadius: 'var(--radius-md)',
                   border: '1px solid rgba(var(--warning-rgb), 0.2)',
                   marginBottom: 20,
                   fontSize: '0.8rem',
@@ -199,7 +199,7 @@ export default function IosInstallBanner() {
                   background: 'linear-gradient(135deg, var(--primary), var(--primary-dark))',
                   color: '#fff',
                   border: 'none',
-                  borderRadius: 14,
+                  borderRadius: 'var(--radius-lg)',
                   fontSize: '0.95rem',
                   fontWeight: 700,
                   boxShadow: '0 4px 20px rgba(22,163,74,0.4)',
@@ -216,7 +216,7 @@ export default function IosInstallBanner() {
                   padding: '12px',
                   background: 'transparent',
                   border: 'none',
-                  borderRadius: 14,
+                  borderRadius: 'var(--radius-lg)',
                   fontSize: '0.85rem',
                 }}
               >
@@ -226,50 +226,52 @@ export default function IosInstallBanner() {
           ) : (
             // ── Step 2: How to install ───────────────────────────────────
             <>
-              <h2 style={{ margin: '0 0 6px', fontSize: '1rem', fontWeight: 700, color: 'var(--text)', paddingRight: 36 }}>
-                How to Install on iPhone
-              </h2>
-              <p className="text-secondary" style={{ margin: '0 0 20px', fontSize: '0.8rem',}}>
-                Follow these 3 quick steps in Safari:
-              </p>
+              <div style={{ marginBottom: 16 }}>
+                <h2 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700, color: 'var(--text)' }}>
+                  How to Install on iPhone
+                </h2>
+                <p className="text-secondary" style={{ margin: 0, fontSize: '0.8rem', marginTop: 2}}>
+                  Follow these 3 quick steps in Safari:
+                </p>
+              </div>
 
-              <div className="flex flex-col" style={{gap: 12, marginBottom: 24}}>
+              <div className="flex flex-col" style={{gap: 12, marginBottom: 20}}>
                 {[
                   {
                     step: 1,
-                    icon: <Share size={22} color="var(--info)" />,
+                    icon: <Share size={22} color="var(--primary)" />,
                     title: 'Tap the Share button',
-                    desc: 'Tap the Share icon at the bottom of Safari',
-                    bg: 'rgba(var(--info-rgb), 0.1)',
-                    border: 'rgba(var(--info-rgb), 0.2)',
+                    desc: 'At the bottom of your Safari screen (square with arrow pointing up)',
+                    bg: 'rgba(var(--primary-rgb), 0.08)',
+                    border: 'rgba(var(--primary-rgb), 0.15)',
                   },
                   {
                     step: 2,
                     icon: <PlusSquare size={22} color="var(--primary)" />,
                     title: 'Tap "Add to Home Screen"',
                     desc: 'Scroll down in the share menu and tap this option',
-                    bg: 'rgba(var(--primary-rgb), 0.1)',
-                    border: 'rgba(var(--primary-rgb), 0.2)',
+                    bg: 'rgba(var(--primary-rgb), 0.08)',
+                    border: 'rgba(var(--primary-rgb), 0.15)',
                   },
                   {
                     step: 3,
-                    icon: <Bell size={22} color="var(--warning)" />,
+                    icon: <Bell size={22} color="var(--primary)" />,
                     title: 'Open & enable notifications',
                     desc: 'Launch from Home Screen, then enable push notifications when prompted',
-                    bg: 'rgba(var(--warning-rgb), 0.1)',
-                    border: 'rgba(var(--warning-rgb), 0.2)',
+                    bg: 'rgba(var(--primary-rgb), 0.08)',
+                    border: 'rgba(var(--primary-rgb), 0.15)',
                   },
                 ].map((item) => (
                   <div key={item.step} className="flex items-start" style={{gap: 14,
                     padding: '12px 14px',
                     background: item.bg,
-                    borderRadius: 12,
+                    borderRadius: 'var(--radius-md)',
                     border: `1px solid ${item.border}`,
                   }}>
                     <div className="flex items-center justify-center" style={{
                       width: 38,
                       height: 38,
-                      borderRadius: 10,
+                      borderRadius: 'var(--radius-sm)',
                       background: 'var(--bg-secondary)',
                       flexShrink: 0,
                     }}>
@@ -302,7 +304,7 @@ export default function IosInstallBanner() {
                 style={{padding: '13px',
                   background: 'var(--bg-secondary)',
                   border: '1px solid var(--border)',
-                  borderRadius: 14,
+                  borderRadius: 'var(--radius-lg)',
                   fontSize: '0.875rem',
                   fontWeight: 600,
                 }}
