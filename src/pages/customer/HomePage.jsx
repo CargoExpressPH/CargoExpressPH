@@ -127,7 +127,7 @@ const HomePage = () => {
             type="submit"
             className="btn btn-primary flex-shrink-0"
             disabled={!trackingSearch.trim()}
-            style={{ borderRadius: 'var(--radius-sm)' }}
+            style={{ borderRadius: 10 }}
           >
             Track
           </button>

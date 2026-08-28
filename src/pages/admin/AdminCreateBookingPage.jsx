@@ -377,7 +377,7 @@ const AdminCreateBookingPage = () => {
               style={{
                 background: 'var(--surface-raised, var(--surface))',
                 border: '2px dashed var(--primary)',
-                borderRadius: 'var(--radius-lg)',
+                borderRadius: 'var(--radius-lg, 12px)',
                 padding: '20px 16px',
                 marginBottom: 16,
               }}
@@ -404,7 +404,7 @@ const AdminCreateBookingPage = () => {
             <div
               style={{
                 background: 'var(--surface-raised, var(--surface))',
-                borderRadius: 'var(--radius-md)',
+                borderRadius: 'var(--radius-md, 8px)',
                 padding: '16px',
                 textAlign: 'left',
                 marginBottom: 24,
