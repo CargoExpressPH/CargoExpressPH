@@ -300,6 +300,37 @@
     linear-gradient(135deg, rgba(9, 68, 47, 0.96), rgba(18, 138, 90, 0.88)),
     var(--customer-green-dark);
   box-shadow: 0 24px 58px rgba(9, 68, 47, 0.22);
+  transition: background 0.8s ease, box-shadow 0.8s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.customer-home-hero.hero-morning {
+  background:
+    radial-gradient(circle at 85% 15%, rgba(245, 158, 11, 0.26), transparent 50%),
+    linear-gradient(135deg, #064e3b 0%, #047857 50%, #0d9488 100%);
+  box-shadow: 0 24px 58px rgba(6, 78, 59, 0.28);
+}
+
+.customer-home-hero.hero-afternoon {
+  background:
+    radial-gradient(circle at 85% 20%, rgba(56, 189, 248, 0.20), transparent 50%),
+    linear-gradient(135deg, #09442f 0%, #15803d 50%, #16a34a 100%);
+  box-shadow: 0 24px 58px rgba(9, 68, 47, 0.25);
+}
+
+.customer-home-hero.hero-evening {
+  background:
+    radial-gradient(circle at 85% 20%, rgba(251, 146, 60, 0.22), transparent 50%),
+    linear-gradient(135deg, #14532d 0%, #0f3d2e 50%, #1e293b 100%);
+  box-shadow: 0 24px 58px rgba(15, 61, 46, 0.30);
+}
+
+.customer-home-hero.hero-night {
+  background:
+    radial-gradient(circle at 85% 15%, rgba(129, 140, 248, 0.18), transparent 50%),
+    linear-gradient(135deg, #022c22 0%, #0f172a 60%, #1e1b4b 100%);
+  box-shadow: 0 24px 58px rgba(2, 44, 34, 0.35);
 }
 
 .customer-home-hero::before,

@@ -64,9 +64,10 @@ const HomePage = () => {
 
   const getGreetingData = () => {
     const h = new Date().getHours();
-    if (h < 12) return { text: 'Good Morning', icon: Sun };
-    if (h < 18) return { text: 'Good Afternoon', icon: CloudSun };
-    return { text: 'Good Evening', icon: Moon };
+    if (h >= 5 && h < 12) return { text: 'Good Morning', icon: Sun, period: 'morning' };
+    if (h >= 12 && h < 18) return { text: 'Good Afternoon', icon: CloudSun, period: 'afternoon' };
+    if (h >= 18 && h < 22) return { text: 'Good Evening', icon: Moon, period: 'evening' };
+    return { text: 'Good Evening', icon: Moon, period: 'night' };
   };
 
   // Pinned to Asia/Manila — an ETA stored as 6:00 PM PH time must not render as
@@ -100,7 +101,7 @@ const HomePage = () => {
       <PageTransition className="customer-home-page">
 
       {/* ── Hero ─────────────────────────────────────────────────── */}
-      <div className="hero customer-home-hero animate-slide-up mb-lg">
+      <div className={`hero customer-home-hero hero-${greetingInfo.period} animate-slide-up mb-lg`}>
         <span className="text-sm">
           <GreetingIcon size={14} aria-hidden="true" />
           {greetingInfo.text},
