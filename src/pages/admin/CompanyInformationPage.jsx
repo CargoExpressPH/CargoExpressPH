@@ -5,9 +5,9 @@ import {
   saveCoverageMunicipality, deleteCoverageMunicipality, uploadPublicAsset
 } from '../../lib/database';
 import { logCompany } from '../../lib/activityLog';
-import { 
-  Building2, LayoutTemplate, Phone, Star, Image as ImageIcon, 
-  Map, Loader, Save, ExternalLink, AlertTriangle,
+import {
+  Building2, LayoutTemplate, Phone, Star, Image as ImageIcon,
+  Map, Loader, Save, ExternalLink, AlertTriangle, Zap,
   Upload, X, Trash2, Plus, Edit2, MapPin, PhilippinePeso, Building
 } from 'lucide-react';
 import { useToast } from '../../hooks/useToast';
@@ -256,8 +256,18 @@ const CompanyInformationPage = () => {
         </div>
       </div>
 
-      {/* Unsaved Changes Banner */}
-      {isDirty && (
+      {/* Save-mode indicator — present on every tab, in the same spot, so an
+          admin switching tabs is never left to discover which save model
+          applies here by trial and error. Basic/Contact/Pricing batch edits
+          behind one "Save Changes" button (they are all fields on the single
+          company_information row); Features and Coverage Areas persist each
+          add/edit/delete/reorder immediately (they are lists of independent
+          records with their own server-side ordering — staging a whole list's
+          creates/deletes/reorders into one batched transaction is a materially
+          different, riskier feature than a UI label, not a rename of one).
+          What changed is that the mechanism is stated up front instead of
+          being silently different from tab to tab. */}
+      {isDirty ? (
         <div
           className="flex items-center justify-between gap-12 animate-fade-in rounded-md"
           style={{
@@ -271,6 +281,24 @@ const CompanyInformationPage = () => {
             <AlertTriangle size={16} />
             You have unsaved changes on this tab. Click "Save Changes" to apply them.
           </div>
+        </div>
+      ) : (
+        <div
+          className="flex items-center gap-8 rounded-md"
+          style={{
+            background: 'var(--bg-secondary)',
+            border: '1px solid var(--border)',
+            color: 'var(--text-tertiary)',
+            padding: '8px 14px',
+            marginBottom: 16,
+            fontSize: '0.78125rem',
+          }}
+        >
+          {SIMPLE_TABS.includes(activeTab) ? (
+            <><Save size={13} aria-hidden="true" /> Manual save — edits on this tab apply only after you click "Save Changes."</>
+          ) : (
+            <><Zap size={13} aria-hidden="true" /> Instant save — every add, edit, delete, and reorder on this tab is saved right away.</>
+          )}
         </div>
       )}
 

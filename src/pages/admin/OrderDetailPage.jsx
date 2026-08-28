@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { getOrderById, updateOrder, createNotification, getTripReassignments, reassignTrip, getActivityLogsByRecord, getPaymentTransactions, recordAdditionalPayment, recordPickupPayment, recordDeliveryPayment, getOrderStatusEvents, reviewOrderCancellation, cancelOrderAsAdmin, getLatestPaymentAttemptByOrder, clearPaymentReceiptUrls } from '../../lib/database';
+import { getOrderById, updateOrder, createNotification, getTripReassignments, reassignTrip, getActivityLogsByRecord, getPaymentTransactions, recordAdditionalPayment, recordPickupPayment, recordDeliveryPayment, getOrderStatusEvents, reviewOrderCancellation, cancelOrderAsAdmin, assignOrderToCustomer, getLatestPaymentAttemptByOrder, clearPaymentReceiptUrls } from '../../lib/database';
 import { pollPaymentStatus } from '../../lib/paymongo';
 import { logOrder, logPayment } from '../../lib/activityLog';
 import { buildStatusTimestamps } from '../../utils/statusTimestamps';
@@ -12,6 +12,7 @@ import TrackingTimeline from '../../components/ui/TrackingTimeline';
 import PickupModal from '../../components/ui/PickupModal';
 import TripAssignModal from '../../components/ui/TripAssignModal';
 import TripReassignModal from '../../components/ui/TripReassignModal';
+import AssignCustomerModal from '../../components/ui/AssignCustomerModal';
 import AdditionalPaymentModal from '../../components/ui/AdditionalPaymentModal';
 import DeliveryModal from '../../components/ui/DeliveryModal';
 import ConfirmModal from '../../components/ui/ConfirmModal';
@@ -30,7 +31,7 @@ import {
 } from '../../constants/status';
 import {
   ArrowLeft, Check, Package, CreditCard, User, Phone, MapPin,
-  Truck, Loader, Save, Camera, AlertTriangle, X, Image, Clock, Trash2, Star, ChevronDown
+  Truck, Loader, Save, Camera, AlertTriangle, X, Image, Clock, Trash2, Star, ChevronDown, UserPlus
 } from 'lucide-react';
 import { useToast } from '../../hooks/useToast';
 import usePageTitle from '../../hooks/usePageTitle';
@@ -111,6 +112,7 @@ const AdminOrderDetailPage = () => {
   const [showPickupModal, setShowPickupModal] = useState(false);
   const [showTripModal, setShowTripModal] = useState(false);
   const [showReassignModal, setShowReassignModal] = useState(false);
+  const [showAssignCustomerModal, setShowAssignCustomerModal] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [isFeatureExpanded, setIsFeatureExpanded] = useState(false);
@@ -434,6 +436,32 @@ const AdminOrderDetailPage = () => {
     } catch (e) { toast.error(e.message || 'Failed to change trip'); }
   };
 
+  // Links a guest ("walk-in") booking onto the customer's own registered
+  // account. The notification is what actually tells them it's there — they
+  // may never have known this booking existed under any account before now.
+  const handleAssignCustomer = async (customer) => {
+    try {
+      await assignOrderToCustomer(id, customer.id);
+      logOrder('Booking Linked to Customer', id, order.tracking_number, {
+        previousValue: { user_id: order.user_id },
+        newValue: { user_id: customer.id },
+        details: `Linked guest booking to registered customer ${customer.name || customer.email || customer.id}.`,
+      });
+      await createNotification(
+        customer.id,
+        'Booking Added to Your Account',
+        `Booking ${order.tracking_number} has been added to your account history.`,
+        'order_update',
+        order.id,
+      );
+      setShowAssignCustomerModal(false);
+      await loadOrder();
+      toast.success(`${order.tracking_number} linked to ${customer.name || 'customer'}.`);
+    } catch (e) {
+      toast.error(e.message || 'Failed to assign this booking to a customer.');
+    }
+  };
+
   // Cancelling used to be a bare yes/no. The row then said 'Cancelled' with
   // nothing beside it, and the only way to answer "why was this cancelled?"
   // weeks later was to ask whoever clicked. The reason is now mandatory, stored
@@ -612,6 +640,13 @@ const AdminOrderDetailPage = () => {
   const showAdvanceButton = Boolean(nextStatus) && !tripOwnsNextStep && !needsTrip;
   const showCancelButton = canAdminCancelOrder(order);
   const awaitingCancellationReview = hasPendingCancellation(order);
+  // A "guest" booking is one AdminCreateBookingPage inserted under the
+  // admin's own account on the customer's behalf — there is no `is_guest`
+  // column, so the tell is that `orders.user_id` resolves to a profile that
+  // isn't a customer at all. `!order.profiles` (the joined profile missing
+  // entirely) reads the same way and is treated the same way: nothing
+  // customer-shaped to message or attribute this to.
+  const isGuestBooking = order.profiles?.role !== 'customer';
   const hasPhotos = resolvedPickupPhotos.length > 0;
   const canReassignTrip = order.trip_id && [ORDER_STATUS.PENDING, ORDER_STATUS.ASSIGNED].includes(order.status);
 
@@ -661,15 +696,33 @@ const AdminOrderDetailPage = () => {
         <span className="fw-700" style={{ color: 'var(--primary-text)' }}>➔</span>
         <span className="fw-800 text-secondary">{order.destination}</span>
         <span className="text-secondary opacity-50">•</span>
-        <span className="text-secondary">{order.profiles?.name}</span>
-        {/* The customer who booked this — `orders.user_id`; there is no
-            customer_id column. Labelled here because this row has the space
-            and it is the entry point an admin reaches for most often. */}
-        <MessageCustomerButton
-          customerId={order.user_id}
-          customerName={order.profiles?.name}
-          showLabel
-        />
+        {isGuestBooking ? (
+          <>
+            <span className="badge badge-warning" style={{ fontSize: '0.7rem' }}>Guest Booking</span>
+            {/* No real customer account behind this order yet, so there is
+                nobody to message — an admin/self-owned user_id is not a
+                customer inbox thread. Assigning it to one is the fix. */}
+            <button
+              type="button"
+              className="btn btn-outline btn-sm"
+              onClick={() => setShowAssignCustomerModal(true)}
+            >
+              <UserPlus size={14} /> Assign to Customer
+            </button>
+          </>
+        ) : (
+          <>
+            <span className="text-secondary">{order.profiles?.name}</span>
+            {/* The customer who booked this — `orders.user_id`; there is no
+                customer_id column. Labelled here because this row has the space
+                and it is the entry point an admin reaches for most often. */}
+            <MessageCustomerButton
+              customerId={order.user_id}
+              customerName={order.profiles?.name}
+              showLabel
+            />
+          </>
+        )}
       </div>
 
       {/* Why this booking is cancelled — shown on the order itself, not only in
@@ -1321,6 +1374,9 @@ const AdminOrderDetailPage = () => {
       )}
       {showReassignModal && (
         <TripReassignModal order={order} onClose={() => setShowReassignModal(false)} onReassign={handleTripReassign} />
+      )}
+      {showAssignCustomerModal && (
+        <AssignCustomerModal order={order} onClose={() => setShowAssignCustomerModal(false)} onAssign={handleAssignCustomer} />
       )}
       {showPaymentModal && (
         <AdditionalPaymentModal

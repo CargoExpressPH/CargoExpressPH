@@ -357,7 +357,7 @@ export const getOrderById = async (orderId) => {
     .from('orders')
     .select(`
       *,
-      profiles:user_id (name, phone, email),
+      profiles:user_id (name, phone, email, role),
       trips:trip_id (origin, destination, trip_number, capacity, price_per_kg)
     `)
     .eq('id', orderId)
@@ -522,6 +522,58 @@ export const cancelOrderAsAdmin = async (orderId, reason) => {
       reviewed_by: auth?.user?.id || null,
     },
   });
+};
+
+/**
+ * Re-attach a guest ("walk-in") booking to a customer's registered account.
+ *
+ * AdminCreateBookingPage inserts a walk-in booking under the ADMIN's own
+ * user_id, on purpose — that is what lets a non-techy customer who doesn't
+ * want to register still get a trackable order. If that customer later
+ * registers for real, this is the sanctioned way ownership moves onto their
+ * account so the booking joins their history.
+ *
+ * Two refusals, both load-bearing:
+ *   - the target must be a genuine `role = 'customer'` profile, never another
+ *     admin and never a non-existent id;
+ *   - the order must not already belong to a real customer. This function
+ *     claims a GUEST booking; it is not a general "reassign this order to a
+ *     different person" tool, and silently letting it move a real customer's
+ *     own booking onto someone else would be exactly that.
+ */
+export const assignOrderToCustomer = async (orderId, customerId) => {
+  const { data: customer, error: profileError } = await supabase
+    .from('profiles')
+    .select('id, role')
+    .eq('id', customerId)
+    .single();
+  if (profileError) throw profileError;
+  if (!customer || customer.role !== 'customer') {
+    throw new Error('Bookings can only be assigned to a registered customer account.');
+  }
+
+  const { data: current, error: currentError } = await supabase
+    .from('orders')
+    .select('profiles:user_id (role)')
+    .eq('id', orderId)
+    .single();
+  if (currentError) throw currentError;
+  if (current?.profiles?.role === 'customer') {
+    throw new Error('This booking is already linked to a registered customer.');
+  }
+
+  const { data, error } = await supabase
+    .from('orders')
+    .update({ user_id: customerId })
+    .eq('id', orderId)
+    .select(`
+      *,
+      profiles:user_id (name, phone, email, role),
+      trips:trip_id (origin, destination, trip_number, capacity, price_per_kg)
+    `)
+    .single();
+  if (error) throw error;
+  return data;
 };
 
 /**
@@ -1767,24 +1819,54 @@ export const getContactInquiries = async () => {
  * Claim an inquiry. Ownership is the whole point of Phase 1d: without it
  * nobody is answerable, and two admins can answer the same person.
  * `first_response_at` is stamped by trigger on the status change, not here.
+ *
+ * `.is('assigned_admin_id', null)` is the actual enforcement, not the UI that
+ * calls this. Without it, two admins opening the same unclaimed inquiry
+ * within the same round trip both "succeed" and whoever's write lands last
+ * silently steals the other's claim — the exact failure this feature exists
+ * to prevent. The `.select().maybeSingle()` afterward is how the caller can
+ * tell "I got it" from "someone beat me to it": an unconditional `.update()`
+ * reports no error either way, since matching zero rows isn't a failure to
+ * PostgREST.
  */
 export const assignInquiry = async (inquiryId) => {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('Not authenticated');
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('contact_inquiries')
     .update({ assigned_admin_id: user.id })
-    .eq('id', inquiryId);
+    .eq('id', inquiryId)
+    .is('assigned_admin_id', null)
+    .select('id')
+    .maybeSingle();
   if (error) throw error;
+  if (!data) {
+    throw new Error('This inquiry was just claimed by another admin. Refresh to see who has it.');
+  }
 };
 
-/** Release an inquiry back to the unclaimed pool. */
+/**
+ * Release an inquiry back to the unclaimed pool.
+ *
+ * Guarded to the caller's own claim for the same reason assignInquiry guards
+ * the empty case: an admin should never be able to release (or, via the same
+ * unconditional write, silently no-op over) a claim that belongs to someone
+ * else.
+ */
 export const unassignInquiry = async (inquiryId) => {
-  const { error } = await supabase
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
+  const { data, error } = await supabase
     .from('contact_inquiries')
     .update({ assigned_admin_id: null })
-    .eq('id', inquiryId);
+    .eq('id', inquiryId)
+    .eq('assigned_admin_id', user.id)
+    .select('id')
+    .maybeSingle();
   if (error) throw error;
+  if (!data) {
+    throw new Error('This inquiry is not currently assigned to you.');
+  }
 };
 
 export const updateContactInquiry = async (id, updates) => {
@@ -2999,7 +3081,7 @@ export const searchCustomerDirectory = async (term) => {
   if (!clean) return [];
   const { data, error } = await supabase
     .from('profiles')
-    .select('id, name, email')
+    .select('id, name, email, phone')
     .eq('role', 'customer')
     .or(`name.ilike.%${clean}%,email.ilike.%${clean}%`)
     .order('name', { ascending: true })

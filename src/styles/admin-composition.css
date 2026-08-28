@@ -294,6 +294,18 @@
   transition: color 0.15s ease;
 }
 
+/* .feature-drag-handle is a <td> (a table row's drag handle, not a standalone
+   div like .coverage-drag-handle above), so only the touch-safety properties
+   are shared here — display: flex would turn it from a table-cell into a
+   flex item and break its place in the row. touch-action: none stops the
+   browser from interpreting its own touch panning on this narrow handle, so
+   it never races the TouchSensor's activation delay to decide whether a
+   touch here is a scroll or a drag. */
+.feature-drag-handle {
+  touch-action: none;
+  user-select: none;
+}
+
 .coverage-drag-handle:hover {
   color: var(--text);
 }

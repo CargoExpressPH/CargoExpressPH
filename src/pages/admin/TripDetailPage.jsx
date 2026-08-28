@@ -4,7 +4,7 @@ import { getTripById, updateTrip, getActivityLogsByRecord, bulkUpdateOrdersStatu
 import StatusBadge from '../../components/ui/StatusBadge';
 import ConfirmModal from '../../components/ui/ConfirmModal';
 import { SkeletonText } from '../../components/ui/SkeletonLoader';
-import { ArrowLeft, Play, Flag, CheckCircle, XCircle, Loader, Clock, ArrowRight, Package } from 'lucide-react';
+import { ArrowLeft, Play, Flag, CheckCircle, XCircle, Loader, Clock, ArrowRight, Package, AlertTriangle } from 'lucide-react';
 import CapacityTracker from '../../components/ui/CapacityTracker';
 import Breadcrumb from '../../components/ui/Breadcrumb';
 import EmptyState from '../../components/ui/EmptyState';
@@ -49,6 +49,17 @@ const TripDetailPage = () => {
     if (status === 'in_progress') {
       if (!orders || orders.length === 0) {
         toast.error('Cannot start trip because no bookings are assigned to this trip.');
+        setConfirmAction(null);
+        return;
+      }
+      // Checked before the pickup check: a Pending-Cancellation order needs a
+      // decision, not a pickup, and starting the trip out from under it would
+      // strand that order — the bulk sweep below only picks up orders that are
+      // 'Picked Up', so it would never be swept into 'In Transit', and a later
+      // decline would restore a status the trip already left without.
+      const stuck = orders.find(o => o.status === 'Pending Cancellation');
+      if (stuck) {
+        toast.error(`Order ${stuck.tracking_number} has a cancellation request awaiting review. Approve or decline it before starting the trip.`);
         setConfirmAction(null);
         return;
       }
@@ -145,6 +156,24 @@ const TripDetailPage = () => {
   if (!data) return <div className="empty-state"><h3>Trip not found</h3></div>;
   const { trip, orders, current_weight } = data;
 
+  // ── Strict Start Trip gate ────────────────────────────────────────────────
+  // The button itself is disabled by this, not just the click handler above —
+  // a disabled control with a stated reason beats one that looks live and
+  // then throws a toast. Cancellation requests are checked before pickup
+  // status, since "awaiting review" is the more specific, more actionable
+  // problem to name first.
+  const pendingCancellationOrders = orders.filter(o => o.status === 'Pending Cancellation');
+  const notYetPickedUp = orders.filter(o => o.status === 'Pending' || o.status === 'Assigned');
+  const startTripBlockReason =
+    orders.length === 0
+      ? 'No bookings are assigned to this trip yet.'
+      : pendingCancellationOrders.length > 0
+        ? `${pendingCancellationOrders.length} order${pendingCancellationOrders.length === 1 ? '' : 's'} awaiting a cancellation decision: ${pendingCancellationOrders.slice(0, 3).map(o => o.tracking_number).join(', ')}${pendingCancellationOrders.length > 3 ? '…' : ''}. Approve or decline before starting.`
+        : notYetPickedUp.length > 0
+          ? `${notYetPickedUp.length} order${notYetPickedUp.length === 1 ? '' : 's'} not yet picked up: ${notYetPickedUp.slice(0, 3).map(o => o.tracking_number).join(', ')}${notYetPickedUp.length > 3 ? '…' : ''}.`
+          : null;
+  const canStartTrip = !startTripBlockReason;
+
   return (
     <div className="page-transition">
       <Breadcrumb items={[
@@ -165,13 +194,31 @@ const TripDetailPage = () => {
       </div>
 
       {/* Actions */}
-      <div className="card admin-section-card admin-action-card stagger-item mb-16" style={{ animationDelay: '60ms'}}><div className="card-body"><div className="admin-action-group">
-        {trip.status==='scheduled' && <button type="button" className="btn btn-primary" onClick={()=>openConfirm('in_progress', 'Start Trip', `Start trip ${trip.trip_number}? This will mark it as in progress.`, 'info')} disabled={saving}><Play size={16}/> Start Trip</button>}
+      <div className="card admin-section-card admin-action-card stagger-item mb-16" style={{ animationDelay: '60ms'}}><div className="card-body">
+        <div className="admin-action-group">
+        {trip.status==='scheduled' && (
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={()=>openConfirm('in_progress', 'Start Trip', `Start trip ${trip.trip_number}? This will mark it as in progress.`, 'info')}
+            disabled={saving || !canStartTrip}
+            title={startTripBlockReason || undefined}
+          >
+            <Play size={16}/> Start Trip
+          </button>
+        )}
         {trip.status==='in_progress' && <button type="button" className="btn btn-success" onClick={()=>openConfirm('arrived', 'Mark Arrived', `Mark trip ${trip.trip_number} as arrived at destination?`, 'success')} disabled={saving}><Flag size={16}/> Mark Arrived</button>}
         {trip.status==='arrived' && <button type="button" className="btn btn-primary" onClick={handleCompleteClick} disabled={saving}><CheckCircle size={16}/> Complete</button>}
         {!['completed','cancelled'].includes(trip.status) && <button type="button" className="btn btn-danger btn-sm" onClick={()=>openConfirm('cancelled', 'Cancel Trip', `Cancel trip ${trip.trip_number}? This action cannot be undone.`, 'danger')} disabled={saving}><XCircle size={16}/> Cancel</button>}
-        </div>
         {saving && <Loader size={18} className="animate-spin"/>}
+        </div>
+        {/* A disabled button alone doesn't explain itself — especially on
+            touch, where there's no hover to reveal the title tooltip. */}
+        {trip.status==='scheduled' && startTripBlockReason && (
+          <div className="text-xs text-tertiary mt-8 flex items-center gap-6">
+            <AlertTriangle size={12} aria-hidden="true" /> {startTripBlockReason}
+          </div>
+        )}
       </div></div>
 
       {/* Capacity */}

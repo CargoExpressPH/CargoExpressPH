@@ -6,7 +6,7 @@ import { useToast } from '../../hooks/useToast';
 import ConfirmModal from '../../components/ui/ConfirmModal';
 import useFieldErrors from '../../hooks/useFieldErrors';
 import FieldError, { fieldAttrs, invalidClass } from '../../components/ui/FieldError';
-import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
+import { DndContext, closestCenter, KeyboardSensor, MouseSensor, TouchSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { SortableContext, arrayMove, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
@@ -22,11 +22,18 @@ const SortableRegion = ({ region, handleEditRegion, setDeleteTarget, handleAddNe
 
   const muniCount = region.municipalities ? region.municipalities.length : 0;
 
+  // Split mouse/touch, not one PointerSensor tuned for both: a `distance`
+  // threshold is right for a mouse, but on a touchscreen the first 8px of an
+  // intended scroll is indistinguishable from the first 8px of a drag. This
+  // handle has no mobile-hide breakpoint (unlike the Features table's), so
+  // it's live on phones — a short press `delay` lets a scroll starting on it
+  // prove itself before dnd-kit claims the gesture.
   const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 8,
-      },
+    useSensor(MouseSensor, {
+      activationConstraint: { distance: 8 },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: { delay: 200, tolerance: 8 },
     }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
@@ -241,11 +248,13 @@ const CompanyInfoCoverageTab = ({ coverageAreas, setCoverageAreas }) => {
     });
   };
 
+  // Same mouse/touch split as the municipality list above.
   const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 8,
-      },
+    useSensor(MouseSensor, {
+      activationConstraint: { distance: 8 },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: { delay: 200, tolerance: 8 },
     }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );

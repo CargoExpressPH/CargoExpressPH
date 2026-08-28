@@ -47,6 +47,19 @@
     padding: 10px;
   }
 
+  /* .btn-sm's own rule in components.css sets 34px — well under the 44px
+     touch-target guideline — and until now nothing on a coarse pointer raised
+     it back up, unlike .btn-icon.btn-sm (already fixed at 44×44) and the two
+     Inbox-specific buttons below. This is the general fix: every
+     text-labelled small button across the admin app (Cancel Order, Approve/
+     Decline, Reassign Trip, Record Payment, Mark Resolved, trip status
+     actions, Hide/Restore, etc.) gets a real tap target on touch, with mouse
+     users on the same page seeing no change at all. */
+  .btn-sm {
+    min-height: 44px;
+    padding: 10px 16px;
+  }
+
   .inbox-filter-tab-btn {
     min-height: 40px;
     padding: 8px;

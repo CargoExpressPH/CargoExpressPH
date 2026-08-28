@@ -7,7 +7,7 @@ import { useToast } from '../../hooks/useToast';
 import ConfirmModal from '../../components/ui/ConfirmModal';
 import useFieldErrors from '../../hooks/useFieldErrors';
 import FieldError, { fieldAttrs, invalidClass } from '../../components/ui/FieldError';
-import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
+import { DndContext, closestCenter, KeyboardSensor, MouseSensor, TouchSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { SortableContext, arrayMove, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
@@ -81,11 +81,21 @@ const CompanyInfoFeaturesTab = ({ features, setFeatures }) => {
   const [deleting, setDeleting] = useState(false);
   const [showIconPicker, setShowIconPicker] = useState(false);
 
+  // Mouse and touch need different activation rules, not the same PointerSensor
+  // tuned once. A `distance` threshold is right for a mouse — it only screens
+  // out an accidental drag from a click that wobbled a few pixels — but on a
+  // touchscreen the first 8px of an intended vertical SCROLL looks identical
+  // to the first 8px of a drag, so a distance-only constraint hijacks a plain
+  // scroll into a drag the moment a finger lands anywhere on the handle. A
+  // short press `delay` (with a small `tolerance` for finger jitter during the
+  // hold) gives a scroll started on the handle time to prove itself a scroll
+  // before dnd-kit ever calls preventDefault.
   const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 8,
-      },
+    useSensor(MouseSensor, {
+      activationConstraint: { distance: 8 },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: { delay: 200, tolerance: 8 },
     }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );

@@ -12,6 +12,7 @@ import {
 import usePageTitle from '../../hooks/usePageTitle';
 import FocusTrap from '../../components/ui/FocusTrap';
 import useScrollLock from '../../hooks/useScrollLock';
+import { useToast } from '../../hooks/useToast';
 
 const STATUS_CONFIG = {
   new: { label: 'New', className: 'badge-warning' },
@@ -80,6 +81,7 @@ const ContactLink = ({ inquiry, className }) => {
 const ContactInquiriesPage = () => {
   usePageTitle('Contact Inquiries');
   const { user, userProfile } = useAuth();
+  const toast = useToast();
   const [inquiries, setInquiries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -135,10 +137,22 @@ const ContactInquiriesPage = () => {
 
   // Ownership. Without it nobody is answerable for an inquiry, and with more
   // than one admin two people can answer the same person.
+  //
+  // The button that calls this is disabled once assigned_admin_id names
+  // someone else (see the render below), so this guard only ever fires on a
+  // stale render — a page that hasn't re-synced yet still can't steal or
+  // release someone else's claim, because assignInquiry/unassignInquiry
+  // themselves refuse it server-side. That refusal is the actual boundary;
+  // this check just turns it into a clear message instead of a raw error.
   const handleAssign = async (inquiry) => {
+    const mine = inquiry.assigned_admin_id === user?.id;
+    if (inquiry.assigned_admin_id && !mine) {
+      toast.error(`This inquiry is already claimed by ${inquiry.assigned_admin?.name || 'another admin'}.`);
+      return;
+    }
+
     setUpdating(inquiry.id);
     try {
-      const mine = inquiry.assigned_admin_id === user?.id;
       if (mine) {
         await unassignInquiry(inquiry.id);
       } else {
@@ -153,7 +167,11 @@ const ContactInquiriesPage = () => {
         details: mine ? 'Returned to the unclaimed pool.' : 'Claimed by admin.',
       });
     } catch (e) {
-      setError(e.message);
+      // Someone else's claim landed first, or the release target changed —
+      // either way the local copy is now wrong. Resync from the server
+      // rather than leaving a claim on screen that the write never made.
+      toast.error(e.message || 'Failed to update this inquiry.');
+      loadInquiries();
     } finally {
       setUpdating(null);
     }
@@ -392,7 +410,18 @@ const ContactInquiriesPage = () => {
                     type="button"
                     className={`btn btn-sm ${selectedInquiry.assigned_admin_id ? 'btn-outline' : 'btn-secondary'}`}
                     onClick={() => handleAssign(selectedInquiry)}
-                    disabled={updating === selectedInquiry.id}
+                    // Strictly disabled, not just relabelled, once someone else
+                    // holds it — a button reading "With [OtherAdmin]" that still
+                    // works on click is how a claim gets stolen with one tap.
+                    disabled={
+                      updating === selectedInquiry.id ||
+                      (selectedInquiry.assigned_admin_id && selectedInquiry.assigned_admin_id !== user?.id)
+                    }
+                    title={
+                      selectedInquiry.assigned_admin_id && selectedInquiry.assigned_admin_id !== user?.id
+                        ? `Already claimed by ${selectedInquiry.assigned_admin?.name || 'another admin'}`
+                        : undefined
+                    }
                   >
                     <UserCheck size={13} aria-hidden="true" />
                     {selectedInquiry.assigned_admin_id
