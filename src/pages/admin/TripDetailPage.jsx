@@ -3,8 +3,9 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { getTripById, updateTrip, getActivityLogsByRecord, bulkUpdateOrdersStatusByTrip } from '../../lib/database';
 import StatusBadge from '../../components/ui/StatusBadge';
 import ConfirmModal from '../../components/ui/ConfirmModal';
+import RescheduleTripModal from '../../components/ui/RescheduleTripModal';
 import { SkeletonText } from '../../components/ui/SkeletonLoader';
-import { ArrowLeft, Play, Flag, CheckCircle, XCircle, Loader, Clock, ArrowRight, Package, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Play, Flag, CheckCircle, XCircle, Loader, Clock, ArrowRight, Package, AlertTriangle, Calendar, Pencil } from 'lucide-react';
 import CapacityTracker from '../../components/ui/CapacityTracker';
 import Breadcrumb from '../../components/ui/Breadcrumb';
 import EmptyState from '../../components/ui/EmptyState';
@@ -13,6 +14,7 @@ import { useToast } from '../../hooks/useToast';
 import usePageTitle from '../../hooks/usePageTitle';
 import { logTrip } from '../../lib/activityLog';
 import { outstandingBalance } from '../../constants/status';
+import { formatPhDateTime } from '../../utils/datetime';
 
 const TripDetailPage = () => {
   usePageTitle('Trip Details');
@@ -22,6 +24,7 @@ const TripDetailPage = () => {
   const [activityHistory, setActivityHistory] = useState([]);
   const [saving, setSaving] = useState(false);
   const [confirmAction, setConfirmAction] = useState(null);
+  const [showRescheduleModal, setShowRescheduleModal] = useState(false);
   const toast = useToast();
 
   useEffect(() => {
@@ -135,6 +138,27 @@ const TripDetailPage = () => {
     openConfirm('completed', 'Complete Trip', `Complete trip ${trip.trip_number}? All orders have been delivered.`, 'success');
   };
 
+  // The modal already ran the duplicate-route pre-check and built the ISO
+  // strings; this just does the write, logs it, and refreshes. Errors are
+  // caught here (not swallowed in the modal) so the toast fires and the
+  // modal's own catch just keeps it open for another try.
+  const handleReschedule = async ({ departure_date, arrival_date }) => {
+    try {
+      await updateTrip(id, { departure_date, arrival_date });
+      logTrip('Trip Rescheduled', id, trip.trip_number, {
+        previousValue: { departure_date: trip.departure_date, arrival_date: trip.arrival_date },
+        newValue: { departure_date, arrival_date },
+        details: `Schedule updated to depart ${formatPhDateTime(departure_date)}`,
+      });
+      await load();
+      toast.success('Trip schedule updated.');
+      setShowRescheduleModal(false);
+    } catch (e) {
+      toast.error(e.message || 'Failed to update trip schedule.');
+      throw e;
+    }
+  };
+
   if (loading) return (
     <div className="page-transition">
       <div className="skeleton skeleton-text w-80 mb-16" />
@@ -221,8 +245,40 @@ const TripDetailPage = () => {
         )}
       </div></div>
 
+      {/* Schedule */}
+      <div className="card admin-section-card stagger-item mb-16" style={{ animationDelay: '90ms'}}>
+        <div className="card-body">
+          <div className="flex items-center justify-between flex-wrap gap-8 mb-12">
+            <h3 className="fw-700 flex items-center gap-8" style={{ margin: 0 }}>
+              <Calendar size={18} color="var(--primary)" aria-hidden="true" /> Schedule
+            </h3>
+            {/* Once a trip has started, its departure has already happened —
+                there is nothing left to reschedule. */}
+            {trip.status === 'scheduled' && (
+              <button
+                type="button"
+                className="btn btn-outline btn-sm"
+                onClick={() => setShowRescheduleModal(true)}
+              >
+                <Pencil size={14} aria-hidden="true" /> Reschedule
+              </button>
+            )}
+          </div>
+          <div className="grid grid-2 gap-16">
+            <div>
+              <div className="text-xs text-tertiary">Departure</div>
+              <div className="fw-700">{formatPhDateTime(trip.departure_date)}</div>
+            </div>
+            <div>
+              <div className="text-xs text-tertiary">Estimated Arrival</div>
+              <div className="fw-700">{trip.arrival_date ? formatPhDateTime(trip.arrival_date) : 'Not set'}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Capacity */}
-      <div className="card admin-section-card stagger-item mb-16" style={{ animationDelay: '120ms'}}>
+      <div className="card admin-section-card stagger-item mb-16" style={{ animationDelay: '150ms'}}>
         <div className="card-body">
           <CapacityTracker currentWeight={current_weight} maxCapacity={trip.capacity} tripNumber={trip.trip_number} />
         </div>
@@ -327,6 +383,15 @@ const TripDetailPage = () => {
         variant={confirmAction?.variant || 'warning'}
         loading={saving}
       />
+
+      {/* Reschedule Modal */}
+      {showRescheduleModal && (
+        <RescheduleTripModal
+          trip={trip}
+          onClose={() => setShowRescheduleModal(false)}
+          onReschedule={handleReschedule}
+        />
+      )}
     </div>
   );
 };
