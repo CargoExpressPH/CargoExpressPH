@@ -89,9 +89,10 @@ const HomePage = () => {
     });
   };
 
-  const availableSlots = activeTrip
-    ? Math.max(0, (activeTrip.capacity || 0) - (activeTrip.current_weight || 0))
-    : 0;
+  const totalCapacity = Number(activeTrip?.capacity) || 0;
+  const currentWeight = Number(activeTrip?.current_weight) || 0;
+  const availableSlots = activeTrip ? Math.max(0, totalCapacity - currentWeight) : 0;
+  const bookedPct = totalCapacity > 0 ? Math.min(100, Math.max(0, Math.round((currentWeight / totalCapacity) * 100))) : 0;
 
   const greetingInfo = getGreetingData();
   const GreetingIcon = greetingInfo.icon;
@@ -245,18 +246,20 @@ const HomePage = () => {
             </div>
 
             {/* Live Capacity Progress Strip */}
-            {activeTrip.capacity > 0 && (
+            {totalCapacity > 0 && (
               <div className="home-trip-capacity-strip mb-16">
                 <div className="flex items-center justify-between text-xs mb-6">
-                  <span className="home-trip-capacity-lbl font-semibold">Available Space</span>
-                  <span className="home-trip-capacity-pct font-bold">
-                    {Math.round(availableSlots).toLocaleString()} kg left of {Number(activeTrip.capacity).toLocaleString()} kg ({Math.round((availableSlots / activeTrip.capacity) * 100)}%)
+                  <span className="home-trip-capacity-lbl font-semibold">
+                    Trip Load ({bookedPct}% booked)
+                  </span>
+                  <span className="home-trip-capacity-pct font-bold" style={{ color: availableSlots > 0 ? '#10b981' : '#ef4444' }}>
+                    {availableSlots > 0 ? `${Math.round(availableSlots).toLocaleString()} kg Available` : 'Fully Booked'}
                   </span>
                 </div>
                 <div className="home-trip-progress-track">
                   <div
                     className="home-trip-progress-bar"
-                    style={{ width: `${Math.min(100, Math.max(0, (availableSlots / activeTrip.capacity) * 100))}%` }}
+                    style={{ width: `${bookedPct}%` }}
                   />
                 </div>
               </div>
