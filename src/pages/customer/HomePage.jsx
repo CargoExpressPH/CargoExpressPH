@@ -142,34 +142,23 @@ const HomePage = () => {
             <LayoutDashboard size={18} color="var(--primary)" /> Overview
           </h3>
           <div className="customer-home-snapshot" style={{ marginTop: 0 }}>
-            <div className="customer-snapshot-pill stat-total">
-              <div className="customer-snapshot-icon-chip chip-purple">
-                <Package size={16} />
+            <div className="customer-snapshot-pill">
+              <div className="customer-snapshot-value">
+                <Package size={16} /> {orders.length}
               </div>
-              <div className="customer-snapshot-info">
-                <div className="customer-snapshot-value">{orders.length}</div>
-                <div className="customer-snapshot-label">Total Bookings</div>
-              </div>
+              <div className="customer-snapshot-label">Total Bookings</div>
             </div>
-
-            <div className="customer-snapshot-pill stat-active">
-              <div className="customer-snapshot-icon-chip chip-blue">
-                <Truck size={16} />
+            <div className="customer-snapshot-pill">
+              <div className="customer-snapshot-value">
+                <Truck size={16} /> {activeOrders.length}
               </div>
-              <div className="customer-snapshot-info">
-                <div className="customer-snapshot-value">{activeOrders.length}</div>
-                <div className="customer-snapshot-label">Active now</div>
-              </div>
+              <div className="customer-snapshot-label">Active now</div>
             </div>
-
-            <div className="customer-snapshot-pill stat-delivered">
-              <div className="customer-snapshot-icon-chip chip-green">
-                <CheckCircle size={16} />
+            <div className="customer-snapshot-pill">
+              <div className="customer-snapshot-value">
+                <CheckCircle size={16} /> {deliveredOrders.length}
               </div>
-              <div className="customer-snapshot-info">
-                <div className="customer-snapshot-value">{deliveredOrders.length}</div>
-                <div className="customer-snapshot-label">Delivered</div>
-              </div>
+              <div className="customer-snapshot-label">Delivered</div>
             </div>
           </div>
         </StaggerItem>

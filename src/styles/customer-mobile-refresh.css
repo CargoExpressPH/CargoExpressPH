@@ -435,85 +435,29 @@
 
 .customer-snapshot-pill {
   min-width: 0;
-  min-height: 72px;
-  padding: 12px 14px;
+  min-height: 70px;
+  padding: 13px 14px;
   border: 1px solid var(--customer-line);
   border-radius: 22px;
   background: var(--customer-panel);
   box-shadow: var(--customer-shadow-soft);
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease;
-}
-
-.customer-snapshot-pill:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--customer-shadow);
-}
-
-.customer-snapshot-icon-chip {
-  width: 36px;
-  height: 36px;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.customer-snapshot-icon-chip.chip-purple {
-  background: rgba(139, 92, 246, 0.12);
-  color: #8b5cf6;
-}
-
-.customer-snapshot-icon-chip.chip-blue {
-  background: rgba(59, 130, 246, 0.12);
-  color: #3b82f6;
-}
-
-.customer-snapshot-icon-chip.chip-green {
-  background: rgba(16, 185, 129, 0.12);
-  color: #10b981;
-}
-
-[data-theme="dark"] .customer-snapshot-icon-chip.chip-purple {
-  background: rgba(167, 139, 250, 0.18);
-  color: #c4b5fd;
-}
-
-[data-theme="dark"] .customer-snapshot-icon-chip.chip-blue {
-  background: rgba(96, 165, 250, 0.18);
-  color: #93c5fd;
-}
-
-[data-theme="dark"] .customer-snapshot-icon-chip.chip-green {
-  background: rgba(52, 211, 153, 0.18);
-  color: #6ee7b7;
-}
-
-.customer-snapshot-info {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
 }
 
 .customer-snapshot-value {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   color: var(--customer-ink);
-  font-size: 1.22rem;
+  font-size: 1.15rem;
   font-weight: 900;
-  line-height: 1.1;
-  letter-spacing: -0.02em;
+  line-height: 1.05;
 }
 
 .customer-snapshot-label {
-  margin-top: 3px;
+  margin-top: 5px;
   color: var(--customer-muted);
   font-size: 0.72rem;
   font-weight: 700;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 /* Home Trip Capacity Progress Strip */
@@ -1410,25 +1354,13 @@ input:checked + .toggle-slider:before {
   }
 
   .customer-snapshot-pill {
-    min-height: 64px;
-    padding: 10px 8px;
-    gap: 8px;
-    border-radius: 18px;
-  }
-
-  .customer-snapshot-icon-chip {
-    width: 32px;
-    height: 32px;
-    border-radius: 10px;
-  }
-
-  .customer-snapshot-icon-chip svg {
-    width: 14px;
-    height: 14px;
+    min-height: 68px;
+    padding: 12px 10px;
+    border-radius: 20px;
   }
 
   .customer-snapshot-value {
-    font-size: 1.05rem;
+    font-size: 1.03rem;
   }
 
   .customer-order-tabs,
