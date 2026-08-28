@@ -12,7 +12,7 @@ import {
   Package, Search, Plus, ArrowRight,
   Container, MapPin, Calendar, Weight, ChevronRight,
   Truck, CheckCircle, Zap, AlertTriangle, Bell, Megaphone, Clock,
-  Sun, CloudSun, Moon,
+  Sun, CloudSun, Moon, TrendingUp,
 } from 'lucide-react';
 import usePageTitle from '../../hooks/usePageTitle';
 import { formatMoney } from '../../utils/currencyInput';
@@ -135,24 +135,29 @@ const HomePage = () => {
       </div>
 
       {!loading && (
-        <StaggerItem delay={30} className="customer-home-snapshot">
-          <div className="customer-snapshot-pill">
-            <div className="customer-snapshot-value">
-              <Package size={16} /> {orders.length}
+        <StaggerItem delay={30} className="mb-lg">
+          <h3 className="customer-section-title fw-700 mb-12 flex items-center gap-8">
+            <TrendingUp size={18} color="var(--primary)" /> Overview
+          </h3>
+          <div className="customer-home-snapshot" style={{ marginTop: 0 }}>
+            <div className="customer-snapshot-pill">
+              <div className="customer-snapshot-value">
+                <Package size={16} /> {orders.length}
+              </div>
+              <div className="customer-snapshot-label">Total Bookings</div>
             </div>
-            <div className="customer-snapshot-label">Total Bookings</div>
-          </div>
-          <div className="customer-snapshot-pill">
-            <div className="customer-snapshot-value">
-              <Truck size={16} /> {activeOrders.length}
+            <div className="customer-snapshot-pill">
+              <div className="customer-snapshot-value">
+                <Truck size={16} /> {activeOrders.length}
+              </div>
+              <div className="customer-snapshot-label">Active now</div>
             </div>
-            <div className="customer-snapshot-label">Active now</div>
-          </div>
-          <div className="customer-snapshot-pill">
-            <div className="customer-snapshot-value">
-              <CheckCircle size={16} /> {deliveredOrders.length}
+            <div className="customer-snapshot-pill">
+              <div className="customer-snapshot-value">
+                <CheckCircle size={16} /> {deliveredOrders.length}
+              </div>
+              <div className="customer-snapshot-label">Delivered</div>
             </div>
-            <div className="customer-snapshot-label">Delivered</div>
           </div>
         </StaggerItem>
       )}
