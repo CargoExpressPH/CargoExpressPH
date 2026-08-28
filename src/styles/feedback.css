@@ -194,7 +194,7 @@
 .pr-icon-wrap.success { background: var(--success); color: white; box-shadow: 0 4px 16px color-mix(in srgb, var(--success) 28%, transparent); }
 .pr-icon-wrap.error   { background: var(--error); color: white; box-shadow: 0 4px 16px color-mix(in srgb, var(--error) 28%, transparent); }
 .pr-icon-wrap.processing { background: var(--info-bg); color: var(--info-text); border: 1px solid color-mix(in srgb, var(--info) 18%, transparent); }
-.pr-icon-svg { width: 36px; height: 36px; }
+.pr-icon-svg { width: 36px; height: 36px; position: relative; z-index: 1; }
 .pr-icon-check {
   stroke-dasharray: 48; stroke-dashoffset: 48;
   animation: prCheckDraw 0.45s ease-out 0.35s forwards;
@@ -215,6 +215,7 @@
   content: ''; position: absolute; inset: -4px;
   border-radius: 50%; border: 2px solid var(--success);
   opacity: 0; animation: prRingPulse 1.8s ease-out 0.6s forwards;
+  z-index: 0;
 }
 @keyframes prRingPulse {
   0%   { transform: scale(1);    opacity: 0.45; }
@@ -222,6 +223,7 @@
 }
 .pr-confetti {
   position: absolute; inset: -18px; border-radius: 50%; pointer-events: none;
+  z-index: 0;
   background:
     radial-gradient(circle 3px, var(--success) 99%, transparent 100%) 10% 5%,
     radial-gradient(circle 2.5px, var(--primary) 99%, transparent 100%) 85% 12%,
