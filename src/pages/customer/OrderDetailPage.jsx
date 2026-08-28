@@ -1139,7 +1139,7 @@ const OrderDetailPage = () => {
         isOpen={!!paymentResultModal}
         onClose={() => setPaymentResultModal(null)}
         variant={paymentResultModal?.variant || 'success'}
-        amount={Number(order?.amount_paid || order?.shipping_fee || 0)}
+        amount={paymentResultModal?.amount}
         trackingNumber={order?.tracking_number}
         paymentMethod="GCash"
         onRetry={

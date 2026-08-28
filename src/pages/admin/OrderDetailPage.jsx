@@ -211,7 +211,7 @@ const AdminOrderDetailPage = () => {
         }
         confirmed = true;
         if (channel) void supabase.removeChannel(channel);
-        setPaymentResultModal({ variant: 'success' });
+        setPaymentResultModal({ variant: 'success', amount: Number(attempt?.amount || 0) });
         await loadOrder();
       };
 
@@ -222,7 +222,7 @@ const AdminOrderDetailPage = () => {
           return;
         }
         if (attempt.status === 'reconciled') {
-          setPaymentResultModal({ variant: 'success' });
+          setPaymentResultModal({ variant: 'success', amount: Number(attempt?.amount || 0) });
           await loadOrder();
           return;
         }
@@ -1456,7 +1456,7 @@ const AdminOrderDetailPage = () => {
         isOpen={!!paymentResultModal}
         onClose={() => setPaymentResultModal(null)}
         variant={paymentResultModal?.variant || 'success'}
-        amount={paymentResultModal?.amount ?? Number(order?.amount_paid || order?.shipping_fee || 0)}
+        amount={paymentResultModal?.amount}
         trackingNumber={order?.tracking_number}
         paymentMethod={paymentResultModal?.paymentMethod || 'GCash'}
         onRetry={
