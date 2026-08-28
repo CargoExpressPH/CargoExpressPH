@@ -89,10 +89,9 @@ const HomePage = () => {
     });
   };
 
-  const totalCapacity = Number(activeTrip?.capacity) || 0;
-  const currentWeight = Number(activeTrip?.current_weight) || 0;
-  const availableSlots = activeTrip ? Math.max(0, totalCapacity - currentWeight) : 0;
-  const usedPct = totalCapacity > 0 ? Math.min(100, Math.max(0, Math.round((currentWeight / totalCapacity) * 100))) : 0;
+  const availableSlots = activeTrip
+    ? Math.max(0, (activeTrip.capacity || 0) - (activeTrip.current_weight || 0))
+    : 0;
 
   const greetingInfo = getGreetingData();
   const GreetingIcon = greetingInfo.icon;
@@ -229,7 +228,7 @@ const HomePage = () => {
               </div>
               <div className="home-trip-metric-box">
                 <div className="flex items-center gap-6 mb-4">
-                  <Calendar size={13} opacity={0.7} />
+                  <Clock size={13} opacity={0.7} />
                   <span className="home-trip-metric-lbl">ETA</span>
                 </div>
                 <div className="home-trip-metric-val">{fmtDate(activeTrip.arrival_date)}</div>
@@ -237,30 +236,36 @@ const HomePage = () => {
               <div className="home-trip-metric-box">
                 <div className="flex items-center gap-6 mb-4">
                   <Weight size={13} opacity={0.7} />
-                  <span className="home-trip-metric-lbl">Avail.</span>
+                  <span className="home-trip-metric-lbl">Avail. Space</span>
                 </div>
-                <div className="home-trip-metric-val">
+                <div className="home-trip-metric-val font-bold text-success">
                   {availableSlots > 0 ? `${Math.round(availableSlots).toLocaleString()} kg` : 'Full'}
                 </div>
               </div>
             </div>
 
+            {/* Live Capacity Progress Strip */}
+            {activeTrip.capacity > 0 && (
+              <div className="home-trip-capacity-strip mb-16">
+                <div className="flex items-center justify-between text-xs mb-6">
+                  <span className="home-trip-capacity-lbl">Available Capacity</span>
+                  <span className="home-trip-capacity-pct font-bold">
+                    {Math.round((availableSlots / activeTrip.capacity) * 100)}% ({Math.round(availableSlots).toLocaleString()} / {Number(activeTrip.capacity).toLocaleString()} kg)
+                  </span>
+                </div>
+                <div className="home-trip-progress-track">
+                  <div
+                    className="home-trip-progress-bar"
+                    style={{ width: `${Math.min(100, Math.max(0, (availableSlots / activeTrip.capacity) * 100))}%` }}
+                  />
+                </div>
+              </div>
+            )}
+
             {/* Price per kilo badge */}
             {activeTrip.price_per_kg && (
               <div className="home-trip-price">
                 {formatMoney(parseFloat(activeTrip.price_per_kg))} / kg
-              </div>
-            )}
-
-            {/* Clean Progress Bar */}
-            {totalCapacity > 0 && (
-              <div className="mb-16">
-                <div className="home-trip-progress-track">
-                  <div
-                    className={`home-trip-progress-bar ${usedPct >= 90 ? 'bar-danger' : usedPct >= 70 ? 'bar-warning' : 'bar-normal'}`}
-                    style={{ width: `${usedPct}%` }}
-                  />
-                </div>
               </div>
             )}
 
