@@ -430,7 +430,6 @@ const OrderDetailPage = () => {
 
       paymentSourceRef.current = sourceId;
       setPaymentVerificationPending(false);
-      toast.info('Verifying your payment...');
 
       paymentChannelRef.current = supabase
         .channel(`customer_payment_${id}`)
