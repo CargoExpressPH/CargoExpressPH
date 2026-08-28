@@ -158,10 +158,12 @@ const OrderDetailPage = () => {
     ) {
       paymentConfirmedRef.current = true;
       clearPaymentReconciliation();
+      const savedAmount = parseFloat(localStorage.getItem(`pending_payment_amount_${id}`) || '0');
       localStorage.removeItem(`pending_payment_${id}`);
+      localStorage.removeItem(`pending_payment_amount_${id}`);
       setPaymentVerificationPending(false);
       setVerifyingPayment(false);
-      setPaymentResultModal({ variant: 'success' });
+      setPaymentResultModal({ variant: 'success', amount: savedAmount || Number(data.amount_paid || 0) });
     }
 
     if (data.status === 'Delivered') {
@@ -292,19 +294,30 @@ const OrderDetailPage = () => {
 
   useEffect(() => () => clearPaymentReconciliation(), [clearPaymentReconciliation]);
 
-  const markPaymentConfirmed = useCallback(async () => {
+  const markPaymentConfirmed = useCallback(async (paidAmount = null) => {
     if (paymentConfirmedRef.current) return true;
     paymentConfirmedRef.current = true;
     clearPaymentReconciliation();
+    const savedAmount = parseFloat(localStorage.getItem(`pending_payment_amount_${id}`) || '0');
     localStorage.removeItem(`pending_payment_${id}`);
+    localStorage.removeItem(`pending_payment_amount_${id}`);
     if (isMountedRef.current) {
       setPaymentVerificationPending(false);
       setVerifyingPayment(false);
-      setPaymentResultModal({ variant: 'success' });
+      let amount = paidAmount || savedAmount;
+      if (!amount) {
+        try {
+          const attempt = await getLatestPaymentAttemptByOrder(id);
+          amount = Number(attempt?.amount || 0);
+        } catch {
+          amount = 0;
+        }
+      }
+      setPaymentResultModal({ variant: 'success', amount: amount || Number(order?.remaining_balance || order?.amount_paid || 0) });
       await loadOrder();
     }
     return true;
-  }, [clearPaymentReconciliation, id, loadOrder]);
+  }, [clearPaymentReconciliation, id, loadOrder, order]);
 
   /**
    * Reconcile a returned PayMongo source for about 20 seconds. The webhook is
@@ -368,7 +381,7 @@ const OrderDetailPage = () => {
         // markPaymentConfirmed clears the pending banner, removes the stored
         // source, toasts and reloads — reloading alone left the "still being
         // confirmed" notice on screen even though the payment had landed.
-        await markPaymentConfirmed();
+        await markPaymentConfirmed(Number(attempt.amount || 0));
         return;
       }
       if (attempt?.source_id) {
@@ -395,8 +408,10 @@ const OrderDetailPage = () => {
         try {
           const attempt = await getLatestPaymentAttemptByOrder(id);
           if (attempt?.status === 'reconciled') {
+            const savedAmount = parseFloat(localStorage.getItem(`pending_payment_amount_${id}`) || '0');
             localStorage.removeItem(`pending_payment_${id}`);
-            setPaymentResultModal({ variant: 'success' });
+            localStorage.removeItem(`pending_payment_amount_${id}`);
+            setPaymentResultModal({ variant: 'success', amount: Number(attempt?.amount || savedAmount || 0) });
             await loadOrder();
             return;
           }
@@ -559,8 +574,9 @@ const OrderDetailPage = () => {
       
       await registerSource(sourceId, balance, { orderId: order.id });
       
-      // Save sourceId so we can reconcile when the customer returns
+      // Save sourceId and amount so we can reconcile when the customer returns
       localStorage.setItem(`pending_payment_${order.id}`, sourceId);
+      localStorage.setItem(`pending_payment_amount_${order.id}`, String(balance));
       
       toast.success('Redirecting to PayMongo...');
       
