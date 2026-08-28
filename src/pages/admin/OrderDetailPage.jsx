@@ -524,11 +524,10 @@ const AdminOrderDetailPage = () => {
 
   const handleAdditionalPayment = async (amount, method, ref, notes, date, receiptUrl, skipInsert = false) => {
     try {
-      const previousPaid = Number(order?.amount_paid || 0);
       await recordAdditionalPayment(id, amount, method, ref, notes, date, receiptUrl, skipInsert);
       setShowPaymentModal(false);
       await loadOrder();
-      setPaymentResultModal({ variant: 'success', amount: previousPaid + Number(amount), paymentMethod: method });
+      setPaymentResultModal({ variant: 'success', amount: Number(amount), paymentMethod: method });
     } catch (err) {
       throw err;
     }
