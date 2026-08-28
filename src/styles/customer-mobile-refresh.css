@@ -516,25 +516,6 @@
   text-overflow: ellipsis;
 }
 
-/* Home Trip Capacity Progress Strip */
-.home-trip-capacity-strip {
-  background: color-mix(in srgb, var(--customer-green-soft, var(--primary-bg)) 45%, var(--customer-panel-solid, var(--surface)));
-  border: 1px solid var(--customer-line, var(--border));
-  border-radius: 16px;
-  padding: 12px 14px;
-}
-
-.home-trip-capacity-lbl {
-  color: var(--customer-muted, var(--text-secondary));
-  font-weight: 700;
-  font-size: 0.75rem;
-}
-
-.home-trip-capacity-pct {
-  color: var(--customer-green-dark, var(--primary));
-  font-size: 0.75rem;
-}
-
 .home-trip-progress-track {
   height: 8px;
   width: 100%;
