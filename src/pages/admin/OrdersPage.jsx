@@ -232,6 +232,16 @@ const AdminOrdersPage = () => {
           <p>{error}</p>
           <button type="button" className="btn btn-primary mt-md" onClick={loadOrders}>Retry</button>
         </div>
+      ) : paginated.length === 0 ? (
+        <div className="card animate-fade-in">
+          <EmptyState
+            icon={Package}
+            title="No orders found"
+            description={search ? "Try adjusting your search or filter criteria." : "There are no bookings here yet. Create one manually or wait for customers to book."}
+            actionLabel={!search && activeTab === 'All' ? 'Add Booking' : undefined}
+            onAction={!search && activeTab === 'All' ? () => navigate('/admin/create-booking') : undefined}
+          />
+        </div>
       ) : (
         <div className="card admin-section-card admin-table-card animate-fade-in">
           <div className="table-container">
@@ -257,19 +267,6 @@ const AdminOrdersPage = () => {
                     <td data-label="Date" className="text-xs text-secondary">{new Date(o.created_at).toLocaleDateString('en-PH')}</td>
                   </tr>
                 ))}
-                {paginated.length === 0 && (
-                  <tr>
-                    <td colSpan={7} className="empty-state-cell">
-                      <EmptyState
-                        icon={Package}
-                        title="No orders found"
-                        description={search ? "Try adjusting your search or filter criteria." : "There are no bookings here yet. Create one manually or wait for customers to book."}
-                        actionLabel={!search && activeTab === 'All' ? 'Add Booking' : undefined}
-                        onAction={!search && activeTab === 'All' ? () => navigate('/admin/create-booking') : undefined}
-                      />
-                    </td>
-                  </tr>
-                )}
               </tbody>
             </table>
           </div>

@@ -100,6 +100,14 @@ const CustomersPage = () => {
           <p>{error}</p>
           <button type="button" className="btn btn-primary mt-md" onClick={loadCustomers}>Retry</button>
         </div>
+      ) : customers.length === 0 ? (
+        <div className="card animate-fade-in">
+          <EmptyState
+            icon={Users}
+            title="No customers found"
+            description={debouncedSearch ? 'Try a different search term.' : 'No registered customers yet.'}
+          />
+        </div>
       ) : (
         <div className="card admin-section-card admin-table-card animate-fade-in">
           <div className="table-container">
@@ -127,17 +135,6 @@ const CustomersPage = () => {
                     </td>
                   </tr>
                 ))}
-                {customers.length === 0 && (
-                  <tr>
-                    <td colSpan={1} className="empty-state-cell">
-                      <EmptyState
-                        icon={Users}
-                        title="No customers found"
-                        description={debouncedSearch ? 'Try a different search term.' : 'No registered customers yet.'}
-                      />
-                    </td>
-                  </tr>
-                )}
               </tbody>
             </table>
           </div>

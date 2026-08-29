@@ -214,38 +214,36 @@ const DashboardPage = () => {
           <h3>Recent Orders</h3>
           <Link to="/admin/orders" className="btn btn-ghost btn-sm">View All <ArrowRight size={14} /></Link>
         </div>
-        <div className="table-container">
-          <table className="data-table">
-            <thead><tr><th scope="col">Tracking</th><th scope="col">Customer</th><th scope="col">Status</th><th scope="col">Date</th></tr></thead>
-            <tbody>
-              {loading ? (
-                Array.from({ length: 4 }, (_, i) => <SkeletonTableRow key={i} cols={4} />)
-              ) : (
-                <>
-                  {recent.map(o => (
-                    <tr key={o.id}>
-                      <td data-label="Tracking"><Link to={`/admin/orders/${o.id}`} className="fw-600 text-accent">{o.tracking_number}</Link></td>
-                      <td data-label="Customer">{o.profiles?.name || '—'}</td>
-                      <td data-label="Status"><StatusBadge status={o.status} size="sm" /></td>
-                      <td data-label="Date" className="text-sm text-secondary">{new Date(o.created_at).toLocaleDateString('en-PH')}</td>
-                    </tr>
-                  ))}
-                  {recent.length === 0 && (
-                    <tr>
-                      <td colSpan={4} className="empty-state-cell">
-                        <EmptyState
-                          icon={Package}
-                          title="No orders yet"
-                          description="Incoming customer bookings will appear here."
-                        />
-                      </td>
-                    </tr>
-                  )}
-                </>
-              )}
-            </tbody>
-          </table>
-        </div>
+        {loading ? (
+          <div className="table-container">
+            <table className="data-table">
+              <thead><tr><th scope="col">Tracking</th><th scope="col">Customer</th><th scope="col">Status</th><th scope="col">Date</th></tr></thead>
+              <tbody>{Array.from({ length: 4 }, (_, i) => <SkeletonTableRow key={i} cols={4} />)}</tbody>
+            </table>
+          </div>
+        ) : recent.length === 0 ? (
+          <EmptyState
+            icon={Package}
+            title="No orders yet"
+            description="Incoming customer bookings will appear here."
+          />
+        ) : (
+          <div className="table-container">
+            <table className="data-table">
+              <thead><tr><th scope="col">Tracking</th><th scope="col">Customer</th><th scope="col">Status</th><th scope="col">Date</th></tr></thead>
+              <tbody>
+                {recent.map(o => (
+                  <tr key={o.id}>
+                    <td data-label="Tracking"><Link to={`/admin/orders/${o.id}`} className="fw-600 text-accent">{o.tracking_number}</Link></td>
+                    <td data-label="Customer">{o.profiles?.name || '—'}</td>
+                    <td data-label="Status"><StatusBadge status={o.status} size="sm" /></td>
+                    <td data-label="Date" className="text-sm text-secondary">{new Date(o.created_at).toLocaleDateString('en-PH')}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </StaggerItem>
       </ErrorBoundarySection>
     </PageTransition>
