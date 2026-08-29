@@ -53,7 +53,7 @@ const fetchWithRetry = async (url, options = {}, retries = 3, backoff = 1000) =>
       let detail = '';
       try {
         const body = await response.clone().json();
-        detail = body.msg || body.message || body.error_description || '';
+        detail = body.msg || body.message || body.error || body.error_description || '';
       } catch {
         // Non-JSON error body — fall back to the bare status line.
       }

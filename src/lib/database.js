@@ -1753,33 +1753,55 @@ export const createAdminNotification = async (title, message, type = 'general', 
  * 20260803140000_contact_inquiries_normalize.sql.
  */
 export const createContactInquiry = async (data) => {
-  // Production path: Edge Function only. It captures IP server-side for
-  // per-IP rate limiting (guard_contact_inquiry_rate_limit). Direct anon
-  // INSERT is blocked by RLS (ip must be NULL) since 20260825140000, so the
-  // former fallback is dead in production and would only hide Edge errors.
-  // Local dev without `supabase functions serve` will surface a clear error
-  // instead of silently failing via RLS 401.
-  const { data: fnData, error: fnError } = await supabase.functions.invoke('submit-inquiry', {
-    body: {
-      name: data.name,
-      message: data.message,
-      contact_phone: data.contact_phone || null,
-      contact_email: data.contact_email || null,
-      phone: [data.contact_phone, data.contact_email].filter(Boolean).join(' | ')?.slice(0, 100) || null,
-    },
-  })
-  if (!fnError && fnData?.success) return
-  if (fnData?.error) throw new Error(fnData.error)
-  if (fnError) {
-    // Supabase JS wraps Edge errors; prefer the structured error if present
-    const msg = fnError.message || 'Could not send your message right now. Please try again.'
-    // Local dev: Edge not running -> give actionable hint instead of RLS 401
-    if (msg.includes('Failed to send a request to the Edge Function')) {
+  // Edge Function is the only production path - it captures IP server-side
+  // for per-IP limiting (guard_contact_inquiry_rate_limit). Direct anon
+  // INSERT is blocked by RLS since 20260825140000. Use native fetch so 429
+  // bodies like {"error":"Too many inquiries..."} surface correctly instead
+  // of being wrapped as "Edge Function returned a non-2xx status code".
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+  const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+  if (!supabaseUrl || !anonKey) throw new Error('Contact service not configured.')
+  const payload = {
+    name: data.name,
+    message: data.message,
+    contact_phone: data.contact_phone || null,
+    contact_email: data.contact_email || null,
+    phone: [data.contact_phone, data.contact_email].filter(Boolean).join(' | ')?.slice(0, 100) || null,
+  }
+  let res
+  try {
+    res = await fetch(`${supabaseUrl}/functions/v1/submit-inquiry`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: anonKey,
+        Authorization: `Bearer ${anonKey}`,
+      },
+      body: JSON.stringify(payload),
+    })
+  } catch (e) {
+    const msg = e?.message || ''
+    if (
+      msg.includes('Failed to fetch') ||
+      msg.includes('NetworkError') ||
+      msg.includes('Network offline') ||
+      msg.includes('Failed to send a request')
+    ) {
       throw new Error('Contact service temporarily unavailable. Please try again in a moment.')
     }
-    throw new Error(msg)
+    throw new Error(msg || 'Could not send your message right now. Please try again.')
   }
-  throw new Error(fnData?.error || 'Could not send your message right now. Please try again.')
+  let body = null
+  try {
+    body = await res.json()
+  } catch {
+    body = null
+  }
+  if (res.ok && body?.success) return
+  // Edge returns {error: "..."} for 400/429 with user-friendly rate-limit text
+  if (body?.error) throw new Error(body.error)
+  if (!res.ok) throw new Error(`Request failed (${res.status}). Please try again.`)
+  throw new Error('Could not send your message right now. Please try again.')
 };
 
 export const getContactInquiries = async () => {
