@@ -15,7 +15,7 @@ import CancelBookingModal from '../../components/ui/CancelBookingModal';
 import FocusTrap from '../../components/ui/FocusTrap';
 import ImageLightbox from '../../components/ui/ImageLightbox';
 import { SkeletonOrderCard, SkeletonText } from '../../components/ui/SkeletonLoader';
-import { ArrowLeft, MapPin, User, Phone, Package, CreditCard, Truck, Camera, Image, XCircle, Loader, AlertTriangle, Check, Copy, Share2 } from 'lucide-react';
+import { ArrowLeft, MapPin, User, Phone, Package, CreditCard, Truck, Camera, Image, XCircle, Loader, AlertTriangle, Check } from 'lucide-react';
 import { useToast } from '../../hooks/useToast';
 import usePageTitle from '../../hooks/usePageTitle';
 import { formatPhDate, formatPhDateTime } from '../../utils/datetime';
@@ -65,7 +65,6 @@ const OrderDetailPage = () => {
   const [deliveryPhotoLoadState, setDeliveryPhotoLoadState] = useState({});
   const [paymentTransactions, setPaymentTransactions] = useState([]);
   const [statusEvents, setStatusEvents] = useState([]);
-  const [copied, setCopied] = useState(false);
 
   const stepTimestamps = useMemo(
     () => buildStatusTimestamps(statusEvents, order?.created_at, order?.status),
@@ -656,34 +655,10 @@ const OrderDetailPage = () => {
         <ArrowLeft size={18} /> Back
       </button>
 
-      {/* Header - sticky, world-class with copy/share */}
-      <div className="customer-order-detail-header flex items-center justify-between animate-slide-up mb-20" style={{ position: 'sticky', top: 0, zIndex: 10, backdropFilter: 'blur(8px)', background: 'color-mix(in srgb, var(--bg) 85%, transparent)', padding: '12px 0', marginTop: '-8px' }}>
+      {/* Header */}
+      <div className="customer-order-detail-header flex items-center justify-between animate-slide-up mb-20">
         <div>
-          <h1 className="fw-800 flex items-center gap-8">{order.tracking_number}
-            <button
-              type="button"
-              aria-label="Copy tracking number"
-              className="btn btn-ghost btn-sm"
-              style={{ padding: '4px 8px' }}
-              onClick={async () => {
-                try { await navigator.clipboard.writeText(order.tracking_number); setCopied(true); toast.success('Tracking copied'); setTimeout(() => setCopied(false), 1800); } catch { toast.error('Copy failed'); }
-              }}
-            >
-              {copied ? <Check size={14} /> : <Copy size={14} />}
-            </button>
-            <button
-              type="button"
-              aria-label="Share booking"
-              className="btn btn-ghost btn-sm"
-              style={{ padding: '4px 8px' }}
-              onClick={async () => {
-                const shareData = { title: `Booking ${order.tracking_number}`, text: `Track ${order.tracking_number} ${order.origin}→${order.destination}`, url: window.location.href };
-                try { if (navigator.share) await navigator.share(shareData); else { await navigator.clipboard.writeText(window.location.href); toast.success('Link copied'); } } catch {}
-              }}
-            >
-              <Share2 size={14} />
-            </button>
-          </h1>
+          <h1 className="fw-800">{order.tracking_number}</h1>
           <div className="flex items-center gap-8 mt-4 text-sm">
             <span className="fw-800" style={{ color: 'var(--text)' }}>{order.origin}</span>
             <span className="fw-700" style={{ color: 'var(--primary-text)' }}>➔</span>
@@ -941,15 +916,6 @@ const OrderDetailPage = () => {
               )}
             </div>
           </div>
-          {/* World-class payment progress */}
-          {isOrderPriced(order) && parseFloat(order.shipping_cost || 0) > 0 && (
-            <div className="mb-16">
-              <div className="flex justify-between text-xs text-tertiary mb-4"><span>Paid</span><span>{Math.min(100, Math.round((parseFloat(order.amount_paid || 0) / parseFloat(order.shipping_cost || 1)) * 100))}%</span></div>
-              <div style={{ height: 8, background: 'var(--border)', borderRadius: 999, overflow: 'hidden' }}>
-                <div style={{ width: `${Math.min(100, Math.round((parseFloat(order.amount_paid || 0) / parseFloat(order.shipping_cost || 1)) * 100))}%`, height: '100%', background: balance <= 0 ? 'var(--success)' : 'var(--primary)', transition: 'width 0.6s ease' }} />
-              </div>
-            </div>
-          )}
           <div className="grid grid-2 gap-8">
             <div>
               <span className="text-xs text-tertiary">Method</span>
