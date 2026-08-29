@@ -84,23 +84,43 @@ const getGlobalPricePerKilo = async () => {
   return pricePerKilo;
 };
 
+/**
+ * Aggregate weight per trip, via the SECURITY DEFINER RPC get_trips_load
+ * (20260830000000_get_trips_load_rpc.sql) rather than a direct
+ * `.from('orders').select(...)`. The "Users can view own orders" RLS policy
+ * only lets a signed-in customer read their OWN order rows, so a direct
+ * client-side query — and a client-side SUM() over it — silently undercounts
+ * every other customer's cargo on the trip. The RPC does the SUM() inside
+ * Postgres, bypassing RLS for the aggregate only, and returns nothing more
+ * granular than trip_id + total weight.
+ *
+ * excludeOrderId is handled here by subtracting that one order's OWN weight
+ * (which the caller can always read under RLS, since the excluded order is
+ * always the caller's own) from the RPC's true total — re-weighing an order
+ * still compares the NEW weight against the trip without that order's OLD
+ * weight, exactly as before.
+ */
 const getTripCurrentWeight = async (tripId, excludeOrderId = null) => {
   if (!tripId) return 0;
-  let query = supabase
-    .from('orders')
-    .select('id, actual_weight')
-    .eq('trip_id', tripId)
-    .neq('status', 'Cancelled');
 
-  if (excludeOrderId) query = query.neq('id', excludeOrderId);
-
-  const { data, error } = await query;
+  const { data, error } = await supabase.rpc('get_trips_load', { trip_ids: [tripId] });
   if (error) throw error;
 
-  return (data || []).reduce(
-    (sum, order) => sum + parseFloat(order.actual_weight || 0),
-    0
-  );
+  let total = parseFloat(data?.[0]?.current_weight || 0);
+
+  if (excludeOrderId) {
+    const { data: excluded, error: excludedError } = await supabase
+      .from('orders')
+      .select('actual_weight, status')
+      .eq('id', excludeOrderId)
+      .maybeSingle();
+    if (excludedError) throw excludedError;
+    if (excluded && excluded.status !== 'Cancelled') {
+      total -= parseFloat(excluded.actual_weight || 0);
+    }
+  }
+
+  return Math.max(total, 0);
 };
 
 /**
@@ -861,18 +881,22 @@ export const getTrips = async (statusFilter) => {
   if (trips.length === 0) return trips;
 
   // ── Batch weight query (avoids N+1) ──────────────────────
+  // get_trips_load (20260830000000_get_trips_load_rpc.sql) is a SECURITY
+  // DEFINER RPC, not a direct `.from('orders')` select: RLS ("Users can view
+  // own orders") only lets a customer read their own rows, so a direct query
+  // here would sum only that one customer's cargo per trip and report every
+  // trip as far emptier than it truly is. The RPC aggregates server-side
+  // across ALL orders on the trip and returns just trip_id + total weight —
+  // no per-order data.
   const tripIds = trips.map(t => t.id);
   if (tripIds.length > 0) {
-    const { data: allWeightData } = await supabase
-      .from('orders')
-      .select('trip_id, actual_weight')
-      .in('trip_id', tripIds)
-      .neq('status', 'Cancelled');
+    const { data: allWeightData, error: weightError } = await supabase
+      .rpc('get_trips_load', { trip_ids: tripIds });
+    if (weightError) throw weightError;
 
     const weightByTrip = new Map();
     for (const row of allWeightData || []) {
-      const prev = weightByTrip.get(row.trip_id) || 0;
-      weightByTrip.set(row.trip_id, prev + parseFloat(row.actual_weight || 0));
+      weightByTrip.set(row.trip_id, parseFloat(row.current_weight || 0));
     }
 
     for (const trip of trips) {
@@ -907,9 +931,16 @@ export const getTripById = async (tripId) => {
     .eq('trip_id', tripId)
     .order('created_at', { ascending: true });
 
-  const currentWeight = (orders || [])
-    .filter(o => o.status !== 'Cancelled')
-    .reduce((sum, o) => sum + parseFloat(o.actual_weight || 0), 0);
+  // Weight still comes from get_trips_load (see getTrips above), not a
+  // reduce() over `orders`, even though this caller is admin-only today and
+  // admin RLS already sees every row: keeping one aggregation path for all
+  // three call sites means current_weight can never silently drift out of
+  // sync with getTrips()/getTripCurrentWeight() if this function is ever
+  // reused from a customer-facing page.
+  const { data: loadData, error: loadError } = await supabase
+    .rpc('get_trips_load', { trip_ids: [tripId] });
+  if (loadError) throw loadError;
+  const currentWeight = parseFloat(loadData?.[0]?.current_weight || 0);
 
   return { trip, orders: orders || [], current_weight: currentWeight };
 };

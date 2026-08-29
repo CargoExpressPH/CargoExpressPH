@@ -1,0 +1,36 @@
+-- ============================================================
+-- 20260830010000_lock_get_trips_load_execute.sql
+--
+-- Follow-up to 20260830000000_get_trips_load_rpc.sql.
+--
+-- PostgreSQL grants EXECUTE on a newly created function to PUBLIC by default.
+-- That migration only added `GRANT EXECUTE ... TO authenticated` and never
+-- revoked the default PUBLIC grant, so get_trips_load() was — silently —
+-- callable by the anon role too, same as every other RPC in this codebase
+-- (all of which REVOKE ALL ... FROM PUBLIC before granting to a specific
+-- role; see e.g. 20260803100000_atomic_order_payment.sql). Confirmed live:
+--   curl -X POST .../rest/v1/rpc/get_trips_load -H "apikey: <anon key>" \
+--     -H "Authorization: Bearer <anon key>" -d '{"trip_ids": []}'
+-- returned HTTP 200, not the expected permission-denied.
+--
+-- Not a data exposure on its own (the function only ever returns
+-- trip_id + summed weight, nothing per-order), but an anonymous, unrestricted
+-- aggregate query is unnecessary attack surface, so it's revoked here to
+-- match every other RPC's convention.
+-- ============================================================
+
+REVOKE ALL ON FUNCTION public.get_trips_load(UUID[]) FROM PUBLIC, anon;
+
+-- ============================================================
+-- VERIFY (run manually after applying):
+--
+--   -- Should now be permission-denied with just the ANON key, no session:
+--   curl -X POST "$SUPABASE_URL/rest/v1/rpc/get_trips_load" \
+--     -H "apikey: $ANON_KEY" -H "Authorization: Bearer $ANON_KEY" \
+--     -H "Content-Type: application/json" -d '{"trip_ids": []}'
+--
+--   -- Should still work with a signed-in customer's access token:
+--   curl -X POST "$SUPABASE_URL/rest/v1/rpc/get_trips_load" \
+--     -H "apikey: $ANON_KEY" -H "Authorization: Bearer $USER_ACCESS_TOKEN" \
+--     -H "Content-Type: application/json" -d '{"trip_ids": ["<trip id>"]}'
+-- ============================================================
