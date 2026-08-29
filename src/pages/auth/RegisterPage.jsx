@@ -377,14 +377,20 @@ const RegisterPage = () => {
         },
       });
 
-      setLoading(false);
       if (result.success) {
+        // Deliberately NOT calling setLoading(false) here: doing so would
+        // briefly re-render the "Create Account" form (button un-loading)
+        // before the `success` early-return takes over, flashing the form
+        // for a frame. Leave loading engaged straight through to the
+        // success screen and the redirect below — nothing after this
+        // point ever reads `loading` again.
         try { sessionStorage.removeItem('reg_draft'); } catch (e) {}
         setProfileIncomplete(Boolean(result.profileIncomplete));
         setSuccess(true);
         // Longer pause when there's a follow-up message to actually read.
         setTimeout(() => navigate('/'), result.profileIncomplete ? 3200 : 1400);
       } else {
+        setLoading(false);
         const errorMsg = result.error || 'Registration failed. Please try again.';
         setError(errorMsg);
         if (errorMsg.toLowerCase().includes('email')) {
