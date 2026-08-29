@@ -39,7 +39,7 @@ const UpdateAvailableBanner = () => {
           </span>
           <div className="sw-update-banner-actions">
             <button type="button" className="sw-update-banner-refresh" onClick={reload}>
-              Refresh Now
+              Update Now
             </button>
             <button
               type="button"
