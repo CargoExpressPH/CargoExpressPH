@@ -354,7 +354,7 @@ const HomePage = () => {
           </div>
           {activeOrders.slice(0, 3).map((order, index) => (
             <StaggerItem key={order.id} delay={(index + 4) * 60} className="mb-12">
-              <Link to={`/customer/orders/${order.id}`} className="customer-shipment-card customer-shipment-card-v2 card card-interactive block text-no-underline" style={{ color: 'inherit', borderLeft: '4px solid var(--primary)', overflow: 'hidden' }}>
+              <Link to={`/customer/orders/${order.id}`} className="customer-shipment-card customer-shipment-card-v2 card card-interactive block text-no-underline" style={{ color: 'inherit' }}>
                 <div className="card-body p-16">
                   <div className="customer-list-card-top">
                     <div className="flex flex-col min-width-0">
