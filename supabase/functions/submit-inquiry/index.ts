@@ -88,8 +88,8 @@ serve(async (req) => {
     if (trimmedMessage.length < 10 || trimmedMessage.length > 2000) {
       return json({ error: 'Message must be 10-2000 characters.' }, 400)
     }
-    if (phoneVal.length < 7 || phoneVal.length > 100) {
-      return json({ error: 'Contact must be 7-100 characters.' }, 400)
+    if (phoneVal.length < 6 || phoneVal.length > 100) {
+      return json({ error: 'Contact must be 6-100 characters.' }, 400)
     }
 
     const ip = getClientIp(req)
@@ -123,7 +123,7 @@ serve(async (req) => {
       }
       // Map CHECK constraint violation
       if (error.code === '23514') {
-        return json({ error: 'Please check name (2-100), contact (7-100), message (10-2000).' }, 400)
+        return json({ error: 'Please check name (2-100), contact (6-100), message (10-2000).' }, 400)
       }
       // Anything else is an internal fault. The raw driver message names
       // tables, columns and constraints — free schema reconnaissance for an

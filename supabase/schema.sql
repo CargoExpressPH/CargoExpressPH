@@ -88,7 +88,7 @@ CREATE TABLE IF NOT EXISTS company_information (
 CREATE TABLE IF NOT EXISTS contact_inquiries (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL CHECK (char_length(btrim(name)) >= 2 AND char_length(btrim(name)) <= 100),
-  phone TEXT NOT NULL CHECK (char_length(btrim(phone)) >= 7 AND char_length(btrim(phone)) <= 100),
+  phone TEXT NOT NULL CHECK (char_length(btrim(phone)) >= 6 AND char_length(btrim(phone)) <= 100),
   message TEXT NOT NULL CHECK (char_length(btrim(message)) >= 10 AND char_length(btrim(message)) <= 2000),
   status TEXT NOT NULL DEFAULT 'new'::text CHECK (status = ANY (ARRAY['new'::text, 'read'::text, 'resolved'::text])),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
