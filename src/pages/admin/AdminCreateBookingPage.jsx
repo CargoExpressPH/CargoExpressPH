@@ -347,6 +347,12 @@ const AdminCreateBookingPage = () => {
   // ── Reset ──────────────────────────────────────────────────────────────────
 
   const handleReset = () => {
+    // handleSubmit deliberately leaves `loading` true on success (see the
+    // comment there) so the success screen replaces the form without a flash
+    // of the un-loading form first. "Create Another Booking" re-mounts that
+    // same form, so `loading` has to be cleared explicitly or the submitting
+    // overlay covers it immediately.
+    setLoading(false);
     setForm(INITIAL_FORM);
     setSuccess(null);
     setCopied(false);

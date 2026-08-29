@@ -631,6 +631,13 @@ const BookShipmentPage = () => {
                   sessionStorage.removeItem('booking_form');
                   sessionStorage.removeItem('booking_step');
                 } catch { /* sessionStorage unavailable in private mode */ }
+                // handleSubmit deliberately leaves `loading` true on success
+                // (see the comment there) so the success screen replaces the
+                // form without a flash of the un-loading form first. Coming
+                // back here via "Book Another" re-mounts that same form, so
+                // `loading` has to be cleared explicitly or the submitting
+                // overlay covers it immediately.
+                setLoading(false);
                 setSuccess(null);
                 setStep(1);
                 setFieldErrors({});
