@@ -563,7 +563,7 @@ const AboutPage = () => {
     if (/^\d+$/.test(val) && val.length > 11) {
       val = val.slice(0, 11);
     }
-    setForm(p => ({ ...p, phone: val.slice(0, 60) }));
+    setForm(p => ({ ...p, phone: val.slice(0, 100) }));
   };
 
   const normalizePhone = (value) => {
@@ -1299,7 +1299,7 @@ const AboutPage = () => {
                       type="text"
                       className={`about-premium-input ${invalidClass('phone', errors)}`}
                       placeholder="Mobile Number or Email"
-                      maxLength={60}
+                      maxLength={100}
                       value={form.phone}
                       onChange={e => { handleContactInput(e); clearError('phone'); }}
                       {...fieldAttrs('phone', errors)}

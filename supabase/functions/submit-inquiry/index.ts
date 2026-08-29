@@ -21,29 +21,52 @@ const json = (body: unknown, status = 200) =>
   })
 
 /**
- * The caller's IP, taken from the header the PLATFORM wrote — not the one the
- * caller sent.
+ * Resolve the real client IP behind Supabase Edge (Cloudflare + AWS Global Accelerator).
  *
- * `x-forwarded-for` is a chain: each proxy APPENDS the address it saw, so the
- * left-hand entries are whatever the client claimed and the right-hand entry
- * is the one our edge added. Reading `split(',')[0]` — the previous
- * implementation — reads the attacker-supplied end of the chain, so anyone
- * could send `X-Forwarded-For: 1.2.3.4` and get a fresh rate-limit bucket per
- * request. `cf-connecting-ip` is likewise just a header unless the deployment
- * actually sits behind Cloudflare, so it is no longer trusted at all.
+ * Deployment sits behind Cloudflare (cdn-loop: cloudflare, cf-ray) so
+ * `cf-connecting-ip` is set by Cloudflare and cannot be spoofed - spoofed
+ * values are stripped at the edge (verified 2026-08-29 via debug-ip).
+ * `x-forwarded-for` is \"client, client, lb\" - the last hop is the LB
+ * (99.82.x.x / 99.83.x.x), not the client, so reading pop() broke per-IP
+ * limiting (all users shared LB IP).
  *
- * This is defence in depth rather than the whole defence: `ip` is now a
- * server-owned column (migration 20260825140000), so a client that skips this
- * function entirely cannot write one.
+ * Trust order: cf-connecting-ip (Cloudflare) -> first public XFF hop
+ * (Supabase strips spoofed XFF, verified) -> x-real-ip -> unknown.
+ * This preserves spoof protection (ip is server-owned column, direct anon
+ * inserts must leave ip NULL) while correctly bucketing per client.
  */
+function isValidIp(v: string): boolean {
+  // IPv4
+  if (/^(?:(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]\d|\d)\.){3}(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]\d|\d)$/.test(v)) return true
+  // IPv6 (simplified)
+  if (/^[0-9a-fA-F:]+$/.test(v) && v.includes(':')) return true
+  return false
+}
+function isPrivateIp(v: string): boolean {
+  if (v.startsWith('10.')) return true
+  if (v.startsWith('192.168.')) return true
+  if (/^172\.(1[6-9]|2\d|3[0-1])\./.test(v)) return true
+  if (v.startsWith('127.')) return true
+  if (v === '::1' || v.startsWith('fc') || v.startsWith('fd') || v.startsWith('fe80:')) return true
+  return false
+}
+function isTrustedProxy(v: string): boolean {
+  // AWS Global Accelerator Anycast used by Supabase Edge (observed 99.82/99.83)
+  return v.startsWith('99.82.') || v.startsWith('99.83.') || v.startsWith('75.2.')
+}
 function getClientIp(req: Request): string {
+  const cf = req.headers.get('cf-connecting-ip')?.trim()
+  if (cf && isValidIp(cf) && !isPrivateIp(cf)) return cf
   const xff = req.headers.get('x-forwarded-for')
   if (xff) {
     const hops = xff.split(',').map(part => part.trim()).filter(Boolean)
-    if (hops.length > 0) return hops[hops.length - 1]
+    for (const hop of hops) {
+      if (isValidIp(hop) && !isPrivateIp(hop) && !isTrustedProxy(hop)) return hop
+    }
+    if (hops.length > 0 && isValidIp(hops[0])) return hops[0]
   }
-  const realIp = req.headers.get('x-real-ip')
-  if (realIp) return realIp.trim()
+  const realIp = req.headers.get('x-real-ip')?.trim()
+  if (realIp && isValidIp(realIp)) return realIp
   return 'unknown'
 }
 
@@ -78,7 +101,10 @@ serve(async (req) => {
     const adminClient = createClient(supabaseUrl, serviceRoleKey)
 
     const inquiryId = crypto.randomUUID()
-    const legacyPhone = [contact_phone || null, contact_email || null].filter(Boolean).join(' | ') || phoneVal || null
+    // Dual-write legacy phone for rollback; cap to 100 to satisfy CHECK 7-100.
+    // Normalized columns contact_phone/email hold the full values.
+    const rawLegacy = [contact_phone || null, contact_email || null].filter(Boolean).join(' | ') || phoneVal || null
+    const legacyPhone = rawLegacy && rawLegacy.length > 100 ? rawLegacy.slice(0, 100) : rawLegacy
 
     const { error } = await adminClient.from('contact_inquiries').insert({
       id: inquiryId,
@@ -97,7 +123,7 @@ serve(async (req) => {
       }
       // Map CHECK constraint violation
       if (error.code === '23514') {
-        return json({ error: 'Please check name (2-100), contact (7-20), message (10-2000).' }, 400)
+        return json({ error: 'Please check name (2-100), contact (7-100), message (10-2000).' }, 400)
       }
       // Anything else is an internal fault. The raw driver message names
       // tables, columns and constraints — free schema reconnaissance for an

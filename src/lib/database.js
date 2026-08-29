@@ -1753,57 +1753,33 @@ export const createAdminNotification = async (title, message, type = 'general', 
  * 20260803140000_contact_inquiries_normalize.sql.
  */
 export const createContactInquiry = async (data) => {
-  // World-class IP-based: route through Edge Function so IP is captured server-side
-  // (direct anon INSERT cannot provide trustworthy IP). Falls back to direct
-  // insert only if Edge Function is unreachable — DB trigger then enforces phone/global limit.
-  try {
-    const { data: fnData, error: fnError } = await supabase.functions.invoke('submit-inquiry', {
-      body: {
-        name: data.name,
-        message: data.message,
-        contact_phone: data.contact_phone || null,
-        contact_email: data.contact_email || null,
-        phone: [data.contact_phone, data.contact_email].filter(Boolean).join(' | ') || null,
-      },
-    })
-    if (!fnError && fnData?.success) return
-    // If Edge Function not deployed yet (local dev without supabase functions serve),
-    // the invoke will error — fall through to direct insert for backward compat
-    if (fnError && fnData?.error) throw new Error(fnData.error || fnError.message)
-    if (fnError && !fnData) {
-      // Network / function not found — fallback
-      throw new Error('__FALLBACK__')
-    }
-    if (fnData?.error) throw new Error(fnData.error)
-  } catch (e) {
-    if (e.message !== '__FALLBACK__' && !e.message?.includes('Failed to send a request to the Edge Function')) {
-      // Real validation/rate-limit error from Edge Function — surface it
-      if (e.message && !e.message.includes('__FALLBACK__')) throw e
-    }
-    // Fallback: direct anon insert (DB trigger enforces phone/global + length CHECKs)
-    const contactPhone = data.contact_phone || null
-    const contactEmail = data.contact_email || null
-    const inquiryId = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
-      ? crypto.randomUUID()
-      : null
-    const legacyPhone = [contactPhone, contactEmail].filter(Boolean).join(' | ') || null
-    const inquiry = {
-      ...(inquiryId ? { id: inquiryId } : {}),
+  // Production path: Edge Function only. It captures IP server-side for
+  // per-IP rate limiting (guard_contact_inquiry_rate_limit). Direct anon
+  // INSERT is blocked by RLS (ip must be NULL) since 20260825140000, so the
+  // former fallback is dead in production and would only hide Edge errors.
+  // Local dev without `supabase functions serve` will surface a clear error
+  // instead of silently failing via RLS 401.
+  const { data: fnData, error: fnError } = await supabase.functions.invoke('submit-inquiry', {
+    body: {
       name: data.name,
       message: data.message,
-      contact_phone: contactPhone,
-      contact_email: contactEmail,
-      phone: legacyPhone,
+      contact_phone: data.contact_phone || null,
+      contact_email: data.contact_email || null,
+      phone: [data.contact_phone, data.contact_email].filter(Boolean).join(' | ')?.slice(0, 100) || null,
+    },
+  })
+  if (!fnError && fnData?.success) return
+  if (fnData?.error) throw new Error(fnData.error)
+  if (fnError) {
+    // Supabase JS wraps Edge errors; prefer the structured error if present
+    const msg = fnError.message || 'Could not send your message right now. Please try again.'
+    // Local dev: Edge not running -> give actionable hint instead of RLS 401
+    if (msg.includes('Failed to send a request to the Edge Function')) {
+      throw new Error('Contact service temporarily unavailable. Please try again in a moment.')
     }
-    const { error } = await supabase.from('contact_inquiries').insert(inquiry)
-    if (error) throw error
-    if (inquiryId) {
-      await invokePushWithRetry(
-        { event: 'contact_inquiry', inquiry_id: inquiryId, reference_id: inquiryId, notification_type: 'inquiry' },
-        'contact inquiry',
-      )
-    }
+    throw new Error(msg)
   }
+  throw new Error(fnData?.error || 'Could not send your message right now. Please try again.')
 };
 
 export const getContactInquiries = async () => {
