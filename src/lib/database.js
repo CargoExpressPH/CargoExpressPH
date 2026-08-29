@@ -1754,8 +1754,10 @@ export const createAdminNotification = async (title, message, type = 'general', 
  */
 export const createContactInquiry = async (data) => {
   // Edge Function is the only production path - it captures IP server-side
-  // for per-IP limiting (guard_contact_inquiry_rate_limit). Direct anon
-  // INSERT is blocked by RLS since 20260825140000. Use native fetch so 429
+  // for per-IP limiting (guard_contact_inquiry_rate_limit). There is no
+  // INSERT policy for anon/authenticated at all as of 20260829150000 (RLS's
+  // default-deny does the work), so a direct insert isn't degraded, it's
+  // impossible - this fetch is the only way in. Use native fetch so 429
   // bodies like {"error":"Too many inquiries..."} surface correctly instead
   // of being wrapped as "Edge Function returned a non-2xx status code".
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
@@ -1867,6 +1869,12 @@ export const unassignInquiry = async (inquiryId) => {
   }
 };
 
+// Setting status: 'resolved' is claim-gated server-side --
+// guard_contact_inquiry_resolve_ownership (BEFORE UPDATE OF status trigger)
+// rejects the write unless assigned_admin_id already equals the caller.
+// ContactInquiriesPage checks this client-side first for a clean message;
+// the trigger is what actually stops it, e.g. a race where someone else
+// claims it between page load and this call.
 export const updateContactInquiry = async (id, updates) => {
   const { error } = await supabase
     .from('contact_inquiries')

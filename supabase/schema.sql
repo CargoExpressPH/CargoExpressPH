@@ -1153,6 +1153,26 @@ $function$
 
 
 
+CREATE OR REPLACE FUNCTION public.guard_contact_inquiry_resolve_ownership()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+BEGIN
+  IF NEW.status = 'resolved' AND OLD.status IS DISTINCT FROM 'resolved' THEN
+    IF NEW.assigned_admin_id IS NULL THEN
+      RAISE EXCEPTION 'Claim this inquiry before marking it resolved.' USING ERRCODE = '42501';
+    ELSIF NEW.assigned_admin_id IS DISTINCT FROM auth.uid() THEN
+      RAISE EXCEPTION 'Only the admin who claimed this inquiry can mark it resolved.' USING ERRCODE = '42501';
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$function$
+
+
+
 CREATE OR REPLACE FUNCTION public.guard_conversation_update()
  RETURNS trigger
  LANGUAGE plpgsql
@@ -2649,6 +2669,9 @@ CREATE TRIGGER trigger_log_customer_chat AFTER INSERT ON chat_messages FOR EACH 
 DROP TRIGGER IF EXISTS contact_inquiries_guard_rate_limit ON public.contact_inquiries;
 CREATE TRIGGER contact_inquiries_guard_rate_limit BEFORE INSERT ON contact_inquiries FOR EACH ROW EXECUTE FUNCTION guard_contact_inquiry_rate_limit();
 
+DROP TRIGGER IF EXISTS contact_inquiries_guard_resolve_ownership ON public.contact_inquiries;
+CREATE TRIGGER contact_inquiries_guard_resolve_ownership BEFORE UPDATE OF status ON contact_inquiries FOR EACH ROW EXECUTE FUNCTION guard_contact_inquiry_resolve_ownership();
+
 DROP TRIGGER IF EXISTS contact_inquiries_notify_admins ON public.contact_inquiries;
 CREATE TRIGGER contact_inquiries_notify_admins AFTER INSERT ON contact_inquiries FOR EACH ROW EXECUTE FUNCTION notify_admins_of_contact_inquiry();
 
@@ -2893,11 +2916,12 @@ CREATE POLICY "Admins can view inquiries" ON public.contact_inquiries
    FROM profiles
   WHERE ((profiles.id = auth.uid()) AND ((profiles.role)::text = 'admin'::text)))));
 
-DROP POLICY IF EXISTS "Anyone can submit inquiry" ON public.contact_inquiries;
-CREATE POLICY "Anyone can submit inquiry" ON public.contact_inquiries
-  FOR INSERT
-  TO public
-  WITH CHECK (((ip IS NULL) AND (assigned_admin_id IS NULL) AND (first_response_at IS NULL) AND (resolved_at IS NULL) AND (push_dispatched_at IS NULL) AND (push_dispatch_started_at IS NULL) AND (push_dispatch_claim_id IS NULL) AND (status = 'new'::text)));
+-- No INSERT policy: anon/authenticated get RLS's default-deny. Every
+-- submission goes through the submit-inquiry Edge Function's service_role
+-- client, which bypasses RLS. See 20260829150000_revoke_public_inquiry_insert.sql.
+
+COMMENT ON TABLE public.contact_inquiries IS
+  'Public contact inquiries. No INSERT policy is granted to anon/authenticated by design -- every submission must go through the submit-inquiry Edge Function (service_role), which validates input server-side and stamps the server-owned ip column that guard_contact_inquiry_rate_limit depends on.';
 
 ALTER TABLE public.conversations ENABLE ROW LEVEL SECURITY;
 

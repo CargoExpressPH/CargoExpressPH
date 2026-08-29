@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { getContactInquiries, updateContactInquiry, assignInquiry, unassignInquiry } from '../../lib/database';
 import { logChat } from '../../lib/activityLog';
 import { useAuth } from '../../contexts/AuthContext';
+import { supabase } from '../../lib/supabase';
 import { SkeletonTableRow } from '../../components/ui/SkeletonLoader';
 import EmptyState from '../../components/ui/EmptyState';
 import ResponsiveFilterControls from '../../components/ui/ResponsiveFilterControls';
@@ -105,31 +106,84 @@ const ContactInquiriesPage = () => {
     return () => document.removeEventListener('keydown', handleEscape);
   }, [selectedInquiry]);
 
-  const loadInquiries = async () => {
-    setError(null);
-    setLoading(true);
+  // Realtime: a guest submitting the public form, or another admin claiming
+  // or resolving one, should show up here without a manual Refresh. Mirrors
+  // the badge subscription in Sidebar.jsx (same table, same debounce), except
+  // this one re-fetches the actual list instead of a count.
+  //
+  // Refetch-and-replace rather than patching the event payload in place: an
+  // UPDATE payload carries only assigned_admin_id (a uuid), not the joined
+  // assigned_admin.name that getContactInquiries() selects, so a patched row
+  // would show "Assigned" instead of the admin's name until the next full
+  // load. `silent` skips the loading-skeleton flip so the table underneath
+  // an admin's cursor is never yanked away for a background refresh.
+  const reloadTimeoutRef = useRef(null);
+  useEffect(() => {
+    const debouncedReload = () => {
+      clearTimeout(reloadTimeoutRef.current);
+      reloadTimeoutRef.current = setTimeout(() => loadInquiries({ silent: true }), 600);
+    };
+
+    const channel = supabase
+      .channel('admin_contact_inquiries_list')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'contact_inquiries' }, debouncedReload)
+      .subscribe();
+
+    return () => {
+      clearTimeout(reloadTimeoutRef.current);
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
+  const loadInquiries = async ({ silent = false } = {}) => {
+    if (!silent) setError(null);
+    if (!silent) setLoading(true);
     try {
       const data = await getContactInquiries();
       setInquiries(data);
+      // Keep an open detail modal in sync too -- e.g. another admin claims or
+      // resolves the inquiry the current admin is looking at right now.
+      setSelectedInquiry(prev => {
+        if (!prev) return prev;
+        const fresh = data.find(i => i.id === prev.id);
+        return fresh || prev;
+      });
     } catch (e) {
-      setError(e.message || 'Failed to load contact inquiries.');
+      // A failed background refresh must not blank out good data the admin
+      // is reading -- surface the error only for an explicit load.
+      if (!silent) setError(e.message || 'Failed to load contact inquiries.');
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
+  // Resolving is claim-gated: guard_contact_inquiry_resolve_ownership (DB
+  // trigger) refuses to move status to 'resolved' unless assigned_admin_id
+  // already equals the caller. That refusal is the actual boundary -- this
+  // check just turns it into a clear message instead of a raw DB error,
+  // same as the ownership check in handleAssign below. 'read' (from
+  // handleView, on any inquiry) isn't gated -- only 'resolved' is.
   const handleStatusChange = async (id, newStatus) => {
+    const inq = inquiries.find(i => i.id === id);
+    if (newStatus === 'resolved' && inq?.assigned_admin_id !== user?.id) {
+      toast.error(
+        inq?.assigned_admin_id
+          ? `This inquiry is claimed by ${inq.assigned_admin?.name || 'another admin'} — only they can resolve it.`
+          : 'Claim this inquiry before marking it resolved.'
+      );
+      return;
+    }
+
     setUpdating(id);
     try {
       await updateContactInquiry(id, { status: newStatus });
-      const inq = inquiries.find(i => i.id === id);
       logChat(`Inquiry Marked ${newStatus}`, id, inq?.name || 'Unknown', { details: `Inquiry status changed to ${newStatus}` });
       setInquiries(prev => prev.map(i => i.id === id ? { ...i, status: newStatus } : i));
       if (selectedInquiry?.id === id) {
         setSelectedInquiry(prev => ({ ...prev, status: newStatus }));
       }
     } catch (e) {
-      setError(e.message);
+      toast.error(e.message || 'Failed to update this inquiry.');
     } finally {
       setUpdating(null);
     }
@@ -196,6 +250,17 @@ const ContactInquiriesPage = () => {
   }));
   const selectedContact = selectedInquiry ? readContact(selectedInquiry) : null;
 
+  // Same rule the DB trigger enforces: resolving requires having claimed it
+  // first. Drives both the disabled state and the explanatory title on the
+  // Resolve buttons below.
+  const resolveGate = (inq) => {
+    if (inq.assigned_admin_id === user?.id) return { canResolve: true, title: 'Mark as Resolved' };
+    if (inq.assigned_admin_id) {
+      return { canResolve: false, title: `Claimed by ${inq.assigned_admin?.name || 'another admin'} — only they can resolve it` };
+    }
+    return { canResolve: false, title: 'Claim this inquiry before resolving' };
+  };
+
   if (error && !loading && inquiries.length === 0) {
     return (
       <div className="page-transition">
@@ -203,7 +268,7 @@ const ContactInquiriesPage = () => {
           <AlertCircle size={32} className="mb-8" />
           <h3>Error</h3>
           <p>{error}</p>
-          <button type="button" className="btn btn-primary mt-md" onClick={loadInquiries}>Retry</button>
+          <button type="button" className="btn btn-primary mt-md" onClick={() => loadInquiries()}>Retry</button>
         </div>
       </div>
     );
@@ -225,7 +290,7 @@ const ContactInquiriesPage = () => {
           </h1>
           <p className="text-secondary text-sm">Messages from the public contact form</p>
         </div>
-        <button type="button" className="btn btn-outline btn-sm" onClick={loadInquiries} disabled={loading}>
+        <button type="button" className="btn btn-outline btn-sm" onClick={() => loadInquiries()} disabled={loading}>
           {loading ? <Loader size={14} className="animate-spin" /> : 'Refresh'}
         </button>
       </div>
@@ -345,20 +410,23 @@ const ContactInquiriesPage = () => {
                           >
                             <Eye size={16} />
                           </button>
-                          {inq.status !== 'resolved' && (
-                            <button
-                              className="btn-icon btn-ghost"
-                              type="button"
-                              title="Mark as Resolved"
-                              aria-label={`Mark inquiry from ${inq.name} as resolved`}
-                              disabled={updating === inq.id}
-                              onClick={() => handleStatusChange(inq.id, 'resolved')}
-                            >
-                              {updating === inq.id
-                                ? <Loader size={14} className="animate-spin" />
-                                : <CheckCircle size={16} color="var(--success)" />}
-                            </button>
-                          )}
+                          {inq.status !== 'resolved' && (() => {
+                            const gate = resolveGate(inq);
+                            return (
+                              <button
+                                className="btn-icon btn-ghost"
+                                type="button"
+                                title={gate.title}
+                                aria-label={`${gate.title} — inquiry from ${inq.name}`}
+                                disabled={updating === inq.id || !gate.canResolve}
+                                onClick={() => handleStatusChange(inq.id, 'resolved')}
+                              >
+                                {updating === inq.id
+                                  ? <Loader size={14} className="animate-spin" />
+                                  : <CheckCircle size={16} color="var(--success)" />}
+                              </button>
+                            );
+                          })()}
                         </div>
                       </td>
                     </tr>
@@ -486,7 +554,8 @@ const ContactInquiriesPage = () => {
                   type="button"
                   className="btn btn-primary"
                   onClick={() => { handleStatusChange(selectedInquiry.id, 'resolved'); }}
-                  disabled={updating === selectedInquiry.id}
+                  disabled={updating === selectedInquiry.id || !resolveGate(selectedInquiry).canResolve}
+                  title={resolveGate(selectedInquiry).title}
                 >
                   {updating === selectedInquiry.id
                     ? <Loader size={16} className="animate-spin" />

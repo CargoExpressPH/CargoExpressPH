@@ -99,9 +99,25 @@ export const AuthProvider = ({ children }) => {
 
           if (shouldFetchProfile) {
             fetchProfile(session.user.id, isMounted);
-          } else if (event !== 'INITIAL_SESSION') {
-            // Ensure loading is cleared for TOKEN_REFRESHED or other events.
+          } else if (event !== 'INITIAL_SESSION' && !isAuthAction.current) {
+            // Ensure loading is cleared for TOKEN_REFRESHED or other events
+            // NOT already being driven by login()/register() below.
             // DO NOT clear loading on INITIAL_SESSION, because initialize() handles fetching the profile.
+            //
+            // DO NOT clear it while isAuthAction.current is true either: both
+            // login() and register() await their own fetchProfile() before
+            // they're done, and signUp()/signInWithPassword() fire this
+            // 'SIGNED_IN' event mid-flight, well before that. Clearing
+            // `loading` here raced register()'s still-in-flight
+            // createProfile/fetchProfile — AuthRoute would see loading=false
+            // with userProfile still null and fall through to `children`,
+            // remounting RegisterPage from scratch (wiping its local
+            // `success`/step state) for the one render before userProfile
+            // finally landed and the real redirect fired. That remount was
+            // the registration "flash back to the form" bug. login()/
+            // register() own this loading flag end-to-end and clear it
+            // themselves once truly done — this listener steps back
+            // entirely whenever one of them is in flight.
             setLoading(false);
           }
         } else {
