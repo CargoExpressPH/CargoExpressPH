@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../hooks/useToast';
 import { getOrders, getAnnouncements, getTrips } from '../../lib/database';
+import { isTripBookable } from '../../constants/status';
 import StatusBadge from '../../components/ui/StatusBadge';
 import { SkeletonOrderCard, SkeletonStatCard } from '../../components/ui/SkeletonLoader';
 import EmptyState from '../../components/ui/EmptyState';
@@ -39,18 +40,17 @@ const HomePage = () => {
       const [ordersData, annData, tripsData] = await Promise.all([
         getOrders(user.id, false, { limit: 50 }),
         getAnnouncements(),
-        // Fetch scheduled + in_progress trips (both may still accept bookings)
+        // Already 'scheduled' + PH-calendar-day-not-passed + sorted earliest
+        // first — see getTrips('active') in lib/database.js. isTripBookable
+        // is applied again anyway (same rule BookShipmentPage uses) rather
+        // than trusting the query result blindly, so this card never offers
+        // a trip the booking flow would then hide.
         getTrips('active'),
       ]);
       setOrders(ordersData || []);
       setAnnouncements(annData || []);
 
-      // Sort trips ascending by departure_date → pick the earliest upcoming one
-      const upcoming = (tripsData || [])
-        .filter(t => t.status === 'scheduled' || t.status === 'in_progress')
-        .filter(t => t.departure_date && new Date(t.departure_date) > new Date(Date.now() - 86400000))
-        .sort((a, b) => new Date(a.departure_date) - new Date(b.departure_date));
-
+      const upcoming = (tripsData || []).filter(isTripBookable);
       setActiveTrip(upcoming[0] || null);
     } catch (err) {
       toast.error('Failed to load data. Please refresh the page or try again later.');

@@ -24,6 +24,11 @@ const PH_UTC_OFFSET = '+08:00';
  * Naive `datetime-local` value → offset-qualified ISO string.
  * "2026-08-11T18:00" → "2026-08-11T18:00:00+08:00"
  *
+ * Also accepts a bare `date` input value ("2026-08-11", from trip scheduling
+ * — see CreateTripPage/RescheduleTripModal) and anchors it to PH midnight:
+ * "2026-08-11" → "2026-08-11T00:00:00+08:00". Trip scheduling is date-only;
+ * see guard_customer_order_insert() in 20260829160000_trip_date_only_scheduling.sql.
+ *
  * The offset is fixed rather than read from the browser on purpose: an admin
  * travelling (or a machine with a wrong clock zone) must still book 6:00 PM as
  * 6:00 PM Manila, because that is when the vessel actually leaves.
@@ -32,6 +37,8 @@ export const phLocalInputToISO = (value) => {
   if (!value) return null;
   // Already carries a zone (ISO with Z or ±hh:mm) — leave it alone.
   if (/(?:Z|[+-]\d{2}:\d{2})$/.test(value)) return value;
+  // Date-only ("2026-08-11", from a date-only input) — PH midnight.
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return `${value}T00:00:00${PH_UTC_OFFSET}`;
   const withSeconds = value.length === 16 ? `${value}:00` : value;
   return `${withSeconds}${PH_UTC_OFFSET}`;
 };
@@ -56,6 +63,12 @@ export const isoToPhLocalInput = (iso) => {
  * Timestamp (or naive `datetime-local` value) → its PH calendar day, "2026-08-24".
  * This is the day a Filipino admin means when they say "the 24th" — never the
  * UTC day, which for anything before 8:00 AM local is the day before.
+ *
+ * Doubles as the value to populate a date-only input from a stored timestamp
+ * (CreateTripPage, RescheduleTripModal) — "YYYY-MM-DD" is exactly what a
+ * date-typed input expects — and as the "today" side of the
+ * calendar-day cutoff comparison isTripBookable() and getTrips('active')
+ * use, matching guard_customer_order_insert()'s ph_calendar_day() server-side.
  */
 export const phDateKey = (value) => {
   if (!value) return '';

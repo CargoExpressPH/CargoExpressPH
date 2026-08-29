@@ -2,6 +2,7 @@
 // Mirrors the original backend's sequential status flow
 
 import { formatMoney } from '../utils/currencyInput';
+import { phDateKey } from '../utils/datetime';
 
 export const ORDER_STATUS = {
   PENDING_REVIEW: 'Pending Review',
@@ -499,26 +500,30 @@ export const validateStatusTransition = (currentStatus, newStatus, tripId, order
 /**
  * isTripBookable — can a customer still book onto this trip?
  *
- * A trip whose departure date has already passed must never appear as a
- * booking option, even if an admin forgot to close it. Without this, a trip
- * that departed on 17 Jul was still selectable on 2 Aug.
+ * Mirrors guard_customer_order_insert() (20260829160000_trip_date_only_scheduling.sql)
+ * exactly, so a trip never appears as a booking option here only to be
+ * rejected by the database at submit time:
+ *   • status must still be 'scheduled' — Start Trip (in_progress), arrived,
+ *     completed and cancelled are all equally "no longer bookable"
+ *   • the PH calendar day must not be strictly after departure_date's PH
+ *     calendar day — same-day bookings stay open all day regardless of what
+ *     time it currently is, because trip scheduling is date-only
+ *
+ * PH-anchored (phDateKey), not the viewer's local day: a customer browsing
+ * from outside PH — or any browser right around midnight — must see the same
+ * cutoff the server enforces, not their own local calendar day.
  *
  * Deliberately scoped to the CUSTOMER booking flow only:
  *   • the trip row is not modified — no status change, no order cascade
- *   • admins keep seeing stale trips so they can close them
- *
- * Compares against the start of today, so a trip departing later TODAY stays
- * bookable all day. A pre-departure cutoff (e.g. "closes 6 h before") is a
- * separate business rule and is not applied here.
+ *   • admins keep seeing stale/closed trips elsewhere so they can manage them
  */
 export const isTripBookable = (trip) => {
   if (!trip) return false;
+  if (trip.status !== 'scheduled') return false;
   if (!trip.departure_date) return true;          // no date set — don't hide it
-  const departure = new Date(trip.departure_date);
-  if (Number.isNaN(departure.getTime())) return true;
-  const startOfToday = new Date();
-  startOfToday.setHours(0, 0, 0, 0);
-  return departure >= startOfToday;
+  const departureKey = phDateKey(trip.departure_date);
+  if (!departureKey) return true;
+  return departureKey >= phDateKey(new Date().toISOString());
 };
 
 // ── Trip van capacity ────────────────────────────────────────────────────────

@@ -6,7 +6,7 @@ import { ArrowLeft, Calendar, Loader, Truck, Package, FileText, Lightbulb, Plus 
 import { useToast } from '../../hooks/useToast';
 import usePageTitle from '../../hooks/usePageTitle';
 import { logTrip } from '../../lib/activityLog';
-import { phLocalInputToISO } from '../../utils/datetime';
+import { phLocalInputToISO, phDateKey } from '../../utils/datetime';
 import useFieldErrors from '../../hooks/useFieldErrors';
 import FieldError, { errorId, fieldAttrs, invalidClass } from '../../components/ui/FieldError';
 
@@ -39,14 +39,20 @@ const CreateTripPage = () => {
 
   const buildRules = () => ({
     route: (!form.origin || !form.destination) ? 'Please select a route.' : null,
+    // PH calendar day, not an instant comparison: trip scheduling is
+    // date-only, so "today" must stay valid to pick no matter what time it
+    // currently is — see guard_customer_order_insert() in
+    // 20260829160000_trip_date_only_scheduling.sql.
     departure_date: !form.departure_date
       ? 'Departure date is required.'
-      : new Date(form.departure_date) < new Date()
+      : phDateKey(form.departure_date) < phDateKey(new Date().toISOString())
         ? 'Departure date cannot be in the past.'
         : null,
+    // Same-day arrival is valid now that both are date-only — only actually
+    // arriving BEFORE departure is an error.
     arrival_date: (form.arrival_date && form.departure_date
-      && new Date(form.arrival_date) <= new Date(form.departure_date))
-      ? 'Estimated arrival date must be after departure date.'
+      && new Date(phLocalInputToISO(form.arrival_date)) < new Date(phLocalInputToISO(form.departure_date)))
+      ? 'Estimated arrival date cannot be before the departure date.'
       : null,
     capacity: !form.capacity
       ? 'Capacity is required.'
@@ -89,10 +95,11 @@ const CreateTripPage = () => {
 
       const result = await createTrip({
         ...form,
-        // Stamp +08:00 before the insert. The datetime-local inputs are naive,
-        // and TIMESTAMPTZ would otherwise resolve them in the database server's
-        // zone (UTC) — the 8-hour shift that pushed a 6:00 PM ETA onto the next
-        // calendar day for customers. See src/utils/datetime.js.
+        // Anchor to PH midnight before the insert. The date inputs are naive
+        // ("2026-08-29"), and TIMESTAMPTZ would otherwise resolve them in the
+        // database server's zone (UTC) — the 8-hour shift that pushed a
+        // midnight-Manila date onto the wrong calendar day. See
+        // phLocalInputToISO in src/utils/datetime.js.
         departure_date: phLocalInputToISO(form.departure_date),
         arrival_date: form.arrival_date ? phLocalInputToISO(form.arrival_date) : null,
         capacity:     Number(form.capacity),
@@ -172,13 +179,13 @@ const CreateTripPage = () => {
             </h3>
             <div className="grid grid-2 gap-16">
               <div className="form-group">
-                <label className="form-label" htmlFor="trip-departure-date">Departure Date & Time</label>
-                <input id="trip-departure-date" type="datetime-local" className={`form-input ${fieldErrors.departure_date ? 'field-invalid' : ''}`} value={form.departure_date} onChange={e => u('departure_date', e.target.value)} required aria-invalid={fieldErrors.departure_date ? 'true' : undefined} aria-describedby={fieldErrors.departure_date ? 'trip-departure-date-error' : undefined} />
+                <label className="form-label" htmlFor="trip-departure-date">Departure Date</label>
+                <input id="trip-departure-date" type="date" className={`form-input ${fieldErrors.departure_date ? 'field-invalid' : ''}`} value={form.departure_date} onChange={e => u('departure_date', e.target.value)} required aria-invalid={fieldErrors.departure_date ? 'true' : undefined} aria-describedby={fieldErrors.departure_date ? 'trip-departure-date-error' : undefined} />
                 <FieldError name="departure_date" errors={fieldErrors} id="trip-departure-date-error" />
               </div>
               <div className="form-group">
-                <label className="form-label" htmlFor="trip-arrival-date">Estimated Arrival Date & Time</label>
-                <input id="trip-arrival-date" type="datetime-local" className={`form-input ${fieldErrors.arrival_date ? 'field-invalid' : ''}`} value={form.arrival_date} onChange={e => u('arrival_date', e.target.value)} aria-invalid={fieldErrors.arrival_date ? 'true' : undefined} aria-describedby={fieldErrors.arrival_date ? 'trip-arrival-date-error' : undefined} />
+                <label className="form-label" htmlFor="trip-arrival-date">Estimated Arrival Date</label>
+                <input id="trip-arrival-date" type="date" className={`form-input ${fieldErrors.arrival_date ? 'field-invalid' : ''}`} value={form.arrival_date} onChange={e => u('arrival_date', e.target.value)} aria-invalid={fieldErrors.arrival_date ? 'true' : undefined} aria-describedby={fieldErrors.arrival_date ? 'trip-arrival-date-error' : undefined} />
                 <FieldError name="arrival_date" errors={fieldErrors} id="trip-arrival-date-error" />
               </div>
             </div>

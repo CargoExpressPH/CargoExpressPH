@@ -318,7 +318,13 @@ CREATE TABLE IF NOT EXISTS trips (
   created_by UUID REFERENCES profiles(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now(),
-  CONSTRAINT trips_arrival_after_departure CHECK (arrival_date IS NULL OR arrival_date > departure_date)
+  -- Actual departure instant, stamped by guard_trip_status_transition() the
+  -- moment status moves to in_progress (Start Trip). NULL until then, never
+  -- accepted from the client. departure_date above is the admin-scheduled
+  -- DATE (date-only as of 20260829160000); this is server-truth for when
+  -- the trip actually left.
+  departure_at TIMESTAMPTZ,
+  CONSTRAINT trips_arrival_after_departure CHECK (arrival_date IS NULL OR arrival_date >= departure_date)
 );
 
 
@@ -1220,7 +1226,7 @@ CREATE OR REPLACE FUNCTION public.guard_customer_order_insert()
 AS $function$
 DECLARE
   v_trip_status TEXT;
-  v_departure_at TIMESTAMPTZ;
+  v_departure_date TIMESTAMPTZ;
 BEGIN
   IF auth.uid() IS NULL OR public.is_admin() THEN
     RETURN NEW;
@@ -1234,7 +1240,7 @@ BEGIN
 
   IF NEW.trip_id IS NOT NULL THEN
     SELECT t.status, t.departure_date
-      INTO v_trip_status, v_departure_at
+      INTO v_trip_status, v_departure_date
       FROM public.trips AS t
      WHERE t.id = NEW.trip_id;
 
@@ -1242,8 +1248,12 @@ BEGIN
       RAISE EXCEPTION 'Selected trip does not exist';
     END IF;
 
-    IF v_trip_status IN ('cancelled', 'completed')
-       OR v_departure_at <= now() THEN
+    -- Date-only cutoff: blocks once the PH calendar day has moved past the
+    -- scheduled departure date, OR the moment status leaves 'scheduled' --
+    -- whichever comes first. A same-day booking stays open all day no
+    -- matter what time it currently is. See 20260829160000.
+    IF v_trip_status <> 'scheduled'
+       OR public.ph_calendar_day(now()) > public.ph_calendar_day(v_departure_date) THEN
       RAISE EXCEPTION 'This trip is no longer accepting bookings';
     END IF;
   END IF;
@@ -1364,7 +1374,7 @@ $function$
 
 
 
-CREATE OR REPLACE FUNCTION public.guard_trip_completion()
+CREATE OR REPLACE FUNCTION public.guard_trip_status_transition()
  RETURNS trigger
  LANGUAGE plpgsql
  SECURITY DEFINER
@@ -1374,6 +1384,14 @@ DECLARE
   v_count     INT;
   v_unsettled TEXT;
 BEGIN
+  -- Start Trip: stamp the real departure instant server-side. This is the
+  -- ONLY writer of departure_at -- whatever the client sent in NEW is
+  -- discarded and replaced with the server's own clock, exactly once, on
+  -- the transition INTO 'in_progress'. See 20260829160000.
+  IF NEW.status = 'in_progress' AND OLD.status IS DISTINCT FROM 'in_progress' THEN
+    NEW.departure_at := now();
+  END IF;
+
   IF NEW.status = 'completed' AND OLD.status IS DISTINCT FROM 'completed' THEN
     SELECT COUNT(*)
       INTO v_count
@@ -2712,7 +2730,8 @@ DROP TRIGGER IF EXISTS profiles_updated_at ON public.profiles;
 CREATE TRIGGER profiles_updated_at BEFORE UPDATE ON profiles FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
 DROP TRIGGER IF EXISTS trips_guard_completion ON public.trips;
-CREATE TRIGGER trips_guard_completion BEFORE UPDATE OF status ON trips FOR EACH ROW EXECUTE FUNCTION guard_trip_completion();
+DROP TRIGGER IF EXISTS trips_guard_status_transition ON public.trips;
+CREATE TRIGGER trips_guard_status_transition BEFORE UPDATE OF status ON trips FOR EACH ROW EXECUTE FUNCTION guard_trip_status_transition();
 
 DROP TRIGGER IF EXISTS trips_updated_at ON public.trips;
 CREATE TRIGGER trips_updated_at BEFORE UPDATE ON trips FOR EACH ROW EXECUTE FUNCTION update_updated_at();

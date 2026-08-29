@@ -14,7 +14,7 @@ import { useToast } from '../../hooks/useToast';
 import usePageTitle from '../../hooks/usePageTitle';
 import { logTrip } from '../../lib/activityLog';
 import { outstandingBalance } from '../../constants/status';
-import { formatPhDateTime } from '../../utils/datetime';
+import { formatPhDate, formatPhDateTime } from '../../utils/datetime';
 
 const TripDetailPage = () => {
   usePageTitle('Trip Details');
@@ -148,7 +148,7 @@ const TripDetailPage = () => {
       logTrip('Trip Rescheduled', id, trip.trip_number, {
         previousValue: { departure_date: trip.departure_date, arrival_date: trip.arrival_date },
         newValue: { departure_date, arrival_date },
-        details: `Schedule updated to depart ${formatPhDateTime(departure_date)}`,
+        details: `Schedule updated to depart ${formatPhDate(departure_date)}`,
       });
       await load();
       toast.success('Trip schedule updated.');
@@ -266,12 +266,17 @@ const TripDetailPage = () => {
           </div>
           <div className="grid grid-2 gap-16">
             <div>
-              <div className="text-xs text-tertiary">Departure</div>
-              <div className="fw-700">{formatPhDateTime(trip.departure_date)}</div>
+              <div className="text-xs text-tertiary">Scheduled Departure</div>
+              <div className="fw-700">{formatPhDate(trip.departure_date)}</div>
+              {/* Stamped by the database the moment Start Trip fires — see
+                  guard_trip_status_transition() — never client-supplied. */}
+              {trip.departure_at && (
+                <div className="text-xs text-tertiary mt-4">Departed {formatPhDateTime(trip.departure_at)}</div>
+              )}
             </div>
             <div>
               <div className="text-xs text-tertiary">Estimated Arrival</div>
-              <div className="fw-700">{trip.arrival_date ? formatPhDateTime(trip.arrival_date) : 'Not set'}</div>
+              <div className="fw-700">{trip.arrival_date ? formatPhDate(trip.arrival_date) : 'Not set'}</div>
             </div>
           </div>
         </div>

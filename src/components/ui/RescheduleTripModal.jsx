@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { findDuplicateTrip, duplicateTripMessage } from '../../lib/database';
-import { phLocalInputToISO, isoToPhLocalInput } from '../../utils/datetime';
+import { phLocalInputToISO, phDateKey } from '../../utils/datetime';
 import { X, Calendar, Loader } from 'lucide-react';
 import FocusTrap from './FocusTrap';
 import useScrollLock from '../../hooks/useScrollLock';
@@ -20,19 +20,20 @@ import FieldError from './FieldError';
  * (excluding this trip itself) and the same unique index behind it
  * (trips_unique_route_departure_day, 20260818090000) as the real gate.
  *
- * Pushing departure_date into the future also happens to clear
- * guard_customer_order_insert's "this trip is no longer accepting bookings"
- * check (20260822130000) — that trigger only compares departure_date to
- * now(), so a trip that slipped into the past starts accepting bookings
- * again the moment this saves a later date. Nothing else has to change for
- * that; it's just what the guard already does with an updated timestamp.
+ * Scheduling is date-only (20260829160000_trip_date_only_scheduling.sql):
+ * both fields are date-only inputs now, and pushing departure_date to a later
+ * PH calendar day clears guard_customer_order_insert's "this trip is no
+ * longer accepting bookings" check the same way it always did — that trigger
+ * now compares PH calendar days rather than an exact instant, so a trip
+ * whose scheduled day slipped into the past starts accepting bookings again
+ * the moment this saves a later date.
  */
 const RescheduleTripModal = ({ trip, onClose, onReschedule }) => {
   useScrollLock(true); // mounted only while open
 
   const [form, setForm] = useState({
-    departure_date: isoToPhLocalInput(trip.departure_date),
-    arrival_date: isoToPhLocalInput(trip.arrival_date),
+    departure_date: phDateKey(trip.departure_date),
+    arrival_date: phDateKey(trip.arrival_date),
   });
   const [saving, setSaving] = useState(false);
   const { errors, validate, clearError, setError, containerRef } = useFieldErrors();
@@ -48,14 +49,18 @@ const RescheduleTripModal = ({ trip, onClose, onReschedule }) => {
 
   const handleSave = async () => {
     const ok = validate({
+      // PH calendar day, not an instant comparison — see CreateTripPage's
+      // buildRules() for the same rule and why.
       departure_date: !form.departure_date
         ? 'Departure date is required.'
-        : new Date(phLocalInputToISO(form.departure_date)) < new Date()
+        : phDateKey(form.departure_date) < phDateKey(new Date().toISOString())
           ? 'Departure date cannot be in the past.'
           : null,
+      // Same-day arrival is valid now that both are date-only — only
+      // actually arriving BEFORE departure is an error.
       arrival_date: (form.arrival_date && form.departure_date
-        && new Date(phLocalInputToISO(form.arrival_date)) <= new Date(phLocalInputToISO(form.departure_date)))
-        ? 'Estimated arrival date must be after departure date.'
+        && new Date(phLocalInputToISO(form.arrival_date)) < new Date(phLocalInputToISO(form.departure_date)))
+        ? 'Estimated arrival date cannot be before the departure date.'
         : null,
     });
     if (!ok) return;
@@ -67,7 +72,7 @@ const RescheduleTripModal = ({ trip, onClose, onReschedule }) => {
 
       // Same courtesy pre-check CreateTripPage runs — one departure per route
       // per PH calendar day. excludeTripId keeps this trip from flagging
-      // itself when the admin re-saves the same day with a different time.
+      // itself when the admin re-saves without actually changing the date.
       const duplicate = await findDuplicateTrip({
         origin: trip.origin,
         destination: trip.destination,
@@ -114,10 +119,10 @@ const RescheduleTripModal = ({ trip, onClose, onReschedule }) => {
 
           <div className="modal-body" ref={containerRef}>
             <div className="form-group">
-              <label className="form-label" htmlFor="reschedule-departure-date">Departure Date &amp; Time</label>
+              <label className="form-label" htmlFor="reschedule-departure-date">Departure Date</label>
               <input
                 id="reschedule-departure-date"
-                type="datetime-local"
+                type="date"
                 className={`form-input ${errors.departure_date ? 'field-invalid' : ''}`}
                 value={form.departure_date}
                 onChange={(e) => u('departure_date', e.target.value)}
@@ -127,10 +132,10 @@ const RescheduleTripModal = ({ trip, onClose, onReschedule }) => {
               <FieldError name="departure_date" errors={errors} id="reschedule-departure-date-error" />
             </div>
             <div className="form-group mb-0">
-              <label className="form-label" htmlFor="reschedule-arrival-date">Estimated Arrival Date &amp; Time</label>
+              <label className="form-label" htmlFor="reschedule-arrival-date">Estimated Arrival Date</label>
               <input
                 id="reschedule-arrival-date"
-                type="datetime-local"
+                type="date"
                 className={`form-input ${errors.arrival_date ? 'field-invalid' : ''}`}
                 value={form.arrival_date}
                 onChange={(e) => u('arrival_date', e.target.value)}

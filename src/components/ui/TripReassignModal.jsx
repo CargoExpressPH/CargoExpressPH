@@ -5,6 +5,7 @@ import { X, Truck, Loader, MapPin, Edit3, AlertTriangle } from 'lucide-react';
 import FocusTrap from './FocusTrap';
 import { tripCapacityState } from '../../constants/status';
 import useScrollLock from '../../hooks/useScrollLock';
+import { formatPhDate } from '../../utils/datetime';
 
 /**
  * TripReassignModal — Reassign an order to a different trip, requiring a reason
@@ -193,7 +194,8 @@ const TripReassignModal = ({ order, onClose, onReassign }) => {
                     </div>
                     
                     <div className="flex items-center justify-between text-xs text-secondary mt-8">
-                      <span>{new Date(trip.departure_date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                      {/* Date-only: trip scheduling has no time-of-day component. PH-anchored, not the viewer's local zone. */}
+                      <span>{formatPhDate(trip.departure_date, { weekday: 'short', month: 'short', day: 'numeric' })}</span>
                       <div className="flex items-center gap-6">
                         <span style={{ color: exceedsCapacity ? 'var(--error-text)' : 'inherit' }}>
                           {(trip.current_weight || 0).toFixed(1)} / {trip.capacity || '∞'} kg

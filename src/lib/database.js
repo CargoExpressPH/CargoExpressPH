@@ -831,11 +831,20 @@ export const getTrips = async (statusFilter) => {
     .select('*');
 
   if (statusFilter === 'active') {
-    // Only 'scheduled' trips (not in_progress) that are today or in the future
-    const todayStr = new Date(new Date().getTime() - (new Date().getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+    // Only 'scheduled' trips whose PH calendar day hasn't passed — mirrors
+    // guard_customer_order_insert()'s ph_calendar_day() cutoff exactly (see
+    // 20260829160000_trip_date_only_scheduling.sql), so a trip shown here is
+    // never one the database would then reject at booking time.
+    //
+    // phDayRangeISO's `start` is PH midnight of "today" as an offset-
+    // qualified ISO string. A bare "YYYY-MM-DD" string here would be read by
+    // PostgREST as UTC midnight — 8 hours ahead of PH midnight — which would
+    // wrongly exclude a trip scheduled for later TODAY (departure_date is
+    // now stored as PH midnight, i.e. before that UTC cutoff) until 8am PH.
+    const { start: todayStartPH } = phDayRangeISO(new Date().toISOString());
     query = query
       .in('status', ['scheduled'])
-      .gte('departure_date', todayStr)
+      .gte('departure_date', todayStartPH)
       .order('departure_date', { ascending: true }); // Earliest first
   } else {
     if (statusFilter) {
@@ -905,6 +914,11 @@ export const getTripById = async (tripId) => {
   return { trip, orders: orders || [], current_weight: currentWeight };
 };
 
+// Starting a trip (updates.status === 'in_progress') does NOT need
+// departure_at set here — guard_trip_status_transition() stamps it to the
+// server's own now() the instant the status write lands, and overwrites
+// anything a caller sent for it. That is the whole point: the actual
+// departure instant is server-truth, never client-supplied.
 export const updateTrip = async (tripId, updates) => {
   // Check for single in_progress constraint
   if (updates.status === 'in_progress') {
