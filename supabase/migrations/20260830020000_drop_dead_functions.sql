@@ -1,0 +1,65 @@
+-- ============================================================
+-- 20260830020000_drop_dead_functions.sql
+--
+-- Function audit ahead of final defense — every custom function in `public`
+-- (56 total, excluding pg_trgm's own operator/support functions) was
+-- cross-referenced against src/, supabase/functions/*, trigger attachments,
+-- pg_cron jobs, and calls from inside other SQL functions. Two are dead:
+--
+-- 1. public.cancel_own_pending_order(uuid)
+--    The pre-review-flow cancel path. 20260816100000_cancellation_requests.sql
+--    replaced it with request_order_cancellation() / review_order_cancellation()
+--    (both still live and RPC'd from OrderDetailPage / admin cancellation UI),
+--    and 20260826000003_fix_cancellation_triggers.sql turned this one into a
+--    stub that just RAISE EXCEPTIONs a "no longer instant" message — kept, it
+--    looked like, so a stale cached frontend build calling the old RPC name
+--    would fail loudly instead of with a bare 404.
+--    But its own GRANT never lines up with that intent: it is revoked from
+--    anon AND authenticated and granted only to service_role (verified live:
+--    has_function_privilege('authenticated', 'cancel_own_pending_order(uuid)',
+--    'EXECUTE') = false). A stale client calling it gets PostgREST's generic
+--    42501 permission-denied — the friendly RAISE EXCEPTION inside can never
+--    execute for the audience it was written for. And nothing in src/ or
+--    supabase/functions/* calls it (grep found zero call sites — only its own
+--    definition/REVOKE/GRANT). It is unreachable from every direction.
+--
+-- 2. public.current_trip_weight(uuid, uuid)
+--    A SUM(actual_weight) helper written for the trip-capacity trigger guard.
+--    20260526010000_remove_capacity_guard.sql ("Capacity check removed to
+--    allow administrators to manually exceed limits") deleted the capacity
+--    check that consumed its result but left the function itself; later
+--    revisions of guard_order_update()/guard_customer_order_insert()/
+--    prepare_order_insert() dropped the dead `current_trip_weight(...)` call
+--    entirely. Confirmed against the live schema dump: the string
+--    "current_trip_weight" now appears nowhere but its own CREATE FUNCTION —
+--    no trigger, no RPC call site, no other function references it.
+--    Worse than merely dead: unlike current_trip_weight's replacement,
+--    get_trips_load() (20260830000000_get_trips_load_rpc.sql), this function
+--    is NOT SECURITY DEFINER and was never REVOKEd from PUBLIC, so it is
+--    still callable today by anon with no auth at all — confirmed live via
+--    curl against /rest/v1/rpc/current_trip_weight with only the anon key
+--    (200, not 401). Harmless today only because RLS on `orders` still
+--    applies inside it and anon has no rows to sum, but it is unused,
+--    unauthenticated, unnecessary surface area with no reason to still exist.
+--
+-- Every other custom function in `public` is in active use — see the
+-- category summary below (also handed back to the user directly).
+-- ============================================================
+
+DROP FUNCTION IF EXISTS public.cancel_own_pending_order(uuid);
+DROP FUNCTION IF EXISTS public.current_trip_weight(uuid, uuid);
+
+-- ============================================================
+-- VERIFY (run manually after applying):
+--
+--   select proname from pg_proc
+--    where pronamespace = 'public'::regnamespace
+--      and proname in ('cancel_own_pending_order', 'current_trip_weight');
+--   -- should return 0 rows
+--
+--   -- Cancellation flow is untouched — still goes through these two:
+--   select proname from pg_proc
+--    where pronamespace = 'public'::regnamespace
+--      and proname in ('request_order_cancellation', 'review_order_cancellation');
+--   -- should return both
+-- ============================================================
