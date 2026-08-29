@@ -891,13 +891,13 @@ body {
     display: block;
   }
 
-  .booking-page {
-    padding-bottom: calc(156px + env(safe-area-inset-bottom, 0px));
-  }
-
-  .booking-page > .card:last-child {
-    margin-bottom: calc(96px + env(safe-area-inset-bottom, 0px));
-  }
+  /* No page-level bottom-nav clearance here on purpose: .customer-main
+     (layout-customer.css) already reserves calc(160px + safe-area) for the
+     floating bottom nav on every customer page. This page used to ALSO add
+     its own 156px padding-bottom plus a 96px margin-bottom on the last
+     card -- three independent reservations for the same one nav bar,
+     stacking into ~400px+ of dead scrollable space below the Continue
+     button. Removed; the shell's reserve is the single source of truth. */
 
   .booking-page > .card:last-child .card-body {
     padding-bottom: calc(32px + env(safe-area-inset-bottom, 0px));
