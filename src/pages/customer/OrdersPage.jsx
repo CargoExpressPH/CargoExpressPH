@@ -11,7 +11,7 @@ import PageTransition, { StaggerItem } from '../../components/ui/PageTransition'
 import PullToRefresh from '../../components/ui/PullToRefresh';
 import ResponsiveFilterControls from '../../components/ui/ResponsiveFilterControls';
 import Pagination from '../../components/ui/Pagination';
-import { Search, Package, AlertCircle, MapPin, ChevronRight } from 'lucide-react';
+import { Search, Package, AlertCircle, MapPin, ChevronRight, Container, Weight } from 'lucide-react';
 import usePageTitle from '../../hooks/usePageTitle';
 import { formatPhDate } from '../../utils/datetime';
 import { formatMoney } from '../../utils/currencyInput';
@@ -181,11 +181,11 @@ const OrdersPage = () => {
         <>
           {paginatedOrders.map((order, index) => (
             <StaggerItem key={order.id} delay={(index + 2) * 60} className="mb-12">
-              <Link to={`/customer/orders/${order.id}`} className="customer-order-list-card customer-shipment-card-v2 card card-interactive block text-no-underline" style={{ color: 'inherit' }}>
+              <Link to={`/customer/orders/${order.id}`} className="customer-order-list-card customer-shipment-card-v2 card card-interactive block text-no-underline" style={{ color: 'inherit', borderLeft: '4px solid var(--primary)', overflow: 'hidden' }}>
                 <div className="card-body p-16">
                   <div className="customer-list-card-top">
                     <div className="flex flex-col min-width-0">
-                      <span className="customer-list-card-title">{order.tracking_number}</span>
+                      <span className="customer-list-card-title flex items-center gap-6"><Package size={14} className="text-tertiary" aria-hidden="true" />{order.tracking_number}</span>
                       <span className="customer-list-card-booked-date">Booked: {fmtDate(order.created_at)}</span>
                     </div>
                     <div className="flex items-center gap-8 flex-shrink-0">
@@ -194,18 +194,19 @@ const OrdersPage = () => {
                     </div>
                   </div>
                   <div className="customer-list-card-route-visual">
-                    <span className="customer-route-node origin">{order.origin || 'Not set'}</span>
+                    <span className="customer-route-node origin inline-flex items-center gap-4"><Container size={14} className="text-tertiary" aria-hidden="true" />{order.origin || 'Not set'}</span>
                     <div className="customer-route-line-wrap" aria-hidden="true">
                       <div className="customer-route-line">
                         <div className="customer-route-arrow" />
                       </div>
                     </div>
-                    <span className="customer-route-node destination">{order.destination || 'Not set'}</span>
+                    <span className="customer-route-node destination inline-flex items-center gap-4"><MapPin size={14} className="text-tertiary" aria-hidden="true" />{order.destination || 'Not set'}</span>
                   </div>
-                  <div className="customer-list-card-footer">
-                    <span>To: {order.receiver_name || 'Receiver'}</span>
-                    <span className="customer-list-card-price">
-                      {isOrderPriced(order) ? formatMoney(parseFloat(order.shipping_cost || 0)) : 'Priced at pickup'}
+                  <div className="customer-list-card-footer flex items-center justify-between gap-8 flex-wrap">
+                    <span className="inline-flex items-center gap-6 text-sm">To: {order.receiver_name || 'Receiver'}</span>
+                    <span className="flex items-center gap-6">
+                      {order.actual_weight && <span className="chip chip-info inline-flex items-center gap-4"><Weight size={12} aria-hidden="true" />{order.actual_weight}kg</span>}
+                      <span className="chip chip-success">{isOrderPriced(order) ? formatMoney(parseFloat(order.shipping_cost || 0)) : 'Priced at pickup'}</span>
                     </span>
                   </div>
                 </div>
