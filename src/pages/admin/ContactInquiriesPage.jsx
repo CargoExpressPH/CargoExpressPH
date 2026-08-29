@@ -243,34 +243,50 @@ const ContactInquiriesPage = () => {
       />
 
       {/* Table */}
-      <div className="card">
-        <div className="table-container">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th scope="col">Name</th>
-                <th scope="col">Contact</th>
-                <th scope="col">Message</th>
-                <th scope="col">Status</th>
-                <th scope="col">Date</th>
-                <th scope="col" style={{ width: 100 }}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                Array.from({ length: 5 }, (_, i) => <SkeletonTableRow key={i} cols={6} />)
-              ) : filtered.length === 0 ? (
+      {loading ? (
+        <div className="card">
+          <div className="table-container">
+            <table className="data-table">
+              <thead>
                 <tr>
-                  <td colSpan={6} className="empty-state-cell">
-                    <EmptyState
-                      icon={Mail}
-                      title="No Inquiries"
-                      description={filter !== 'all' ? `No ${filter} inquiries found.` : 'No contact inquiries have been submitted yet.'}
-                    />
-                  </td>
+                  <th scope="col">Name</th>
+                  <th scope="col">Contact</th>
+                  <th scope="col">Message</th>
+                  <th scope="col">Status</th>
+                  <th scope="col">Date</th>
+                  <th scope="col" style={{ width: 100 }}>Actions</th>
                 </tr>
-              ) : (
-                filtered.map(inq => {
+              </thead>
+              <tbody>
+                {Array.from({ length: 5 }, (_, i) => <SkeletonTableRow key={i} cols={6} />)}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="card">
+          <EmptyState
+            icon={Mail}
+            title="No Inquiries"
+            description={filter !== 'all' ? `No ${filter} inquiries found.` : 'No contact inquiries have been submitted yet.'}
+          />
+        </div>
+      ) : (
+        <div className="card">
+          <div className="table-container">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th scope="col">Name</th>
+                  <th scope="col">Contact</th>
+                  <th scope="col">Message</th>
+                  <th scope="col">Status</th>
+                  <th scope="col">Date</th>
+                  <th scope="col" style={{ width: 100 }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map(inq => {
                   const cfg = STATUS_CONFIG[inq.status] || STATUS_CONFIG.new;
                   return (
                     <tr
@@ -347,12 +363,12 @@ const ContactInquiriesPage = () => {
                       </td>
                     </tr>
                   );
-                })
-              )}
-            </tbody>
+                })}
+              </tbody>
           </table>
         </div>
       </div>
+      )}
 
       {/* Detail Modal */}
       {selectedInquiry && (
