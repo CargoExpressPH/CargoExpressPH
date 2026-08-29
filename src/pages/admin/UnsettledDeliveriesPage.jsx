@@ -412,6 +412,16 @@ const UnsettledDeliveriesPage = () => {
             </table>
           </div>
         </div>
+      ) : paginated.length === 0 ? (
+        <div className="card animate-fade-in no-print">
+          <EmptyState
+            icon={CheckCircle}
+            title={orders.length === 0 ? 'Everything is settled' : 'No matching shipments'}
+            description={orders.length === 0
+              ? 'No shipment in the pipeline has an outstanding balance.'
+              : 'Try a different settlement state or search term.'}
+          />
+        </div>
       ) : (
         <div className="card admin-section-card admin-table-card animate-fade-in no-print">
           <div className="table-container">
@@ -487,29 +497,14 @@ const UnsettledDeliveriesPage = () => {
                     </tr>
                   );
                 })}
-                {paginated.length === 0 && (
-                  <tr>
-                    <td colSpan={8} className="empty-state-cell">
-                      <EmptyState
-                        icon={CheckCircle}
-                        title={orders.length === 0 ? 'Everything is settled' : 'No matching shipments'}
-                        description={orders.length === 0
-                          ? 'No shipment in the pipeline has an outstanding balance.'
-                          : 'Try a different settlement state or search term.'}
-                      />
-                    </td>
-                  </tr>
-                )}
               </tbody>
-              {filtered.length > 0 && (
-                <tfoot>
-                  <tr>
-                    <td colSpan={6} className="fw-700">Outstanding ({filtered.length} shipment{filtered.length === 1 ? '' : 's'})</td>
-                    <td className="num fw-700 text-error">{formatCurrency(filteredOutstanding)}</td>
-                    <td />
-                  </tr>
-                </tfoot>
-              )}
+              <tfoot>
+                <tr>
+                  <td colSpan={6} className="fw-700">Outstanding ({filtered.length} shipment{filtered.length === 1 ? '' : 's'})</td>
+                  <td className="num fw-700 text-error">{formatCurrency(filteredOutstanding)}</td>
+                  <td />
+                </tr>
+              </tfoot>
             </table>
           </div>
           <Pagination
