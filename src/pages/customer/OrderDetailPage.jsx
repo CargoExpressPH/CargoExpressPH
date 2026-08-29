@@ -15,11 +15,12 @@ import CancelBookingModal from '../../components/ui/CancelBookingModal';
 import FocusTrap from '../../components/ui/FocusTrap';
 import ImageLightbox from '../../components/ui/ImageLightbox';
 import { SkeletonOrderCard, SkeletonText } from '../../components/ui/SkeletonLoader';
+import AmountInput from '../../components/ui/AmountInput';
 import { ArrowLeft, MapPin, User, Phone, Package, CreditCard, Truck, Camera, Image, XCircle, Loader, AlertTriangle, Check } from 'lucide-react';
 import { useToast } from '../../hooks/useToast';
 import usePageTitle from '../../hooks/usePageTitle';
 import { formatPhDate, formatPhDateTime } from '../../utils/datetime';
-import { formatMoney } from '../../utils/currencyInput';
+import { formatMoney, sanitizeAmount, parseAmount } from '../../utils/currencyInput';
 import { outstandingBalance, getSettlementState, isOrderPriced, SETTLEMENT_STATE, ORDER_STATUS, canCancelOrder, hasPendingCancellation, timelineStatus } from '../../constants/status';
 import { formatPaymentType, formatRecordedBy, getPaymentStatusDisplay, formatPaymentMethod as fmtMethod, getCustomerFriendlyNotes, getCustomerVisibleRef } from '../../utils/paymentDisplay';
 
@@ -82,6 +83,11 @@ const OrderDetailPage = () => {
   const [verifyingPayment, setVerifyingPayment] = useState(false);
   const [paymentVerificationPending, setPaymentVerificationPending] = useState(false);
   const [paymentResultModal, setPaymentResultModal] = useState(null);
+  // Custom partial-payment amount — defaults to the full balance, editable
+  // down to as little as ₱0.01. Re-defaulted once per fresh page load (keyed
+  // on order.id, not on every balance change) so it doesn't get clobbered
+  // while the customer is mid-edit if the order refreshes in the background.
+  const [payAmount, setPayAmount] = useState('');
 
   // Statuses where payment is allowed (cargo has been picked up and weighed)
   const PAYABLE_STATUSES = ['Picked Up', 'In Transit', 'Arrived at Hub', 'Out for Delivery'];
@@ -452,6 +458,14 @@ const OrderDetailPage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
+  // Default the pay-now amount to the full balance once per order load.
+  // Keyed on order.id, not on `order` itself (which also changes on every
+  // unrelated field), so a background refresh never overwrites an amount
+  // the customer is actively editing.
+  useEffect(() => {
+    if (order) setPayAmount(sanitizeAmount(outstandingBalance(order)));
+  }, [order?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Resolve photo URLs when order changes
   useEffect(() => {
     const photos = Array.isArray(order?.pickup_photos) ? order.pickup_photos : [];
@@ -562,23 +576,37 @@ const OrderDetailPage = () => {
     const balance = outstandingBalance(order);
     if (balance <= 0) return;
 
+    // Custom partial-payment amount. The edge function re-validates this
+    // exact rule server-side (amount > 0 and <= remaining_balance) before
+    // creating the PayMongo charge — this check is just for a fast, clear
+    // client-side message instead of a round trip.
+    const amount = parseAmount(payAmount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      toast.error('Enter an amount greater than ₱0.');
+      return;
+    }
+    if (amount > balance + 0.01) {
+      toast.error(`Amount cannot exceed your balance of ${formatMoney(balance)}.`);
+      return;
+    }
+
     setProcessingPayment(true);
     try {
       const customer = {
         name: userProfile?.name || order.sender_name,
         phone: userProfile?.phone || order.sender_phone,
       };
-      
-      const { sourceId, checkoutUrl } = await initiateGCashPayment(balance, order.tracking_number, customer, false, order.id);
-      
-      await registerSource(sourceId, balance, { orderId: order.id });
-      
+
+      const { sourceId, checkoutUrl } = await initiateGCashPayment(amount, order.tracking_number, customer, false, order.id);
+
+      await registerSource(sourceId, amount, { orderId: order.id });
+
       // Save sourceId and amount so we can reconcile when the customer returns
       localStorage.setItem(`pending_payment_${order.id}`, sourceId);
-      localStorage.setItem(`pending_payment_amount_${order.id}`, String(balance));
-      
+      localStorage.setItem(`pending_payment_amount_${order.id}`, String(amount));
+
       toast.success('Redirecting to PayMongo...');
-      
+
       // Redirect to GCash checkout in the same tab ONLY AFTER registerSource is complete
       window.location.href = checkoutUrl;
     } catch (err) {
@@ -975,15 +1003,54 @@ const OrderDetailPage = () => {
             }
 
             if (canPay) {
+              // Same rule the edge function enforces server-side — see the
+              // "SECURITY" comment in supabase/functions/paymongo-create-payment.
+              const payAmountValue = parseAmount(payAmount);
+              let payAmountError = null;
+              if (payAmount === '') {
+                payAmountError = 'Enter an amount';
+              } else if (!Number.isFinite(payAmountValue)) {
+                payAmountError = 'Enter a valid amount';
+              } else if (payAmountValue <= 0) {
+                payAmountError = 'Amount must be greater than ₱0';
+              } else if (payAmountValue > balance + 0.01) {
+                payAmountError = `Amount cannot exceed your balance (${formatMoney(balance)})`;
+              }
+              const payAmountValid = !payAmountError;
+
               return (
-                <div className="mt-16 text-center">
-                  <button 
-                    className="btn btn-primary w-full justify-center" 
+                <div className="mt-16">
+                  <div className="form-group mb-8">
+                    <label className="form-label" htmlFor="pay-now-amount">Amount to Pay (₱)</label>
+                    <AmountInput
+                      id="pay-now-amount"
+                      className={`form-input ${payAmountError ? 'field-invalid' : ''}`}
+                      value={payAmount}
+                      onValueChange={setPayAmount}
+                      disabled={processingPayment}
+                      placeholder="0.00"
+                      aria-invalid={payAmountError ? 'true' : 'false'}
+                      aria-describedby={payAmountError ? 'pay-now-amount-error' : 'pay-now-amount-hint'}
+                    />
+                    {payAmountError ? (
+                      <div className="field-error-inline" id="pay-now-amount-error" role="alert">
+                        <AlertTriangle size={13} aria-hidden="true" /> {payAmountError}
+                      </div>
+                    ) : (
+                      <p id="pay-now-amount-hint" className="text-xs text-tertiary mt-4">
+                        Full balance is {formatMoney(balance)}. Pay less to settle part of it now — the rest stays owing.
+                      </p>
+                    )}
+                  </div>
+                  <button
+                    className="btn btn-primary w-full justify-center"
                     onClick={handlePayNow}
-                    disabled={processingPayment}
+                    disabled={processingPayment || !payAmountValid}
                   >
                     {processingPayment ? <Loader size={16} className="animate-spin mr-8" /> : null}
-                    {processingPayment ? 'Processing...' : 'Pay Now with GCash'}
+                    {processingPayment
+                      ? 'Processing...'
+                      : `Pay ${payAmountValid ? formatMoney(payAmountValue) : ''} with GCash`}
                   </button>
                 </div>
               );
