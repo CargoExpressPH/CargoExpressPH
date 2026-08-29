@@ -92,6 +92,7 @@ const ChangePasswordPage = () => {
         // Attributable to a specific field, so it is reported at that field
         // rather than in a toast the user must map back to an input themselves.
         setFieldError('current_password', 'Current password is incorrect.');
+        setLoading(false);
         return;
       }
       // 2) Update to the new password
@@ -102,6 +103,9 @@ const ChangePasswordPage = () => {
       setConfirmPassword('');
       toast.success('Password updated successfully!');
       setTimeout(() => navigate(profilePath, { replace: true }), 1200);
+      // Not clearing `loading` here: the navigation is still 1200ms away, and
+      // resetting it now would re-enable the form for that whole window
+      // before the page actually leaves.
     } catch (err) {
       let msg = 'Failed to update password. Please try again.';
       if (err?.code === 'PGRST301' || err?.message?.includes('JWT')) {
@@ -110,7 +114,6 @@ const ChangePasswordPage = () => {
         msg = err.message;
       }
       toast.error(msg);
-    } finally {
       setLoading(false);
     }
   };

@@ -357,6 +357,10 @@ const BookShipmentPage = () => {
       }
       
       setSuccess(data);
+      // Not clearing `loading` here: `success` now takes over rendering via
+      // the early-return below, and this page never reads `loading` again —
+      // clearing it would risk a frame of the un-loading form before that
+      // switch.
       try {
         sessionStorage.removeItem('booking_form');
         sessionStorage.removeItem('booking_step');
@@ -364,9 +368,9 @@ const BookShipmentPage = () => {
     } catch (err) {
       toast.error(err.message || 'An unexpected error occurred while saving the booking.');
       if (!focusingInvalidField) window.scrollTo({ top: 0, behavior: 'smooth' });
+      setLoading(false);
     } finally {
       submittingRef.current = false;
-      setLoading(false);
     }
   };
 

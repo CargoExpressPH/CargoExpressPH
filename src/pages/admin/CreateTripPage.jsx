@@ -83,6 +83,7 @@ const CreateTripPage = () => {
         validate({
           departure_date: duplicateTripMessage(form.origin, form.destination, departureISO),
         });
+        setLoading(false);
         return;
       }
 
@@ -100,9 +101,11 @@ const CreateTripPage = () => {
       toast.success('Trip created successfully!');
       logTrip('Trip Created', result.id, result.trip_number || result.id, { newValue: { origin: form.origin, destination: form.destination, departure_date: form.departure_date, capacity: form.capacity, price_per_kg: form.price_per_kg }, details: `New trip created: ${form.origin} → ${form.destination}` });
       navigate(`/admin/trips/${result.id}`);
+      // Not clearing `loading` here: navigate() doesn't unmount this page
+      // synchronously, so clearing it would risk a frame of the un-loading
+      // form before the route change actually takes the admin away.
     } catch (err) {
       toast.error(err.message || 'Failed to create trip.');
-    } finally {
       setLoading(false);
     }
   };

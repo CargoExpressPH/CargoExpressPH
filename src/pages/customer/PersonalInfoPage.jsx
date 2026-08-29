@@ -141,13 +141,15 @@ const PersonalInfoPage = () => {
       await refreshProfile();
       toast.success('Profile updated successfully!');
       setTimeout(() => navigate(-1), 1200);
+      // Not clearing `loading` here: the navigation is still 1200ms away, and
+      // resetting it now would re-enable the Save button (and un-disable the
+      // form) for that whole window before the page actually leaves.
     } catch (err) {
       let msg = 'Failed to save changes. Please try again.';
       if (err?.code === 'PGRST301' || err?.message?.includes('JWT')) msg = 'Session expired. Please sign in again.';
       else if (err?.message?.includes('violates')) msg = 'Invalid data. Check your inputs and try again.';
       else if (err?.message) msg = err.message;
       toast.error(msg);
-    } finally {
       setLoading(false);
     }
   };

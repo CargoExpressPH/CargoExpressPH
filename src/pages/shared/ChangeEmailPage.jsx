@@ -124,14 +124,16 @@ const ChangeEmailPage = () => {
       const result = await changeEmail(newEmailTrimmed, currentPassword);
       if (!result.success) {
         toast.error(result.error);
+        setLoading(false);
         return;
       }
+      // Not clearing `loading` here: `submitted` now takes over the form via
+      // the ternary below, and this page never reads `loading` again.
       setSubmitted(true);
     } catch (err) {
       let msg = 'Failed to update email. Please try again.';
       if (err?.message) msg = err.message;
       toast.error(msg);
-    } finally {
       setLoading(false);
     }
   };

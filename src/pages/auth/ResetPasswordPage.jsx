@@ -120,14 +120,19 @@ const ResetPasswordPage = () => {
       const result = await changePassword(password);
       if (result?.error) {
         setError(result.error);
+        setLoading(false);
       } else {
+        // Not clearing `loading` here: `success` now takes over rendering
+        // via the early-return below, and this page never reads `loading`
+        // again — clearing it would risk a frame of the un-loading form
+        // before that switch (and before the 3s-delayed navigate away).
         setSuccess(true);
         setTimeout(() => navigate('/login'), 3000);
       }
     } catch (err) {
       setError(err.message || 'Failed to update password. Please try again.');
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   /* ── Verifying token state ── */

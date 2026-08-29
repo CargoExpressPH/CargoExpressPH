@@ -153,16 +153,20 @@ const LoginPage = () => {
         }
         logAuth('User Logged In', { details: `User logged in with email: ${email.trim()}` });
         navigate('/');
+        // Deliberately NOT calling setLoginLoading(false) here: navigate()
+        // doesn't unmount this page synchronously, so clearing it would risk
+        // a frame of the "Sign In" button un-loading before the route
+        // change actually takes the user away.
       } else {
         const nextError = getLoginErrorPlacement(result.error);
         setFieldErrors(nextError.fieldErrors);
         showLoginAlert(nextError.loginError, nextError.credentialError);
+        setLoginLoading(false);
       }
     } catch (err) {
       const nextError = getLoginErrorPlacement(err?.message);
       setFieldErrors(nextError.fieldErrors);
       showLoginAlert(nextError.loginError, nextError.credentialError);
-    } finally {
       setLoginLoading(false);
     }
   };

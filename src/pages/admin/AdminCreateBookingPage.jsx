@@ -312,10 +312,15 @@ const AdminCreateBookingPage = () => {
         destination: payload.destination,
       });
       toast.success('Booking created successfully!');
+      // Not clearing `loading` here: `success` now takes over rendering via
+      // the early-return below, and this page never reads `loading` again —
+      // clearing it would risk a frame of the un-loading form before that
+      // switch. submittingRef is reset regardless since a fresh submit is
+      // never possible from the success view anyway.
     } catch (err) {
       toast.error(err.message || 'Failed to create booking. Please try again.');
-    } finally {
       setLoading(false);
+    } finally {
       submittingRef.current = false;
     }
   };
