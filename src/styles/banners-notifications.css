@@ -93,7 +93,7 @@
   border-color: color-mix(in srgb, var(--customer-green) 24%, transparent);
 }
 .notification-card.unread .notification-icon-wrap {
-  background: linear-gradient(135deg, var(--customer-green), #22C55E);
+  background: linear-gradient(135deg, var(--customer-green), #10B981);
   color: white;
 }
 .notification-icon-wrap {

@@ -81,7 +81,7 @@
   width: 34px;
   height: 34px;
   border-radius: 999px;
-  background: linear-gradient(135deg, var(--customer-green), #22C55E);
+  background: linear-gradient(135deg, var(--customer-green), #10B981);
   color: #FFFFFF;
 }
 
@@ -428,7 +428,7 @@
 }
 
 .chat-avatar.bot-avatar {
-  background: linear-gradient(135deg, var(--primary), var(--primary-light, #4ade80));
+  background: linear-gradient(135deg, var(--primary), var(--primary-light, #34d399));
 }
 
 .chat-avatar.admin-avatar {

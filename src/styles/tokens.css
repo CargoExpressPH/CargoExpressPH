@@ -288,8 +288,8 @@
     --glass-bg-heavy: #ffffff;
   }
   [data-theme="dark"] {
-    --glass-bg: #152238;
-    --glass-bg-heavy: #0d1726;
+    --glass-bg: #1E293B;
+    --glass-bg-heavy: #0F172A;
   }
 }
 
@@ -307,18 +307,22 @@
    DARK MODE — Full theme override via [data-theme="dark"]
    ═══════════════════════════════════════════════════════════════════════ */
 [data-theme="dark"] {
-  --bg-gradient: linear-gradient(135deg, #0A1628 0%, #111E33 100%);
-  --primary: #22C55E;
-  --primary-dark: #16A34A;
-  --primary-light: #4ADE80;
-  --primary-lighter: #14532D;
-  --primary-bg: #052E16;
-  --primary-glow: rgba(22, 163, 74, 0.25);
+  /* -- "Soft Slate" palette: replaces the old near-black bg + neon-green
+     primary. Deep Slate / Lighter Slate backgrounds (Tailwind slate-900/800),
+     a toned-down Emerald primary, and Slate White / Muted Slate text keep
+     contrast readable (AA or better everywhere below) without the glare. -- */
+  --bg-gradient: linear-gradient(135deg, #0F172A 0%, #1E293B 100%);
+  --primary: #10B981;
+  --primary-dark: #0CA678;      /* used as text/link color too — 4.68:1 on --surface, 5.71:1 on --bg */
+  --primary-light: #34D399;
+  --primary-lighter: #064E3B;
+  --primary-bg: #022C22;
+  --primary-glow: rgba(16, 185, 129, 0.25);
 
   /* -- RGB triplets (dark mode) -- */
-  --primary-rgb: 34, 197, 94;
+  --primary-rgb: 16, 185, 129;
   --accent-rgb: 74, 142, 199;
-  --text-rgb: 242, 246, 250;
+  --text-rgb: 248, 250, 252;
   --success-rgb: 52, 211, 153;
   --error-rgb: 248, 113, 113;
   --warning-rgb: 251, 191, 36;
@@ -348,7 +352,7 @@
   --info-glow: rgba(96, 165, 250, 0.25);
 
   /* -- WCAG AA Text Colors (dark mode — already high contrast on dark bg) -- */
-  --primary-text: #4ADE80;
+  --primary-text: #34D399;       /* 9.29:1 on --bg, 7.61:1 on --surface */
   --success-text: #34D399;
   --warning-text: #FBBF24;
   --error-text: #F87171;
@@ -359,10 +363,10 @@
      Same values as the base -text tokens, which already measure 6.43:1 and
      10.04:1 on --error-bg / --bg-secondary here. */
   --error-text-strong: #F87171;
-  --primary-text-strong: #4ADE80;
+  --primary-text-strong: #34D399;
 
   /* -- Status icon backgrounds (translucent tints — dark mode) -- */
-  --primary-icon-bg: rgba(34, 197, 94, 0.18);
+  --primary-icon-bg: rgba(16, 185, 129, 0.18);
   --success-icon-bg: rgba(52, 211, 153, 0.18);
   --warning-icon-bg: rgba(251, 191, 36, 0.18);
   --error-icon-bg: rgba(248, 113, 113, 0.18);
@@ -401,30 +405,33 @@
 
   --accent-darker: #112236;
 
-  --bg: #07111F;
-  --bg-secondary: #0D1A2B;
-  --bg-tertiary: #16233A;
-  --surface: #132033;
-  --surface-raised: #17263B;
-  --border: #253850;
-  --border-light: #1B2B42;
-  --border-hover: #344B66;
+  /* Deep Slate -> Lighter Slate step (Tailwind slate-900 -> slate-800),
+     with bg-secondary/tertiary filling in between so tiered surfaces still
+     read as a gentle staircase instead of a hard jump. */
+  --bg: #0F172A;
+  --bg-secondary: #141E33;
+  --bg-tertiary: #1A2540;
+  --surface: #1E293B;
+  --surface-raised: #253449;
+  --border: #334155;
+  --border-light: #263244;
+  --border-hover: #475569;
 
-  --text: #F2F6FA;
-  --text-secondary: #C7D2E0;
-  --text-tertiary: #9AA9BA;
+  --text: #F8FAFC;
+  --text-secondary: #94A3B8;
+  --text-tertiary: #94A3B8;
   --text-inverse: #0F172A;
   --text-on-dark: #FFFFFF;
 
-  --glass-bg: rgba(10, 22, 40, 0.78);
-  --glass-bg-heavy: rgba(10, 22, 40, 0.92);
+  --glass-bg: rgba(15, 23, 42, 0.78);
+  --glass-bg-heavy: rgba(15, 23, 42, 0.92);
   --glass-border: rgba(255, 255, 255, 0.1);
-  --backdrop-bg: rgba(2, 6, 23, 0.82);
+  --backdrop-bg: rgba(15, 23, 42, 0.82);
   --glass-blur: 20px;
 
-  --sidebar-bg: #060E1A;
-  --sidebar-hover: #0F1A2E;
-  --sidebar-active: rgba(22, 163, 74, 0.15);
+  --sidebar-bg: #0B1220;
+  --sidebar-hover: #16213A;
+  --sidebar-active: rgba(16, 185, 129, 0.15);
   --sidebar-border: rgba(255, 255, 255, 0.04);
   --sidebar-text: #94A3B8;
   --sidebar-text-hover: #CBD5E1;
@@ -436,18 +443,18 @@
   --shadow-lg: 0 10px 25px -3px rgba(0, 0, 0, 0.5), 0 4px 10px -4px rgba(0, 0, 0, 0.3);
   --shadow-xl: 0 20px 50px -12px rgba(0, 0, 0, 0.6);
   --shadow-2xl: 0 25px 60px -12px rgba(0, 0, 0, 0.7);
-  --shadow-glow: 0 0 40px rgba(22, 163, 74, 0.15);
-  --shadow-primary: 0 4px 14px rgba(22, 163, 74, 0.25);
-  --shadow-primary-lg: 0 8px 30px rgba(22, 163, 74, 0.3);
+  --shadow-glow: 0 0 40px rgba(16, 185, 129, 0.15);
+  --shadow-primary: 0 4px 14px rgba(16, 185, 129, 0.25);
+  --shadow-primary-lg: 0 8px 30px rgba(16, 185, 129, 0.3);
 
   /* -- Sub-System Token Aliases (Dark Mode) -- */
   --customer-green: var(--primary-light);
   --customer-green-dark: var(--primary-lighter);
-  --customer-green-soft: rgba(34, 197, 94, 0.12);
-  --customer-green-glow: rgba(74, 222, 128, 0.22);
+  --customer-green-soft: rgba(16, 185, 129, 0.12);
+  --customer-green-glow: rgba(52, 211, 153, 0.22);
   --customer-ink: var(--text);
   --customer-muted: #B7C2D0;
-  --customer-panel: rgba(19, 32, 51, 0.9);
+  --customer-panel: rgba(30, 41, 59, 0.9);
   --customer-panel-solid: var(--surface);
   --customer-line: rgba(148, 163, 184, 0.15);
   --customer-shadow: var(--shadow-lg);
@@ -455,7 +462,7 @@
 
   --admin-green: var(--primary-light);
   --admin-green-dark: var(--primary-lighter);
-  --admin-green-soft: rgba(34, 197, 94, 0.12);
+  --admin-green-soft: rgba(16, 185, 129, 0.12);
   --admin-green-glow: var(--primary-glow);
   --admin-ink: var(--text);
   --admin-muted: #94A3B8;

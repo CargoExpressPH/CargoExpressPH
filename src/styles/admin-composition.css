@@ -182,9 +182,9 @@
 }
 
 [data-theme="dark"] .company-tab-btn.active {
-  background: #22C55E;
+  background: #10B981;
   color: #0F172A;
-  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
 }
 
 /* ── Coverage Areas Component ─────────────────────────────────────────── */

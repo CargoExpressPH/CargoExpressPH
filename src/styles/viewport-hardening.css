@@ -328,11 +328,12 @@
   top: var(--app-safe-top);
 }
 
-/* ── Dark mode: primary CTA backgrounds follow the dark --primary token (#22C55E).
+/* ── Dark mode: primary CTA backgrounds follow the dark --primary token
+   ("Soft Slate" palette: toned-down Emerald #10B981, was neon #22C55E).
    Overrides the hardcoded light-mode greens (#15803D/#166534) in every layer so
-   CTAs stay vivid on dark UI. Dark navy text on bright green passes AA (7.9:1). ── */
+   CTAs stay legible on dark UI. Dark navy text on Emerald passes AA (7.0:1). ── */
 [data-theme="dark"] .btn-primary {
-  background: #22C55E;
+  background: #10B981;
 }
 [data-theme="dark"] .app-layout .btn-primary,
 [data-theme="dark"] .customer-layout-v2 .btn-primary,
@@ -343,7 +344,7 @@
 [data-theme="dark"] .trk-search-btn,
 [data-theme="dark"] .onboarding-btn,
 [data-theme="dark"] .about-submit-btn {
-  background: #22C55E;
+  background: #10B981;
   color: #0F172A;
 }
 
@@ -357,7 +358,7 @@
 [data-theme="dark"] .trk-search-btn:hover:not(:disabled),
 [data-theme="dark"] .onboarding-btn:hover,
 [data-theme="dark"] .about-submit-btn:hover:not(:disabled) {
-  background: #4ADE80;
+  background: #34D399;
   color: #0F172A;
 }
 

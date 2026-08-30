@@ -361,7 +361,7 @@
   border-top-right-radius: 999px;
   border-bottom-right-radius: 999px;
   border-bottom-left-radius: 999px;
-  background: linear-gradient(135deg, var(--customer-green), #22C55E);
+  background: linear-gradient(135deg, var(--customer-green), #10B981);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -469,7 +469,7 @@
   width: 100%;
   height: 100%;
   border-radius: 999px;
-  background: linear-gradient(135deg, var(--customer-green), #22C55E);
+  background: linear-gradient(135deg, var(--customer-green), #10B981);
   color: #FFFFFF;
   box-shadow: 0 16px 34px rgba(18, 138, 90, 0.28),
     inset 0 1px 0 rgba(255, 255, 255, 0.3);

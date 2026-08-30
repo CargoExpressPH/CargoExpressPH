@@ -9,7 +9,7 @@
 .app-layout {
   /* Scoped overrides on purpose — these are NOT duplicates of the
      tokens.css aliases. Several alias mappings resolve to different values
-     (e.g. dark --admin-green-dark -> var(--primary-lighter) = #14532D,
+     (e.g. dark --admin-green-dark -> var(--primary-lighter) = #064E3B,
      unreadable as text on the dark surface). The refresh layer wins over
      layer(tokens), and removing this block would silently darken headings,
      active sidebar items and muted text in dark mode. */
@@ -29,19 +29,19 @@
 }
 
 [data-theme="dark"] .app-layout {
-  --admin-green: #4ADE80;
+  --admin-green: #34D399;
   --admin-green-dark: #A7F3D0;
-  --admin-green-soft: rgba(34, 197, 94, 0.12);
-  --admin-green-glow: rgba(74, 222, 128, 0.22);
+  --admin-green-soft: rgba(16, 185, 129, 0.12);
+  --admin-green-glow: rgba(52, 211, 153, 0.22);
   --admin-ink: #F8FAFC;
   --admin-muted: #B7C2D0;
-  --admin-panel: rgba(19, 32, 51, 0.92);
-  --admin-panel-solid: #132033;
+  --admin-panel: rgba(30, 41, 59, 0.92);
+  --admin-panel-solid: #1E293B;
   --admin-line: rgba(148, 163, 184, 0.15);
   --admin-shadow: 0 18px 44px rgba(0, 0, 0, 0.32);
   --admin-shadow-soft: 0 10px 26px rgba(0, 0, 0, 0.24);
   background:
-    linear-gradient(180deg, #081321 0%, #0D1A2B 48%, #0A1628 100%);
+    linear-gradient(180deg, #0F172A 0%, #16213A 48%, #1E293B 100%);
 }
 
 .app-layout .sidebar {
@@ -94,7 +94,7 @@
 
 /* --admin-green aliases --primary, which is 3.30:1 on the white sidebar. The
    wordmark renders at 13.4px, so it is body-size text needing 4.5:1 — use the
-   AA text token, which stays theme-aware (#15803D light / #4ADE80 dark). */
+   AA text token, which stays theme-aware (#15803D light / #34D399 dark). */
 .app-layout .sidebar-brand .sidebar-brand-wordmark {
   color: var(--primary-text);
   font-weight: 900;
@@ -1381,7 +1381,7 @@
 }
 
 [data-theme="dark"] .sales-reports-tab.active {
-  background: #22C55E;
+  background: #10B981;
   color: #0F172A;
 }
 

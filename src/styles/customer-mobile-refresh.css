@@ -58,7 +58,7 @@
 .customer-layout-v2 {
   /* Scoped overrides on purpose — these are NOT duplicates of the
      tokens.css aliases. Several alias mappings resolve to different values
-     (e.g. dark --customer-green-dark -> var(--primary-lighter) = #14532D,
+     (e.g. dark --customer-green-dark -> var(--primary-lighter) = #064E3B,
      unreadable as text on the dark surface). The refresh layer wins over
      layer(tokens), and removing this block would silently darken headings,
      active nav items and muted text in dark mode. */
@@ -78,19 +78,19 @@
 }
 
 [data-theme="dark"] .customer-layout-v2 {
-  --customer-green: #4ADE80;
+  --customer-green: #34D399;
   --customer-green-dark: #A7F3D0;
-  --customer-green-soft: rgba(34, 197, 94, 0.12);
-  --customer-green-glow: rgba(74, 222, 128, 0.22);
+  --customer-green-soft: rgba(16, 185, 129, 0.12);
+  --customer-green-glow: rgba(52, 211, 153, 0.22);
   --customer-ink: #F8FAFC;
   --customer-muted: #B7C2D0;
-  --customer-panel: rgba(19, 32, 51, 0.9);
-  --customer-panel-solid: #132033;
+  --customer-panel: rgba(30, 41, 59, 0.9);
+  --customer-panel-solid: #1E293B;
   --customer-line: rgba(148, 163, 184, 0.15);
   --customer-shadow: 0 18px 44px rgba(0, 0, 0, 0.32);
   --customer-shadow-soft: 0 10px 26px rgba(0, 0, 0, 0.24);
   background:
-    linear-gradient(180deg, #081321 0%, #0D1A2B 48%, #0A1628 100%);
+    linear-gradient(180deg, #0F172A 0%, #16213A 48%, #1E293B 100%);
 }
 
 .customer-layout-v2 .card,
@@ -1085,8 +1085,8 @@
 }
 
 [data-theme="dark"] .profile-tier-badge {
-  background: rgba(34, 197, 94, 0.15);
-  color: #4ade80;
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
 }
 
 .profile-completion-container {
@@ -1124,7 +1124,7 @@
 
 .profile-completion-fill {
   height: 100%;
-  background: linear-gradient(90deg, var(--customer-green), #22C55E);
+  background: linear-gradient(90deg, var(--customer-green), #10B981);
   border-radius: var(--radius-full);
   transition: width 0.8s cubic-bezier(0.22, 1, 0.36, 1);
 }
@@ -1192,7 +1192,7 @@
   color: var(--warning-text);
 }
 
-[data-theme="dark"] .profile-menu-icon-wrap.primary { background: rgba(34, 197, 94, 0.12); color: #4ade80; }
+[data-theme="dark"] .profile-menu-icon-wrap.primary { background: rgba(16, 185, 129, 0.12); color: #34d399; }
 [data-theme="dark"] .profile-menu-icon-wrap.accent { background: rgba(93, 160, 216, 0.12); color: #7bb8e8; }
 [data-theme="dark"] .profile-menu-icon-wrap.success { background: rgba(52, 211, 153, 0.12); color: #34d399; }
 [data-theme="dark"] .profile-menu-icon-wrap.info { background: rgba(96, 165, 250, 0.12); color: #60a5fa; }
