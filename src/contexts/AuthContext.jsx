@@ -36,6 +36,18 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     let isMounted = true;
 
+    // Recovery links use the implicit flow: GoTrue appends
+    // `#access_token=...&type=recovery&...` to whichever URL it redirects to,
+    // and the Supabase client — a module-level singleton created well before
+    // this component mounts — can parse that hash and fire PASSWORD_RECOVERY
+    // (below) before this effect's listener even subscribes. Checking the
+    // hash directly, synchronously, on mount closes that race outright rather
+    // than hoping the event is still in flight when we ask.
+    if (window.location.hash.includes('type=recovery') && window.location.pathname !== '/reset-password') {
+      window.location.assign(`/reset-password${window.location.hash}`);
+      return () => { isMounted = false; };
+    }
+
     const initialize = async () => {
       try {
         const { data: { session }, error } = await supabase.auth.getSession();
@@ -67,6 +79,26 @@ export const AuthProvider = ({ children }) => {
           setUser(null);
           setUserProfile(null);
           setLoading(false);
+          return;
+        }
+
+        // A recovery link's token gives GoTrue a real, working session — that's
+        // what lets updateUser({ password }) succeed — but it must never be
+        // treated as "the user is logged in". Skip the normal sign-in handling
+        // entirely (no profile fetch, no `user` state) and just get them to the
+        // page that can act on it. This is deliberately NOT `useNavigate()`:
+        // AuthProvider wraps <RouterProvider> (see App.jsx), so it sits outside
+        // the router context and has no navigate() to call. A hard navigation
+        // also works regardless of which URL Supabase's own redirect actually
+        // landed on — detectSessionInUrl parses the recovery hash from
+        // wherever the browser lands the moment this client boots, and the
+        // resulting session lives in the Supabase client, not in the URL, so
+        // nothing is lost by replacing the location.
+        if (event === 'PASSWORD_RECOVERY') {
+          setLoading(false);
+          if (window.location.pathname !== '/reset-password') {
+            window.location.assign('/reset-password');
+          }
           return;
         }
 
