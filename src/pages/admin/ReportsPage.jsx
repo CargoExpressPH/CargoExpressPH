@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { getReportData } from '../../lib/database';
 import { logActivity } from '../../lib/activityLog';
 import { useAuth } from '../../contexts/AuthContext';
-import { SkeletonStatCard, SkeletonText } from '../../components/ui/SkeletonLoader';
+import { CenteredSpinner } from '../../components/ui/Loader';
 import AnimatedCounter from '../../components/ui/AnimatedCounter';
 import StatusBadge from '../../components/ui/StatusBadge';
 import EmptyState from '../../components/ui/EmptyState';
@@ -200,14 +200,7 @@ const ReportsPage = () => {
       )}
 
       {/* ── Loading State ── */}
-      {loading && (
-        <div className="mt-20">
-          <div className="grid grid-4 mb-20">
-            {[0, 1, 2, 3].map(i => <SkeletonStatCard key={i} />)}
-          </div>
-          <div className="card card-body"><SkeletonText lines={8} /></div>
-        </div>
-      )}
+      {loading && <CenteredSpinner />}
 
       {/* ── Report Content (screen only) ── */}
       {!loading && data && (

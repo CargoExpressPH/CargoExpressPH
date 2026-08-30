@@ -3,7 +3,7 @@ import { getContactInquiries, updateContactInquiry, assignInquiry, unassignInqui
 import { logChat } from '../../lib/activityLog';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
-import { SkeletonTableRow } from '../../components/ui/SkeletonLoader';
+import { CenteredSpinner } from '../../components/ui/Loader';
 import EmptyState from '../../components/ui/EmptyState';
 import ResponsiveFilterControls from '../../components/ui/ResponsiveFilterControls';
 import {
@@ -115,7 +115,7 @@ const ContactInquiriesPage = () => {
   // UPDATE payload carries only assigned_admin_id (a uuid), not the joined
   // assigned_admin.name that getContactInquiries() selects, so a patched row
   // would show "Assigned" instead of the admin's name until the next full
-  // load. `silent` skips the loading-skeleton flip so the table underneath
+  // load. `silent` skips the loading-spinner flip so the table underneath
   // an admin's cursor is never yanked away for a background refresh.
   const reloadTimeoutRef = useRef(null);
   useEffect(() => {
@@ -309,25 +309,7 @@ const ContactInquiriesPage = () => {
 
       {/* Table */}
       {loading ? (
-        <div className="card">
-          <div className="table-container">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th scope="col">Name</th>
-                  <th scope="col">Contact</th>
-                  <th scope="col">Message</th>
-                  <th scope="col">Status</th>
-                  <th scope="col">Date</th>
-                  <th scope="col" style={{ width: 100 }}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {Array.from({ length: 5 }, (_, i) => <SkeletonTableRow key={i} cols={6} />)}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        <CenteredSpinner />
       ) : filtered.length === 0 ? (
         <div className="card">
           <EmptyState

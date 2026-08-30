@@ -5,7 +5,7 @@ import { useToast } from '../../hooks/useToast';
 import { getOrders, getAnnouncements, getTrips } from '../../lib/database';
 import { isTripBookable } from '../../constants/status';
 import StatusBadge from '../../components/ui/StatusBadge';
-import { SkeletonOrderCard, SkeletonStatCard } from '../../components/ui/SkeletonLoader';
+import { CenteredSpinner } from '../../components/ui/Loader';
 import EmptyState from '../../components/ui/EmptyState';
 import PageTransition, { StaggerItem } from '../../components/ui/PageTransition';
 import PullToRefresh from '../../components/ui/PullToRefresh';
@@ -175,19 +175,8 @@ const HomePage = () => {
         </StaggerItem>
       )}
 
-      {/* ── Loading Skeleton ─────────────────────────────────────── */}
-      {loading && (
-        <div>
-          <StaggerItem delay={0} className="mb-md">
-            <SkeletonStatCard />
-          </StaggerItem>
-          {[0, 1, 2].map(i => (
-            <StaggerItem key={i} delay={(i + 1) * 60} className="mb-12">
-              <SkeletonOrderCard />
-            </StaggerItem>
-          ))}
-        </div>
-      )}
+      {/* ── Loading State ─────────────────────────────────────── */}
+      {loading && <CenteredSpinner />}
 
       {/* ── Nearest Active / Scheduled Trip Card ────────────────── */}
       {!loading && activeTrip && (

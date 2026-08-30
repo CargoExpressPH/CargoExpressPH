@@ -27,14 +27,6 @@
   0%, 100% { opacity: 1; }
   50% { opacity: 0.5; }
 }
-@keyframes shimmer {
-  0% { background-position: -400% 0; }
-  100% { background-position: 400% 0; }
-}
-@keyframes shimmerBar {
-  0% { transform: translateX(-100%); }
-  100% { transform: translateX(200%); }
-}
 @keyframes float {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-12px); }

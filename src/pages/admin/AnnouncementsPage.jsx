@@ -3,7 +3,7 @@ import { getAnnouncements, createAnnouncement, deleteAnnouncement, withTimeout }
 import ConfirmModal from '../../components/ui/ConfirmModal';
 import { logAnnouncement } from '../../lib/activityLog';
 import EmptyState from '../../components/ui/EmptyState';
-import { SkeletonCard } from '../../components/ui/SkeletonLoader';
+import { CenteredSpinner } from '../../components/ui/Loader';
 import { Plus, Trash2, Megaphone, Loader, ChevronDown, Check } from 'lucide-react';
 import { useToast } from '../../hooks/useToast';
 import usePageTitle from '../../hooks/usePageTitle';
@@ -297,9 +297,7 @@ const AnnouncementsPage = () => {
       )}
 
       {loading ? (
-        <div className="flex flex-col gap-12">
-          {Array.from({ length: 3 }, (_, i) => <SkeletonCard key={i} />)}
-        </div>
+        <CenteredSpinner />
       ) : error ? (
         <div className="card text-center" style={{ padding: 40, color: 'var(--error-text)' }}>
           <h3>Error</h3><p>{error}</p>

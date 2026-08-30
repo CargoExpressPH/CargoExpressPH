@@ -18,6 +18,7 @@ import {
 import { useToast } from '../../hooks/useToast';
 import usePageTitle from '../../hooks/usePageTitle';
 import FocusTrap from '../../components/ui/FocusTrap';
+import { CenteredSpinner } from '../../components/ui/Loader';
 import useScrollLock from '../../hooks/useScrollLock';
 import useFieldErrors from '../../hooks/useFieldErrors';
 import FieldError, { fieldAttrs, invalidClass } from '../../components/ui/FieldError';
@@ -331,40 +332,6 @@ const AnimatedCounter = ({ value }) => {
   return <span ref={elementRef}>{typeof count === 'number' ? count.toLocaleString() : count}</span>;
 };
 
-// ─── Loading Skeleton ───
-const LoadingSkeleton = () => (
-  <div className="about-skel-wrapper">
-    {/* Skeleton Hero */}
-    <div className="about-skel-hero">
-      <div className="about-skeleton about-skel-hero-bg" />
-      <div className="about-skel-center">
-        <div className="about-skeleton about-skeleton-text about-skel-badge" />
-        <div className="about-skeleton about-skeleton-title about-skel-title-lg" />
-        <div className="about-skeleton about-skeleton-text about-skel-subtitle" />
-      </div>
-    </div>
-    {/* Skeleton Stats */}
-    <div className="about-skel-stats">
-      <div className="about-skeleton about-skeleton-block about-skel-stats-block" />
-    </div>
-    {/* Skeleton Content */}
-    <div className="about-skel-content">
-      <div className="about-skel-grid-2">
-        <div>
-          <div className="about-skeleton about-skeleton-title about-skel-text-80" />
-          <div className="about-skeleton about-skeleton-text about-skel-text-100" />
-          <div className="about-skeleton about-skeleton-text about-skel-text-90" />
-          <div className="about-skeleton about-skeleton-text about-skel-text-95" />
-          <div className="about-skeleton about-skeleton-text about-skel-text-70" />
-        </div>
-        <div className="about-skeleton about-skeleton-card" />
-      </div>
-      <div className="about-skel-grid-3">
-        {[1, 2, 3].map(i => <div key={i} className="about-skeleton about-skeleton-card" />)}
-      </div>
-    </div>
-  </div>
-);
 
 // ─── Section anchor IDs and labels ───
 // Height reserved by the fixed glass nav — anchors must clear it or the section
@@ -667,7 +634,7 @@ const AboutPage = () => {
   }) || [];
 
   // ─── Loading state ───
-  if (fetching) return <LoadingSkeleton />;
+  if (fetching) return <CenteredSpinner />;
 
   const companyName = info?.name || 'CargoExpress PH';
   const bannerImage = info?.banner_image_url || 'https://images.unsplash.com/photo-1586528116311-ad8ed3891db8?auto=format&fit=crop&q=80&w=2000';

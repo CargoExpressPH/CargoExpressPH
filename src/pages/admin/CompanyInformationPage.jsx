@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '../../hooks/useToast';
 import ConfirmModal from '../../components/ui/ConfirmModal';
-import { SkeletonText } from '../../components/ui/SkeletonLoader';
+import { CenteredSpinner } from '../../components/ui/Loader';
 import CompanyInfoFeaturesTab from './CompanyInfoFeaturesTab';
 import CompanyInfoCoverageTab from './CompanyInfoCoverageTab';
 import usePageTitle from '../../hooks/usePageTitle';
@@ -199,17 +199,7 @@ const CompanyInformationPage = () => {
   };
 
   if (loading) {
-    return (
-      <div className="page-transition">
-        <div className="card p-24 mb-16">
-          <div className="skeleton skeleton-text w-80 mb-16" style={{ height: 28 }} />
-          <SkeletonText lines={4} />
-        </div>
-        <div className="card p-24">
-          <SkeletonText lines={6} />
-        </div>
-      </div>
-    );
+    return <CenteredSpinner />;
   }
 
   // Guard: if companyInfo failed to load, show empty form state instead of crashing

@@ -6,7 +6,7 @@ import { useToast } from '../../hooks/useToast';
 import { MessageSquare, Search, Filter, Eye, EyeOff } from 'lucide-react';
 import usePageTitle from '../../hooks/usePageTitle';
 import { formatPhDateTime } from '../../utils/datetime';
-import { SkeletonCard } from '../../components/ui/SkeletonLoader';
+import { CenteredSpinner } from '../../components/ui/Loader';
 import EmptyState from '../../components/ui/EmptyState';
 import CustomSelect from '../../components/ui/CustomSelect';
 
@@ -120,11 +120,7 @@ const FeedbackPage = () => {
       </div>
 
       {loading ? (
-        <div className="grid grid-2 gap-24">
-          {Array.from({ length: 4 }, (_, i) => (
-            <SkeletonCard key={i} />
-          ))}
-        </div>
+        <CenteredSpinner />
       ) : filteredFeedback.length === 0 ? (
         <EmptyState 
           icon={MessageSquare}

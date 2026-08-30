@@ -7,7 +7,7 @@ import { getNotifications, getUnreadNotificationCount, getAnnouncementById, mark
 import { AlertTriangle, Bell, ChevronDown, Clock, Package, Truck, Megaphone, CheckCheck, Loader, RefreshCw, Trash2, X } from 'lucide-react';
 import { useToast } from '../../hooks/useToast';
 import EmptyState from '../../components/ui/EmptyState';
-import { SkeletonText } from '../../components/ui/SkeletonLoader';
+import { CenteredSpinner } from '../../components/ui/Loader';
 import FocusTrap from '../../components/ui/FocusTrap';
 import usePageTitle from '../../hooks/usePageTitle';
 import PullToRefresh from '../../components/ui/PullToRefresh';
@@ -543,16 +543,7 @@ const NotificationsPage = () => {
       )}
 
       {loading ? (
-        <div className="flex flex-col gap-12">
-          {[0, 1, 2, 3].map(i => (
-            <div key={i} className="card card-body stagger-item flex gap-12" style={{ animationDelay: `${i * 60}ms` }}>
-              <div className="skeleton skeleton-avatar w-40 h-40" />
-              <div className="flex-1">
-                <SkeletonText lines={2} />
-              </div>
-            </div>
-          ))}
-        </div>
+        <CenteredSpinner />
       ) : error ? (
         <div className="card animate-scale-in text-center" role="alert" style={{ padding: 32 }}>
           <div className="flex items-center justify-center mx-auto mb-16"

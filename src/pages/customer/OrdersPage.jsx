@@ -5,7 +5,7 @@ import { getOrders } from '../../lib/database';
 import useNetworkRecovery from '../../hooks/useNetworkRecovery';
 import useRealtimeOrders from '../../hooks/useRealtimeOrders';
 import StatusBadge from '../../components/ui/StatusBadge';
-import { SkeletonOrderCard } from '../../components/ui/SkeletonLoader';
+import { CenteredSpinner } from '../../components/ui/Loader';
 import EmptyState from '../../components/ui/EmptyState';
 import PageTransition, { StaggerItem } from '../../components/ui/PageTransition';
 import PullToRefresh from '../../components/ui/PullToRefresh';
@@ -151,13 +151,7 @@ const OrdersPage = () => {
         />
       </StaggerItem>
       {loading ? (
-        <div>
-          {[0, 1, 2].map(i => (
-            <StaggerItem key={i} delay={(i + 2) * 60} className="mb-12">
-              <SkeletonOrderCard />
-            </StaggerItem>
-          ))}
-        </div>
+        <CenteredSpinner />
       ) : error ? (
         <div className="card animate-scale-in text-center" role="alert" style={{ padding: 40 }}>
           <div className="flex items-center justify-center mx-auto mb-16" style={{ width: 56, height: 56, borderRadius: '50%', background: 'var(--error-bg)' }}>

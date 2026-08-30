@@ -28,11 +28,6 @@
   0%, 100% { opacity: 0.8; }
   50% { opacity: 1; }
 }
-@keyframes aboutSkeletonShimmer {
-  0% { background-position: -468px 0; }
-  100% { background-position: 468px 0; }
-}
-
 /* ── Glass Navigation ── */
 .about-glass-nav {
   position: fixed;
@@ -1015,33 +1010,6 @@
 }
 .about-back-to-top:active { transform: scale(0.95); }
 
-/* ── Loading Skeleton ── */
-.about-skeleton {
-  background: linear-gradient(90deg, var(--bg-secondary) 25%, var(--surface) 50%, var(--bg-secondary) 75%);
-  background-size: 936px 100%;
-  animation: aboutSkeletonShimmer 1.5s ease-in-out infinite;
-  border-radius: 12px;
-}
-.about-skeleton-text {
-  height: 16px;
-  margin-bottom: 12px;
-  border-radius: 8px;
-}
-.about-skeleton-title {
-  height: 32px;
-  width: 60%;
-  margin-bottom: 16px;
-  border-radius: 8px;
-}
-.about-skeleton-block {
-  height: 200px;
-  border-radius: 24px;
-}
-.about-skeleton-card {
-  height: 280px;
-  border-radius: 24px;
-}
-
 /* ── Subtle floating shapes for decoration ── */
 .about-gradient-orb {
   position: absolute;
@@ -1149,31 +1117,6 @@
   position: absolute; left: 12px; bottom: 12px; padding: 5px 8px; background: rgba(4, 20, 37, 0.72);
   border-radius: 5px; color: rgba(255,255,255,0.86); font-size: 0.6875rem; letter-spacing: 0.03em; z-index: 1000;
 }
-.about-skel-wrapper {
-  min-height: 100vh; background: var(--bg-gradient, var(--bg)); font-family: var(--font-sans);
-}
-.about-skel-hero {
-  height: 70vh; background: var(--bg-secondary); position: relative; overflow: hidden;
-}
-.about-skel-hero-bg { position: absolute; inset: 0; border-radius: 0; }
-.about-skel-center {
-  position: absolute; inset: 0; display: flex; flex-direction: column;
-  align-items: center; justify-content: center; gap: 20px; padding: 0 24px;
-}
-.about-skel-badge { width: 180px; height: 28px; }
-.about-skel-title-lg { width: 60%; max-width: 500px; height: 48px; }
-.about-skel-subtitle { width: 40%; max-width: 300px; }
-.about-skel-stats { max-width: 1100px; margin: -30px auto 0; padding: 0 20px; }
-.about-skel-stats-block { height: 100px; }
-.about-skel-content { max-width: 1200px; margin: 80px auto 0; padding: 0 20px; }
-.about-skel-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; margin-bottom: 80px; }
-.about-skel-text-80 { width: 80%; }
-.about-skel-text-100 { width: 100%; }
-.about-skel-text-90 { width: 90%; }
-.about-skel-text-95 { width: 95%; }
-.about-skel-text-70 { width: 70%; }
-.about-skel-grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
-
 /* ═══════════════════════════════════════════════════════════════════════
    INLINE STYLE MIGRATION — Classes replacing style={{...}} in JSX
    ═══════════════════════════════════════════════════════════════════════ */

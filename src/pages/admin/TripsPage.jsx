@@ -3,7 +3,7 @@ import { tripCapacityState } from '../../constants/status';
 import { Link, useNavigate } from 'react-router-dom';
 import { getTrips, withTimeout } from '../../lib/database';
 import StatusBadge from '../../components/ui/StatusBadge';
-import { SkeletonCard } from '../../components/ui/SkeletonLoader';
+import { CenteredSpinner } from '../../components/ui/Loader';
 import EmptyState from '../../components/ui/EmptyState';
 import ResponsiveFilterControls from '../../components/ui/ResponsiveFilterControls';
 import { Plus, Truck, Calendar, MapPin } from 'lucide-react';
@@ -90,9 +90,7 @@ const AdminTripsPage = () => {
         className="mb-16"
       />
       {loading ? (
-        <div className="flex flex-col gap-12">
-          {Array.from({ length: 3 }, (_, i) => <SkeletonCard key={i} />)}
-        </div>
+        <CenteredSpinner />
       ) : error ? (
         <div className="card admin-error-card">
           <h3>Error</h3>

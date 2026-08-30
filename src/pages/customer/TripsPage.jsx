@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getTrips } from '../../lib/database';
 import StatusBadge from '../../components/ui/StatusBadge';
-import { SkeletonOrderCard } from '../../components/ui/SkeletonLoader';
+import { CenteredSpinner } from '../../components/ui/Loader';
 import EmptyState from '../../components/ui/EmptyState';
 import { Calendar, Truck, AlertCircle, ChevronRight, RefreshCw } from 'lucide-react';
 import usePageTitle from '../../hooks/usePageTitle';
@@ -101,13 +101,7 @@ const TripsPage = () => {
       </div>
 
       {loading ? (
-        <div>
-          {[0, 1, 2].map(i => (
-            <div key={i} className="stagger-item mb-12" style={{ animationDelay: `${i * 60}ms` }}>
-              <SkeletonOrderCard />
-            </div>
-          ))}
-        </div>
+        <CenteredSpinner />
       ) : error ? (
         <div className="card animate-scale-in text-center" role="alert" style={{ padding: 40 }}>
           <div className="flex items-center justify-center mx-auto mb-16" style={{ width: 56, height: 56, borderRadius: '50%', background: 'var(--error-bg)' }}>

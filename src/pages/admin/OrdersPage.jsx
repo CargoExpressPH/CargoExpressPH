@@ -5,7 +5,7 @@ import useNetworkRecovery from '../../hooks/useNetworkRecovery';
 import useRealtimeOrders from '../../hooks/useRealtimeOrders';
 import { useAuth } from '../../contexts/AuthContext';
 import StatusBadge from '../../components/ui/StatusBadge';
-import { SkeletonTableRow } from '../../components/ui/SkeletonLoader';
+import { CenteredSpinner } from '../../components/ui/Loader';
 import EmptyState from '../../components/ui/EmptyState';
 import PageTransition from '../../components/ui/PageTransition';
 import ResponsiveFilterControls from '../../components/ui/ResponsiveFilterControls';
@@ -215,17 +215,7 @@ const AdminOrdersPage = () => {
         className="mb-16"
       />
       {loading ? (
-        <div className="card animate-fade-in">
-          <div className="table-container">
-            <table className="data-table" aria-busy="true">
-              <caption className="sr-only">List of customer bookings (loading)</caption>
-              <thead><tr><th scope="col">Tracking</th><th scope="col">Customer</th><th scope="col">Route</th><th scope="col">Weight</th><th scope="col">Cost</th><th scope="col">Status</th><th scope="col">Date</th></tr></thead>
-              <tbody>
-                {Array.from({ length: 6 }, (_, i) => <SkeletonTableRow key={i} cols={7} />)}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        <CenteredSpinner />
       ) : error ? (
         <div className="card admin-error-card">
           <h3>Error</h3>

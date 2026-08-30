@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { getCustomerById } from '../../lib/database';
 import StatusBadge from '../../components/ui/StatusBadge';
 import AnimatedCounter from '../../components/ui/AnimatedCounter';
-import { SkeletonStatCard, SkeletonText } from '../../components/ui/SkeletonLoader';
+import { CenteredSpinner } from '../../components/ui/Loader';
 import { Package } from 'lucide-react';
 import EmptyState from '../../components/ui/EmptyState';
 import MessageCustomerButton from '../../components/ui/MessageCustomerButton';
@@ -39,15 +39,7 @@ const CustomerDetailPage = () => {
     }
   };
 
-  if (loading) return (
-    <div className="page-transition">
-      <div className="skeleton skeleton-text w-80 mb-16" />
-      <div className="card mb-16"><div className="card-body"><SkeletonText lines={3} /></div></div>
-      <div className="grid grid-4 mb-16">
-        {Array.from({ length: 4 }, (_, i) => <SkeletonStatCard key={i} />)}
-      </div>
-    </div>
-  );
+  if (loading) return <CenteredSpinner />;
   if (error) return (
     <div className="page-transition">
       <div className="card text-center admin-error-card p-40">

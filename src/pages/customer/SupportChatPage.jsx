@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 import EmptyState from '../../components/ui/EmptyState';
 import { useToast } from '../../hooks/useToast';
-import { SkeletonChat } from '../../components/ui/SkeletonLoader';
+import { CenteredSpinner } from '../../components/ui/Loader';
 import usePageTitle from '../../hooks/usePageTitle';
 import useKeyboardInset from '../../hooks/useKeyboardInset';
 import ErrorBoundarySection from '../../components/ui/ErrorBoundarySection';
@@ -685,7 +685,7 @@ const SupportChatPage = () => {
     return (
       <div className="page-transition support-chat-page" role="status" aria-live="polite" aria-busy="true">
         <span className="sr-only">Loading support chat...</span>
-        <SkeletonChat />
+        <CenteredSpinner />
       </div>
     );
   }

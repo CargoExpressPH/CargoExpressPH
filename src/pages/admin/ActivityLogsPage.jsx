@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { getActivityLogs } from '../../lib/database';
 import Breadcrumb from '../../components/ui/Breadcrumb';
-import { SkeletonText } from '../../components/ui/SkeletonLoader';
+import { CenteredSpinner } from '../../components/ui/Loader';
 import EmptyState from '../../components/ui/EmptyState';
 import CustomSelect from '../../components/ui/CustomSelect';
 import usePageTitle from '../../hooks/usePageTitle';
@@ -233,7 +233,7 @@ const ActivityLogsPage = () => {
       {/* Table */}
       <div className="card stagger-item activity-logs-table-card">
         {loading ? (
-          <div className="card-body"><SkeletonText lines={8} /></div>
+          <div className="card-body"><CenteredSpinner /></div>
         ) : logs.length === 0 ? (
           <EmptyState
             icon={ClipboardList}

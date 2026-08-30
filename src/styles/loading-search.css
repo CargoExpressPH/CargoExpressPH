@@ -27,55 +27,6 @@
   animation: pulse 2s ease-in-out infinite;
 }
 
-/* --- SKELETON LOADERS ------------------------------------------------- */
-
-.skeleton {
-  background: linear-gradient(90deg, var(--border-light) 25%, #E8EDF2 37%, var(--border-light) 63%);
-  background-size: 400% 100%;
-  animation: shimmer 1.4s ease infinite;
-  border-radius: var(--radius-sm);
-}
-.skeleton-text {
-  height: 14px; margin-bottom: 10px;
-  border-radius: var(--radius-xs);
-}
-.skeleton-text:last-child { width: 70%; }
-.skeleton-avatar {
-  border-radius: 50%; flex-shrink: 0;
-}
-.skeleton-card {
-  padding: 24px;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--border-light);
-}
-.skeleton-stat-card {
-  height: 110px; border-radius: var(--radius-lg);
-}
-.skeleton-order-card {
-  padding: 16px;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--border-light);
-  display: flex; flex-direction: column; gap: 10px;
-}
-.skeleton-table-cell {
-  height: 14px; border-radius: var(--radius-xs);
-}
-
-.skeleton-chat-list {
-  display: flex; flex-direction: column; gap: 16px; margin-top: 20px;
-}
-.skeleton-chat-msg-row {
-  display: flex; gap: 10px; width: 75%;
-}
-.skeleton-chat-msg-row.start { align-self: flex-start; }
-.skeleton-chat-msg-row.end { align-self: flex-end; width: 65%; justify-content: flex-end; }
-.skeleton-chat-bubble-col {
-  flex: 1; display: flex; flex-direction: column; gap: 6px;
-}
-.skeleton-chat-msg-row.end .skeleton-chat-bubble-col { align-items: flex-end; }
-.skeleton-chat-bubble-start { border-radius: 4px 16px 16px 16px; }
-.skeleton-chat-bubble-end { border-radius: 16px 4px 16px 16px; }
-
 /* --- EMPTY STATE ------------------------------------------------------- */
 
 .empty-state {

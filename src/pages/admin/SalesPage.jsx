@@ -3,7 +3,7 @@ import { getSalesData, withTimeout } from '../../lib/database';
 import { useAuth } from '../../contexts/AuthContext';
 import useRealtimeOrders from '../../hooks/useRealtimeOrders';
 import { logActivity } from '../../lib/activityLog';
-import { SkeletonStatCard, SkeletonDonut, SkeletonBarChart } from '../../components/ui/SkeletonLoader';
+import { CenteredSpinner } from '../../components/ui/Loader';
 import AnimatedCounter from '../../components/ui/AnimatedCounter';
 import DonutChart from '../../components/ui/DonutChart';
 import MiniBarChart from '../../components/ui/MiniBarChart';
@@ -195,20 +195,20 @@ const SalesPage = () => {
       </div>
 
       {/* Stat Cards */}
-      <div className="grid grid-4 mb-24">
-        {loading ? (
-          STAT_CARDS.map(c => <SkeletonStatCard key={c.key} />)
-        ) : (
-          STAT_CARDS.map((c, i) => (
+      {loading ? (
+        <CenteredSpinner />
+      ) : (
+        <div className="grid grid-4 mb-24">
+          {STAT_CARDS.map((c, i) => (
             <div key={c.key} className={`stat-card stat-card-${c.tone} stagger-item`} style={{ animationDelay: `${i * 60}ms` }}>
               <div className="stat-value">
                 <AnimatedCounter value={Number(s[c.field]) || 0} prefix={c.prefix} decimals={0} duration={1200} />
               </div>
               <div className="stat-label">{c.label}</div>
             </div>
-          ))
-        )}
-      </div>
+          ))}
+        </div>
+      )}
 
       {/* Reconciliation line. The Outstanding tile is scoped to the pipeline so
           it matches Unsettled Deliveries exactly; anything owing outside that
@@ -226,7 +226,7 @@ const SalesPage = () => {
         <div className="card admin-section-card stagger-item" style={{ animationDelay: '240ms' }}>
           <div className="card-header"><h3>Payment Methods</h3></div>
           <div className="card-body" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px 16px', minHeight: '260px' }}>
-            {loading ? <SkeletonDonut size={170} /> : (
+            {loading ? <CenteredSpinner /> : (
               <DonutChart
                 size={170}
                 thickness={26}
@@ -244,7 +244,7 @@ const SalesPage = () => {
         <div className="card admin-section-card stagger-item" style={{ animationDelay: '300ms' }}>
           <div className="card-header"><h3>Monthly Revenue</h3></div>
           <div className="card-body">
-            {loading ? <SkeletonBarChart height={180} bars={8} /> : monthlySales.length === 0 ? (
+            {loading ? <CenteredSpinner /> : monthlySales.length === 0 ? (
               <EmptyState
                 icon={DollarSign}
                 title="No sales data"

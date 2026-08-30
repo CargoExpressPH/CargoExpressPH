@@ -7,7 +7,7 @@ import {
 import { useAuth } from '../../contexts/AuthContext';
 import useRealtimeOrders from '../../hooks/useRealtimeOrders';
 import { logActivity } from '../../lib/activityLog';
-import { SkeletonStatCard, SkeletonTableRow } from '../../components/ui/SkeletonLoader';
+import { CenteredSpinner } from '../../components/ui/Loader';
 import StatusBadge from '../../components/ui/StatusBadge';
 import EmptyState from '../../components/ui/EmptyState';
 import Pagination from '../../components/ui/Pagination';
@@ -98,7 +98,7 @@ const UnsettledDeliveriesPage = () => {
   const [payingOrder, setPayingOrder] = useState(null);
   const [exporting, setExporting] = useState(false);
   // A background reload triggered by realtime. Distinct from `loading` so the
-  // table is never replaced by skeletons under the admin's cursor.
+  // table is never replaced by the spinner under the admin's cursor.
   const [refreshing, setRefreshing] = useState(false);
   const [liveCount, setLiveCount] = useState(0);
   const [now, setNow] = useState(() => new Date());
@@ -242,7 +242,7 @@ const UnsettledDeliveriesPage = () => {
       'the unsettled deliveries list',
     );
     setPayingOrder(null);
-    // Silent: the realtime patch usually lands first anyway, and a skeleton
+    // Silent: the realtime patch usually lands first anyway, and a spinner
     // flash right after a successful collection looks like something failed.
     await loadUnsettled({ silent: true });
     toast.success(`Payment of ${formatCurrency(amount)} recorded for ${order.tracking_number}.`);
@@ -329,11 +329,11 @@ const UnsettledDeliveriesPage = () => {
       </div>
 
       {/* Summary tiles */}
-      <div className="grid grid-4 mb-24">
-        {loading ? (
-          Array.from({ length: 4 }, (_, i) => <SkeletonStatCard key={i} />)
-        ) : (
-          [
+      {loading ? (
+        <CenteredSpinner />
+      ) : (
+        <div className="grid grid-4 mb-24">
+          {[
             { l: 'Total Outstanding', v: formatCurrency(t.outstanding), tone: 'danger' },
             { l: 'Unsettled Shipments', v: t.count || 0, tone: 'primary' },
             { l: 'Held at Hub', v: t.held || 0, tone: 'warning' },
@@ -343,9 +343,9 @@ const UnsettledDeliveriesPage = () => {
               <div className="stat-value">{c.v}</div>
               <div className="stat-label">{c.l}</div>
             </div>
-          ))
-        )}
-      </div>
+          ))}
+        </div>
+      )}
 
       {!loading && (t.overdue || 0) > 0 && (
         <div
@@ -399,19 +399,7 @@ const UnsettledDeliveriesPage = () => {
       </div>
 
       {loading ? (
-        <div className="card animate-fade-in">
-          <div className="table-container">
-            <table className="data-table" aria-busy="true">
-              <caption className="sr-only">Unsettled deliveries (loading)</caption>
-              <thead>
-                <tr><th scope="col">Tracking</th><th scope="col">Customer</th><th scope="col">Status</th><th scope="col">Settlement</th><th scope="col">Billed</th><th scope="col">Paid</th><th scope="col">Balance</th><th scope="col">Action</th></tr>
-              </thead>
-              <tbody>
-                {Array.from({ length: 6 }, (_, i) => <SkeletonTableRow key={i} cols={8} />)}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        <CenteredSpinner />
       ) : paginated.length === 0 ? (
         <div className="card animate-fade-in no-print">
           <EmptyState

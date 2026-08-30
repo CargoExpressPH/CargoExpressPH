@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { getCustomers } from '../../lib/database';
-import { SkeletonTableRow } from '../../components/ui/SkeletonLoader';
+import { CenteredSpinner } from '../../components/ui/Loader';
 import EmptyState from '../../components/ui/EmptyState';
 import Pagination from '../../components/ui/Pagination';
 import { ChevronRight, Search, Users } from 'lucide-react';
@@ -83,17 +83,7 @@ const CustomersPage = () => {
       </div>
 
       {loading ? (
-        <div className="card animate-fade-in">
-          <div className="table-container">
-            <table className="data-table data-table--list">
-              <caption className="sr-only">List of registered customers (loading)</caption>
-              <thead><tr><th scope="col">Name</th></tr></thead>
-              <tbody>
-                {Array.from({ length: perPage }, (_, i) => <SkeletonTableRow key={i} cols={1} />)}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        <CenteredSpinner />
       ) : error ? (
         <div className="card admin-error-card">
           <h3>Error</h3>

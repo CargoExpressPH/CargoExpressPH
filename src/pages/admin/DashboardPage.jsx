@@ -4,7 +4,7 @@ import { getDashboardStats, getVanCapacity, withTimeout } from '../../lib/databa
 import StatusBadge from '../../components/ui/StatusBadge';
 import CapacityTracker from '../../components/ui/CapacityTracker';
 import DonutChart from '../../components/ui/DonutChart';
-import { SkeletonStatCard, SkeletonTableRow, SkeletonDonut } from '../../components/ui/SkeletonLoader';
+import { CenteredSpinner } from '../../components/ui/Loader';
 import AnimatedCounter from '../../components/ui/AnimatedCounter';
 import PageTransition, { StaggerItem } from '../../components/ui/PageTransition';
 import ErrorBoundarySection from '../../components/ui/ErrorBoundarySection';
@@ -131,15 +131,11 @@ const DashboardPage = () => {
       )}
       {/* Stat Cards */}
       <ErrorBoundarySection message="Stats failed to load.">
-        <div className="grid grid-4 mb-24">
-          {loading ? (
-            <>
-              {Array.from({ length: 4 }, (_, i) => (
-                <SkeletonStatCard key={i} />
-              ))}
-            </>
-          ) : (
-            statCards.map((s, i) => (
+        {loading ? (
+          <CenteredSpinner />
+        ) : (
+          <div className="grid grid-4 mb-24">
+            {statCards.map((s, i) => (
               <StaggerItem key={i} className={`stat-card stat-card-${s.tone}`} delay={i * 60}>
                 <div className="stat-icon"><s.icon size={22} /></div>
                 <div className="stat-value">
@@ -147,9 +143,9 @@ const DashboardPage = () => {
                 </div>
                 <div className="stat-label">{s.label}</div>
               </StaggerItem>
-            ))
-          )}
-        </div>
+            ))}
+          </div>
+        )}
       </ErrorBoundarySection>
 
       <div className="grid grid-2 mb-24">
@@ -159,10 +155,7 @@ const DashboardPage = () => {
           <div className="card-header"><h3><Gauge size={16} className="inline mr-8" />Trip Capacity</h3></div>
           <div className="card-body">
             {loading ? (
-              <div className="p-20">
-                <div className="skeleton skeleton-text mb-12" style={{ width: '60%' }} />
-                <div className="skeleton" style={{ height: 14, borderRadius: 'var(--radius-full)' }} />
-              </div>
+              <CenteredSpinner />
             ) : capacity?.activeTrip ? (
               <>
                 <div className="text-sm text-secondary mb-12">
@@ -192,7 +185,7 @@ const DashboardPage = () => {
           <div className="card-header"><h3><PieChart size={16} className="inline mr-8" />Order Distribution</h3></div>
           <div className="card-body" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px 16px', minHeight: '260px' }}>
             {loading ? (
-              <SkeletonDonut size={170} />
+              <CenteredSpinner />
             ) : (
               <DonutChart
                 size={170}
@@ -215,12 +208,7 @@ const DashboardPage = () => {
           <Link to="/admin/orders" className="btn btn-ghost btn-sm">View All <ArrowRight size={14} /></Link>
         </div>
         {loading ? (
-          <div className="table-container">
-            <table className="data-table">
-              <thead><tr><th scope="col">Tracking</th><th scope="col">Customer</th><th scope="col">Status</th><th scope="col">Date</th></tr></thead>
-              <tbody>{Array.from({ length: 4 }, (_, i) => <SkeletonTableRow key={i} cols={4} />)}</tbody>
-            </table>
-          </div>
+          <CenteredSpinner />
         ) : recent.length === 0 ? (
           <EmptyState
             icon={Package}

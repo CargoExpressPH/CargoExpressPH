@@ -20,7 +20,7 @@ import PaymentResultModal from '../../components/ui/PaymentResultModal';
 import ImageLightbox from '../../components/ui/ImageLightbox';
 import Breadcrumb from '../../components/ui/Breadcrumb';
 import FocusTrap from '../../components/ui/FocusTrap';
-import { SkeletonText } from '../../components/ui/SkeletonLoader';
+import { CenteredSpinner } from '../../components/ui/Loader';
 import ErrorBoundarySection from '../../components/ui/ErrorBoundarySection';
 import CustomSelect from '../../components/ui/CustomSelect';
 import MessageCustomerButton from '../../components/ui/MessageCustomerButton';
@@ -600,15 +600,7 @@ const AdminOrderDetailPage = () => {
   };
 
 
-  if (loading) return (
-    <div className="page-transition">
-      <div className="skeleton skeleton-text w-80 mb-16" />
-      <div className="skeleton skeleton-text mb-8" style={{ width: '200px', height: 28 }} />
-      <div className="skeleton skeleton-text mb-20" style={{ width: '300px' }} />
-      <div className="card mb-16"><div className="card-body"><SkeletonText lines={3} /></div></div>
-      <div className="card mb-16"><div className="card-body"><SkeletonText lines={4} /></div></div>
-    </div>
-  );
+  if (loading) return <CenteredSpinner />;
   if (error) return (
     <div className="page-transition">
       <div className="card text-center text-error" role="alert" style={{ padding: 40 }}>

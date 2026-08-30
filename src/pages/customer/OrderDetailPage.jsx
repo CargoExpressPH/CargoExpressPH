@@ -14,7 +14,7 @@ import PaymentResultModal from '../../components/ui/PaymentResultModal';
 import CancelBookingModal from '../../components/ui/CancelBookingModal';
 import FocusTrap from '../../components/ui/FocusTrap';
 import ImageLightbox from '../../components/ui/ImageLightbox';
-import { SkeletonOrderCard, SkeletonText } from '../../components/ui/SkeletonLoader';
+import { CenteredSpinner } from '../../components/ui/Loader';
 import AmountInput from '../../components/ui/AmountInput';
 import { ArrowLeft, MapPin, User, Phone, Package, CreditCard, Truck, Camera, Image, XCircle, Loader, AlertTriangle, Check } from 'lucide-react';
 import { useToast } from '../../hooks/useToast';
@@ -234,7 +234,7 @@ const OrderDetailPage = () => {
   // Refetches without touching `loading`/`error` — used by the realtime
   // listener below. A realtime tick means the page already has good data on
   // screen; routing it through the same `loading` flag as the initial load
-  // would flash the whole page back to its skeleton state on every status
+  // would flash the whole page back to its loading spinner on every status
   // change, which is worse than the staleness this is fixing.
   const refreshOrderSilently = useCallback(async () => {
     if (!id || !isMountedRef.current) return;
@@ -618,16 +618,7 @@ const OrderDetailPage = () => {
   };
 
   // ── Loading State ──────────────────────────────────────────────────────────
-  if (loading) return (
-    <div className="page-transition customer-order-detail-page">
-      <div className="stagger-item mb-16" style={{ animationDelay: '0ms' }}>
-        <div className="skeleton skeleton-text h-20" style={{ width: '30%',}} />
-      </div>
-      <div className="stagger-item mb-16" style={{ animationDelay: '60ms' }}><SkeletonOrderCard /></div>
-      <div className="stagger-item mb-16" style={{ animationDelay: '120ms' }}><SkeletonText lines={4} /></div>
-      <div className="stagger-item" style={{ animationDelay: '180ms' }}><SkeletonOrderCard /></div>
-    </div>
-  );
+  if (loading) return <CenteredSpinner />;
 
   // ── Error State ────────────────────────────────────────────────────────────
   if (error) return (

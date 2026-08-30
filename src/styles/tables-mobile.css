@@ -462,19 +462,6 @@
     border: none;
   }
 
-  .skeleton-table-row {
-    display: block;
-  }
-
-  .skeleton-table-cell {
-    display: block;
-    padding: 6px 0;
-    border: none;
-  }
-
-  .skeleton-table-cell::before {
-    content: none;
-  }
 }
 
 /* Wide 7–8-col tables also at 900px (unsettled, bookings, logs, detailed list) */

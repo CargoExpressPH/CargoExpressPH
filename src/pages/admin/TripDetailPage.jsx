@@ -4,7 +4,7 @@ import { getTripById, updateTrip, getActivityLogsByRecord, bulkUpdateOrdersStatu
 import StatusBadge from '../../components/ui/StatusBadge';
 import ConfirmModal from '../../components/ui/ConfirmModal';
 import RescheduleTripModal from '../../components/ui/RescheduleTripModal';
-import { SkeletonText } from '../../components/ui/SkeletonLoader';
+import { CenteredSpinner } from '../../components/ui/Loader';
 import { ArrowLeft, Play, Flag, CheckCircle, XCircle, Loader, Clock, ArrowRight, Package, AlertTriangle, Calendar, Pencil } from 'lucide-react';
 import CapacityTracker from '../../components/ui/CapacityTracker';
 import Breadcrumb from '../../components/ui/Breadcrumb';
@@ -159,15 +159,7 @@ const TripDetailPage = () => {
     }
   };
 
-  if (loading) return (
-    <div className="page-transition">
-      <div className="skeleton skeleton-text w-80 mb-16" />
-      <div className="skeleton skeleton-text mb-8" style={{ width: '200px', height: 28 }} />
-      <div className="skeleton skeleton-text mb-20" style={{ width: '250px' }} />
-      <div className="card mb-16"><div className="card-body"><SkeletonText lines={2} /></div></div>
-      <div className="card mb-16"><div className="card-body"><SkeletonText lines={3} /></div></div>
-    </div>
-  );
+  if (loading) return <CenteredSpinner />;
   if (error) return (
     <div className="page-transition">
       <div className="card text-center" role="alert" style={{ padding: 40, color: 'var(--error-text)' }}>
