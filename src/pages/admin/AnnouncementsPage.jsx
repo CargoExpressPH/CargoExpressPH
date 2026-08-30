@@ -163,7 +163,7 @@ const AnnouncementsPage = () => {
   const [error, setError] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({ title: '', content: '', category: 'auto' });
+  const [form, setForm] = useState({ title: '', content: '', category: 'auto', sendEmail: false });
   const [deleteTarget, setDeleteTarget] = useState(null);
   const { errors, validate, clearError, clearAll } = useFieldErrors();
   const [deleting, setDeleting] = useState(false);
@@ -214,13 +214,18 @@ const AnnouncementsPage = () => {
       await withTimeout(createAnnouncement({
         title: finalTitle,
         content: form.content.trim(),
+        send_email: form.sendEmail,
       }));
-      setForm({ title: '', content: '', category: 'auto' });
+      setForm({ title: '', content: '', category: 'auto', sendEmail: false });
       setShowForm(false);
       clearAll();
       logAnnouncement('Announcement Published', null, finalTitle, { details: `Published announcement: ${finalTitle}` });
       await load();
-      toast.success('Announcement published!');
+      toast.success(
+        form.sendEmail
+          ? 'Announcement published! Emailing subscribers in the background — check back shortly for the sent status.'
+          : 'Announcement published!'
+      );
     } catch(e) {
       toast.error(e.message || 'Failed to create announcement.');
     } finally {
@@ -289,6 +294,20 @@ const AnnouncementsPage = () => {
             <textarea id="announcement-content" className={`form-textarea ${invalidClass('content', errors)}`} value={form.content} onChange={e=>{setForm(p=>({...p,content:e.target.value})); clearError('content');}} maxLength={1500} required {...fieldAttrs('content', errors)} />
             <FieldError name="content" errors={errors} />
           </div>
+          <div className="form-group">
+            <label className="flex items-center gap-8" htmlFor="announcement-send-email" style={{ cursor: 'pointer' }}>
+              <input
+                id="announcement-send-email"
+                type="checkbox"
+                checked={form.sendEmail}
+                onChange={e => setForm(p => ({ ...p, sendEmail: e.target.checked }))}
+              />
+              Send via Email to all subscribers
+            </label>
+            <p className="text-xs text-secondary mt-4">
+              Emails everyone who opted in to announcement emails — subscribed customers and public contact-form leads. In-app and push notifications always go out regardless of this setting.
+            </p>
+          </div>
           <div className="admin-form-actions">
             <button type="button" className="btn btn-primary" onClick={handleCreate} disabled={saving}>{saving?<Loader size={16} className="animate-spin"/>:'Publish'}</button>
             <button type="button" className="btn btn-ghost" onClick={()=>{ setShowForm(false); clearAll(); }}>Cancel</button>
@@ -331,7 +350,14 @@ const AnnouncementsPage = () => {
                   <button type="button" className="btn btn-ghost btn-icon admin-card-action" onClick={()=>setDeleteTarget(a)} aria-label={`Delete ${a.title}`}><Trash2 size={16}/></button>
                 </div>
                 <p className="text-sm text-secondary mt-6">{a.content}</p>
-                <div className="text-xs text-tertiary mt-8">by {a.profiles?.name||'Admin'} • {formatPhDate(a.created_at)}</div>
+                <div className="text-xs text-tertiary mt-8">
+                  by {a.profiles?.name||'Admin'} • {formatPhDate(a.created_at)}
+                  {a.send_email && (
+                    <span className="ml-8">
+                      • {a.emailed_at ? `Emailed ${formatPhDate(a.emailed_at)}` : 'Emailing subscribers…'}
+                    </span>
+                  )}
+                </div>
                 <AnnouncementComments
                   announcementId={a.id}
                   comments={a.comments}

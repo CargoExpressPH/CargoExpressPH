@@ -1159,6 +1159,22 @@ export const createAnnouncement = async (announcement) => {
     }
   })();
 
+  // ── Non-blocking email broadcast ─────────────────────────────────────────
+  // Same reasoning as the push fan-out above: emailing every opted-in
+  // subscriber can take a while and is best-effort. The announcement is
+  // already saved and visible in-app regardless of whether this succeeds.
+  // The Edge Function re-checks the caller is an admin itself — it does not
+  // trust `send_email` alone as authorization.
+  if (announcement.send_email) {
+    void supabase.functions.invoke('broadcast-announcement', {
+      body: { announcement_id: data.id },
+    }).then(({ error: broadcastError }) => {
+      if (broadcastError) {
+        console.warn('[broadcast-announcement] send failed:', broadcastError.message);
+      }
+    });
+  }
+
   return data;
 };
 
@@ -1791,6 +1807,7 @@ export const createAdminNotification = async (title, message, type = 'general', 
  * @param {string} data.message
  * @param {string} [data.contact_phone] — mobile number, if supplied
  * @param {string} [data.contact_email] — email address, if supplied
+ * @param {boolean} [data.wants_announcements] — opted in to trip/promo/announcement emails
  *
  * Writes the normalized contact_phone/contact_email columns and, for this
  * release only, keeps the legacy polymorphic `phone` column in sync so a
@@ -1813,6 +1830,7 @@ export const createContactInquiry = async (data) => {
     message: data.message,
     contact_phone: data.contact_phone || null,
     contact_email: data.contact_email || null,
+    wants_announcements: data.wants_announcements === true,
     phone: [data.contact_phone, data.contact_email].filter(Boolean).join(' | ')?.slice(0, 100) || null,
   }
   let res

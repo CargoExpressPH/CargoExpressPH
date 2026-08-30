@@ -359,7 +359,7 @@ const AboutPage = () => {
   const [showBackToTop, setShowBackToTop] = useState(false);
   const [scrollProgress, setScrollProgress] = useState(0);
   const [activeSection, setActiveSection] = useState('hero');
-  const [form, setForm] = useState({ name: '', phone: '', message: '' });
+  const [form, setForm] = useState({ name: '', phone: '', email: '', message: '', wantsAnnouncements: false });
   const { errors, validate, clearError } = useFieldErrors();
   const [loading, setLoading] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(-1);
@@ -525,7 +525,7 @@ const AboutPage = () => {
   const PHONE_RE = /^09\d{9}$/;
   const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-  const handleContactInput = (e) => {
+  const handlePhoneInput = (e) => {
     let val = e.target.value;
     if (/^\d+$/.test(val) && val.length > 11) {
       val = val.slice(0, 11);
@@ -540,49 +540,45 @@ const AboutPage = () => {
     return digits;
   };
 
-  /**
-   * The contact field takes either a mobile number or an email, so its rule
-   * has to decide which the visitor meant before it can say what is wrong
-   * with it. Returns the message, or null when it is acceptable.
-   */
-  const contactFieldError = (contact) => {
-    if (!contact) return 'Enter a mobile number or an email address so we can reply.';
-    if (contact.includes('@')) {
-      return EMAIL_RE.test(contact) ? null : 'Please enter a valid email address.';
-    }
-    if (!/\d/.test(contact)) return 'Please enter a valid mobile number or email address.';
-    return PHONE_RE.test(normalizePhone(contact))
+  /** Phone and email are now both required (previously either/or), so each
+   *  gets its own field and its own rule. */
+  const phoneFieldError = (value) => {
+    if (!value) return 'Enter your mobile number so we can reply.';
+    if (!/\d/.test(value)) return 'Please enter a valid mobile number.';
+    return PHONE_RE.test(normalizePhone(value))
       ? null
       : 'Mobile number must be exactly 11 digits and start with 09.';
+  };
+
+  const emailFieldError = (value) => {
+    if (!value) return 'Enter your email address so we can reply.';
+    return EMAIL_RE.test(value) ? null : 'Please enter a valid email address.';
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    const contact = form.phone.trim();
+    const phone = form.phone.trim();
+    const email = form.email.trim();
     const ok = validate({
       name: !form.name.trim() ? 'Please enter your name.' : null,
-      phone: contactFieldError(contact),
+      phone: phoneFieldError(phone),
+      email: emailFieldError(email),
       message: !form.message.trim() ? 'Please write your message.' : null,
     });
     if (!ok) return;
 
-    const isEmail = contact.includes('@');
-    const storedContact = isEmail ? contact : normalizePhone(contact);
-
     setLoading(true);
     try {
-      // The form accepts either a mobile number or an email in one field.
-      // Which one it is has already been determined above, so record it in
-      // the matching column rather than in a single polymorphic one.
       await createContactInquiry({
         name: form.name.trim(),
         message: form.message.trim(),
-        contact_phone: isEmail ? null : storedContact,
-        contact_email: isEmail ? storedContact : null,
+        contact_phone: normalizePhone(phone),
+        contact_email: email,
+        wants_announcements: form.wantsAnnouncements,
       });
       toast.success('Message sent! We will contact you soon.');
-      setForm({ name: '', phone: '', message: '' });
+      setForm({ name: '', phone: '', email: '', message: '', wantsAnnouncements: false });
     } catch (err) {
       toast.error(err.message || 'Failed to send message. Please try again.');
     } finally {
@@ -1260,18 +1256,35 @@ const AboutPage = () => {
                     <FieldError name="name" errors={errors} />
                   </div>
                   <div>
-                    <label htmlFor="contact-phone" className="about-form-label">Mobile Number or Email</label>
+                    <label htmlFor="contact-phone" className="about-form-label">Mobile Number</label>
                     <input
                       id="contact-phone"
                       type="text"
+                      inputMode="numeric"
                       className={`about-premium-input ${invalidClass('phone', errors)}`}
-                      placeholder="Mobile Number or Email"
+                      placeholder="09XX-XXX-XXXX"
                       maxLength={100}
                       value={form.phone}
-                      onChange={e => { handleContactInput(e); clearError('phone'); }}
+                      onChange={e => { handlePhoneInput(e); clearError('phone'); }}
+                      required
                       {...fieldAttrs('phone', errors)}
                     />
                     <FieldError name="phone" errors={errors} />
+                  </div>
+                  <div>
+                    <label htmlFor="contact-email" className="about-form-label">Email Address</label>
+                    <input
+                      id="contact-email"
+                      type="email"
+                      className={`about-premium-input ${invalidClass('email', errors)}`}
+                      placeholder="you@example.com"
+                      maxLength={100}
+                      value={form.email}
+                      onChange={e => { setForm(p => ({ ...p, email: e.target.value })); clearError('email'); }}
+                      required
+                      {...fieldAttrs('email', errors)}
+                    />
+                    <FieldError name="email" errors={errors} />
                   </div>
                   <div>
                     <label htmlFor="contact-message" className="about-form-label">Message</label>
@@ -1286,8 +1299,17 @@ const AboutPage = () => {
                     />
                     <FieldError name="message" errors={errors} />
                   </div>
-                  <button 
-                    type="submit" 
+                  <label className="about-contact-consent flex items-center gap-8" htmlFor="contact-wants-announcements">
+                    <input
+                      id="contact-wants-announcements"
+                      type="checkbox"
+                      checked={form.wantsAnnouncements}
+                      onChange={e => setForm(p => ({ ...p, wantsAnnouncements: e.target.checked }))}
+                    />
+                    I want to receive email updates regarding trip schedules, promos, and announcements.
+                  </label>
+                  <button
+                    type="submit"
                     className="about-submit-btn"
                     disabled={loading}
                   >

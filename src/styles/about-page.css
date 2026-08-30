@@ -1323,6 +1323,11 @@
   margin-bottom: 8px; color: var(--text-secondary);
 }
 .about-form-textarea { min-height: 120px; resize: vertical; }
+.about-contact-consent {
+  font-size: 0.8125rem; line-height: 1.5; color: var(--text-secondary);
+  cursor: pointer; align-items: flex-start !important;
+}
+.about-contact-consent input[type="checkbox"] { flex-shrink: 0; margin-top: 2px; accent-color: var(--primary); }
 
 /* ── Footer ── */
 .about-footer-brand { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }

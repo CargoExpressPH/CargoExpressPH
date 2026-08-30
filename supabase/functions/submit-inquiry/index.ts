@@ -75,12 +75,16 @@ serve(async (req) => {
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405)
 
   try {
-    const { name, message, contact_phone, contact_email, phone } = await req.json()
+    const { name, message, contact_phone, contact_email, phone, wants_announcements } = await req.json()
 
     const trimmedName = (name || '').trim()
     const trimmedMessage = (message || '').trim()
+    const trimmedEmail = (contact_email || '').trim()
     // AboutPage sends contact_phone OR contact_email, plus legacy phone
     const phoneVal = (phone || contact_phone || contact_email || '').trim()
+    // Only a real `true` opts in — anything else (missing, string "false",
+    // truthy-but-not-boolean) is treated as not consenting.
+    const wantsAnnouncements = wants_announcements === true
 
     if (trimmedName.length < 2 || trimmedName.length > 100) {
       return json({ error: 'Name must be 2-100 characters.' }, 400)
@@ -90,6 +94,14 @@ serve(async (req) => {
     }
     if (phoneVal.length < 6 || phoneVal.length > 100) {
       return json({ error: 'Contact must be 6-100 characters.' }, 400)
+    }
+    // The email-marketing opt-in is meaningless without an address to send
+    // to, and requiring both phone and email on the form (per the frontend
+    // change) means this should never trip in practice — it's a server-side
+    // backstop against a client that skips the form's own validation.
+    const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (wantsAnnouncements && !EMAIL_RE.test(trimmedEmail)) {
+      return json({ error: 'A valid email address is required to receive announcements.' }, 400)
     }
 
     const ip = getClientIp(req)
@@ -113,6 +125,7 @@ serve(async (req) => {
       message: trimmedMessage,
       contact_phone: contact_phone || null,
       contact_email: contact_email || null,
+      wants_announcements: wantsAnnouncements,
       ip,
     })
 

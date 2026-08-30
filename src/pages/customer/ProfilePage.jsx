@@ -7,11 +7,12 @@ import { usePushNotification } from '../../hooks/usePushNotification';
 import {
   User, LogOut, ChevronRight, Bell, MessageCircle,
   CreditCard, HelpCircle, FileText, CheckCircle2,
-  Sun, Moon, Lock, Mail
+  Sun, Moon, Lock, Mail, Megaphone
 } from 'lucide-react';
 import ConfirmModal from '../../components/ui/ConfirmModal';
 import usePageTitle from '../../hooks/usePageTitle';
 import { useCustomerChatUnread } from '../../hooks/useCustomerChatUnread';
+import { updateProfile } from '../../lib/database';
 
 const PROFILE_COMPLETION_FIELDS = [
   'name',
@@ -52,12 +53,13 @@ function getPushStatusLabel({
 
 const ProfilePage = () => {
   usePageTitle('Profile');
-  const { user, userProfile, logout } = useAuth();
+  const { user, userProfile, refreshProfile, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const toast = useToast();
   const navigate = useNavigate();
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [pushBusy, setPushBusy] = useState(false);
+  const [announceBusy, setAnnounceBusy] = useState(false);
   const chatUnread = useCustomerChatUnread(user?.id);
 
   const {
@@ -114,6 +116,20 @@ const ProfilePage = () => {
       }
     } finally {
       setPushBusy(false);
+    }
+  };
+
+  const handleAnnouncementsToggle = async (checked) => {
+    if (!user || announceBusy) return;
+    setAnnounceBusy(true);
+    try {
+      await updateProfile(user.id, { wants_announcements: checked });
+      await refreshProfile();
+      toast.success(checked ? 'You’ll now get announcements by email.' : 'Email announcements turned off.');
+    } catch (err) {
+      toast.error(err.message || 'Could not update your email preference.');
+    } finally {
+      setAnnounceBusy(false);
     }
   };
 
@@ -274,6 +290,25 @@ const ProfilePage = () => {
                 <span className="toggle-slider" />
               </label>
             )}
+          </div>
+          <div className="profile-menu-item no-hover">
+            <div className="profile-menu-icon-wrap warning">
+              <Megaphone size={18} />
+            </div>
+            <div className="flex-1 text-left">
+              <div className="text-sm font-bold">Email Announcements</div>
+              <div className="text-xs text-secondary">Trip schedules, promos, and news sent to {userProfile?.email || user?.email}</div>
+            </div>
+            <label className={`toggle-switch${announceBusy ? ' opacity-50' : ''}`}>
+              <input
+                type="checkbox"
+                checked={!!userProfile?.wants_announcements}
+                disabled={announceBusy}
+                onChange={(e) => handleAnnouncementsToggle(e.target.checked)}
+                aria-label="Toggle Email Announcements"
+              />
+              <span className="toggle-slider" />
+            </label>
           </div>
         </div>
 

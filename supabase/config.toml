@@ -17,3 +17,12 @@ verify_jwt = false
 
 [functions.submit-inquiry]
 verify_jwt = false
+
+[functions.broadcast-announcement]
+# Always requires a real admin caller — no anonymous mode like send-push has.
+verify_jwt = true
+
+[functions.unsubscribe-announcements]
+# Public link target, clicked straight from an email client (no auth header
+# possible). Authorization comes from the per-email HMAC token instead.
+verify_jwt = false
