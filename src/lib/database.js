@@ -854,8 +854,8 @@ export const createTrip = async (tripData) => {
   if (announce_via_email) {
     try {
       await createAnnouncement({
-        title: `🚢 Bagong Biyahe: ${data.origin} → ${data.destination}`,
-        content: `🚢 Bagong Biyahe! Mayroon kaming bagong scheduled trip papuntang ${data.destination} sa ${formatPhDate(data.departure_date)}. I-secure na ang slot ng inyong cargo habang may space pa!`,
+        title: `Bagong Biyahe: ${data.origin} → ${data.destination}`,
+        content: `Bagong Biyahe! Mayroon kaming bagong scheduled trip papuntang ${data.destination} sa ${formatPhDate(data.departure_date)}. I-secure na ang slot ng inyong cargo habang may space pa!`,
         send_email: true,
       });
     } catch (announceErr) {

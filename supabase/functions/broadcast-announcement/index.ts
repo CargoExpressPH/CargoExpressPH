@@ -74,8 +74,10 @@ function chunk<T>(items: T[], size: number): T[][] {
 const FONT_STACK = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif"
 
 /**
- * Branded HTML template: header, the announcement, a divider, a fixed
- * bilingual CTA driving signups, and the unsubscribe footer.
+ * Branded HTML template: an image banner header, the announcement, a
+ * divider, a fixed bilingual CTA driving signups, an About Us link, and the
+ * unsubscribe footer. No emoji anywhere in the template's own copy — only
+ * admin-authored announcement content (title/contentHtml) can contain any.
  *
  * Built table-based with every meaningful style inlined — the layout most
  * likely to render correctly across Gmail, Apple Mail and Outlook's Word
@@ -108,8 +110,12 @@ function buildAnnouncementEmailHtml(title: string, contentHtml: string, unsubscr
 
           <!-- Header -->
           <tr>
-            <td align="center" style="background:#16A34A;padding:28px 32px;">
-              <span style="font-family:${FONT_STACK};font-size:20px;font-weight:800;color:#FFFFFF;letter-spacing:-0.01em;">🚚 CargoExpress PH</span>
+            <td align="center" style="padding:0;line-height:0;font-size:0;">
+              <img
+                src="https://cargoexpress-ph.online/images/Manila%20and%20Bohol.png"
+                alt="CargoExpress PH"
+                width="600"
+                style="width:100%;max-width:600px;display:block;border:0;outline:none;text-decoration:none;height:auto;">
             </td>
           </tr>
 
@@ -130,9 +136,9 @@ function buildAnnouncementEmailHtml(title: string, contentHtml: string, unsubscr
 
           <!-- CTA -->
           <tr>
-            <td class="ce-padding" align="center" style="padding:28px 32px 36px;">
+            <td class="ce-padding" align="center" style="padding:28px 32px 8px;">
               <p style="margin:0 0 20px;font-family:${FONT_STACK};font-size:14px;line-height:1.7;color:#57635D;">
-                Gusto mo bang mas mapadali ang padala mo? 🚢 Para makapag-book nang mabilis, ma-track ang status ng iyong cargo nang real-time, at makatanggap ng exclusive updates, gumawa na ng libreng account sa amin!
+                Gusto mo bang mas mapadali ang padala mo? Para makapag-book nang mabilis, ma-track ang status ng iyong cargo nang real-time, at makatanggap ng exclusive updates, gumawa na ng libreng account sa amin!
               </p>
               <table role="presentation" cellpadding="0" cellspacing="0" align="center">
                 <tr>
@@ -144,6 +150,16 @@ function buildAnnouncementEmailHtml(title: string, contentHtml: string, unsubscr
                   </td>
                 </tr>
               </table>
+            </td>
+          </tr>
+
+          <!-- About Us -->
+          <tr>
+            <td class="ce-padding" align="center" style="padding:16px 32px 32px;">
+              <p style="margin:0;font-family:${FONT_STACK};font-size:13px;line-height:1.6;color:#57635D;">
+                Gusto mo bang makilala kung sino ang CargoExpress PH?
+                <a href="https://cargoexpress-ph.online/about" target="_blank" rel="noopener" style="color:#16A34A;font-weight:700;text-decoration:none;">Alamin ang aming kwento rito</a>
+              </p>
             </td>
           </tr>
 
