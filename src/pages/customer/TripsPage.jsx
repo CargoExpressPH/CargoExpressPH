@@ -9,6 +9,8 @@ import usePageTitle from '../../hooks/usePageTitle';
 import PullToRefresh from '../../components/ui/PullToRefresh';
 import { formatMoney } from '../../utils/currencyInput';
 import { formatPhDate } from '../../utils/datetime';
+import { useAuth } from '../../contexts/AuthContext';
+import { useToast } from '../../hooks/useToast';
 
 // Max ms to wait before showing an error instead of an infinite spinner.
 const LOAD_TIMEOUT_MS = 15000;
@@ -37,6 +39,8 @@ const formatTripDate = (value) => {
 const TripsPage = () => {
   usePageTitle('Trips');
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const toast = useToast();
   const [trips, setTrips] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -134,7 +138,14 @@ const TripsPage = () => {
               type="button"
               className="customer-trip-list-card card card-interactive stagger-item mb-12"
               style={{ animationDelay: `${index * 60}ms` }}
-              onClick={() => navigate('/customer/book', { state: { preselectedRoute: `${trip.origin} → ${trip.destination}`, preselectedTripId: trip.id } })}
+              onClick={() => {
+                if (!user) {
+                  toast.info('Login to book the schedule or inquire');
+                  navigate('/login', { state: { from: { pathname: '/schedules' } } });
+                  return;
+                }
+                navigate('/customer/book', { state: { preselectedRoute: `${trip.origin} → ${trip.destination}`, preselectedTripId: trip.id } });
+              }}
             >
               <div className="card-body p-16">
                 <div className="customer-trip-row">

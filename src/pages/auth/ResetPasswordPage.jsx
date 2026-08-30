@@ -30,7 +30,7 @@ const ResetPasswordPage = () => {
   // missing, malformed, expired, or already used. Distinct from `ready`,
   // which only means "we're done checking," not "the link was good."
   const [linkInvalid,     setLinkInvalid]     = useState(false);
-  const { changePassword } = useAuth();
+  const { changePassword, logout } = useAuth();
   const navigate = useNavigate();
 
   // Verify there is an actual usable session instead of assuming a flat delay
@@ -127,7 +127,14 @@ const ResetPasswordPage = () => {
         // again — clearing it would risk a frame of the un-loading form
         // before that switch (and before the 3s-delayed navigate away).
         setSuccess(true);
-        setTimeout(() => navigate('/login'), 3000);
+        setTimeout(async () => {
+          // The recovery link left an active Supabase session. Destroy it
+          // before navigating to /login, otherwise AuthRoute sees a logged-in
+          // user and bounces them to their dashboard instead of the login
+          // form where they can confirm the new password.
+          await logout();
+          navigate('/login');
+        }, 3000);
       }
     } catch (err) {
       setError(err.message || 'Failed to update password. Please try again.');
