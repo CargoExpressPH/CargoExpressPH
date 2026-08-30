@@ -30,8 +30,23 @@ const ResetPasswordPage = () => {
   // missing, malformed, expired, or already used. Distinct from `ready`,
   // which only means "we're done checking," not "the link was good."
   const [linkInvalid,     setLinkInvalid]     = useState(false);
-  const { changePassword, logout } = useAuth();
+  const { changePassword, logout, user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
+
+  // Cross-tab recovery: the email client opens the recovery link in a new
+  // tab, but Supabase's PASSWORD_RECOVERY event also fires in whichever tab
+  // the user originally had open, so both tabs land on this page with a
+  // session. Once the user finishes the reset in one tab, that tab logs the
+  // session out — which, thanks to the shared Supabase auth state, signs the
+  // *other* tab out too, stranding it here mid-flow. If this tab is done
+  // loading, has no user, and never completed its own reset (`success`),
+  // that's exactly what happened, so send it to /login instead of leaving it
+  // stuck on a dead form.
+  useEffect(() => {
+    if (!authLoading && !user && !success) {
+      navigate('/login');
+    }
+  }, [user, authLoading, success, navigate]);
 
   // Shared by the 3s auto-redirect and the manual "Go to Sign In" button so
   // both paths behave identically: the recovery link left an active Supabase
@@ -45,6 +60,14 @@ const ResetPasswordPage = () => {
     if (navigatedAwayRef.current) return;
     navigatedAwayRef.current = true;
     await logout();
+    // Recovery links opened by an email client are almost always a
+    // browser-opened tab (not one the user navigated to directly), so
+    // window.close() is usually allowed to self-close it here — dropping the
+    // user seamlessly back onto their original tab, which the effect above
+    // will already be redirecting to /login. If the browser blocks the
+    // close (it silently no-ops rather than throwing), just fall through to
+    // navigating this tab to /login as before.
+    window.close();
     navigate('/login');
   }, [logout, navigate]);
 
