@@ -30,7 +30,7 @@ const ResetPasswordPage = () => {
   // missing, malformed, expired, or already used. Distinct from `ready`,
   // which only means "we're done checking," not "the link was good."
   const [linkInvalid,     setLinkInvalid]     = useState(false);
-  const { changePassword, logout } = useAuth();
+  const { user, loading: authLoading, changePassword, logout } = useAuth();
   const navigate = useNavigate();
 
   // Shared by the 3s auto-redirect and the manual "Go to Sign In" button so
@@ -45,8 +45,27 @@ const ResetPasswordPage = () => {
     if (navigatedAwayRef.current) return;
     navigatedAwayRef.current = true;
     await logout();
+    // Email clients force recovery links open in a new tab. If this tab is
+    // that new one, closing it drops the customer back on their original
+    // tab, which the effect below auto-redirects to /login. Browsers only
+    // allow a script to close a tab it opened itself, so this silently
+    // no-ops (and falls through to navigate) when it wasn't.
+    window.close();
     navigate('/login');
   }, [logout, navigate]);
+
+  // Cross-tab stranding: a recovery link opens in a new tab while Supabase's
+  // cross-tab sync also lands the original tab on /reset-password. Once that
+  // other tab finishes the reset and logs out, this tab's shared session is
+  // gone too, but it's still sitting on the form with nothing telling it to
+  // leave. Treat "not loading, no user, no success of our own" as exactly
+  // that — the recovery session was pulled out from under this tab — and
+  // send it to /login instead of leaving it stranded.
+  useEffect(() => {
+    if (!authLoading && !user && !success) {
+      navigate('/login');
+    }
+  }, [user, authLoading, success, navigate]);
 
   // Verify there is an actual usable session instead of assuming a flat delay
   // was enough. Two things can produce one here:
