@@ -61,9 +61,21 @@ const ResetPasswordPage = () => {
   // leave. Treat "not loading, no user, no success of our own" as exactly
   // that — the recovery session was pulled out from under this tab — and
   // send it to /login instead of leaving it stranded.
+  //
+  // The 1s debounce guards against a startup race: on the tab that actually
+  // opened the recovery link, authLoading can briefly flip to false before
+  // initialize() finishes populating `user` from that session. Without the
+  // delay this effect would fire on that flicker and kick the tab to
+  // /login before it ever got a session — and by the time initialize()
+  // caught up, AuthRoute would see it as a normal logged-in user and bounce
+  // it to the dashboard instead. If `user` lands within the window, this
+  // effect re-runs and the pending redirect is cleared before it fires.
   useEffect(() => {
     if (!authLoading && !user && !success) {
-      navigate('/login');
+      const timer = setTimeout(() => {
+        navigate('/login');
+      }, 1000);
+      return () => clearTimeout(timer);
     }
   }, [user, authLoading, success, navigate]);
 
