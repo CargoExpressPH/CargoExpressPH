@@ -289,6 +289,7 @@ export const AuthProvider = ({ children }) => {
         address_city: normalizedAddress.address_city || null,
         address_province: normalizedAddress.address_province || null,
         address_landmark: normalizedAddress.address_landmark || null,
+        wants_announcements: profileFields.wants_announcements === true,
       };
 
       // The auth user now exists — Supabase has already handed this browser a

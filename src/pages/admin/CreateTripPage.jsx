@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createTrip, findDuplicateTrip, duplicateTripMessage } from '../../lib/database';
 import { ROUTES } from '../../constants/phLocations';
-import { ArrowLeft, Calendar, Loader, Truck, Package, FileText, Lightbulb, Plus } from 'lucide-react';
+import { ArrowLeft, Calendar, Loader, Truck, Package, FileText, Lightbulb, Plus, Megaphone } from 'lucide-react';
 import { useToast } from '../../hooks/useToast';
 import usePageTitle from '../../hooks/usePageTitle';
 import { logTrip } from '../../lib/activityLog';
@@ -22,6 +22,7 @@ const CreateTripPage = () => {
     capacity:     1000,
     price_per_kg: 70,
     notes: '',
+    announce_via_email: false,
   });
 
   const u = (k, v) => {
@@ -234,6 +235,27 @@ const CreateTripPage = () => {
             </h3>
             <label className="sr-only" htmlFor="trip-notes">Trip notes</label>
             <textarea id="trip-notes" className="form-textarea" value={form.notes} onChange={e => u('notes', e.target.value)} placeholder="Any special instructions, remarks, or conditions for this trip..." rows={3} />
+          </div>
+        </div>
+
+        {/* ── Email Announcement ─────────────────────────── */}
+        <div className="card stagger-item mb-24" style={{ animationDelay: '220ms' }}>
+          <div className="card-body">
+            <label className="flex items-center gap-8" htmlFor="trip-announce-email" style={{ cursor: 'pointer' }}>
+              <input
+                id="trip-announce-email"
+                type="checkbox"
+                checked={form.announce_via_email}
+                onChange={e => u('announce_via_email', e.target.checked)}
+              />
+              <span className="fw-700 flex items-center gap-8">
+                <Megaphone size={16} color="var(--primary)" aria-hidden="true" />
+                Announce this trip via Email to all subscribers
+              </span>
+            </label>
+            <p className="text-xs text-secondary mt-8">
+              Publishes an announcement and emails everyone who opted in to trip/promo updates — subscribed customers and public contact-form leads. Does not email anyone who hasn't opted in.
+            </p>
           </div>
         </div>
 

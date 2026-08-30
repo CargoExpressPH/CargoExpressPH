@@ -750,13 +750,16 @@ export const findDuplicateTrip = async ({ origin, destination, departure_date, e
 };
 
 export const createTrip = async (tripData) => {
+  // Our own flag, not a trips column — pulled out before the insert below,
+  // then used after the trip (and its trip_number) actually exist.
+  const { announce_via_email, ...tripFields } = tripData;
   const tripNumber = generateTripNumber();
 
   const { data: user } = await supabase.auth.getUser();
 
-  const duplicate = await findDuplicateTrip(tripData);
+  const duplicate = await findDuplicateTrip(tripFields);
   if (duplicate) {
-    throw new Error(duplicateTripMessage(tripData.origin, tripData.destination, tripData.departure_date));
+    throw new Error(duplicateTripMessage(tripFields.origin, tripFields.destination, tripFields.departure_date));
   }
 
   const { data, error } = await supabase
@@ -766,7 +769,7 @@ export const createTrip = async (tripData) => {
       // capacity that nothing ever read or decremented. Deprecated in
       // 20260803150000_deprecate_dead_columns.sql. Trip load is computed live
       // from order weights (see getTrips / current_trip_weight).
-      ...tripData,
+      ...tripFields,
       status: 'scheduled',
       trip_number: tripNumber,
       created_by: user?.user?.id || null,
@@ -776,7 +779,7 @@ export const createTrip = async (tripData) => {
   if (error) {
     // The index is the real gate; the check above only loses a round trip.
     if (error.code === '23505' && /trips_unique_route_departure_day/.test(error.message || '')) {
-      throw new Error(duplicateTripMessage(tripData.origin, tripData.destination, tripData.departure_date));
+      throw new Error(duplicateTripMessage(tripFields.origin, tripFields.destination, tripFields.departure_date));
     }
     throw error;
   }
@@ -839,6 +842,25 @@ export const createTrip = async (tripData) => {
           }));
         }
       }
+    }
+  }
+
+  // Trip-schedule email blast. Reuses createAnnouncement exactly as the
+  // admin's own Announcements page does — same insert, same in-app +
+  // push fan-out, same non-blocking broadcast-announcement invocation.
+  // The consent check (profiles.wants_announcements / contact_inquiries.
+  // wants_announcements) lives entirely inside that Edge Function; nothing
+  // here bypasses or duplicates it.
+  if (announce_via_email) {
+    try {
+      await createAnnouncement({
+        title: `🚢 Bagong Biyahe: ${data.origin} → ${data.destination}`,
+        content: `🚢 Bagong Biyahe! Mayroon kaming bagong scheduled trip papuntang ${data.destination} sa ${formatPhDate(data.departure_date)}. I-secure na ang slot ng inyong cargo habang may space pa!`,
+        send_email: true,
+      });
+    } catch (announceErr) {
+      // Non-critical — the trip itself is already created and usable.
+      console.warn('[createTrip] trip announcement failed to publish:', announceErr);
     }
   }
 

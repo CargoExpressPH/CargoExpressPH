@@ -100,6 +100,7 @@ const RegisterPage = () => {
   // real and usable, it just needs a trip to Profile to finish.
   const [profileIncomplete, setProfileIncomplete] = useState(false);
   const [legalConsent,  setLegalConsent]  = useState(false);
+  const [wantsAnnouncements, setWantsAnnouncements] = useState(false);
   const topRef = useRef(null);
   const errorRef = useRef(null);
 
@@ -370,6 +371,7 @@ const RegisterPage = () => {
         address_street:   normalizedAddress.address_street,
         address_lot_block:normalizedAddress.address_lot_block,
         address_landmark: normalizedAddress.address_landmark,
+        wants_announcements: wantsAnnouncements,
         legal_consent: {
           termsAccepted: true,
           privacyAccepted: true,
@@ -973,6 +975,26 @@ const RegisterPage = () => {
                   {fieldErrors.legal_consent && (
                     <FieldError id="reg-legal-consent-error" message={fieldErrors.legal_consent} />
                   )}
+                </div>
+              </div>
+
+              {/* Optional — unlike legal consent above, this is not required
+                  to create an account. Defaults unchecked: signing up is not
+                  marketing consent, so this has to be an affirmative,
+                  separate choice. */}
+              <div className="reg-legal-consent">
+                <div className="reg-legal-consent-copy">
+                  <div className="reg-legal-consent-control">
+                    <input
+                      id="reg-wants-announcements"
+                      type="checkbox"
+                      checked={wantsAnnouncements}
+                      onChange={(e) => setWantsAnnouncements(e.target.checked)}
+                    />
+                    <label htmlFor="reg-wants-announcements">
+                      I want to receive email updates regarding trip schedules, promos, and announcements.
+                    </label>
+                  </div>
                 </div>
               </div>
 
