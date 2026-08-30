@@ -151,14 +151,14 @@
 /* Shimmer badge */
 .about-hero-badge {
   display: inline-block;
-  padding: 6px 20px;
+  padding: 8px 24px;
   border-radius: 100px;
   background: rgba(255,255,255,0.08);
   backdrop-filter: blur(10px);
   color: #fff;
   border: 1px solid rgba(255,255,255,0.18);
   margin-bottom: 24px;
-  font-size: 0.8125rem;
+  font-size: 0.95rem !important;
   font-weight: 700;
   letter-spacing: 1.5px;
   text-transform: uppercase;
@@ -1163,12 +1163,12 @@
   background: rgba(var(--accent-rgb), 0.06); z-index: 3;
 }
 .about-hero-heading {
-  font-size: clamp(2.25rem, 5vw, 4rem); font-weight: 800; color: #fff;
-  line-height: 1.1; margin-bottom: 24px; letter-spacing: -2px;
+  font-size: clamp(3rem, 6vw, 5rem) !important; font-weight: 900 !important; color: #fff;
+  line-height: 1.1; margin-bottom: 24px; letter-spacing: -1px;
 }
 .about-hero-subtext {
-  font-size: clamp(1rem, 2vw, 1.25rem); color: rgba(255,255,255,0.9);
-  line-height: 1.6; max-width: 700px; margin: 0 auto 40px;
+  font-size: clamp(1.2rem, 2.5vw, 1.5rem) !important; color: rgba(255,255,255,0.9);
+  line-height: 1.6; max-width: 800px; margin: 0 auto 40px;
 }
 .about-hero-cta-row { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
 
