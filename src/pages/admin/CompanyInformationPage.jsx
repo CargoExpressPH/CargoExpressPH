@@ -172,7 +172,11 @@ const CompanyInformationPage = () => {
       const fileLabel = fieldName.replace(/_url$/, '').replace(/_/g, '-');
       const path = `banner/${fileLabel}.jpg`;
       const url = await uploadPublicAsset(file, path);
-      handleInfoChange(fieldName, url);
+      // The storage path is static (banner/<field>.jpg) and upserted in place,
+      // so the public URL never changes even though the bytes behind it did —
+      // browsers keep serving the old cached image at that URL. A cache-busting
+      // query param forces every upload to be treated as a new resource.
+      handleInfoChange(fieldName, `${url}?t=${Date.now()}`);
       logCompany('Image Uploaded', { details: `Uploaded new image for ${fieldName}` });
       toast.success('Image uploaded successfully');
     } catch (err) {
