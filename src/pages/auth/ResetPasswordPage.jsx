@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
@@ -32,6 +32,21 @@ const ResetPasswordPage = () => {
   const [linkInvalid,     setLinkInvalid]     = useState(false);
   const { changePassword, logout } = useAuth();
   const navigate = useNavigate();
+
+  // Shared by the 3s auto-redirect and the manual "Go to Sign In" button so
+  // both paths behave identically: the recovery link left an active Supabase
+  // session, and it must be destroyed before navigating to /login, otherwise
+  // AuthRoute sees a logged-in user and bounces them to their dashboard
+  // instead of the login form where they can confirm the new password. The
+  // ref guards against running it twice if the button is clicked just before
+  // the timeout fires.
+  const navigatedAwayRef = useRef(false);
+  const goToSignIn = useCallback(async () => {
+    if (navigatedAwayRef.current) return;
+    navigatedAwayRef.current = true;
+    await logout();
+    navigate('/login');
+  }, [logout, navigate]);
 
   // Verify there is an actual usable session instead of assuming a flat delay
   // was enough. Two things can produce one here:
@@ -127,14 +142,7 @@ const ResetPasswordPage = () => {
         // again — clearing it would risk a frame of the un-loading form
         // before that switch (and before the 3s-delayed navigate away).
         setSuccess(true);
-        setTimeout(async () => {
-          // The recovery link left an active Supabase session. Destroy it
-          // before navigating to /login, otherwise AuthRoute sees a logged-in
-          // user and bounces them to their dashboard instead of the login
-          // form where they can confirm the new password.
-          await logout();
-          navigate('/login');
-        }, 3000);
+        setTimeout(goToSignIn, 3000);
       }
     } catch (err) {
       setError(err.message || 'Failed to update password. Please try again.');
@@ -219,9 +227,9 @@ const ResetPasswordPage = () => {
           <div className="auth-success-loader">
             <div className="auth-success-bar" />
           </div>
-          <Link to="/login" className="auth-submit-btn text-no-underline mt-12">
+          <button type="button" onClick={goToSignIn} className="auth-submit-btn text-no-underline mt-12">
             Go to Sign In
-          </Link>
+          </button>
         </div>
       </div>
     );
