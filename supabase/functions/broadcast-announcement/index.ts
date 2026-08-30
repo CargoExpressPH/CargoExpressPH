@@ -112,7 +112,7 @@ function buildAnnouncementEmailHtml(title: string, contentHtml: string, unsubscr
           <tr>
             <td align="center" style="padding:0;line-height:0;font-size:0;">
               <img
-                src="https://cargoexpress-ph.online/images/Manila%20and%20Bohol.png"
+                src="https://cargoexpress-ph.online/images/email%20banner.png"
                 alt="CargoExpress PH"
                 width="600"
                 style="width:100%;max-width:600px;display:block;border:0;outline:none;text-decoration:none;height:auto;">
