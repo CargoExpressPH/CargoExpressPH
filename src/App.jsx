@@ -13,6 +13,7 @@ import { ToastProvider } from './hooks/useToast';
 // Layouts — eagerly loaded (always needed)
 import AdminLayout from './components/layout/AdminLayout';
 import CustomerLayout from './components/layout/CustomerLayout';
+import PublicShell from './components/layout/PublicShell';
 
 // Auth Pages — eagerly loaded (first thing users see)
 import LoginPage from './pages/auth/LoginPage';
@@ -92,10 +93,16 @@ const LoadingScreen = () => (
  */
 const ProtectedRoute = ({ children, requiredRole }) => {
   const { user, userProfile, loading } = useAuth();
+  const location = useLocation();
   const hasUsableProfile = !!(user && userProfile && (!requiredRole || userProfile.role === requiredRole));
   if (loading && !hasUsableProfile) return <LoadingScreen />;
-  if (!user) return <Navigate to="/login" replace />;
-  if (!userProfile) return <Navigate to="/login" replace />;
+  // Carry the page the guest was actually trying to reach (pathname + its own
+  // state, e.g. a preselected trip) so LoginPage can send them straight back
+  // instead of dropping them at the generic role-based home. `from` is only
+  // ever read there — nothing else depends on it, so a route that never hits
+  // this guard keeps behaving exactly as before.
+  if (!user) return <Navigate to="/login" state={{ from: location }} replace />;
+  if (!userProfile) return <Navigate to="/login" state={{ from: location }} replace />;
 
   if (requiredRole && userProfile.role !== requiredRole) {
     // If role is null/undefined (profile fetch failed), send to login
@@ -177,6 +184,20 @@ const router = createBrowserRouter([
       { path: '/about', element: <AboutPage /> },
       { path: '/terms', element: <Suspense fallback={<PageLoader />}><TermsPage /></Suspense> },
       { path: '/privacy', element: <Suspense fallback={<PageLoader />}><PrivacyPage /></Suspense> },
+
+      // Public — guest-accessible pages that reuse a customer page's
+      // component (no auth-dependent logic in either) under a minimal
+      // shared shell instead of the logged-in CustomerLayout. "Book a
+      // Cargo" deliberately isn't here: it stays behind ProtectedRoute,
+      // which now redirects to /login with state.from so the guard is
+      // enforced once, centrally, instead of per button/link.
+      {
+        element: <PublicShell />,
+        children: [
+          { path: '/schedules', element: <CustTripsPage /> },
+          { path: '/faq', element: <HelpGuidelinesPage /> },
+        ],
+      },
 
       // Auth (eager — first thing users see)
       { path: '/login', element: <AuthRoute><LoginPage /></AuthRoute> },

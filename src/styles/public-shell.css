@@ -1,0 +1,60 @@
+/* --- PUBLIC SHELL --------------------------------------------------------
+   Minimal chrome for guest-accessible pages outside the About page and the
+   logged-in app shells (CustomerLayout / AdminLayout) — see PublicShell.jsx. */
+
+.public-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+}
+
+.public-shell-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  position: sticky;
+  top: 0;
+  z-index: var(--z-sticky);
+}
+
+.public-shell-brand {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+}
+
+.public-shell-nav {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.public-shell-link {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-decoration: none;
+}
+.public-shell-link:hover {
+  color: var(--primary-text);
+}
+
+.public-shell-main {
+  flex: 1;
+  width: 100%;
+  max-width: var(--container-customer-max);
+  margin: 0 auto;
+  padding: 24px 20px 48px;
+  box-sizing: border-box;
+}
+
+@media (max-width: 480px) {
+  .public-shell-header {
+    padding: 12px 16px;
+  }
+}

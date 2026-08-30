@@ -52,6 +52,7 @@
 @import './admin-composition.css' layer(pages);
 @import './trip-detail.css' layer(pages);
 @import './feedback-inquiries.css' layer(pages);
+@import './public-shell.css' layer(pages);
 
 /* ── 6. Animations & Utilities ── */
 @import './animations-utils.css' layer(effects);

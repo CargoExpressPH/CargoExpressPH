@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import {
   Eye, EyeOff, AlertTriangle, Mail, Lock,
@@ -76,6 +76,7 @@ const LoginPage = () => {
   const [credentialErrorActive, setCredentialErrorActive] = useState(false);
   const { login }  = useAuth();
   const navigate   = useNavigate();
+  const location   = useLocation();
 
   const loginErrorTimerRef = useRef(null);
 
@@ -152,7 +153,18 @@ const LoginPage = () => {
           localStorage.removeItem('remembered_email');
         }
         logAuth('User Logged In', { details: `User logged in with email: ${email.trim()}` });
-        navigate('/');
+        // ProtectedRoute stashes the page a guest actually wanted here before
+        // bouncing them to login (e.g. "Book a Cargo" from the public
+        // footer or a trip schedule card). Honor it — including its own
+        // state, like a preselected trip — instead of always landing on the
+        // generic role-based home. Falls back to the existing behavior when
+        // there's nothing to return to.
+        const from = location.state?.from;
+        if (from?.pathname) {
+          navigate(`${from.pathname}${from.search || ''}${from.hash || ''}`, { state: from.state, replace: true });
+        } else {
+          navigate('/');
+        }
         // Deliberately NOT calling setLoginLoading(false) here: navigate()
         // doesn't unmount this page synchronously, so clearing it would risk
         // a frame of the "Sign In" button un-loading before the route

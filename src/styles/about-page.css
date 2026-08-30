@@ -1335,6 +1335,9 @@
 .about-footer-desc {
   color: rgba(255,255,255,0.55); line-height: 1.7; font-size: 0.9375rem; margin-bottom: 24px;
 }
+.about-footer-hubs { display: flex; flex-direction: column; gap: 4px; margin: 0 0 20px; }
+.about-footer-hub { margin: 0; color: rgba(255,255,255,0.55); font-size: 0.8125rem; line-height: 1.6; }
+.about-footer-hub strong { color: rgba(255,255,255,0.85); font-weight: 700; }
 .about-footer-social { display: flex; gap: 12px; }
 .about-footer-links { display: flex; flex-direction: column; gap: 10px; }
 .about-footer-status { display: flex; align-items: center; gap: 6px; }

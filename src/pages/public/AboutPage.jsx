@@ -19,6 +19,7 @@ import { useToast } from '../../hooks/useToast';
 import usePageTitle from '../../hooks/usePageTitle';
 import FocusTrap from '../../components/ui/FocusTrap';
 import { CenteredSpinner } from '../../components/ui/Loader';
+import Footer from '../../components/layout/Footer';
 import useScrollLock from '../../hooks/useScrollLock';
 import useFieldErrors from '../../hooks/useFieldErrors';
 import FieldError, { fieldAttrs, invalidClass } from '../../components/ui/FieldError';
@@ -1332,80 +1333,12 @@ const AboutPage = () => {
       </div>
       
       {/* ═══ 10. Footer ═══ */}
-      <footer className="about-footer">
-        <div className="about-footer-grid">
-          {/* Brand Column */}
-          <div>
-            <div className="about-footer-brand">
-              <BrandLogo size={34} decorative />
-              <h3>{companyName}</h3>
-            </div>
-            <p className="about-footer-desc">
-              {info?.short_description || 'Reliable logistics and cargo delivery services across the Philippines.'}
-            </p>
-            {/* Social Media */}
-            <div className="about-footer-social">
-              {info?.facebook && (
-                <a href={info.facebook} target="_blank" rel="noreferrer" className="about-social-btn" title="Facebook">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
-                  </svg>
-                </a>
-              )}
-              {info?.messenger && (
-                <a href={info.messenger} target="_blank" rel="noreferrer" className="about-social-btn" title="Messenger">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M12 2C6.477 2 2 6.145 2 11.243c0 2.91 1.448 5.503 3.7 7.208V22l3.355-1.84c.88.243 1.81.378 2.775.378 5.523 0 10-4.146 10-9.243S17.523 2 12 2zm1.13 12.374L10.91 12.05l-4.24 2.32 4.655-4.945 2.22 2.324 4.24-2.32-4.655 4.945z"/>
-                  </svg>
-                </a>
-              )}
-              {info?.email && (
-                <a href={`mailto:${info.email}`} className="about-social-btn" title="Email">
-                  <Mail size={18} />
-                </a>
-              )}
-            </div>
-          </div>
-
-          {/* Quick Links */}
-          <div>
-            <h4 className="about-footer-heading">Quick Links</h4>
-            <div className="about-footer-links">
-              <Link to="/track" className="about-footer-link">Track Your Order</Link>
-              <Link to="/login" className="about-footer-link">Customer Portal</Link>
-              <a href="#features" className="about-footer-link" onClick={(e) => { e.preventDefault(); scrollToSection('features'); }}>Our Services</a>
-              <a href="#coverage" className="about-footer-link" onClick={(e) => { e.preventDefault(); scrollToSection('coverage'); }}>Coverage Areas</a>
-            </div>
-          </div>
-
-          {/* Company */}
-          <div>
-            <h4 className="about-footer-heading">Company</h4>
-            <div className="about-footer-links">
-              <a href="#story" className="about-footer-link" onClick={(e) => { e.preventDefault(); scrollToSection('story'); }}>About Us</a>
-              <a href="#feedback" className="about-footer-link" onClick={(e) => { e.preventDefault(); scrollToSection('feedback'); }}>Customer Reviews</a>
-              <a href="#highlights" className="about-footer-link" onClick={(e) => { e.preventDefault(); scrollToSection('highlights'); }}>Gallery</a>
-              <a href="#contact" className="about-footer-link" onClick={(e) => { e.preventDefault(); scrollToSection('contact'); }}>Contact Us</a>
-            </div>
-          </div>
-        </div>
-
-          <div className="about-footer-bottom">
-            <span>&copy; {new Date().getFullYear()} {companyName}. All rights reserved.</span>
-            <span className="about-footer-legal-links" aria-label="Legal information">
-              <Link to="/terms" className="about-footer-link">Terms of Service</Link>
-              <Link to="/privacy" className="about-footer-link">Privacy Policy</Link>
-            </span>
-            <span
-            className={`about-footer-status about-footer-status-${resolvedSystemStatus}`}
-            role="status"
-            aria-live="polite"
-            aria-label={`Service status: ${systemStatusLabel}`}
-          >
-            <span className="about-footer-status-dot">{'\u25CF'}</span> {systemStatusLabel}
-          </span>
-        </div>
-      </footer>
+      <Footer
+        companyName={companyName}
+        info={info}
+        systemStatus={resolvedSystemStatus}
+        systemStatusLabel={systemStatusLabel}
+      />
 
       {/* ═══ Lightbox ═══ */}
       {lightboxIndex >= 0 && (
