@@ -71,6 +71,100 @@ function chunk<T>(items: T[], size: number): T[][] {
   return out
 }
 
+const FONT_STACK = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif"
+
+/**
+ * Branded HTML template: header, the announcement, a divider, a fixed
+ * bilingual CTA driving signups, and the unsubscribe footer.
+ *
+ * Built table-based with every meaningful style inlined — the layout most
+ * likely to render correctly across Gmail, Apple Mail and Outlook's Word
+ * engine, none of which reliably support modern CSS in email. `title` and
+ * `contentHtml` must already be HTML-escaped by the caller.
+ */
+function buildAnnouncementEmailHtml(title: string, contentHtml: string, unsubscribeUrl: string): string {
+  return `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${title}</title>
+<style>
+  body,table,td,a{ -webkit-text-size-adjust:100%; -ms-text-size-adjust:100%; }
+  table,td{ mso-table-lspace:0pt; mso-table-rspace:0pt; }
+  img{ -ms-interpolation-mode:bicubic; border:0; height:auto; line-height:100%; outline:none; text-decoration:none; }
+  body{ margin:0; padding:0; width:100% !important; background:#F1F3F0; }
+  @media screen and (max-width:600px){
+    .ce-container{ width:100% !important; }
+    .ce-padding{ padding-left:20px !important; padding-right:20px !important; }
+  }
+</style>
+</head>
+<body style="margin:0;padding:0;background:#F1F3F0;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F1F3F0;">
+    <tr>
+      <td align="center" style="padding:32px 16px;">
+        <table role="presentation" class="ce-container" width="600" cellpadding="0" cellspacing="0" style="width:600px;max-width:600px;background:#FFFFFF;border-radius:12px;overflow:hidden;">
+
+          <!-- Header -->
+          <tr>
+            <td align="center" style="background:#16A34A;padding:28px 32px;">
+              <span style="font-family:${FONT_STACK};font-size:20px;font-weight:800;color:#FFFFFF;letter-spacing:-0.01em;">🚚 CargoExpress PH</span>
+            </td>
+          </tr>
+
+          <!-- Announcement -->
+          <tr>
+            <td class="ce-padding" style="padding:36px 32px 4px;">
+              <h1 style="margin:0 0 16px;font-family:${FONT_STACK};font-size:22px;font-weight:800;color:#1B2320;line-height:1.3;">${title}</h1>
+              <p style="margin:0;font-family:${FONT_STACK};font-size:15px;line-height:1.7;color:#333333;">${contentHtml}</p>
+            </td>
+          </tr>
+
+          <!-- Divider -->
+          <tr>
+            <td class="ce-padding" style="padding:28px 32px 0;">
+              <div style="border-top:1px solid #E5E8E3;line-height:0;font-size:0;">&nbsp;</div>
+            </td>
+          </tr>
+
+          <!-- CTA -->
+          <tr>
+            <td class="ce-padding" align="center" style="padding:28px 32px 36px;">
+              <p style="margin:0 0 20px;font-family:${FONT_STACK};font-size:14px;line-height:1.7;color:#57635D;">
+                Gusto mo bang mas mapadali ang padala mo? 🚢 Para makapag-book nang mabilis, ma-track ang status ng iyong cargo nang real-time, at makatanggap ng exclusive updates, gumawa na ng libreng account sa amin!
+              </p>
+              <table role="presentation" cellpadding="0" cellspacing="0" align="center">
+                <tr>
+                  <td style="border-radius:8px;background:#16A34A;">
+                    <a href="https://cargoexpress-ph.online" target="_blank" rel="noopener"
+                       style="display:inline-block;padding:14px 36px;font-family:${FONT_STACK};font-size:15px;font-weight:700;color:#FFFFFF;text-decoration:none;border-radius:8px;">
+                      Visit CargoExpress PH
+                    </a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Footer / unsubscribe -->
+          <tr>
+            <td class="ce-padding" style="padding:20px 32px 28px;background:#F8FAF8;border-top:1px solid #E5E8E3;">
+              <p style="margin:0;font-family:${FONT_STACK};font-size:12px;line-height:1.6;color:#8A968F;">
+                You're receiving this because you opted in to CargoExpress PH announcement emails.
+                <a href="${unsubscribeUrl}" style="color:#8A968F;text-decoration:underline;">Unsubscribe</a>
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS_HEADERS })
 
@@ -169,16 +263,7 @@ serve(async (req) => {
           from: fromEmail,
           to: recipient.email,
           subject: announcement.title,
-          html: `
-            <div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:560px;margin:0 auto;">
-              <h2 style="margin:0 0 12px;">${safeTitle}</h2>
-              <p style="line-height:1.6;color:#333;">${safeContentHtml}</p>
-              <hr style="border:none;border-top:1px solid #e5e5e5;margin:32px 0 16px;">
-              <p style="font-size:12px;color:#888;">
-                You're receiving this because you opted in to CargoExpress PH announcement emails.
-                <a href="${unsubscribeUrl}" style="color:#888;">Unsubscribe</a>
-              </p>
-            </div>`,
+          html: buildAnnouncementEmailHtml(safeTitle, safeContentHtml, unsubscribeUrl),
           // List-Unsubscribe headers let mailbox providers offer a one-click
           // unsubscribe in their own UI — required by Gmail/Yahoo's 2024
           // bulk-sender rules for any sender pushing real volume.
