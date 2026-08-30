@@ -108,14 +108,15 @@ function buildAnnouncementEmailHtml(title: string, contentHtml: string, unsubscr
       <td align="center" style="padding:32px 16px;">
         <table role="presentation" class="ce-container" width="600" cellpadding="0" cellspacing="0" style="width:600px;max-width:600px;background:#FFFFFF;border-radius:12px;overflow:hidden;">
 
-          <!-- Header -->
+          <!-- Text-based Header -->
           <tr>
-            <td align="center" style="padding:0;line-height:0;font-size:0;">
-              <img
-                src="https://cargoexpress-ph.online/images/email-banner.png"
-                alt="CargoExpress PH"
-                width="600"
-                style="width:100%;max-width:600px;display:block;border:0;outline:none;text-decoration:none;height:auto;">
+            <td align="center" style="padding:40px 32px 24px; border-bottom:1px solid #e2e8f0; background-color:#ffffff;">
+              <h1 style="margin:0; font-family:${FONT_STACK}; font-size:36px; font-weight:800; letter-spacing:-1px;">
+                <span style="color:#10b981;">CARGO</span><span style="color:#0f172a;">EXPRESS</span>
+              </h1>
+              <p style="margin:8px 0 0; font-family:${FONT_STACK}; font-size:14px; color:#64748b; font-weight:500;">
+                Manila ⇄ Bohol Cargo Delivery
+              </p>
             </td>
           </tr>
 
