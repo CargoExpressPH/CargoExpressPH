@@ -3462,8 +3462,7 @@ CREATE OR REPLACE FUNCTION public.is_supabase_evidence_upload_allowed(p_path TEX
 RETURNS BOOLEAN LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $function$
   SELECT public.is_admin() AND (
     (storage.foldername(p_path))[1] NOT IN ('pickup', 'delivery', 'receipts', 'pickup-proofs', 'delivery-proofs')
-    OR COALESCE((SELECT upload_mode = 'automatic' OR force_firebase_expires_at <= now()
-      FROM public.photo_storage_settings WHERE id = TRUE), TRUE)
+    OR COALESCE((SELECT (ps.upload_mode = 'automatic' OR ps.force_firebase_expires_at <= now()) FROM public.photo_storage_settings ps WHERE ps.id = TRUE), TRUE)
   );
 $function$;
 
