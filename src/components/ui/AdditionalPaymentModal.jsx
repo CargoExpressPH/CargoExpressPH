@@ -6,6 +6,7 @@ import AmountInput from './AmountInput';
 import useScrollLock from '../../hooks/useScrollLock';
 import { sanitizeAmount, parseAmount, formatAmount, formatMoney } from '../../utils/currencyInput';
 import { uploadPhoto } from '../../lib/storage';
+import { serializePhotoReference } from '../../lib/photoReference';
 import QRCode from 'react-qr-code';
 import { createGCashSource, registerSource, pollPaymentStatus } from '../../lib/paymongo';
 import { getPaymentAttemptBySource, getOrderPaymentSnapshot } from '../../lib/database';
@@ -257,7 +258,7 @@ const AdditionalPaymentModal = ({ order, remainingBalance, onClose, onSave, onPa
       if (receiptPhoto) {
         setUploadProgress('Uploading receipt...');
         const rResult = await uploadPhoto(receiptPhoto, 'receipts', order.tracking_number, 1, order.id);
-        receiptUrl = rResult.firestore_path ? rResult.firestore_path : (rResult.path || rResult.url);
+        receiptUrl = serializePhotoReference(rResult);
       }
       setUploadProgress('Saving...');
 

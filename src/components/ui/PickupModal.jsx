@@ -6,7 +6,8 @@ import useScrollLock from '../../hooks/useScrollLock';
 import useFieldErrors from '../../hooks/useFieldErrors';
 import FieldError, { errorId, fieldAttrs, invalidClass } from './FieldError';
 import { sanitizeAmount, formatAmount } from '../../utils/currencyInput';
-import { uploadMultiplePhotos, uploadPhoto } from '../../lib/storage';
+import { uploadMultiplePhotos, uploadPhoto, deletePhoto } from '../../lib/storage';
+import { serializePhotoReference } from '../../lib/photoReference';
 import PaymentCollectionPanel, {
   createPaymentCollectionState,
   derivePaymentCollection,
@@ -194,9 +195,15 @@ const PickupModal = ({ order, onClose, onSave, pricePerKilo = 70 }) => {
       let receiptUrl = null;
       if (payment.receiptFile) {
         setUploadProgress('Uploading receipt...');
-        const rResult = await uploadPhoto(payment.receiptFile, 'receipts', order.tracking_number, 1, order.id);
-        // Fallback descriptors have firestore_path — persist it; supabase descriptors have path.
-        receiptUrl = rResult.firestore_path ? rResult.firestore_path : (rResult.path || rResult.url);
+        let rResult;
+        try {
+          rResult = await uploadPhoto(payment.receiptFile, 'receipts', order.tracking_number, 1, order.id);
+        } catch (receiptError) {
+          await Promise.allSettled(photoUrls.map((photo) => deletePhoto(photo)));
+          throw receiptError;
+        }
+        // payment_transactions.receipt_url is TEXT, so preserve the complete descriptor as JSON.
+        receiptUrl = serializePhotoReference(rResult);
       }
 
       setUploadProgress('Processing Payment...');

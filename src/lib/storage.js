@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import imageCompression from 'browser-image-compression';
+import { normalizePhotoReference } from './photoReference';
 
 const COMPANY_ASSETS_BUCKET = import.meta.env.VITE_SUPABASE_PHOTOS_BUCKET || 'cargo-photos';
 const MAX_SOURCE_BYTES = 10 * 1024 * 1024; // 10MB
@@ -38,7 +39,11 @@ const makePhotoPath = (folder, trackingNumber = '', index = null) => {
     // Derive a human-readable base name from the folder (e.g. "pickup-proofs" → "pickup")
     const baseName = folder.replace(/-proofs$/, '').replace(/-/g, '-');
     const seq = index !== null ? index : 1;
-    return `${folder}/${safeTracking}/${baseName}-${seq}.jpg`;
+    // Every payment transaction keeps its own receipt. Proof filenames stay
+    // stable for deliberate re-processing, while receipts never overwrite a
+    // previous transaction's evidence.
+    const suffix = folder === 'receipts' ? `${timestamp}-${seq}` : seq;
+    return `${folder}/${safeTracking}/${baseName}-${suffix}.jpg`;
   }
 
   // Company assets (no order context) — use a timestamped flat name
@@ -89,6 +94,8 @@ const FALLBACK_FOLDER_MAP = {
   pickup: 'pickup',
   'delivery-proofs': 'delivery',
   delivery: 'delivery',
+  receipts: 'receipt',
+  receipt: 'receipt',
 };
 
 const toFallbackFolder = (folder) => FALLBACK_FOLDER_MAP[folder] || null;
@@ -100,7 +107,7 @@ const isFallbackEligible = (folder, orderId) => Boolean(toFallbackFolder(folder)
  * Isolated behind the catch — never runs on a successful upload.
  * Returns a descriptor with type 'firestore_fallback' or throws.
  */
-const tryFirestoreFallback = async (file, folder, orderId, index) => {
+const tryFirestoreFallback = async (file, folder, orderId, index, fileName = null) => {
   const fallbackFolder = toFallbackFolder(folder);
   if (!fallbackFolder || !orderId) throw new Error('Fallback not eligible');
 
@@ -120,7 +127,7 @@ const tryFirestoreFallback = async (file, folder, orderId, index) => {
     body: {
       order_id: orderId,
       folder: fallbackFolder,
-      file_name: `${fallbackFolder}-${index || 1}.jpg`,
+      file_name: fileName || `${fallbackFolder}-${index || 1}.jpg`,
       content_type: 'image/jpeg',
       size_bytes: compressed.size,
       data_url: dataUrl,
@@ -195,7 +202,7 @@ const uploadToSupabaseStorage = async (file, folder, trackingNumber = '', index 
 
     try {
       console.warn(`[storage] Supabase upload failed for ${folder}/${trackingNumber}, trying Firestore fallback`, msg);
-      const fallbackDescriptor = await tryFirestoreFallback(file, folder, orderId, index);
+      const fallbackDescriptor = await tryFirestoreFallback(file, folder, orderId, index, path.split('/').pop());
       console.info(`[storage] Firestore fallback succeeded: ${fallbackDescriptor.firestore_path}`);
       return fallbackDescriptor;
     } catch (fallbackError) {
@@ -214,7 +221,7 @@ const uploadToSupabaseStorage = async (file, folder, trackingNumber = '', index 
  * @param {string} folder         - e.g. 'receipts', 'pickup-proofs', 'gallery'
  * @param {string} trackingNumber - order tracking number (e.g. 'ORDER-2026-00015')
  * @param {number} index          - 1-based sequential index for the filename
- * @param {string} orderId        - order UUID for Firestore fallback (only for pickup/delivery proofs)
+ * @param {string} orderId        - order UUID for Firestore fallback (pickup, delivery, and receipts)
  */
 export const uploadPhoto = async (file, folder = 'pickup-proofs', trackingNumber = '', index = 1, orderId = null) => {
   return await uploadToSupabaseStorage(file, folder, trackingNumber, index, orderId);
@@ -228,7 +235,7 @@ export const uploadPhoto = async (file, folder = 'pickup-proofs', trackingNumber
  * @param {string}   folder         - e.g. 'pickup-proofs'
  * @param {string}   trackingNumber - order tracking number
  * @param {function} onProgress     - optional callback (currentIndex, total)
- * @param {string}   orderId        - order UUID for Firestore fallback (required for pickup/delivery fallback to work)
+ * @param {string}   orderId        - order UUID for Firestore fallback (required for evidence fallback to work)
  */
 export const uploadMultiplePhotos = async (files, folder = 'pickup-proofs', trackingNumber = '', onProgress = null, orderId = null) => {
   // Back-compat: onProgress could be passed as 4th arg when orderId omitted (old callers: trackingNumber, onProgress)
@@ -237,12 +244,17 @@ export const uploadMultiplePhotos = async (files, folder = 'pickup-proofs', trac
     onProgress = null;
   }
   const photos = [];
-  for (let i = 0; i < files.length; i += 1) {
-    const photo = await uploadToSupabaseStorage(files[i], folder, trackingNumber, i + 1, orderId);
-    photos.push(photo);
-    if (onProgress) onProgress(i + 1, files.length);
+  try {
+    for (let i = 0; i < files.length; i += 1) {
+      const photo = await uploadToSupabaseStorage(files[i], folder, trackingNumber, i + 1, orderId);
+      photos.push(photo);
+      if (onProgress) onProgress(i + 1, files.length);
+    }
+    return photos;
+  } catch (error) {
+    await Promise.allSettled(photos.map((photo) => deletePhoto(photo)));
+    throw error;
   }
-  return photos;
 };
 
 // Signed URLs are minted per render. One hour outlives any realistic viewing
@@ -266,19 +278,21 @@ const SIGNED_URL_TTL_SECONDS = 3600;
  * out an unauthenticated link.
  */
 export const resolvePhotoUrl = async (photo) => {
-  if (!photo) return '';
-  if (typeof photo === 'string') return photo;
+  const reference = normalizePhotoReference(photo, COMPANY_ASSETS_BUCKET);
+  if (!reference) return '';
 
   try {
-    if (photo.type === 'firestore_fallback' && photo.firestore_path) {
-      // Firestore backup — fetch the data_url via the Edge Function (checks admin||owner).
+    if (reference.type === 'direct_url') return reference.url;
+
+    if (reference.type === 'firestore_fallback' && reference.firestore_path) {
+      // Firestore backup — the Edge Function checks admin, owner, or exact public feature.
       // Small in-memory cache avoids re-fetching the same fallback within a render cycle.
-      const cacheKey = photo.firestore_path;
+      const cacheKey = reference.firestore_path;
       if (resolvePhotoUrl._fallbackCache?.has(cacheKey)) {
         return resolvePhotoUrl._fallbackCache.get(cacheKey);
       }
       const { data, error } = await supabase.functions.invoke('get-photo-fallback', {
-        body: { firestore_path: photo.firestore_path },
+        body: { firestore_path: reference.firestore_path },
       });
       if (!error && data?.data_url) {
         if (!resolvePhotoUrl._fallbackCache) resolvePhotoUrl._fallbackCache = new Map();
@@ -288,26 +302,26 @@ export const resolvePhotoUrl = async (photo) => {
         return data.data_url;
       }
       // If fallback read fails, fall through to url if present (legacy)
-      if (photo.data_url) return photo.data_url;
+      if (reference.data_url) return reference.data_url;
       console.warn('[storage] Firestore fallback read failed', error?.message || data?.error);
       return 'error://unavailable';
     }
 
-    if (photo.type === 'supabase_storage' && photo.path) {
-      if (photo.url) return photo.url;
-      const bucket = photo.bucket || COMPANY_ASSETS_BUCKET;
+    if (reference.type === 'supabase_storage' && reference.path) {
+      if (reference.url) return reference.url;
+      const bucket = reference.bucket || COMPANY_ASSETS_BUCKET;
 
       const { data: signed, error: signError } = await supabase.storage
         .from(bucket)
-        .createSignedUrl(photo.path, SIGNED_URL_TTL_SECONDS);
+        .createSignedUrl(reference.path, SIGNED_URL_TTL_SECONDS);
       if (!signError && signed?.signedUrl) return signed.signedUrl;
 
-      const { data: pData } = supabase.storage.from(bucket).getPublicUrl(photo.path);
+      const { data: pData } = supabase.storage.from(bucket).getPublicUrl(reference.path);
       return pData.publicUrl;
     }
     // Legacy: direct url field or data_url from old fallback rows
-    if (photo.data_url) return photo.data_url;
-    return photo.url || '';
+    if (reference.data_url) return reference.data_url;
+    return reference.url || '';
   } catch (err) {
     console.error('Photo resolve error:', err);
     return 'error://unavailable';
@@ -325,25 +339,28 @@ export const resolvePhotoUrls = async (photos = []) => {
 /**
  * Delete a photo from Supabase Storage or Firestore fallback.
  * Accepts either a raw storage path string OR a storage descriptor object.
- * Firestore fallback docs are immutable backups — deletion is a no-op for now
- * (they expire via Firestore TTL); we just skip the Storage remove.
+ * Firestore fallback documents are deleted through an admin-authorized Edge Function.
  */
 export const deletePhoto = async (pathOrDescriptor, bucket = COMPANY_ASSETS_BUCKET) => {
-  if (!pathOrDescriptor) return;
+  const reference = normalizePhotoReference(pathOrDescriptor, bucket);
+  if (!reference || reference.type === 'direct_url') return;
 
-  // Firestore fallback — nothing to delete in Storage; doc TTL handles cleanup.
-  if (typeof pathOrDescriptor === 'object' && pathOrDescriptor?.type === 'firestore_fallback') {
+  // Firestore fallback deletion uses the service account only after server-side admin checks.
+  if (reference.type === 'firestore_fallback') {
+    const { error } = await supabase.functions.invoke('delete-photo-fallback', {
+      body: { firestore_path: reference.firestore_path },
+    });
+    if (error) throw new Error(`Failed to delete fallback photo: ${error.message}`);
+    resolvePhotoUrl._fallbackCache?.delete(reference.firestore_path);
     return;
   }
 
   // Support both raw string paths and storage descriptor objects
-  const path = typeof pathOrDescriptor === 'string'
-    ? pathOrDescriptor
-    : pathOrDescriptor?.path;
+  const path = reference.path;
 
   if (!path) return;
 
-  const { error } = await supabase.storage.from(bucket).remove([path]);
+  const { error } = await supabase.storage.from(reference.bucket || bucket).remove([path]);
   if (error) throw new Error(`Failed to delete photo: ${error.message}`);
 };
 

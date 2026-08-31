@@ -14,6 +14,7 @@ import PaymentResultModal from '../../components/ui/PaymentResultModal';
 import CancelBookingModal from '../../components/ui/CancelBookingModal';
 import FocusTrap from '../../components/ui/FocusTrap';
 import ImageLightbox from '../../components/ui/ImageLightbox';
+import ResolvedPhotoLink from '../../components/ui/ResolvedPhotoLink';
 import { CenteredSpinner } from '../../components/ui/Loader';
 import AmountInput from '../../components/ui/AmountInput';
 import { ArrowLeft, MapPin, User, Phone, Package, CreditCard, Truck, Camera, Image, XCircle, Loader, AlertTriangle, Check } from 'lucide-react';
@@ -1102,9 +1103,9 @@ const OrderDetailPage = () => {
                               <span>{fmtMethod(tx.payment_method)}</span>
                               {customerRef && <span className="text-tertiary" style={{ fontSize: '0.6875rem', wordBreak: 'break-all' }}>Ref: {customerRef}</span>}
                               {tx.receipt_url && (
-                                <a href={tx.receipt_url} target="_blank" rel="noreferrer" className="text-xs text-primary flex items-center gap-4 mt-2">
+                                <ResolvedPhotoLink photo={tx.receipt_url} className="text-xs text-primary flex items-center gap-4 mt-2">
                                   <Image size={12} /> View Receipt
-                                </a>
+                                </ResolvedPhotoLink>
                               )}
                             </div>
                           </td>

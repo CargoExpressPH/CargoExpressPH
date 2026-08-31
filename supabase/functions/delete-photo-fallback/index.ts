@@ -7,8 +7,6 @@ const CORS_HEADERS = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-const MAX_DATA_URL_BYTES = 700 * 1024
-
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
     status,
@@ -70,7 +68,6 @@ const requireAdmin = async (authHeader: string) => {
   const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? ''
   const anonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? ''
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-
   const userClient = createClient(supabaseUrl, anonKey, {
     global: { headers: { Authorization: authHeader } },
   })
@@ -84,12 +81,9 @@ const requireAdmin = async (authHeader: string) => {
     .select('role')
     .eq('id', userData.user.id)
     .single()
-
   if (profileError || profile?.role !== 'admin') {
     throw new Response('Admin access required', { status: 403 })
   }
-
-  return { user: userData.user, serviceClient }
 }
 
 serve(async (req) => {
@@ -99,74 +93,33 @@ serve(async (req) => {
   try {
     const authHeader = req.headers.get('Authorization') || ''
     if (!authHeader.startsWith('Bearer ')) return json({ error: 'Authentication required' }, 401)
+    await requireAdmin(authHeader)
 
-    const { user, serviceClient } = await requireAdmin(authHeader)
-    const { order_id, folder, file_name, content_type, size_bytes, data_url } = await req.json()
-
-    if (!order_id || typeof order_id !== 'string') return json({ error: 'order_id is required' }, 400)
-    if (!['pickup', 'delivery', 'receipt'].includes(folder)) return json({ error: 'Invalid photo folder' }, 400)
-    if (typeof data_url !== 'string' || !data_url.startsWith('data:image/jpeg;base64,')) {
-      return json({ error: 'JPEG data_url is required' }, 400)
-    }
-    if (new TextEncoder().encode(data_url).length > MAX_DATA_URL_BYTES) {
-      return json({ error: 'Fallback photo is too large for Firestore' }, 413)
+    const { firestore_path } = await req.json()
+    if (typeof firestore_path !== 'string' || !/^photoFallbacks\/[a-zA-Z0-9._-]+$/.test(firestore_path)) {
+      return json({ error: 'Invalid Firestore photo path' }, 400)
     }
 
-    const { data: order, error: orderError } = await serviceClient
-      .from('orders')
-      .select('id')
-      .eq('id', order_id)
-      .single()
-    if (orderError || !order) return json({ error: 'Order not found' }, 404)
-
+    const [, docId] = firestore_path.split('/')
     const serviceAccount = loadFirebaseServiceAccount()
     const accessToken = await getAccessToken(serviceAccount)
-    const projectId = serviceAccount.project_id
-    const createdAt = new Date().toISOString()
-    const safeFileName = String(file_name || 'photo.jpg')
-      .replace(/[^a-zA-Z0-9_-]/g, '_')
-      .slice(0, 120)
-    // A retry of the same order/folder/file overwrites the same document instead
-    // of leaking another unreachable fallback document.
-    const docId = `${order_id}_${folder}_${safeFileName || 'photo'}`
-
     const response = await fetch(
-      `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/photoFallbacks/${docId}`,
+      `https://firestore.googleapis.com/v1/projects/${serviceAccount.project_id}/databases/(default)/documents/photoFallbacks/${docId}`,
       {
-        method: 'PATCH',
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          fields: {
-            order_id: { stringValue: order_id },
-            folder: { stringValue: folder },
-            file_name: { stringValue: file_name || 'photo.jpg' },
-            content_type: { stringValue: content_type || 'image/jpeg' },
-            size_bytes: { integerValue: String(Number(size_bytes) || 0) },
-            data_url: { stringValue: data_url },
-            created_by: { stringValue: user.id },
-            created_at: { timestampValue: createdAt },
-          },
-        }),
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${accessToken}` },
       },
     )
 
-    const result = await response.json()
+    if (response.status === 404) return json({ deleted: false, already_absent: true })
     if (!response.ok) {
-      return json({ error: result.error?.message || 'Failed to store Firestore fallback photo' }, response.status)
+      const result = await response.json()
+      return json({ error: result.error?.message || 'Failed to delete Firestore fallback photo' }, response.status)
     }
-
-    return json({
-      firestore_path: `photoFallbacks/${docId}`,
-      created_at: createdAt,
-    })
+    return json({ deleted: true })
   } catch (err) {
-    if (err instanceof Response) {
-      return json({ error: await err.text() }, err.status)
-    }
-    const message = err instanceof Error ? err.message : 'Unexpected fallback upload error'
+    if (err instanceof Response) return json({ error: await err.text() }, err.status)
+    const message = err instanceof Error ? err.message : 'Unexpected fallback deletion error'
     return json({ error: message }, 500)
   }
 })

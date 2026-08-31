@@ -8,6 +8,7 @@ const requiredFiles = [
   'supabase/functions/send-push/index.ts',
   'supabase/functions/store-photo-fallback/index.ts',
   'supabase/functions/get-photo-fallback/index.ts',
+  'supabase/functions/delete-photo-fallback/index.ts',
   'supabase/functions/paymongo-create-payment/index.ts',
 ];
 
@@ -17,6 +18,7 @@ const requiredSchemaSnippets = [
   'get_public_business_profile',
   'get_sales_summary',
   'cargo-photos',
+  'is_featured_photo_path',
   'guard_profile_write',
   'prepare_order_insert',
   'guard_order_update',

@@ -1552,7 +1552,7 @@ $function$
 
 
 
-CREATE OR REPLACE FUNCTION public.is_featured_order_ref(p_ref text)
+CREATE OR REPLACE FUNCTION public.is_featured_photo_path(p_path text)
  RETURNS boolean
  LANGUAGE sql
  STABLE SECURITY DEFINER
@@ -1561,11 +1561,31 @@ AS $function$
   SELECT EXISTS (
     SELECT 1
     FROM public.orders o
+    CROSS JOIN LATERAL (
+      SELECT CASE
+        WHEN o.featured_image_type = 'delivery'
+             AND jsonb_array_length(COALESCE(o.delivery_photos, '[]'::jsonb)) > 0
+          THEN o.delivery_photos -> 0
+        WHEN jsonb_array_length(COALESCE(o.pickup_photos, '[]'::jsonb)) > 0
+          THEN o.pickup_photos -> 0
+        ELSE NULL
+      END AS photo
+    ) selected
+    CROSS JOIN LATERAL (
+      SELECT CASE jsonb_typeof(selected.photo)
+        WHEN 'object' THEN selected.photo ->> 'path'
+        WHEN 'string' THEN selected.photo #>> '{}'
+        ELSE NULL
+      END AS raw_path
+    ) photo_ref
     WHERE o.featured_on_website = TRUE
       AND (
-        o.tracking_number = p_ref
-        OR o.id = public.safe_uuid(p_ref)
-      )
+        CASE
+          WHEN photo_ref.raw_path LIKE '%/cargo-photos/%'
+            THEN split_part(regexp_replace(photo_ref.raw_path, '^.*/cargo-photos/', ''), '?', 1)
+          ELSE photo_ref.raw_path
+        END
+      ) = p_path
   );
 $function$
 
@@ -2653,6 +2673,10 @@ REVOKE ALL ON FUNCTION public.get_order_status_counts() FROM authenticated;
 GRANT EXECUTE ON FUNCTION public.get_order_status_counts() TO service_role;
 GRANT EXECUTE ON FUNCTION public.get_order_status_counts() TO authenticated;
 
+REVOKE ALL ON FUNCTION public.is_featured_photo_path(p_path text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.is_featured_photo_path(p_path text) TO anon;
+GRANT EXECUTE ON FUNCTION public.is_featured_photo_path(p_path text) TO authenticated;
+
 REVOKE ALL ON FUNCTION public.purge_old_activity_logs() FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.purge_old_activity_logs() FROM anon;
 REVOKE ALL ON FUNCTION public.purge_old_activity_logs() FROM authenticated;
@@ -3319,7 +3343,7 @@ DROP POLICY IF EXISTS "Public read featured delivery photos" ON storage.objects;
 CREATE POLICY "Public read featured delivery photos" ON storage.objects
   FOR SELECT
   TO anon,authenticated
-  USING (((bucket_id = 'cargo-photos'::text) AND ((storage.foldername(name))[1] = ANY (ARRAY['pickup'::text, 'delivery'::text, 'pickup-proofs'::text, 'delivery-proofs'::text])) AND is_featured_order_ref((storage.foldername(name))[2])));
+  USING (((bucket_id = 'cargo-photos'::text) AND is_featured_photo_path(name)));
 
 DROP POLICY IF EXISTS "Users read own cargo photos" ON storage.objects;
 CREATE POLICY "Users read own cargo photos" ON storage.objects

@@ -5,8 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "test": "node scripts/smoke-check.mjs && node scripts/axe-lint.mjs && node scripts/token-lint.mjs",
-    "check": "npm run test && npm run build",
+    "test": "node scripts/smoke-check.mjs && node scripts/axe-lint.mjs && node scripts/token-lint.mjs && node scripts/photo-reference-test.mjs && node scripts/photo-fallback-contract-test.mjs",
+    "test:photo-fallback": "node scripts/photo-reference-test.mjs && node scripts/photo-fallback-contract-test.mjs && node scripts/photo-fallback-browser-test.mjs",
+    "test:edge-functions": "node scripts/edge-function-build-test.mjs",
+    "check": "npm run test && npm run test:edge-functions && node scripts/photo-fallback-browser-test.mjs && npm run build",
     "build": "vite build",
     "preview": "vite preview",
     "test:e2e": "playwright test",

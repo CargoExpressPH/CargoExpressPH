@@ -100,7 +100,7 @@ custom CSS organised into 24 stylesheets, with a design-token layer in
 | `@dnd-kit/core`, `/sortable`, `/utilities` | ^6.3.1 / ^10.0.0 / ^3.2.2 | Drag-and-drop reordering of coverage areas and company features in the admin panel |
 | `react-qr-code` | ^2.2.0 | Renders tracking QR codes on printable waybills |
 | `html2pdf.js` | ^0.14.0 | Client-side PDF export of reports and waybills (`src/lib/exportPdf.js`) |
-| `browser-image-compression` | ^2.0.2 | Compresses proof-of-delivery photos before upload (max 0.8 MB, 1200 px) |
+| `browser-image-compression` | ^2.0.2 | Compresses shipment evidence before upload (target 0.5 MB, 1024 px) |
 | `@supabase/supabase-js` | ^2.104.1 | Backend SDK (data, auth, realtime, storage, functions) |
 | `firebase` | ^12.16.0 | Cloud Messaging client SDK (push only) |
 | `dotenv` | ^17.4.2 | Environment loading for build/CLI scripts |
@@ -255,7 +255,7 @@ Supabase, which provides:
 
 ### 3.2 Supabase Edge Functions (the server tier)
 
-Five functions, each deployed independently. JWT verification is declared per function in
+Functions are deployed independently. JWT verification is declared per function in
 `supabase/config.toml`:
 
 | Function | `verify_jwt` | Responsibility |
@@ -263,11 +263,13 @@ Five functions, each deployed independently. JWT verification is declared per fu
 | `paymongo-create-payment` | `true` | Registers a payment source, polls status, captures with the secret key, triggers reconciliation |
 | `paymongo-webhook` | `false` | Receives PayMongo callbacks; authenticates by HMAC signature instead of JWT |
 | `send-push` | `false`* | Dual-protocol push delivery (§7.3) |
-| `store-photo-fallback` | — | Writes a data-URL photo copy to Firestore when Storage fails |
-| `get-photo-fallback` | — | Reads a fallback photo back |
+| `store-photo-fallback` | `false`* | Writes an admin-authorized evidence copy to Firestore when Storage fails |
+| `get-photo-fallback` | `false`* | Reads fallback evidence after owner/admin or exact public-feature authorization |
+| `delete-photo-fallback` | `false`* | Deletes fallback documents for an authenticated administrator |
 
-\* `send-push` disables gateway JWT verification only because its anonymous contact-inquiry
-mode is required; authenticated events verify the caller JWT inside the function.
+\* These functions perform authorization inside their handlers. `send-push` needs one anonymous
+contact-inquiry mode; photo fallback writes/deletes require an admin, reads require owner/admin
+unless the requested document is the exact photo selected for a public feature.
 
 The webhook is public by necessity — PayMongo cannot present a user JWT — and compensates with
 HMAC-SHA256 verification performed *before* the body is parsed. `send-push` is gateway-public
@@ -467,7 +469,7 @@ Upload pipeline (`src/lib/storage.js`):
 ```
 validate MIME + ≤10 MB
       ↓
-compress  (browser-image-compression: ≤0.8 MB, 1200 px, JPEG, Web Worker)
+compress  (browser-image-compression: target 0.5 MB, 1024 px, JPEG, Web Worker)
       ↓
 upload    (upsert: true)
       ↓
@@ -489,7 +491,7 @@ Path convention:
 ```
 pickup-proofs/CE-20260802-1234/pickup-1.jpg
 delivery-proofs/CE-20260802-1234/delivery-1.jpg
-receipts/CE-20260802-1234/receipt-1.jpg
+receipts/CE-20260802-1234/receipts-<ts>-1.jpg
 gallery/gallery-<ts>.jpg          ← company assets, no order context
 ```
 
@@ -508,15 +510,20 @@ After the migration, shipment evidence is readable only by:
 - an **admin** session (`Admins manage cargo photos`);
 - the **owning customer** (`Users read own cargo photos`), which resolves the order from the
   path segment via `public.safe_uuid()`;
-- a **signed URL** minted for a photo the business explicitly featured publicly — the carve-out
-  required by `get_featured_deliveries()`.
+- a **signed URL** minted for the exact first photo the business selected for a public feature;
+  other evidence from that same order remains private.
 
 ### 5.3 Secondary — Firestore fallback
 
-If a Storage write fails, `store-photo-fallback` writes a ≤700 KB data-URL copy of the image
-into Firestore, and `get-photo-fallback` reads it back. Firebase service-account credentials
-live in Edge Function secrets and never reach the browser. This is the only use of Firestore
-in the system — it is not a primary datastore.
+If a pickup proof, delivery proof, or receipt Storage write fails,
+`store-photo-fallback` writes a ≤700 KB data-URL copy into Firestore. The descriptor is stored
+in the same order/payment field as a Storage descriptor, so rendering is backend-independent.
+`get-photo-fallback` permits only an administrator, the owning customer, or an anonymous visitor
+requesting the exact photo selected for a public feature. `delete-photo-fallback` provides
+administrator-authorized cleanup. Batch upload failures delete earlier successful objects, and
+receipt filenames are unique per transaction so later payments cannot overwrite history.
+Firebase service-account credentials live only in Edge Function secrets. Firestore is a fallback,
+not a primary datastore.
 
 ---
 

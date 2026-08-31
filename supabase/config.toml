@@ -15,6 +15,9 @@ verify_jwt = false
 [functions.get-photo-fallback]
 verify_jwt = false
 
+[functions.delete-photo-fallback]
+verify_jwt = false
+
 [functions.submit-inquiry]
 verify_jwt = false
 

@@ -217,7 +217,9 @@ photo and receipt enumerable by anyone**.
 The bucket is fully private. Reads require an admin session, ownership of the
 order, or a deliberately minted **1-hour signed URL**. Images are validated,
 compressed in a Web Worker, and persisted as structured descriptors rather than
-raw URLs.
+raw URLs. Pickup proofs, delivery proofs, and payment receipts automatically use
+the protected Firestore fallback when Storage is unavailable; fallback reads keep
+the same admin/owner/exact-public-feature authorization model.
 
 ### 7. Engineering Discipline
 
@@ -226,6 +228,7 @@ raw URLs.
   - `smoke-check` — asserts that critical security functions and booking safeguards still exist in the schema and data layer
   - `axe-lint` — fails the build on missing `alt` text, unlabelled controls, empty ARIA labels or duplicate IDs
   - `token-lint` — fails the build on references to undefined CSS custom properties, a class of silent bug that once shipped invisible white-on-white text
+  - photo fallback tests — cover descriptor compatibility, authorization/deletion contracts, forced Storage outages, and partial-upload rollback
 - **Playwright E2E suite** covering the full admin↔customer journey, the dispatch gate, and responsive layouts
 - **Hand-rolled PWA** — no `vite-plugin-pwa`; the service worker uses three versioned caches, four routing strategies, an offline fallback and build-time precache injection that deliberately excludes heavy lazy chunks
 

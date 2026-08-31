@@ -18,6 +18,7 @@ import DeliveryModal from '../../components/ui/DeliveryModal';
 import ConfirmModal from '../../components/ui/ConfirmModal';
 import PaymentResultModal from '../../components/ui/PaymentResultModal';
 import ImageLightbox from '../../components/ui/ImageLightbox';
+import ResolvedPhotoLink from '../../components/ui/ResolvedPhotoLink';
 import Breadcrumb from '../../components/ui/Breadcrumb';
 import FocusTrap from '../../components/ui/FocusTrap';
 import { CenteredSpinner } from '../../components/ui/Loader';
@@ -566,6 +567,16 @@ const AdminOrderDetailPage = () => {
   const handleSaveFeature = async () => {
     if (featureForm.featured_on_website && !featureForm.featured_title) {
       toast.error('Highlight title is required when featuring.');
+      return;
+    }
+    const featuredPhotos = featureForm.featured_image_type === 'delivery'
+        && Array.isArray(order.delivery_photos)
+        && order.delivery_photos.length > 0
+      ? order.delivery_photos
+      : order.pickup_photos;
+    if (featureForm.featured_on_website
+        && (!Array.isArray(featuredPhotos) || featuredPhotos.length === 0)) {
+      toast.error('Upload at least one pickup or delivery photo before featuring this order.');
       return;
     }
     setSavingFeature(true);
@@ -1188,7 +1199,7 @@ const AdminOrderDetailPage = () => {
                                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="opacity-50" style={{ flexShrink: 0,}}><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
                               </button>
                             )}
-                            {tx.receipt_url && <a href={tx.receipt_url} target="_blank" rel="noreferrer" className="text-xs text-primary receipt-link"><Image size={12} /> View Receipt</a>}
+                            {tx.receipt_url && <ResolvedPhotoLink photo={tx.receipt_url} className="text-xs text-primary receipt-link"><Image size={12} /> View Receipt</ResolvedPhotoLink>}
                             {tx.notes && tx.notes.trim() && !(/captured via paymongo/i.test(tx.notes)) && (
                               <div className="text-xs text-tertiary mt-4" style={{ fontStyle: 'italic' }}>{tx.notes}</div>
                             )}

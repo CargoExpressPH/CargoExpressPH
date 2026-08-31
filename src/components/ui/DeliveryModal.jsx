@@ -6,7 +6,8 @@ import useScrollLock from '../../hooks/useScrollLock';
 import useFieldErrors from '../../hooks/useFieldErrors';
 import FieldError, { errorId } from './FieldError';
 import { sanitizeAmount, formatAmount } from '../../utils/currencyInput';
-import { uploadMultiplePhotos, uploadPhoto } from '../../lib/storage';
+import { uploadMultiplePhotos, uploadPhoto, deletePhoto } from '../../lib/storage';
+import { serializePhotoReference } from '../../lib/photoReference';
 import PaymentCollectionPanel, {
   createPaymentCollectionState,
   derivePaymentCollection,
@@ -159,8 +160,14 @@ const DeliveryModal = ({ order, onClose, onSave }) => {
       let receiptUrl = null;
       if (payment.receiptFile) {
         setUploadProgress('Uploading receipt...');
-        const rResult = await uploadPhoto(payment.receiptFile, 'receipts', order.tracking_number, 1, order.id);
-        receiptUrl = rResult.firestore_path ? rResult.firestore_path : (rResult.path || rResult.url);
+        let rResult;
+        try {
+          rResult = await uploadPhoto(payment.receiptFile, 'receipts', order.tracking_number, 1, order.id);
+        } catch (receiptError) {
+          await Promise.allSettled(photoUrls.map((photo) => deletePhoto(photo)));
+          throw receiptError;
+        }
+        receiptUrl = serializePhotoReference(rResult);
       }
 
       setUploadProgress('Finalizing...');
