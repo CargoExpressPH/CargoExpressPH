@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Search, LayoutDashboard, Package, Truck, Users, BarChart3,
-  Megaphone, MessageSquare, Mail, Building, ClipboardList, User, KeyRound
+  Megaphone, MessageSquare, Mail, Building, ClipboardList, User, KeyRound, HardDrive
 } from 'lucide-react';
 import FocusTrap from './FocusTrap';
 import useScrollLock from '../../hooks/useScrollLock';
@@ -19,6 +19,7 @@ const COMMANDS = [
   { label: 'Customer Feedback', to: '/admin/feedback', icon: MessageSquare, section: 'Management', keywords: 'feedback testimonials reviews' },
   { label: 'Activity Logs', to: '/admin/activity-logs', icon: ClipboardList, section: 'Management', keywords: 'audit history logs' },
   { label: 'Company Information', to: '/admin/company-info', icon: Building, section: 'System', keywords: 'profile config business coverage settings' },
+  { label: 'Photo Storage Monitoring', to: '/admin/storage-monitoring', icon: HardDrive, section: 'System', keywords: 'storage photos firebase supabase fallback uploads health monitoring' },
   { label: 'Profile', to: '/admin/profile', icon: User, section: 'System', keywords: 'account admin personal details avatar' },
   { label: 'Change Email', to: '/admin/change-email', icon: Mail, section: 'System', keywords: 'account security email address' },
   { label: 'Change Password', to: '/admin/change-password', icon: KeyRound, section: 'System', keywords: 'account security password credentials' },

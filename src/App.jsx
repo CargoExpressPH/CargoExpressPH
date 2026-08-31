@@ -63,6 +63,7 @@ const AdminProfilePage = lazyWithRetry(() => import('./pages/admin/ProfilePage')
 const ActivityLogsPage = lazyWithRetry(() => import('./pages/admin/ActivityLogsPage'));
 const CompanyInformationPage = lazyWithRetry(() => import('./pages/admin/CompanyInformationPage'));
 const AdminCreateBookingPage = lazyWithRetry(() => import('./pages/admin/AdminCreateBookingPage'));
+const StorageMonitoringPage = lazyWithRetry(() => import('./pages/admin/StorageMonitoringPage'));
 
 // Public Pages
 const TrackingPage = lazyWithRetry(() => import('./pages/public/TrackingPage'));
@@ -265,6 +266,7 @@ const router = createBrowserRouter([
           { path: 'change-password', element: <Suspense fallback={<PageLoader />}><ChangePasswordPage /></Suspense> },
           { path: 'activity-logs', element: <Suspense fallback={<PageLoader />}><ActivityLogsPage /></Suspense> },
           { path: 'company-info', element: <Suspense fallback={<PageLoader />}><CompanyInformationPage /></Suspense> },
+          { path: 'storage-monitoring', element: <Suspense fallback={<PageLoader />}><StorageMonitoringPage /></Suspense> },
           { path: 'feedback', element: <Suspense fallback={<PageLoader />}><FeedbackPage /></Suspense> },
         ],
       },

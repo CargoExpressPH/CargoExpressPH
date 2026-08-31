@@ -6,7 +6,7 @@ import { getAdminInboxUnreadCount, getNewInquiryCount } from '../../lib/database
 import {
   LayoutDashboard, Package, Truck, Users, BarChart3,
   Megaphone, MessageSquare, LogOut, Mail,
-  ChevronsLeft, ArrowLeft, ClipboardList, Building, ChevronUp, User, PackagePlus
+  ChevronsLeft, ArrowLeft, ClipboardList, Building, ChevronUp, User, PackagePlus, HardDrive
 } from 'lucide-react';
 import ConfirmModal from '../ui/ConfirmModal';
 import { BrandLogo, BrandWordmark } from '../ui/BrandLogo';
@@ -29,6 +29,7 @@ const toolsNav = [
 
 const systemNav = [
   { to: '/admin/company-info', icon: Building, label: 'Company Information' },
+  { to: '/admin/storage-monitoring', icon: HardDrive, label: 'Photo Storage' },
 ];
 
 const Sidebar = ({ isOpen, onClose, isCollapsed, onToggleCollapse }) => {

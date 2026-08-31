@@ -62,7 +62,13 @@ try {
       state.functionCalls = [];
     };
 
-    globalThis.__testSupabase = {
+      globalThis.__testSupabase = {
+      rpc: async (name) => {
+        if (name === 'get_effective_photo_storage_mode') {
+          return { data: [{ upload_mode: state.config.uploadMode || 'automatic' }], error: null };
+        }
+        return { data: null, error: { message: `unexpected rpc ${name}` } };
+      },
       storage: {
         from: (bucket) => ({
           upload: async (path) => {
@@ -100,6 +106,7 @@ try {
             return { data: { data_url: 'data:image/jpeg;base64,/9j/' }, error: null };
           }
           if (name === 'delete-photo-fallback') return { data: { deleted: true }, error: null };
+          if (name === 'record-photo-storage-event') return { data: { recorded: true }, error: null };
           return { data: null, error: { message: `unexpected function ${name}` } };
         },
       },
@@ -112,7 +119,8 @@ try {
     reset();
     const primary = await storage.uploadPhoto(photoFile(), 'receipts', 'CE-TEST', 1, orderId);
     const primaryOnly = primary.type === 'supabase_storage'
-      && state.functionCalls.length === 0
+      && state.uploadCalls === 1
+      && !state.functionCalls.some(call => call.name === 'store-photo-fallback')
       && primary.path.startsWith('receipts/CE-TEST/receipts-');
 
     await new Promise(resolve => setTimeout(resolve, 2));
@@ -123,6 +131,14 @@ try {
     const fallback = await storage.uploadPhoto(photoFile(), 'receipts', 'CE-TEST', 1, orderId);
     const storeCall = state.functionCalls.find(call => call.name === 'store-photo-fallback');
     const receiptFallback = fallback.type === 'firestore_fallback' && storeCall?.body?.folder === 'receipt';
+
+    reset({ uploadMode: 'force_firebase' });
+    const forcedFallback = await storage.uploadPhoto(photoFile(), 'pickup-proofs', 'CE-FORCED', 1, orderId);
+    const forcedStoreCall = state.functionCalls.find(call => call.name === 'store-photo-fallback');
+    const forcedModeBypassesSupabase = forcedFallback.type === 'firestore_fallback'
+      && state.uploadCalls === 0
+      && forcedStoreCall?.body?.folder === 'pickup'
+      && state.functionCalls.some(call => call.name === 'record-photo-storage-event');
 
     const resolved = await storage.resolvePhotoUrl(JSON.stringify(fallback));
     const serializedFallbackResolves = resolved === 'data:image/jpeg;base64,/9j/'
@@ -161,6 +177,7 @@ try {
       primaryOnly,
       receiptsAreUnique,
       receiptFallback,
+      forcedModeBypassesSupabase,
       serializedFallbackResolves,
       fallbackDeletes,
       originalErrorPreserved,

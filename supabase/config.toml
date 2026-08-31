@@ -18,6 +18,12 @@ verify_jwt = false
 [functions.delete-photo-fallback]
 verify_jwt = false
 
+[functions.record-photo-storage-event]
+verify_jwt = false
+
+[functions.photo-storage-health]
+verify_jwt = false
+
 [functions.submit-inquiry]
 verify_jwt = false
 

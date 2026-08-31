@@ -102,6 +102,34 @@ const toFallbackFolder = (folder) => FALLBACK_FOLDER_MAP[folder] || null;
 
 const isFallbackEligible = (folder, orderId) => Boolean(toFallbackFolder(folder) && orderId);
 
+const fallbackPhotoType = (folder) => toFallbackFolder(folder);
+
+// The routing setting is intentionally advisory in the browser: the Storage
+// policy in the database is the enforcement point. If this read is temporarily
+// unavailable, the normal Supabase-first path still reaches the same fallback.
+const getEvidenceUploadMode = async () => {
+  try {
+    const { data, error } = await supabase.rpc('get_effective_photo_storage_mode');
+    if (error) throw error;
+    return data?.[0]?.upload_mode === 'force_firebase' ? 'force_firebase' : 'automatic';
+  } catch (error) {
+    console.warn('[storage] Could not read photo upload routing; using Automatic mode.', error?.message || error);
+    return 'automatic';
+  }
+};
+
+const eventMessage = (error) => String(error?.message || error || 'Upload failed')
+  .replace(/data:[^\s]+/gi, '[image data omitted]')
+  .slice(0, 500);
+
+// Telemetry must never affect an upload. The Edge Function checks the signed-in
+// admin again and writes the event with service credentials.
+const recordEvidenceUploadEvent = (payload) => {
+  if (!payload.order_id || !payload.photo_type) return;
+  void supabase.functions.invoke('record-photo-storage-event', { body: payload })
+    .catch((error) => console.warn('[storage] Upload telemetry was not recorded.', error?.message || error));
+};
+
 /**
  * Try the Firestore backup when Supabase Storage is unavailable.
  * Isolated behind the catch — never runs on a successful upload.
@@ -172,6 +200,29 @@ const uploadToSupabaseStorage = async (file, folder, trackingNumber = '', index 
   // while `cargo-photos` was public survived it being locked down. One hour
   // keeps the CDN useful without pinning private evidence at the edge.
   const isEvidence = EVIDENCE_FOLDERS.includes(folder);
+  const photoType = fallbackPhotoType(folder);
+  const canUseFirestoreFallback = isFallbackEligible(folder, orderId);
+
+  // Force Firebase is a temporary admin-only operational route for new
+  // shipment evidence. It does not change the bucket or any existing photo.
+  if (canUseFirestoreFallback && await getEvidenceUploadMode() === 'force_firebase') {
+    try {
+      const fallbackDescriptor = await tryFirestoreFallback(file, folder, orderId, index, path.split('/').pop());
+      recordEvidenceUploadEvent({
+        provider: 'firebase', outcome: 'success', photo_type: photoType,
+        order_id: orderId, storage_path: fallbackDescriptor.firestore_path,
+        size_bytes: fallbackDescriptor.size_bytes,
+        message: 'New evidence upload routed directly to Firebase fallback.',
+      });
+      return fallbackDescriptor;
+    } catch (fallbackError) {
+      recordEvidenceUploadEvent({
+        provider: 'firebase', outcome: 'failure', photo_type: photoType,
+        order_id: orderId, size_bytes: compressed.size, message: eventMessage(fallbackError),
+      });
+      throw new Error(`Firebase fallback upload failed: ${eventMessage(fallbackError)}`);
+    }
+  }
 
   try {
     const { error } = await supabase.storage
@@ -184,7 +235,7 @@ const uploadToSupabaseStorage = async (file, folder, trackingNumber = '', index 
 
     if (error) throw new Error(`Supabase Storage Upload Failed: ${error.message}`);
 
-    return {
+    const descriptor = {
       type: 'supabase_storage',
       bucket: COMPANY_ASSETS_BUCKET,
       path,
@@ -192,23 +243,47 @@ const uploadToSupabaseStorage = async (file, folder, trackingNumber = '', index 
       size_bytes: compressed.size,
       created_at: new Date().toISOString(),
     };
+    if (canUseFirestoreFallback) {
+      recordEvidenceUploadEvent({
+        provider: 'supabase', outcome: 'success', photo_type: photoType,
+        order_id: orderId, storage_path: path, size_bytes: compressed.size,
+      });
+    }
+    return descriptor;
   } catch (uploadError) {
     // ── Isolated fallback: only when Supabase fails AND we have an order context
     // Main success never reaches here. Validation errors (file type/size) are
     // thrown before upload and are NOT retriable — they re-throw immediately.
     const msg = uploadError?.message || String(uploadError);
     const isValidationError = msg.includes('Invalid file type') || msg.includes('File is too large');
-    if (isValidationError || !isFallbackEligible(folder, orderId)) throw uploadError;
+    if (canUseFirestoreFallback) {
+      recordEvidenceUploadEvent({
+        provider: 'supabase', outcome: 'failure', photo_type: photoType,
+        order_id: orderId, storage_path: path, size_bytes: compressed.size,
+        message: eventMessage(uploadError),
+      });
+    }
+    if (isValidationError || !canUseFirestoreFallback) throw uploadError;
 
     try {
       console.warn(`[storage] Supabase upload failed for ${folder}/${trackingNumber}, trying Firestore fallback`, msg);
       const fallbackDescriptor = await tryFirestoreFallback(file, folder, orderId, index, path.split('/').pop());
       console.info(`[storage] Firestore fallback succeeded: ${fallbackDescriptor.firestore_path}`);
+      recordEvidenceUploadEvent({
+        provider: 'firebase', outcome: 'success', photo_type: photoType,
+        order_id: orderId, storage_path: fallbackDescriptor.firestore_path,
+        size_bytes: fallbackDescriptor.size_bytes,
+        message: 'Firebase fallback stored the evidence after a Supabase upload failure.',
+      });
       return fallbackDescriptor;
     } catch (fallbackError) {
       // If fallback also fails, surface the ORIGINAL Supabase error — the
       // primary is authoritative; fallback failure is secondary noise.
       console.error('[storage] Firestore fallback also failed', fallbackError?.message || fallbackError);
+      recordEvidenceUploadEvent({
+        provider: 'firebase', outcome: 'failure', photo_type: photoType,
+        order_id: orderId, size_bytes: compressed.size, message: eventMessage(fallbackError),
+      });
       throw uploadError;
     }
   }

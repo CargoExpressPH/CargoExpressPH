@@ -3220,3 +3220,44 @@ export const clearPaymentReceiptUrls = async (orderId) => {
     .eq('order_id', orderId);
   if (error) throw error;
 };
+
+// â”€â”€ Admin photo-storage monitoring and new-upload routing â”€â”€
+export const getPhotoStorageMode = async () => {
+  const { data, error } = await supabase.rpc('get_effective_photo_storage_mode');
+  if (error) throw error;
+  return data?.[0] || null;
+};
+
+export const setPhotoStorageMode = async (uploadMode, reason = null, expiresAt = null) => {
+  const { data, error } = await supabase.rpc('set_photo_storage_mode', {
+    p_upload_mode: uploadMode,
+    p_reason: reason,
+    p_force_firebase_expires_at: expiresAt,
+  });
+  if (error) throw error;
+  return data?.[0] || null;
+};
+
+export const getPhotoStorageSummary = async () => {
+  const { data, error } = await supabase.rpc('get_photo_storage_summary');
+  if (error) throw error;
+  return data?.[0] || null;
+};
+
+export const getPhotoStorageEvents = async (limit = 50) => {
+  const safeLimit = Math.max(1, Math.min(Number(limit) || 50, 100));
+  const { data, error } = await supabase
+    .from('photo_storage_events')
+    .select('id, event_type, provider, outcome, photo_type, order_id, storage_path, size_bytes, message, metadata, created_at, created_by, profiles:created_by(name, email)')
+    .order('created_at', { ascending: false })
+    .limit(safeLimit);
+  if (error) throw error;
+  return data || [];
+};
+
+export const checkPhotoStorageHealth = async () => {
+  const { data, error } = await supabase.functions.invoke('photo-storage-health');
+  if (error) throw error;
+  if (data?.error) throw new Error(data.error);
+  return data;
+};
