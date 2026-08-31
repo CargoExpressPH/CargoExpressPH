@@ -511,7 +511,7 @@ const TrackingPage = ({ embedded = false }) => {
           {/* ── Timeline ── */}
           <div className="trk-timeline-wrap">
             <p className="trk-section-label">Shipment Journey</p>
-            <TrackingTimeline currentStatus={timelineStatus(order)} stepTimestamps={stepTimestamps} />
+            <TrackingTimeline currentStatus={timelineStatus(order)} />
           </div>
 
           {/* ── Info grid ── */}
