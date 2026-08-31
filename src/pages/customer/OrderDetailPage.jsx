@@ -605,16 +605,20 @@ const OrderDetailPage = () => {
       localStorage.setItem(`pending_payment_${order.id}`, sourceId);
       localStorage.setItem(`pending_payment_amount_${order.id}`, String(amount));
 
-      toast.success('Redirecting to PayMongo...');
+      // Customer-facing wording: PayMongo is our payment gateway, not a brand
+      // the customer chose — speak in terms of the wallet they are opening.
+      toast.info('Opening GCash…');
 
       // Redirect to GCash checkout in the same tab ONLY AFTER registerSource is complete
       window.location.href = checkoutUrl;
     } catch (err) {
       toast.error(err.message || 'Failed to initiate payment.');
       setProcessingPayment(false);
-    } finally {
-      setProcessingPayment(false);
     }
+    // No finally-reset on purpose: the button must stay disabled while the
+    // redirect is in flight. Re-enabling it in that gap allowed a second tap
+    // to create a duplicate GCash charge. The page unloads on redirect; the
+    // catch above resets on error.
   };
 
   // ── Loading State ──────────────────────────────────────────────────────────

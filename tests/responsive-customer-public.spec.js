@@ -10,10 +10,18 @@ const VIEWPORTS = [
 ];
 
 const PUBLIC_ROUTES = [
+  { path: '/', sel: '.auth-page, .login-split-page' },
   { path: '/track', sel: '.trk-page' },
   { path: '/about', sel: '.public-about-page' },
+  { path: '/schedules', sel: '.public-shell .customer-trips-page' },
+  { path: '/faq', sel: '.public-shell .customer-help-guidelines-page' },
+  { path: '/terms', sel: '.legal-page' },
+  { path: '/privacy', sel: '.legal-page' },
   { path: '/login', sel: '.auth-page, .login-split-page' },
-  { path: '/register', sel: '.auth-page' },
+  { path: '/register', sel: '.login-split-page, .auth-page' },
+  { path: '/forgot-password', sel: '.login-split-page' },
+  { path: '/reset-password', sel: '.auth-page' },
+  { path: '/definitely-not-a-real-route', sel: '.not-found-page' },
 ];
 
 const checkNoOverflow = async (page, vp) => {
@@ -30,7 +38,7 @@ for (const vp of VIEWPORTS) {
       test(`${r.path} no overflow`, async ({ page }) => {
         await page.setViewportSize({ width: vp.w, height: vp.h });
         await page.goto(r.path, { waitUntil: 'domcontentloaded' });
-        await page.waitForSelector(r.sel, { timeout: 10000 }).catch(() => {});
+        await expect(page.locator(r.sel).first(), `${r.path} did not render its route content`).toBeVisible({ timeout: 15000 });
         await page.waitForTimeout(600);
         await checkNoOverflow(page, vp);
         // search/button not clipped

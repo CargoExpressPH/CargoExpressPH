@@ -55,8 +55,9 @@ test.describe('CargoExpress PH — admin + customer end-to-end journey', () => {
     // Route is a pair of toggle buttons, not a select.
     await page.getByRole('button', { name: new RegExp(TRIP.label.replace('→', '.')) }).first().click();
 
-    await fillById(page, 'trip-departure-date', datetimeLocal(TRIP.departureOffset, 8));
-    await fillById(page, 'trip-arrival-date', datetimeLocal(TRIP.arrivalOffset, 17));
+    // CreateTripPage uses native date inputs, which accept YYYY-MM-DD only.
+    await fillById(page, 'trip-departure-date', datetimeLocal(TRIP.departureOffset, 8).slice(0, 10));
+    await fillById(page, 'trip-arrival-date', datetimeLocal(TRIP.arrivalOffset, 17).slice(0, 10));
     await fillById(page, 'trip-capacity', BOOKING.capacityKg);
     await fillById(page, 'trip-price-per-kg', BOOKING.pricePerKg);
     await page.locator('#trip-notes').fill(TRIP.notes);
@@ -169,7 +170,8 @@ test.describe('CargoExpress PH — admin + customer end-to-end journey', () => {
     await page.goto('/customer/personal-info');
     await expect(page.locator('#profile-name')).toHaveValue(new RegExp(CUSTOMER.name, 'i'), { timeout: 30_000 });
     await expect(page.locator('#profile-phone')).toHaveValue(CUSTOMER.phone);
-    await expect(page.locator('#profile-barangay')).toHaveValue(new RegExp(CUSTOMER.address.barangay, 'i'));
+    // BarangaySelect renders an accessible button trigger, not an input.
+    await expect(page.locator('#profile-barangay')).toContainText(new RegExp(CUSTOMER.address.barangay, 'i'));
   });
 
   test('customer books a shipment through the wizard', async ({ page }) => {

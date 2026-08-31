@@ -17,6 +17,9 @@ import PublicShell from './components/layout/PublicShell';
 
 // Auth Pages — eagerly loaded (first thing users see)
 import LoginPage from './pages/auth/LoginPage';
+// Eager (not lazy): this must paint the instant the payer lands back from
+// PayMongo — a lazy chunk here would reintroduce the splash-screen wait.
+import PaymentReturnPage from './pages/shared/PaymentReturnPage';
 import RegisterPage from './pages/auth/RegisterPage';
 import ForgotPasswordPage from './pages/auth/ForgotPasswordPage';
 import ResetPasswordPage from './pages/auth/ResetPasswordPage';
@@ -204,6 +207,11 @@ const router = createBrowserRouter([
       { path: '/register', element: <AuthRoute><RegisterPage /></AuthRoute> },
       { path: '/forgot-password', element: <AuthRoute><ForgotPasswordPage /></AuthRoute> },
       { path: '/reset-password', element: <ResetPasswordPage /> },
+
+      // Payment return — PayMongo lands here after GCash checkout. Kept
+      // outside the auth guards so it renders immediately; it only needs the
+      // restored session for the verification call, not the full app boot.
+      { path: '/payment/return', element: <PaymentReturnPage /> },
 
       // Customer — each child page loads on demand
       {

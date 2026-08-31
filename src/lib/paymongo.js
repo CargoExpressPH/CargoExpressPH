@@ -33,9 +33,13 @@ export const createGCashSource = async (amount, description, billing = {}, isAdm
       data: {
         attributes: {
           amount: Math.round(amount * 100), // Convert to centavos
+          // The payer lands on the lightweight /payment/return screen, which
+          // verifies and shows the result without rebooting the whole app.
+          // The order pages keep their own ?payment= handlers so checkout
+          // links created before that route existed still resolve.
           redirect: {
-            success: `${window.location.origin}/${isAdmin ? 'admin' : 'customer'}/orders${orderId ? `/${orderId}` : ''}?payment=success`,
-            failed: `${window.location.origin}/${isAdmin ? 'admin' : 'customer'}/orders${orderId ? `/${orderId}` : ''}?payment=failed`,
+            success: `${window.location.origin}/payment/return?payment=success&role=${isAdmin ? 'admin' : 'customer'}${orderId ? `&order=${orderId}` : ''}`,
+            failed: `${window.location.origin}/payment/return?payment=failed&role=${isAdmin ? 'admin' : 'customer'}${orderId ? `&order=${orderId}` : ''}`,
           },
           type: 'gcash',
           currency: 'PHP',

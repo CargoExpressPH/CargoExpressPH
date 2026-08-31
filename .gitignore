@@ -20,3 +20,6 @@ dist/
 /playwright/.cache/
 /playwright/.auth/
 
+
+# Local audit/scan scratch — may contain tokens; never commit
+.scan/

@@ -1,6 +1,7 @@
 import { test, expect, devices } from '@playwright/test';
 import { login } from './helpers/actions';
 import { ADMIN } from './helpers/config';
+import { adminClient, findLatestE2ECustomer, findLatestE2ETrip } from './helpers/db';
 
 /**
  * Responsive admin E2E — every admin screen at every major device size.
@@ -29,19 +30,34 @@ const VIEWPORTS = [
 const ADMIN_ROUTES = [
   { path: '/admin', label: 'Dashboard', hasTable: true },
   { path: '/admin/orders', label: 'Bookings', hasTable: true, hasSearch: true },
+  { path: '/admin/orders/__ORDER_ID__', label: 'Booking detail', hasTable: false },
+  { path: '/admin/create-booking', label: 'Create booking', hasTable: false },
   { path: '/admin/trips', label: 'Trips', hasTable: false },
+  { path: '/admin/trips/create', label: 'Create trip', hasTable: false },
+  { path: '/admin/trips/__TRIP_ID__', label: 'Trip detail', hasTable: false },
   { path: '/admin/customers', label: 'Customers', hasTable: true, hasSearch: true },
+  { path: '/admin/customers/__CUSTOMER_ID__', label: 'Customer detail', hasTable: false },
   { path: '/admin/inbox', label: 'Inbox', hasTable: false },
   { path: '/admin/contact-inquiries', label: 'Inquiries', hasTable: true },
   { path: '/admin/announcements', label: 'Announcements', hasTable: false },
   { path: '/admin/activity-logs', label: 'Activity Logs', hasTable: true },
   { path: '/admin/company-info', label: 'Company Information', hasTable: false },
   { path: '/admin/feedback', label: 'Feedback', hasTable: false },
+  { path: '/admin/profile', label: 'Profile', hasTable: false },
+  { path: '/admin/change-email', label: 'Change email', hasTable: false },
+  { path: '/admin/change-password', label: 'Change password', hasTable: false },
   { path: '/admin/sales', label: 'Sales', hasTable: false, hasChart: true },
   { path: '/admin/reports', label: 'Reports', hasTable: false },
   { path: '/admin/sales?tab=unsettled', label: 'Unsettled', hasTable: true },
   { path: '/admin/sales?tab=reports', label: 'Reports tab', hasTable: false },
 ];
+
+const routeFixture = { orderId: null, tripId: null, customerId: null };
+
+const resolveAdminPath = (path) => path
+  .replace('__ORDER_ID__', routeFixture.orderId || 'missing-order')
+  .replace('__TRIP_ID__', routeFixture.tripId || 'missing-trip')
+  .replace('__CUSTOMER_ID__', routeFixture.customerId || 'missing-customer');
 
 const COMMAND_PALETTE_DESTINATIONS = [
   { label: 'Dashboard', path: '/admin' },
@@ -144,6 +160,25 @@ const checkTapTargets = async (page, viewport) => {
 test.describe('admin responsive — every screen at every device size', () => {
   test.skip(!process.env.E2E_ADMIN_EMAIL || !process.env.E2E_ADMIN_PASSWORD, 'E2E_ADMIN_EMAIL not set — skipping admin responsive');
 
+  test.beforeAll(async () => {
+    const customer = await findLatestE2ECustomer();
+    const trip = await findLatestE2ETrip();
+    if (!customer || !trip) throw new Error('Admin detail-route fixtures are missing');
+
+    const db = await adminClient();
+    const { data: orders, error } = await db
+      .from('orders')
+      .select('id')
+      .eq('user_id', customer.id)
+      .order('created_at', { ascending: false })
+      .limit(1);
+    if (error || !orders?.[0]) throw new Error('Admin order-detail fixture is missing');
+
+    routeFixture.customerId = customer.id;
+    routeFixture.tripId = trip.id;
+    routeFixture.orderId = orders[0].id;
+  });
+
   // Login once per viewport to avoid recreating context per route
   for (const viewport of VIEWPORTS) {
     test.describe(`${viewport.name} (${viewport.width}x${viewport.height})`, () => {
@@ -157,7 +192,7 @@ test.describe('admin responsive — every screen at every device size', () => {
 
       for (const route of ADMIN_ROUTES) {
         test(`${route.label} ${route.path} — no overflow, buttons visible, content fits`, async ({ page }) => {
-          await page.goto(route.path, { waitUntil: 'domcontentloaded' });
+          await page.goto(resolveAdminPath(route.path), { waitUntil: 'domcontentloaded' });
           // Wait for either table, card, or page header.
         // Orders renders its responsive header as a plain main heading at
         // narrow widths, so do not make this diagnostic wait depend on the
