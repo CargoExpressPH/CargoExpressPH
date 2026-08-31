@@ -4,7 +4,7 @@ import { getCustomers } from '../../lib/database';
 import { CenteredSpinner } from '../../components/ui/Loader';
 import EmptyState from '../../components/ui/EmptyState';
 import Pagination from '../../components/ui/Pagination';
-import { ChevronRight, Search, Users } from 'lucide-react';
+import { ChevronRight, Search, Users, User } from 'lucide-react';
 import usePageTitle from '../../hooks/usePageTitle';
 
 // Debounce delay in ms — avoids firing a DB query on every keystroke
@@ -99,42 +99,107 @@ const CustomersPage = () => {
           />
         </div>
       ) : (
-        <div className="card admin-section-card admin-table-card animate-fade-in">
-          <div className="table-container">
-            <table className="data-table data-table--list">
-              <caption className="sr-only">List of registered customers</caption>
-              <thead><tr><th scope="col">Name</th></tr></thead>
-              <tbody>
-                {/* One column, on every viewport. Email, Phone, Province and
-                    Joined were removed: none of them is why an admin opens this
-                    screen, which is to FIND a person and go to their record.
-                    Each detail is one tap away on the customer's own page, and
-                    keeping them here cost four columns that the mobile layout
-                    then had to restack into a labelled card per row.
-
-                    The link fills the cell rather than hugging the name, so the
-                    whole row width is the target — a 44px-tall hit area instead
-                    of the width of "Jo". */}
-                {customers.map((c, i) => (
-                  <tr key={c.id} className="stagger-item" style={{ animationDelay: `${i * 30}ms` }}>
-                    <td data-label="Name">
-                      <Link to={`/admin/customers/${c.id}`} className="customer-row-link">
-                        <span className="fw-700 text-accent">{c.name}</span>
-                        <ChevronRight size={16} aria-hidden="true" className="customer-row-chevron" />
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        <div className="animate-fade-in">
+          <div className="customers-grid">
+            {customers.map((c, i) => (
+              <Link to={`/admin/customers/${c.id}`} key={c.id} className="customer-card stagger-item" style={{ animationDelay: `${i * 20}ms` }}>
+                <div className="customer-avatar">
+                  <User size={20} strokeWidth={2.5} />
+                </div>
+                <div className="customer-info">
+                  <div className="customer-name">{c.name}</div>
+                  <div className="customer-meta">
+                    {c.email || c.phone || 'No contact info'}
+                    {c.address_province && <span className="customer-prov"> • {c.address_province}</span>}
+                  </div>
+                </div>
+                <div className="customer-arrow">
+                  <ChevronRight size={18} strokeWidth={2.5} />
+                </div>
+              </Link>
+            ))}
           </div>
-          <Pagination
-            totalItems={totalCount}
-            currentPage={currentPage}
-            itemsPerPage={perPage}
-            onPageChange={setCurrentPage}
-            onPerPageChange={(n) => { setPerPage(n); setCurrentPage(1); }}
-          />
+
+          <div className="card" style={{ padding: '4px 16px', background: 'transparent', border: 'none', boxShadow: 'none' }}>
+            <Pagination
+              totalItems={totalCount}
+              currentPage={currentPage}
+              itemsPerPage={perPage}
+              onPageChange={setCurrentPage}
+              onPerPageChange={(n) => { setPerPage(n); setCurrentPage(1); }}
+            />
+          </div>
+          
+          <style>{`
+            .customers-grid {
+              display: grid;
+              grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+              gap: 12px;
+              margin-bottom: 24px;
+            }
+            .customer-card {
+              display: flex;
+              align-items: center;
+              padding: 16px;
+              background: var(--bg-primary);
+              border-radius: var(--radius-md);
+              border: 1px solid var(--border);
+              text-decoration: none;
+              transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+              box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+            }
+            .customer-card:hover {
+              transform: translateY(-2px);
+              box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+              border-color: rgba(var(--primary-rgb), 0.3);
+            }
+            .customer-avatar {
+              width: 44px;
+              height: 44px;
+              border-radius: 50%;
+              background: rgba(var(--primary-rgb), 0.1);
+              color: var(--primary);
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              margin-right: 14px;
+              flex-shrink: 0;
+            }
+            .customer-info {
+              flex: 1;
+              min-width: 0; 
+            }
+            .customer-name {
+              font-weight: 700;
+              color: var(--text-primary);
+              font-size: 0.9375rem;
+              margin-bottom: 3px;
+              white-space: nowrap;
+              overflow: hidden;
+              text-overflow: ellipsis;
+            }
+            .customer-meta {
+              font-size: 0.8125rem;
+              color: var(--text-tertiary);
+              white-space: nowrap;
+              overflow: hidden;
+              text-overflow: ellipsis;
+            }
+            .customer-prov {
+              opacity: 0.8;
+            }
+            .customer-arrow {
+              color: var(--text-muted);
+              margin-left: 12px;
+              opacity: 0.5;
+              transition: all 0.2s ease;
+            }
+            .customer-card:hover .customer-arrow {
+              opacity: 1;
+              color: var(--primary);
+              transform: translateX(4px);
+            }
+          `}</style>
         </div>
       )}
     </div>
