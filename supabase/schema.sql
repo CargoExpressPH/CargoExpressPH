@@ -1129,6 +1129,52 @@ END;
 $function$
 
 
+CREATE OR REPLACE FUNCTION public.guard_chat_message_update()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+BEGIN
+  -- Service work has no end-user JWT. Admins retain their existing full
+  -- UPDATE policy. The remaining path is a customer read acknowledgement.
+  IF auth.uid() IS NULL OR public.is_admin() THEN
+    RETURN NEW;
+  END IF;
+
+  IF OLD.sender_role IS DISTINCT FROM 'admin'
+     OR NOT EXISTS (
+       SELECT 1
+       FROM public.conversations
+       WHERE id = OLD.conversation_id
+         AND customer_id = auth.uid()
+     )
+  THEN
+    RAISE EXCEPTION 'Customers may update only admin messages in their own conversations'
+      USING ERRCODE = '42501';
+  END IF;
+
+  IF NEW.id IS DISTINCT FROM OLD.id
+     OR NEW.conversation_id IS DISTINCT FROM OLD.conversation_id
+     OR NEW.sender_id IS DISTINCT FROM OLD.sender_id
+     OR NEW.sender_role IS DISTINCT FROM OLD.sender_role
+     OR NEW.message IS DISTINCT FROM OLD.message
+     OR NEW.created_at IS DISTINCT FROM OLD.created_at
+  THEN
+    RAISE EXCEPTION 'Customers may change only the read state of a chat message'
+      USING ERRCODE = '42501';
+  END IF;
+
+  IF NEW.is_read IS DISTINCT FROM true THEN
+    RAISE EXCEPTION 'Customers may only mark admin messages as read'
+      USING ERRCODE = '42501';
+  END IF;
+
+  RETURN NEW;
+END;
+$function$
+
+
 
 CREATE OR REPLACE FUNCTION public.guard_contact_inquiry_rate_limit()
  RETURNS trigger
@@ -2658,6 +2704,10 @@ REVOKE ALL ON FUNCTION public.review_order_cancellation(p_order_id uuid, p_appro
 GRANT EXECUTE ON FUNCTION public.review_order_cancellation(p_order_id uuid, p_approve boolean, p_notes text) TO service_role;
 GRANT EXECUTE ON FUNCTION public.review_order_cancellation(p_order_id uuid, p_approve boolean, p_notes text) TO authenticated;
 
+REVOKE ALL ON FUNCTION public.guard_chat_message_update() FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.guard_chat_message_update() FROM anon;
+REVOKE ALL ON FUNCTION public.guard_chat_message_update() FROM authenticated;
+
 REVOKE ALL ON FUNCTION public.search_conversation_messages(p_query text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.search_conversation_messages(p_query text) FROM anon;
 REVOKE ALL ON FUNCTION public.search_conversation_messages(p_query text) FROM authenticated;
@@ -2677,6 +2727,9 @@ CREATE TRIGGER announcements_updated_at BEFORE UPDATE ON announcements FOR EACH 
 
 DROP TRIGGER IF EXISTS chat_messages_guard_insert ON public.chat_messages;
 CREATE TRIGGER chat_messages_guard_insert BEFORE INSERT ON chat_messages FOR EACH ROW EXECUTE FUNCTION guard_chat_message_insert();
+
+DROP TRIGGER IF EXISTS chat_messages_guard_customer_update ON public.chat_messages;
+CREATE TRIGGER chat_messages_guard_customer_update BEFORE UPDATE ON chat_messages FOR EACH ROW EXECUTE FUNCTION guard_chat_message_update();
 
 DROP TRIGGER IF EXISTS chat_messages_maintain_service_state ON public.chat_messages;
 CREATE TRIGGER chat_messages_maintain_service_state AFTER INSERT ON chat_messages FOR EACH ROW EXECUTE FUNCTION maintain_conversation_service_state();
