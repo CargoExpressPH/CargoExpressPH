@@ -141,7 +141,7 @@ const CustomersPage = () => {
               display: flex;
               align-items: center;
               padding: 16px;
-              background: var(--bg-primary);
+              background: var(--surface);
               border-radius: var(--radius-md);
               border: 1px solid var(--border);
               text-decoration: none;
@@ -171,7 +171,7 @@ const CustomersPage = () => {
             }
             .customer-name {
               font-weight: 700;
-              color: var(--text-primary);
+              color: var(--text);
               font-size: 0.9375rem;
               margin-bottom: 3px;
               white-space: nowrap;
@@ -189,7 +189,7 @@ const CustomersPage = () => {
               opacity: 0.8;
             }
             .customer-arrow {
-              color: var(--text-muted);
+              color: var(--text-tertiary);
               margin-left: 12px;
               opacity: 0.5;
               transition: all 0.2s ease;
