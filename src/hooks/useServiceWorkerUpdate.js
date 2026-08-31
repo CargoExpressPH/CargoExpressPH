@@ -23,7 +23,22 @@ export const useServiceWorkerUpdate = () => {
     const hadController = !!navigator.serviceWorker.controller;
     if (!hadController) return undefined;
 
-    const handleControllerChange = () => setUpdateAvailable(true);
+    const handleControllerChange = async () => {
+      try {
+        const res = await fetch('/update-target.json?t=' + Date.now());
+        if (res.ok) {
+          const data = await res.json();
+          const target = data.target || 'both';
+          const isAdmin = window.location.pathname.startsWith('/admin');
+          
+          if (target === 'admin' && !isAdmin) return;
+          if (target === 'customer' && isAdmin) return;
+        }
+      } catch (err) {
+        // Fallback to showing it if fetch fails
+      }
+      setUpdateAvailable(true);
+    };
     navigator.serviceWorker.addEventListener('controllerchange', handleControllerChange);
     return () => navigator.serviceWorker.removeEventListener('controllerchange', handleControllerChange);
   }, []);
