@@ -96,7 +96,7 @@ export const derivePaymentCollection = (value, config) => {
   // abandon, or may already have paid without us having heard. Releasing cargo
   // inside that window is the race this closes.
   const gcashUnresolved =
-    value.payment_method === 'gcash' && !value.confirmed && !hasManualReference;
+    value.payment_method === 'gcash' && collected > 0 && !value.confirmed && !hasManualReference;
 
   // "Full Payment" is a claim about the money, not a label. Checked at submit
   // rather than per keystroke: every prefix of a full amount ("8", "86", "860"
@@ -225,9 +225,8 @@ export const buildPaymentSubmission = (value, config, receiptUrl = null) => {
   const isGCash = value.payment_method === 'gcash';
 
   const submission = {
-    // Nothing collected and nothing pending → no method happened. Leaving it
-    // absent is honest; naming one would record an intention as a fact.
-    payment_method: d.requiresMethod ? value.payment_method : null,
+    // Even if nothing is collected now, record the chosen method as their intent for later
+    payment_method: value.payment_method || null,
     payment_reference: isGCash ? (value.payment_reference || null) : null,
     promised_payment_date: d.needsPromiseDate ? (value.promised_payment_date || null) : null,
     payment: null,
@@ -697,7 +696,7 @@ const PaymentCollectionPanel = ({
                 Or enter payment details manually
               </div>
               <div className="form-group mb-12">
-                <label className="form-label" htmlFor="pcp-payment-reference">Reference Number</label>
+                <label className="form-label" htmlFor="pcp-payment-reference">Reference Number {d.collected > 0 ? '*' : '(Optional)'}</label>
                 <input
                   id="pcp-payment-reference"
                   type="text"
@@ -712,7 +711,7 @@ const PaymentCollectionPanel = ({
           )}
 
           <div className="form-group mb-12">
-            <label className="form-label" htmlFor="pcp-payment-date">Payment Date *</label>
+            <label className="form-label" htmlFor="pcp-payment-date">Payment Date {(d.collected > 0 || d.hasManualReference) ? '*' : '(Optional)'}</label>
             <input
               id="pcp-payment-date"
               type="date"
