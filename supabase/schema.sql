@@ -3481,7 +3481,7 @@ BEGIN
       RAISE EXCEPTION 'Force Firebase expiry must be within the next 24 hours' USING ERRCODE = '22023';
     END IF;
   ELSE p_force_firebase_expires_at := NULL; END IF;
-  SELECT upload_mode INTO v_previous_mode FROM public.photo_storage_settings WHERE id = TRUE FOR UPDATE;
+  SELECT pss.upload_mode INTO v_previous_mode FROM public.photo_storage_settings pss WHERE pss.id = TRUE FOR UPDATE;
   UPDATE public.photo_storage_settings SET upload_mode = p_upload_mode, force_firebase_expires_at = p_force_firebase_expires_at,
     reason = NULLIF(btrim(p_reason), ''), updated_by = auth.uid(), updated_at = now()
     WHERE id = TRUE RETURNING * INTO v_settings;
