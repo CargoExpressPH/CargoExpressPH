@@ -26,3 +26,10 @@ verify_jwt = true
 # Public link target, clicked straight from an email client (no auth header
 # possible). Authorization comes from the per-email HMAC token instead.
 verify_jwt = false
+
+[functions.process-daily-reminders]
+# Called only by the daily_payment_reminders pg_cron job, authenticated with
+# the service role key as its bearer token — verify_jwt=true rejects
+# anything else at the gateway; the function itself re-checks the token is
+# specifically the service role key, not just any signed-in user.
+verify_jwt = true

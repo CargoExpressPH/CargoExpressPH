@@ -1,0 +1,95 @@
+<!-- Starter template — replace with your own design.
+     The only contract this function relies on is the placeholders below:
+     {{customer_name}} {{tracking_number}} {{origin}} {{destination}}
+     {{remaining_balance}} {{promised_date}}
+     They are substituted with HTML-escaped, plain-text values (no markup
+     of their own), so it's safe to drop them anywhere in your markup. -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Payment Reminder</title>
+<style>
+  body,table,td,a{ -webkit-text-size-adjust:100%; -ms-text-size-adjust:100%; }
+  table,td{ mso-table-lspace:0pt; mso-table-rspace:0pt; }
+  body{ margin:0; padding:0; width:100% !important; background:#F1F3F0; }
+  @media screen and (max-width:600px){
+    .ce-container{ width:100% !important; }
+    .ce-padding{ padding-left:20px !important; padding-right:20px !important; }
+  }
+</style>
+</head>
+<body style="margin:0;padding:0;background:#F1F3F0;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F1F3F0;">
+    <tr>
+      <td align="center" style="padding:32px 16px;">
+        <table role="presentation" class="ce-container" width="600" cellpadding="0" cellspacing="0" style="width:600px;max-width:600px;background:#FFFFFF;border-radius:12px;overflow:hidden;">
+
+          <!-- Text-based Header -->
+          <tr>
+            <td align="center" style="padding:40px 32px 24px; border-bottom:1px solid #e2e8f0; background-color:#ffffff;">
+              <h1 style="margin:0; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; font-size:36px; font-weight:800; letter-spacing:-1px;">
+                <span style="color:#10b981;">CARGO</span><span style="color:#0f172a;">EXPRESS</span>
+              </h1>
+              <p style="margin:8px 0 0; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; font-size:14px; color:#64748b; font-weight:500;">
+                Manila ⇄ Bohol Cargo Delivery
+              </p>
+            </td>
+          </tr>
+
+          <!-- Message -->
+          <tr>
+            <td class="ce-padding" style="padding:36px 32px 4px;">
+              <h1 style="margin:0 0 16px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:22px;font-weight:800;color:#1B2320;line-height:1.3;">Payment Reminder</h1>
+              <p style="margin:0 0 20px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:15px;line-height:1.7;color:#333333;">
+                Hi {{customer_name}}, your promised payment date for order <strong>{{tracking_number}}</strong> was {{promised_date}}, and there's still an outstanding balance on this shipment.
+              </p>
+
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F8FAF8;border:1px solid #E5E8E3;border-radius:8px;">
+                <tr>
+                  <td style="padding:20px 24px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:14px;color:#333333;line-height:1.9;">
+                    <strong>Tracking Number:</strong> {{tracking_number}}<br>
+                    <strong>Route:</strong> {{origin}} → {{destination}}<br>
+                    <strong>Amount Due:</strong> <span style="color:#DC2626;font-weight:700;">{{remaining_balance}}</span><br>
+                    <strong>Promised Payment Date:</strong> {{promised_date}}
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- CTA -->
+          <tr>
+            <td class="ce-padding" align="center" style="padding:28px 32px 8px;">
+              <p style="margin:0 0 20px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:14px;line-height:1.7;color:#57635D;">
+                Please settle this balance as soon as possible to keep your shipment on schedule. If you've already paid, kindly disregard this reminder.
+              </p>
+              <table role="presentation" cellpadding="0" cellspacing="0" align="center">
+                <tr>
+                  <td style="border-radius:8px;background:#16A34A;">
+                    <a href="https://cargoexpress-ph.online/track" target="_blank" rel="noopener"
+                       style="display:inline-block;padding:14px 36px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:15px;font-weight:700;color:#FFFFFF;text-decoration:none;border-radius:8px;">
+                      Track My Shipment
+                    </a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td class="ce-padding" style="padding:20px 32px 28px;background:#F8FAF8;border-top:1px solid #E5E8E3;">
+              <p style="margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:12px;line-height:1.6;color:#8A968F;">
+                This is an automated payment reminder from CargoExpress PH. If you have questions about this balance, please contact our support team.
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
