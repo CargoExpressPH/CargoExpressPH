@@ -1,9 +1,4 @@
-<!-- Starter template — replace with your own design.
-     The only contract this function relies on is the placeholders below:
-     {{customer_name}} {{tracking_number}} {{origin}} {{destination}}
-     {{remaining_balance}} {{promised_date}}
-     They are substituted with HTML-escaped, plain-text values (no markup
-     of their own), so it's safe to drop them anywhere in your markup. -->
+export const emailTemplate = `
 <!doctype html>
 <html lang="en">
 <head>
@@ -93,3 +88,4 @@
   </table>
 </body>
 </html>
+`;

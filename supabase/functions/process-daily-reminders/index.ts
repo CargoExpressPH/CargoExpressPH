@@ -26,6 +26,7 @@
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4'
+import { emailTemplate } from './template.ts'
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -108,13 +109,7 @@ serve(async (req) => {
       return json({ error: 'Email sending is not configured (RESEND_API_KEY / RESEND_FROM_EMAIL).' }, 500)
     }
 
-    let template: string
-    try {
-      template = await Deno.readTextFile(new URL('./template.html', import.meta.url))
-    } catch (err) {
-      console.error('[process-daily-reminders] Could not read template.html:', err)
-      return json({ error: 'Reminder email template is missing (template.html).' }, 500)
-    }
+    const template = emailTemplate;
 
     const supabase = createClient(supabaseUrl, serviceRoleKey)
 
