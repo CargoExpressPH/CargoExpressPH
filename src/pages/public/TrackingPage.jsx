@@ -573,16 +573,7 @@ const TrackingPage = ({ embedded = false }) => {
 
 
 
-              {/* Booked date */}
-              <div className="trk-info-tile">
-                <div className="trk-info-tile-icon">
-                  <Calendar size={14} />
-                </div>
-                <div>
-                  <p className="trk-info-tile-label">Booked</p>
-                  <p className="trk-info-tile-value">{formatDate(order.created_at)}</p>
-                </div>
-              </div>
+
             </div>
           </div>
 
