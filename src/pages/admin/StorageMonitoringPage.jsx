@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  AlertTriangle, CheckCircle2, Cloud, CloudOff, Database, FileImage,
+  AlertTriangle, CheckCircle2, Cloud, CloudLightning, CloudOff, Database,
   HardDrive, Loader, Radio, RefreshCw, ShieldCheck, XCircle, Zap,
 } from 'lucide-react';
 import {
@@ -140,7 +140,7 @@ const StorageMonitoringPage = () => {
   const countCards = [
     { label: 'Supabase references', value: summary?.supabase_photo_count, icon: HardDrive },
     { label: 'Firebase references', value: summary?.firebase_photo_count, icon: Cloud },
-    { label: 'Legacy references', value: summary?.legacy_photo_count, icon: FileImage },
+    { label: 'Fallbacks (24h)', value: summary?.fallbacks_last_24h, icon: CloudLightning },
     { label: 'Upload failures (24h)', value: summary?.failures_last_24h, icon: AlertTriangle },
   ];
 
