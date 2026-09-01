@@ -37,7 +37,7 @@ const SIMPLE_TABS = ['basic', 'contact', 'pricing'];
  */
 const FIELD_TAB = {
   name: 'basic',
-  website: 'contact',
+  
   email: 'contact',
   facebook: 'contact',
   messenger: 'contact',
@@ -48,7 +48,7 @@ const getEmptyCompanyInfo = () => ({
   name: '', short_description: '', long_description: '', story: '',
   core_values: '',
   banner_image_url: '', banner_title: '', banner_description: '', banner_button_text: '', banner_button_link: '',
-  email: '', facebook: '', messenger: '', website: '', smart_phone: '', globe_phone: '',
+  email: '', facebook: '', messenger: '', smart_phone: '', globe_phone: '',
   manila_address: '', bohol_address: '',
   default_price_per_kg: 0,
 });
@@ -126,7 +126,7 @@ const CompanyInformationPage = () => {
       default_price_per_kg: !(price > 0)
         ? 'Enter a price per kilogram greater than ₱0. Every unpriced order is costed from it.'
         : null,
-      website: optionalUrl('website', 'Website'),
+      
       facebook: optionalUrl('facebook', 'Facebook link'),
       messenger: optionalUrl('messenger', 'Messenger link'),
     };
@@ -331,19 +331,10 @@ const CompanyInformationPage = () => {
                 <h3><Building2 size={16} className="inline mr-8" />Company Identity</h3>
               </div>
               <div className="card-body">
-                <div className="grid grid-2" style={{ gap: 16 }}>
-                  <div className="form-group">
-                    <label className="form-label" htmlFor="company-name">Company Name</label>
-                    <input id="company-name" className={`form-input ${invalidClass('name', errors)}`} value={companyInfo.name || ''} onChange={e => handleInfoChange('name', e.target.value)} placeholder="e.g. CargoExpress PH" {...fieldAttrs('name', errors)} />
-                    <FieldError name="name" errors={errors} />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label" htmlFor="company-website">Website URL</label>
-                    {/* Same underlying field as the Contact tab's Website box,
-                        so it carries its own error-node id — one id per DOM. */}
-                    <input id="company-website" className={`form-input ${invalidClass('website', errors)}`} type="url" value={companyInfo.website || ''} onChange={e => handleInfoChange('website', e.target.value)} placeholder="https://..." aria-invalid={errors.website ? 'true' : undefined} aria-describedby={errors.website ? 'company-website-basic-error' : undefined} />
-                    <FieldError name="website" errors={errors} id="company-website-basic-error" />
-                  </div>
+                <div className="form-group">
+                  <label className="form-label" htmlFor="company-name">Company Name</label>
+                  <input id="company-name" className={`form-input ${invalidClass('name', errors)}`} value={companyInfo.name || ''} onChange={e => handleInfoChange('name', e.target.value)} placeholder="e.g. CargoExpress PH" {...fieldAttrs('name', errors)} />
+                  <FieldError name="name" errors={errors} />
                 </div>
                 <div className="form-group">
                   <label className="form-label" htmlFor="company-short-description">Short Description <span className="text-tertiary" style={{fontWeight: 400}}>(shown in footer and search results)</span></label>
@@ -494,14 +485,7 @@ const CompanyInformationPage = () => {
                     <input id="company-messenger" className={`form-input ${invalidClass('messenger', errors)}`} type="url" value={companyInfo.messenger || ''} onChange={e => handleInfoChange('messenger', e.target.value)} placeholder="https://m.me/..." {...fieldAttrs('messenger', errors)} />
                     <FieldError name="messenger" errors={errors} />
                   </div>
-                  <div className="form-group mb-0">
-                    {/* NOTE: this edits the same companyInfo.website field as the
-                        "Website URL" input in the Business Details card above.
-                        Distinct id so the labels stay unambiguous. */}
-                    <label className="form-label" htmlFor="company-website-online">Website</label>
-                    <input id="company-website-online" className={`form-input ${invalidClass('website', errors)}`} type="url" value={companyInfo.website || ''} onChange={e => handleInfoChange('website', e.target.value)} placeholder="https://..." {...fieldAttrs('website', errors)} />
-                    <FieldError name="website" errors={errors} />
-                  </div>
+
                 </div>
               </div>
             </div>
