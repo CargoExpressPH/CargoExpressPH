@@ -19,7 +19,13 @@ import {
 import usePageTitle from '../../hooks/usePageTitle';
 import { isOrderPriced } from '../../constants/status';
 
-
+const PERIODS = [
+  { key: 'daily', label: 'Daily', icon: Clock },
+  { key: 'weekly', label: 'Weekly', icon: Calendar },
+  { key: 'monthly', label: 'Monthly', icon: Calendar },
+  { key: 'yearly', label: 'Yearly', icon: BarChart3 },
+  { key: 'custom', label: 'Custom', icon: Filter },
+];
 
 const formatCurrency = (val) => `₱${(val || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const formatWeight = (val) => `${(val || 0).toLocaleString('en-PH', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} kg`;
@@ -31,7 +37,7 @@ const STATUS_ORDER = ['Pending', 'Assigned', 'Picked Up', 'In Transit', 'Arrived
 const ReportsPage = () => {
   usePageTitle('Reports');
   const { userProfile } = useAuth();
-  const [period, setPeriod] = useState('custom');
+  const [period, setPeriod] = useState('daily');
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
   const [data, setData] = useState(null);
@@ -120,15 +126,25 @@ const ReportsPage = () => {
                 Print Report
               </button>
             </>
-          </div>
+          )}
         </div>
       </div>
 
       {/* ── Period Tabs ── */}
-      
+      <ResponsiveFilterControls
+        options={PERIODS.map(p => ({ value: p.key, label: p.label, icon: p.icon }))}
+        value={period}
+        onChange={setPeriod}
+        ariaLabel="Report period"
+        label="Period"
+        desktopClassName="report-period-tabs"
+        buttonClassName={(option, active) => `report-period-tab ${active ? 'active' : ''}`}
+        className="no-print report-period-filter"
+      />
 
       {/* ── Custom Date Range ── */}
-      <div className="report-custom-range no-print stagger-item">
+      {period === 'custom' && (
+        <div className="report-custom-range no-print stagger-item">
           <div className="report-date-inputs">
             <div className="form-group">
               <label className="form-label" htmlFor="report-start-date">Start Date</label>
