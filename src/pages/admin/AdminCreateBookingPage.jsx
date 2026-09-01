@@ -4,7 +4,7 @@ import { createOrder } from '../../lib/database';
 import { useAuth } from '../../contexts/AuthContext';
 import { ROUTES, PH_LOCATIONS, VALID_PROVINCES, detectPickupLocation, validateRouteProvinces } from '../../constants/phLocations';
 import { buildFullAddress } from '../../lib/address';
-import { normalizeName, toTitleCase } from '../../utils/string';
+import { normalizeName, toTitleCase, toAddressCase } from '../../utils/string';
 import { validatePhone } from '../../utils/phone';
 import CustomSelect from '../../components/ui/CustomSelect';
 import BarangaySelect from '../../components/ui/BarangaySelect';
@@ -103,6 +103,9 @@ const AdminCreateBookingPage = () => {
 
   /** Auto-capitalizes fields as they are typed. */
   const handleTextChange = (key) => (e) => u(key, toTitleCase(e.target.value));
+  /** Street/Lot-Block/Landmark: capitalizes each word's first letter only —
+   *  never lowercases the rest, so deliberate acronyms ("STI School") survive. */
+  const handleAddressChange = (key) => (e) => u(key, toAddressCase(e.target.value));
 
   // ── Derived data ───────────────────────────────────────────────────────────
 
@@ -639,13 +642,14 @@ const AdminCreateBookingPage = () => {
 
               {/* Street */}
               <div className="form-group">
-                <label className="form-label" htmlFor="ab-sender-street">Street</label>
+                <label className="form-label" htmlFor="ab-sender-street">Street and Subdivision (put NA if not applicable)</label>
                 <input
                   id="ab-sender-street"
                   type="text"
                   className={`form-input ${invalidClass('sender_street', fieldErrors)}`}
                   value={form.sender_street}
-                  onChange={handleTextChange('sender_street')}
+                  onChange={handleAddressChange('sender_street')}
+                  placeholder="Street and Subdivision (put NA if not applicable)"
                   autoCapitalize="words"
                   required
                   {...fieldAttrs('sender_street', fieldErrors)}
@@ -661,7 +665,7 @@ const AdminCreateBookingPage = () => {
                   type="text"
                   className={`form-input ${invalidClass('sender_lot_block', fieldErrors)}`}
                   value={form.sender_lot_block}
-                  onChange={handleTextChange('sender_lot_block')}
+                  onChange={handleAddressChange('sender_lot_block')}
                   autoCapitalize="words"
                   required
                   {...fieldAttrs('sender_lot_block', fieldErrors)}
@@ -677,7 +681,7 @@ const AdminCreateBookingPage = () => {
                   type="text"
                   className={`form-input ${invalidClass('sender_landmark', fieldErrors)}`}
                   value={form.sender_landmark}
-                  onChange={handleTextChange('sender_landmark')}
+                  onChange={handleAddressChange('sender_landmark')}
                   placeholder="Near what building/place?"
                   autoCapitalize="words"
                   required
@@ -798,13 +802,14 @@ const AdminCreateBookingPage = () => {
 
               {/* Street */}
               <div className="form-group">
-                <label className="form-label" htmlFor="ab-receiver-street">Street</label>
+                <label className="form-label" htmlFor="ab-receiver-street">Street and Subdivision (put NA if not applicable)</label>
                 <input
                   id="ab-receiver-street"
                   type="text"
                   className={`form-input ${invalidClass('receiver_street', fieldErrors)}`}
                   value={form.receiver_street}
-                  onChange={handleTextChange('receiver_street')}
+                  onChange={handleAddressChange('receiver_street')}
+                  placeholder="Street and Subdivision (put NA if not applicable)"
                   autoCapitalize="words"
                   required
                   {...fieldAttrs('receiver_street', fieldErrors)}
@@ -820,7 +825,7 @@ const AdminCreateBookingPage = () => {
                   type="text"
                   className={`form-input ${invalidClass('receiver_lot_block', fieldErrors)}`}
                   value={form.receiver_lot_block}
-                  onChange={handleTextChange('receiver_lot_block')}
+                  onChange={handleAddressChange('receiver_lot_block')}
                   autoCapitalize="words"
                   required
                   {...fieldAttrs('receiver_lot_block', fieldErrors)}
@@ -836,7 +841,7 @@ const AdminCreateBookingPage = () => {
                   type="text"
                   className={`form-input ${invalidClass('receiver_landmark', fieldErrors)}`}
                   value={form.receiver_landmark}
-                  onChange={handleTextChange('receiver_landmark')}
+                  onChange={handleAddressChange('receiver_landmark')}
                   placeholder="Near what building/place?"
                   autoCapitalize="words"
                   required

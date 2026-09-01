@@ -14,7 +14,7 @@ import ConfirmModal from '../../components/ui/ConfirmModal';
 import { motion, useReducedMotion } from 'framer-motion';
 import usePageTitle from '../../hooks/usePageTitle';
 import { formatMoney } from '../../utils/currencyInput';
-import { toTitleCase, normalizeName } from '../../utils/string';
+import { toTitleCase, toAddressCase, normalizeName } from '../../utils/string';
 import { formatPhDate } from '../../utils/datetime';
 import { validatePhone } from '../../utils/phone';
 
@@ -130,6 +130,9 @@ const BookShipmentPage = () => {
     if (k.startsWith('receiver_')) setUseRegisteredReceiver(false);
   };
   const handleTextChange = (key) => (e) => u(key, toTitleCase(e.target.value));
+  // Street/Lot-Block/Landmark: capitalize each word's first letter only —
+  // never lowercase the rest, so deliberate acronyms ("STI School") survive.
+  const handleAddressChange = (key) => (e) => u(key, toAddressCase(e.target.value));
   const handlePhoneChange = (key) => (e) => u(key, e.target.value.replace(/\D/g, '').slice(0, 11));
 
   useEffect(() => {
@@ -432,9 +435,9 @@ const BookShipmentPage = () => {
           />
           {errEl('barangay')}
         </div>
-        <div className="form-group"><label className="form-label" htmlFor={id('street')}>Street <span className="required">*</span></label><input id={id('street')} className={`form-input ${fc('street')}`} value={form[`${prefix}_street`]} onChange={handleTextChange(`${prefix}_street`)} autoComplete="address-line1" autoCapitalize="words" required {...a11y('street')} />{errEl('street')}</div>
-        <div className="form-group"><label className="form-label" htmlFor={id('lot-block')}>Lot / Block / Purok <span className="required">*</span></label><input id={id('lot-block')} className={`form-input ${fc('lot_block')}`} value={form[`${prefix}_lot_block`]} onChange={handleTextChange(`${prefix}_lot_block`)} autoComplete="address-line2" autoCapitalize="words" required {...a11y('lot_block')} />{errEl('lot_block')}</div>
-        <div className="form-group"><label className="form-label" htmlFor={id('landmark')}>Landmark <span className="required">*</span></label><input id={id('landmark')} className={`form-input ${fc('landmark')}`} value={form[`${prefix}_landmark`]} onChange={handleTextChange(`${prefix}_landmark`)} placeholder="Near what building/place?" autoCapitalize="words" required {...a11y('landmark')} />{errEl('landmark')}</div>
+        <div className="form-group"><label className="form-label" htmlFor={id('street')}>Street and Subdivision (put NA if not applicable) <span className="required">*</span></label><input id={id('street')} className={`form-input ${fc('street')}`} value={form[`${prefix}_street`]} onChange={handleAddressChange(`${prefix}_street`)} placeholder="Street and Subdivision (put NA if not applicable)" autoComplete="address-line1" autoCapitalize="words" required {...a11y('street')} />{errEl('street')}</div>
+        <div className="form-group"><label className="form-label" htmlFor={id('lot-block')}>Lot / Block / Purok <span className="required">*</span></label><input id={id('lot-block')} className={`form-input ${fc('lot_block')}`} value={form[`${prefix}_lot_block`]} onChange={handleAddressChange(`${prefix}_lot_block`)} autoComplete="address-line2" autoCapitalize="words" required {...a11y('lot_block')} />{errEl('lot_block')}</div>
+        <div className="form-group"><label className="form-label" htmlFor={id('landmark')}>Landmark <span className="required">*</span></label><input id={id('landmark')} className={`form-input ${fc('landmark')}`} value={form[`${prefix}_landmark`]} onChange={handleAddressChange(`${prefix}_landmark`)} placeholder="Near what building/place?" autoCapitalize="words" required {...a11y('landmark')} />{errEl('landmark')}</div>
         {isSender && form[`${prefix}_province`] === 'Other Area' && (
           <div className="alert alert-warning mt-md col-full">
             <AlertTriangle size={16} className="inline" style={{marginRight: '8px', verticalAlign: 'middle'}}/>

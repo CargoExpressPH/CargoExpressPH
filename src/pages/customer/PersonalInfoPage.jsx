@@ -13,7 +13,7 @@ import CustomSelect from '../../components/ui/CustomSelect';
 import BarangaySelect from '../../components/ui/BarangaySelect';
 import ConfirmModal from '../../components/ui/ConfirmModal';
 import usePageTitle from '../../hooks/usePageTitle';
-import { toTitleCase, normalizeName } from '../../utils/string';
+import { toTitleCase, toAddressCase, normalizeName } from '../../utils/string';
 import FieldError from '../../components/ui/FieldError';
 import { validatePhone as validatePhoneShared } from '../../utils/phone';
 
@@ -95,6 +95,13 @@ const PersonalInfoPage = () => {
 
   const handleTitleCase = (key) => (e) => {
     setField(key, toTitleCase(e.target.value));
+    if (fieldErrors[key]) setFieldErrors(prev => ({ ...prev, [key]: null }));
+  };
+
+  // Street/Lot-Block/Landmark: capitalizes each word's first letter only —
+  // never lowercases the rest, so deliberate acronyms ("STI School") survive.
+  const handleAddressCase = (key) => (e) => {
+    setField(key, toAddressCase(e.target.value));
     if (fieldErrors[key]) setFieldErrors(prev => ({ ...prev, [key]: null }));
   };
 
@@ -307,15 +314,15 @@ const PersonalInfoPage = () => {
 
           {/* Street */}
           <div className="form-group">
-            <label className="form-label" htmlFor="profile-street">Street</label>
+            <label className="form-label" htmlFor="profile-street">Street and Subdivision (put NA if not applicable)</label>
             <div className="form-input-wrapper">
               <Home size={15} className="form-input-icon" />
               <input
                 id="profile-street"
                 className="form-input form-input-icon-left"
-                placeholder="Street name"
+                placeholder="Street and Subdivision (put NA if not applicable)"
                 value={form.address_street}
-                onChange={handleTitleCase('address_street')}
+                onChange={handleAddressCase('address_street')}
               />
             </div>
           </div>
@@ -330,7 +337,7 @@ const PersonalInfoPage = () => {
                 className={`form-input form-input-icon-left ${fieldErrors.address_lot_block ? 'field-invalid' : ''}`}
                 placeholder="e.g. Lot 12, Block 5"
                 value={form.address_lot_block}
-                onChange={handleTitleCase('address_lot_block')}
+                onChange={handleAddressCase('address_lot_block')}
                 aria-invalid={fieldErrors.address_lot_block ? 'true' : undefined}
                 aria-describedby={fieldErrors.address_lot_block ? 'profile-lot-block-error' : undefined}
               />
@@ -348,7 +355,7 @@ const PersonalInfoPage = () => {
                 className={`form-input form-input-icon-left ${fieldErrors.address_landmark ? 'field-invalid' : ''}`}
                 placeholder="e.g. Near Sari-sari Store"
                 value={form.address_landmark}
-                onChange={handleTitleCase('address_landmark')}
+                onChange={handleAddressCase('address_landmark')}
                 aria-invalid={fieldErrors.address_landmark ? 'true' : undefined}
                 aria-describedby={fieldErrors.address_landmark ? 'profile-landmark-error' : undefined}
               />

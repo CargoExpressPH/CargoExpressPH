@@ -40,3 +40,22 @@ export const toTitleCase = (value) => {
  */
 export const normalizeName = (value) =>
   toTitleCase(String(value ?? '').replace(/\s+/g, ' ').trim());
+
+/**
+ * Title-case an address line as it is being TYPED — Street/Subdivision,
+ * Lot/Block/Purok, Landmark.
+ *
+ * Unlike `toTitleCase`, this never lowercases anything: it only forces the
+ * first letter of each word to upper-case and leaves the rest of the word
+ * exactly as typed. Addresses legitimately carry acronyms and deliberate
+ * caps — "STI School", "SM City", "NA" — and the caps-lock flattening
+ * `toTitleCase` does for names ("STI" → "Sti") would destroy those here.
+ *
+ * Word boundaries match `toTitleCase` (hyphens and apostrophes don't split
+ * a word), and it is gentle the same way: no trimming, no space collapsing,
+ * so it's safe to run on every keystroke.
+ */
+export const toAddressCase = (value) => {
+  if (typeof value !== 'string') return '';
+  return value.replace(/[^\s\-']+/g, (word) => word.charAt(0).toUpperCase() + word.slice(1));
+};

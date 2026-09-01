@@ -11,7 +11,7 @@ import { PH_LOCATIONS, VALID_PROVINCES } from '../../constants/phLocations';
 import CustomSelect from '../../components/ui/CustomSelect';
 import BarangaySelect from '../../components/ui/BarangaySelect';
 import usePageTitle from '../../hooks/usePageTitle';
-import { toTitleCase, normalizeName } from '../../utils/string';
+import { toTitleCase, toAddressCase, normalizeName } from '../../utils/string';
 import { getPasswordStrength } from '../../utils/password';
 import { isPhoneValid, validatePhone } from '../../utils/phone';
 import FieldError from '../../components/ui/FieldError';
@@ -285,6 +285,9 @@ const RegisterPage = () => {
   };
 
   const handleTitleCase = (key) => (e) => update(key, toTitleCase(e.target.value));
+  // Street/Lot-Block/Landmark: capitalizes each word's first letter only —
+  // never lowercases the rest, so deliberate acronyms ("STI School") survive.
+  const handleAddressCase = (key) => (e) => update(key, toAddressCase(e.target.value));
 
   const handlePhone = (e) => {
     let raw = e.target.value.trim();
@@ -875,15 +878,15 @@ const RegisterPage = () => {
 
               {/* Street */}
               <div className="form-group">
-                <label className="form-label" htmlFor="reg-street">Street <span className="required">*</span></label>
+                <label className="form-label" htmlFor="reg-street">Street and Subdivision (put NA if not applicable) <span className="required">*</span></label>
                 <div className="form-input-wrapper">
                   <MapPin size={15} className="form-input-icon" aria-hidden="true" />
                   <input
                     id="reg-street"
                     className={`form-input form-input-icon-left ${fieldErrors.address_street ? 'field-invalid' : touchedFields.address_street && form.address_street.trim() ? 'success' : ''}`}
-                    placeholder="e.g. Rizal Street"
+                    placeholder="Street and Subdivision (put NA if not applicable)"
                     value={form.address_street}
-                    onChange={handleTitleCase('address_street')}
+                    onChange={handleAddressCase('address_street')}
                     onBlur={() => handleBlur('address_street')}
                     required
                     autoComplete="street-address"
@@ -909,7 +912,7 @@ const RegisterPage = () => {
                     className={`form-input form-input-icon-left ${fieldErrors.address_lot_block ? 'field-invalid' : touchedFields.address_lot_block && form.address_lot_block.trim() ? 'success' : ''}`}
                     placeholder="e.g. Lot 12, Block 5"
                     value={form.address_lot_block}
-                    onChange={handleTitleCase('address_lot_block')}
+                    onChange={handleAddressCase('address_lot_block')}
                     onBlur={() => handleBlur('address_lot_block')}
                     required
                     autoCapitalize="words"
@@ -934,7 +937,7 @@ const RegisterPage = () => {
                     className={`form-input form-input-icon-left ${fieldErrors.address_landmark ? 'field-invalid' : touchedFields.address_landmark && form.address_landmark.trim() ? 'success' : ''}`}
                     placeholder="e.g. Near Sari-sari Store, Beside Church"
                     value={form.address_landmark}
-                    onChange={handleTitleCase('address_landmark')}
+                    onChange={handleAddressCase('address_landmark')}
                     onBlur={() => handleBlur('address_landmark')}
                     required
                     autoCapitalize="words"
