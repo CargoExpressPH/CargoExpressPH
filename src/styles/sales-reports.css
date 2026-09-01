@@ -23,47 +23,6 @@
   gap: 12px;
 }
 
-.report-period-tabs {
-  display: flex;
-  gap: 6px;
-  margin-bottom: 20px;
-  padding: 4px;
-  background: var(--bg-secondary);
-  border-radius: var(--radius-md);
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-}
-
-.report-period-tab {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-height: 36px;
-  padding: 8px 16px;
-  border: none;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--text-secondary);
-  font-size: 0.85rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
-  white-space: nowrap;
-  font-family: inherit;
-}
-
-.report-period-tab:hover {
-  background: var(--surface);
-  color: var(--text);
-}
-
-.report-period-tab.active {
-  background: var(--surface);
-  color: var(--primary-text);
-  font-weight: 600;
-  box-shadow: var(--shadow-sm);
-}
-
 .report-custom-range {
   display: flex;
   align-items: flex-end;
@@ -301,15 +260,6 @@
 
   .report-financial-grid {
     grid-template-columns: 1fr;
-  }
-
-  .report-period-tabs {
-    gap: 4px;
-  }
-
-  .report-period-tab {
-    padding: 6px 12px;
-    font-size: 0.8rem;
   }
 
   .report-controls h1.admin-page-title {

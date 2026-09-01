@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { getReportData } from '../../lib/database';
 import { logActivity } from '../../lib/activityLog';
 import { useAuth } from '../../contexts/AuthContext';
@@ -6,26 +6,18 @@ import { CenteredSpinner } from '../../components/ui/Loader';
 import AnimatedCounter from '../../components/ui/AnimatedCounter';
 import StatusBadge from '../../components/ui/StatusBadge';
 import EmptyState from '../../components/ui/EmptyState';
-import ResponsiveFilterControls from '../../components/ui/ResponsiveFilterControls';
 import DonutChart from '../../components/ui/DonutChart';
 import MiniBarChart from '../../components/ui/MiniBarChart';
 import PrintDocument from '../../components/ui/PrintDocument';
+import DatePicker from '../../components/ui/DatePicker';
 import { exportPrintDocumentToPdf } from '../../lib/exportPdf';
 import {
-  FileText, Printer, Calendar, Package, CheckCircle,
+  FileText, Printer, Package, CheckCircle,
   DollarSign, TrendingUp, Truck, MapPin, BarChart3,
-  Filter, RefreshCw, Clock, CreditCard, Loader, AlertTriangle, Download
+  RefreshCw, CreditCard, Loader, AlertTriangle, Download
 } from 'lucide-react';
 import usePageTitle from '../../hooks/usePageTitle';
 import { isOrderPriced } from '../../constants/status';
-
-const PERIODS = [
-  { key: 'daily', label: 'Daily', icon: Clock },
-  { key: 'weekly', label: 'Weekly', icon: Calendar },
-  { key: 'monthly', label: 'Monthly', icon: Calendar },
-  { key: 'yearly', label: 'Yearly', icon: BarChart3 },
-  { key: 'custom', label: 'Custom', icon: Filter },
-];
 
 const formatCurrency = (val) => `₱${(val || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const formatWeight = (val) => `${(val || 0).toLocaleString('en-PH', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} kg`;
@@ -37,7 +29,6 @@ const STATUS_ORDER = ['Pending', 'Assigned', 'Picked Up', 'In Transit', 'Arrived
 const ReportsPage = () => {
   usePageTitle('Reports');
   const { userProfile } = useAuth();
-  const [period, setPeriod] = useState('daily');
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
   const [data, setData] = useState(null);
@@ -48,22 +39,18 @@ const ReportsPage = () => {
   const customDateRangeInvalid = Boolean(hasCustomDateRange && customEnd < customStart);
 
   const loadReport = async () => {
-    if (period === 'custom' && (!customStart || !customEnd)) {
-      setError('Please select both start and end dates for custom range.');
+    if (!customStart || !customEnd) {
+      setError('Please select both start and end dates to generate a report.');
       return;
     }
-    if (period === 'custom' && customDateRangeInvalid) {
+    if (customDateRangeInvalid) {
       setError('End date must be the same as or later than the start date.');
       return;
     }
     setLoading(true);
     setError(null);
     try {
-      const result = await getReportData(
-        period,
-        period === 'custom' ? customStart : null,
-        period === 'custom' ? customEnd : null
-      );
+      const result = await getReportData('custom', customStart, customEnd);
       setData(result);
     } catch (e) {
       setError(e.message || 'Failed to load report data.');
@@ -72,12 +59,8 @@ const ReportsPage = () => {
     }
   };
 
-  useEffect(() => {
-    if (period !== 'custom') loadReport();
-  }, [period]);
-
   const handlePrint = () => {
-    logActivity({ module: 'Sales & Reports', action: 'Report Printed', details: `Printed ${period} report` });
+    logActivity({ module: 'Sales & Reports', action: 'Report Printed', details: `Printed report for ${customStart} to ${customEnd}` });
     window.print();
   };
 
@@ -85,8 +68,8 @@ const ReportsPage = () => {
     if (!data?.orders?.length || exporting) return;
     setExporting(true);
     try {
-      await exportPrintDocumentToPdf(`CargoExpress_Report_${period}_${new Date().toISOString().slice(0, 10)}.pdf`);
-      logActivity({ module: 'Sales & Reports', action: 'Report Exported', details: `Exported ${period} report to PDF` });
+      await exportPrintDocumentToPdf(`CargoExpress_Report_${customStart}_to_${customEnd}.pdf`);
+      logActivity({ module: 'Sales & Reports', action: 'Report Exported', details: `Exported report for ${customStart} to ${customEnd} to PDF` });
     } catch (e) {
       console.error('PDF export failed:', e);
     } finally {
@@ -130,65 +113,51 @@ const ReportsPage = () => {
         </div>
       </div>
 
-      {/* ── Period Tabs ── */}
-      <ResponsiveFilterControls
-        options={PERIODS.map(p => ({ value: p.key, label: p.label, icon: p.icon }))}
-        value={period}
-        onChange={setPeriod}
-        ariaLabel="Report period"
-        label="Period"
-        desktopClassName="report-period-tabs"
-        buttonClassName={(option, active) => `report-period-tab ${active ? 'active' : ''}`}
-        className="no-print report-period-filter"
-      />
-
       {/* ── Custom Date Range ── */}
-      {period === 'custom' && (
-        <div className="report-custom-range no-print stagger-item">
-          <div className="report-date-inputs">
-            <div className="form-group">
-              <label className="form-label" htmlFor="report-start-date">Start Date</label>
-              <input
-                id="report-start-date"
-                type="date"
-                className="form-input"
-                value={customStart}
-                onChange={e => {
-                  setCustomStart(e.target.value);
-                  if (error) setError(null);
-                }}
-              />
-            </div>
-            <div className="form-group">
-              <label className="form-label" htmlFor="report-end-date">End Date</label>
-              <input
-                id="report-end-date"
-                type="date"
-                className="form-input"
-                value={customEnd}
-                onChange={e => {
-                  setCustomEnd(e.target.value);
-                  if (error) setError(null);
-                }}
-              />
-            </div>
+      <div className="report-custom-range no-print stagger-item">
+        <div className="report-date-inputs">
+          <div className="form-group">
+            <label className="form-label" htmlFor="report-start-date">Start Date</label>
+            <DatePicker
+              id="report-start-date"
+              value={customStart}
+              max={customEnd || undefined}
+              aria-label="Report start date"
+              onChange={val => {
+                setCustomStart(val);
+                if (error) setError(null);
+              }}
+            />
           </div>
-          {customDateRangeInvalid && (
-            <p className="form-error" role="alert">
-              End date must be the same as or later than the start date.
-            </p>
-          )}
-          <button
-            type="button"
-            className="btn btn-primary btn-sm"
-            onClick={loadReport}
-            disabled={!customStart || !customEnd || customDateRangeInvalid || loading}
-          >
-            {loading ? <Loader size={16} className="animate-spin" /> : <BarChart3 size={16} />}
-            Generate Report
-          </button>
+          <div className="form-group">
+            <label className="form-label" htmlFor="report-end-date">End Date</label>
+            <DatePicker
+              id="report-end-date"
+              value={customEnd}
+              min={customStart || undefined}
+              aria-label="Report end date"
+              onChange={val => {
+                setCustomEnd(val);
+                if (error) setError(null);
+              }}
+            />
+          </div>
         </div>
-      )}
+        {customDateRangeInvalid && (
+          <p className="form-error" role="alert">
+            End date must be the same as or later than the start date.
+          </p>
+        )}
+        <button
+          type="button"
+          className="btn btn-primary btn-sm"
+          onClick={loadReport}
+          disabled={!customStart || !customEnd || customDateRangeInvalid || loading}
+        >
+          {loading ? <Loader size={16} className="animate-spin" /> : <BarChart3 size={16} />}
+          Generate Report
+        </button>
+      </div>
 
       {/* ── Error State ── */}
       {error && (
@@ -482,7 +451,7 @@ const ReportsPage = () => {
           {/* ── Formal printed document (bond paper) — replaces UI in print ── */}
           {hasData && (
             <PrintDocument
-              title={period === 'custom' ? 'Operations Report — Custom Period' : `${period.charAt(0).toUpperCase() + period.slice(1)} Operations Report`}
+              title="Operations Report"
               subtitle={data.periodLabel}
               generatedAt={formatDateTime(data.generatedAt)}
               preparedBy={userProfile?.name}

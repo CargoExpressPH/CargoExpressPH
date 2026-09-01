@@ -433,6 +433,204 @@ input[type="datetime-local"]:hover::-webkit-calendar-picker-indicator {
   z-index: 9999;
 }
 
+/* --- DATE PICKER (custom popover replacing native <input type="date">) - */
+
+.date-picker-root {
+  position: relative;
+  width: 100%;
+}
+
+.date-picker-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.date-picker-value {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.date-picker-value.placeholder {
+  color: var(--text-tertiary);
+}
+
+.date-picker-icon {
+  flex-shrink: 0;
+  color: var(--text-secondary);
+}
+
+.date-picker-trigger[aria-expanded="true"] {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-glow);
+}
+
+.date-picker-trigger[aria-expanded="true"] .date-picker-icon {
+  color: var(--primary);
+}
+
+.date-picker-panel {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 8px);
+  z-index: var(--z-dropdown);
+  width: 280px;
+  max-width: min(280px, 90vw);
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-lg);
+  animation: slideDown 0.16s ease;
+}
+
+.date-picker-panel.open-up {
+  top: auto;
+  bottom: calc(100% + 8px);
+}
+
+.date-picker-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.date-picker-nav-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.date-picker-nav-btn:hover {
+  background: var(--bg-secondary);
+  color: var(--text);
+}
+
+.date-picker-month-label {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.date-picker-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  margin-bottom: 4px;
+}
+
+.date-picker-weekdays span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 28px;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.date-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+
+.date-picker-day {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 32px;
+  border: none;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: var(--text);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.date-picker-day:hover:not(:disabled) {
+  background: var(--bg-secondary);
+}
+
+.date-picker-day.outside {
+  color: var(--text-tertiary);
+  opacity: 0.55;
+}
+
+.date-picker-day.today {
+  font-weight: 700;
+  box-shadow: inset 0 0 0 1.5px var(--border);
+}
+
+.date-picker-day.selected {
+  background: var(--primary);
+  color: #fff;
+  font-weight: 700;
+}
+
+.date-picker-day.selected.today {
+  box-shadow: none;
+}
+
+.date-picker-day:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.date-picker-footer {
+  display: flex;
+  justify-content: center;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-light);
+}
+
+.date-picker-today-btn {
+  padding: 6px 14px;
+  border: none;
+  border-radius: var(--radius-xs);
+  background: var(--primary-bg);
+  color: var(--primary-text);
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: filter 0.15s ease;
+}
+
+.date-picker-today-btn:hover:not(:disabled) {
+  filter: brightness(0.96);
+}
+
+.date-picker-today-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Same clipping/stacking fix CustomSelect needs (see the note above it):
+   let the panel escape its card and rise above sibling stagger-item cards. */
+.card:has(.date-picker-panel),
+.report-custom-range:has(.date-picker-panel) {
+  overflow: visible;
+  z-index: var(--z-dropdown);
+}
+
 /* Validation states
    `.error` is the legacy spelling of `.field-invalid` (see validation.css).
    Both are kept so either class marks a control, but they must resolve to the
@@ -713,10 +911,6 @@ input[type="datetime-local"]:hover::-webkit-calendar-picker-indicator {
 
   .responsive-filter-select-wrap {
     display: block;
-  }
-
-  .report-period-filter .responsive-filter-select-wrap {
-    margin-bottom: 20px;
   }
 }
 
