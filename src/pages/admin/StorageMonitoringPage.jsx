@@ -98,11 +98,11 @@ const HealthBadge = ({ provider, health }) => {
       <div className="flex items-center justify-between gap-12">
         <div className="flex items-center gap-8"><Icon size={19} className="text-primary" /><strong>{providerLabel(provider)}</strong></div>
         <span className={`badge ${healthy ? 'badge-success' : unavailable ? 'badge-error' : 'badge-warning'}`}>
-          {healthy ? 'Working' : unavailable ? 'Not available' : 'Checking'}
+          {healthy ? 'Ready' : unavailable ? 'Not Ready' : 'Checking'}
         </span>
       </div>
       <p className="text-sm text-secondary" style={{ margin: '10px 0 0' }}>
-        {healthy ? 'The latest connection check passed. No photos were changed.' : unavailable ? 'The latest check could not connect to this storage.' : 'Select Refresh to check this storage.'}
+        {healthy ? 'Photos can be saved here.' : unavailable ? 'Photos cannot be saved here right now.' : 'Please wait while the system checks.'}
       </p>
     </div>
   );
@@ -265,7 +265,7 @@ const StorageMonitoringPage = () => {
     { label: 'Supabase Photos', value: summary?.supabase_photo_count, icon: HardDrive },
     { label: 'Firebase Photos', value: summary?.firebase_photo_count, icon: Cloud },
     { label: 'Firebase Used (24h)', value: summary?.fallbacks_last_24h, icon: CloudLightning },
-    { label: 'Photos Not Saved (24h)', value: summary?.failures_last_24h, icon: AlertTriangle },
+    { label: 'Upload Failures (24h)', value: summary?.failures_last_24h, icon: AlertTriangle },
   ];
 
   return (
@@ -304,7 +304,7 @@ const StorageMonitoringPage = () => {
           <div className="card-header">
             <h3><HardDrive size={17} className="inline mr-8" />Supabase Photos</h3>
             <span className={`badge ${liveStorage?.live_usage_status === 'available' ? 'badge-success' : 'badge-warning'}`}>
-              {liveStorage?.live_usage_status === 'available' ? 'Updated' : 'Could not check'}
+              {liveStorage?.live_usage_status === 'available' ? 'Live' : 'Unavailable'}
             </span>
           </div>
           <div className="card-body">
@@ -372,7 +372,7 @@ const StorageMonitoringPage = () => {
           <div className="card-header">
             <h3><Cloud size={17} className="inline mr-8" />Firebase Backup Photos</h3>
             <span className={`badge ${firebaseStorage?.status === 'available' ? 'badge-success' : 'badge-warning'}`}>
-              {firebaseStorage?.status === 'available' ? 'Updated' : 'Could not check'}
+              {firebaseStorage?.status === 'available' ? 'Live' : 'Unavailable'}
             </span>
           </div>
           <div className="card-body">
