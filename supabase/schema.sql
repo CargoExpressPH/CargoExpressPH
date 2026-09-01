@@ -1,13 +1,14 @@
 -- ============================================================
 -- CargoExpress PH — Complete Supabase PostgreSQL Schema
 -- Single source-of-truth for the entire database.
--- Synced from LIVE database on 2026-08-25
+-- Synced from LIVE database on 2026-09-01
 -- Run this in: Supabase Dashboard → SQL Editor → New Query
 -- ============================================================
 
 
 -- ===================== EXTENSIONS =====================
 CREATE EXTENSION IF NOT EXISTS "pg_cron";
+CREATE EXTENSION IF NOT EXISTS "pg_net";
 CREATE EXTENSION IF NOT EXISTS "pg_stat_statements";
 CREATE EXTENSION IF NOT EXISTS "pg_trgm";
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
@@ -41,7 +42,9 @@ CREATE TABLE IF NOT EXISTS announcements (
   is_active BOOLEAN DEFAULT true,
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now(),
-  comments JSONB DEFAULT '[]'::jsonb
+  comments JSONB DEFAULT '[]'::jsonb,
+  send_email BOOLEAN NOT NULL DEFAULT false,
+  emailed_at TIMESTAMPTZ
 );
 
 
@@ -100,7 +103,8 @@ CREATE TABLE IF NOT EXISTS contact_inquiries (
   push_dispatched_at TIMESTAMPTZ,
   push_dispatch_started_at TIMESTAMPTZ,
   push_dispatch_claim_id UUID,
-  ip TEXT
+  ip TEXT,
+  wants_announcements BOOLEAN NOT NULL DEFAULT false
 );
 
 
@@ -174,7 +178,7 @@ CREATE TABLE IF NOT EXISTS notifications (
   user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
   title VARCHAR(200) NOT NULL,
   message TEXT NOT NULL,
-  type VARCHAR(30) DEFAULT 'general'::character varying CHECK (type::text = ANY (ARRAY['order_update'::character varying, 'trip_update'::character varying, 'announcement'::character varying, 'general'::character varying, 'inquiry'::character varying, 'feedback'::character varying, 'chat_message'::character varying]::text[])),
+  type VARCHAR(30) DEFAULT 'general'::character varying CHECK (type::text = ANY (ARRAY['order_update'::character varying, 'trip_update'::character varying, 'announcement'::character varying, 'general'::character varying, 'inquiry'::character varying, 'feedback'::character varying, 'chat_message'::character varying, 'system_alert'::character varying]::text[])),
   reference_id UUID,
   is_read BOOLEAN DEFAULT false,
   created_at TIMESTAMPTZ DEFAULT now()
@@ -238,6 +242,7 @@ CREATE TABLE IF NOT EXISTS orders (
   reassignment_history JSONB DEFAULT '[]'::jsonb,
   payment_preference TEXT DEFAULT 'unspecified'::text,
   cancellation_details JSONB,
+  last_reminder_sent_at TIMESTAMPTZ,
   CONSTRAINT orders_trip_required_for_active_status CHECK ((status::text = ANY (ARRAY['Pending Review'::character varying, 'Pending'::character varying, 'Pending Cancellation'::character varying, 'Cancelled'::character varying]::text[])) OR trip_id IS NOT NULL)
 );
 
@@ -284,7 +289,53 @@ CREATE TABLE IF NOT EXISTS payment_transactions (
 );
 
 
--- ===================== 16. PROFILES =====================
+-- ===================== 16. PHOTO_CLEANUP_QUEUE =====================
+CREATE TABLE IF NOT EXISTS photo_cleanup_queue (
+  id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  provider TEXT NOT NULL CHECK (provider = ANY (ARRAY['supabase'::text, 'firebase'::text])),
+  storage_path TEXT NOT NULL,
+  queued_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  completed_at TIMESTAMPTZ,
+  attempts INTEGER NOT NULL DEFAULT 0 CHECK (attempts >= 0),
+  last_error TEXT,
+  UNIQUE (provider, storage_path)
+);
+
+REVOKE ALL ON TABLE public.photo_cleanup_queue FROM PUBLIC, anon, authenticated;
+GRANT SELECT, INSERT, UPDATE ON TABLE public.photo_cleanup_queue TO service_role;
+GRANT USAGE, SELECT ON SEQUENCE public.photo_cleanup_queue_id_seq TO service_role;
+
+
+-- ===================== 17. PHOTO_STORAGE_EVENTS =====================
+CREATE TABLE IF NOT EXISTS photo_storage_events (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  event_type TEXT NOT NULL CHECK (event_type = ANY (ARRAY['upload'::text, 'mode_change'::text, 'health_check'::text, 'cleanup'::text])),
+  provider TEXT NOT NULL CHECK (provider = ANY (ARRAY['supabase'::text, 'firebase'::text, 'system'::text])),
+  outcome TEXT NOT NULL CHECK (outcome = ANY (ARRAY['success'::text, 'failure'::text, 'expired'::text])),
+  photo_type TEXT CHECK (photo_type = ANY (ARRAY['pickup'::text, 'delivery'::text, 'receipt'::text])),
+  order_id UUID REFERENCES orders(id) ON DELETE SET NULL,
+  storage_path TEXT,
+  size_bytes BIGINT CHECK (size_bytes IS NULL OR size_bytes >= 0),
+  message TEXT CHECK (char_length(COALESCE(message, ''::text)) <= 500),
+  metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_by UUID REFERENCES profiles(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+
+-- ===================== 18. PHOTO_STORAGE_SETTINGS =====================
+CREATE TABLE IF NOT EXISTS photo_storage_settings (
+  id BOOLEAN PRIMARY KEY DEFAULT true CHECK (id),
+  upload_mode TEXT NOT NULL DEFAULT 'automatic'::text CHECK (upload_mode = ANY (ARRAY['automatic'::text, 'force_firebase'::text])),
+  force_firebase_expires_at TIMESTAMPTZ,
+  reason TEXT CHECK (char_length(COALESCE(reason, ''::text)) <= 500),
+  updated_by UUID REFERENCES profiles(id) ON DELETE SET NULL,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT force_firebase_requires_expiry CHECK (upload_mode = 'automatic'::text AND force_firebase_expires_at IS NULL OR upload_mode = 'force_firebase'::text AND force_firebase_expires_at IS NOT NULL)
+);
+
+
+-- ===================== 19. PROFILES =====================
 CREATE TABLE IF NOT EXISTS profiles (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   name VARCHAR(100) NOT NULL,
@@ -299,11 +350,12 @@ CREATE TABLE IF NOT EXISTS profiles (
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now(),
   facebook_name TEXT,
-  address_landmark TEXT
+  address_landmark TEXT,
+  wants_announcements BOOLEAN NOT NULL DEFAULT false
 );
 
 
--- ===================== 17. TRIPS =====================
+-- ===================== 20. TRIPS =====================
 CREATE TABLE IF NOT EXISTS trips (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   trip_number VARCHAR(50) NOT NULL UNIQUE,
@@ -318,17 +370,12 @@ CREATE TABLE IF NOT EXISTS trips (
   created_by UUID REFERENCES profiles(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now(),
-  -- Actual departure instant, stamped by guard_trip_status_transition() the
-  -- moment status moves to in_progress (Start Trip). NULL until then, never
-  -- accepted from the client. departure_date above is the admin-scheduled
-  -- DATE (date-only as of 20260829160000); this is server-truth for when
-  -- the trip actually left.
   departure_at TIMESTAMPTZ,
   CONSTRAINT trips_arrival_after_departure CHECK (arrival_date IS NULL OR arrival_date >= departure_date)
 );
 
 
--- ===================== 18. USER_DEVICE_TOKENS =====================
+-- ===================== 21. USER_DEVICE_TOKENS =====================
 CREATE TABLE IF NOT EXISTS user_device_tokens (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
@@ -418,20 +465,6 @@ BEGIN
   )
   SELECT COUNT(*) INTO v_count FROM swept;
   RETURN v_count;
-END;
-$function$
-
-
-
-CREATE OR REPLACE FUNCTION public.cancel_own_pending_order(p_order_id uuid)
- RETURNS orders
- LANGUAGE plpgsql
- SECURITY DEFINER
- SET search_path TO 'public'
-AS $function$
-BEGIN
-  RAISE EXCEPTION
-    'Bookings are no longer cancelled instantly. Submit a cancellation request with a reason — an admin reviews it before the booking is cancelled.';
 END;
 $function$
 
@@ -577,7 +610,7 @@ BEGIN
 
     v_title := 'New Customer Feedback';
     v_message := format(
-      '%s★ rating%s',
+      '%s? rating%s',
       v_rating,
       CASE
         WHEN NULLIF(btrim(v_feedback_message), '') IS NULL THEN ''
@@ -613,23 +646,6 @@ BEGIN
   )
   SELECT user_id, id, v_title, v_message FROM inserted;
 END;
-$function$
-
-
-
-CREATE OR REPLACE FUNCTION public.current_trip_weight(p_trip_id uuid, p_exclude_order_id uuid DEFAULT NULL::uuid)
- RETURNS numeric
- LANGUAGE sql
- STABLE
- SET search_path TO 'public'
-AS $function$
-  -- actual_weight only: a booking that has not been weighed contributes
-  -- nothing, because nothing is known about it.
-  SELECT COALESCE(SUM(COALESCE(actual_weight, 0)), 0)
-    FROM public.orders
-   WHERE trip_id = p_trip_id
-     AND status <> 'Cancelled'
-     AND (p_exclude_order_id IS NULL OR id <> p_exclude_order_id);
 $function$
 
 
@@ -682,6 +698,73 @@ BEGIN
   END LOOP;
   RETURN candidate;
 END;
+$function$
+
+
+
+CREATE OR REPLACE FUNCTION public.get_effective_photo_storage_mode()
+ RETURNS TABLE(upload_mode text, force_firebase_expires_at timestamp with time zone, updated_at timestamp with time zone, updated_by uuid, reason text)
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_settings public.photo_storage_settings%ROWTYPE;
+BEGIN
+  IF NOT public.is_admin() THEN
+    RAISE EXCEPTION 'Admin access required' USING ERRCODE = '42501';
+  END IF;
+
+  SELECT * INTO v_settings FROM public.photo_storage_settings WHERE id = TRUE FOR UPDATE;
+
+  IF v_settings.upload_mode = 'force_firebase'
+     AND v_settings.force_firebase_expires_at <= now() THEN
+    UPDATE public.photo_storage_settings
+       SET upload_mode = 'automatic',
+           force_firebase_expires_at = NULL,
+           reason = 'Force Firebase mode expired automatically.',
+           updated_by = NULL,
+           updated_at = now()
+     WHERE id = TRUE
+     RETURNING * INTO v_settings;
+
+    INSERT INTO public.photo_storage_events (
+      event_type, provider, outcome, message, metadata
+    ) VALUES (
+      'mode_change', 'system', 'expired', 'Force Firebase mode expired and Automatic mode resumed.',
+      jsonb_build_object('upload_mode', 'automatic')
+    );
+  END IF;
+
+  RETURN QUERY
+  SELECT v_settings.upload_mode, v_settings.force_firebase_expires_at,
+         v_settings.updated_at, v_settings.updated_by, v_settings.reason;
+END;
+$function$
+
+
+
+CREATE OR REPLACE FUNCTION public.get_expired_evidence_orders(p_cutoff timestamp with time zone)
+ RETURNS TABLE(order_id uuid, tracking_number text, status text, terminal_status_at timestamp with time zone, pickup_photos jsonb, delivery_photos jsonb)
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+  SELECT o.id, o.tracking_number, o.status, s.terminal_status_at, o.pickup_photos, o.delivery_photos
+  FROM public.orders o
+  JOIN LATERAL (
+    SELECT max(e.changed_at) AS terminal_status_at
+    FROM public.order_status_events e
+    WHERE e.order_id = o.id AND e.status = o.status
+  ) s ON TRUE
+  WHERE o.status IN ('Delivered', 'Cancelled')
+    AND COALESCE(o.featured_on_website, FALSE) = FALSE
+    AND s.terminal_status_at IS NOT NULL
+    AND s.terminal_status_at < p_cutoff
+    AND (
+      COALESCE(o.pickup_photos, '[]'::jsonb) <> '[]'::jsonb
+      OR COALESCE(o.delivery_photos, '[]'::jsonb) <> '[]'::jsonb
+    );
 $function$
 
 
@@ -740,6 +823,104 @@ BEGIN
   -- as 0. Padding every known status with a zero here would invent rows the
   -- table does not have.
   RETURN payload;
+END;
+$function$
+
+
+
+CREATE OR REPLACE FUNCTION public.get_photo_storage_live_usage()
+ RETURNS TABLE(total_size_bytes bigint, object_count bigint, buckets jsonb, measured_at timestamp with time zone)
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+BEGIN
+  IF NOT public.is_admin() AND COALESCE(auth.role(), '') <> 'service_role' THEN
+    RAISE EXCEPTION 'Admin access required' USING ERRCODE = '42501';
+  END IF;
+
+  RETURN QUERY
+  WITH bucket_usage AS (
+    SELECT
+      o.bucket_id,
+      count(*)::BIGINT AS object_count,
+      COALESCE(sum(
+        CASE
+          WHEN o.metadata ->> 'size' ~ '^[0-9]+$'
+            THEN (o.metadata ->> 'size')::BIGINT
+          ELSE 0
+        END
+      ), 0)::BIGINT AS size_bytes
+    FROM storage.objects o
+    GROUP BY o.bucket_id
+  )
+  SELECT
+    COALESCE(sum(bu.size_bytes), 0)::BIGINT,
+    COALESCE(sum(bu.object_count), 0)::BIGINT,
+    COALESCE(
+      jsonb_agg(
+        jsonb_build_object(
+          'bucket_id', bu.bucket_id,
+          'size_bytes', bu.size_bytes,
+          'object_count', bu.object_count
+        ) ORDER BY bu.size_bytes DESC, bu.bucket_id
+      ),
+      '[]'::JSONB
+    ),
+    now()
+  FROM bucket_usage bu;
+END;
+$function$
+
+
+
+CREATE OR REPLACE FUNCTION public.get_photo_storage_summary()
+ RETURNS TABLE(supabase_photo_count bigint, firebase_photo_count bigint, legacy_photo_count bigint, pickup_photo_count bigint, delivery_photo_count bigint, receipt_photo_count bigint, failures_last_24h bigint, fallbacks_last_24h bigint, last_supabase_upload_at timestamp with time zone, last_firebase_upload_at timestamp with time zone)
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+BEGIN
+  IF NOT public.is_admin() THEN
+    RAISE EXCEPTION 'Admin access required' USING ERRCODE = '42501';
+  END IF;
+
+  RETURN QUERY
+  WITH refs AS (
+    SELECT 'pickup'::TEXT AS photo_type, jsonb_array_elements(COALESCE(o.pickup_photos, '[]'::jsonb)) AS ref
+    FROM public.orders o
+    UNION ALL
+    SELECT 'delivery'::TEXT AS photo_type, jsonb_array_elements(COALESCE(o.delivery_photos, '[]'::jsonb)) AS ref
+    FROM public.orders o
+    UNION ALL
+    SELECT 'receipt'::TEXT AS photo_type, to_jsonb(t.receipt_url) AS ref
+    FROM public.payment_transactions t
+    WHERE t.receipt_url IS NOT NULL AND btrim(t.receipt_url) <> ''
+  ), classified AS (
+    SELECT photo_type,
+      CASE
+        WHEN jsonb_typeof(ref) = 'object' AND ref ->> 'type' = 'firestore_fallback' THEN 'firebase'
+        WHEN jsonb_typeof(ref) = 'object' AND ref ? 'firestore_path' THEN 'firebase'
+        WHEN jsonb_typeof(ref) = 'string' AND ref #>> '{}' LIKE 'photoFallbacks/%' THEN 'firebase'
+        WHEN jsonb_typeof(ref) = 'string' AND ref #>> '{}' LIKE '%"firestore_path"%' THEN 'firebase'
+        WHEN jsonb_typeof(ref) = 'object' AND (ref ->> 'type' = 'supabase_storage' OR ref ? 'path') THEN 'supabase'
+        WHEN jsonb_typeof(ref) = 'string' AND (ref #>> '{}') LIKE '{%' THEN 'legacy'
+        WHEN jsonb_typeof(ref) = 'string' THEN 'legacy'
+        ELSE 'legacy'
+      END AS provider
+    FROM refs
+  )
+  SELECT
+    (SELECT count(*) FROM classified WHERE provider = 'supabase'),
+    (SELECT count(*) FROM classified WHERE provider = 'firebase'),
+    (SELECT count(*) FROM classified WHERE provider = 'legacy'),
+    (SELECT count(*) FROM classified WHERE photo_type = 'pickup'),
+    (SELECT count(*) FROM classified WHERE photo_type = 'delivery'),
+    (SELECT count(*) FROM classified WHERE photo_type = 'receipt'),
+    (SELECT count(*) FROM public.photo_storage_events WHERE event_type = 'upload' AND outcome = 'failure' AND created_at >= now() - INTERVAL '24 hours'),
+    (SELECT count(*) FROM public.photo_storage_events WHERE event_type = 'upload' AND provider = 'firebase' AND outcome = 'success' AND created_at >= now() - INTERVAL '24 hours'),
+    (SELECT max(created_at) FROM public.photo_storage_events WHERE event_type = 'upload' AND provider = 'supabase' AND outcome = 'success'),
+    (SELECT max(created_at) FROM public.photo_storage_events WHERE event_type = 'upload' AND provider = 'firebase' AND outcome = 'success');
 END;
 $function$
 
@@ -931,6 +1112,23 @@ BEGIN
 
   RETURN payload;
 END;
+$function$
+
+
+
+CREATE OR REPLACE FUNCTION public.get_trips_load(trip_ids uuid[])
+ RETURNS TABLE(trip_id uuid, current_weight numeric)
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+  SELECT
+    o.trip_id,
+    COALESCE(SUM(o.actual_weight), 0) AS current_weight
+  FROM public.orders o
+  WHERE o.trip_id = ANY(trip_ids)
+    AND o.status <> 'Cancelled'
+  GROUP BY o.trip_id;
 $function$
 
 
@@ -1129,6 +1327,7 @@ END;
 $function$
 
 
+
 CREATE OR REPLACE FUNCTION public.guard_chat_message_update()
  RETURNS trigger
  LANGUAGE plpgsql
@@ -1295,9 +1494,11 @@ BEGIN
     END IF;
 
     -- Date-only cutoff: blocks once the PH calendar day has moved past the
-    -- scheduled departure date, OR the moment status leaves 'scheduled' --
+    -- scheduled departure date, OR the moment status leaves 'scheduled'
+    -- (Start Trip, or an admin cancelling/completing/arriving it) --
     -- whichever comes first. A same-day booking stays open all day no
-    -- matter what time it currently is. See 20260829160000.
+    -- matter what time it currently is. ph_calendar_day() is the same
+    -- PH-timezone helper the duplicate-route unique index already uses.
     IF v_trip_status <> 'scheduled'
        OR public.ph_calendar_day(now()) > public.ph_calendar_day(v_departure_date) THEN
       RAISE EXCEPTION 'This trip is no longer accepting bookings';
@@ -1433,7 +1634,7 @@ BEGIN
   -- Start Trip: stamp the real departure instant server-side. This is the
   -- ONLY writer of departure_at -- whatever the client sent in NEW is
   -- discarded and replaced with the server's own clock, exactly once, on
-  -- the transition INTO 'in_progress'. See 20260829160000.
+  -- the transition INTO 'in_progress'.
   IF NEW.status = 'in_progress' AND OLD.status IS DISTINCT FROM 'in_progress' THEN
     NEW.departure_at := now();
   END IF;
@@ -1459,11 +1660,10 @@ BEGIN
            LIMIT 5
         ) t;
 
-      -- The truncation marker is appended to the string, NOT passed as another
-      -- RAISE argument: '%%' in a RAISE format string is an escaped literal '%',
-      -- not two placeholders, so the earlier version passed 4 arguments to a
-      -- 2-placeholder format and failed to compile with
-      --   ERROR 42601: too many parameters specified for RAISE
+      -- '%%' in a RAISE format string is an escaped literal '%', not another
+      -- placeholder — the truncation marker is appended to the string
+      -- itself rather than passed as a 4th argument to a 3-placeholder
+      -- RAISE (see guard_trip_completion's original note, 20260621140000).
       IF v_count > 5 THEN
         v_unsettled := v_unsettled || ' …';
       END IF;
@@ -1587,6 +1787,55 @@ AS $function$
         END
       ) = p_path
   );
+$function$
+
+
+
+CREATE OR REPLACE FUNCTION public.is_supabase_evidence_upload_allowed(p_path text)
+ RETURNS boolean
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+  SELECT public.is_admin()
+    AND (
+      (storage.foldername(p_path))[1] NOT IN ('pickup', 'delivery', 'receipts', 'pickup-proofs', 'delivery-proofs')
+      OR COALESCE(
+        (SELECT (ps.upload_mode = 'automatic' OR ps.force_firebase_expires_at <= now())
+         FROM public.photo_storage_settings ps WHERE ps.id = TRUE),
+        TRUE
+      )
+    );
+$function$
+
+
+
+CREATE OR REPLACE FUNCTION public.list_orphaned_evidence_photos()
+ RETURNS TABLE(name text, folder text, tracking_number text, size_bytes bigint)
+ LANGUAGE plpgsql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+BEGIN
+  IF NOT public.is_admin() THEN
+    RAISE EXCEPTION 'Admin access required' USING ERRCODE = '42501';
+  END IF;
+
+  RETURN QUERY
+  SELECT
+    o.name,
+    (storage.foldername(o.name))[1],
+    (storage.foldername(o.name))[2],
+    CASE WHEN o.metadata ->> 'size' ~ '^[0-9]+$' THEN (o.metadata ->> 'size')::BIGINT ELSE 0 END
+  FROM storage.objects o
+  WHERE o.bucket_id = 'cargo-photos'
+    AND (storage.foldername(o.name))[1] IN ('pickup-proofs', 'delivery-proofs', 'receipts')
+    AND (storage.foldername(o.name))[2] IS NOT NULL
+    AND NOT EXISTS (
+      SELECT 1 FROM public.orders ord
+      WHERE ord.tracking_number = (storage.foldername(o.name))[2]
+    );
+END;
 $function$
 
 
@@ -1834,6 +2083,75 @@ $function$
 
 
 
+CREATE OR REPLACE FUNCTION public.purge_old_delivery_attempts()
+ RETURNS void
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+BEGIN
+  -- Keep only the last 7 days of delivery attempts
+  DELETE FROM public.notification_delivery_attempts
+  WHERE attempted_at < now() - interval '7 days';
+END;
+$function$
+
+
+
+CREATE OR REPLACE FUNCTION public.queue_expired_evidence_cleanup(p_order_ids uuid[], p_items jsonb)
+ RETURNS integer
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_order_count INTEGER := 0;
+  v_item JSONB;
+  v_provider TEXT;
+  v_path TEXT;
+BEGIN
+  IF COALESCE(auth.role(), '') <> 'service_role' THEN
+    RAISE EXCEPTION 'Service access required' USING ERRCODE = '42501';
+  END IF;
+  IF p_items IS NULL OR jsonb_typeof(p_items) <> 'array' THEN
+    RAISE EXCEPTION 'Cleanup items must be an array' USING ERRCODE = '22023';
+  END IF;
+
+  FOR v_item IN SELECT value FROM jsonb_array_elements(p_items)
+  LOOP
+    v_provider := v_item ->> 'provider';
+    v_path := v_item ->> 'storage_path';
+    IF v_provider = 'supabase' AND v_path ~ '^(pickup-proofs|delivery-proofs)/[^/]+/.+' THEN
+      NULL;
+    ELSIF v_provider = 'firebase' AND v_path ~ '^photoFallbacks/[^/]+$' THEN
+      NULL;
+    ELSE
+      RAISE EXCEPTION 'Invalid cleanup item' USING ERRCODE = '22023';
+    END IF;
+
+    INSERT INTO public.photo_cleanup_queue (provider, storage_path)
+    VALUES (v_provider, v_path)
+    ON CONFLICT (provider, storage_path) DO UPDATE
+      SET queued_at = now(), completed_at = NULL, attempts = 0, last_error = NULL;
+  END LOOP;
+
+  IF COALESCE(cardinality(p_order_ids), 0) > 0 THEN
+    UPDATE public.orders
+    SET pickup_photos = '[]'::JSONB,
+        delivery_photos = '[]'::JSONB
+    WHERE id = ANY(p_order_ids);
+    GET DIAGNOSTICS v_order_count = ROW_COUNT;
+    IF v_order_count <> cardinality(p_order_ids) THEN
+      RAISE EXCEPTION 'Not every cleanup order could be updated' USING ERRCODE = 'P0001';
+    END IF;
+  END IF;
+
+  RETURN v_order_count;
+END;
+$function$
+
+
+
 CREATE OR REPLACE FUNCTION public.reassign_trip(p_order_id uuid, p_new_trip_id uuid, p_reason text)
  RETURNS void
  LANGUAGE plpgsql
@@ -1980,10 +2298,13 @@ CREATE OR REPLACE FUNCTION public.record_delivery_payment(p_order_id uuid, p_del
  SET search_path TO 'public'
 AS $function$
 DECLARE
-  v_order      public.orders;
-  v_admin_name TEXT;
-  v_paid_after NUMERIC;
-  v_label      TEXT;
+  v_order                  public.orders;
+  v_admin_name             TEXT;
+  v_paid_after             NUMERIC;
+  v_label                  TEXT;
+  v_total_paid_projected   NUMERIC;
+  v_remaining_projected    NUMERIC;
+  v_effective_promise_date DATE;
 BEGIN
   IF NOT public.is_admin() THEN
     RAISE EXCEPTION 'Admin access required';
@@ -1992,6 +2313,30 @@ BEGIN
   SELECT * INTO v_order FROM public.orders WHERE id = p_order_id FOR UPDATE;
   IF NOT FOUND THEN
     RAISE EXCEPTION 'Order not found';
+  END IF;
+
+  -- ── Promise-date guard ──────────────────────────────────────────────────
+  -- Sum the ledger as it stands, add the payment about to be recorded (never
+  -- negative — a malformed p_amount must not reduce the projected total),
+  -- and compare against shipping_cost exactly like update_order_payment_totals
+  -- will a moment from now.
+  SELECT COALESCE(SUM(amount), 0)
+    INTO v_total_paid_projected
+    FROM public.payment_transactions
+   WHERE order_id = p_order_id
+     AND payment_status IN ('paid', 'partial');
+
+  v_total_paid_projected := v_total_paid_projected + GREATEST(COALESCE(p_amount, 0), 0);
+  v_remaining_projected  := GREATEST(0, COALESCE(v_order.shipping_cost, 0) - v_total_paid_projected);
+  -- A date given in THIS call counts, same as one already on file — either
+  -- is enough to satisfy the rule, matching needsPromiseDate's own check.
+  v_effective_promise_date := COALESCE(p_promised_payment_date, v_order.promised_payment_date);
+
+  IF v_remaining_projected > 0.005 AND v_effective_promise_date IS NULL THEN
+    RAISE EXCEPTION
+      'Cannot mark order % as delivered with ₱% still owing and no promise date on record. Record a Promise Date or collect the balance first.',
+      v_order.tracking_number,
+      TO_CHAR(v_remaining_projected, 'FM999999990.00');
   END IF;
 
   -- Step 1 — order metadata ONLY. The ledger owns the totals.
@@ -2036,6 +2381,30 @@ BEGIN
 
   SELECT * INTO v_order FROM public.orders WHERE id = p_order_id;
   RETURN v_order;
+END;
+$function$
+
+
+
+CREATE OR REPLACE FUNCTION public.record_photo_cleanup_queue_result(p_ids bigint[], p_error text DEFAULT NULL::text)
+ RETURNS void
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+BEGIN
+  IF COALESCE(auth.role(), '') <> 'service_role' THEN
+    RAISE EXCEPTION 'Service access required' USING ERRCODE = '42501';
+  END IF;
+  IF COALESCE(cardinality(p_ids), 0) = 0 THEN
+    RETURN;
+  END IF;
+
+  UPDATE public.photo_cleanup_queue
+  SET attempts = attempts + 1,
+      completed_at = CASE WHEN p_error IS NULL THEN now() ELSE NULL END,
+      last_error = CASE WHEN p_error IS NULL THEN NULL ELSE left(p_error, 500) END
+  WHERE id = ANY(p_ids);
 END;
 $function$
 
@@ -2173,72 +2542,43 @@ CREATE OR REPLACE FUNCTION public.request_order_cancellation(p_order_id uuid, p_
  SET search_path TO 'public'
 AS $function$
 DECLARE
-  v_order  public.orders;
-  v_reason TEXT := btrim(COALESCE(p_reason, ''));
+  v_order public.orders;
+  v_notes text;
 BEGIN
-  IF auth.uid() IS NULL THEN
-    RAISE EXCEPTION 'Authentication required';
-  END IF;
-
-  IF char_length(v_reason) < 5 THEN
-    RAISE EXCEPTION 'Please tell us why you are cancelling (at least 5 characters).';
-  END IF;
-
-  SELECT * INTO v_order
-    FROM public.orders
-   WHERE id = p_order_id AND user_id = auth.uid()
-     FOR UPDATE;
-
+  SELECT * INTO v_order FROM public.orders WHERE id = p_order_id;
   IF NOT FOUND THEN
-    RAISE EXCEPTION 'Only your own bookings can be cancelled';
+    RAISE EXCEPTION 'Order not found';
+  END IF;
+
+  IF auth.uid() IS NULL OR v_order.user_id != auth.uid() THEN
+    RAISE EXCEPTION 'Not authorized';
   END IF;
 
   IF v_order.status = 'Pending Cancellation' THEN
-    RAISE EXCEPTION 'A cancellation request for this booking is already awaiting review.';
+    RAISE EXCEPTION 'A cancellation request is already pending for this order.';
   END IF;
-
   IF v_order.status = 'Cancelled' THEN
-    RAISE EXCEPTION 'This booking is already cancelled.';
+    RAISE EXCEPTION 'Order is already cancelled.';
   END IF;
-
-  -- Mirrors IN_NETWORK_STATUSES in src/constants/status.js. Past this line the
-  -- parcel is on a vehicle or in a hub, and "cancel" no longer describes
-  -- anything that can physically happen — that is a return, not a cancellation.
-  IF v_order.status IN ('In Transit', 'Arrived at Hub', 'Out for Delivery', 'Delivered') THEN
-    RAISE EXCEPTION
-      'This shipment is already "%" and is on its way. Please contact support instead.',
-      v_order.status;
+  IF v_order.status IN ('Picked Up', 'In Transit', 'Arrived at Hub', 'Out for Delivery', 'Delivered') THEN
+    RAISE EXCEPTION 'Too late to cancel: this order is already in the delivery network.';
   END IF;
 
   UPDATE public.orders
-     SET status                       = 'Pending Cancellation',
+     SET status = 'Pending Cancellation',
          cancellation_details = jsonb_build_object(
-           'reason', v_reason,
+           'reason', p_reason,
            'requested_at', now(),
            'previous_status', v_order.status
          )
    WHERE id = p_order_id
    RETURNING * INTO v_order;
 
-  -- Every admin is told. A request nobody sees is a booking frozen forever.
-  INSERT INTO public.notifications (user_id, title, message, type, reference_id)
-  SELECT p.id,
-         'Cancellation Requested',
-         'Order ' || v_order.tracking_number || ': the customer asked to cancel. Reason: ' || v_reason,
-         'order_update',
-         v_order.id
-    FROM public.profiles p
-   WHERE p.role = 'admin';
-
   INSERT INTO public.activity_logs (module, action, record_type, record_id, record_ref, previous_value, new_value, details)
-  VALUES ('Orders',
-          'Cancellation Requested',
-          'order',
-          v_order.id,
-          v_order.tracking_number,
+  VALUES ('Orders', 'Cancellation Requested', 'order', v_order.id, v_order.tracking_number,
           jsonb_build_object('status', v_order.cancellation_details->>'previous_status'),
           jsonb_build_object('status', 'Pending Cancellation'),
-          'Customer requested cancellation. Reason: ' || v_reason);
+          'Customer requested to cancel the booking. Reason: ' || p_reason);
 
   RETURN v_order;
 END;
@@ -2253,35 +2593,38 @@ CREATE OR REPLACE FUNCTION public.review_order_cancellation(p_order_id uuid, p_a
  SET search_path TO 'public'
 AS $function$
 DECLARE
-  v_order   public.orders;
-  v_restore TEXT;
-  v_notes   TEXT := NULLIF(btrim(COALESCE(p_notes, '')), '');
+  v_order public.orders;
+  v_restore varchar;
+  v_notes text;
 BEGIN
   IF NOT public.is_admin() THEN
-    RAISE EXCEPTION 'Admin privileges required';
+    RAISE EXCEPTION 'Admin privileges required' USING ERRCODE = '42501';
   END IF;
 
-  SELECT * INTO v_order FROM public.orders WHERE id = p_order_id FOR UPDATE;
+  v_notes := NULLIF(trim(p_notes), '');
+
+  SELECT * INTO v_order
+  FROM public.orders
+  WHERE id = p_order_id
+  FOR UPDATE;
+
   IF NOT FOUND THEN
     RAISE EXCEPTION 'Order not found';
   END IF;
-
-  IF v_order.status <> 'Pending Cancellation' THEN
-    RAISE EXCEPTION 'Order % has no cancellation request awaiting review.', v_order.tracking_number;
+  IF v_order.status != 'Pending Cancellation' THEN
+    RAISE EXCEPTION 'Order is not pending cancellation';
   END IF;
 
-  -- 'Pending' is the fallback only for rows that predate this migration and so
-  -- have no recorded previous status. It is a guess, and it is confined to the
-  -- one case where nothing better is knowable.
   v_restore := COALESCE(v_order.cancellation_details->>'previous_status', 'Pending');
 
   UPDATE public.orders
-     SET status                    = CASE WHEN p_approve THEN 'Cancelled' ELSE v_restore END,
-         cancellation_details      = COALESCE(v_order.cancellation_details, '{}'::jsonb) || jsonb_strip_nulls(jsonb_build_object(
-           'reviewed_at', now(),
-           'reviewed_by', auth.uid(),
-           'review_notes', v_notes
-         ))
+     SET status = CASE WHEN p_approve THEN 'Cancelled' ELSE v_restore END,
+         cancellation_details = COALESCE(v_order.cancellation_details, '{}'::jsonb)
+           || jsonb_strip_nulls(jsonb_build_object(
+             'reviewed_at', now(),
+             'reviewed_by', auth.uid(),
+             'review_notes', v_notes
+           ))
    WHERE id = p_order_id
    RETURNING * INTO v_order;
 
@@ -2290,13 +2633,16 @@ BEGIN
           CASE WHEN p_approve THEN 'Cancellation Approved' ELSE 'Cancellation Declined' END,
           CASE WHEN p_approve
                THEN 'Order ' || v_order.tracking_number || ' has been cancelled as you requested.'
-               ELSE 'Order ' || v_order.tracking_number || ' was not cancelled and is back to "' || v_restore || '".'
+               ELSE 'Order ' || v_order.tracking_number || ' was not cancelled and is back to '
+                    || chr(34) || v_restore || chr(34) || '.'
           END
-          || COALESCE(' Note from our team: ' || v_notes, ''),
-          'order_update',
-          v_order.id);
+          || COALESCE(' Note: ' || v_notes, ''),
+          'order_update', v_order.id);
 
-  INSERT INTO public.activity_logs (module, action, record_type, record_id, record_ref, previous_value, new_value, details)
+  INSERT INTO public.activity_logs (
+    module, action, record_type, record_id, record_ref,
+    previous_value, new_value, details
+  )
   VALUES ('Orders',
           CASE WHEN p_approve THEN 'Cancellation Approved' ELSE 'Cancellation Rejected' END,
           'order',
@@ -2306,7 +2652,8 @@ BEGIN
           jsonb_build_object('status', v_order.status),
           CASE WHEN p_approve
                THEN 'Approved the customer''s cancellation request; order cancelled.'
-               ELSE 'Rejected the customer''s cancellation request; order restored to "' || v_restore || '".'
+               ELSE 'Rejected the customer''s cancellation request; order restored to '
+                    || chr(34) || v_restore || chr(34) || '.'
           END
           || COALESCE(' Note: ' || v_notes, '')
           || COALESCE(' Customer''s stated reason: ' || (v_order.cancellation_details->>'reason'), ''));
@@ -2388,6 +2735,70 @@ CREATE OR REPLACE FUNCTION public.set_limit(real)
  LANGUAGE c
  STRICT
 AS '$libdir/pg_trgm', $function$set_limit$function$
+
+
+
+CREATE OR REPLACE FUNCTION public.set_photo_storage_mode(p_upload_mode text, p_reason text DEFAULT NULL::text, p_force_firebase_expires_at timestamp with time zone DEFAULT NULL::timestamp with time zone)
+ RETURNS TABLE(upload_mode text, force_firebase_expires_at timestamp with time zone, updated_at timestamp with time zone, updated_by uuid, reason text)
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_previous_mode TEXT;
+  v_settings public.photo_storage_settings%ROWTYPE;
+BEGIN
+  IF NOT public.is_admin() THEN
+    RAISE EXCEPTION 'Admin access required' USING ERRCODE = '42501';
+  END IF;
+  IF p_upload_mode NOT IN ('automatic', 'force_firebase') THEN
+    RAISE EXCEPTION 'Invalid upload mode' USING ERRCODE = '22023';
+  END IF;
+  IF char_length(COALESCE(p_reason, '')) > 500 THEN
+    RAISE EXCEPTION 'Reason is too long' USING ERRCODE = '22001';
+  END IF;
+  IF p_upload_mode = 'force_firebase' THEN
+    IF p_force_firebase_expires_at IS NULL
+       OR p_force_firebase_expires_at <= now()
+       OR p_force_firebase_expires_at > now() + INTERVAL '24 hours' THEN
+      RAISE EXCEPTION 'Force Firebase expiry must be within the next 24 hours' USING ERRCODE = '22023';
+    END IF;
+  ELSE
+    p_force_firebase_expires_at := NULL;
+  END IF;
+
+  SELECT pss.upload_mode INTO v_previous_mode
+    FROM public.photo_storage_settings pss WHERE pss.id = TRUE FOR UPDATE;
+
+  UPDATE public.photo_storage_settings
+     SET upload_mode = p_upload_mode,
+         force_firebase_expires_at = p_force_firebase_expires_at,
+         reason = NULLIF(btrim(p_reason), ''),
+         updated_by = auth.uid(),
+         updated_at = now()
+   WHERE id = TRUE
+   RETURNING * INTO v_settings;
+
+  INSERT INTO public.photo_storage_events (event_type, provider, outcome, message, metadata, created_by) VALUES (
+    'mode_change', 'system', 'success',
+    CASE WHEN p_upload_mode = 'force_firebase'
+      THEN 'New evidence uploads are routed directly to Firebase fallback.'
+      ELSE 'New evidence uploads use Supabase first with Firebase fallback.'
+    END,
+    jsonb_build_object(
+      'previous_mode', COALESCE(v_previous_mode, 'automatic'),
+      'upload_mode', p_upload_mode,
+      'force_firebase_expires_at', p_force_firebase_expires_at,
+      'reason', NULLIF(btrim(p_reason), '')
+    ),
+    auth.uid()
+  );
+
+  RETURN QUERY
+  SELECT v_settings.upload_mode, v_settings.force_firebase_expires_at,
+         v_settings.updated_at, v_settings.updated_by, v_settings.reason;
+END;
+$function$
 
 
 
@@ -2538,6 +2949,99 @@ $function$
 
 
 
+CREATE OR REPLACE FUNCTION public.trigger_daily_payment_reminders()
+ RETURNS void
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public', 'extensions', 'vault'
+AS $function$
+DECLARE
+  v_project_url  text;
+  v_service_key  text;
+BEGIN
+  SELECT decrypted_secret INTO v_project_url FROM vault.decrypted_secrets WHERE name = 'project_url';
+  SELECT decrypted_secret INTO v_service_key FROM vault.decrypted_secrets WHERE name = 'service_role_key';
+
+  IF v_project_url IS NULL OR v_service_key IS NULL THEN
+    RAISE WARNING 'trigger_daily_payment_reminders: project_url / service_role_key not found in Vault — skipping. See the migration comment for the one-time setup step.';
+    RETURN;
+  END IF;
+
+  PERFORM net.http_post(
+    url     := v_project_url || '/functions/v1/process-daily-reminders',
+    headers := jsonb_build_object(
+      'Content-Type',  'application/json',
+      'Authorization', 'Bearer ' || v_service_key
+    ),
+    body    := '{}'::jsonb
+  );
+END;
+$function$
+
+
+
+CREATE OR REPLACE FUNCTION public.trigger_photo_storage_health_check()
+ RETURNS void
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public', 'extensions', 'vault'
+AS $function$
+DECLARE
+  v_project_url text;
+  v_service_key text;
+BEGIN
+  SELECT decrypted_secret INTO v_project_url FROM vault.decrypted_secrets WHERE name = 'project_url';
+  SELECT decrypted_secret INTO v_service_key FROM vault.decrypted_secrets WHERE name = 'service_role_key';
+
+  IF v_project_url IS NULL OR v_service_key IS NULL THEN
+    RAISE WARNING 'Photo storage warning check skipped because its server credentials are not configured.';
+    RETURN;
+  END IF;
+
+  PERFORM net.http_post(
+    url     := v_project_url || '/functions/v1/photo-storage-health',
+    headers := jsonb_build_object(
+      'Content-Type',  'application/json',
+      'Authorization', 'Bearer ' || v_service_key
+    ),
+    body    := '{}'::jsonb
+  );
+END;
+$function$
+
+
+
+CREATE OR REPLACE FUNCTION public.trigger_scheduled_old_photo_cleanup()
+ RETURNS void
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public', 'extensions', 'vault'
+AS $function$
+DECLARE
+  v_project_url text;
+  v_service_key text;
+BEGIN
+  SELECT decrypted_secret INTO v_project_url FROM vault.decrypted_secrets WHERE name = 'project_url';
+  SELECT decrypted_secret INTO v_service_key FROM vault.decrypted_secrets WHERE name = 'service_role_key';
+
+  IF v_project_url IS NULL OR v_service_key IS NULL THEN
+    RAISE WARNING 'Scheduled old-photo cleanup skipped because its server credentials are not configured.';
+    RETURN;
+  END IF;
+
+  PERFORM net.http_post(
+    url     := v_project_url || '/functions/v1/archive-expired-evidence-photos',
+    headers := jsonb_build_object(
+      'Content-Type',  'application/json',
+      'Authorization', 'Bearer ' || v_service_key
+    ),
+    body    := '{}'::jsonb
+  );
+END;
+$function$
+
+
+
 CREATE OR REPLACE FUNCTION public.update_order_payment_totals()
  RETURNS trigger
  LANGUAGE plpgsql
@@ -2634,11 +3138,6 @@ REVOKE ALL ON FUNCTION public.auto_resolve_stale_conversations() FROM anon;
 REVOKE ALL ON FUNCTION public.auto_resolve_stale_conversations() FROM authenticated;
 GRANT EXECUTE ON FUNCTION public.auto_resolve_stale_conversations() TO service_role;
 
-REVOKE ALL ON FUNCTION public.cancel_own_pending_order(p_order_id uuid) FROM PUBLIC;
-REVOKE ALL ON FUNCTION public.cancel_own_pending_order(p_order_id uuid) FROM anon;
-REVOKE ALL ON FUNCTION public.cancel_own_pending_order(p_order_id uuid) FROM authenticated;
-GRANT EXECUTE ON FUNCTION public.cancel_own_pending_order(p_order_id uuid) TO service_role;
-
 REVOKE ALL ON FUNCTION public.claim_contact_inquiry_push(p_inquiry_id uuid) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.claim_contact_inquiry_push(p_inquiry_id uuid) FROM anon;
 REVOKE ALL ON FUNCTION public.claim_contact_inquiry_push(p_inquiry_id uuid) FROM authenticated;
@@ -2667,20 +3166,43 @@ REVOKE ALL ON FUNCTION public.derive_payment_status(p_shipping_cost numeric, p_a
 GRANT EXECUTE ON FUNCTION public.derive_payment_status(p_shipping_cost numeric, p_amount_paid numeric) TO service_role;
 GRANT EXECUTE ON FUNCTION public.derive_payment_status(p_shipping_cost numeric, p_amount_paid numeric) TO authenticated;
 
+REVOKE ALL ON FUNCTION public.get_expired_evidence_orders(p_cutoff timestamp with time zone) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.get_expired_evidence_orders(p_cutoff timestamp with time zone) FROM anon;
+REVOKE ALL ON FUNCTION public.get_expired_evidence_orders(p_cutoff timestamp with time zone) FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.get_expired_evidence_orders(p_cutoff timestamp with time zone) TO service_role;
+
 REVOKE ALL ON FUNCTION public.get_order_status_counts() FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.get_order_status_counts() FROM anon;
 REVOKE ALL ON FUNCTION public.get_order_status_counts() FROM authenticated;
 GRANT EXECUTE ON FUNCTION public.get_order_status_counts() TO service_role;
 GRANT EXECUTE ON FUNCTION public.get_order_status_counts() TO authenticated;
 
-REVOKE ALL ON FUNCTION public.is_featured_photo_path(p_path text) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.is_featured_photo_path(p_path text) TO anon;
-GRANT EXECUTE ON FUNCTION public.is_featured_photo_path(p_path text) TO authenticated;
+REVOKE ALL ON FUNCTION public.get_photo_storage_live_usage() FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.get_photo_storage_live_usage() FROM anon;
+REVOKE ALL ON FUNCTION public.get_photo_storage_live_usage() FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.get_photo_storage_live_usage() TO service_role;
+GRANT EXECUTE ON FUNCTION public.get_photo_storage_live_usage() TO authenticated;
+
+REVOKE ALL ON FUNCTION public.guard_chat_message_update() FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.guard_chat_message_update() FROM anon;
+REVOKE ALL ON FUNCTION public.guard_chat_message_update() FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.guard_chat_message_update() TO service_role;
+
+REVOKE ALL ON FUNCTION public.list_orphaned_evidence_photos() FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.list_orphaned_evidence_photos() FROM anon;
+REVOKE ALL ON FUNCTION public.list_orphaned_evidence_photos() FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.list_orphaned_evidence_photos() TO service_role;
+GRANT EXECUTE ON FUNCTION public.list_orphaned_evidence_photos() TO authenticated;
 
 REVOKE ALL ON FUNCTION public.purge_old_activity_logs() FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.purge_old_activity_logs() FROM anon;
 REVOKE ALL ON FUNCTION public.purge_old_activity_logs() FROM authenticated;
 GRANT EXECUTE ON FUNCTION public.purge_old_activity_logs() TO service_role;
+
+REVOKE ALL ON FUNCTION public.queue_expired_evidence_cleanup(p_order_ids uuid[], p_items jsonb) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.queue_expired_evidence_cleanup(p_order_ids uuid[], p_items jsonb) FROM anon;
+REVOKE ALL ON FUNCTION public.queue_expired_evidence_cleanup(p_order_ids uuid[], p_items jsonb) FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.queue_expired_evidence_cleanup(p_order_ids uuid[], p_items jsonb) TO service_role;
 
 REVOKE ALL ON FUNCTION public.reassign_trip(p_order_id uuid, p_new_trip_id uuid, p_reason text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.reassign_trip(p_order_id uuid, p_new_trip_id uuid, p_reason text) FROM anon;
@@ -2698,6 +3220,11 @@ REVOKE ALL ON FUNCTION public.record_delivery_payment(p_order_id uuid, p_deliver
 REVOKE ALL ON FUNCTION public.record_delivery_payment(p_order_id uuid, p_delivery_photos jsonb, p_payment_method text, p_amount numeric, p_reference text, p_payment_date date, p_receipt_url text, p_payment_type text, p_notes text, p_promised_payment_date date) FROM authenticated;
 GRANT EXECUTE ON FUNCTION public.record_delivery_payment(p_order_id uuid, p_delivery_photos jsonb, p_payment_method text, p_amount numeric, p_reference text, p_payment_date date, p_receipt_url text, p_payment_type text, p_notes text, p_promised_payment_date date) TO service_role;
 GRANT EXECUTE ON FUNCTION public.record_delivery_payment(p_order_id uuid, p_delivery_photos jsonb, p_payment_method text, p_amount numeric, p_reference text, p_payment_date date, p_receipt_url text, p_payment_type text, p_notes text, p_promised_payment_date date) TO authenticated;
+
+REVOKE ALL ON FUNCTION public.record_photo_cleanup_queue_result(p_ids bigint[], p_error text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.record_photo_cleanup_queue_result(p_ids bigint[], p_error text) FROM anon;
+REVOKE ALL ON FUNCTION public.record_photo_cleanup_queue_result(p_ids bigint[], p_error text) FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.record_photo_cleanup_queue_result(p_ids bigint[], p_error text) TO service_role;
 
 REVOKE ALL ON FUNCTION public.record_pickup_payment(p_order_id uuid, p_actual_weight numeric, p_payment_method text, p_payer_type text, p_pickup_photos jsonb, p_promised_payment_date date, p_amount numeric, p_reference text, p_payment_date date, p_receipt_url text, p_payment_type text, p_notes text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.record_pickup_payment(p_order_id uuid, p_actual_weight numeric, p_payment_method text, p_payer_type text, p_pickup_photos jsonb, p_promised_payment_date date, p_amount numeric, p_reference text, p_payment_date date, p_receipt_url text, p_payment_type text, p_notes text) FROM anon;
@@ -2728,15 +3255,26 @@ REVOKE ALL ON FUNCTION public.review_order_cancellation(p_order_id uuid, p_appro
 GRANT EXECUTE ON FUNCTION public.review_order_cancellation(p_order_id uuid, p_approve boolean, p_notes text) TO service_role;
 GRANT EXECUTE ON FUNCTION public.review_order_cancellation(p_order_id uuid, p_approve boolean, p_notes text) TO authenticated;
 
-REVOKE ALL ON FUNCTION public.guard_chat_message_update() FROM PUBLIC;
-REVOKE ALL ON FUNCTION public.guard_chat_message_update() FROM anon;
-REVOKE ALL ON FUNCTION public.guard_chat_message_update() FROM authenticated;
-
 REVOKE ALL ON FUNCTION public.search_conversation_messages(p_query text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.search_conversation_messages(p_query text) FROM anon;
 REVOKE ALL ON FUNCTION public.search_conversation_messages(p_query text) FROM authenticated;
 GRANT EXECUTE ON FUNCTION public.search_conversation_messages(p_query text) TO service_role;
 GRANT EXECUTE ON FUNCTION public.search_conversation_messages(p_query text) TO authenticated;
+
+REVOKE ALL ON FUNCTION public.trigger_daily_payment_reminders() FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.trigger_daily_payment_reminders() FROM anon;
+REVOKE ALL ON FUNCTION public.trigger_daily_payment_reminders() FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.trigger_daily_payment_reminders() TO service_role;
+
+REVOKE ALL ON FUNCTION public.trigger_photo_storage_health_check() FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.trigger_photo_storage_health_check() FROM anon;
+REVOKE ALL ON FUNCTION public.trigger_photo_storage_health_check() FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.trigger_photo_storage_health_check() TO service_role;
+
+REVOKE ALL ON FUNCTION public.trigger_scheduled_old_photo_cleanup() FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.trigger_scheduled_old_photo_cleanup() FROM anon;
+REVOKE ALL ON FUNCTION public.trigger_scheduled_old_photo_cleanup() FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.trigger_scheduled_old_photo_cleanup() TO service_role;
 
 
 -- ============================================================
@@ -2749,11 +3287,11 @@ CREATE TRIGGER activity_logs_guard_insert BEFORE INSERT ON activity_logs FOR EAC
 DROP TRIGGER IF EXISTS announcements_updated_at ON public.announcements;
 CREATE TRIGGER announcements_updated_at BEFORE UPDATE ON announcements FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
-DROP TRIGGER IF EXISTS chat_messages_guard_insert ON public.chat_messages;
-CREATE TRIGGER chat_messages_guard_insert BEFORE INSERT ON chat_messages FOR EACH ROW EXECUTE FUNCTION guard_chat_message_insert();
-
 DROP TRIGGER IF EXISTS chat_messages_guard_customer_update ON public.chat_messages;
 CREATE TRIGGER chat_messages_guard_customer_update BEFORE UPDATE ON chat_messages FOR EACH ROW EXECUTE FUNCTION guard_chat_message_update();
+
+DROP TRIGGER IF EXISTS chat_messages_guard_insert ON public.chat_messages;
+CREATE TRIGGER chat_messages_guard_insert BEFORE INSERT ON chat_messages FOR EACH ROW EXECUTE FUNCTION guard_chat_message_insert();
 
 DROP TRIGGER IF EXISTS chat_messages_maintain_service_state ON public.chat_messages;
 CREATE TRIGGER chat_messages_maintain_service_state AFTER INSERT ON chat_messages FOR EACH ROW EXECUTE FUNCTION maintain_conversation_service_state();
@@ -2806,7 +3344,6 @@ CREATE TRIGGER profiles_guard_write BEFORE INSERT OR UPDATE ON profiles FOR EACH
 DROP TRIGGER IF EXISTS profiles_updated_at ON public.profiles;
 CREATE TRIGGER profiles_updated_at BEFORE UPDATE ON profiles FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
-DROP TRIGGER IF EXISTS trips_guard_completion ON public.trips;
 DROP TRIGGER IF EXISTS trips_guard_status_transition ON public.trips;
 CREATE TRIGGER trips_guard_status_transition BEFORE UPDATE OF status ON trips FOR EACH ROW EXECUTE FUNCTION guard_trip_status_transition();
 
@@ -2877,6 +3414,12 @@ CREATE INDEX IF NOT EXISTS idx_payment_transactions_order_id ON public.payment_t
 CREATE INDEX IF NOT EXISTS idx_payment_transactions_order_method ON public.payment_transactions USING btree (order_id, payment_method);
 
 CREATE UNIQUE INDEX IF NOT EXISTS unique_tx_ref ON public.payment_transactions USING btree (transaction_reference) WHERE (transaction_reference IS NOT NULL);
+
+CREATE INDEX IF NOT EXISTS photo_storage_events_created_at_idx ON public.photo_storage_events USING btree (created_at DESC);
+
+CREATE INDEX IF NOT EXISTS photo_storage_events_order_id_idx ON public.photo_storage_events USING btree (order_id) WHERE (order_id IS NOT NULL);
+
+CREATE INDEX IF NOT EXISTS photo_storage_events_provider_outcome_idx ON public.photo_storage_events USING btree (provider, outcome, created_at DESC);
 
 CREATE INDEX IF NOT EXISTS idx_profiles_role ON public.profiles USING btree (role);
 
@@ -3011,13 +3554,6 @@ CREATE POLICY "Admins can view inquiries" ON public.contact_inquiries
   USING ((EXISTS ( SELECT 1
    FROM profiles
   WHERE ((profiles.id = auth.uid()) AND ((profiles.role)::text = 'admin'::text)))));
-
--- No INSERT policy: anon/authenticated get RLS's default-deny. Every
--- submission goes through the submit-inquiry Edge Function's service_role
--- client, which bypasses RLS. See 20260829150000_revoke_public_inquiry_insert.sql.
-
-COMMENT ON TABLE public.contact_inquiries IS
-  'Public contact inquiries. No INSERT policy is granted to anon/authenticated by design -- every submission must go through the submit-inquiry Edge Function (service_role), which validates input server-side and stamps the server-owned ip column that guard_contact_inquiry_rate_limit depends on.';
 
 ALTER TABLE public.conversations ENABLE ROW LEVEL SECURITY;
 
@@ -3217,6 +3753,18 @@ CREATE POLICY "Customers can view their own payment transactions" ON public.paym
    FROM orders
   WHERE ((orders.id = payment_transactions.order_id) AND (orders.user_id = auth.uid())))));
 
+ALTER TABLE public.photo_cleanup_queue ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE public.photo_storage_events ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Admins view photo storage events" ON public.photo_storage_events;
+CREATE POLICY "Admins view photo storage events" ON public.photo_storage_events
+  FOR SELECT
+  TO authenticated
+  USING (is_admin());
+
+ALTER TABLE public.photo_storage_settings ENABLE ROW LEVEL SECURITY;
+
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Admins can update profiles" ON public.profiles;
@@ -3310,21 +3858,23 @@ INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_typ
 INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
   VALUES ('company-assets', 'company-assets', true, 5242880, ARRAY['image/jpeg', 'image/png', 'image/webp'])
   ON CONFLICT (id) DO UPDATE SET public = EXCLUDED.public, file_size_limit = EXCLUDED.file_size_limit, allowed_mime_types = EXCLUDED.allowed_mime_types;
-INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
-  VALUES ('public_assets', 'public_assets', true, NULL, NULL)
-  ON CONFLICT (id) DO UPDATE SET public = EXCLUDED.public, file_size_limit = EXCLUDED.file_size_limit, allowed_mime_types = EXCLUDED.allowed_mime_types;
 
 
 -- ============================================================
 -- STORAGE POLICIES
 -- ============================================================
 
-DROP POLICY IF EXISTS "Admins manage cargo photos" ON storage.objects;
-CREATE POLICY "Admins manage cargo photos" ON storage.objects
-  FOR ALL
+DROP POLICY IF EXISTS "Admins delete cargo photos" ON storage.objects;
+CREATE POLICY "Admins delete cargo photos" ON storage.objects
+  FOR DELETE
   TO authenticated
-  USING (((bucket_id = 'cargo-photos'::text) AND is_admin()))
-  WITH CHECK (((bucket_id = 'cargo-photos'::text) AND is_admin()));
+  USING (((bucket_id = 'cargo-photos'::text) AND is_admin()));
+
+DROP POLICY IF EXISTS "Admins insert cargo photos under active upload routing" ON storage.objects;
+CREATE POLICY "Admins insert cargo photos under active upload routing" ON storage.objects
+  FOR INSERT
+  TO authenticated
+  WITH CHECK (((bucket_id = 'cargo-photos'::text) AND is_supabase_evidence_upload_allowed(name)));
 
 DROP POLICY IF EXISTS "Admins manage company assets" ON storage.objects;
 CREATE POLICY "Admins manage company assets" ON storage.objects
@@ -3332,6 +3882,19 @@ CREATE POLICY "Admins manage company assets" ON storage.objects
   TO authenticated
   USING (((bucket_id = 'company-assets'::text) AND is_admin()))
   WITH CHECK (((bucket_id = 'company-assets'::text) AND is_admin()));
+
+DROP POLICY IF EXISTS "Admins read or delete cargo photos" ON storage.objects;
+CREATE POLICY "Admins read or delete cargo photos" ON storage.objects
+  FOR SELECT
+  TO authenticated
+  USING (((bucket_id = 'cargo-photos'::text) AND is_admin()));
+
+DROP POLICY IF EXISTS "Admins update cargo photos under active upload routing" ON storage.objects;
+CREATE POLICY "Admins update cargo photos under active upload routing" ON storage.objects
+  FOR UPDATE
+  TO authenticated
+  USING (((bucket_id = 'cargo-photos'::text) AND is_admin()))
+  WITH CHECK (((bucket_id = 'cargo-photos'::text) AND is_supabase_evidence_upload_allowed(name)));
 
 DROP POLICY IF EXISTS "Public read company assets" ON storage.objects;
 CREATE POLICY "Public read company assets" ON storage.objects
@@ -3360,21 +3923,30 @@ CREATE POLICY "Users read own cargo photos" ON storage.objects
 SELECT cron.schedule('0 3 * * *', $cron$SELECT public.purge_old_activity_logs()$cron$);
 SELECT cron.schedule('30 3 * * *', $cron$SELECT public.auto_resolve_stale_conversations()$cron$);
 SELECT cron.schedule('0 4 * * *', $cron$SELECT public.purge_old_delivery_attempts()$cron$);
+SELECT cron.schedule('0 0 * * *', $cron$SELECT public.trigger_daily_payment_reminders()$cron$);
+SELECT cron.schedule('scheduled_old_photo_cleanup', '30 1 * * *', $cron$SELECT public.trigger_scheduled_old_photo_cleanup()$cron$);
+SELECT cron.schedule('photo_storage_health_check', '15 */6 * * *', $cron$SELECT public.trigger_photo_storage_health_check()$cron$);
 
 
 -- ============================================================
 -- COLUMN COMMENTS
 -- ============================================================
 COMMENT ON COLUMN public.announcements.comments IS 'Append-only array of {id, user_id, name, text, created_at}. Written only by add_announcement_comment().';
+COMMENT ON COLUMN public.announcements.send_email IS 'Admin requested an email broadcast to opted-in subscribers when this announcement was published.';
+COMMENT ON COLUMN public.announcements.emailed_at IS 'Set by the broadcast-announcement Edge Function once the send completes. NULL means not sent (or not requested).';
 COMMENT ON COLUMN public.contact_inquiries.assigned_admin_id IS 'Who owns this inquiry. NULL = unclaimed.';
 COMMENT ON COLUMN public.contact_inquiries.first_response_at IS 'When an admin first actioned it. Stamped by trigger on the move out of ''new''.';
 COMMENT ON COLUMN public.contact_inquiries.push_dispatched_at IS 'Set after the public contact inquiry push dispatch is claimed.';
 COMMENT ON COLUMN public.contact_inquiries.push_dispatch_started_at IS 'Start time of the current short-lived push dispatch lease.';
 COMMENT ON COLUMN public.contact_inquiries.push_dispatch_claim_id IS 'Lease token used to complete or release the current contact push dispatch.';
+COMMENT ON COLUMN public.contact_inquiries.wants_announcements IS 'Visitor opted in, on the public contact form, to receive trip/promo/announcement emails.';
 COMMENT ON COLUMN public.conversations.escalated IS 'Bot matched an escalation pattern, or the customer asked for a human. A flag, not a state.';
 COMMENT ON COLUMN public.conversations.first_response_at IS 'First admin message in this conversation. Set once, server-side; never rewritten.';
 COMMENT ON COLUMN public.conversations.bot_resolved IS 'NULL = unknown. TRUE/FALSE only once the customer answers the thumbs prompt.';
-COMMENT ON COLUMN public.orders.cancellation_details IS 'JSONB object containing all cancellation metadata: reason, requested_at, previous_status, reviewed_by, reviewed_at, review_notes.';
+COMMENT ON COLUMN public.orders.last_reminder_sent_at IS 'Last time an overdue-payment reminder email was sent for this order. Set by the process-daily-reminders Edge Function; prevents re-emailing the same order twice in one day.';
+COMMENT ON COLUMN public.profiles.wants_announcements IS 'Customer opted in, from their profile preferences, to receive announcement emails. Defaults false — account creation alone is not marketing consent.';
+COMMENT ON COLUMN public.trips.departure_date IS 'Admin-scheduled departure DATE (Manila calendar day). Date-only as of this migration -- the UI collects no time-of-day. See guard_customer_order_insert() for the booking-cutoff rule, and departure_at for when the trip actually left.';
+COMMENT ON COLUMN public.trips.departure_at IS 'Actual departure instant, stamped by guard_trip_status_transition() the moment status moves to in_progress (Start Trip). NULL until then. Never accepted from the client -- the trigger is the only writer.';
 COMMENT ON COLUMN public.user_device_tokens.device_id IS 'Stable browser/PWA installation identifier. One user may have many device rows.';
 
 
@@ -3387,190 +3959,4 @@ ALTER PUBLICATION supabase_realtime ADD TABLE IF NOT EXISTS public.contact_inqui
 ALTER PUBLICATION supabase_realtime ADD TABLE IF NOT EXISTS public.conversations;
 ALTER PUBLICATION supabase_realtime ADD TABLE IF NOT EXISTS public.notifications;
 ALTER PUBLICATION supabase_realtime ADD TABLE IF NOT EXISTS public.orders;
-
-
-CREATE OR REPLACE FUNCTION public.purge_old_delivery_attempts()
- RETURNS void
- LANGUAGE plpgsql
- SECURITY DEFINER
- SET search_path TO 'public'
-AS $function$
-BEGIN
-  DELETE FROM public.notification_delivery_attempts
-  WHERE attempted_at < now() - interval '7 days';
-END;
-$function$;
-
-
--- ============================================================
--- PHOTO STORAGE MONITORING AND NEW-UPLOAD ROUTING
--- ============================================================
--- This switch never changes the cargo-photos bucket or existing descriptors.
-CREATE TABLE IF NOT EXISTS public.photo_storage_settings (
-  id BOOLEAN PRIMARY KEY DEFAULT TRUE CHECK (id),
-  upload_mode TEXT NOT NULL DEFAULT 'automatic' CHECK (upload_mode IN ('automatic', 'force_firebase')),
-  force_firebase_expires_at TIMESTAMPTZ,
-  reason TEXT,
-  updated_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  CONSTRAINT force_firebase_requires_expiry CHECK (
-    (upload_mode = 'automatic' AND force_firebase_expires_at IS NULL)
-    OR (upload_mode = 'force_firebase' AND force_firebase_expires_at IS NOT NULL)
-  ),
-  CONSTRAINT photo_storage_settings_reason_length CHECK (char_length(COALESCE(reason, '')) <= 500)
-);
-INSERT INTO public.photo_storage_settings (id, upload_mode) VALUES (TRUE, 'automatic') ON CONFLICT (id) DO NOTHING;
-
-CREATE TABLE IF NOT EXISTS public.photo_storage_events (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  event_type TEXT NOT NULL CHECK (event_type IN ('upload', 'mode_change', 'health_check')),
-  provider TEXT NOT NULL CHECK (provider IN ('supabase', 'firebase', 'system')),
-  outcome TEXT NOT NULL CHECK (outcome IN ('success', 'failure', 'expired')),
-  photo_type TEXT CHECK (photo_type IN ('pickup', 'delivery', 'receipt')),
-  order_id UUID REFERENCES public.orders(id) ON DELETE SET NULL,
-  storage_path TEXT,
-  size_bytes BIGINT CHECK (size_bytes IS NULL OR size_bytes >= 0),
-  message TEXT,
-  metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
-  created_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  CONSTRAINT photo_storage_events_message_length CHECK (char_length(COALESCE(message, '')) <= 500)
-);
-CREATE INDEX IF NOT EXISTS photo_storage_events_created_at_idx ON public.photo_storage_events (created_at DESC);
-CREATE INDEX IF NOT EXISTS photo_storage_events_order_id_idx ON public.photo_storage_events (order_id) WHERE order_id IS NOT NULL;
-CREATE INDEX IF NOT EXISTS photo_storage_events_provider_outcome_idx ON public.photo_storage_events (provider, outcome, created_at DESC);
-
-CREATE OR REPLACE FUNCTION public.get_effective_photo_storage_mode()
-RETURNS TABLE(upload_mode TEXT, force_firebase_expires_at TIMESTAMPTZ, updated_at TIMESTAMPTZ, updated_by UUID, reason TEXT)
-LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $function$
-DECLARE v_settings public.photo_storage_settings%ROWTYPE;
-BEGIN
-  IF NOT public.is_admin() THEN RAISE EXCEPTION 'Admin access required' USING ERRCODE = '42501'; END IF;
-  SELECT * INTO v_settings FROM public.photo_storage_settings WHERE id = TRUE FOR UPDATE;
-  IF v_settings.upload_mode = 'force_firebase' AND v_settings.force_firebase_expires_at <= now() THEN
-    UPDATE public.photo_storage_settings SET upload_mode = 'automatic', force_firebase_expires_at = NULL,
-      reason = 'Force Firebase mode expired automatically.', updated_by = NULL, updated_at = now()
-      WHERE id = TRUE RETURNING * INTO v_settings;
-    INSERT INTO public.photo_storage_events (event_type, provider, outcome, message, metadata)
-      VALUES ('mode_change', 'system', 'expired', 'Force Firebase mode expired and Automatic mode resumed.', jsonb_build_object('upload_mode', 'automatic'));
-  END IF;
-  RETURN QUERY SELECT v_settings.upload_mode, v_settings.force_firebase_expires_at, v_settings.updated_at, v_settings.updated_by, v_settings.reason;
-END;
-$function$;
-
-CREATE OR REPLACE FUNCTION public.is_supabase_evidence_upload_allowed(p_path TEXT)
-RETURNS BOOLEAN LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $function$
-  SELECT public.is_admin() AND (
-    (storage.foldername(p_path))[1] NOT IN ('pickup', 'delivery', 'receipts', 'pickup-proofs', 'delivery-proofs')
-    OR COALESCE((SELECT (ps.upload_mode = 'automatic' OR ps.force_firebase_expires_at <= now()) FROM public.photo_storage_settings ps WHERE ps.id = TRUE), TRUE)
-  );
-$function$;
-
-CREATE OR REPLACE FUNCTION public.set_photo_storage_mode(
-  p_upload_mode TEXT, p_reason TEXT DEFAULT NULL, p_force_firebase_expires_at TIMESTAMPTZ DEFAULT NULL
-)
-RETURNS TABLE(upload_mode TEXT, force_firebase_expires_at TIMESTAMPTZ, updated_at TIMESTAMPTZ, updated_by UUID, reason TEXT)
-LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $function$
-DECLARE v_previous_mode TEXT; v_settings public.photo_storage_settings%ROWTYPE;
-BEGIN
-  IF NOT public.is_admin() THEN RAISE EXCEPTION 'Admin access required' USING ERRCODE = '42501'; END IF;
-  IF p_upload_mode NOT IN ('automatic', 'force_firebase') THEN RAISE EXCEPTION 'Invalid upload mode' USING ERRCODE = '22023'; END IF;
-  IF char_length(COALESCE(p_reason, '')) > 500 THEN RAISE EXCEPTION 'Reason is too long' USING ERRCODE = '22001'; END IF;
-  IF p_upload_mode = 'force_firebase' THEN
-    IF p_force_firebase_expires_at IS NULL OR p_force_firebase_expires_at <= now() OR p_force_firebase_expires_at > now() + INTERVAL '24 hours' THEN
-      RAISE EXCEPTION 'Force Firebase expiry must be within the next 24 hours' USING ERRCODE = '22023';
-    END IF;
-  ELSE p_force_firebase_expires_at := NULL; END IF;
-  SELECT pss.upload_mode INTO v_previous_mode FROM public.photo_storage_settings pss WHERE pss.id = TRUE FOR UPDATE;
-  UPDATE public.photo_storage_settings SET upload_mode = p_upload_mode, force_firebase_expires_at = p_force_firebase_expires_at,
-    reason = NULLIF(btrim(p_reason), ''), updated_by = auth.uid(), updated_at = now()
-    WHERE id = TRUE RETURNING * INTO v_settings;
-  INSERT INTO public.photo_storage_events (event_type, provider, outcome, message, metadata, created_by) VALUES (
-    'mode_change', 'system', 'success',
-    CASE WHEN p_upload_mode = 'force_firebase' THEN 'New evidence uploads are routed directly to Firebase fallback.' ELSE 'New evidence uploads use Supabase first with Firebase fallback.' END,
-    jsonb_build_object('previous_mode', COALESCE(v_previous_mode, 'automatic'), 'upload_mode', p_upload_mode,
-      'force_firebase_expires_at', p_force_firebase_expires_at, 'reason', NULLIF(btrim(p_reason), '')), auth.uid()
-  );
-  RETURN QUERY SELECT v_settings.upload_mode, v_settings.force_firebase_expires_at, v_settings.updated_at, v_settings.updated_by, v_settings.reason;
-END;
-$function$;
-
-CREATE OR REPLACE FUNCTION public.get_photo_storage_summary()
-RETURNS TABLE(supabase_photo_count BIGINT, firebase_photo_count BIGINT, legacy_photo_count BIGINT,
-  pickup_photo_count BIGINT, delivery_photo_count BIGINT, receipt_photo_count BIGINT,
-  failures_last_24h BIGINT, fallbacks_last_24h BIGINT, last_supabase_upload_at TIMESTAMPTZ, last_firebase_upload_at TIMESTAMPTZ)
-LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $function$
-BEGIN
-  IF NOT public.is_admin() THEN RAISE EXCEPTION 'Admin access required' USING ERRCODE = '42501'; END IF;
-  RETURN QUERY WITH refs AS (
-    SELECT 'pickup'::TEXT AS photo_type, jsonb_array_elements(COALESCE(o.pickup_photos, '[]'::jsonb)) AS ref FROM public.orders o
-    UNION ALL SELECT 'delivery'::TEXT, jsonb_array_elements(COALESCE(o.delivery_photos, '[]'::jsonb)) FROM public.orders o
-    UNION ALL SELECT 'receipt'::TEXT, to_jsonb(t.receipt_url) FROM public.payment_transactions t WHERE t.receipt_url IS NOT NULL AND btrim(t.receipt_url) <> ''
-  ), classified AS (
-    SELECT photo_type, CASE
-      WHEN jsonb_typeof(ref) = 'object' AND (ref ->> 'type' = 'firestore_fallback' OR ref ? 'firestore_path') THEN 'firebase'
-      WHEN jsonb_typeof(ref) = 'string' AND (ref #>> '{}') LIKE 'photoFallbacks/%' THEN 'firebase'
-      WHEN jsonb_typeof(ref) = 'string' AND (ref #>> '{}') LIKE '%"firestore_path"%' THEN 'firebase'
-      WHEN jsonb_typeof(ref) = 'object' AND (ref ->> 'type' = 'supabase_storage' OR ref ? 'path') THEN 'supabase'
-      ELSE 'legacy' END AS provider FROM refs
-  ) SELECT
-    (SELECT count(*) FROM classified WHERE provider = 'supabase'), (SELECT count(*) FROM classified WHERE provider = 'firebase'),
-    (SELECT count(*) FROM classified WHERE provider = 'legacy'), (SELECT count(*) FROM classified WHERE photo_type = 'pickup'),
-    (SELECT count(*) FROM classified WHERE photo_type = 'delivery'), (SELECT count(*) FROM classified WHERE photo_type = 'receipt'),
-    (SELECT count(*) FROM public.photo_storage_events WHERE event_type = 'upload' AND outcome = 'failure' AND created_at >= now() - INTERVAL '24 hours'),
-    (SELECT count(*) FROM public.photo_storage_events WHERE event_type = 'upload' AND provider = 'firebase' AND outcome = 'success' AND created_at >= now() - INTERVAL '24 hours'),
-    (SELECT max(created_at) FROM public.photo_storage_events WHERE event_type = 'upload' AND provider = 'supabase' AND outcome = 'success'),
-    (SELECT max(created_at) FROM public.photo_storage_events WHERE event_type = 'upload' AND provider = 'firebase' AND outcome = 'success');
-END;
-$function$;
-
-ALTER TABLE public.photo_storage_settings ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.photo_storage_events ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "Admins view photo storage events" ON public.photo_storage_events;
-CREATE POLICY "Admins view photo storage events" ON public.photo_storage_events FOR SELECT TO authenticated USING (public.is_admin());
-GRANT SELECT ON public.photo_storage_events TO authenticated;
-REVOKE ALL ON public.photo_storage_settings FROM PUBLIC, anon, authenticated;
-REVOKE ALL ON public.photo_storage_events FROM PUBLIC, anon;
-REVOKE ALL ON FUNCTION public.get_effective_photo_storage_mode() FROM PUBLIC;
-REVOKE ALL ON FUNCTION public.is_supabase_evidence_upload_allowed(TEXT) FROM PUBLIC;
-REVOKE ALL ON FUNCTION public.set_photo_storage_mode(TEXT, TEXT, TIMESTAMPTZ) FROM PUBLIC;
-REVOKE ALL ON FUNCTION public.get_photo_storage_summary() FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.get_effective_photo_storage_mode() TO authenticated;
-GRANT EXECUTE ON FUNCTION public.is_supabase_evidence_upload_allowed(TEXT) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.set_photo_storage_mode(TEXT, TEXT, TIMESTAMPTZ) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.get_photo_storage_summary() TO authenticated;
 ALTER PUBLICATION supabase_realtime ADD TABLE IF NOT EXISTS public.photo_storage_events;
-
-DROP POLICY IF EXISTS "Admins manage cargo photos" ON storage.objects;
-DROP POLICY IF EXISTS "Admins read or delete cargo photos" ON storage.objects;
-DROP POLICY IF EXISTS "Admins delete cargo photos" ON storage.objects;
-DROP POLICY IF EXISTS "Admins insert cargo photos under active upload routing" ON storage.objects;
-DROP POLICY IF EXISTS "Admins update cargo photos under active upload routing" ON storage.objects;
-CREATE POLICY "Admins read or delete cargo photos" ON storage.objects FOR SELECT TO authenticated USING (bucket_id = 'cargo-photos' AND public.is_admin());
-CREATE POLICY "Admins delete cargo photos" ON storage.objects FOR DELETE TO authenticated USING (bucket_id = 'cargo-photos' AND public.is_admin());
-CREATE POLICY "Admins insert cargo photos under active upload routing" ON storage.objects FOR INSERT TO authenticated WITH CHECK (bucket_id = 'cargo-photos' AND public.is_supabase_evidence_upload_allowed(name));
-CREATE POLICY "Admins update cargo photos under active upload routing" ON storage.objects FOR UPDATE TO authenticated USING (bucket_id = 'cargo-photos' AND public.is_admin()) WITH CHECK (bucket_id = 'cargo-photos' AND public.is_supabase_evidence_upload_allowed(name));
-
-
--- ============================================================
--- LIVE SUPABASE STORAGE USAGE
--- ============================================================
-CREATE OR REPLACE FUNCTION public.get_photo_storage_live_usage()
-RETURNS TABLE(total_size_bytes BIGINT, object_count BIGINT, buckets JSONB, measured_at TIMESTAMPTZ)
-LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $function$
-BEGIN
-  IF NOT public.is_admin() THEN
-    RAISE EXCEPTION 'Admin access required' USING ERRCODE = '42501';
-  END IF;
-  RETURN QUERY WITH bucket_usage AS (
-    SELECT o.bucket_id, count(*)::BIGINT AS object_count,
-      COALESCE(sum(CASE WHEN o.metadata ->> 'size' ~ '^[0-9]+$' THEN (o.metadata ->> 'size')::BIGINT ELSE 0 END), 0)::BIGINT AS size_bytes
-    FROM storage.objects o GROUP BY o.bucket_id
-  ) SELECT COALESCE(sum(bu.size_bytes), 0)::BIGINT, COALESCE(sum(bu.object_count), 0)::BIGINT,
-    COALESCE(jsonb_agg(jsonb_build_object('bucket_id', bu.bucket_id, 'size_bytes', bu.size_bytes, 'object_count', bu.object_count)
-      ORDER BY bu.size_bytes DESC, bu.bucket_id), '[]'::JSONB), now()
-    FROM bucket_usage bu;
-END;
-$function$;
-REVOKE ALL ON FUNCTION public.get_photo_storage_live_usage() FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.get_photo_storage_live_usage() TO authenticated;

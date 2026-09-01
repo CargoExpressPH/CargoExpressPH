@@ -3255,20 +3255,44 @@ export const getPhotoStorageEvents = async (limit = 50) => {
   return data || [];
 };
 
+const photoFunctionError = async (error, fallbackMessage) => {
+  try {
+    const response = error?.context;
+    const body = response && typeof response.clone === 'function'
+      ? await response.clone().json()
+      : null;
+    if (body?.error) return new Error(body.error);
+  } catch {
+    // The response body is optional; use the safe message below when absent.
+  }
+  return new Error(error?.message || fallbackMessage);
+};
+
 export const checkPhotoStorageHealth = async () => {
   const { data, error } = await supabase.functions.invoke('photo-storage-health');
-  if (error) throw error;
+  if (error) throw await photoFunctionError(error, 'Could not check Photo Storage.');
   if (data?.error) throw new Error(data.error);
   return data;
 };
 
-// Scans pickup-proofs/delivery-proofs/receipts for evidence whose
-// tracking-number folder no longer matches an order, and deletes it. The
-// list of what qualifies is computed server-side (list_orphaned_evidence_photos)
-// — this call never sends paths, so there is nothing here for a caller to redirect.
-export const cleanupOrphanedPhotos = async () => {
-  const { data, error } = await supabase.functions.invoke('cleanup-orphaned-photos');
-  if (error) throw error;
+// The server computes a read-only preview; no client-provided path can be
+// redirected at another file. Deletion requires the short-lived confirmation
+// token tied to the exact preview returned to this administrator.
+export const checkUnusedPhotos = async () => {
+  const { data, error } = await supabase.functions.invoke('cleanup-orphaned-photos', {
+    body: { action: 'preview' },
+  });
+  if (error) throw await photoFunctionError(error, 'Could not check unused photos.');
+  if (data?.error) throw new Error(data.error);
+  return data;
+};
+
+export const removeUnusedPhotos = async (confirmationToken) => {
+  if (!confirmationToken) throw new Error('Check unused photos again before deleting.');
+  const { data, error } = await supabase.functions.invoke('cleanup-orphaned-photos', {
+    body: { action: 'delete', confirmation_token: confirmationToken },
+  });
+  if (error) throw await photoFunctionError(error, 'Could not remove unused photos.');
   if (data?.error) throw new Error(data.error);
   return data;
 };

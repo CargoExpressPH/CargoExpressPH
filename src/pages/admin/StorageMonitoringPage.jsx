@@ -4,8 +4,8 @@ import {
   HardDrive, Loader, Radio, RefreshCw, ShieldCheck, Sparkles, XCircle, Zap,
 } from 'lucide-react';
 import {
-  checkPhotoStorageHealth, cleanupOrphanedPhotos, getPhotoStorageEvents,
-  getPhotoStorageMode, getPhotoStorageSummary, setPhotoStorageMode,
+  checkPhotoStorageHealth, checkUnusedPhotos, getPhotoStorageEvents,
+  getPhotoStorageMode, getPhotoStorageSummary, removeUnusedPhotos, setPhotoStorageMode,
 } from '../../lib/database';
 import { supabase } from '../../lib/supabase';
 import { useToast } from '../../hooks/useToast';
@@ -24,7 +24,8 @@ const FORCE_DURATIONS = [
   { value: 1440, label: '24 hours' },
 ];
 
-const providerLabel = (provider) => provider === 'firebase' ? 'Firebase fallback' : provider === 'supabase' ? 'Supabase Storage' : 'System';
+const providerLabel = (provider) => provider === 'firebase' ? 'Firebase Backup' : provider === 'supabase' ? 'Supabase' : 'Photo System';
+const photoTypeLabel = (type) => type === 'pickup' ? 'Pickup photo' : type === 'delivery' ? 'Delivery photo' : type === 'receipt' ? 'Receipt photo' : 'Photo';
 const number = (value) => Number(value || 0).toLocaleString('en-PH');
 const formatBytes = (value) => {
   if (value == null || !Number.isFinite(Number(value))) return 'Unavailable';
@@ -41,6 +42,53 @@ const planLabel = (plan) => plan && plan !== 'unknown'
   ? `${plan.charAt(0).toUpperCase()}${plan.slice(1)} Plan`
   : 'Plan unavailable';
 
+const storageAreaLabel = (bucketId) => bucketId === 'cargo-photos'
+  ? 'Shipment photos'
+  : bucketId === 'company-assets' ? 'Company images' : 'Other photos';
+
+const activityName = (event) => {
+  if (event.event_type === 'cleanup') {
+    return event.metadata?.cleanup_kind === 'scheduled_old_photos' || event.metadata?.cleanup_kind === 'auto_archive'
+      ? 'Old photos removed'
+      : 'Unused photos removed';
+  }
+  if (event.event_type === 'mode_change') return 'Photo saving preference changed';
+  if (event.event_type === 'health_check') return 'Storage check completed';
+  if (event.event_type === 'upload') return event.outcome === 'success' ? `${photoTypeLabel(event.photo_type)} saved` : `${photoTypeLabel(event.photo_type)} not saved`;
+  return 'Photo storage updated';
+};
+
+const activityStatus = (event) => event.outcome === 'failure'
+  ? 'Needs attention'
+  : event.outcome === 'expired' ? 'Ended automatically' : 'Completed';
+
+const activityDetails = (event) => {
+  const metadata = event.metadata || {};
+  if (event.event_type === 'cleanup') {
+    const oldPhotoCleanup = metadata.cleanup_kind === 'scheduled_old_photos' || metadata.cleanup_kind === 'auto_archive';
+    const removed = Number(oldPhotoCleanup ? metadata.files_deleted : metadata.deleted_count) || 0;
+    const failed = Number(oldPhotoCleanup
+      ? Number(metadata.orders_failed || 0) + Number(metadata.files_failed || 0)
+      : metadata.failed_count) || 0;
+    const pending = Number(metadata.files_pending || 0);
+    if (failed > 0) return `${removed} photo${removed === 1 ? '' : 's'} removed. The remaining work will be tried again automatically.`;
+    if (pending > 0) return `${removed} photo${removed === 1 ? '' : 's'} removed. ${pending} more ${pending === 1 ? 'photo is' : 'photos are'} waiting for the next cleanup.`;
+    return `${removed} photo${removed === 1 ? '' : 's'} permanently removed.`;
+  }
+  if (event.event_type === 'mode_change') {
+    return metadata.upload_mode === 'force_firebase'
+      ? 'New pickup, delivery, and receipt photos will use Firebase Backup for a limited time.'
+      : 'New photos will use Supabase first and Firebase Backup only when needed.';
+  }
+  if (event.event_type === 'upload') {
+    if (event.outcome === 'failure') return 'The photo could not be saved. Check the related order and try again.';
+    return event.provider === 'firebase'
+      ? 'The photo was safely saved in Firebase Backup.'
+      : 'The photo was saved in Supabase.';
+  }
+  return event.outcome === 'failure' ? 'The check found a problem that needs attention.' : 'The photo storage check finished successfully.';
+};
+
 const HealthBadge = ({ provider, health }) => {
   const healthy = health?.status === 'healthy';
   const unavailable = health?.status === 'unavailable';
@@ -50,18 +98,18 @@ const HealthBadge = ({ provider, health }) => {
       <div className="flex items-center justify-between gap-12">
         <div className="flex items-center gap-8"><Icon size={19} className="text-primary" /><strong>{providerLabel(provider)}</strong></div>
         <span className={`badge ${healthy ? 'badge-success' : unavailable ? 'badge-error' : 'badge-warning'}`}>
-          {healthy ? 'Healthy' : unavailable ? 'Unavailable' : 'Checking'}
+          {healthy ? 'Working' : unavailable ? 'Not available' : 'Checking'}
         </span>
       </div>
       <p className="text-sm text-secondary" style={{ margin: '10px 0 0' }}>
-        {healthy ? 'Connection was verified without changing stored photos.' : unavailable ? 'The latest non-destructive check could not verify this provider.' : 'Run a health check to verify this provider.'}
+        {healthy ? 'The latest connection check passed. No photos were changed.' : unavailable ? 'The latest check could not connect to this storage.' : 'Select Refresh to check this storage.'}
       </p>
     </div>
   );
 };
 
 const StorageMonitoringPage = () => {
-  usePageTitle('Photo Storage Monitoring');
+  usePageTitle('Photo Storage');
   const toast = useToast();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -76,6 +124,7 @@ const StorageMonitoringPage = () => {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [cleaning, setCleaning] = useState(false);
   const [cleanupConfirmOpen, setCleanupConfirmOpen] = useState(false);
+  const [cleanupPreview, setCleanupPreview] = useState(null);
   const timerRef = useRef(null);
 
   const load = useCallback(async ({ runHealth = true, quiet = false } = {}) => {
@@ -93,10 +142,10 @@ const StorageMonitoringPage = () => {
       if (eventsResult.status === 'fulfilled') setEvents(eventsResult.value);
       if (healthResult?.status === 'fulfilled') setHealth(healthResult.value);
       if (summaryResult.status === 'rejected' || eventsResult.status === 'rejected') {
-        toast.error('Storage settings loaded, but some monitoring data is unavailable.');
+        toast.error('Photo settings loaded, but some information could not be shown.');
       }
     } catch (error) {
-      toast.error(error?.message || 'Could not load photo storage monitoring.');
+      toast.error(error?.message || 'Could not load Photo Storage.');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -122,7 +171,7 @@ const StorageMonitoringPage = () => {
 
   const requestChange = () => {
     if (selectedMode === mode?.upload_mode && selectedMode !== 'force_firebase') {
-      toast.info('That upload mode is already active.');
+      toast.info('That photo saving option is already active.');
       return;
     }
     setConfirmOpen(true);
@@ -140,34 +189,52 @@ const StorageMonitoringPage = () => {
       setReason(updated?.reason || '');
       setConfirmOpen(false);
       toast.success(selectedMode === 'force_firebase'
-        ? `New evidence uploads will use Firebase until ${formatPhDateTime(expiresAt)}.`
-        : 'Automatic upload routing is active.');
+        ? `New photos will use Firebase Backup until ${formatPhDateTime(expiresAt)}.`
+        : 'Automatic photo saving is active.');
       await load({ runHealth: false, quiet: true });
     } catch (error) {
-      toast.error(error?.message || 'Could not change photo upload routing.');
+      toast.error(error?.message || 'Could not change where new photos are saved.');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const previewCleanup = async () => {
+    try {
+      setCleaning(true);
+      const preview = await checkUnusedPhotos();
+      if (!preview?.candidate_count) {
+        toast.success('No unused photos were found. Nothing was deleted.');
+        setCleanupPreview(null);
+        setCleanupConfirmOpen(false);
+        return;
+      }
+      setCleanupPreview(preview);
+      setCleanupConfirmOpen(true);
+    } catch (error) {
+      toast.error(error?.message || 'Could not check for unused photos.');
+    } finally {
+      setCleaning(false);
     }
   };
 
   const runCleanup = async () => {
     try {
       setCleaning(true);
-      const result = await cleanupOrphanedPhotos();
+      const result = await removeUnusedPhotos(cleanupPreview?.confirmation_token);
       setCleanupConfirmOpen(false);
+      setCleanupPreview(null);
       const deleted = result?.deleted_count || 0;
-      if (deleted === 0) {
-        toast.success('No orphaned photos found. Storage is already clean.');
-      } else {
-        const freed = formatBytes(result?.freed_bytes);
-        toast.success(`Cleanup removed ${deleted} orphaned file${deleted === 1 ? '' : 's'}${freed !== 'Unavailable' ? ` (${freed} freed)` : ''}.`);
-      }
+      const freed = formatBytes(result?.freed_bytes);
+      toast.success(`${deleted} unused photo${deleted === 1 ? '' : 's'} permanently removed${freed !== 'Unavailable' ? `, freeing ${freed}` : ''}.`);
       if (result?.failed_count) {
-        toast.error(`${result.failed_count} file(s) could not be removed. Check Recent storage activity.`);
+        toast.error(`${result.failed_count} photo${result.failed_count === 1 ? '' : 's'} could not be removed. See Recent Photo Activity.`);
       }
-      await load({ runHealth: false, quiet: true });
+      await load({ runHealth: true, quiet: true });
     } catch (error) {
-      toast.error(error?.message || 'Could not scan for orphaned photos.');
+      setCleanupConfirmOpen(false);
+      setCleanupPreview(null);
+      toast.error(error?.message || 'Could not remove unused photos. Check again and retry.');
     } finally {
       setCleaning(false);
     }
@@ -187,29 +254,30 @@ const StorageMonitoringPage = () => {
   // Firebase fallback = the photoFallbacks Firestore collection (there is no
   // Cloud Storage bucket in this app's Firebase project — see store-photo-fallback).
   const firebaseStorage = health?.firebase_storage;
-  const firebaseUsedBytes = firebaseStorage?.total_size_bytes == null ? null : Number(firebaseStorage.total_size_bytes);
-  const firebaseQuotaBytes = firebaseStorage?.included_bytes == null ? null : Number(firebaseStorage.included_bytes);
-  const firebaseUsagePercent = firebaseUsedBytes != null && firebaseQuotaBytes > 0 ? (firebaseUsedBytes / firebaseQuotaBytes) * 100 : null;
-  const firebaseBoundedPercent = firebaseUsagePercent == null ? 0 : Math.max(0, Math.min(firebaseUsagePercent, 100));
-  const firebaseUsageTone = firebaseUsagePercent >= 95 ? 'var(--error)' : firebaseUsagePercent >= 80 ? 'var(--warning)' : 'var(--success)';
+  const firebaseEstimatedBytes = firebaseStorage?.estimated_photo_data_bytes == null
+    ? null
+    : Number(firebaseStorage.estimated_photo_data_bytes);
+  const firebaseFreePlanReference = firebaseStorage?.free_tier_reference_bytes == null
+    ? null
+    : Number(firebaseStorage.free_tier_reference_bytes);
 
   const countCards = [
     { label: 'Supabase Photos', value: summary?.supabase_photo_count, icon: HardDrive },
     { label: 'Firebase Photos', value: summary?.firebase_photo_count, icon: Cloud },
-    { label: 'Fallbacks (24h)', value: summary?.fallbacks_last_24h, icon: CloudLightning },
-    { label: 'Upload failures (24h)', value: summary?.failures_last_24h, icon: AlertTriangle },
+    { label: 'Firebase Used (24h)', value: summary?.fallbacks_last_24h, icon: CloudLightning },
+    { label: 'Photos Not Saved (24h)', value: summary?.failures_last_24h, icon: AlertTriangle },
   ];
 
   return (
     <PageTransition>
       <div className="admin-page-header">
         <div>
-          <h1 className="admin-page-title"><Database size={24} color="var(--primary)" aria-hidden="true" />Photo Storage Monitoring</h1>
-          <p className="admin-page-subtitle">Monitor photo storage and choose the route for new shipment evidence uploads.</p>
+          <h1 className="admin-page-title"><Database size={24} color="var(--primary)" aria-hidden="true" />Photo Storage</h1>
+          <p className="admin-page-subtitle">See where photos are saved, check available space, and choose where new photos should go.</p>
         </div>
         <div className="flex gap-8">
-          <button className="btn btn-outline" type="button" onClick={() => setCleanupConfirmOpen(true)} disabled={cleaning}>
-            {cleaning ? <Loader size={16} className="animate-spin" /> : <Sparkles size={16} />} Scan and Clean Orphaned Photos
+          <button className="btn btn-outline" type="button" onClick={() => void previewCleanup()} disabled={cleaning}>
+            {cleaning ? <Loader size={16} className="animate-spin" /> : <Sparkles size={16} />} Check Unused Photos
           </button>
           <button className="btn btn-outline" type="button" onClick={() => void load({ runHealth: true, quiet: true })} disabled={refreshing}>
             {refreshing ? <Loader size={16} className="animate-spin" /> : <RefreshCw size={16} />} Refresh
@@ -219,11 +287,11 @@ const StorageMonitoringPage = () => {
 
       <div className={`alert-banner ${isForceActive ? 'alert-banner-warning' : 'alert-banner-success'} mb-16`} role="status">
         {isForceActive ? <Zap size={18} /> : <ShieldCheck size={18} />}
-        <span><strong>{isForceActive ? 'Force Firebase is active.' : 'Automatic routing is active.'}</strong>{' '}
+        <span><strong>{isForceActive ? 'Firebase Backup is temporarily handling new photos.' : 'Automatic photo saving is on.'}</strong>{' '}
           {isForceActive
-            ? `New pickup, delivery, and receipt photos go directly to Firebase until ${formatPhDateTime(mode?.force_firebase_expires_at)}.`
-            : 'New evidence uses Supabase first, then Firebase only if Supabase fails.'}
-          {' '}Existing Supabase photos remain readable in both modes.</span>
+            ? `This will return to Automatic on ${formatPhDateTime(mode?.force_firebase_expires_at)}.`
+            : 'New photos are saved in Supabase first. Firebase Backup is used automatically if Supabase cannot save one.'}
+          {' '}Existing photos stay where they are and remain available.</span>
       </div>
 
       <div className="grid grid-2 mb-24">
@@ -234,24 +302,24 @@ const StorageMonitoringPage = () => {
       <div className="grid grid-2 mb-24">
         <section className="card admin-section-card">
           <div className="card-header">
-            <h3><HardDrive size={17} className="inline mr-8" />Live Supabase storage level</h3>
+            <h3><HardDrive size={17} className="inline mr-8" />Supabase Photos</h3>
             <span className={`badge ${liveStorage?.live_usage_status === 'available' ? 'badge-success' : 'badge-warning'}`}>
-              {liveStorage?.live_usage_status === 'available' ? 'Live' : 'Unavailable'}
+              {liveStorage?.live_usage_status === 'available' ? 'Updated' : 'Could not check'}
             </span>
           </div>
           <div className="card-body">
             <div className="grid grid-2 mb-16">
-              <div><div className="text-xs text-secondary">Current plan</div><strong>{planLabel(liveStorage?.plan)}</strong></div>
-              <div><div className="text-xs text-secondary">Currently stored</div><strong>{formatBytes(usedBytes)}</strong></div>
-              <div><div className="text-xs text-secondary">Included allowance</div><strong>{quotaBytes != null ? formatBytes(quotaBytes) : 'Custom'}</strong></div>
-              <div><div className="text-xs text-secondary">Available in allowance</div><strong>{availableBytes != null ? formatBytes(availableBytes) : 'Plan dependent'}</strong></div>
+              <div><div className="text-xs text-secondary">Plan</div><strong>{planLabel(liveStorage?.plan)}</strong></div>
+              <div><div className="text-xs text-secondary">Space used</div><strong>{formatBytes(usedBytes)}</strong></div>
+              <div><div className="text-xs text-secondary">Plan allowance</div><strong>{quotaBytes != null ? formatBytes(quotaBytes) : 'Custom'}</strong></div>
+              <div><div className="text-xs text-secondary">Space left</div><strong>{availableBytes != null ? formatBytes(availableBytes) : 'Depends on the plan'}</strong></div>
             </div>
 
             {usagePercent != null ? (
               <>
                 <div className="flex items-center justify-between text-sm mb-8">
-                  <span>{usagePercent.toLocaleString('en-PH', { maximumFractionDigits: 2 })}% used</span>
-                  <span className="text-secondary">{number(liveStorage?.object_count)} objects</span>
+                  <span>{usagePercent.toLocaleString('en-PH', { maximumFractionDigits: 2 })}% of allowance used</span>
+                  <span className="text-secondary">{number(liveStorage?.object_count)} stored files</span>
                 </div>
                 <div
                   role="progressbar"
@@ -268,18 +336,18 @@ const StorageMonitoringPage = () => {
               <div className="alert-banner alert-banner-warning" role="status">
                 <AlertTriangle size={17} />
                 <span>{liveStorage?.live_usage_status === 'available'
-                  ? 'Live usage is available, but this plan has a custom allowance.'
-                  : 'Live storage usage could not be measured. Refresh after the database migration and Edge Function are deployed.'}</span>
+                  ? 'The space used is available, but this plan does not provide a fixed allowance.'
+                  : 'Supabase space could not be checked. Select Refresh to try again.'}</span>
               </div>
             )}
 
             {Array.isArray(liveStorage?.buckets) && liveStorage.buckets.length > 0 && (
               <div style={{ marginTop: 18 }}>
-                <div className="text-xs text-secondary mb-8">Bucket breakdown</div>
+                <div className="text-xs text-secondary mb-8">What uses this space</div>
                 <div className="grid grid-2">
                   {liveStorage.buckets.map((bucket) => (
                     <div className="flex items-center justify-between card" style={{ padding: 12 }} key={bucket.bucket_id}>
-                      <span className="text-sm">{bucket.bucket_id}</span>
+                      <span className="text-sm">{storageAreaLabel(bucket.bucket_id)}</span>
                       <span className="text-sm"><strong>{formatBytes(bucket.size_bytes)}</strong> · {number(bucket.object_count)} files</span>
                     </div>
                   ))}
@@ -288,13 +356,13 @@ const StorageMonitoringPage = () => {
             )}
 
             <p className="text-xs text-secondary" style={{ margin: '16px 0 0' }}>
-              Measured directly from this project's Supabase storage objects
-              {liveStorage?.measured_at ? ` at ${formatPhDateTime(liveStorage.measured_at)}` : ''}.
-              {' '}The plan is checked securely from Supabase and refreshes every 60 seconds.
+              These numbers come from the files currently saved in Supabase
+              {liveStorage?.measured_at ? ` and were last checked on ${formatPhDateTime(liveStorage.measured_at)}` : ''}.
+              {' '}They update every minute while this screen is open.
             </p>
             {Number(liveStorage?.organization_project_count || 1) > 1 && (
               <p className="text-xs" style={{ color: 'var(--warning-text)', margin: '8px 0 0' }}>
-                This organization has {number(liveStorage.organization_project_count)} projects. Supabase applies the included storage allowance across the organization; this bar measures only the CargoExpress project.
+                Your Supabase account has {number(liveStorage.organization_project_count)} projects sharing one allowance. The space used above is for CargoExpress only.
               </p>
             )}
           </div>
@@ -302,49 +370,32 @@ const StorageMonitoringPage = () => {
 
         <section className="card admin-section-card">
           <div className="card-header">
-            <h3><Cloud size={17} className="inline mr-8" />Firebase fallback storage</h3>
+            <h3><Cloud size={17} className="inline mr-8" />Firebase Backup Photos</h3>
             <span className={`badge ${firebaseStorage?.status === 'available' ? 'badge-success' : 'badge-warning'}`}>
-              {firebaseStorage?.status === 'available' ? 'Live' : 'Unavailable'}
+              {firebaseStorage?.status === 'available' ? 'Updated' : 'Could not check'}
             </span>
           </div>
           <div className="card-body">
             <p className="text-sm text-secondary" style={{ marginTop: 0 }}>
-              The Firebase fallback stores evidence photos as documents in the <code>photoFallbacks</code> Firestore collection — this app has no separate Firebase Cloud Storage bucket.
+              Firebase is the automatic backup when a new photo cannot be saved in Supabase.
             </p>
             <div className="grid grid-2 mb-16">
-              <div><div className="text-xs text-secondary">Fallback photos</div><strong>{number(firebaseStorage?.document_count)}</strong></div>
-              <div><div className="text-xs text-secondary">Currently stored</div><strong>{formatBytes(firebaseUsedBytes)}</strong></div>
-              <div><div className="text-xs text-secondary">Free-tier allowance</div><strong>{firebaseQuotaBytes != null ? formatBytes(firebaseQuotaBytes) : 'Unavailable'}</strong></div>
-              <div><div className="text-xs text-secondary">Available in allowance</div><strong>{firebaseUsedBytes != null && firebaseQuotaBytes > 0 ? formatBytes(Math.max(0, firebaseQuotaBytes - firebaseUsedBytes)) : 'Plan dependent'}</strong></div>
+              <div><div className="text-xs text-secondary">Backup photos</div><strong>{number(firebaseStorage?.document_count)}</strong></div>
+              <div><div className="text-xs text-secondary">Estimated photo data</div><strong>{formatBytes(firebaseEstimatedBytes)}</strong></div>
+              <div><div className="text-xs text-secondary">Free plan guide</div><strong>{firebaseFreePlanReference != null ? formatBytes(firebaseFreePlanReference) : 'Unavailable'}</strong></div>
+              <div><div className="text-xs text-secondary">Measurement</div><strong>Estimate</strong></div>
             </div>
 
-            {firebaseUsagePercent != null ? (
-              <>
-                <div className="flex items-center justify-between text-sm mb-8">
-                  <span>{firebaseUsagePercent.toLocaleString('en-PH', { maximumFractionDigits: 2 })}% used</span>
-                  <span className="text-secondary">{number(firebaseStorage?.document_count)} documents</span>
-                </div>
-                <div
-                  role="progressbar"
-                  aria-label="Firebase fallback storage usage"
-                  aria-valuemin={0}
-                  aria-valuemax={100}
-                  aria-valuenow={Math.round(firebaseBoundedPercent)}
-                  style={{ height: 12, borderRadius: 999, overflow: 'hidden', background: 'var(--bg-secondary)' }}
-                >
-                  <div style={{ width: `${firebaseBoundedPercent}%`, height: '100%', background: firebaseUsageTone, borderRadius: 999, transition: 'width 300ms ease' }} />
-                </div>
-              </>
-            ) : (
+            {firebaseStorage?.status !== 'available' && (
               <div className="alert-banner alert-banner-warning" role="status">
                 <AlertTriangle size={17} />
-                <span>Firebase usage could not be measured. Confirm the Firebase service account secret is configured.</span>
+                <span>Firebase Backup could not be checked. Select Refresh to try again.</span>
               </div>
             )}
 
             <p className="text-xs text-secondary" style={{ margin: '16px 0 0' }}>
-              Measured directly from the <code>photoFallbacks</code> collection{firebaseStorage?.measured_at ? ` at ${formatPhDateTime(firebaseStorage.measured_at)}` : ''}.
-              {' '}The allowance shown is the published Firestore free-tier document storage limit, not a live-metered quota.
+              The estimate includes the saved photo data{firebaseStorage?.measured_at ? ` checked on ${formatPhDateTime(firebaseStorage.measured_at)}` : ''}.
+              {' '}The 1 GB figure is a free-plan guide, not a live limit from Firebase. Check the Firebase dashboard for exact billing and total account usage.
             </p>
           </div>
         </section>
@@ -361,46 +412,46 @@ const StorageMonitoringPage = () => {
       </div>
 
       <section className="card admin-section-card mb-24">
-        <div className="card-header"><h3><Radio size={17} className="inline mr-8" />New evidence upload routing</h3></div>
+        <div className="card-header"><h3><Radio size={17} className="inline mr-8" />Where New Photos Are Saved</h3></div>
         <div className="card-body">
           <p className="text-sm text-secondary" style={{ marginTop: 0 }}>
-            This is a temporary operational switch. It never disables the Supabase bucket, moves photos, or changes existing photo links.
+            This choice affects only new pickup, delivery, and receipt photos. Existing photos stay where they are.
           </p>
           <div className="grid grid-2" style={{ marginTop: 16 }}>
             <label className="card" style={{ padding: 16, cursor: 'pointer', border: selectedMode === 'automatic' ? '2px solid var(--primary)' : undefined }}>
               <div className="flex items-start gap-12">
                 <input type="radio" name="storage-mode" value="automatic" checked={selectedMode === 'automatic'} onChange={() => setSelectedMode('automatic')} />
-                <div><strong>Automatic</strong><p className="text-sm text-secondary" style={{ margin: '6px 0 0' }}>Supabase first. Firebase is used only if the primary upload fails.</p></div>
+                <div><strong>Automatic (recommended)</strong><p className="text-sm text-secondary" style={{ margin: '6px 0 0' }}>Save in Supabase first. Use Firebase Backup automatically if Supabase cannot save the photo.</p></div>
               </div>
             </label>
             <label className="card" style={{ padding: 16, cursor: 'pointer', border: selectedMode === 'force_firebase' ? '2px solid var(--warning)' : undefined }}>
               <div className="flex items-start gap-12">
                 <input type="radio" name="storage-mode" value="force_firebase" checked={selectedMode === 'force_firebase'} onChange={() => setSelectedMode('force_firebase')} />
-                <div><strong>Force Firebase for new evidence</strong><p className="text-sm text-secondary" style={{ margin: '6px 0 0' }}>Bypass Supabase for new pickup, delivery, and receipt uploads. It expires automatically.</p></div>
+                <div><strong>Use Firebase Backup temporarily</strong><p className="text-sm text-secondary" style={{ margin: '6px 0 0' }}>Save all new photos in Firebase Backup for the selected time, then return to Automatic.</p></div>
               </div>
             </label>
           </div>
 
           {selectedMode === 'force_firebase' && (
             <div className="grid grid-2" style={{ marginTop: 16 }}>
-              <label className="form-group"><span className="form-label">Automatic expiry</span>
+              <label className="form-group"><span className="form-label">Return to Automatic after</span>
                 <select value={duration} onChange={(event) => setDuration(Number(event.target.value))} className="form-select">
                   {FORCE_DURATIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
                 </select>
               </label>
               <label className="form-group"><span className="form-label">Reason (optional)</span>
-                <input className="form-input" maxLength={500} value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Example: Supabase maintenance check" />
+                <input className="form-input" maxLength={500} value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Example: Supabase is being checked" />
               </label>
             </div>
           )}
           {selectedMode === 'automatic' && (
             <label className="form-group" style={{ marginTop: 16 }}><span className="form-label">Reason (optional)</span>
-              <input className="form-input" maxLength={500} value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Example: Primary storage restored" />
+              <input className="form-input" maxLength={500} value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Example: Supabase is working again" />
             </label>
           )}
           <div className="flex justify-end" style={{ marginTop: 16 }}>
             <button className={`btn ${selectedMode === 'force_firebase' ? 'btn-secondary' : 'btn-primary'}`} type="button" onClick={requestChange} disabled={saving}>
-              {selectedMode === 'force_firebase' ? <Zap size={16} /> : <ShieldCheck size={16} />} Apply routing
+              {selectedMode === 'force_firebase' ? <Zap size={16} /> : <ShieldCheck size={16} />} Save Choice
             </button>
           </div>
         </div>
@@ -408,27 +459,27 @@ const StorageMonitoringPage = () => {
 
       <div className="alert-banner alert-banner-info mb-24" role="status">
         <Sparkles size={18} />
-        <span>Evidence photos for orders <strong>Delivered</strong> or <strong>Cancelled</strong> for more than 6 months are archived automatically every day at 9:30 AM. Admins are notified here once Supabase storage crosses 85% of the plan allowance.</span>
+        <span><strong>Old photo cleanup:</strong> Every day at 9:30 AM, pickup and delivery photos are permanently removed from Delivered or Cancelled orders finished more than 6 months ago. Receipt photos and photos shown on the public website are kept. This is permanent deletion, not an archive copy. Supabase space is checked four times daily, and admins are warned when it reaches 85% of the plan allowance.</span>
       </div>
 
       <section className="card admin-section-card">
         <div className="card-header">
-          <h3><CloudOff size={17} className="inline mr-8" />Recent storage activity</h3>
-          <span className="text-xs text-secondary">Live updates</span>
+          <h3><CloudOff size={17} className="inline mr-8" />Recent Photo Activity</h3>
+          <span className="text-xs text-secondary">Updates automatically</span>
         </div>
         {events.length === 0 ? (
-          <div className="card-body text-sm text-secondary">No storage activity has been recorded yet.</div>
+          <div className="card-body text-sm text-secondary">No photo activity yet.</div>
         ) : (
-          <div className="table-container"><table className="data-table"><thead><tr><th scope="col">When</th><th scope="col">Provider</th><th scope="col">Result</th><th scope="col">Type</th><th scope="col">Details</th></tr></thead>
+          <div className="table-container"><table className="data-table"><thead><tr><th scope="col">Date</th><th scope="col">Activity</th><th scope="col">Saved In</th><th scope="col">Status</th><th scope="col">What Happened</th></tr></thead>
             <tbody>{events.map((event) => {
               const failed = event.outcome === 'failure';
               const Icon = failed ? XCircle : event.outcome === 'expired' ? AlertTriangle : CheckCircle2;
               return <tr key={event.id}>
-                <td data-label="When" className="text-sm">{formatPhDateTime(event.created_at)}</td>
-                <td data-label="Provider">{providerLabel(event.provider)}</td>
-                <td data-label="Result"><span className={`badge ${failed ? 'badge-error' : event.outcome === 'expired' ? 'badge-warning' : 'badge-success'}`}><Icon size={13} /> {event.outcome}</span></td>
-                <td data-label="Type">{event.photo_type || (event.event_type === 'cleanup' ? 'Cleanup' : 'Routing')}</td>
-                <td data-label="Details" className="text-sm text-secondary">{event.message || '—'}</td>
+                <td data-label="Date" className="text-sm">{formatPhDateTime(event.created_at)}</td>
+                <td data-label="Activity">{activityName(event)}</td>
+                <td data-label="Saved In">{providerLabel(event.provider)}</td>
+                <td data-label="Status"><span className={`badge ${failed ? 'badge-error' : event.outcome === 'expired' ? 'badge-warning' : 'badge-success'}`}><Icon size={13} /> {activityStatus(event)}</span></td>
+                <td data-label="What Happened" className="text-sm text-secondary">{activityDetails(event)}</td>
               </tr>;
             })}</tbody>
           </table></div>
@@ -439,22 +490,27 @@ const StorageMonitoringPage = () => {
         isOpen={confirmOpen}
         onClose={() => !saving && setConfirmOpen(false)}
         onConfirm={() => void saveMode()}
-        title={selectedMode === 'force_firebase' ? 'Route new evidence to Firebase?' : 'Restore Automatic routing?'}
+        title={selectedMode === 'force_firebase' ? 'Use Firebase Backup temporarily?' : 'Return to Automatic photo saving?'}
         message={selectedMode === 'force_firebase'
-          ? `Only new pickup, delivery, and receipt uploads will bypass Supabase for ${FORCE_DURATIONS.find(option => option.value === duration)?.label || 'the selected period'}. Existing photos remain unchanged.`
-          : 'New evidence will use Supabase first and Firebase only if the primary upload fails. Existing photos remain unchanged.'}
-        confirmLabel={selectedMode === 'force_firebase' ? 'Enable Force Firebase' : 'Use Automatic'}
+          ? `New pickup, delivery, and receipt photos will be saved in Firebase Backup for ${FORCE_DURATIONS.find(option => option.value === duration)?.label || 'the selected time'}. Existing photos will not change.`
+          : 'New photos will be saved in Supabase first and Firebase Backup will be used only when needed. Existing photos will not change.'}
+        confirmLabel={selectedMode === 'force_firebase' ? 'Use Firebase Backup' : 'Use Automatic'}
         variant={selectedMode === 'force_firebase' ? 'warning' : 'success'}
         loading={saving}
       />
 
       <ConfirmModal
         isOpen={cleanupConfirmOpen}
-        onClose={() => !cleaning && setCleanupConfirmOpen(false)}
+        onClose={() => {
+          if (!cleaning) {
+            setCleanupConfirmOpen(false);
+            setCleanupPreview(null);
+          }
+        }}
         onConfirm={() => void runCleanup()}
-        title="Scan and clean orphaned photos?"
-        message="This scans pickup-proofs, delivery-proofs, and receipts for evidence whose tracking number no longer matches an order, then permanently deletes it. This cannot be undone."
-        confirmLabel="Scan and Clean"
+        title="Permanently remove unused photos?"
+        message={`${number(cleanupPreview?.candidate_count)} unused photo${Number(cleanupPreview?.candidate_count) === 1 ? '' : 's'} (${formatBytes(cleanupPreview?.estimated_bytes)}) were found. Nothing has been deleted yet. Continue only if you want to permanently remove these photos. This cannot be undone.`}
+        confirmLabel="Permanently Remove"
         variant="warning"
         loading={cleaning}
       />

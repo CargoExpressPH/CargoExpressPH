@@ -35,6 +35,46 @@ const chunk = <T,>(items: T[], size: number): T[][] => {
   return out
 }
 
+const toBase64Url = (bytes: Uint8Array) =>
+  btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+
+const cleanupSignature = async (userId: string, expiresAt: number, paths: string[]) => {
+  const secret = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+  if (!secret) throw new Error('Cleanup confirmation is not configured')
+  const key = await crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(secret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign'],
+  )
+  const input = `${userId}\n${expiresAt}\n${[...paths].sort().join('\n')}`
+  const signature = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(input))
+  return toBase64Url(new Uint8Array(signature))
+}
+
+const safeEqual = (left: string, right: string) => {
+  if (left.length !== right.length) return false
+  let difference = 0
+  for (let i = 0; i < left.length; i += 1) difference |= left.charCodeAt(i) ^ right.charCodeAt(i)
+  return difference === 0
+}
+
+const createCleanupToken = async (userId: string, paths: string[]) => {
+  const expiresAt = Date.now() + 10 * 60 * 1000
+  const signature = await cleanupSignature(userId, expiresAt, paths)
+  return { token: `${expiresAt}.${signature}`, expiresAt }
+}
+
+const verifyCleanupToken = async (token: unknown, userId: string, paths: string[]) => {
+  if (typeof token !== 'string') return false
+  const [rawExpiry, suppliedSignature, ...extra] = token.split('.')
+  const expiresAt = Number(rawExpiry)
+  if (extra.length > 0 || !suppliedSignature || !Number.isFinite(expiresAt) || expiresAt < Date.now()) return false
+  const expectedSignature = await cleanupSignature(userId, expiresAt, paths)
+  return safeEqual(suppliedSignature, expectedSignature)
+}
+
 const requireAdmin = async (authHeader: string) => {
   const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? ''
   const anonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? ''
@@ -62,6 +102,9 @@ serve(async (req) => {
     const authHeader = req.headers.get('Authorization') || ''
     if (!authHeader.startsWith('Bearer ')) return json({ error: 'Authentication required' }, 401)
     const { user, userClient, serviceClient } = await requireAdmin(authHeader)
+    const requestBody = await req.json().catch(() => ({})) as { action?: unknown; confirmation_token?: unknown }
+    const action = requestBody.action ?? 'preview'
+    if (action !== 'preview' && action !== 'delete') return json({ error: 'Invalid cleanup action' }, 400)
 
     // The caller's own JWT — list_orphaned_evidence_photos() re-checks
     // is_admin() itself, so this is not "trust the client is an admin twice",
@@ -71,7 +114,30 @@ serve(async (req) => {
 
     const rows = (orphans || []) as Array<{ name: string; folder: string; tracking_number: string; size_bytes: number | null }>
     if (rows.length === 0) {
-      return json({ deleted_count: 0, failed_count: 0, freed_bytes: 0, folders: [] })
+      return json({ preview: action === 'preview', candidate_count: 0, estimated_bytes: 0, deleted_count: 0, failed_count: 0, freed_bytes: 0 })
+    }
+
+    const paths = rows.map((row) => row.name)
+    const estimatedBytes = rows.reduce((sum, row) => sum + Number(row.size_bytes || 0), 0)
+    const affectedOrders = new Set(rows.map((row) => row.tracking_number)).size
+
+    if (action === 'preview') {
+      const confirmation = await createCleanupToken(user.id, paths)
+      return json({
+        preview: true,
+        candidate_count: rows.length,
+        estimated_bytes: estimatedBytes,
+        affected_order_folders: affectedOrders,
+        confirmation_token: confirmation.token,
+        confirmation_expires_at: new Date(confirmation.expiresAt).toISOString(),
+      })
+    }
+
+    if (!await verifyCleanupToken(requestBody.confirmation_token, user.id, paths)) {
+      return json({
+        error: 'The unused-photo list changed or the confirmation expired. Check again before deleting.',
+        requires_new_preview: true,
+      }, 409)
     }
 
     // Batched by path rather than correlated against the response body: the
@@ -86,7 +152,7 @@ serve(async (req) => {
     let freedBytes = 0
     const failedPaths: string[] = []
 
-    for (const batch of chunk(rows.map((row) => row.name), REMOVE_BATCH_SIZE)) {
+    for (const batch of chunk(paths, REMOVE_BATCH_SIZE)) {
       const { error: removeError } = await userClient.storage.from(BUCKET).remove(batch)
       if (removeError) {
         failedPaths.push(...batch)
@@ -103,8 +169,10 @@ serve(async (req) => {
     await serviceClient.from('photo_storage_events').insert({
       event_type: 'cleanup',
       provider: 'system',
-      outcome: failedPaths.length > 0 && deletedCount === 0 ? 'failure' : 'success',
-      message: `Orphaned photo cleanup removed ${deletedCount} file(s)${failedPaths.length > 0 ? `, ${failedPaths.length} could not be removed` : ''}.`,
+      outcome: failedPaths.length > 0 ? 'failure' : 'success',
+      message: failedPaths.length > 0
+        ? `Unused photo cleanup removed ${deletedCount} photo(s), but ${failedPaths.length} photo(s) still need attention.`
+        : `Unused photo cleanup permanently removed ${deletedCount} photo(s).`,
       metadata: {
         cleanup_kind: 'orphan_scan',
         deleted_count: deletedCount,

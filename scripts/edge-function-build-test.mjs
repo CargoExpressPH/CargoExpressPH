@@ -6,6 +6,8 @@ const entryPoints = [
   'supabase/functions/delete-photo-fallback/index.ts',
   'supabase/functions/record-photo-storage-event/index.ts',
   'supabase/functions/photo-storage-health/index.ts',
+  'supabase/functions/cleanup-orphaned-photos/index.ts',
+  'supabase/functions/archive-expired-evidence-photos/index.ts',
 ];
 
 for (const entryPoint of entryPoints) {

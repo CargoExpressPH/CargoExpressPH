@@ -25,12 +25,10 @@ const INCLUDED_STORAGE_BYTES_BY_PLAN: Record<string, number | null> = {
   platform: null,
 }
 
-// Firestore has no per-collection quota API to read against (unlike
-// Supabase's Management API above). This is the published Spark (free) plan
-// document-storage limit — the same honesty trade-off as INCLUDED_STORAGE_
-// BYTES_BY_PLAN, just without a live plan lookup to key it off of, since the
-// app only ever uses the free tier for the photoFallbacks collection.
-const FIRESTORE_FREE_TIER_STORAGE_BYTES = 1 * GIB
+// Firestore has no per-collection quota API to read against. Keep the
+// published free-plan figure only as a clearly labelled reference; it is not
+// presented as the project's detected plan or current maximum.
+const FIRESTORE_FREE_TIER_REFERENCE_BYTES = 1 * GIB
 
 // Crossing this triggers the low-storage admin notification below. 85% is
 // deliberately before the "stop admitting new uploads" thresholds elsewhere
@@ -159,7 +157,17 @@ async function getFirestoreCollectionStats(serviceAccount: Record<string, string
     documentCount += Number(fields.doc_count?.integerValue ?? 0)
     totalBytes += Number(fields.total_bytes?.integerValue ?? fields.total_bytes?.doubleValue ?? 0)
   }
-  return { document_count: documentCount, total_size_bytes: totalBytes }
+  // Firestore stores each image as a base64 data URL. Base64 uses four bytes
+  // for every three source bytes, plus the short data-URL prefix per photo.
+  // Firestore's own record and index overhead is not available here, so this
+  // value is deliberately reported as an estimate rather than an exact quota.
+  const estimatedPhotoDataBytes = Math.ceil(totalBytes / 3) * 4
+    + documentCount * 'data:image/jpeg;base64,'.length
+  return {
+    document_count: documentCount,
+    source_image_bytes: totalBytes,
+    estimated_photo_data_bytes: estimatedPhotoDataBytes,
+  }
 }
 
 const loadFirebaseServiceAccount = (): Record<string, string> | null => {
@@ -173,9 +181,8 @@ const loadFirebaseServiceAccount = (): Record<string, string> | null => {
 }
 
 // Fans a high-priority alert out to every admin once, then stays quiet for
-// LOW_STORAGE_WARNING_COOLDOWN_HOURS — otherwise every health check (the UI
-// polls this function every 60s while the monitoring page is open) would
-// re-fire it. serviceClient bypasses RLS, same as every other server-side
+// LOW_STORAGE_WARNING_COOLDOWN_HOURS — otherwise the scheduled check and the
+// screen's refresh could re-fire it. serviceClient bypasses RLS, same as every other server-side
 // write in this function family (record-photo-storage-event, etc.).
 async function maybeNotifyAdminsOfLowStorage(serviceClient: ReturnType<typeof createClient>, usagePercent: number) {
   if (usagePercent < LOW_STORAGE_WARNING_PERCENT) return
@@ -207,14 +214,18 @@ async function maybeNotifyAdminsOfLowStorage(serviceClient: ReturnType<typeof cr
   }
 }
 
-const requireAdmin = async (authHeader: string) => {
+const requireAdminOrScheduledCheck = async (authHeader: string) => {
   const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? ''
   const anonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? ''
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+  const suppliedToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : ''
   const userClient = createClient(supabaseUrl, anonKey, {
     global: { headers: { Authorization: authHeader } },
   })
   const serviceClient = createClient(supabaseUrl, serviceRoleKey)
+  if (serviceRoleKey && suppliedToken === serviceRoleKey) {
+    return { serviceClient, userClient: serviceClient }
+  }
   const { data, error } = await userClient.auth.getUser()
   if (error || !data.user) throw new Response('Authentication required', { status: 401 })
   const { data: profile } = await serviceClient
@@ -229,17 +240,13 @@ serve(async (req) => {
   try {
     const authHeader = req.headers.get('Authorization') || ''
     if (!authHeader.startsWith('Bearer ')) return json({ error: 'Authentication required' }, 401)
-    const { serviceClient, userClient } = await requireAdmin(authHeader)
+    const { serviceClient, userClient } = await requireAdminOrScheduledCheck(authHeader)
     const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? ''
 
     const firebaseServiceAccount = loadFirebaseServiceAccount()
 
-    const [bucketResult, firebaseResult, usageResult, planResult, firestoreStatsResult] = await Promise.allSettled([
+    const [bucketResult, usageResult, planResult, firestoreStatsResult] = await Promise.allSettled([
       serviceClient.storage.getBucket('cargo-photos'),
-      (async () => {
-        if (!firebaseServiceAccount) throw new Error('Firebase is not configured')
-        await getFirebaseAccessToken(firebaseServiceAccount)
-      })(),
       userClient.rpc('get_photo_storage_live_usage'),
       getSupabasePlanInfo(supabaseUrl),
       (async () => {
@@ -249,7 +256,7 @@ serve(async (req) => {
     ])
 
     const supabaseHealthy = bucketResult.status === 'fulfilled' && !bucketResult.value.error && Boolean(bucketResult.value.data)
-    const firebaseHealthy = firebaseResult.status === 'fulfilled'
+    const firebaseHealthy = firestoreStatsResult.status === 'fulfilled'
     const liveUsage = usageResult.status === 'fulfilled' && !usageResult.value.error
       ? usageResult.value.data?.[0]
       : null
@@ -285,18 +292,18 @@ serve(async (req) => {
         buckets: liveUsage?.buckets ?? [],
         measured_at: liveUsage?.measured_at ?? null,
       },
-      // "Firebase" fallback storage in this app is a Firestore collection
-      // (photoFallbacks), not a Cloud Storage bucket — see store-photo-fallback
-      // and delete-photo-fallback. included_bytes is the Firestore Spark
-      // (free) plan's document-storage limit, not a live-metered quota.
+      // Firebase does not expose a reliable live project limit here. Report
+      // the app's estimated photo payload and keep the published free-plan
+      // figure separate as a reference, never as a detected current quota.
       firebase_storage: {
         status: firestoreStats ? 'available' : 'unavailable',
         provider: 'firestore',
         collection: 'photoFallbacks',
         document_count: firestoreStats?.document_count ?? null,
-        total_size_bytes: firestoreStats?.total_size_bytes ?? null,
-        included_bytes: FIRESTORE_FREE_TIER_STORAGE_BYTES,
-        quota_type: 'firestore_free_tier_estimate',
+        estimated_photo_data_bytes: firestoreStats?.estimated_photo_data_bytes ?? null,
+        source_image_bytes: firestoreStats?.source_image_bytes ?? null,
+        free_tier_reference_bytes: FIRESTORE_FREE_TIER_REFERENCE_BYTES,
+        measurement_type: 'estimated_photo_payload',
         measured_at: firestoreStats ? new Date().toISOString() : null,
       },
     })
