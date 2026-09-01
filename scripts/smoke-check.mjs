@@ -12,6 +12,7 @@ const requiredFiles = [
   'supabase/functions/record-photo-storage-event/index.ts',
   'supabase/functions/photo-storage-health/index.ts',
   'supabase/migrations/20260831170000_photo_storage_monitoring_and_routing.sql',
+  'supabase/migrations/20260901010000_live_supabase_storage_usage.sql',
   'supabase/functions/paymongo-create-payment/index.ts',
 ];
 

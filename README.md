@@ -281,7 +281,11 @@ never place a secret among them.
 
 Server-side secrets live **only** as Edge Function secrets:
 `PAYMONGO_SECRET_KEY`, `PAYMONGO_WEBHOOK_SECRET`, `SUPABASE_SERVICE_ROLE_KEY`,
-`FIREBASE_SERVICE_ACCOUNT_B64`, `VAPID_PRIVATE_KEY`.
+`FIREBASE_SERVICE_ACCOUNT_B64`, `CARGOEXPRESS_SUPABASE_PAT`, `VAPID_PRIVATE_KEY`.
+
+`CARGOEXPRESS_SUPABASE_PAT` is used only by the admin Photo Storage monitor to
+read the current Supabase organization plan. Set it as an Edge Function secret;
+never prefix it with `VITE_` or expose it to the browser.
 
 ---
 

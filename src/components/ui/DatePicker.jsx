@@ -6,7 +6,7 @@ const WEEKDAYS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 const pad2 = (n) => String(n).padStart(2, '0');
 
 // Dates round-trip as plain 'YYYY-MM-DD' strings — the same shape the native
-// <input type="date"> this replaces used, and what getReportData() expects.
+// native date input this replaces used, and what getReportData() expects.
 // Parsed/formatted against LOCAL calendar fields (not Date.toISOString/UTC
 // parsing) so the day shown here always matches the day picked, regardless
 // of the viewer's timezone offset.
@@ -41,7 +41,7 @@ const buildMonthGrid = (viewDate) => {
 /**
  * Modern popover date picker matching the app's CustomSelect conventions
  * (button trigger, click-outside/Escape to close, viewport-aware placement).
- * Drop-in replacement for `<input type="date">` — reads/writes the same
+ * Drop-in replacement for a native date input — reads/writes the same
  * 'YYYY-MM-DD' string via `value` / `onChange(nextValue)`.
  */
 const DatePicker = ({

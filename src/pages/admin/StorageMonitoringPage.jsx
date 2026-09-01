@@ -26,6 +26,20 @@ const FORCE_DURATIONS = [
 
 const providerLabel = (provider) => provider === 'firebase' ? 'Firebase fallback' : provider === 'supabase' ? 'Supabase Storage' : 'System';
 const number = (value) => Number(value || 0).toLocaleString('en-PH');
+const formatBytes = (value) => {
+  if (value == null || !Number.isFinite(Number(value))) return 'Unavailable';
+  const bytes = Number(value);
+  if (bytes < 1024) return `${bytes.toLocaleString('en-PH')} B`;
+  const units = ['KB', 'MB', 'GB', 'TB'];
+  let amount = bytes;
+  let unit = -1;
+  do { amount /= 1024; unit += 1; } while (amount >= 1024 && unit < units.length - 1);
+  return `${amount.toLocaleString('en-PH', { maximumFractionDigits: amount >= 100 ? 0 : 2 })} ${units[unit]}`;
+};
+
+const planLabel = (plan) => plan && plan !== 'unknown'
+  ? `${plan.charAt(0).toUpperCase()}${plan.slice(1)} Plan`
+  : 'Plan unavailable';
 
 const HealthBadge = ({ provider, health }) => {
   const healthy = health?.status === 'healthy';
@@ -137,6 +151,13 @@ const StorageMonitoringPage = () => {
   if (loading) return <CenteredSpinner />;
 
   const isForceActive = mode?.upload_mode === 'force_firebase';
+  const liveStorage = health?.supabase_storage;
+  const usedBytes = liveStorage?.total_size_bytes == null ? null : Number(liveStorage.total_size_bytes);
+  const quotaBytes = liveStorage?.included_storage_bytes == null ? null : Number(liveStorage.included_storage_bytes);
+  const usagePercent = usedBytes != null && quotaBytes > 0 ? (usedBytes / quotaBytes) * 100 : null;
+  const boundedPercent = usagePercent == null ? 0 : Math.max(0, Math.min(usagePercent, 100));
+  const availableBytes = usedBytes != null && quotaBytes > 0 ? Math.max(0, quotaBytes - usedBytes) : null;
+  const usageTone = usagePercent >= 95 ? 'var(--error)' : usagePercent >= 80 ? 'var(--warning)' : 'var(--success)';
   const countCards = [
     { label: 'Supabase references', value: summary?.supabase_photo_count, icon: HardDrive },
     { label: 'Firebase references', value: summary?.firebase_photo_count, icon: Cloud },
@@ -169,6 +190,74 @@ const StorageMonitoringPage = () => {
         <HealthBadge provider="supabase" health={health?.supabase} />
         <HealthBadge provider="firebase" health={health?.firebase} />
       </div>
+
+      <section className="card admin-section-card mb-24">
+        <div className="card-header">
+          <h3><HardDrive size={17} className="inline mr-8" />Live Supabase storage level</h3>
+          <span className={`badge ${liveStorage?.live_usage_status === 'available' ? 'badge-success' : 'badge-warning'}`}>
+            {liveStorage?.live_usage_status === 'available' ? 'Live' : 'Unavailable'}
+          </span>
+        </div>
+        <div className="card-body">
+          <div className="grid grid-4 mb-16">
+            <div><div className="text-xs text-secondary">Current plan</div><strong>{planLabel(liveStorage?.plan)}</strong></div>
+            <div><div className="text-xs text-secondary">Currently stored</div><strong>{formatBytes(usedBytes)}</strong></div>
+            <div><div className="text-xs text-secondary">Included allowance</div><strong>{quotaBytes != null ? formatBytes(quotaBytes) : 'Custom'}</strong></div>
+            <div><div className="text-xs text-secondary">Available in allowance</div><strong>{availableBytes != null ? formatBytes(availableBytes) : 'Plan dependent'}</strong></div>
+          </div>
+
+          {usagePercent != null ? (
+            <>
+              <div className="flex items-center justify-between text-sm mb-8">
+                <span>{usagePercent.toLocaleString('en-PH', { maximumFractionDigits: 2 })}% used</span>
+                <span className="text-secondary">{number(liveStorage?.object_count)} objects</span>
+              </div>
+              <div
+                role="progressbar"
+                aria-label="Supabase storage usage"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={Math.round(boundedPercent)}
+                style={{ height: 12, borderRadius: 999, overflow: 'hidden', background: 'var(--bg-secondary)' }}
+              >
+                <div style={{ width: `${boundedPercent}%`, height: '100%', background: usageTone, borderRadius: 999, transition: 'width 300ms ease' }} />
+              </div>
+            </>
+          ) : (
+            <div className="alert-banner alert-banner-warning" role="status">
+              <AlertTriangle size={17} />
+              <span>{liveStorage?.live_usage_status === 'available'
+                ? 'Live usage is available, but this plan has a custom allowance.'
+                : 'Live storage usage could not be measured. Refresh after the database migration and Edge Function are deployed.'}</span>
+            </div>
+          )}
+
+          {Array.isArray(liveStorage?.buckets) && liveStorage.buckets.length > 0 && (
+            <div style={{ marginTop: 18 }}>
+              <div className="text-xs text-secondary mb-8">Bucket breakdown</div>
+              <div className="grid grid-2">
+                {liveStorage.buckets.map((bucket) => (
+                  <div className="flex items-center justify-between card" style={{ padding: 12 }} key={bucket.bucket_id}>
+                    <span className="text-sm">{bucket.bucket_id}</span>
+                    <span className="text-sm"><strong>{formatBytes(bucket.size_bytes)}</strong> · {number(bucket.object_count)} files</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <p className="text-xs text-secondary" style={{ margin: '16px 0 0' }}>
+            Measured directly from this project's Supabase storage objects
+            {liveStorage?.measured_at ? ` at ${formatPhDateTime(liveStorage.measured_at)}` : ''}.
+            {' '}The plan is checked securely from Supabase and refreshes every 60 seconds.
+          </p>
+          {Number(liveStorage?.organization_project_count || 1) > 1 && (
+            <p className="text-xs" style={{ color: 'var(--warning-text)', margin: '8px 0 0' }}>
+              This organization has {number(liveStorage.organization_project_count)} projects. Supabase applies the included storage allowance across the organization; this bar measures only the CargoExpress project.
+            </p>
+          )}
+        </div>
+      </section>
 
       <div className="grid grid-4 mb-24">
         {countCards.map(({ label, value, icon: Icon }) => (
