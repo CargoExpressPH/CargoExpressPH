@@ -25,6 +25,22 @@ const INCLUDED_STORAGE_BYTES_BY_PLAN: Record<string, number | null> = {
   platform: null,
 }
 
+// Firestore has no per-collection quota API to read against (unlike
+// Supabase's Management API above). This is the published Spark (free) plan
+// document-storage limit — the same honesty trade-off as INCLUDED_STORAGE_
+// BYTES_BY_PLAN, just without a live plan lookup to key it off of, since the
+// app only ever uses the free tier for the photoFallbacks collection.
+const FIRESTORE_FREE_TIER_STORAGE_BYTES = 1 * GIB
+
+// Crossing this triggers the low-storage admin notification below. 85% is
+// deliberately before the "stop admitting new uploads" thresholds elsewhere
+// in this file (usageTone escalates at 80/95 in the UI) — the notification
+// exists to give admins time to act before uploads actually start failing.
+const LOW_STORAGE_WARNING_PERCENT = 85
+const LOW_STORAGE_WARNING_COOLDOWN_HOURS = 6
+const LOW_STORAGE_WARNING_MESSAGE =
+  'Warning: Your Supabase storage is almost full. Please run a cleanup or switch to Force Firebase routing to prevent upload failures.'
+
 const managementJson = async (path: string, token: string) => {
   const response = await fetch(`https://api.supabase.com${path}`, {
     headers: { Authorization: `Bearer ${token}` },
@@ -69,7 +85,7 @@ const getSupabasePlanInfo = async (supabaseUrl: string) => {
 const encodeBase64Url = (obj: unknown) =>
   btoa(JSON.stringify(obj)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
 
-async function getFirebaseAccessToken(serviceAccount: Record<string, string>) {
+async function getFirebaseAccessToken(serviceAccount: Record<string, string>): Promise<string> {
   const now = Math.floor(Date.now() / 1000)
   const unsignedToken = `${encodeBase64Url({ alg: 'RS256', typ: 'JWT' })}.${encodeBase64Url({
     iss: serviceAccount.client_email,
@@ -98,7 +114,97 @@ async function getFirebaseAccessToken(serviceAccount: Record<string, string>) {
   })
   if (!response.ok) throw new Error('Firebase authentication failed')
   const data = await response.json()
+  // Bug fix: this used to validate the token existed and then return
+  // nothing, so every caller silently got `undefined` back. Harmless for the
+  // old call site (it only cared whether auth succeeded, for the healthy/
+  // unavailable badge) but fatal now that getFirestoreCollectionStats()
+  // actually needs the token to call Firestore.
   if (!data.access_token) throw new Error('Firebase authentication failed')
+  return data.access_token
+}
+
+// Document count + total stored bytes for a Firestore collection, via a
+// server-side aggregation query — never lists/downloads documents, so this
+// stays cheap and fast no matter how large photoFallbacks grows.
+async function getFirestoreCollectionStats(serviceAccount: Record<string, string>, collectionId: string) {
+  const accessToken = await getFirebaseAccessToken(serviceAccount)
+  const projectId = serviceAccount.project_id
+  const response = await fetch(
+    `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents:runAggregationQuery`,
+    {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        structuredAggregationQuery: {
+          structuredQuery: { from: [{ collectionId }] },
+          aggregations: [
+            { alias: 'doc_count', count: {} },
+            { alias: 'total_bytes', sum: { field: { fieldPath: 'size_bytes' } } },
+          ],
+        },
+      }),
+      signal: AbortSignal.timeout(8000),
+    },
+  )
+  if (!response.ok) throw new Error(`Firestore aggregation query failed (${response.status})`)
+
+  // Streamed as an array of partial results — summed rather than indexed by
+  // [0], since a large collection can come back as more than one chunk.
+  const rows = await response.json() as Array<{ result?: { aggregateFields?: Record<string, { integerValue?: string; doubleValue?: number }> } }>
+  let documentCount = 0
+  let totalBytes = 0
+  for (const row of Array.isArray(rows) ? rows : []) {
+    const fields = row.result?.aggregateFields
+    if (!fields) continue
+    documentCount += Number(fields.doc_count?.integerValue ?? 0)
+    totalBytes += Number(fields.total_bytes?.integerValue ?? fields.total_bytes?.doubleValue ?? 0)
+  }
+  return { document_count: documentCount, total_size_bytes: totalBytes }
+}
+
+const loadFirebaseServiceAccount = (): Record<string, string> | null => {
+  try {
+    const b64 = Deno.env.get('FIREBASE_SERVICE_ACCOUNT_B64')
+    const raw = b64 ? atob(b64) : Deno.env.get('FIREBASE_SERVICE_ACCOUNT')
+    return raw ? JSON.parse(raw) : null
+  } catch {
+    return null
+  }
+}
+
+// Fans a high-priority alert out to every admin once, then stays quiet for
+// LOW_STORAGE_WARNING_COOLDOWN_HOURS — otherwise every health check (the UI
+// polls this function every 60s while the monitoring page is open) would
+// re-fire it. serviceClient bypasses RLS, same as every other server-side
+// write in this function family (record-photo-storage-event, etc.).
+async function maybeNotifyAdminsOfLowStorage(serviceClient: ReturnType<typeof createClient>, usagePercent: number) {
+  if (usagePercent < LOW_STORAGE_WARNING_PERCENT) return
+  try {
+    const cooldownSince = new Date(Date.now() - LOW_STORAGE_WARNING_COOLDOWN_HOURS * 60 * 60 * 1000).toISOString()
+    const { data: recent } = await serviceClient
+      .from('notifications')
+      .select('id')
+      .eq('type', 'system_alert')
+      .gte('created_at', cooldownSince)
+      .limit(1)
+    if (recent && recent.length > 0) return
+
+    const { data: admins, error: adminsError } = await serviceClient
+      .from('profiles')
+      .select('id')
+      .eq('role', 'admin')
+    if (adminsError || !admins || admins.length === 0) return
+
+    await serviceClient.from('notifications').insert(admins.map((admin: { id: string }) => ({
+      user_id: admin.id,
+      title: 'Storage Warning',
+      message: LOW_STORAGE_WARNING_MESSAGE,
+      type: 'system_alert',
+    })))
+  } catch (error) {
+    // Best-effort — a failed notification must never fail the health check itself.
+    console.error('[photo-storage-health] Low storage notification failed:', error)
+  }
 }
 
 const requireAdmin = async (authHeader: string) => {
@@ -126,16 +232,20 @@ serve(async (req) => {
     const { serviceClient, userClient } = await requireAdmin(authHeader)
     const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? ''
 
-    const [bucketResult, firebaseResult, usageResult, planResult] = await Promise.allSettled([
+    const firebaseServiceAccount = loadFirebaseServiceAccount()
+
+    const [bucketResult, firebaseResult, usageResult, planResult, firestoreStatsResult] = await Promise.allSettled([
       serviceClient.storage.getBucket('cargo-photos'),
       (async () => {
-        const b64 = Deno.env.get('FIREBASE_SERVICE_ACCOUNT_B64')
-        const raw = b64 ? atob(b64) : Deno.env.get('FIREBASE_SERVICE_ACCOUNT')
-        if (!raw) throw new Error('Firebase is not configured')
-        await getFirebaseAccessToken(JSON.parse(raw))
+        if (!firebaseServiceAccount) throw new Error('Firebase is not configured')
+        await getFirebaseAccessToken(firebaseServiceAccount)
       })(),
       userClient.rpc('get_photo_storage_live_usage'),
       getSupabasePlanInfo(supabaseUrl),
+      (async () => {
+        if (!firebaseServiceAccount) throw new Error('Firebase is not configured')
+        return await getFirestoreCollectionStats(firebaseServiceAccount, 'photoFallbacks')
+      })(),
     ])
 
     const supabaseHealthy = bucketResult.status === 'fulfilled' && !bucketResult.value.error && Boolean(bucketResult.value.data)
@@ -146,6 +256,18 @@ serve(async (req) => {
     const planInfo = planResult.status === 'fulfilled'
       ? planResult.value
       : { status: 'unavailable', plan: 'unknown', included_storage_bytes: null, quota_type: 'unknown' }
+    const firestoreStats = firestoreStatsResult.status === 'fulfilled' ? firestoreStatsResult.value : null
+
+    // Awaited (not fire-and-forget): an Edge Function's isolate can be torn
+    // down as soon as the response is sent, so a detached promise here could
+    // simply never finish. maybeNotifyAdminsOfLowStorage() already swallows
+    // its own errors, so this can't fail the health check either way.
+    const usedBytes = liveUsage?.total_size_bytes != null ? Number(liveUsage.total_size_bytes) : null
+    const quotaBytes = planInfo?.included_storage_bytes != null ? Number(planInfo.included_storage_bytes) : null
+    if (usedBytes != null && quotaBytes != null && quotaBytes > 0) {
+      await maybeNotifyAdminsOfLowStorage(serviceClient, (usedBytes / quotaBytes) * 100)
+    }
+
     return json({
       checked_at: new Date().toISOString(),
       supabase: {
@@ -162,6 +284,20 @@ serve(async (req) => {
         object_count: liveUsage?.object_count ?? null,
         buckets: liveUsage?.buckets ?? [],
         measured_at: liveUsage?.measured_at ?? null,
+      },
+      // "Firebase" fallback storage in this app is a Firestore collection
+      // (photoFallbacks), not a Cloud Storage bucket — see store-photo-fallback
+      // and delete-photo-fallback. included_bytes is the Firestore Spark
+      // (free) plan's document-storage limit, not a live-metered quota.
+      firebase_storage: {
+        status: firestoreStats ? 'available' : 'unavailable',
+        provider: 'firestore',
+        collection: 'photoFallbacks',
+        document_count: firestoreStats?.document_count ?? null,
+        total_size_bytes: firestoreStats?.total_size_bytes ?? null,
+        included_bytes: FIRESTORE_FREE_TIER_STORAGE_BYTES,
+        quota_type: 'firestore_free_tier_estimate',
+        measured_at: firestoreStats ? new Date().toISOString() : null,
       },
     })
   } catch (error) {

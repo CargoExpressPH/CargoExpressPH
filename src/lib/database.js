@@ -3261,3 +3261,14 @@ export const checkPhotoStorageHealth = async () => {
   if (data?.error) throw new Error(data.error);
   return data;
 };
+
+// Scans pickup-proofs/delivery-proofs/receipts for evidence whose
+// tracking-number folder no longer matches an order, and deletes it. The
+// list of what qualifies is computed server-side (list_orphaned_evidence_photos)
+// — this call never sends paths, so there is nothing here for a caller to redirect.
+export const cleanupOrphanedPhotos = async () => {
+  const { data, error } = await supabase.functions.invoke('cleanup-orphaned-photos');
+  if (error) throw error;
+  if (data?.error) throw new Error(data.error);
+  return data;
+};

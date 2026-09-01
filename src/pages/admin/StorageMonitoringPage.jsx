@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   AlertTriangle, CheckCircle2, Cloud, CloudLightning, CloudOff, Database,
-  HardDrive, Loader, Radio, RefreshCw, ShieldCheck, XCircle, Zap,
+  HardDrive, Loader, Radio, RefreshCw, ShieldCheck, Sparkles, XCircle, Zap,
 } from 'lucide-react';
 import {
-  checkPhotoStorageHealth, getPhotoStorageEvents, getPhotoStorageMode,
-  getPhotoStorageSummary, setPhotoStorageMode,
+  checkPhotoStorageHealth, cleanupOrphanedPhotos, getPhotoStorageEvents,
+  getPhotoStorageMode, getPhotoStorageSummary, setPhotoStorageMode,
 } from '../../lib/database';
 import { supabase } from '../../lib/supabase';
 import { useToast } from '../../hooks/useToast';
@@ -74,6 +74,8 @@ const StorageMonitoringPage = () => {
   const [duration, setDuration] = useState(60);
   const [reason, setReason] = useState('');
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [cleaning, setCleaning] = useState(false);
+  const [cleanupConfirmOpen, setCleanupConfirmOpen] = useState(false);
   const timerRef = useRef(null);
 
   const load = useCallback(async ({ runHealth = true, quiet = false } = {}) => {
@@ -148,6 +150,29 @@ const StorageMonitoringPage = () => {
     }
   };
 
+  const runCleanup = async () => {
+    try {
+      setCleaning(true);
+      const result = await cleanupOrphanedPhotos();
+      setCleanupConfirmOpen(false);
+      const deleted = result?.deleted_count || 0;
+      if (deleted === 0) {
+        toast.success('No orphaned photos found. Storage is already clean.');
+      } else {
+        const freed = formatBytes(result?.freed_bytes);
+        toast.success(`Cleanup removed ${deleted} orphaned file${deleted === 1 ? '' : 's'}${freed !== 'Unavailable' ? ` (${freed} freed)` : ''}.`);
+      }
+      if (result?.failed_count) {
+        toast.error(`${result.failed_count} file(s) could not be removed. Check Recent storage activity.`);
+      }
+      await load({ runHealth: false, quiet: true });
+    } catch (error) {
+      toast.error(error?.message || 'Could not scan for orphaned photos.');
+    } finally {
+      setCleaning(false);
+    }
+  };
+
   if (loading) return <CenteredSpinner />;
 
   const isForceActive = mode?.upload_mode === 'force_firebase';
@@ -158,6 +183,16 @@ const StorageMonitoringPage = () => {
   const boundedPercent = usagePercent == null ? 0 : Math.max(0, Math.min(usagePercent, 100));
   const availableBytes = usedBytes != null && quotaBytes > 0 ? Math.max(0, quotaBytes - usedBytes) : null;
   const usageTone = usagePercent >= 95 ? 'var(--error)' : usagePercent >= 80 ? 'var(--warning)' : 'var(--success)';
+
+  // Firebase fallback = the photoFallbacks Firestore collection (there is no
+  // Cloud Storage bucket in this app's Firebase project — see store-photo-fallback).
+  const firebaseStorage = health?.firebase_storage;
+  const firebaseUsedBytes = firebaseStorage?.total_size_bytes == null ? null : Number(firebaseStorage.total_size_bytes);
+  const firebaseQuotaBytes = firebaseStorage?.included_bytes == null ? null : Number(firebaseStorage.included_bytes);
+  const firebaseUsagePercent = firebaseUsedBytes != null && firebaseQuotaBytes > 0 ? (firebaseUsedBytes / firebaseQuotaBytes) * 100 : null;
+  const firebaseBoundedPercent = firebaseUsagePercent == null ? 0 : Math.max(0, Math.min(firebaseUsagePercent, 100));
+  const firebaseUsageTone = firebaseUsagePercent >= 95 ? 'var(--error)' : firebaseUsagePercent >= 80 ? 'var(--warning)' : 'var(--success)';
+
   const countCards = [
     { label: 'Supabase Photos', value: summary?.supabase_photo_count, icon: HardDrive },
     { label: 'Firebase Photos', value: summary?.firebase_photo_count, icon: Cloud },
@@ -172,9 +207,14 @@ const StorageMonitoringPage = () => {
           <h1 className="admin-page-title"><Database size={24} color="var(--primary)" aria-hidden="true" />Photo Storage Monitoring</h1>
           <p className="admin-page-subtitle">Monitor photo storage and choose the route for new shipment evidence uploads.</p>
         </div>
-        <button className="btn btn-outline" type="button" onClick={() => void load({ runHealth: true, quiet: true })} disabled={refreshing}>
-          {refreshing ? <Loader size={16} className="animate-spin" /> : <RefreshCw size={16} />} Refresh
-        </button>
+        <div className="flex gap-8">
+          <button className="btn btn-outline" type="button" onClick={() => setCleanupConfirmOpen(true)} disabled={cleaning}>
+            {cleaning ? <Loader size={16} className="animate-spin" /> : <Sparkles size={16} />} Scan and Clean Orphaned Photos
+          </button>
+          <button className="btn btn-outline" type="button" onClick={() => void load({ runHealth: true, quiet: true })} disabled={refreshing}>
+            {refreshing ? <Loader size={16} className="animate-spin" /> : <RefreshCw size={16} />} Refresh
+          </button>
+        </div>
       </div>
 
       <div className={`alert-banner ${isForceActive ? 'alert-banner-warning' : 'alert-banner-success'} mb-16`} role="status">
@@ -191,73 +231,124 @@ const StorageMonitoringPage = () => {
         <HealthBadge provider="firebase" health={health?.firebase} />
       </div>
 
-      <section className="card admin-section-card mb-24">
-        <div className="card-header">
-          <h3><HardDrive size={17} className="inline mr-8" />Live Supabase storage level</h3>
-          <span className={`badge ${liveStorage?.live_usage_status === 'available' ? 'badge-success' : 'badge-warning'}`}>
-            {liveStorage?.live_usage_status === 'available' ? 'Live' : 'Unavailable'}
-          </span>
-        </div>
-        <div className="card-body">
-          <div className="grid grid-4 mb-16">
-            <div><div className="text-xs text-secondary">Current plan</div><strong>{planLabel(liveStorage?.plan)}</strong></div>
-            <div><div className="text-xs text-secondary">Currently stored</div><strong>{formatBytes(usedBytes)}</strong></div>
-            <div><div className="text-xs text-secondary">Included allowance</div><strong>{quotaBytes != null ? formatBytes(quotaBytes) : 'Custom'}</strong></div>
-            <div><div className="text-xs text-secondary">Available in allowance</div><strong>{availableBytes != null ? formatBytes(availableBytes) : 'Plan dependent'}</strong></div>
+      <div className="grid grid-2 mb-24">
+        <section className="card admin-section-card">
+          <div className="card-header">
+            <h3><HardDrive size={17} className="inline mr-8" />Live Supabase storage level</h3>
+            <span className={`badge ${liveStorage?.live_usage_status === 'available' ? 'badge-success' : 'badge-warning'}`}>
+              {liveStorage?.live_usage_status === 'available' ? 'Live' : 'Unavailable'}
+            </span>
           </div>
-
-          {usagePercent != null ? (
-            <>
-              <div className="flex items-center justify-between text-sm mb-8">
-                <span>{usagePercent.toLocaleString('en-PH', { maximumFractionDigits: 2 })}% used</span>
-                <span className="text-secondary">{number(liveStorage?.object_count)} objects</span>
-              </div>
-              <div
-                role="progressbar"
-                aria-label="Supabase storage usage"
-                aria-valuemin={0}
-                aria-valuemax={100}
-                aria-valuenow={Math.round(boundedPercent)}
-                style={{ height: 12, borderRadius: 999, overflow: 'hidden', background: 'var(--bg-secondary)' }}
-              >
-                <div style={{ width: `${boundedPercent}%`, height: '100%', background: usageTone, borderRadius: 999, transition: 'width 300ms ease' }} />
-              </div>
-            </>
-          ) : (
-            <div className="alert-banner alert-banner-warning" role="status">
-              <AlertTriangle size={17} />
-              <span>{liveStorage?.live_usage_status === 'available'
-                ? 'Live usage is available, but this plan has a custom allowance.'
-                : 'Live storage usage could not be measured. Refresh after the database migration and Edge Function are deployed.'}</span>
+          <div className="card-body">
+            <div className="grid grid-2 mb-16">
+              <div><div className="text-xs text-secondary">Current plan</div><strong>{planLabel(liveStorage?.plan)}</strong></div>
+              <div><div className="text-xs text-secondary">Currently stored</div><strong>{formatBytes(usedBytes)}</strong></div>
+              <div><div className="text-xs text-secondary">Included allowance</div><strong>{quotaBytes != null ? formatBytes(quotaBytes) : 'Custom'}</strong></div>
+              <div><div className="text-xs text-secondary">Available in allowance</div><strong>{availableBytes != null ? formatBytes(availableBytes) : 'Plan dependent'}</strong></div>
             </div>
-          )}
 
-          {Array.isArray(liveStorage?.buckets) && liveStorage.buckets.length > 0 && (
-            <div style={{ marginTop: 18 }}>
-              <div className="text-xs text-secondary mb-8">Bucket breakdown</div>
-              <div className="grid grid-2">
-                {liveStorage.buckets.map((bucket) => (
-                  <div className="flex items-center justify-between card" style={{ padding: 12 }} key={bucket.bucket_id}>
-                    <span className="text-sm">{bucket.bucket_id}</span>
-                    <span className="text-sm"><strong>{formatBytes(bucket.size_bytes)}</strong> · {number(bucket.object_count)} files</span>
-                  </div>
-                ))}
+            {usagePercent != null ? (
+              <>
+                <div className="flex items-center justify-between text-sm mb-8">
+                  <span>{usagePercent.toLocaleString('en-PH', { maximumFractionDigits: 2 })}% used</span>
+                  <span className="text-secondary">{number(liveStorage?.object_count)} objects</span>
+                </div>
+                <div
+                  role="progressbar"
+                  aria-label="Supabase storage usage"
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={Math.round(boundedPercent)}
+                  style={{ height: 12, borderRadius: 999, overflow: 'hidden', background: 'var(--bg-secondary)' }}
+                >
+                  <div style={{ width: `${boundedPercent}%`, height: '100%', background: usageTone, borderRadius: 999, transition: 'width 300ms ease' }} />
+                </div>
+              </>
+            ) : (
+              <div className="alert-banner alert-banner-warning" role="status">
+                <AlertTriangle size={17} />
+                <span>{liveStorage?.live_usage_status === 'available'
+                  ? 'Live usage is available, but this plan has a custom allowance.'
+                  : 'Live storage usage could not be measured. Refresh after the database migration and Edge Function are deployed.'}</span>
               </div>
-            </div>
-          )}
+            )}
 
-          <p className="text-xs text-secondary" style={{ margin: '16px 0 0' }}>
-            Measured directly from this project's Supabase storage objects
-            {liveStorage?.measured_at ? ` at ${formatPhDateTime(liveStorage.measured_at)}` : ''}.
-            {' '}The plan is checked securely from Supabase and refreshes every 60 seconds.
-          </p>
-          {Number(liveStorage?.organization_project_count || 1) > 1 && (
-            <p className="text-xs" style={{ color: 'var(--warning-text)', margin: '8px 0 0' }}>
-              This organization has {number(liveStorage.organization_project_count)} projects. Supabase applies the included storage allowance across the organization; this bar measures only the CargoExpress project.
+            {Array.isArray(liveStorage?.buckets) && liveStorage.buckets.length > 0 && (
+              <div style={{ marginTop: 18 }}>
+                <div className="text-xs text-secondary mb-8">Bucket breakdown</div>
+                <div className="grid grid-2">
+                  {liveStorage.buckets.map((bucket) => (
+                    <div className="flex items-center justify-between card" style={{ padding: 12 }} key={bucket.bucket_id}>
+                      <span className="text-sm">{bucket.bucket_id}</span>
+                      <span className="text-sm"><strong>{formatBytes(bucket.size_bytes)}</strong> · {number(bucket.object_count)} files</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <p className="text-xs text-secondary" style={{ margin: '16px 0 0' }}>
+              Measured directly from this project's Supabase storage objects
+              {liveStorage?.measured_at ? ` at ${formatPhDateTime(liveStorage.measured_at)}` : ''}.
+              {' '}The plan is checked securely from Supabase and refreshes every 60 seconds.
             </p>
-          )}
-        </div>
-      </section>
+            {Number(liveStorage?.organization_project_count || 1) > 1 && (
+              <p className="text-xs" style={{ color: 'var(--warning-text)', margin: '8px 0 0' }}>
+                This organization has {number(liveStorage.organization_project_count)} projects. Supabase applies the included storage allowance across the organization; this bar measures only the CargoExpress project.
+              </p>
+            )}
+          </div>
+        </section>
+
+        <section className="card admin-section-card">
+          <div className="card-header">
+            <h3><Cloud size={17} className="inline mr-8" />Firebase fallback storage</h3>
+            <span className={`badge ${firebaseStorage?.status === 'available' ? 'badge-success' : 'badge-warning'}`}>
+              {firebaseStorage?.status === 'available' ? 'Live' : 'Unavailable'}
+            </span>
+          </div>
+          <div className="card-body">
+            <p className="text-sm text-secondary" style={{ marginTop: 0 }}>
+              The Firebase fallback stores evidence photos as documents in the <code>photoFallbacks</code> Firestore collection — this app has no separate Firebase Cloud Storage bucket.
+            </p>
+            <div className="grid grid-2 mb-16">
+              <div><div className="text-xs text-secondary">Fallback photos</div><strong>{number(firebaseStorage?.document_count)}</strong></div>
+              <div><div className="text-xs text-secondary">Currently stored</div><strong>{formatBytes(firebaseUsedBytes)}</strong></div>
+              <div><div className="text-xs text-secondary">Free-tier allowance</div><strong>{firebaseQuotaBytes != null ? formatBytes(firebaseQuotaBytes) : 'Unavailable'}</strong></div>
+              <div><div className="text-xs text-secondary">Available in allowance</div><strong>{firebaseUsedBytes != null && firebaseQuotaBytes > 0 ? formatBytes(Math.max(0, firebaseQuotaBytes - firebaseUsedBytes)) : 'Plan dependent'}</strong></div>
+            </div>
+
+            {firebaseUsagePercent != null ? (
+              <>
+                <div className="flex items-center justify-between text-sm mb-8">
+                  <span>{firebaseUsagePercent.toLocaleString('en-PH', { maximumFractionDigits: 2 })}% used</span>
+                  <span className="text-secondary">{number(firebaseStorage?.document_count)} documents</span>
+                </div>
+                <div
+                  role="progressbar"
+                  aria-label="Firebase fallback storage usage"
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={Math.round(firebaseBoundedPercent)}
+                  style={{ height: 12, borderRadius: 999, overflow: 'hidden', background: 'var(--bg-secondary)' }}
+                >
+                  <div style={{ width: `${firebaseBoundedPercent}%`, height: '100%', background: firebaseUsageTone, borderRadius: 999, transition: 'width 300ms ease' }} />
+                </div>
+              </>
+            ) : (
+              <div className="alert-banner alert-banner-warning" role="status">
+                <AlertTriangle size={17} />
+                <span>Firebase usage could not be measured. Confirm the Firebase service account secret is configured.</span>
+              </div>
+            )}
+
+            <p className="text-xs text-secondary" style={{ margin: '16px 0 0' }}>
+              Measured directly from the <code>photoFallbacks</code> collection{firebaseStorage?.measured_at ? ` at ${formatPhDateTime(firebaseStorage.measured_at)}` : ''}.
+              {' '}The allowance shown is the published Firestore free-tier document storage limit, not a live-metered quota.
+            </p>
+          </div>
+        </section>
+      </div>
 
       <div className="grid grid-4 mb-24">
         {countCards.map(({ label, value, icon: Icon }) => (
@@ -315,6 +406,11 @@ const StorageMonitoringPage = () => {
         </div>
       </section>
 
+      <div className="alert-banner alert-banner-info mb-24" role="status">
+        <Sparkles size={18} />
+        <span>Evidence photos for orders <strong>Delivered</strong> or <strong>Cancelled</strong> for more than 6 months are archived automatically every day at 9:30 AM. Admins are notified here once Supabase storage crosses 85% of the plan allowance.</span>
+      </div>
+
       <section className="card admin-section-card">
         <div className="card-header">
           <h3><CloudOff size={17} className="inline mr-8" />Recent storage activity</h3>
@@ -331,7 +427,7 @@ const StorageMonitoringPage = () => {
                 <td data-label="When" className="text-sm">{formatPhDateTime(event.created_at)}</td>
                 <td data-label="Provider">{providerLabel(event.provider)}</td>
                 <td data-label="Result"><span className={`badge ${failed ? 'badge-error' : event.outcome === 'expired' ? 'badge-warning' : 'badge-success'}`}><Icon size={13} /> {event.outcome}</span></td>
-                <td data-label="Type">{event.photo_type || 'Routing'}</td>
+                <td data-label="Type">{event.photo_type || (event.event_type === 'cleanup' ? 'Cleanup' : 'Routing')}</td>
                 <td data-label="Details" className="text-sm text-secondary">{event.message || '—'}</td>
               </tr>;
             })}</tbody>
@@ -350,6 +446,17 @@ const StorageMonitoringPage = () => {
         confirmLabel={selectedMode === 'force_firebase' ? 'Enable Force Firebase' : 'Use Automatic'}
         variant={selectedMode === 'force_firebase' ? 'warning' : 'success'}
         loading={saving}
+      />
+
+      <ConfirmModal
+        isOpen={cleanupConfirmOpen}
+        onClose={() => !cleaning && setCleanupConfirmOpen(false)}
+        onConfirm={() => void runCleanup()}
+        title="Scan and clean orphaned photos?"
+        message="This scans pickup-proofs, delivery-proofs, and receipts for evidence whose tracking number no longer matches an order, then permanently deletes it. This cannot be undone."
+        confirmLabel="Scan and Clean"
+        variant="warning"
+        loading={cleaning}
       />
     </PageTransition>
   );

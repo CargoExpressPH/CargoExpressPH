@@ -24,6 +24,11 @@ verify_jwt = false
 [functions.photo-storage-health]
 verify_jwt = false
 
+[functions.cleanup-orphaned-photos]
+# Same family as record-photo-storage-event / photo-storage-health above:
+# self-authenticates via requireAdmin() inside the function.
+verify_jwt = false
+
 [functions.submit-inquiry]
 verify_jwt = false
 
@@ -41,4 +46,9 @@ verify_jwt = false
 # the service role key as its bearer token — verify_jwt=true rejects
 # anything else at the gateway; the function itself re-checks the token is
 # specifically the service role key, not just any signed-in user.
+verify_jwt = true
+
+[functions.archive-expired-evidence-photos]
+# Called only by the evidence_photo_archive pg_cron job — same shape and
+# same reasoning as process-daily-reminders above.
 verify_jwt = true

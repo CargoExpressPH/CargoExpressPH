@@ -8,7 +8,7 @@ import {
 } from '../../lib/database';
 import {
   Bell, Package, Truck, Megaphone, CheckCheck, Loader,
-  Trash2, X, MessageSquare, Mail, Star, Clock, ChevronRight, BellOff
+  Trash2, X, MessageSquare, Mail, Star, Clock, ChevronRight, BellOff, AlertTriangle
 } from 'lucide-react';
 import { useToast } from '../../hooks/useToast';
 import ConfirmModal from './ConfirmModal';
@@ -21,6 +21,7 @@ const iconMap = {
   inquiry:      { icon: Mail, color: 'var(--info)', bg: 'var(--info-bg)' },
   chat_message: { icon: MessageSquare, color: 'var(--success)', bg: 'var(--success-bg)' },
   feedback:     { icon: Star, color: 'var(--warning)', bg: 'var(--warning-bg)' },
+  system_alert: { icon: AlertTriangle, color: 'var(--error)', bg: 'var(--error-bg)' },
   general:      { icon: Bell, color: 'var(--text-secondary)', bg: 'var(--bg-secondary)' },
 };
 
@@ -72,6 +73,8 @@ const getNotifRoute = (notification) => {
       return '/admin/feedback';
     case 'announcement':
       return '/admin/announcements';
+    case 'system_alert':
+      return '/admin/storage-monitoring';
     default:
       return '/admin';
   }
