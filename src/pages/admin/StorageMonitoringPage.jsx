@@ -159,8 +159,8 @@ const StorageMonitoringPage = () => {
   const availableBytes = usedBytes != null && quotaBytes > 0 ? Math.max(0, quotaBytes - usedBytes) : null;
   const usageTone = usagePercent >= 95 ? 'var(--error)' : usagePercent >= 80 ? 'var(--warning)' : 'var(--success)';
   const countCards = [
-    { label: 'Supabase references', value: summary?.supabase_photo_count, icon: HardDrive },
-    { label: 'Firebase references', value: summary?.firebase_photo_count, icon: Cloud },
+    { label: 'Supabase Photos', value: summary?.supabase_photo_count, icon: HardDrive },
+    { label: 'Firebase Photos', value: summary?.firebase_photo_count, icon: Cloud },
     { label: 'Fallbacks (24h)', value: summary?.fallbacks_last_24h, icon: CloudLightning },
     { label: 'Upload failures (24h)', value: summary?.failures_last_24h, icon: AlertTriangle },
   ];
