@@ -20,9 +20,9 @@ import ErrorBoundarySection from '../../components/ui/ErrorBoundarySection';
  * The URL survives remounts, back/forward, and a shared link.
  */
 const SECTIONS = [
-  { value: 'sales', label: 'Sales Overview' },
-  { value: 'unsettled', label: 'Unsettled Deliveries' },
   { value: 'reports', label: 'Reports & Analytics' },
+  { value: 'unsettled', label: 'Unsettled Deliveries' },
+  { value: 'sales', label: 'Sales Overview' },
 ];
 
 const isSection = (value) => SECTIONS.some(s => s.value === value);
@@ -33,7 +33,7 @@ const SalesReportsPage = ({ initialSection }) => {
   const paramSection = searchParams.get('tab');
   const section = isSection(paramSection)
     ? paramSection
-    : (isSection(initialSection) ? initialSection : 'sales');
+    : (isSection(initialSection) ? initialSection : 'reports');
 
   const selectSection = useCallback((value) => {
     // replace: switching a tab is not a navigation step worth a Back press.
