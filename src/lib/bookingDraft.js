@@ -28,3 +28,31 @@ export const BOOKING_DATA_FIELDS = [
 export const hasMeaningfulBookingData = (form = {}) => (
   BOOKING_DATA_FIELDS.some((field) => String(form[field] ?? '').trim().length > 0)
 );
+
+const getSessionStorage = (storage) => storage ?? globalThis.sessionStorage;
+
+export const clearBookingDraftStorage = (storage) => {
+  try {
+    const target = getSessionStorage(storage);
+    target.removeItem('booking_form');
+    target.removeItem('booking_step');
+  } catch {
+    // Storage may be unavailable in private mode; in-memory form state still works.
+  }
+};
+
+export const persistBookingDraft = (form, step, storage) => {
+  if (!hasMeaningfulBookingData(form)) {
+    clearBookingDraftStorage(storage);
+    return false;
+  }
+
+  try {
+    const target = getSessionStorage(storage);
+    target.setItem('booking_form', JSON.stringify(form));
+    target.setItem('booking_step', String(step));
+    return true;
+  } catch {
+    return false;
+  }
+};

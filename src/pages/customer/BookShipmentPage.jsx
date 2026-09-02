@@ -17,7 +17,11 @@ import { formatMoney } from '../../utils/currencyInput';
 import { toTitleCase, toAddressCase, normalizeName } from '../../utils/string';
 import { formatPhDate } from '../../utils/datetime';
 import { validatePhone } from '../../utils/phone';
-import { hasMeaningfulBookingData } from '../../lib/bookingDraft';
+import {
+  clearBookingDraftStorage,
+  hasMeaningfulBookingData,
+  persistBookingDraft,
+} from '../../lib/bookingDraft';
 
 const luxeEase = [0.22, 1, 0.36, 1];
 
@@ -122,6 +126,23 @@ const BookShipmentPage = () => {
     return isFormDirty() && currentLocation.pathname !== nextLocation.pathname;
   });
 
+  // Home can open this screen with a suggested route/trip. Consume that state
+  // once: leaving and returning through browser history must start a fresh form,
+  // not recreate an already-abandoned suggestion from the history entry.
+  useEffect(() => {
+    if (!preRoute && !preTripId) return;
+    const nextLocationState = { ...(location.state || {}) };
+    delete nextLocationState.preselectedRoute;
+    delete nextLocationState.preselectedTripId;
+    navigate(
+      { pathname: location.pathname, search: location.search, hash: location.hash },
+      {
+        replace: true,
+        state: Object.keys(nextLocationState).length > 0 ? nextLocationState : null,
+      },
+    );
+  }, [location.hash, location.pathname, location.search, location.state, navigate, preRoute, preTripId]);
+
   const u = (k, v) => {
     setForm(p => ({ ...p, [k]: v }));
     // Clear field error on edit
@@ -143,17 +164,12 @@ const BookShipmentPage = () => {
     ]).finally(() => setInitialLoading(false));
   }, []);
 
+  // A route/trip-only selection is deliberately ephemeral: navigating away or
+  // refreshing returns to a clean Step 1. Once real booking details exist, save
+  // the form and current step together so a genuine draft can be recovered.
   useEffect(() => {
-    try {
-      sessionStorage.setItem('booking_step', step.toString());
-    } catch { /* sessionStorage may be blocked in private mode */ }
-  }, [step]);
-
-  useEffect(() => {
-    try {
-      sessionStorage.setItem('booking_form', JSON.stringify(form));
-    } catch { /* sessionStorage may be blocked in private mode */ }
-  }, [form]);
+    persistBookingDraft(form, step);
+  }, [form, step]);
 
   const selectedRoute = ROUTES.find(r => r.label === form.route);
   // Route match AND departure not yet past — a trip an admin forgot to close
@@ -364,10 +380,7 @@ const BookShipmentPage = () => {
       // the early-return below, and this page never reads `loading` again —
       // clearing it would risk a frame of the un-loading form before that
       // switch.
-      try {
-        sessionStorage.removeItem('booking_form');
-        sessionStorage.removeItem('booking_step');
-      } catch { /* sessionStorage unavailable in private mode */ }
+      clearBookingDraftStorage();
     } catch (err) {
       toast.error(err.message || 'An unexpected error occurred while saving the booking.');
       if (!focusingInvalidField) window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -630,10 +643,7 @@ const BookShipmentPage = () => {
               type="button"
               className="btn booking-success-btn-outline"
               onClick={() => {
-                try {
-                  sessionStorage.removeItem('booking_form');
-                  sessionStorage.removeItem('booking_step');
-                } catch { /* sessionStorage unavailable in private mode */ }
+                clearBookingDraftStorage();
                 // handleSubmit deliberately leaves `loading` true on success
                 // (see the comment there) so the success screen replaces the
                 // form without a flash of the un-loading form first. Coming
@@ -692,7 +702,7 @@ const BookShipmentPage = () => {
       <ConfirmModal
         isOpen={blocker.state === 'blocked'}
         onClose={() => blocker.reset()}
-        onConfirm={() => { sessionStorage.removeItem('booking_form'); sessionStorage.removeItem('booking_step'); blocker.proceed(); }}
+        onConfirm={() => { clearBookingDraftStorage(); blocker.proceed(); }}
         title="Discard unsaved booking?"
         message="You have unsaved changes in your booking form. If you leave now, all entered data will be lost."
         confirmLabel="Discard"
