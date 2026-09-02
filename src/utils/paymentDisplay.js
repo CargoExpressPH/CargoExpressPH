@@ -24,7 +24,7 @@ export const formatPaymentType = (type, audience = 'customer') => {
 
 /**
  * Humanise the admin_name / recorded-by field.
- * "System Webhook" -> customer-friendly label; real names pass through.
+ * "System Webhook" -> customer-friendly system attribution; real names pass through.
  * @param {string} adminName
  * @param {'customer'|'admin'} [audience='customer']
  * @returns {string}
@@ -32,7 +32,7 @@ export const formatPaymentType = (type, audience = 'customer') => {
 export const formatRecordedBy = (adminName, audience = 'customer') => {
   if (!adminName) return audience === 'customer' ? 'System' : 'Unknown';
   if (adminName === 'System Webhook' || adminName === 'System') {
-    return audience === 'customer' ? 'Auto-Verified' : 'Auto (GCash)';
+    return audience === 'customer' ? 'Payment System (GCash verified)' : 'Auto (GCash)';
   }
   return adminName;
 };

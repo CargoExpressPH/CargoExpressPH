@@ -56,7 +56,7 @@ const PaymentResultModal = ({
     : 'Payment Processing';
 
   const subtitle = isSuccess ? 'Your payment was processed successfully!'
-    : isError ? 'Please choose another payment method.'
+    : isError ? `Your ${paymentMethod} payment was not completed. Try again or choose another payment option.`
     : `Your ${paymentMethod} payment is being confirmed. This usually takes a few seconds.`;
 
   const formattedAmount = typeof amount === 'number' && amount > 0
@@ -135,18 +135,6 @@ const PaymentResultModal = ({
                 </div>
               )}
             </div>
-          )}
-
-          {isError && (
-            <p className="pr-message" style={{ display: 'none' }} aria-hidden="true">
-              Your {paymentMethod} payment was not completed. No charges were made.
-            </p>
-          )}
-
-          {isProcessing && (
-            <p className="pr-message" style={{ display: 'none' }} aria-hidden="true">
-              {subtitle}
-            </p>
           )}
 
           {/* ── Actions ──────────────────────────────────────────── */}

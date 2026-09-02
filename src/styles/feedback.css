@@ -276,19 +276,19 @@
 .pr-actions { display: flex; flex-direction: column; gap: 10px; margin-top: 20px; }
 .pr-actions .btn { min-height: 44px; border-radius: 999px; font-weight: 700; font-size: 0.875rem; letter-spacing: 0.01em; }
 .pr-btn-success {
-  background: var(--success);
+  background: var(--success-fill);
   color: white;
-  border: 1px solid var(--success);
+  border: 1px solid var(--success-fill);
   box-shadow: 0 2px 10px color-mix(in srgb, var(--success) 24%, transparent);
 }
-.pr-btn-success:hover { background: color-mix(in srgb, var(--success) 92%, black); border-color: color-mix(in srgb, var(--success) 92%, black); }
+.pr-btn-success:hover { background: color-mix(in srgb, var(--success-fill) 92%, black); border-color: color-mix(in srgb, var(--success-fill) 92%, black); }
 .pr-btn-danger {
-  background: var(--error);
+  background: var(--error-fill);
   color: white;
-  border: 1px solid var(--error);
+  border: 1px solid var(--error-fill);
   box-shadow: 0 2px 10px color-mix(in srgb, var(--error) 20%, transparent);
 }
-.pr-btn-danger:hover { background: color-mix(in srgb, var(--error) 92%, black); border-color: color-mix(in srgb, var(--error) 92%, black); }
+.pr-btn-danger:hover { background: color-mix(in srgb, var(--error-fill) 92%, black); border-color: color-mix(in srgb, var(--error-fill) 92%, black); }
 .pr-btn-primary {
   background: var(--primary-fill);
   color: white;
