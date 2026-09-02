@@ -147,7 +147,7 @@ const EmailUsageBar = ({ label, used, limit }) => {
 };
 
 const StorageMonitoringPage = () => {
-  usePageTitle('Photo Storage');
+  usePageTitle('Storage Monitoring');
   const toast = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -397,7 +397,7 @@ const StorageMonitoringPage = () => {
     <PageTransition>
       <div className="admin-page-header">
         <div>
-          <h1 className="admin-page-title"><Database size={24} color="var(--primary)" aria-hidden="true" />Photo Storage</h1>
+          <h1 className="admin-page-title"><Database size={24} color="var(--primary)" aria-hidden="true" />Storage Monitoring</h1>
           <p className="admin-page-subtitle">See where photos are saved, check available space, and choose where new photos should go.</p>
         </div>
         <div className="flex items-center gap-8">
