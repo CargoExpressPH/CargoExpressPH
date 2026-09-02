@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   AlertTriangle, CheckCircle2, Cloud, CloudLightning, CloudOff, Database,
-  HardDrive, Loader, Radio, RefreshCw, ShieldCheck, Sparkles, XCircle, Zap,
+  HardDrive, Loader, Radio, ShieldCheck, Sparkles, XCircle, Zap,
 } from 'lucide-react';
 import {
   checkPhotoStorageHealth, checkUnusedPhotos, getPhotoStorageEvents,
@@ -112,7 +112,6 @@ const StorageMonitoringPage = () => {
   usePageTitle('Photo Storage');
   const toast = useToast();
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [mode, setMode] = useState(null);
   const [summary, setSummary] = useState(null);
@@ -125,10 +124,10 @@ const StorageMonitoringPage = () => {
   const [cleaning, setCleaning] = useState(false);
   const [cleanupConfirmOpen, setCleanupConfirmOpen] = useState(false);
   const [cleanupPreview, setCleanupPreview] = useState(null);
-  const timerRef = useRef(null);
+  const liveUpdateTimerRef = useRef(null);
 
   const load = useCallback(async ({ runHealth = true, quiet = false } = {}) => {
-    if (quiet) setRefreshing(true); else setLoading(true);
+    if (!quiet) setLoading(true);
     try {
       const requests = [getPhotoStorageMode(), getPhotoStorageSummary(), getPhotoStorageEvents()];
       if (runHealth) requests.push(checkPhotoStorageHealth());
@@ -148,23 +147,50 @@ const StorageMonitoringPage = () => {
       toast.error(error?.message || 'Could not load Photo Storage.');
     } finally {
       setLoading(false);
-      setRefreshing(false);
     }
   }, [toast]);
 
   useEffect(() => {
     void load();
+
+    const scheduleLiveUpdate = ({ runHealth = true } = {}) => {
+      window.clearTimeout(liveUpdateTimerRef.current);
+      liveUpdateTimerRef.current = window.setTimeout(() => {
+        if (document.visibilityState === 'visible') {
+          void load({ runHealth, quiet: true });
+        }
+      }, 350);
+    };
+
     const channel = supabase
       .channel('photo-storage-monitoring')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'photo_storage_events' }, () => {
-        window.clearTimeout(timerRef.current);
-        timerRef.current = window.setTimeout(() => void load({ runHealth: false, quiet: true }), 350);
+        // Every managed upload, fallback, cleanup, and mode change records an
+        // event. Recheck the complete monitor so totals, capacity, health,
+        // mode, and recent activity move together without a manual refresh.
+        scheduleLiveUpdate({ runHealth: true });
       })
       .subscribe();
-    const healthInterval = window.setInterval(() => void load({ runHealth: true, quiet: true }), 60000);
+
+    // Provider outages and dashboard-side changes do not always create a
+    // database event. Reconcile them automatically while this page is open.
+    const healthInterval = window.setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        void load({ runHealth: true, quiet: true });
+      }
+    }, 60000);
+
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'visible') scheduleLiveUpdate({ runHealth: true });
+    };
+    window.addEventListener('focus', refreshWhenVisible);
+    document.addEventListener('visibilitychange', refreshWhenVisible);
+
     return () => {
-      window.clearTimeout(timerRef.current);
+      window.clearTimeout(liveUpdateTimerRef.current);
       window.clearInterval(healthInterval);
+      window.removeEventListener('focus', refreshWhenVisible);
+      document.removeEventListener('visibilitychange', refreshWhenVisible);
       void supabase.removeChannel(channel);
     };
   }, [load]);
@@ -275,12 +301,10 @@ const StorageMonitoringPage = () => {
           <h1 className="admin-page-title"><Database size={24} color="var(--primary)" aria-hidden="true" />Photo Storage</h1>
           <p className="admin-page-subtitle">See where photos are saved, check available space, and choose where new photos should go.</p>
         </div>
-        <div className="flex gap-8">
+        <div className="flex items-center gap-8">
+          <span className="badge badge-success" role="status"><Radio size={13} aria-hidden="true" /> Live updates on</span>
           <button className="btn btn-outline" type="button" onClick={() => void previewCleanup()} disabled={cleaning}>
             {cleaning ? <Loader size={16} className="animate-spin" /> : <Sparkles size={16} />} Check Unused Photos
-          </button>
-          <button className="btn btn-outline" type="button" onClick={() => void load({ runHealth: true, quiet: true })} disabled={refreshing}>
-            {refreshing ? <Loader size={16} className="animate-spin" /> : <RefreshCw size={16} />} Refresh
           </button>
         </div>
       </div>
@@ -337,7 +361,7 @@ const StorageMonitoringPage = () => {
                 <AlertTriangle size={17} />
                 <span>{liveStorage?.live_usage_status === 'available'
                   ? 'The space used is available, but this plan does not provide a fixed allowance.'
-                  : 'Supabase space could not be checked. Select Refresh to try again.'}</span>
+                  : 'Supabase space could not be checked. Live monitoring will try again automatically.'}</span>
               </div>
             )}
 
@@ -358,7 +382,7 @@ const StorageMonitoringPage = () => {
             <p className="text-xs text-secondary" style={{ margin: '16px 0 0' }}>
               These numbers come from the files currently saved in Supabase
               {liveStorage?.measured_at ? ` and were last checked on ${formatPhDateTime(liveStorage.measured_at)}` : ''}.
-              {' '}They update every minute while this screen is open.
+              {' '}They update when photo activity happens and are checked again automatically every minute while this screen is open.
             </p>
             {Number(liveStorage?.organization_project_count || 1) > 1 && (
               <p className="text-xs" style={{ color: 'var(--warning-text)', margin: '8px 0 0' }}>
@@ -389,7 +413,7 @@ const StorageMonitoringPage = () => {
             {firebaseStorage?.status !== 'available' && (
               <div className="alert-banner alert-banner-warning" role="status">
                 <AlertTriangle size={17} />
-                <span>Firebase Backup could not be checked. Select Refresh to try again.</span>
+                <span>Firebase Backup could not be checked. Live monitoring will try again automatically.</span>
               </div>
             )}
 
