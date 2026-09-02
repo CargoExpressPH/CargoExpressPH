@@ -31,7 +31,9 @@ const MODULE_COLORS = {
   Feedback:       { bg: 'var(--warning-bg)', color: 'var(--warning-text)', icon: MessageSquare },
 };
 
-const MODULES = ['All', 'Orders', 'Trips', 'Payments', 'Chat', 'Authentication', 'System', 'Sales & Reports', 'Feedback', 'Customers'];
+// Customers is intentionally absent: the Customers screen is read-only, so it
+// has no admin action to audit. Customer-created bookings remain under Orders.
+const MODULES = ['All', 'Orders', 'Trips', 'Payments', 'Chat', 'Authentication', 'System', 'Sales & Reports', 'Feedback'];
 
 const ModuleBadge = ({ module }) => {
   const cfg = MODULE_COLORS[module] || MODULE_COLORS.System;
@@ -238,7 +240,9 @@ const ActivityLogsPage = () => {
           <EmptyState
             icon={ClipboardList}
             title="No activity logs found"
-            description="Actions performed by admins will appear here as activity occurs."
+            description={module
+              ? `No ${module} activity has been recorded during the 7-day retention period.`
+              : 'Actions performed by admins will appear here as activity occurs.'}
           />
         ) : (
           <div className="table-container">

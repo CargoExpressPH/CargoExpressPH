@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { logOrder, logPayment, logChat } from './activityLog';
+import { logOrder, logChat } from './activityLog';
 import { validateStatusTransition, outstandingBalance, ORDER_STATUS, tripCapacityState, tripCapacityRefusal, canAdminCancelOrder } from '../constants/status';
 import { detectPickupLocation } from '../constants/phLocations';
 import { phDayRangeISO, formatPhDate } from '../utils/datetime';
@@ -2695,17 +2695,14 @@ export const recordDeliveryPayment = async (orderId, payload) => {
 /**
  * Record a counter payment against an existing balance.
  *
- * This function is the ONE writer of the activity entry for such a payment.
- * Callers must not log their own: UnsettledDeliveriesPage used to add a
- * "Balance Settled" line on top of the "Full Payment Completed" written here,
- * so a single collection produced two entries that disagreed about what
- * happened. Pass `source` to record WHERE it was collected from instead.
+ * The payment_transactions database trigger is the ONE writer of payment
+ * activity entries. That covers this admin flow, pickup/delivery RPCs, and
+ * PayMongo reconciliation without duplicate or missing browser-side logs.
  */
-export const recordAdditionalPayment = async (orderId, amount, method, ref, notes, paymentDate = null, receiptUrl = null, skipInsert = false, source = null) => {
+export const recordAdditionalPayment = async (orderId, amount, method, ref, notes, paymentDate = null, receiptUrl = null, skipInsert = false) => {
   const { data: order } = await supabase.from('orders').select('*').eq('id', orderId).single();
   if (!order) throw new Error('Order not found');
 
-  const previousPaid = parseFloat(order.amount_paid || 0);
   const previousBalance = parseFloat(order.remaining_balance || order.shipping_cost || 0);
 
   if (!skipInsert) {
@@ -2722,25 +2719,6 @@ export const recordAdditionalPayment = async (orderId, amount, method, ref, note
   // Fetch the fresh order to get the accurately recalculated totals from the DB trigger
   const { data: freshOrder, error: fetchErr } = await supabase.from('orders').select('*').eq('id', orderId).single();
   if (fetchErr) throw fetchErr;
-
-  // Outstanding is the DERIVED figure, never the stored remaining_balance,
-  // which can lag the ledger write this function just triggered. Reading the
-  // stored column here could name the entry "Additional Payment Recorded" for
-  // a payment that in fact settled the order.
-  const newOutstanding = outstandingBalance(freshOrder);
-  const settled = newOutstanding <= 0 && previousBalance > 0;
-
-  // One entry, one name. "Payment Completed" when this payment cleared the
-  // balance, otherwise "Additional Payment Recorded" — never both.
-  const actionName = settled ? 'Payment Completed' : 'Additional Payment Recorded';
-
-  logPayment(actionName, orderId, order.tracking_number, {
-    previousValue: { amount_paid: previousPaid, remaining_balance: previousBalance },
-    newValue: { amount_paid: freshOrder.amount_paid, remaining_balance: newOutstanding },
-    details: `Collected ₱${amount} via ${method}${source ? ` from ${source}` : ''}. ${
-      settled ? 'Balance fully settled.' : `Balance is now ₱${newOutstanding}.`
-    }`,
-  });
 
   return { 
     newAmountPaid: freshOrder.amount_paid, 

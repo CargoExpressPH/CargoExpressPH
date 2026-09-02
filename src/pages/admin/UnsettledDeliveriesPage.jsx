@@ -233,13 +233,10 @@ const UnsettledDeliveriesPage = () => {
 
   const handleRecordPayment = async (amount, method, ref, notes, date, receiptUrl) => {
     const order = payingOrder;
-    // No logPayment() here — recordAdditionalPayment writes the single activity
-    // entry, naming it from whether this payment actually settled the balance.
-    // A second "Balance Settled" line from this page is what made one
-    // collection appear twice in the audit log.
+    // The payment_transactions database trigger writes the single activity
+    // entry. A second browser-side log here would duplicate the collection.
     await recordAdditionalPayment(
       order.id, amount, method, ref, notes, date, receiptUrl, false,
-      'the unsettled deliveries list',
     );
     setPayingOrder(null);
     // Silent: the realtime patch usually lands first anyway, and a spinner
