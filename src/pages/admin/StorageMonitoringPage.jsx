@@ -124,6 +124,9 @@ const StorageMonitoringPage = () => {
   const [cleaning, setCleaning] = useState(false);
   const [cleanupConfirmOpen, setCleanupConfirmOpen] = useState(false);
   const [cleanupPreview, setCleanupPreview] = useState(null);
+  const [liveStatus, setLiveStatus] = useState(() => (
+    typeof navigator !== 'undefined' && !navigator.onLine ? 'offline' : 'connecting'
+  ));
   const liveUpdateTimerRef = useRef(null);
 
   const load = useCallback(async ({ runHealth = true, quiet = false } = {}) => {
@@ -151,15 +154,18 @@ const StorageMonitoringPage = () => {
   }, [toast]);
 
   useEffect(() => {
+    let active = true;
+    const isOnline = () => typeof navigator === 'undefined' || navigator.onLine;
+
     void load();
 
-    const scheduleLiveUpdate = ({ runHealth = true } = {}) => {
+    const scheduleLiveUpdate = ({ runHealth = true, delay = 350 } = {}) => {
       window.clearTimeout(liveUpdateTimerRef.current);
       liveUpdateTimerRef.current = window.setTimeout(() => {
-        if (document.visibilityState === 'visible') {
+        if (active && isOnline() && document.visibilityState === 'visible') {
           void load({ runHealth, quiet: true });
         }
-      }, 350);
+      }, delay);
     };
 
     const channel = supabase
@@ -170,26 +176,51 @@ const StorageMonitoringPage = () => {
         // mode, and recent activity move together without a manual refresh.
         scheduleLiveUpdate({ runHealth: true });
       })
-      .subscribe();
+      .subscribe((status) => {
+        if (!active) return;
+        if (!isOnline()) {
+          setLiveStatus('offline');
+        } else if (status === 'SUBSCRIBED') {
+          setLiveStatus('live');
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+          setLiveStatus('reconnecting');
+        }
+      });
 
     // Provider outages and dashboard-side changes do not always create a
     // database event. Reconcile them automatically while this page is open.
     const healthInterval = window.setInterval(() => {
-      if (document.visibilityState === 'visible') {
+      if (isOnline() && document.visibilityState === 'visible') {
         void load({ runHealth: true, quiet: true });
       }
     }, 60000);
 
     const refreshWhenVisible = () => {
-      if (document.visibilityState === 'visible') scheduleLiveUpdate({ runHealth: true });
+      if (isOnline() && document.visibilityState === 'visible') scheduleLiveUpdate({ runHealth: true });
+    };
+    const handleOffline = () => {
+      window.clearTimeout(liveUpdateTimerRef.current);
+      setLiveStatus('offline');
+    };
+    const handleOnline = () => {
+      // Realtime reconnects automatically, while this full reload recovers any
+      // events and totals that changed during the offline gap.
+      setLiveStatus('reconnecting');
+      supabase.realtime.connect();
+      scheduleLiveUpdate({ runHealth: true, delay: 750 });
     };
     window.addEventListener('focus', refreshWhenVisible);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
     document.addEventListener('visibilitychange', refreshWhenVisible);
 
     return () => {
+      active = false;
       window.clearTimeout(liveUpdateTimerRef.current);
       window.clearInterval(healthInterval);
       window.removeEventListener('focus', refreshWhenVisible);
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
       document.removeEventListener('visibilitychange', refreshWhenVisible);
       void supabase.removeChannel(channel);
     };
@@ -286,6 +317,12 @@ const StorageMonitoringPage = () => {
   const firebaseFreePlanReference = firebaseStorage?.free_tier_reference_bytes == null
     ? null
     : Number(firebaseStorage.free_tier_reference_bytes);
+  const liveStatusClass = liveStatus === 'live'
+    ? 'badge-success'
+    : liveStatus === 'offline' ? 'badge-error' : 'badge-warning';
+  const liveStatusText = liveStatus === 'live'
+    ? 'Live updates on'
+    : liveStatus === 'offline' ? 'Offline — updates paused' : 'Reconnecting…';
 
   const countCards = [
     { label: 'Supabase Photos', value: summary?.supabase_photo_count, icon: HardDrive },
@@ -302,7 +339,10 @@ const StorageMonitoringPage = () => {
           <p className="admin-page-subtitle">See where photos are saved, check available space, and choose where new photos should go.</p>
         </div>
         <div className="flex items-center gap-8">
-          <span className="badge badge-success" role="status"><Radio size={13} aria-hidden="true" /> Live updates on</span>
+          <span className={`badge ${liveStatusClass}`} role="status" aria-live="polite">
+            {liveStatus === 'offline' ? <CloudOff size={13} aria-hidden="true" /> : <Radio size={13} aria-hidden="true" />}
+            {' '}{liveStatusText}
+          </span>
           <button className="btn btn-outline" type="button" onClick={() => void previewCleanup()} disabled={cleaning}>
             {cleaning ? <Loader size={16} className="animate-spin" /> : <Sparkles size={16} />} Check Unused Photos
           </button>
