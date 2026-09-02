@@ -89,21 +89,28 @@ const activityDetails = (event) => {
   return event.outcome === 'failure' ? 'The check found a problem that needs attention.' : 'The photo storage check finished successfully.';
 };
 
-const HealthBadge = ({ provider, health }) => {
-  const healthy = health?.status === 'healthy';
-  const unavailable = health?.status === 'unavailable';
+const HealthBadge = ({ provider, health, liveStatus }) => {
+  const offline = liveStatus === 'offline';
+  const reconnecting = liveStatus !== 'live' && !offline;
+  const healthy = !offline && !reconnecting && health?.status === 'healthy';
+  const unavailable = !offline && !reconnecting && health?.status === 'unavailable';
   const Icon = provider === 'supabase' ? HardDrive : Cloud;
+  const statusText = offline ? 'Offline' : healthy ? 'Ready' : unavailable ? 'Not Ready' : 'Checking';
+  const statusClass = healthy ? 'badge-success' : offline || unavailable ? 'badge-error' : 'badge-warning';
+  const details = offline
+    ? 'Waiting for the internet connection to return.'
+    : reconnecting
+      ? 'Refreshing the latest storage status.'
+      : healthy
+        ? 'Photos can be saved here.'
+        : unavailable ? 'Photos cannot be saved here right now.' : 'Please wait while the system checks.';
   return (
     <div className="card" style={{ padding: 18, minWidth: 0 }}>
       <div className="flex items-center justify-between gap-12">
         <div className="flex items-center gap-8"><Icon size={19} className="text-primary" /><strong>{providerLabel(provider)}</strong></div>
-        <span className={`badge ${healthy ? 'badge-success' : unavailable ? 'badge-error' : 'badge-warning'}`}>
-          {healthy ? 'Ready' : unavailable ? 'Not Ready' : 'Checking'}
-        </span>
+        <span className={`badge ${statusClass}`}>{statusText}</span>
       </div>
-      <p className="text-sm text-secondary" style={{ margin: '10px 0 0' }}>
-        {healthy ? 'Photos can be saved here.' : unavailable ? 'Photos cannot be saved here right now.' : 'Please wait while the system checks.'}
-      </p>
+      <p className="text-sm text-secondary" style={{ margin: '10px 0 0' }}>{details}</p>
     </div>
   );
 };
@@ -323,6 +330,15 @@ const StorageMonitoringPage = () => {
   const liveStatusText = liveStatus === 'live'
     ? 'Live updates on'
     : liveStatus === 'offline' ? 'Offline — updates paused' : 'Reconnecting…';
+  const storageBadge = (available) => {
+    if (liveStatus === 'offline') return { className: 'badge-error', text: 'Offline' };
+    if (liveStatus !== 'live') return { className: 'badge-warning', text: 'Checking' };
+    return available
+      ? { className: 'badge-success', text: 'Live' }
+      : { className: 'badge-warning', text: 'Unavailable' };
+  };
+  const supabaseStorageBadge = storageBadge(liveStorage?.live_usage_status === 'available');
+  const firebaseStorageBadge = storageBadge(firebaseStorage?.status === 'available');
 
   const countCards = [
     { label: 'Supabase Photos', value: summary?.supabase_photo_count, icon: HardDrive },
@@ -359,17 +375,15 @@ const StorageMonitoringPage = () => {
       </div>
 
       <div className="grid grid-2 mb-24">
-        <HealthBadge provider="supabase" health={health?.supabase} />
-        <HealthBadge provider="firebase" health={health?.firebase} />
+        <HealthBadge provider="supabase" health={health?.supabase} liveStatus={liveStatus} />
+        <HealthBadge provider="firebase" health={health?.firebase} liveStatus={liveStatus} />
       </div>
 
       <div className="grid grid-2 mb-24">
         <section className="card admin-section-card">
           <div className="card-header">
             <h3><HardDrive size={17} className="inline mr-8" />Supabase Photos</h3>
-            <span className={`badge ${liveStorage?.live_usage_status === 'available' ? 'badge-success' : 'badge-warning'}`}>
-              {liveStorage?.live_usage_status === 'available' ? 'Live' : 'Unavailable'}
-            </span>
+            <span className={`badge ${supabaseStorageBadge.className}`}>{supabaseStorageBadge.text}</span>
           </div>
           <div className="card-body">
             <div className="grid grid-2 mb-16">
@@ -422,7 +436,9 @@ const StorageMonitoringPage = () => {
             <p className="text-xs text-secondary" style={{ margin: '16px 0 0' }}>
               These numbers come from the files currently saved in Supabase
               {liveStorage?.measured_at ? ` and were last checked on ${formatPhDateTime(liveStorage.measured_at)}` : ''}.
-              {' '}They update when photo activity happens and are checked again automatically every minute while this screen is open.
+              {liveStatus === 'offline'
+                ? ' The last successful values remain visible and will update when the internet returns.'
+                : ' They update when photo activity happens and are checked again automatically every minute while this screen is open.'}
             </p>
             {Number(liveStorage?.organization_project_count || 1) > 1 && (
               <p className="text-xs" style={{ color: 'var(--warning-text)', margin: '8px 0 0' }}>
@@ -435,9 +451,7 @@ const StorageMonitoringPage = () => {
         <section className="card admin-section-card">
           <div className="card-header">
             <h3><Cloud size={17} className="inline mr-8" />Firebase Backup Photos</h3>
-            <span className={`badge ${firebaseStorage?.status === 'available' ? 'badge-success' : 'badge-warning'}`}>
-              {firebaseStorage?.status === 'available' ? 'Live' : 'Unavailable'}
-            </span>
+            <span className={`badge ${firebaseStorageBadge.className}`}>{firebaseStorageBadge.text}</span>
           </div>
           <div className="card-body">
             <p className="text-sm text-secondary" style={{ marginTop: 0 }}>
