@@ -324,6 +324,9 @@ const StorageMonitoringPage = () => {
   const firebaseFreePlanReference = firebaseStorage?.free_tier_reference_bytes == null
     ? null
     : Number(firebaseStorage.free_tier_reference_bytes);
+  const firebaseGuideRemainingBytes = firebaseEstimatedBytes != null && firebaseFreePlanReference > 0
+    ? Math.max(0, firebaseFreePlanReference - firebaseEstimatedBytes)
+    : null;
   const liveStatusClass = liveStatus === 'live'
     ? 'badge-success'
     : liveStatus === 'offline' ? 'badge-error' : 'badge-warning';
@@ -342,7 +345,7 @@ const StorageMonitoringPage = () => {
 
   const countCards = [
     { label: 'Supabase Photos', value: summary?.supabase_photo_count, icon: HardDrive },
-    { label: 'Firebase Photos', value: summary?.firebase_photo_count, icon: Cloud },
+    { label: 'Firebase Photos in Use', value: summary?.firebase_photo_count, icon: Cloud },
     { label: 'Firebase Used (24h)', value: summary?.fallbacks_last_24h, icon: CloudLightning },
     { label: 'Upload Failures (24h)', value: summary?.failures_last_24h, icon: AlertTriangle },
   ];
@@ -458,10 +461,10 @@ const StorageMonitoringPage = () => {
               Firebase is the automatic backup when a new photo cannot be saved in Supabase.
             </p>
             <div className="grid grid-2 mb-16">
-              <div><div className="text-xs text-secondary">Backup photos</div><strong>{number(firebaseStorage?.document_count)}</strong></div>
-              <div><div className="text-xs text-secondary">Estimated photo data</div><strong>{formatBytes(firebaseEstimatedBytes)}</strong></div>
+              <div><div className="text-xs text-secondary">Photos in use</div><strong>{number(summary?.firebase_photo_count)}</strong></div>
+              <div><div className="text-xs text-secondary">Estimated space used</div><strong>{formatBytes(firebaseEstimatedBytes)}</strong></div>
               <div><div className="text-xs text-secondary">Free plan guide</div><strong>{firebaseFreePlanReference != null ? formatBytes(firebaseFreePlanReference) : 'Unavailable'}</strong></div>
-              <div><div className="text-xs text-secondary">Measurement</div><strong>Estimate</strong></div>
+              <div><div className="text-xs text-secondary">Estimated guide space left</div><strong>{formatBytes(firebaseGuideRemainingBytes)}</strong></div>
             </div>
 
             {firebaseStorage?.status !== 'available' && (
@@ -472,8 +475,9 @@ const StorageMonitoringPage = () => {
             )}
 
             <p className="text-xs text-secondary" style={{ margin: '16px 0 0' }}>
-              The estimate includes the saved photo data{firebaseStorage?.measured_at ? ` checked on ${formatPhDateTime(firebaseStorage.measured_at)}` : ''}.
-              {' '}The 1 GB figure is a free-plan guide, not a live limit from Firebase. Check the Firebase dashboard for exact billing and total account usage.
+              Photos in use are linked to current pickup, delivery, or receipt records. The space estimate includes all saved Firebase photo data
+              {firebaseStorage?.measured_at ? ` checked on ${formatPhDateTime(firebaseStorage.measured_at)}` : ''}.
+              {' '}The 1 GB figure and space-left amount are free-plan guides, not a detected live limit. Check the Firebase dashboard for exact billing and total account usage.
             </p>
           </div>
         </section>

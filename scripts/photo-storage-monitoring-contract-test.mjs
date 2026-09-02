@@ -74,6 +74,11 @@ assert.match(page, /last successful values remain visible and will update when t
 assert.match(page, /60000/);
 assert.doesNotMatch(page, /> Refresh\s*</);
 assert.match(page, /Supabase Photos/);
+assert.match(page, /Firebase Photos in Use/);
+assert.match(page, /Photos in use/);
+assert.match(page, /Estimated space used/);
+assert.match(page, /Estimated guide space left/);
+assert.doesNotMatch(page, />Backup photos</);
 assert.match(page, /Recent Photo Activity/);
 assert.match(page, /activityDetails\(event\)/);
 assert.doesNotMatch(page, /event\.message \|\|/);
