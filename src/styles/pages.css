@@ -322,3 +322,22 @@
   margin-top: 0.25rem;
 }
 
+.route-error-fallback {
+  min-height: 100vh;
+  background: var(--bg);
+}
+
+.route-error-fallback h1 {
+  margin: 0;
+  color: var(--text);
+  font-size: 1.5rem;
+}
+
+.route-error-fallback .error-boundary-icon {
+  color: var(--error);
+}
+
+.route-error-hint {
+  font-size: 0.8125rem !important;
+  color: var(--text-tertiary) !important;
+}

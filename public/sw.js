@@ -174,30 +174,31 @@ const OFFLINE_FALLBACK_HTML = `
 self.addEventListener('install', (event) => {
   event.waitUntil(
     (async () => {
-      try {
-        const cache = await caches.open(STATIC_CACHE);
-        const urls = [...APP_SHELL, ...PRECACHE_ASSETS];
+      const cache = await caches.open(STATIC_CACHE);
 
-        // Per-item rather than cache.addAll(): addAll rejects the whole batch if
-        // a single request 404s, which would leave the app with no offline shell
-        // at all. One missing asset should not cost us the other 20.
-        const results = await Promise.allSettled(
-          urls.map(async (url) => {
-            // Hashed bundles are immutable; 'reload' avoids a stale HTTP-cache hit
-            const request = new Request(url, { cache: 'reload' });
-            const response = await fetch(request);
-            if (!response || !response.ok) throw new Error(`Precache failed: ${url}`);
-            await cache.put(url, response);
-          })
-        );
+      const cacheUrl = async (url) => {
+        // Hashed bundles are immutable; 'reload' avoids a stale HTTP-cache hit.
+        const request = new Request(url, { cache: 'reload' });
+        const response = await fetch(request);
+        if (!response || !response.ok) throw new Error(`Precache failed: ${url}`);
+        await cache.put(url, response);
+      };
 
-        const failed = results.filter((r) => r.status === 'rejected').length;
-        if (failed > 0) {
-          console.warn(`[SW] Precache: ${urls.length - failed}/${urls.length} assets cached`);
-        }
-      } catch (err) {
-        // Pre-cache failed entirely — app will still work via network
+      // A missing logo must not block an otherwise usable release.
+      const shellResults = await Promise.allSettled(APP_SHELL.map(cacheUrl));
+      const shellFailures = shellResults.filter((result) => result.status === 'rejected').length;
+      if (shellFailures > 0) {
+        console.warn(`[SW] App shell: ${APP_SHELL.length - shellFailures}/${APP_SHELL.length} assets cached`);
       }
+
+      // Build assets are atomic. If any JS/CSS chunk is unavailable, reject
+      // installation so the previous worker and its complete caches remain in
+      // control. Activating a partial release is what caused offline lazy routes
+      // to crash after deployments.
+      if (PRECACHE_ASSETS.length === 0 && CACHE_VERSION !== '__BUILD_VERSION__') {
+        throw new Error('Refusing to install a production worker without build assets.');
+      }
+      await Promise.all(PRECACHE_ASSETS.map(cacheUrl));
 
       await self.skipWaiting();
     })()
@@ -364,12 +365,16 @@ self.addEventListener('fetch', (event) => {
   // Skip chrome-extension and browser-internal requests
   if (url.startsWith('chrome-extension://') || url.startsWith('chrome://')) return;
 
-  // Skip localhost dev server requests (Vite HMR, hot module reload, etc.)
-  // In production builds, assets are served from the same origin without these paths
+  // The unbuilt development worker skips localhost entirely to avoid caching
+  // Vite HMR. A stamped production build served by `vite preview` is allowed so
+  // the real offline behavior can be regression-tested on localhost.
   const urlObj = new URL(url);
+  const isUnbuiltDevWorker = CACHE_VERSION === '__BUILD_VERSION__';
   if (
-    urlObj.hostname === 'localhost' ||
-    urlObj.hostname === '127.0.0.1' ||
+    (isUnbuiltDevWorker && (
+      urlObj.hostname === 'localhost' ||
+      urlObj.hostname === '127.0.0.1'
+    )) ||
     url.includes('/@vite') ||
     url.includes('/__vite') ||
     url.includes('/@react-refresh') ||

@@ -12,12 +12,21 @@ const RELOAD_THROTTLE_MS = 10_000;
 const RELOAD_KEY = 'cargoexpress:vite-preload-reload';
 
 window.addEventListener('vite:preloadError', (event) => {
-  event.preventDefault();
+  // Vite only rejects the failed dynamic import when this event is NOT
+  // cancelled. Cancelling while offline makes React.lazy receive `undefined`
+  // and masks the useful chunk-load error with "reading 'default'". Let the
+  // router's errorElement render the offline recovery screen instead.
+  if (navigator.onLine === false) {
+    console.warn('Vite preload error while offline; showing offline recovery UI.', event);
+    return;
+  }
+
   try {
     const raw = sessionStorage.getItem(RELOAD_KEY);
     const last = raw ? Number(raw) : 0;
     const now = Date.now();
     if (!last || Number.isNaN(last) || now - last > RELOAD_THROTTLE_MS) {
+      event.preventDefault();
       sessionStorage.setItem(RELOAD_KEY, String(now));
       window.location.reload();
       return;
@@ -25,6 +34,7 @@ window.addEventListener('vite:preloadError', (event) => {
   } catch {
     // sessionStorage blocked (Safari private mode / 3rd-party cookie block) -
     // still recover once; guard falls back to in-memory single attempt.
+    event.preventDefault();
     window.location.reload();
     return;
   }

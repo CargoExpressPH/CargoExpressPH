@@ -12,10 +12,11 @@ function swVersionPlugin() {
   return {
     name: 'sw-version-stamp',
 
-    // Walk the entry chunk's STATIC import graph. Route chunks reached only via
-    // dynamic import (lazyWithRetry) are deliberately excluded — precaching all
-    // 77 chunks would pull ~3 MB, including the 985 KB html2pdf bundle that most
-    // sessions never touch. Static imports alone boot the real UI offline.
+    // Cache every emitted JS/CSS chunk. The app has many lazy routes, and a
+    // cached entry bundle alone cannot render a route whose chunk was never
+    // visited. A complete code cache is intentionally a few MB: it makes every
+    // installed-PWA screen bootable after a successful update. Live data still
+    // remains network-dependent and is handled by each screen's offline state.
     generateBundle(_options, bundle) {
       const collected = new Set()
 
@@ -27,12 +28,16 @@ function swVersionPlugin() {
 
         // CSS Vite emitted for this chunk
         for (const css of chunk.viteMetadata?.importedCss || []) collected.add(css)
-        // Static imports only — chunk.dynamicImports is intentionally ignored
+        // Static imports are visited for completeness; dynamic chunks are
+        // collected by the outer bundle walk below.
         for (const imported of chunk.imports || []) visit(imported)
       }
 
       for (const chunk of Object.values(bundle)) {
-        if (chunk.type === 'chunk' && chunk.isEntry) visit(chunk.fileName)
+        if (chunk.type === 'chunk') visit(chunk.fileName)
+        if (chunk.type === 'asset' && chunk.fileName.endsWith('.css')) {
+          collected.add(chunk.fileName)
+        }
       }
 
       precacheAssets = [...collected].map((file) => `/${file}`)
@@ -54,7 +59,7 @@ function swVersionPlugin() {
 
         writeFileSync(swPath, content, 'utf-8')
         console.log(`[sw-version] Stamped ${version} into sw.js`)
-        console.log(`[sw-precache] Injected ${precacheAssets.length} entry assets:`)
+        console.log(`[sw-precache] Injected ${precacheAssets.length} app assets:`)
         for (const asset of precacheAssets) console.log(`             ${asset}`)
       } catch { /* sw.js not in dist — dev mode, skip */ }
     },

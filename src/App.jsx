@@ -4,6 +4,7 @@ import PageLoader from './components/ui/PageLoader';
 import InstallAppBanner from './components/ui/InstallAppBanner';
 import IosInstallBanner from './components/ui/IosInstallBanner';
 import UpdateAvailableBanner from './components/ui/UpdateAvailableBanner';
+import RouteErrorBoundary from './components/ui/RouteErrorBoundary';
 import { createBrowserRouter, RouterProvider, Navigate, Outlet, useLocation } from 'react-router-dom';
 import useKeyboardInset, { scrollFocusedFieldIntoView } from './hooks/useKeyboardInset';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -179,6 +180,7 @@ const RootLayout = () => (
 const router = createBrowserRouter([
   {
     element: <RootLayout />,
+    errorElement: <RouteErrorBoundary />,
     children: [
       // Root
       { path: '/', element: <RootRedirect /> },
