@@ -4,8 +4,9 @@ import { ArrowLeft, Bell, ChevronRight, Globe, MessageCircle } from 'lucide-reac
 import usePageTitle from '../../hooks/usePageTitle';
 import { useAuth } from '../../contexts/AuthContext';
 import { getCurrentPushStatus } from '../../lib/push-notifications';
-import { APP_BUILD_ID, APP_VERSION } from '../../lib/appVersion';
 import { BrandLogo, BrandWordmark } from '../../components/ui/BrandLogo';
+
+const APP_VERSION = '1.0.0';
 
 /**
  * AboutVersionPage — the customer's "About this app" screen.
@@ -114,9 +115,7 @@ const AboutVersionPage = () => {
         <BrandLogo size={84} decorative className="about-app-mark" />
         <BrandWordmark />
         <p className="about-app-tagline">Customer Portal</p>
-        <p className="about-app-version">
-          Version {APP_VERSION}{APP_BUILD_ID && ` · Build ${APP_BUILD_ID}`}
-        </p>
+        <p className="about-app-version">Version {APP_VERSION}</p>
       </div>
 
       {/* ── Settings cells ────────────────────────────────────────── */}
