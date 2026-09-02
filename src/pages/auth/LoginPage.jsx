@@ -152,7 +152,7 @@ const LoginPage = () => {
           localStorage.removeItem('remember_me');
           localStorage.removeItem('remembered_email');
         }
-        logAuth('User Logged In', { details: `User logged in with email: ${email.trim()}` });
+        await logAuth('User Logged In', { details: `User logged in with email: ${email.trim()}` });
         // ProtectedRoute stashes the page a guest actually wanted here before
         // bouncing them to login (e.g. "Book a Cargo" from the public
         // footer or a trip schedule card). Honor it — including its own

@@ -356,7 +356,7 @@ export const AuthProvider = ({ children }) => {
     // there is no auth.uid() for guard_activity_log_insert to attribute the
     // row to, and the insert would be dropped.
     if (signedInUserId) {
-      logAuth(userProfile?.role === 'admin' ? 'Admin Logged Out' : 'User Logged Out', {
+      await logAuth(userProfile?.role === 'admin' ? 'Admin Logged Out' : 'User Logged Out', {
         recordId: signedInUserId,
         recordRef: userProfile?.name || user?.email || null,
         details: 'Session ended.',

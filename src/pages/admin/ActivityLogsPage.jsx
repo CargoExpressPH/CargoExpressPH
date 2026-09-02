@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
-import { getActivityLogs } from '../../lib/database';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { getActivityLogs, getActivityLogsForExport } from '../../lib/database';
+import { supabase } from '../../lib/supabase';
 import Breadcrumb from '../../components/ui/Breadcrumb';
 import { CenteredSpinner } from '../../components/ui/Loader';
 import EmptyState from '../../components/ui/EmptyState';
@@ -68,7 +69,13 @@ const ActivityLogsPage = () => {
   const [logs, setLogs] = useState([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
+  const [liveStatus, setLiveStatus] = useState(
+    typeof navigator !== 'undefined' && !navigator.onLine ? 'offline' : 'connecting'
+  );
   const [page, setPage] = useState(1);
+  const requestIdRef = useRef(0);
+  const loadingRequestIdRef = useRef(0);
   const PAGE_SIZE = 50;
 
   // Filters. Three, deliberately.
@@ -92,8 +99,12 @@ const ActivityLogsPage = () => {
     return () => clearTimeout(t);
   }, [searchInput]);
 
-  const loadLogs = useCallback(async () => {
-    setLoading(true);
+  const loadLogs = useCallback(async ({ silent = false } = {}) => {
+    const requestId = ++requestIdRef.current;
+    if (!silent) {
+      loadingRequestIdRef.current = requestId;
+      setLoading(true);
+    }
     try {
       // action / adminId / dateFrom / dateTo are simply not passed. Every one
       // of them already defaults to null in getActivityLogs, and each clause is
@@ -107,16 +118,20 @@ const ActivityLogsPage = () => {
         page,
         pageSize: PAGE_SIZE,
       });
-      setLogs(result.logs);
-      setTotal(result.total);
+      if (requestId === requestIdRef.current) {
+        setLogs(result.logs);
+        setTotal(result.total);
+      }
     } catch (err) {
       console.error('Failed to load activity logs:', err);
       // Without this the table just renders empty, which is indistinguishable
       // from "no activity matched your filters" — the one reading an audit log
       // is the last person who should be guessing whether it actually loaded.
-      showError('Could not load activity logs. Check your connection and try again.');
+      if (!silent) {
+        showError('Could not load activity logs. Check your connection and try again.');
+      }
     } finally {
-      setLoading(false);
+      if (!silent && requestId === loadingRequestIdRef.current) setLoading(false);
     }
   }, [module, search, hideLogins, page, showError]);
 
@@ -128,26 +143,96 @@ const ActivityLogsPage = () => {
     loadLogs();
   }, [loadLogs]);
 
+  useEffect(() => {
+    let refreshTimer = null;
+    const scheduleRefresh = () => {
+      clearTimeout(refreshTimer);
+      refreshTimer = setTimeout(() => void loadLogs({ silent: true }), 250);
+    };
+
+    const channel = supabase
+      .channel('admin-activity-logs-live')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'activity_logs',
+      }, scheduleRefresh)
+      .subscribe(status => {
+        if (status === 'SUBSCRIBED') {
+          setLiveStatus('live');
+          scheduleRefresh();
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+          setLiveStatus(typeof navigator !== 'undefined' && !navigator.onLine ? 'offline' : 'connecting');
+        }
+      });
+
+    const handleOnline = () => {
+      setLiveStatus('connecting');
+      supabase.realtime.connect();
+      scheduleRefresh();
+    };
+    const handleOffline = () => setLiveStatus('offline');
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') scheduleRefresh();
+    };
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    window.addEventListener('focus', scheduleRefresh);
+    document.addEventListener('visibilitychange', handleVisibility);
+    const safetyRefresh = setInterval(scheduleRefresh, 60000);
+
+    return () => {
+      clearTimeout(refreshTimer);
+      clearInterval(safetyRefresh);
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+      window.removeEventListener('focus', scheduleRefresh);
+      document.removeEventListener('visibilitychange', handleVisibility);
+      void supabase.removeChannel(channel);
+    };
+  }, [loadLogs]);
+
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
-  const exportCSV = () => {
-    const headers = ['Date & Time', 'Admin', 'Module', 'Action', 'Reference', 'Details'];
-    const rows = logs.map(l => [
-      formatDate(l.created_at),
-      l.admin_name,
-      l.module,
-      l.action,
-      l.record_ref || '',
-      l.details || '',
-    ]);
-    const csv = [headers, ...rows].map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `activity-logs-${new Date().toISOString().slice(0,10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+  const exportCSV = async () => {
+    setExporting(true);
+    try {
+      const exportLogs = await getActivityLogsForExport({
+        module: module || null,
+        search: search || null,
+        hideLogins,
+      });
+      const headers = ['Date & Time', 'Admin', 'Module', 'Action', 'Reference', 'Details'];
+      const rows = exportLogs.map(l => [
+        formatDate(l.created_at),
+        l.admin_name,
+        l.module,
+        l.action,
+        l.record_ref || '',
+        l.details || '',
+      ]);
+      const csvCell = (value) => {
+        let text = String(value ?? '');
+        if (/^[=+\-@\t\r]/.test(text)) text = `'${text}`;
+        return `"${text.replace(/"/g, '""')}"`;
+      };
+      const csv = [headers, ...rows].map(row => row.map(csvCell).join(',')).join('\r\n');
+      const blob = new Blob(['\uFEFF', csv], { type: 'text/csv;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `activity-logs-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 0);
+    } catch (err) {
+      console.error('Failed to export activity logs:', err);
+      showError('Could not export activity logs. Check your connection and try again.');
+    } finally {
+      setExporting(false);
+    }
   };
 
   return (
@@ -166,11 +251,13 @@ const ActivityLogsPage = () => {
           <p className="text-secondary text-sm mt-4">Audit trail of admin actions — logs are kept for 7 days, older entries are deleted automatically</p>
         </div>
         <div className="flex items-center gap-8">
-          <button className="btn btn-ghost btn-sm" onClick={loadLogs} title="Refresh" aria-label="Refresh activity logs">
-            <RefreshCw size={15} className={loading ? 'animate-spin' : ''} />
-          </button>
-          <button className="btn btn-outline btn-sm" onClick={exportCSV} disabled={logs.length === 0}>
-            <Download size={15} /> Export CSV
+          <span className={`activity-logs-live-status activity-logs-live-status--${liveStatus}`} role="status" aria-live="polite">
+            <span className="activity-logs-live-dot" aria-hidden="true" />
+            {liveStatus === 'live' ? 'Live updates' : liveStatus === 'offline' ? 'Offline' : 'Connecting'}
+          </span>
+          <button className="btn btn-outline btn-sm" onClick={exportCSV} disabled={total === 0 || exporting}>
+            {exporting ? <RefreshCw size={15} className="animate-spin" /> : <Download size={15} />}
+            {exporting ? 'Exporting all...' : 'Export CSV'}
           </button>
         </div>
       </div>

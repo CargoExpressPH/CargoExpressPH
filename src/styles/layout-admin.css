@@ -532,6 +532,43 @@
 .activity-logs-filters {
   animation-delay: 0ms;
 }
+
+.activity-logs-live-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 30px;
+  padding: 4px 9px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  color: var(--warning-text);
+  background: var(--warning-bg);
+  font-size: 0.75rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.activity-logs-live-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.activity-logs-live-status--live {
+  color: var(--success-text);
+  background: var(--success-glow);
+}
+
+.activity-logs-live-status--live .activity-logs-live-dot {
+  box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 18%, transparent);
+}
+
+.activity-logs-live-status--offline {
+  color: var(--error-text);
+  background: var(--error-glow);
+}
+
 /* One row: Search grows, Module is fixed, the checkbox and Clear sit at the
    end. `flex-wrap` is the only concession to narrow screens — below ~720px the
    controls stack rather than compress the search box to nothing. */

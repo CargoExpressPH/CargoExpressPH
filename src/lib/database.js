@@ -2465,6 +2465,25 @@ export const getReportData = async (period = 'daily', customStart = null, custom
 
 // ==================== ACTIVITY LOGS ====================
 
+const applyActivityLogFilters = (query, {
+  module = null,
+  action = null,
+  adminId = null,
+  dateFrom = null,
+  dateTo = null,
+  search = null,
+  hideLogins = false,
+} = {}) => {
+  if (module) query = query.eq('module', module);
+  if (action) query = query.ilike('action', `%${action}%`);
+  if (adminId) query = query.eq('admin_id', adminId);
+  if (dateFrom) query = query.gte('created_at', dateFrom);
+  if (dateTo) query = query.lte('created_at', dateTo);
+  if (hideLogins) query = query.not('action', 'ilike', '%Logged In%');
+  if (search) query = query.or(`action.ilike.%${search}%,record_ref.ilike.%${search}%,admin_name.ilike.%${search}%,details.ilike.%${search}%`);
+  return query;
+};
+
 /**
  * Fetch paginated, filtered activity logs for the Activity Logs admin page.
  */
@@ -2484,13 +2503,9 @@ export const getActivityLogs = async ({
     .select('*', { count: 'exact' })
     .order('created_at', { ascending: false });
 
-  if (module) query = query.eq('module', module);
-  if (action) query = query.ilike('action', `%${action}%`);
-  if (adminId) query = query.eq('admin_id', adminId);
-  if (dateFrom) query = query.gte('created_at', dateFrom);
-  if (dateTo) query = query.lte('created_at', dateTo);
-  if (hideLogins) query = query.not('action', 'ilike', '%Logged In%');
-  if (search) query = query.or(`action.ilike.%${search}%,record_ref.ilike.%${search}%,admin_name.ilike.%${search}%,details.ilike.%${search}%`);
+  query = applyActivityLogFilters(query, {
+    module, action, adminId, dateFrom, dateTo, search, hideLogins,
+  });
 
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;
@@ -2499,6 +2514,44 @@ export const getActivityLogs = async ({
   const { data, error, count } = await query;
   if (error) throw error;
   return { logs: data || [], total: count || 0, page, pageSize };
+};
+
+/**
+ * Fetch every row matching the visible filters for CSV export. Supabase caps
+ * individual responses, so read in batches instead of exporting only the
+ * currently displayed 50-row page.
+ */
+export const getActivityLogsForExport = async (filters = {}) => {
+  const rows = [];
+  const batchSize = 1000;
+  const snapshotTime = new Date().toISOString();
+  let cursor = null;
+
+  while (true) {
+    let query = supabase
+      .from('activity_logs')
+      .select('*')
+      .lte('created_at', snapshotTime)
+      .order('created_at', { ascending: false })
+      .order('id', { ascending: false })
+      .limit(batchSize);
+
+    query = applyActivityLogFilters(query, filters);
+    if (cursor) {
+      query = query.or(
+        `created_at.lt.${cursor.created_at},and(created_at.eq.${cursor.created_at},id.lt.${cursor.id})`
+      );
+    }
+    const { data, error } = await query;
+    if (error) throw error;
+
+    const batch = data || [];
+    rows.push(...batch);
+    if (batch.length < batchSize) break;
+    cursor = batch[batch.length - 1];
+  }
+
+  return rows;
 };
 
 /**

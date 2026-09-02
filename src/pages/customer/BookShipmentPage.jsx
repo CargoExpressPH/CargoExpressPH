@@ -354,9 +354,9 @@ const BookShipmentPage = () => {
       const data = await createOrder(payload);
       
       if (payload.service_area_status === 'for_review') {
-        logOrder('Out-of-Coverage Booking Submitted', data.id, data.tracking_number, { details: `Special pickup request submitted for ${data.sender_address}` });
+        await logOrder('Out-of-Coverage Booking Submitted', data.id, data.tracking_number, { details: `Special pickup request submitted for ${data.sender_address}` });
       } else {
-        logOrder('Booking Created', data.id, data.tracking_number, { details: `Standard booking created via Customer Portal.` });
+        await logOrder('Booking Created', data.id, data.tracking_number, { details: 'Standard booking created via Customer Portal.' });
       }
       
       setSuccess(data);

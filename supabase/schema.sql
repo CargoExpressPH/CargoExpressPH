@@ -29,7 +29,8 @@ CREATE TABLE IF NOT EXISTS activity_logs (
   previous_value JSONB,
   new_value JSONB,
   details TEXT,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  client_event_id UUID
 );
 
 
@@ -1311,6 +1312,82 @@ BEGIN
   NEW.admin_name := COALESCE(NULLIF(btrim(v_name), ''), 'Unknown Admin');
 
   RETURN NEW;
+END;
+$function$
+
+
+
+CREATE OR REPLACE FUNCTION public.record_activity(
+  p_client_event_id UUID,
+  p_module TEXT,
+  p_action TEXT,
+  p_record_type TEXT DEFAULT NULL,
+  p_record_id UUID DEFAULT NULL,
+  p_record_ref TEXT DEFAULT NULL,
+  p_previous_value JSONB DEFAULT NULL,
+  p_new_value JSONB DEFAULT NULL,
+  p_details TEXT DEFAULT NULL,
+  p_occurred_at TIMESTAMPTZ DEFAULT NULL
+)
+ RETURNS UUID
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_uid UUID := auth.uid();
+  v_is_admin BOOLEAN;
+  v_admin_name TEXT;
+  v_log_id UUID;
+  v_occurred_at TIMESTAMPTZ;
+BEGIN
+  IF v_uid IS NULL THEN
+    RAISE EXCEPTION 'Authentication required';
+  END IF;
+
+  IF p_client_event_id IS NULL THEN
+    RAISE EXCEPTION 'A client event ID is required';
+  END IF;
+
+  IF NULLIF(btrim(p_module), '') IS NULL OR NULLIF(btrim(p_action), '') IS NULL THEN
+    RAISE EXCEPTION 'Module and action are required';
+  END IF;
+
+  v_is_admin := public.is_admin();
+  IF NOT v_is_admin AND p_module NOT IN ('Orders', 'Authentication', 'Chat') THEN
+    RAISE EXCEPTION 'Not allowed to write % activity logs', p_module;
+  END IF;
+
+  SELECT COALESCE(NULLIF(btrim(p.name), ''), 'Unknown Admin')
+    INTO v_admin_name
+    FROM public.profiles p
+   WHERE p.id = v_uid;
+
+  v_occurred_at := GREATEST(
+    now() - INTERVAL '7 days',
+    LEAST(COALESCE(p_occurred_at, now()), now())
+  );
+
+  INSERT INTO public.activity_logs (
+    admin_id, admin_name, module, action, record_type, record_id, record_ref,
+    previous_value, new_value, details, created_at, client_event_id
+  ) VALUES (
+    v_uid, COALESCE(v_admin_name, 'Unknown Admin'), btrim(p_module), btrim(p_action),
+    NULLIF(btrim(p_record_type), ''), p_record_id, NULLIF(btrim(p_record_ref), ''),
+    p_previous_value, p_new_value, NULLIF(btrim(p_details), ''), v_occurred_at,
+    p_client_event_id
+  )
+  ON CONFLICT (admin_id, client_event_id) DO NOTHING
+  RETURNING id INTO v_log_id;
+
+  IF v_log_id IS NULL THEN
+    SELECT id INTO v_log_id
+      FROM public.activity_logs
+     WHERE admin_id = v_uid
+       AND client_event_id = p_client_event_id;
+  END IF;
+
+  RETURN v_log_id;
 END;
 $function$
 
@@ -3365,6 +3442,10 @@ REVOKE ALL ON FUNCTION public.record_pickup_payment(p_order_id uuid, p_actual_we
 GRANT EXECUTE ON FUNCTION public.record_pickup_payment(p_order_id uuid, p_actual_weight numeric, p_payment_method text, p_payer_type text, p_pickup_photos jsonb, p_promised_payment_date date, p_amount numeric, p_reference text, p_payment_date date, p_receipt_url text, p_payment_type text, p_notes text) TO service_role;
 GRANT EXECUTE ON FUNCTION public.record_pickup_payment(p_order_id uuid, p_actual_weight numeric, p_payment_method text, p_payer_type text, p_pickup_photos jsonb, p_promised_payment_date date, p_amount numeric, p_reference text, p_payment_date date, p_receipt_url text, p_payment_type text, p_notes text) TO authenticated;
 
+REVOKE ALL ON FUNCTION public.record_activity(p_client_event_id uuid, p_module text, p_action text, p_record_type text, p_record_id uuid, p_record_ref text, p_previous_value jsonb, p_new_value jsonb, p_details text, p_occurred_at timestamp with time zone) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.record_activity(p_client_event_id uuid, p_module text, p_action text, p_record_type text, p_record_id uuid, p_record_ref text, p_previous_value jsonb, p_new_value jsonb, p_details text, p_occurred_at timestamp with time zone) FROM anon;
+GRANT EXECUTE ON FUNCTION public.record_activity(p_client_event_id uuid, p_module text, p_action text, p_record_type text, p_record_id uuid, p_record_ref text, p_previous_value jsonb, p_new_value jsonb, p_details text, p_occurred_at timestamp with time zone) TO authenticated;
+
 REVOKE ALL ON FUNCTION public.release_contact_inquiry_push(p_inquiry_id uuid, p_claim_id uuid) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.release_contact_inquiry_push(p_inquiry_id uuid, p_claim_id uuid) FROM anon;
 REVOKE ALL ON FUNCTION public.release_contact_inquiry_push(p_inquiry_id uuid, p_claim_id uuid) FROM authenticated;
@@ -3495,6 +3576,8 @@ CREATE TRIGGER trips_updated_at BEFORE UPDATE ON trips FOR EACH ROW EXECUTE FUNC
 -- ============================================================
 
 CREATE INDEX IF NOT EXISTS idx_activity_logs_admin_id ON public.activity_logs USING btree (admin_id);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_activity_logs_actor_client_event ON public.activity_logs USING btree (admin_id, client_event_id);
 
 CREATE INDEX IF NOT EXISTS idx_activity_logs_created_at ON public.activity_logs USING btree (created_at DESC);
 
@@ -4099,3 +4182,4 @@ ALTER PUBLICATION supabase_realtime ADD TABLE IF NOT EXISTS public.conversations
 ALTER PUBLICATION supabase_realtime ADD TABLE IF NOT EXISTS public.notifications;
 ALTER PUBLICATION supabase_realtime ADD TABLE IF NOT EXISTS public.orders;
 ALTER PUBLICATION supabase_realtime ADD TABLE IF NOT EXISTS public.photo_storage_events;
+ALTER PUBLICATION supabase_realtime ADD TABLE IF NOT EXISTS public.activity_logs;
