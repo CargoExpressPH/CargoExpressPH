@@ -17,6 +17,7 @@ import { formatMoney } from '../../utils/currencyInput';
 import { toTitleCase, toAddressCase, normalizeName } from '../../utils/string';
 import { formatPhDate } from '../../utils/datetime';
 import { validatePhone } from '../../utils/phone';
+import { hasMeaningfulBookingData } from '../../lib/bookingDraft';
 
 const luxeEase = [0.22, 1, 0.36, 1];
 
@@ -109,14 +110,13 @@ const BookShipmentPage = () => {
   const [useRegisteredReceiver, setUseRegisteredReceiver] = useState(false);
   const [fieldErrors, setFieldErrors] = useState({});
 
-  // C-1 fix: Track dirty state and block navigation when form has unsaved data
+  // Block navigation only after the customer has entered meaningful booking
+  // data. Route/trip selection is lightweight setup and safe to repeat; treating
+  // it as a dirty draft produced a discard warning before any data was entered.
   const isFormDirty = useCallback(() => {
     if (success) return false; // Don't block after successful submission
-    // Check if any meaningful field has been filled
-    // Exclude route if it matches the preselected route (prefill should not trigger dirty)
-    const routeDirty = form.route && form.route !== preRoute;
-    return !!(routeDirty || form.sender_name || form.receiver_name || form.package_description);
-  }, [success, form.route, form.sender_name, form.receiver_name, form.package_description, preRoute]);
+    return hasMeaningfulBookingData(form);
+  }, [success, form]);
 
   const blocker = useBlocker(({ currentLocation, nextLocation }) => {
     return isFormDirty() && currentLocation.pathname !== nextLocation.pathname;
