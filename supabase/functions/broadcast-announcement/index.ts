@@ -310,6 +310,19 @@ serve(async (req) => {
 
     await supabase.from('announcements').update({ emailed_at: new Date().toISOString() }).eq('id', announcement_id)
 
+    // Record how many emails actually reached Resend, for the admin Email
+    // Usage Monitoring widget (Resend Free Plan: 100/day, 3,000/month). Best
+    // effort — a logging failure must never fail a broadcast that already
+    // succeeded.
+    if (sent > 0) {
+      const { error: usageLogError } = await supabase
+        .from('email_usage_logs')
+        .insert({ source: 'announcement', sent_count: sent, failed_count: failed })
+      if (usageLogError) {
+        console.error('[broadcast-announcement] Failed to log email usage:', usageLogError)
+      }
+    }
+
     return json({ success: true, sent, failed, total: list.length })
   } catch (err) {
     console.error('[broadcast-announcement] failed:', err)

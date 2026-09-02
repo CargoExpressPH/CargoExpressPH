@@ -206,6 +206,19 @@ serve(async (req) => {
       }
     }
 
+    // Record how many emails actually reached Resend, for the admin Email
+    // Usage Monitoring widget (Resend Free Plan: 100/day, 3,000/month). Best
+    // effort — a logging failure must never fail a reminder run that already
+    // succeeded.
+    if (sent > 0) {
+      const { error: usageLogError } = await supabase
+        .from('email_usage_logs')
+        .insert({ source: 'daily_reminders', sent_count: sent, failed_count: failed })
+      if (usageLogError) {
+        console.error('[process-daily-reminders] Failed to log email usage:', usageLogError)
+      }
+    }
+
     return json({
       success: true,
       sent,

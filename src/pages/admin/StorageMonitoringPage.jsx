@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   AlertTriangle, CheckCircle2, Cloud, CloudLightning, CloudOff, Database,
-  HardDrive, Loader, Radio, ShieldCheck, Sparkles, XCircle, Zap,
+  HardDrive, Loader, Mail, Radio, ShieldCheck, Sparkles, XCircle, Zap,
 } from 'lucide-react';
 import {
-  checkPhotoStorageHealth, checkUnusedPhotos, getPhotoStorageEvents,
+  checkPhotoStorageHealth, checkUnusedPhotos, getEmailUsageSummary, getPhotoStorageEvents,
   getPhotoStorageMode, getPhotoStorageSummary, removeUnusedPhotos, setPhotoStorageMode,
 } from '../../lib/database';
 import { supabase } from '../../lib/supabase';
@@ -115,6 +115,37 @@ const HealthBadge = ({ provider, health, liveStatus }) => {
   );
 };
 
+// Traffic-light thresholds for email usage: Safe up to 75%, Warning 76-90%,
+// Danger above 90% — matches Resend's Free Plan limits (100/day, 3,000/month).
+const emailUsageTone = (percent) => percent > 90 ? 'var(--error)' : percent > 75 ? 'var(--warning)' : 'var(--success)';
+const emailUsageBadge = (percent) => percent > 90
+  ? { className: 'badge-error', text: 'Limit Reached' }
+  : percent > 75 ? { className: 'badge-warning', text: 'Warning' } : { className: 'badge-success', text: 'Safe' };
+
+const EmailUsageBar = ({ label, used, limit }) => {
+  const percent = limit > 0 ? Math.min((Number(used || 0) / limit) * 100, 100) : 0;
+  const tone = emailUsageTone(percent);
+  const badge = emailUsageBadge(percent);
+  return (
+    <div>
+      <div className="flex items-center justify-between text-sm mb-8">
+        <span className="flex items-center gap-8">{label} <span className={`badge ${badge.className}`}>{badge.text}</span></span>
+        <span><strong>{number(used)}</strong> / {number(limit)}</span>
+      </div>
+      <div
+        role="progressbar"
+        aria-label={label}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={Math.round(percent)}
+        style={{ height: 14, borderRadius: 999, overflow: 'hidden', background: 'var(--bg-secondary)' }}
+      >
+        <div style={{ width: `${percent}%`, height: '100%', background: tone, borderRadius: 999, transition: 'width 300ms ease' }} />
+      </div>
+    </div>
+  );
+};
+
 const StorageMonitoringPage = () => {
   usePageTitle('Photo Storage');
   const toast = useToast();
@@ -124,6 +155,7 @@ const StorageMonitoringPage = () => {
   const [summary, setSummary] = useState(null);
   const [events, setEvents] = useState([]);
   const [health, setHealth] = useState(null);
+  const [emailUsage, setEmailUsage] = useState(null);
   const [selectedMode, setSelectedMode] = useState('automatic');
   const [duration, setDuration] = useState(60);
   const [reason, setReason] = useState('');
@@ -139,16 +171,17 @@ const StorageMonitoringPage = () => {
   const load = useCallback(async ({ runHealth = true, quiet = false } = {}) => {
     if (!quiet) setLoading(true);
     try {
-      const requests = [getPhotoStorageMode(), getPhotoStorageSummary(), getPhotoStorageEvents()];
+      const requests = [getPhotoStorageMode(), getPhotoStorageSummary(), getPhotoStorageEvents(), getEmailUsageSummary()];
       if (runHealth) requests.push(checkPhotoStorageHealth());
       const results = await Promise.allSettled(requests);
-      const [modeResult, summaryResult, eventsResult, healthResult] = results;
+      const [modeResult, summaryResult, eventsResult, emailUsageResult, healthResult] = results;
       if (modeResult.status === 'rejected') throw modeResult.reason;
       setMode(modeResult.value);
       setSelectedMode(modeResult.value?.upload_mode || 'automatic');
       setReason(modeResult.value?.reason || '');
       if (summaryResult.status === 'fulfilled') setSummary(summaryResult.value);
       if (eventsResult.status === 'fulfilled') setEvents(eventsResult.value);
+      if (emailUsageResult.status === 'fulfilled') setEmailUsage(emailUsageResult.value);
       if (healthResult?.status === 'fulfilled') setHealth(healthResult.value);
       if (summaryResult.status === 'rejected' || eventsResult.status === 'rejected') {
         toast.error('Photo settings loaded, but some information could not be shown.');
@@ -307,6 +340,16 @@ const StorageMonitoringPage = () => {
   if (loading) return <CenteredSpinner />;
 
   const isForceActive = mode?.upload_mode === 'force_firebase';
+
+  const emailDailyLimit = Number(emailUsage?.daily_limit) || 100;
+  const emailMonthlyLimit = Number(emailUsage?.monthly_limit) || 3000;
+  const emailSentToday = Number(emailUsage?.emails_sent_today) || 0;
+  const emailSentThisMonth = Number(emailUsage?.emails_sent_this_month) || 0;
+  const emailDailyPercent = emailDailyLimit > 0 ? (emailSentToday / emailDailyLimit) * 100 : 0;
+  const emailMonthlyPercent = emailMonthlyLimit > 0 ? (emailSentThisMonth / emailMonthlyLimit) * 100 : 0;
+  const emailDailyOverWarning = emailDailyPercent > 90;
+  const emailMonthlyOverWarning = emailMonthlyPercent > 90;
+
   const liveStorage = health?.supabase_storage;
   const usedBytes = liveStorage?.total_size_bytes == null ? null : Number(liveStorage.total_size_bytes);
   const quotaBytes = liveStorage?.included_storage_bytes == null ? null : Number(liveStorage.included_storage_bytes);
@@ -492,6 +535,45 @@ const StorageMonitoringPage = () => {
           </div>
         ))}
       </div>
+
+      <section className="card admin-section-card mb-24">
+        <div className="card-header"><h3><Mail size={17} className="inline mr-8" />Email Usage</h3></div>
+        <div className="card-body">
+          <p className="text-sm text-secondary" style={{ marginTop: 0 }}>
+            Our email service lets us send a limited number of emails for free. This tracks payment reminders and announcement emails against those limits, so we don't run out unexpectedly.
+          </p>
+          {emailUsage ? (
+            <>
+              <div className="grid grid-2" style={{ marginTop: 16, gap: 24 }}>
+                <EmailUsageBar label="Emails Sent Today" used={emailSentToday} limit={emailDailyLimit} />
+                <EmailUsageBar label="Emails Sent This Month" used={emailSentThisMonth} limit={emailMonthlyLimit} />
+              </div>
+
+              {emailDailyOverWarning && (
+                <div className="alert-banner alert-banner-error mt-16" role="status">
+                  <AlertTriangle size={18} />
+                  <span><strong>Warning:</strong> You are about to reach your daily email limit. Any emails beyond {number(emailDailyLimit)} will not be sent today.</span>
+                </div>
+              )}
+              {emailMonthlyOverWarning && (
+                <div className="alert-banner alert-banner-error mt-16" role="status">
+                  <AlertTriangle size={18} />
+                  <span><strong>Warning:</strong> You are about to reach this month's email limit. Any emails beyond {number(emailMonthlyLimit)} will not be sent this month.</span>
+                </div>
+              )}
+
+              <p className="text-xs text-secondary" style={{ margin: '16px 0 0' }}>
+                Counts reset automatically each day and each month, Philippine time.
+              </p>
+            </>
+          ) : (
+            <div className="alert-banner alert-banner-warning" role="status">
+              <AlertTriangle size={17} />
+              <span>Email usage could not be checked right now.</span>
+            </div>
+          )}
+        </div>
+      </section>
 
       <section className="card admin-section-card mb-24">
         <div className="card-header"><h3><Radio size={17} className="inline mr-8" />Where New Photos Are Saved</h3></div>

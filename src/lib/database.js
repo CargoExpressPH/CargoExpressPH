@@ -3327,3 +3327,10 @@ export const removeUnusedPhotos = async (confirmationToken) => {
   if (data?.error) throw new Error(data.error);
   return data;
 };
+
+// ── Admin email usage monitoring (Resend Free Plan: 100/day, 3,000/month) ──
+export const getEmailUsageSummary = async () => {
+  const { data, error } = await supabase.rpc('get_email_usage_summary');
+  if (error) throw error;
+  return data?.[0] || null;
+};
