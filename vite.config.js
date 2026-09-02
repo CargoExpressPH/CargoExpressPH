@@ -3,6 +3,16 @@ import react from '@vitejs/plugin-react'
 import { readFileSync, writeFileSync } from 'fs'
 import { resolve } from 'path'
 
+const { version: appVersion } = JSON.parse(
+  readFileSync(resolve('package.json'), 'utf-8'),
+)
+const appBuildId = (
+  process.env.VERCEL_GIT_COMMIT_SHA
+  || process.env.GITHUB_SHA
+  || process.env.GIT_COMMIT_SHA
+  || ''
+).slice(0, 7)
+
 // Stamps a unique build version into sw.js so browsers detect new deploys,
 // and injects the list of hashed entry assets so the service worker can
 // precache a bootable app shell during install (not lazily on first fetch).
@@ -106,6 +116,10 @@ function lucideTreeShakePlugin() {
 }
 
 export default defineConfig({
+  define: {
+    'import.meta.env.VITE_APP_VERSION': JSON.stringify(appVersion),
+    'import.meta.env.VITE_APP_BUILD_ID': JSON.stringify(appBuildId),
+  },
   plugins: [lucideTreeShakePlugin(), react(), swVersionPlugin()],
   server: {
     port: 5173,

@@ -13,6 +13,7 @@ import ConfirmModal from '../../components/ui/ConfirmModal';
 import usePageTitle from '../../hooks/usePageTitle';
 import { useCustomerChatUnread } from '../../hooks/useCustomerChatUnread';
 import { updateProfile } from '../../lib/database';
+import { APP_VERSION } from '../../lib/appVersion';
 
 const PROFILE_COMPLETION_FIELDS = [
   'name',
@@ -346,7 +347,7 @@ const ProfilePage = () => {
             </div>
             <div className="flex-1 text-left">
               <div className="text-sm font-bold">About & Version</div>
-              <div className="text-xs text-secondary">CargoExpress PH v1.0.0</div>
+              <div className="text-xs text-secondary">CargoExpress PH v{APP_VERSION}</div>
             </div>
             <ChevronRight size={16} color="var(--text-tertiary)" />
           </button>
