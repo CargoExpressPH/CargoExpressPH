@@ -298,7 +298,7 @@ const CompanyInformationPage = () => {
 
       {/* Tab Navigation */}
       <div
-        className="company-tab-bar"
+        className="admin-tab-bar"
         role="tablist"
         aria-label="Company information sections"
       >
@@ -311,7 +311,7 @@ const CompanyInformationPage = () => {
               role="tab"
               aria-selected={isActive}
               onClick={() => setActiveTab(tab.id)}
-              className={`company-tab-btn ${isActive ? 'active' : ''}`}
+              className={`admin-tab-btn ${isActive ? 'active' : ''}`}
             >
               <tab.icon size={15} aria-hidden="true" />
               <span>{tab.label}</span>

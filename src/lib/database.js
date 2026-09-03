@@ -3275,15 +3275,17 @@ export const getPhotoStorageSummary = async () => {
   return data?.[0] || null;
 };
 
-export const getPhotoStorageEvents = async (limit = 50) => {
-  const safeLimit = Math.max(1, Math.min(Number(limit) || 50, 100));
-  const { data, error } = await supabase
+export const getPhotoStorageEvents = async ({ page = 1, pageSize = 10 } = {}) => {
+  const safePageSize = Math.max(1, Math.min(Number(pageSize) || 10, 100));
+  const from = (Math.max(1, Number(page) || 1) - 1) * safePageSize;
+  const to = from + safePageSize - 1;
+  const { data, error, count } = await supabase
     .from('photo_storage_events')
-    .select('id, event_type, provider, outcome, photo_type, order_id, storage_path, size_bytes, message, metadata, created_at, created_by, profiles:created_by(name, email)')
+    .select('id, event_type, provider, outcome, photo_type, order_id, storage_path, size_bytes, message, metadata, created_at, created_by, profiles:created_by(name, email)', { count: 'exact' })
     .order('created_at', { ascending: false })
-    .limit(safeLimit);
+    .range(from, to);
   if (error) throw error;
-  return data || [];
+  return { data: data || [], count: count || 0 };
 };
 
 const photoFunctionError = async (error, fallbackMessage) => {
@@ -3333,4 +3335,16 @@ export const getEmailUsageSummary = async () => {
   const { data, error } = await supabase.rpc('get_email_usage_summary');
   if (error) throw error;
   return data?.[0] || null;
+};
+
+// One row per recipient (contrast getEmailUsageSummary, which is aggregate
+// counts only) — powers the admin "Recent Email Activity" table.
+export const getEmailActivityLog = async ({ page = 1, pageSize = 10 } = {}) => {
+  const { data, error } = await supabase.rpc('get_email_activity_log', {
+    p_page: page,
+    p_page_size: pageSize,
+  });
+  if (error) throw error;
+  const rows = data || [];
+  return { data: rows, count: rows[0]?.total_count ? Number(rows[0].total_count) : 0 };
 };

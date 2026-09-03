@@ -131,15 +131,15 @@
   }
 }
 
-/* Company Info tab bar scroll on narrow screens */
+/* Admin page tab bar scroll on narrow screens */
 @media (max-width: 768px) {
-  .app-layout .company-tab-bar,
-  .app-layout .card.company-tab-bar {
+  .app-layout .admin-tab-bar,
+  .app-layout .card.admin-tab-bar {
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
   }
-  .app-layout .company-tab-bar::-webkit-scrollbar,
-  .app-layout .card.company-tab-bar::-webkit-scrollbar {
+  .app-layout .admin-tab-bar::-webkit-scrollbar,
+  .app-layout .card.admin-tab-bar::-webkit-scrollbar {
     display: none;
   }
 }

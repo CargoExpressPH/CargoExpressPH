@@ -172,6 +172,9 @@ serve(async (req) => {
         }),
       }))
 
+      let batchOk = false
+      let batchErrorMessage: string | null = null
+
       try {
         const res = await fetch('https://api.resend.com/emails/batch', {
           method: 'POST',
@@ -179,15 +182,35 @@ serve(async (req) => {
           body: JSON.stringify(emails),
         })
         if (res.ok) {
+          batchOk = true
           sent += batch.length
           remindedOrderIds.push(...batch.map((b) => b.order.id))
         } else {
           failed += batch.length
+          batchErrorMessage = `Resend batch failed (HTTP ${res.status})`
           console.error('[process-daily-reminders] Resend batch failed:', res.status, await res.text())
         }
       } catch (err) {
         failed += batch.length
+        batchErrorMessage = err instanceof Error ? err.message : 'Resend batch threw an error'
         console.error('[process-daily-reminders] Resend batch threw:', err)
+      }
+
+      // One row per recipient — email_usage_logs only tracks the batch's
+      // summed sent/failed counts, this is what powers the admin "Recent
+      // Email Activity" table. Best effort: never fail an already-sent batch.
+      const activityRows = batch.map(({ order, email, name }) => ({
+        source: 'daily_reminders',
+        recipient_email: email,
+        recipient_name: name,
+        subject: `Payment Reminder — Order ${order.tracking_number}`,
+        status: batchOk ? 'sent' : 'failed',
+        order_id: order.id,
+        error_message: batchOk ? null : batchErrorMessage,
+      }))
+      const { error: activityLogError } = await supabase.from('email_activity_log').insert(activityRows)
+      if (activityLogError) {
+        console.error('[process-daily-reminders] Failed to log email activity:', activityLogError)
       }
 
       await new Promise((resolve) => setTimeout(resolve, BATCH_DELAY_MS))

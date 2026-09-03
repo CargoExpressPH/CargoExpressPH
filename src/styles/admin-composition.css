@@ -130,8 +130,8 @@
   overflow-wrap: anywhere;
 }
 
-/* ── Company Information Tabs ────────────────────────────────────────── */
-.company-tab-bar {
+/* ── Admin page tabs (Company Information, Storage Monitoring, …) ───────── */
+.admin-tab-bar {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -147,11 +147,11 @@
   box-shadow: var(--shadow-xs);
 }
 
-.company-tab-bar::-webkit-scrollbar {
+.admin-tab-bar::-webkit-scrollbar {
   display: none;
 }
 
-.company-tab-btn {
+.admin-tab-btn {
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -169,19 +169,19 @@
   transition: var(--transition-fast);
 }
 
-.company-tab-btn:hover {
+.admin-tab-btn:hover {
   color: var(--text);
   background: var(--bg-secondary);
 }
 
-.company-tab-btn.active {
+.admin-tab-btn.active {
   background: linear-gradient(135deg, var(--primary-fill) 0%, var(--primary-text-strong) 100%);
   color: #FFFFFF;
   font-weight: 700;
   box-shadow: 0 4px 12px rgba(22, 163, 74, 0.28);
 }
 
-[data-theme="dark"] .company-tab-btn.active {
+[data-theme="dark"] .admin-tab-btn.active {
   background: #10B981;
   color: #0F172A;
   box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
