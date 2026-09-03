@@ -486,117 +486,7 @@
   opacity: 0.6;
 }
 
-/* ── Loading State ───────────────────────────────────────────────────────────── */
-.admin-notif-loading {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  padding: 48px 20px;
-  color: var(--text-tertiary);
-  font-size: 0.8125rem;
-}
-
-/* ── Empty State ─────────────────────────────────────────────────────────────── */
-.admin-notif-empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 48px 20px;
-  text-align: center;
-}
-.admin-notif-empty-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--text-tertiary);
-  margin-bottom: 14px;
-}
-.admin-notif-empty-title {
-  font-size: 0.9375rem;
-  font-weight: 700;
-  color: var(--text);
-  margin: 0 0 4px;
-}
-.admin-notif-empty-sub {
-  font-size: 0.8125rem;
-  color: var(--text-tertiary);
-  margin: 0;
-}
-
-/* ── Animations ──────────────────────────────────────────────────────────────── */
-@keyframes bellShake {
-  0%, 100% { transform: rotate(0deg); }
-  15% { transform: rotate(12deg); }
-  30% { transform: rotate(-10deg); }
-  45% { transform: rotate(8deg); }
-  60% { transform: rotate(-6deg); }
-  75% { transform: rotate(3deg); }
-}
-
-@keyframes notifPing {
-  0% { transform: scale(1); opacity: 0.6; }
-  75%, 100% { transform: scale(2.2); opacity: 0; }
-}
-
-@keyframes notifDropdownIn {
-  0% { opacity: 0; transform: scale(0.95) translateY(-6px); }
-  100% { opacity: 1; transform: scale(1) translateY(0); }
-}
-
-@keyframes notifItemIn {
-  0% { opacity: 0; transform: translateX(8px); }
-  100% { opacity: 1; transform: translateX(0); }
-}
-
-/* ── Responsive ──────────────────────────────────────────────────────────────── */
-@media (max-width: 480px) {
-  .admin-notif-dropdown {
-    width: calc(100vw - 24px);
-    right: -12px;
-    max-height: 70vh;
-  }
-}
-@media (min-width: 481px) and (max-width: 768px) {
-  .admin-notif-dropdown {
-    width: 360px;
-  }
-}
-
-.app-layout .sidebar-user-name {
-  color: var(--admin-ink);
-  font-weight: 800;
-}
-
-.app-layout .sidebar-user-role {
-  color: var(--admin-muted);
-  font-weight: 700;
-}
-
-.app-layout .sidebar-collapse-btn,
-.app-layout .sidebar-drawer-close-btn {
-  border-color: var(--admin-line);
-  background: var(--admin-panel-solid);
-  color: var(--admin-green-dark);
-  box-shadow: var(--admin-shadow-soft);
-}
-
-.app-layout .sidebar-collapse-btn svg,
-.app-layout .sidebar-drawer-close-btn svg {
-  box-sizing: border-box;
-  width: 18px;
-  height: 18px;
-  padding: 0;
-  border-radius: 0;
-  background: transparent ;
-  box-shadow: none ;
-  stroke: currentColor ;
-}
-
-.app-layout .sidebar-collapse-btn {
-  width: 36px;
+/* ── Loading State ────────────────────────────────────────────────��z����k�w��`36px;
   height: 36px;
   right: -18px;
 }
@@ -1147,6 +1037,16 @@
     width: 100%;
     max-width: none;
   }
+
+  /* The unsettled rows are already individual mobile cards. Remove the
+     desktop table-card shell so phones do not show a second border/background
+     around the list and sacrifice another layer of horizontal space. */
+  .app-layout .unsettled-table-card {
+    overflow: visible;
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+  }
 }
 
 /* --- Admin table card conversion — aligns to canonical 900px engine
@@ -1203,6 +1103,17 @@
   /* Hide drag handles on mobile card layout */
   .app-layout .feature-drag-handle {
     display: none;
+  }
+}
+
+/* Mobile browsers can retain :hover after a tap. That was the unexplained
+   pale-green unsettled card visible in the supplied phone captures. Keep the
+   hover affordance for a mouse, but return coarse touch screens to neutral. */
+@media (hover: none) and (pointer: coarse) {
+  .app-layout .unsettled-table tbody tr:hover {
+    background: var(--admin-panel);
+    border-color: var(--admin-line);
+    box-shadow: var(--admin-shadow-soft);
   }
 }
 

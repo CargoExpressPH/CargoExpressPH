@@ -745,6 +745,128 @@
   }
 }
 
+/* Unsettled deliveries is an eight-field financial record, not a generic
+   table row. On phones, the default label/value conversion made every order
+   almost a full screen tall, squeezed promise details into a narrow column,
+   and wrapped its primary action. Keep the semantic table for desktop and
+   assistive technology, but compose each mobile row as a purpose-built card:
+   identity, operational state, a three-column money strip, then one action. */
+@media (max-width: 640px) {
+  .unsettled-table-card {
+    overflow: visible;
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+  }
+
+  .unsettled-table tbody tr {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    padding: 14px;
+  }
+
+  .unsettled-table td {
+    grid-column: 1 / -1;
+  }
+
+  .unsettled-table .unsettled-customer-cell,
+  .unsettled-table .unsettled-status-cell {
+    grid-template-columns: 78px minmax(0, 1fr);
+    column-gap: 10px;
+  }
+
+  .unsettled-table .unsettled-settlement-cell {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 4px;
+    padding-top: 10px;
+  }
+
+  .unsettled-table .unsettled-settlement-cell::before,
+  .unsettled-table.data-table--wide td.unsettled-settlement-cell[data-label] > * {
+    grid-column: 1;
+    justify-self: start;
+    text-align: left;
+  }
+
+  .unsettled-table .unsettled-settlement-cell .badge {
+    margin-left: 0;
+  }
+
+  .unsettled-table .unsettled-money-cell {
+    grid-column: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    min-width: 0;
+    margin-top: 10px;
+    padding: 10px 8px;
+    background: var(--bg-secondary);
+    border-top: 1px solid var(--border-light);
+    border-bottom: 1px solid var(--border-light);
+    text-align: left;
+    overflow-wrap: normal;
+    white-space: nowrap;
+    font-size: clamp(0.7rem, 3.35vw, 0.8125rem);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .unsettled-table .unsettled-money-cell::before {
+    display: block;
+    color: var(--text-tertiary);
+    font-size: 0.625rem;
+    line-height: 1.2;
+    letter-spacing: 0.05em;
+    text-align: left;
+  }
+
+  .unsettled-table .unsettled-billed-cell {
+    border-left: 1px solid var(--border-light);
+    border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+  }
+
+  .unsettled-table .unsettled-balance-cell {
+    border-right: 1px solid var(--border-light);
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  }
+
+  .unsettled-table .unsettled-money-cell > .text-xs {
+    align-self: stretch;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    text-align: left;
+  }
+
+  .unsettled-table .unsettled-action-cell {
+    grid-template-columns: minmax(0, 1fr);
+    padding-top: 12px;
+    margin-top: 10px;
+  }
+
+  .unsettled-table .unsettled-action-cell::before {
+    display: none;
+  }
+
+  .unsettled-table .unsettled-action-cell .btn:not(.message-customer-btn) {
+    grid-column: 1;
+    justify-self: stretch;
+    width: 100%;
+    max-width: none;
+    min-height: 44px;
+    white-space: nowrap;
+  }
+
+  .unsettled-table tfoot tr {
+    margin-top: 0;
+  }
+
+  .unsettled-table-card .pagination-wrap {
+    margin-top: 12px;
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-md);
+  }
+}
+
 /* Status timeline + customer detail stacking */
 @media (max-width: 820px) {
   .status-timeline {

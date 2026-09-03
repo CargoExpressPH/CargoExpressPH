@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "test": "node scripts/smoke-check.mjs && node scripts/axe-lint.mjs && node scripts/token-lint.mjs && node scripts/activity-log-contract-test.mjs && node scripts/payment-ui-contract-test.mjs && node scripts/booking-dirty-state-contract-test.mjs && node scripts/photo-reference-test.mjs && node scripts/photo-fallback-contract-test.mjs && node scripts/photo-storage-monitoring-contract-test.mjs",
+    "test": "node scripts/smoke-check.mjs && node scripts/axe-lint.mjs && node scripts/token-lint.mjs && node scripts/activity-log-contract-test.mjs && node scripts/payment-ui-contract-test.mjs && node scripts/booking-dirty-state-contract-test.mjs && node scripts/unsettled-mobile-layout-contract-test.mjs && node scripts/photo-reference-test.mjs && node scripts/photo-fallback-contract-test.mjs && node scripts/photo-storage-monitoring-contract-test.mjs",
     "test:photo-fallback": "node scripts/photo-reference-test.mjs && node scripts/photo-fallback-contract-test.mjs && node scripts/photo-fallback-browser-test.mjs",
     "test:edge-functions": "node scripts/edge-function-build-test.mjs",
     "test:pwa-offline": "node scripts/pwa-offline-contract-test.mjs",

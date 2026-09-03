@@ -408,9 +408,9 @@ const UnsettledDeliveriesPage = () => {
           />
         </div>
       ) : (
-        <div className="card admin-section-card admin-table-card animate-fade-in no-print">
+        <div className="card admin-section-card admin-table-card unsettled-table-card animate-fade-in no-print">
           <div className="table-container">
-            <table className="data-table data-table--wide">
+            <table className="data-table data-table--wide unsettled-table">
               <caption className="sr-only">Deliveries with an outstanding balance</caption>
               <thead>
                 <tr>
@@ -429,11 +429,11 @@ const UnsettledDeliveriesPage = () => {
                   const meta = BUCKET_META[o.settlement_bucket] || BUCKET_META[SETTLEMENT_BUCKETS.IN_FLIGHT];
                   return (
                     <tr key={o.id}>
-                      <td data-label="Tracking">
+                      <td data-label="Tracking" className="unsettled-tracking-cell">
                         <Link to={`/admin/orders/${o.id}`} className="fw-700 text-accent">{o.tracking_number}</Link>
                         <div className="text-xs text-tertiary">{o.origin} → {o.destination}</div>
                       </td>
-                      <td data-label="Customer">
+                      <td data-label="Customer" className="unsettled-customer-cell">
                         {/* Chasing a balance is the case where an admin most
                             often needs to talk to the customer, so the shortcut
                             sits on the name itself. Icon only — the column is
@@ -449,8 +449,8 @@ const UnsettledDeliveriesPage = () => {
                           {(o.payer_type || 'sender') === 'receiver' ? `Receiver pays · ${o.receiver_name}` : 'Sender pays'}
                         </div>
                       </td>
-                      <td data-label="Status"><StatusBadge status={o.status} size="sm" /></td>
-                      <td data-label="Settlement">
+                      <td data-label="Status" className="unsettled-status-cell"><StatusBadge status={o.status} size="sm" /></td>
+                      <td data-label="Settlement" className="unsettled-settlement-cell">
                         <span className={`badge badge-${meta.tone}`} title={meta.hint}>{meta.label}</span>
                         <div className="text-xs text-tertiary mt-4">
                           {o.promised_payment_date
@@ -460,9 +460,9 @@ const UnsettledDeliveriesPage = () => {
                             : `Booked ${formatDate(o.created_at)}`}
                         </div>
                       </td>
-                      <td data-label="Billed" className="num">{formatCurrency(o.shipping_cost)}</td>
-                      <td data-label="Paid" className="num">{formatCurrency(o.amount_paid)}</td>
-                      <td data-label="Balance" className="num fw-700 text-error">
+                      <td data-label="Billed" className="num unsettled-money-cell unsettled-billed-cell">{formatCurrency(o.shipping_cost)}</td>
+                      <td data-label="Paid" className="num unsettled-money-cell unsettled-paid-cell">{formatCurrency(o.amount_paid)}</td>
+                      <td data-label="Balance" className="num fw-700 text-error unsettled-money-cell unsettled-balance-cell">
                         {formatCurrency(o.outstanding)}
                         {o.balance_mismatch && (
                           <div className="text-xs text-tertiary fw-400" title={`Stored remaining_balance is ${formatCurrency(o.remaining_balance)} — the ledger total is stale and should be reconciled.`}>
@@ -470,7 +470,7 @@ const UnsettledDeliveriesPage = () => {
                           </div>
                         )}
                       </td>
-                      <td data-label="Action">
+                      <td data-label="Action" className="unsettled-action-cell">
                         <button
                           type="button"
                           className="btn btn-secondary btn-sm"
