@@ -314,10 +314,6 @@ const UnsettledDeliveriesPage = () => {
             <button type="button" className="btn btn-outline btn-sm" onClick={() => loadUnsettled()}>
               <RefreshCw size={16} /> Refresh
             </button>
-            <button type="button" className="btn btn-outline btn-sm" onClick={handleExportPDF} disabled={exporting || filtered.length === 0}>
-              {exporting ? <Loader size={16} className="animate-spin" /> : <Download size={16} />}
-              Export PDF
-            </button>
             <button type="button" className="btn btn-primary btn-sm" onClick={handlePrint} disabled={filtered.length === 0}>
               <Printer size={16} /> Print
             </button>

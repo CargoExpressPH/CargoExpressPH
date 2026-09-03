@@ -100,10 +100,6 @@ const ReportsPage = () => {
           </button>
           {hasData && (
             <>
-              <button type="button" className="btn btn-outline btn-sm" onClick={handleExportPDF} disabled={exporting}>
-                {exporting ? <Loader size={16} className="animate-spin" /> : <Download size={16} />}
-                Export PDF
-              </button>
               <button type="button" className="btn btn-primary btn-sm" onClick={handlePrint}>
                 <Printer size={16} />
                 Print Report
