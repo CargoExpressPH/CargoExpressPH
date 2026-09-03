@@ -27,13 +27,13 @@ const SECTIONS = [
 
 const isSection = (value) => SECTIONS.some(s => s.value === value);
 
-const SalesReportsPage = ({ initialSection }) => {
+const SalesReportsPage = ({ initialSection = 'sales' }) => {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const paramSection = searchParams.get('tab');
   const section = isSection(paramSection)
     ? paramSection
-    : (isSection(initialSection) ? initialSection : 'reports');
+    : (isSection(initialSection) ? initialSection : 'sales');
 
   const selectSection = useCallback((value) => {
     // replace: switching a tab is not a navigation step worth a Back press.
