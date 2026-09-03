@@ -52,10 +52,28 @@
 
   /* ── Letterhead ── */
   .pd-letterhead {
-    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12pt;
     padding-bottom: 8pt;
     border-bottom: 3px double #000;
     margin-bottom: 14pt;
+  }
+
+  /* Standard <img>, never a background-image — background-images are
+     routinely dropped by "Save as PDF" / "Background graphics" settings
+     in Chrome and Safari, silently blanking the letterhead. */
+  .pd-logo {
+    height: 70px;
+    width: 70px;
+    object-fit: contain;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .pd-letterhead-text {
+    text-align: left;
   }
 
   .pd-company-name {

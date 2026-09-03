@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { getCompanyInformation } from '../../lib/database';
+import PrintHeader from './PrintHeader';
 
 /**
  * PrintDocument — formal, print-only business report document.
@@ -20,28 +21,9 @@ const PrintDocument = ({ title, subtitle, generatedAt, preparedBy, children }) =
     return () => { mounted = false; };
   }, []);
 
-  const contactBits = [
-    company?.manila_address && `Manila: ${company.manila_address}`,
-    company?.bohol_address && `Bohol: ${company.bohol_address}`,
-  ].filter(Boolean);
-
-  const contactLine2 = [
-    company?.smart_phone,
-    company?.globe_phone,
-    company?.email,
-  ].filter(Boolean).join(' · ');
-
   return (
     <div className="print-doc" aria-hidden="true">
-      {/* ── Letterhead ── */}
-      <header className="pd-letterhead">
-        <div className="pd-company-name">{company?.name || 'CargoExpress PH'}</div>
-        <div className="pd-company-tagline">Cargo Delivery &amp; Logistics Services</div>
-        {contactBits.map((line, i) => (
-          <div key={i} className="pd-company-contact">{line}</div>
-        ))}
-        {contactLine2 && <div className="pd-company-contact">{contactLine2}</div>}
-      </header>
+      <PrintHeader company={company} />
 
       {/* ── Title Block ── */}
       <div className="pd-title-block">
