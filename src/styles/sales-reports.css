@@ -33,6 +33,17 @@
   border: 1px solid var(--border);
   margin-bottom: 20px;
   flex-wrap: wrap;
+  /* Required for the z-index raise in components.css
+     (.report-custom-range:has(.date-picker-panel)) to have any effect at
+     all — z-index is a no-op on a `position: static` box. Without this,
+     .stagger-item's permanent transform (see the stacking-context note
+     above .card:has(.custom-select-menu) in components.css) still makes
+     this element its own stacking context, but a non-positioned one, so
+     it paints in normal flow — BELOW the later `.card` error/empty-state
+     sibling, which is `position: relative` and therefore paints as a
+     positioned layer regardless of DOM order. That trapped the open
+     calendar panel behind "Please select both start and end dates…". */
+  position: relative;
 }
 
 .report-date-inputs {
