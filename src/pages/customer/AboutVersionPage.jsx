@@ -6,7 +6,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { getCurrentPushStatus } from '../../lib/push-notifications';
 import { BrandLogo, BrandWordmark } from '../../components/ui/BrandLogo';
 
-const APP_VERSION = '1.0.0';
+const APP_VERSION = import.meta.env.VITE_APP_VERSION || '1.0.0';
 
 /**
  * AboutVersionPage — the customer's "About this app" screen.
