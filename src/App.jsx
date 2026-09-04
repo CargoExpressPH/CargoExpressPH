@@ -1,6 +1,7 @@
 import { Suspense, useEffect } from 'react';
 import { lazyWithRetry } from './lib/lazyWithRetry';
 import PageLoader from './components/ui/PageLoader';
+import SplashScreen from './components/ui/SplashScreen';
 import InstallAppBanner from './components/ui/InstallAppBanner';
 import IosInstallBanner from './components/ui/IosInstallBanner';
 import UpdateAvailableBanner from './components/ui/UpdateAvailableBanner';
@@ -24,7 +25,6 @@ import PaymentReturnPage from './pages/shared/PaymentReturnPage';
 import RegisterPage from './pages/auth/RegisterPage';
 import ForgotPasswordPage from './pages/auth/ForgotPasswordPage';
 import ResetPasswordPage from './pages/auth/ResetPasswordPage';
-import { BrandLogo, BrandWordmark } from './components/ui/BrandLogo';
 
 // ─── Lazy-loaded Pages ─────────────────────────────────────────────────────
 // Each page is loaded on-demand only when the user navigates to it.
@@ -73,25 +73,12 @@ const NotFoundPage = lazyWithRetry(() => import('./pages/public/NotFoundPage'));
 const TermsPage = lazyWithRetry(() => import('./pages/public/LegalPage').then(({ TermsPage: Page }) => ({ default: Page })));
 const PrivacyPage = lazyWithRetry(() => import('./pages/public/LegalPage').then(({ PrivacyPage: Page }) => ({ default: Page })));
 
-// ─── Loading Screens ────────────────────────────────────────────────────────
-
-const LoadingScreen = () => (
-  <div className="loading-screen">
-    <div className="loading-brand animate-scale-in">
-      <BrandLogo size={44} decorative />
-      <h1><BrandWordmark /></h1>
-    </div>
-    <div className="spinner" />
-    <p>Loading CargoExpress PH...</p>
-  </div>
-);
-
 // ─── Route Guards ───────────────────────────────────────────────────────────
 
 /**
  * `loading` flips true again after boot — a re-login, a profile refresh. Once
  * we already hold a valid profile for the required role, honouring that flip
- * would swap the whole authenticated subtree for <LoadingScreen/>, unmounting
+ * would swap the whole authenticated subtree for <SplashScreen/>, unmounting
  * whatever page the user is on and destroying its state: a half-filled booking
  * wizard included. The loading screen is for the FIRST resolve only, when
  * there is genuinely nothing to show. After that, keep rendering what we have.
@@ -100,7 +87,7 @@ const ProtectedRoute = ({ children, requiredRole }) => {
   const { user, userProfile, loading } = useAuth();
   const location = useLocation();
   const hasUsableProfile = !!(user && userProfile && (!requiredRole || userProfile.role === requiredRole));
-  if (loading && !hasUsableProfile) return <LoadingScreen />;
+  if (loading && !hasUsableProfile) return <SplashScreen />;
   // Carry the page the guest was actually trying to reach (pathname + its own
   // state, e.g. a preselected trip) so LoginPage can send them straight back
   // instead of dropping them at the generic role-based home. `from` is only
@@ -121,7 +108,7 @@ const ProtectedRoute = ({ children, requiredRole }) => {
 
 const AuthRoute = ({ children }) => {
   const { user, userProfile, loading } = useAuth();
-  if (loading) return <LoadingScreen />;
+  if (loading) return <SplashScreen />;
   // Only redirect away from auth pages if the user has a valid role.
   // If role is null (profile fetch failed), stay on login so the user
   // can re-authenticate, which retries the profile fetch.
@@ -133,7 +120,7 @@ const AuthRoute = ({ children }) => {
 
 const RootRedirect = () => {
   const { user, userProfile, loading } = useAuth();
-  if (loading) return <LoadingScreen />;
+  if (loading) return <SplashScreen />;
   if (!user) return <Navigate to="/login" replace />;
   if (!userProfile || !userProfile.role) return <Navigate to="/login" replace />;
   return <Navigate to={userProfile.role === 'admin' ? '/admin' : '/customer'} replace />;
@@ -166,7 +153,7 @@ const InstallPrompts = () => {
 
 // ─── Root Layout (provides Suspense boundary for the entire route tree) ─────
 const RootLayout = () => (
-  <Suspense fallback={<LoadingScreen />}>
+  <Suspense fallback={<PageLoader />}>
     <ScrollToTop />
     <InstallPrompts />
     {/* Every route, logged in or not — an admin mid-shift and a customer on
@@ -186,8 +173,8 @@ const router = createBrowserRouter([
       { path: '/', element: <RootRedirect /> },
 
       // Public (lazy)
-      { path: '/track', element: <TrackingPage /> },
-      { path: '/about', element: <AboutPage /> },
+      { path: '/track', element: <Suspense fallback={<PageLoader message="Loading shipment tracking…" />}><TrackingPage /></Suspense> },
+      { path: '/about', element: <Suspense fallback={<PageLoader message="Loading company information…" />}><AboutPage /></Suspense> },
       { path: '/terms', element: <Suspense fallback={<PageLoader />}><TermsPage /></Suspense> },
       { path: '/privacy', element: <Suspense fallback={<PageLoader />}><PrivacyPage /></Suspense> },
 
