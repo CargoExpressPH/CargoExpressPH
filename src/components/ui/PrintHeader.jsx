@@ -3,7 +3,7 @@
  * printable document and PDF export (reports, and any future waybill,
  * invoice, or manifest layout).
  *
- * Renders as a plain <img> (never a CSS background-image) so the logo
+ * Renders as a plain img tag (never a CSS background-image) so the logo
  * survives html2canvas-based PDF export and Chrome/Safari's "Save as PDF",
  * both of which can drop background images depending on print settings.
  */
