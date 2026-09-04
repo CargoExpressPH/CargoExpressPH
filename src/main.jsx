@@ -41,49 +41,10 @@ window.addEventListener('vite:preloadError', (event) => {
   console.error('Vite preload error: skipping reload to prevent infinite loop.', event);
 });
 
-/**
- * The static boot splash is a sibling of #root, so createRoot never tears it
- * down before the first React frame is ready. Remove it only after this wrapper
- * commits; the short opacity handoff then reveals either the destination page,
- * the matching React splash, or the error boundary without a blank frame.
- */
-const dismissBootSplash = () => {
-  const splash = document.getElementById('app-boot-splash');
-  if (!splash) return;
-
-  const remove = () => {
-    splash.remove();
-    document.getElementById('boot-splash-styles')?.remove();
-    // index.html gives the document a dark emergency background before CSS.
-    // Once the app owns the screen, let the theme stylesheet own it again.
-    document.documentElement.style.removeProperty('background');
-  };
-
-  if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
-    remove();
-    return;
-  }
-
-  splash.classList.add('app-boot-splash--leaving');
-  splash.addEventListener('transitionend', remove, { once: true });
-  window.setTimeout(remove, 300);
-};
-
-const BootSplashHandoff = ({ children }) => {
-  React.useEffect(() => {
-    const frameId = window.requestAnimationFrame(dismissBootSplash);
-    return () => window.cancelAnimationFrame(frameId);
-  }, []);
-
-  return children;
-};
-
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <BootSplashHandoff>
-      <ErrorBoundary>
-        <App />
-      </ErrorBoundary>
-    </BootSplashHandoff>
+    <ErrorBoundary>
+      <App />
+    </ErrorBoundary>
   </React.StrictMode>
 );

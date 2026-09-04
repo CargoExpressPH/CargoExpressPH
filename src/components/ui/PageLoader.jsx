@@ -1,17 +1,11 @@
-const PageLoader = ({ message = 'Loading this page…' }) => (
-  <section className="page-loader" aria-busy="true" aria-label={message}>
-    <div className="page-loader__skeleton" aria-hidden="true">
-      <div className="page-loader__eyebrow" />
-      <div className="page-loader__heading" />
-      <div className="page-loader__summary" />
-      <div className="page-loader__grid">
-        <div className="page-loader__card" />
-        <div className="page-loader__card" />
-        <div className="page-loader__card" />
-      </div>
-    </div>
-    <p className="page-loader__status" role="status" aria-live="polite">{message}</p>
-  </section>
+import React from 'react';
+import { Loader } from 'lucide-react';
+
+const PageLoader = () => (
+  <div className="flex-center flex-col" style={{ minHeight: '60vh', gap: '1rem' }}>
+    <Loader size={40} className="text-primary animate-spin" />
+    <p className="text-secondary text-sm font-medium">Loading…</p>
+  </div>
 );
 
 export default PageLoader;

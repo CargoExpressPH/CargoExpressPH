@@ -4,7 +4,7 @@ import { supabase } from '../../lib/supabase';
 import { pollPaymentStatus } from '../../lib/paymongo';
 import { useAuth } from '../../contexts/AuthContext';
 import PaymentResultModal from '../../components/ui/PaymentResultModal';
-import SplashScreen from '../../components/ui/SplashScreen';
+import { BrandLogo } from '../../components/ui/BrandLogo';
 import usePageTitle from '../../hooks/usePageTitle';
 
 /**
@@ -205,17 +205,28 @@ const PaymentReturnPage = () => {
   // them leave instead of asking them to log in.
   if (phase === 'verifying' && !authLoading && !user) {
     return (
-      <SplashScreen
-        title="Thanks for your payment!"
-        message="We're confirming it now. You can safely close this page."
-        showProgress={false}
-        allowRetry={false}
-      />
+      <div className="loading-screen">
+        <div className="loading-brand animate-scale-in">
+          <BrandLogo size={44} decorative />
+        </div>
+        <h2 style={{ margin: '16px 0 4px' }}>Thanks for your payment!</h2>
+        <p className="text-secondary" style={{ maxWidth: 320, textAlign: 'center' }}>
+          We&apos;re confirming it now. You can safely close this page.
+        </p>
+      </div>
     );
   }
 
   if (phase === 'verifying') {
-    return <SplashScreen message="Confirming your payment…" slowMessage="Payment confirmation is taking longer than usual. You can safely retry." />;
+    return (
+      <div className="loading-screen">
+        <div className="loading-brand animate-scale-in">
+          <BrandLogo size={44} decorative />
+        </div>
+        <div className="spinner" style={{ margin: '16px 0 8px' }} />
+        <p>Verifying your payment…</p>
+      </div>
+    );
   }
 
   return (
