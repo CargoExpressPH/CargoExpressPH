@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { emitNotificationsChanged } from './notification-events';
 import { logOrder, logChat } from './activityLog';
 import { validateStatusTransition, outstandingBalance, ORDER_STATUS, tripCapacityState, tripCapacityRefusal, canAdminCancelOrder } from '../constants/status';
 import { detectPickupLocation } from '../constants/phLocations';
@@ -1132,6 +1133,7 @@ export const markNotificationRead = async (id) => {
     .update({ is_read: true })
     .eq('id', id);
   if (error) throw error;
+  emitNotificationsChanged();
 };
 
 export const markAllNotificationsRead = async (userId) => {
@@ -1141,6 +1143,7 @@ export const markAllNotificationsRead = async (userId) => {
     .eq('user_id', userId)
     .eq('is_read', false);
   if (error) throw error;
+  emitNotificationsChanged();
 };
 
 export const deleteNotification = async (id) => {
@@ -1149,6 +1152,7 @@ export const deleteNotification = async (id) => {
     .delete()
     .eq('id', id);
   if (error) throw error;
+  emitNotificationsChanged();
 };
 
 export const deleteAllNotifications = async (userId) => {
@@ -1157,6 +1161,7 @@ export const deleteAllNotifications = async (userId) => {
     .delete()
     .eq('user_id', userId);
   if (error) throw error;
+  emitNotificationsChanged();
 };
 
 export const getUnreadNotificationCount = async (userId) => {

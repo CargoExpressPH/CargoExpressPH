@@ -8,9 +8,11 @@ import {
 } from '../../lib/database';
 import {
   Bell, Package, Truck, Megaphone, CheckCheck, Loader,
-  Trash2, X, MessageSquare, Mail, Star, Clock, ChevronRight, BellOff, AlertTriangle
+  Trash2, X, MessageSquare, Mail, Star, Clock, ChevronRight, BellOff,
+  AlertTriangle, ReceiptText
 } from 'lucide-react';
 import { useToast } from '../../hooks/useToast';
+import { getAdminNotificationRoute } from '../../lib/notification-routing';
 import ConfirmModal from './ConfirmModal';
 
 // ── Icon map per notification type ─────────────────────────────────────────────
@@ -22,6 +24,7 @@ const iconMap = {
   chat_message: { icon: MessageSquare, color: 'var(--success)', bg: 'var(--success-bg)' },
   feedback:     { icon: Star, color: 'var(--warning)', bg: 'var(--warning-bg)' },
   system_alert: { icon: AlertTriangle, color: 'var(--error)', bg: 'var(--error-bg)' },
+  payment_update: { icon: ReceiptText, color: 'var(--success)', bg: 'var(--success-bg)' },
   general:      { icon: Bell, color: 'var(--text-secondary)', bg: 'var(--bg-secondary)' },
 };
 
@@ -56,28 +59,6 @@ const groupByDate = (notifications) => {
     groups[label].push(n);
   });
   return groups;
-};
-
-// ── Navigation helper ───────────────────────────────────────────────────────────
-const getNotifRoute = (notification) => {
-  switch (notification.type) {
-    case 'order_update':
-      return notification.reference_id ? `/admin/orders/${notification.reference_id}` : '/admin/orders';
-    case 'trip_update':
-      return notification.reference_id ? `/admin/trips/${notification.reference_id}` : '/admin/trips';
-    case 'inquiry':
-      return '/admin/contact-inquiries';
-    case 'chat_message':
-      return '/admin/inbox';
-    case 'feedback':
-      return '/admin/feedback';
-    case 'announcement':
-      return '/admin/announcements';
-    case 'system_alert':
-      return '/admin/storage-monitoring';
-    default:
-      return '/admin';
-  }
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -188,7 +169,7 @@ const AdminNotificationCenter = ({ isOpen, onClose, anchorRef }) => {
       } catch { /* ignore notification read state failure silently */ }
     }
     onClose();
-    navigate(getNotifRoute(notif));
+    navigate(getAdminNotificationRoute(notif));
   };
 
   const handleDeleteOne = async (e, id) => {

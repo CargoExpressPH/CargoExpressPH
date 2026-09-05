@@ -7,6 +7,7 @@ const worker = read('supabase/functions/process-push-deliveries/index.ts');
 const inquiry = read('supabase/functions/submit-inquiry/index.ts');
 const database = read('src/lib/database.js');
 const adminLayout = read('src/components/layout/AdminLayout.jsx');
+const adminProfile = read('src/pages/admin/ProfilePage.jsx');
 const pushHook = read('src/hooks/usePushNotification.js');
 const pushLifecycle = read('src/lib/push-notifications.js');
 const outboxMigration = read('supabase/migrations/20260904235457_complete_push_delivery_system.sql');
@@ -30,6 +31,10 @@ assert.match(sender, /google\.firebase\.fcm\.v1\.FcmError/);
 assert.match(sender, /const invalidRegistration = code === 'INVALID_ARGUMENT'/);
 assert.match(sender, /const permanent = stale \|\| err\.status === 'INVALID_ARGUMENT'/);
 assert.match(sender, /Service authentication required/);
+assert.match(sender, /trustedNotificationPath/);
+assert.match(sender, /case 'payment_update':[\s\S]{0,160}\/customer\/orders/);
+assert.match(sender, /case 'chat_message':[\s\S]{0,80}\/customer\/support/);
+assert.match(sender, /case 'inquiry':[\s\S]{0,80}\/admin\/contact-inquiries/);
 
 assert.match(worker, /claim_notification_delivery_jobs/);
 assert.match(worker, /CONCURRENCY = 5/);
@@ -85,11 +90,11 @@ assert.doesNotMatch(database, /invokePushWithRetry/);
 assert.doesNotMatch(adminLayout, /setTimeout\([\s\S]{0,500}Notification\.requestPermission/);
 assert.match(adminLayout, /usePushNotification\(user\?\.id, handleForegroundPush\)/);
 assert.match(adminLayout, /onClick=\{handleNotificationBellClick\}/);
-// The bell is the admin's only way to opt in, and signing out deletes the
-// device row while leaving browser permission granted. Gating the click on
-// permission alone strands every admin who logs out and back in.
-assert.doesNotMatch(adminLayout, /permissionState !== 'default'/);
-assert.match(adminLayout, /permissionState === 'denied' \|\| isSubscribed/);
+// Reading the inbox must never double as consent to browser push. Admins get
+// the same explicit per-device control as customers on their Profile page.
+assert.doesNotMatch(adminLayout, /handleNotificationBellClick[\s\S]{0,500}enablePush/);
+assert.match(adminProfile, /Push Notifications/);
+assert.match(adminProfile, /onChange=\{\(event\) => handlePushToggle\(event\.target\.checked\)\}/);
 assert.match(pushHook, /onForegroundMessage/);
 assert.match(pushLifecycle, /usesAppleWebPush/);
 assert.match(pushLifecycle, /isSafariBrowser/);

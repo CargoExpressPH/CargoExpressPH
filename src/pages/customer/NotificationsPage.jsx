@@ -4,7 +4,11 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { getNotifications, getUnreadNotificationCount, getAnnouncementById, markNotificationRead, markAllNotificationsRead, deleteNotification, deleteAllNotifications } from '../../lib/database';
-import { AlertTriangle, Bell, ChevronDown, Clock, Package, Truck, Megaphone, CheckCheck, Loader, RefreshCw, Trash2, X } from 'lucide-react';
+import {
+  AlertTriangle, Bell, CheckCheck, ChevronDown, Clock, Loader, Mail,
+  Megaphone, MessageSquare, Package, ReceiptText, RefreshCw, Star, Trash2,
+  Truck, X,
+} from 'lucide-react';
 import { useToast } from '../../hooks/useToast';
 import EmptyState from '../../components/ui/EmptyState';
 import { CenteredSpinner } from '../../components/ui/Loader';
@@ -12,9 +16,20 @@ import FocusTrap from '../../components/ui/FocusTrap';
 import usePageTitle from '../../hooks/usePageTitle';
 import PullToRefresh from '../../components/ui/PullToRefresh';
 import { getAnnouncementCategoryInfo } from '../../lib/announcements';
+import { getCustomerNotificationRoute } from '../../lib/notification-routing';
 import AnnouncementComments from '../../components/ui/AnnouncementComments';
 
-const iconMap = { order_update: Package, trip_update: Truck, announcement: Megaphone, general: Bell };
+const iconMap = {
+  order_update: Package,
+  trip_update: Truck,
+  announcement: Megaphone,
+  general: Bell,
+  inquiry: Mail,
+  feedback: Star,
+  chat_message: MessageSquare,
+  system_alert: AlertTriangle,
+  payment_update: ReceiptText,
+};
 
 const PAGE_SIZE = 10;
 
@@ -38,7 +53,7 @@ const groupByDate = (notifications) => {
 };
 
 // ── Swipe-to-delete notification card ──────────────────────────────────────
-const SwipeableNotificationCard = ({ notification, onRead, onDelete, onClick, index }) => {
+const SwipeableNotificationCard = ({ notification, onRead, onDelete, onClick, index, actionable }) => {
   const Icon = iconMap[notification.type] || Bell;
   const isUnread = !notification.is_read;
   const cardRef = useRef(null);
@@ -79,6 +94,7 @@ const SwipeableNotificationCard = ({ notification, onRead, onDelete, onClick, in
   }, [offset, notification.id, onDelete]);
 
   const handleClick = async () => {
+    if (!actionable) return;
     if (offset > 5) return; // Don't navigate if swiping
     if (isUnread) {
       await onRead(notification.id);
@@ -109,19 +125,19 @@ const SwipeableNotificationCard = ({ notification, onRead, onDelete, onClick, in
       {/* The card itself */}
       <div
         ref={cardRef}
-        role="button"
-        tabIndex={0}
-        onClick={handleClick}
-        onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleClick(); } }}
+        role={actionable ? 'button' : undefined}
+        tabIndex={actionable ? 0 : undefined}
+        onClick={actionable ? handleClick : undefined}
+        onKeyDown={actionable ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleClick(); } } : undefined}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
-        className={`notification-card notification-card-action ${isUnread ? 'unread' : ''}`}
+        className={`notification-card ${actionable ? 'notification-card-action' : ''} ${isUnread ? 'unread' : ''}`}
         style={{
           transform: `translateX(-${offset}px)`,
           transition: swiping ? 'none' : 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
         }}
-        aria-label={`Notification: ${notification.title}. ${notification.message}`}
+        aria-label={actionable ? `Open notification: ${notification.title}. ${notification.message}` : undefined}
       >
         <div className="notification-icon-wrap">
           <Icon size={18} aria-hidden="true" />
@@ -477,11 +493,8 @@ const NotificationsPage = () => {
       }
       return;
     }
-    if (n.type === 'order_update' && n.reference_id) {
-      navigate(`/customer/orders/${n.reference_id}`);
-    } else if (n.type === 'trip_update') {
-      navigate('/customer/trips');
-    }
+    const destination = getCustomerNotificationRoute(n);
+    if (destination) navigate(destination);
   };
 
   const handleAnnouncementComments = useCallback((comments) => {
@@ -574,6 +587,7 @@ const NotificationsPage = () => {
                 onDelete={handleDeleteSingle}
                 onClick={handleNotificationClick}
                 index={index}
+                actionable={n.type === 'announcement' || Boolean(getCustomerNotificationRoute(n))}
               />
             ))}
           </div>

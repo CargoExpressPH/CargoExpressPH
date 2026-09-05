@@ -6,6 +6,7 @@ import ThemeToggle from '../ui/ThemeToggle';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { getUnreadNotificationCount } from '../../lib/database';
+import { NOTIFICATIONS_CHANGED_EVENT } from '../../lib/notification-events';
 import { useToast } from '../../hooks/useToast';
 import { usePushNotification } from '../../hooks/usePushNotification';
 import ErrorBoundary from '../ui/ErrorBoundary';
@@ -51,14 +52,19 @@ const CustomerLayout = () => {
   const [unreadCount, setUnreadCount] = useState(0);
   const toast = useToast();
 
+  const refreshUnreadCount = useCallback(() => {
+    if (!user) return;
+    getUnreadNotificationCount(user.id)
+      .then(count => setUnreadCount(count))
+      .catch(() => {});
+  }, [user]);
+
   // ── Fetch unread count + listen for new notifications in real-time ────────
   useEffect(() => {
     if (!user) return;
 
     // Initial count
-    getUnreadNotificationCount(user.id)
-      .then(count => setUnreadCount(count))
-      .catch(() => {});
+    refreshUnreadCount();
 
     // Real-time listener for new notifications
     const channel = supabase.channel(`notif_badge_${user.id}`)
@@ -83,8 +89,13 @@ const CustomerLayout = () => {
       })
       .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
-  }, [user]);
+    window.addEventListener(NOTIFICATIONS_CHANGED_EVENT, refreshUnreadCount);
+
+    return () => {
+      window.removeEventListener(NOTIFICATIONS_CHANGED_EVENT, refreshUnreadCount);
+      supabase.removeChannel(channel);
+    };
+  }, [user, refreshUnreadCount]);
 
   // ── Keyboard visibility listener (Hides bottom nav when typing on mobile) ──
   useEffect(() => {
@@ -146,13 +157,9 @@ const CustomerLayout = () => {
   useEffect(() => {
     if (location.pathname === '/customer/notifications') {
       // Re-fetch actual count (in case some were already read)
-      if (user) {
-        getUnreadNotificationCount(user.id)
-          .then(count => setUnreadCount(count))
-          .catch(() => {});
-      }
+      refreshUnreadCount();
     }
-  }, [location.pathname, user]);
+  }, [location.pathname, refreshUnreadCount]);
 
   // ── Push Notifications: unified Android (FCM) + iOS (Web Push) ────────
   const handleForegroundPush = useCallback((msg) => {

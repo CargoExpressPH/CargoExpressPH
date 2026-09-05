@@ -12,6 +12,7 @@ import ThemeToggle from '../ui/ThemeToggle';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { getUnreadNotificationCount } from '../../lib/database';
+import { NOTIFICATIONS_CHANGED_EVENT } from '../../lib/notification-events';
 import { usePushNotification } from '../../hooks/usePushNotification';
 import { useToast } from '../../hooks/useToast';
 
@@ -35,7 +36,14 @@ const AdminLayout = () => {
   const handleForegroundPush = useCallback((message) => {
     toast.info(message.body || message.title);
   }, [toast]);
-  const { enablePush, permissionState, isSubscribed } = usePushNotification(user?.id, handleForegroundPush);
+  usePushNotification(user?.id, handleForegroundPush);
+
+  const refreshUnreadCount = useCallback(() => {
+    if (!user) return;
+    getUnreadNotificationCount(user.id)
+      .then(count => setUnreadCount(count))
+      .catch(() => {});
+  }, [user]);
 
   const closeSidebar = useCallback(() => setSidebarOpen(false), []);
 
@@ -51,9 +59,7 @@ const AdminLayout = () => {
   useEffect(() => {
     if (!user) return;
 
-    getUnreadNotificationCount(user.id)
-      .then(count => setUnreadCount(count))
-      .catch(() => {});
+    refreshUnreadCount();
 
     const channel = supabase.channel(`admin_notif_badge_${user.id}`)
       .on('postgres_changes', {
@@ -87,17 +93,20 @@ const AdminLayout = () => {
       })
       .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
-  }, [user]);
+    window.addEventListener(NOTIFICATIONS_CHANGED_EVENT, refreshUnreadCount);
+
+    return () => {
+      window.removeEventListener(NOTIFICATIONS_CHANGED_EVENT, refreshUnreadCount);
+      supabase.removeChannel(channel);
+    };
+  }, [user, refreshUnreadCount]);
 
   // ── Re-sync count when dropdown closes ─────────────────────────────────────
   useEffect(() => {
     if (!notifOpen && user) {
-      getUnreadNotificationCount(user.id)
-        .then(count => setUnreadCount(count))
-        .catch(() => {});
+      refreshUnreadCount();
     }
-  }, [notifOpen, user]);
+  }, [notifOpen, user, refreshUnreadCount]);
 
   // ── FCM push notification registration ─────────────────────────────────────
   // Native Web Push reaches the service worker; its foreground message is
@@ -115,19 +124,9 @@ const AdminLayout = () => {
     return () => navigator.serviceWorker.removeEventListener('message', handler);
   }, [toast]);
 
-  const handleNotificationBellClick = useCallback(async () => {
+  const handleNotificationBellClick = useCallback(() => {
     setNotifOpen(prev => !prev);
-
-    // Notification permission must originate in an explicit user gesture, and
-    // this bell is the admin's only one. Gate on the registration rather than
-    // on the permission: signing out deletes this device's row but leaves the
-    // browser permission granted, so an admin logging back in would otherwise
-    // never re-register and would silently stop receiving push for good.
-    if (permissionState === 'denied' || isSubscribed) return;
-    const result = await enablePush();
-    if (result?.success) toast.success('Desktop notifications enabled.');
-    else if (result?.reason === 'denied') toast.error('Notification permission was denied in this browser.');
-  }, [enablePush, permissionState, isSubscribed, toast]);
+  }, []);
 
   useEffect(() => {
     const drawerQuery = window.matchMedia(DRAWER_QUERY);

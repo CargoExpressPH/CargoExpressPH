@@ -53,6 +53,52 @@ function isUuid(value: unknown): value is string {
     && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
 }
 
+/** Build click-through paths only from server-owned notification fields. */
+function trustedNotificationPath(
+  role: string,
+  type: string | null,
+  referenceId: string | null,
+  title: string | null,
+): string {
+  const ref = referenceId ? encodeURIComponent(referenceId) : ''
+
+  if (role === 'admin') {
+    switch (type) {
+      case 'order_update':
+      case 'payment_update':
+        return ref ? `/admin/orders/${ref}` : '/admin/orders'
+      case 'trip_update':
+        return ref ? `/admin/trips/${ref}` : '/admin/trips'
+      case 'inquiry':
+        return '/admin/contact-inquiries'
+      case 'chat_message':
+        return '/admin/inbox'
+      case 'feedback':
+        return '/admin/feedback'
+      case 'announcement':
+        return '/admin/announcements'
+      case 'system_alert':
+        return title === 'Storage Warning' ? '/admin/storage-monitoring' : '/admin'
+      default:
+        return '/admin'
+    }
+  }
+
+  switch (type) {
+    case 'order_update':
+    case 'payment_update':
+      return ref ? `/customer/orders/${ref}` : '/customer/orders'
+    case 'general':
+      return ref ? `/customer/orders/${ref}` : DEFAULT_NOTIFICATION_PATH
+    case 'trip_update':
+      return '/customer/trips'
+    case 'chat_message':
+      return '/customer/support'
+    default:
+      return DEFAULT_NOTIFICATION_PATH
+  }
+}
+
 function errorMessage(error: unknown, fallback: string): string {
   const message = error instanceof Error ? error.message : fallback
   return message.replace(/[\r\n\t]+/g, ' ').slice(0, MAX_PROVIDER_ERROR_LENGTH)
@@ -535,7 +581,12 @@ serve(async (req) => {
       user_id = trustedNotification.user_id
       title = trustedNotification.title
       body = trustedNotification.message
-      url = targetProfile.role === 'admin' ? '/admin' : DEFAULT_NOTIFICATION_PATH
+      url = trustedNotificationPath(
+        targetProfile.role,
+        notification_type,
+        notification_reference_id,
+        title,
+      )
       requesterUserId = trustedNotification.user_id
       isRequesterAdmin = true
 
