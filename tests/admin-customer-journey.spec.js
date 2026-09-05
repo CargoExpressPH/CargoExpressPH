@@ -135,6 +135,25 @@ test.describe('CargoExpress PH — admin + customer end-to-end journey', () => {
     // submitting without it re-shows this same step with a validation error.
     await page.locator('#reg-legal-consent').check();
 
+    // Observe the whole React transition rather than sampling one screenshot.
+    // A MutationObserver catches even a one-frame remount of the registration
+    // form after the success card has appeared — the regression reported on a
+    // real phone was too brief for an ordinary visibility assertion to catch.
+    await page.evaluate(() => {
+      const transition = { successSeen: false, formAfterSuccess: false };
+      const sample = () => {
+        const text = document.body?.innerText || '';
+        if (text.includes('Account Created!')) transition.successSeen = true;
+        if (transition.successSeen && text.includes('Create Account')) {
+          transition.formAfterSuccess = true;
+        }
+      };
+      const observer = new MutationObserver(sample);
+      observer.observe(document.body, { childList: true, subtree: true, characterData: true });
+      window.__registrationTransitionAudit = transition;
+      sample();
+    });
+
     await page.getByRole('button', { name: /create account|register|sign up/i }).last().click();
 
     // The success card is shown for exactly 1400ms before the app redirects, so
@@ -143,6 +162,10 @@ test.describe('CargoExpress PH — admin + customer end-to-end journey', () => {
     // account in the customer app, greeted by name.
     await page.waitForURL(/\/customer/, { timeout: 60_000 });
     await expect(page.getByRole('heading', { name: CUSTOMER.name })).toBeVisible({ timeout: 30_000 });
+
+    const transitionAudit = await page.evaluate(() => window.__registrationTransitionAudit);
+    expect(transitionAudit.successSeen, 'registration must render its success handoff').toBe(true);
+    expect(transitionAudit.formAfterSuccess, 'registration form must never remount after success').toBe(false);
 
     // A genuinely new customer meets the welcome tour. Getting past it is part
     // of the sign-up experience, so dismiss it the way a user would.

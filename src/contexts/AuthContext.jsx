@@ -6,6 +6,7 @@ import { LEGAL_DOCUMENT_VERSION } from '../constants/legalDocuments';
 import { getProfile, createProfile } from '../lib/database';
 import { logAuth } from '../lib/activityLog';
 import useNetworkRecovery from '../hooks/useNetworkRecovery';
+import { AUTH_TRANSITIONS } from '../lib/authRouteState';
 
 const AuthContext = createContext({});
 
@@ -23,6 +24,7 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [authTransition, setAuthTransition] = useState(null);
 
   // Flag to prevent onAuthStateChange from fetching profile during login/registration.
   // The login() and register() functions handle fetchProfile themselves.
@@ -76,6 +78,7 @@ export const AuthProvider = ({ children }) => {
         if (!isMounted) return;
 
         if (event === 'SIGNED_OUT') {
+          setAuthTransition(null);
           setUser(null);
           setUserProfile(null);
           setLoading(false);
@@ -95,6 +98,7 @@ export const AuthProvider = ({ children }) => {
         // resulting session lives in the Supabase client, not in the URL, so
         // nothing is lost by replacing the location.
         if (event === 'PASSWORD_RECOVERY') {
+          setAuthTransition(null);
           setLoading(false);
           if (window.location.pathname !== '/reset-password') {
             window.location.assign('/reset-password');
@@ -239,6 +243,10 @@ export const AuthProvider = ({ children }) => {
 
   const register = async (email, password, profileData) => {
     try {
+      // AuthRoute must keep this exact RegisterPage mounted while the global
+      // session/profile state changes underneath it. Otherwise its local
+      // success state is destroyed and the form can flash back on screen.
+      setAuthTransition(AUTH_TRANSITIONS.REGISTERING);
       setLoading(true);
 
       const { legal_consent: legalConsent, ...profileFields } = profileData || {};
@@ -337,6 +345,7 @@ export const AuthProvider = ({ children }) => {
       return { success: true, user: data.user, profileIncomplete: !profileSaved };
     } catch (error) {
       isAuthAction.current = false;
+      setAuthTransition(null);
       setLoading(false);
       let msg = error.message || 'Registration failed. Please try again.';
       if (msg.includes('already registered')) {
@@ -377,6 +386,7 @@ export const AuthProvider = ({ children }) => {
 
     // Clear local state immediately so user is logged out even if offline
     lastProfileUserId.current = null;
+    setAuthTransition(null);
     setUser(null);
     setUserProfile(null);
     setLoading(false);
@@ -473,6 +483,12 @@ export const AuthProvider = ({ children }) => {
     if (user) await fetchProfile(user.id);
   }, [user]);
 
+  const completeRegistrationTransition = useCallback(() => {
+    setAuthTransition(current => (
+      current === AUTH_TRANSITIONS.REGISTERING ? null : current
+    ));
+  }, []);
+
   // If network recovers, automatically refresh profile in case it was a minimal fallback
   useNetworkRecovery(refreshProfile);
 
@@ -480,16 +496,18 @@ export const AuthProvider = ({ children }) => {
     user,
     userProfile,
     loading,
+    authTransition,
     isAdmin: userProfile?.role === 'admin',
     isCustomer: userProfile?.role === 'customer',
     login,
     register,
+    completeRegistrationTransition,
     logout,
     resetPassword,
     changePassword,
     changeEmail,
     refreshProfile,
-  }), [user, userProfile, loading, logout, resetPassword, changePassword, changeEmail, refreshProfile]);
+  }), [user, userProfile, loading, authTransition, logout, resetPassword, changePassword, changeEmail, refreshProfile, completeRegistrationTransition]);
 
   return (
     <AuthContext.Provider value={value}>

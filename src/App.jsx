@@ -10,6 +10,8 @@ import useKeyboardInset, { scrollFocusedFieldIntoView } from './hooks/useKeyboar
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { ToastProvider } from './hooks/useToast';
+import { resolveAuthRouteState } from './lib/authRouteState';
+import { loadCustomerHomePage } from './lib/routePreloads';
 
 // Layouts — eagerly loaded (always needed)
 import AdminLayout from './components/layout/AdminLayout';
@@ -31,7 +33,7 @@ import { BrandLogo, BrandWordmark } from './components/ui/BrandLogo';
 // This splits the 826 kB bundle into smaller, route-specific chunks.
 
 // Customer Pages
-const HomePage = lazyWithRetry(() => import('./pages/customer/HomePage'));
+const HomePage = lazyWithRetry(loadCustomerHomePage);
 const CustOrdersPage = lazyWithRetry(() => import('./pages/customer/OrdersPage'));
 const CustOrderDetailPage = lazyWithRetry(() => import('./pages/customer/OrderDetailPage'));
 const BookShipmentPage = lazyWithRetry(() => import('./pages/customer/BookShipmentPage'));
@@ -120,14 +122,14 @@ const ProtectedRoute = ({ children, requiredRole }) => {
 };
 
 const AuthRoute = ({ children }) => {
-  const { user, userProfile, loading } = useAuth();
-  if (loading) return <LoadingScreen />;
-  // Only redirect away from auth pages if the user has a valid role.
-  // If role is null (profile fetch failed), stay on login so the user
-  // can re-authenticate, which retries the profile fetch.
-  if (user && userProfile && userProfile.role) {
-    return <Navigate to={userProfile.role === 'admin' ? '/admin' : '/customer'} replace />;
-  }
+  const { user, userProfile, loading, authTransition } = useAuth();
+  const routeState = resolveAuthRouteState({ user, userProfile, loading, authTransition });
+
+  // A registration owns its transition until RegisterPage has rendered the
+  // success state. Replacing it with LoadingScreen here would unmount the page,
+  // erase that local state, and later remount the form for a frame.
+  if (routeState.kind === 'loading') return <LoadingScreen />;
+  if (routeState.kind === 'redirect') return <Navigate to={routeState.to} replace />;
   return children;
 };
 

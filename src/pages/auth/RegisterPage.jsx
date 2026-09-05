@@ -18,6 +18,7 @@ import FieldError from '../../components/ui/FieldError';
 import { BrandLogo, BrandWordmark } from '../../components/ui/BrandLogo';
 import AuthHeroPanel from '../../components/auth/AuthHeroPanel';
 import { LEGAL_DOCUMENTS } from '../../constants/legalDocuments';
+import { preloadCustomerHomePage } from '../../lib/routePreloads';
 
 /* ── Helpers ──────────────────────────────────────────────────────────── */
 
@@ -103,8 +104,9 @@ const RegisterPage = () => {
   const [wantsAnnouncements, setWantsAnnouncements] = useState(false);
   const topRef = useRef(null);
   const errorRef = useRef(null);
+  const redirectTimerRef = useRef(null);
 
-  const { register } = useAuth();
+  const { register, completeRegistrationTransition } = useAuth();
   const navigate     = useNavigate();
 
   const cities = form.address_province ? PH_LOCATIONS[form.address_province] || [] : [];
@@ -122,6 +124,11 @@ const RegisterPage = () => {
   useEffect(() => {
     topRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, [step]);
+
+  useEffect(() => () => {
+    if (redirectTimerRef.current) clearTimeout(redirectTimerRef.current);
+    completeRegistrationTransition();
+  }, [completeRegistrationTransition]);
 
   const checkCapsLock = (e) => {
     if (e.getModifierState) {
@@ -357,6 +364,10 @@ const RegisterPage = () => {
     setError('');
     setFieldErrors({});
     setLoading(true);
+    // Download the first authenticated page while Supabase creates the user
+    // and profile. Dynamic import caching means the route can render it
+    // immediately after the success handoff instead of showing an empty shell.
+    void preloadCustomerHomePage().catch(() => {});
 
     try {
       const normalizedAddress = normalizeProfileAddressFields(form);
@@ -393,7 +404,10 @@ const RegisterPage = () => {
         setProfileIncomplete(Boolean(result.profileIncomplete));
         setSuccess(true);
         // Longer pause when there's a follow-up message to actually read.
-        setTimeout(() => navigate('/'), result.profileIncomplete ? 3200 : 1400);
+        redirectTimerRef.current = setTimeout(() => {
+          completeRegistrationTransition();
+          navigate('/customer', { replace: true });
+        }, result.profileIncomplete ? 3200 : 1400);
       } else {
         setLoading(false);
         const errorMsg = result.error || 'Registration failed. Please try again.';
