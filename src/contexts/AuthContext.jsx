@@ -377,7 +377,10 @@ export const AuthProvider = ({ children }) => {
     // registrations on other phones untouched.
     if (signedInUserId) {
       try {
-        await disablePushForCurrentDevice(signedInUserId);
+        await Promise.race([
+          disablePushForCurrentDevice(signedInUserId),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Push disable timeout')), 3000))
+        ]);
       } catch {
         // Logout must still complete if the browser push API or network is
         // unavailable. The next account's explicit enable can claim the device.

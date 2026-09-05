@@ -56,7 +56,7 @@ const isAppleWebPushSupported = () => {
 const getIosServiceWorkerRegistration = async () => {
   if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return null;
   const registration = await navigator.serviceWorker.getRegistration('/');
-  return registration || navigator.serviceWorker.ready;
+  return registration || null;
 };
 
 const getIosSubscription = async () => {

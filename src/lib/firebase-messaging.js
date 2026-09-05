@@ -21,8 +21,8 @@ const getMessagingContext = async () => {
   if (!app || !isFcmSupported() || Notification.permission !== 'granted') return null;
 
   const messaging = getMessaging(app);
-  const swRegistration = await navigator.serviceWorker.getRegistration('/')
-    || await navigator.serviceWorker.ready;
+  const swRegistration = await navigator.serviceWorker.getRegistration('/');
+  if (!swRegistration) return null;
   const vapidKey = import.meta.env.VITE_FIREBASE_VAPID_KEY;
   const options = { serviceWorkerRegistration: swRegistration };
   if (vapidKey) options.vapidKey = vapidKey;
