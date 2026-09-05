@@ -16,7 +16,16 @@ const functions = [
   { slug: 'submit-inquiry', verifyJwt: false },
 ];
 
-for (const definition of functions) {
+// Deploy everything by default, or only the named slugs. Redeploying an
+// unchanged function is harmless but bumps its version, which makes the
+// deployment history useless for answering "when did this last change?".
+const requested = process.argv.slice(2);
+const selected = requested.length
+  ? functions.filter(definition => requested.includes(definition.slug))
+  : functions;
+assert.equal(selected.length, requested.length || functions.length, `Unknown function slug in: ${requested.join(', ')}`);
+
+for (const definition of selected) {
   const sourcePath = `supabase/functions/${definition.slug}/index.ts`;
   const source = readFileSync(sourcePath, 'utf8');
   const form = new FormData();

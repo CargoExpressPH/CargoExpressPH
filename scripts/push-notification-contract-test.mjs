@@ -23,6 +23,12 @@ assert.match(sender, /claim_notification_delivery_job/);
 assert.match(sender, /complete_notification_delivery_job/);
 assert.match(sender, /authHeader === `Bearer \$\{serviceRoleKey\}`/);
 assert.doesNotMatch(sender, /await fetch\(endpoint/);
+// Firebase returns INVALID_ARGUMENT for a bad payload as well as a bad token,
+// so it must never delete a device: one malformed message would otherwise
+// unsubscribe every healthy device it was sent to.
+assert.doesNotMatch(sender, /stale\s*=[^\n]*INVALID_ARGUMENT/);
+assert.match(sender, /const stale\s*= code === 'UNREGISTERED' \|\| err\.status === 'NOT_FOUND'/);
+assert.match(sender, /const permanent = stale \|\| code === 'INVALID_ARGUMENT'/);
 
 assert.match(worker, /claim_notification_delivery_jobs/);
 assert.match(worker, /CONCURRENCY = 5/);
@@ -73,5 +79,10 @@ assert.match(adminLayout, /permissionState === 'denied' \|\| isSubscribed/);
 assert.match(pushHook, /onForegroundMessage/);
 assert.match(pushLifecycle, /usesAppleWebPush/);
 assert.match(pushLifecycle, /isSafariBrowser/);
+// Safari on a Mac takes the Apple path without being an iOS device. Reporting
+// it as one makes About/Version tell desktop users to Add to Home Screen, and
+// call push unsupported, while it is in fact working.
+assert.doesNotMatch(pushLifecycle, /isIosDevice: true/);
+assert.match(pushLifecycle, /isIosDevice: ios,/);
 
 console.log('Push notification contract tests passed.');

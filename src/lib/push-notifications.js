@@ -173,7 +173,11 @@ export const getCurrentPushStatus = async (userId) => {
       supported,
       notificationSupported,
       permission,
-      isIosDevice: true,
+      // Report the real device, not the branch that was taken. Safari on a Mac
+      // reaches this path too, and callers use these two flags to decide
+      // whether to tell someone to Add to Home Screen — advice that is both
+      // impossible and unnecessary on a desktop, where push already works.
+      isIosDevice: ios,
       isIosInstalled: installed,
       iosPushSupported: isIosPushSupported(),
       registered,

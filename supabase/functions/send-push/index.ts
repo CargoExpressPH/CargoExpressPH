@@ -147,14 +147,21 @@ async function sendFcm(
   const err    = result?.error
   if (err) {
     const code  = err.details?.[0]?.errorCode || ''
-    const stale = code === 'UNREGISTERED' || err.status === 'NOT_FOUND' || code === 'INVALID_ARGUMENT'
+    // Only UNREGISTERED and NOT_FOUND prove the token itself is dead, and only
+    // those delete the device row. Firebase returns INVALID_ARGUMENT for a
+    // malformed *payload* as well, so treating it as a dead token would
+    // unsubscribe every healthy device a bad message was sent to. It is still
+    // permanent for this job — retrying an identical rejected message cannot
+    // start working — so the job dead-letters while the device is kept.
+    const stale     = code === 'UNREGISTERED' || err.status === 'NOT_FOUND'
+    const permanent = stale || code === 'INVALID_ARGUMENT'
     return {
       ok: false,
       error: typeof err.message === 'string'
         ? err.message.slice(0, MAX_PROVIDER_ERROR_LENGTH)
         : `FCM rejected the request (HTTP ${resp.status})`,
       stale,
-      retryable: !stale && (resp.status === 429 || resp.status >= 500),
+      retryable: !permanent && (resp.status === 429 || resp.status >= 500),
     }
   }
   if (!resp.ok) {
