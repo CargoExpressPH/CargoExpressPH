@@ -59,7 +59,7 @@ assert.match(database, /checkPhotoStorageHealth/);
 assert.match(database, /checkUnusedPhotos/);
 assert.match(database, /removeUnusedPhotos/);
 assert.match(page, /Existing photos stay where they are and remain available/);
-assert.match(page, /Use Firebase Backup temporarily/);
+assert.match(page, /Use Backup Photos temporarily/);
 assert.match(page, /postgres_changes/);
 assert.match(page, /Live updates on/);
 assert.match(page, /visibilitychange/);
@@ -73,11 +73,16 @@ assert.match(page, /if \(liveStatus === 'offline'\) return \{ className: 'badge-
 assert.match(page, /last successful values remain visible and will update when the internet returns/);
 assert.match(page, /60000/);
 assert.doesNotMatch(page, /> Refresh\s*</);
-assert.match(page, /Supabase Photos/);
-assert.match(page, /Firebase Photos in Use/);
+// UI copy was simplified for non-technical admins (business-facing labels
+// instead of provider names as primary headings); the provider names moved
+// into a secondary "Technical Details" section rather than disappearing.
+assert.match(page, /Main Storage \(Supabase\)/);
+assert.match(page, /Pickup Photos/);
+assert.match(page, /Delivery Photos/);
+assert.match(page, /Receipt Photos/);
 assert.match(page, /Photos in use/);
 assert.match(page, /Estimated space used/);
-assert.match(page, /Estimated guide space left/);
+assert.match(page, /Estimated space left/);
 assert.doesNotMatch(page, />Backup photos</);
 assert.match(page, /Recent Photo Activity/);
 assert.match(page, /activityDetails\(event\)/);

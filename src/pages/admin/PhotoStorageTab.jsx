@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  AlertTriangle, CheckCircle2, Cloud, CloudLightning, CloudOff, Database,
-  HardDrive, Loader, Radio, ShieldCheck, Sparkles, XCircle, Zap,
+  AlertTriangle, CheckCircle2, ChevronDown, ChevronUp, Cloud, CloudOff, Database,
+  HardDrive, Loader, Package, Radio, Receipt, ShieldCheck, Sparkles, Truck, XCircle, Zap,
 } from 'lucide-react';
 import {
   checkPhotoStorageHealth, checkUnusedPhotos, getPhotoStorageEvents,
@@ -26,7 +26,7 @@ const FORCE_DURATIONS = [
   { value: 1440, label: '24 hours' },
 ];
 
-const providerLabel = (provider) => provider === 'firebase' ? 'Firebase Backup' : provider === 'supabase' ? 'Supabase' : 'Photo System';
+const providerLabel = (provider) => provider === 'firebase' ? 'Backup Photos' : provider === 'supabase' ? 'Main Storage' : 'Photo Storage';
 const photoTypeLabel = (type) => type === 'pickup' ? 'Pickup photo' : type === 'delivery' ? 'Delivery photo' : type === 'receipt' ? 'Receipt photo' : 'Photo';
 const number = (value) => Number(value || 0).toLocaleString('en-PH');
 const formatBytes = (value) => {
@@ -135,6 +135,14 @@ const PhotoStorageTab = () => {
   const [cleaning, setCleaning] = useState(false);
   const [cleanupConfirmOpen, setCleanupConfirmOpen] = useState(false);
   const [cleanupPreview, setCleanupPreview] = useState(null);
+  // Collapsed by default: Backup Photos and the routing override are
+  // secondary to "is the main photo storage okay," which is what an admin
+  // checks this page for. Technical Details holds the provider-level
+  // numbers (bytes, plan names, bucket names) that only matter when
+  // something needs deeper investigation.
+  const [showBackup, setShowBackup] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [showTechnical, setShowTechnical] = useState(false);
   const [liveStatus, setLiveStatus] = useState(() => (
     typeof navigator !== 'undefined' && !navigator.onLine ? 'offline' : 'connecting'
   ));
@@ -371,11 +379,43 @@ const PhotoStorageTab = () => {
   const supabaseStorageBadge = storageBadge(liveStorage?.live_usage_status === 'available');
   const firebaseStorageBadge = storageBadge(firebaseStorage?.status === 'available');
 
-  const countCards = [
-    { label: 'Supabase Photos', value: summary?.supabase_photo_count, icon: HardDrive },
-    { label: 'Firebase Photos in Use', value: summary?.firebase_photo_count, icon: Cloud },
-    { label: 'Firebase Used (24h)', value: summary?.fallbacks_last_24h, icon: CloudLightning },
-    { label: 'Upload Failures (24h)', value: summary?.failures_last_24h, icon: AlertTriangle },
+  // Plain-language status for the overview card. These three labels are a
+  // new UX layer only — they sit on top of the SAME 80%/95% color
+  // breakpoints already used above (`usageTone`), and on the same
+  // healthy/unavailable signal `HealthBadge` already reads. No new backend
+  // rule is introduced; this just gives the existing numbers a one-word
+  // plain-English answer instead of a raw percentage.
+  const overviewStatus = (() => {
+    if (liveStatus === 'offline') {
+      return { badgeClass: 'badge-warning', label: 'Checking', text: 'Waiting for the internet connection to return.' };
+    }
+    if (health?.supabase?.status === 'unavailable') {
+      return {
+        badgeClass: 'badge-error',
+        label: 'Action Needed',
+        text: 'Photos cannot be saved to the main storage right now. New photos are automatically using Backup Photos until this is fixed.',
+      };
+    }
+    if (usagePercent == null) {
+      return liveStorage?.live_usage_status === 'available'
+        ? { badgeClass: 'badge-info', label: 'No Fixed Limit', text: 'This plan does not have a fixed storage limit, so a fill percentage is not available.' }
+        : { badgeClass: 'badge-warning', label: 'Checking', text: 'Storage use could not be checked just now. This will update automatically.' };
+    }
+    if (usagePercent >= 95) {
+      return { badgeClass: 'badge-error', label: 'Action Needed', text: 'Photo storage is almost full. New photos may fail to save — clear unused photos or use Backup Photos soon.' };
+    }
+    if (usagePercent >= 80) {
+      return { badgeClass: 'badge-warning', label: 'Getting Full', text: 'Space is filling up. Consider clearing unused photos soon.' };
+    }
+    return { badgeClass: 'badge-success', label: 'Good', text: 'You have enough room for new photos.' };
+  })();
+
+  const failuresLast24h = Number(summary?.failures_last_24h || 0);
+
+  const usageCards = [
+    { label: 'Pickup Photos', value: summary?.pickup_photo_count, icon: Package },
+    { label: 'Delivery Photos', value: summary?.delivery_photo_count, icon: Truck },
+    { label: 'Receipt Photos', value: summary?.receipt_photo_count, icon: Receipt },
   ];
 
   return (
@@ -383,7 +423,7 @@ const PhotoStorageTab = () => {
       <div className="admin-page-header">
         <div>
           <h1 className="admin-page-title"><Database size={24} color="var(--primary)" aria-hidden="true" />Photo Storage</h1>
-          <p className="admin-page-subtitle">See where photos are saved, check available space, and choose where new photos should go.</p>
+          <p className="admin-page-subtitle">Check available space for shipment photos and choose what to do if it's getting full.</p>
         </div>
         <div className="flex items-center gap-8">
           <span className={`badge ${liveStatusClass}`} role="status" aria-live="polite">
@@ -398,146 +438,137 @@ const PhotoStorageTab = () => {
 
       <div className={`alert-banner ${isForceActive ? 'alert-banner-warning' : 'alert-banner-success'} mb-16`} role="status">
         {isForceActive ? <Zap size={18} /> : <ShieldCheck size={18} />}
-        <span><strong>{isForceActive ? 'Firebase Backup is temporarily handling new photos.' : 'Automatic photo saving is on.'}</strong>{' '}
+        <span><strong>{isForceActive ? 'Backup Photos is temporarily handling new photos.' : 'Automatic photo saving is on.'}</strong>{' '}
           {isForceActive
             ? `This will return to Automatic on ${formatPhDateTime(mode?.force_firebase_expires_at)}.`
-            : 'New photos are saved in Supabase first. Firebase Backup is used automatically if Supabase cannot save one.'}
+            : 'New photos are saved to the main photo storage. Backup Photos is used automatically only if that ever fails.'}
           {' '}Existing photos stay where they are and remain available.</span>
       </div>
 
-      <div className="grid grid-2 mb-24">
-        <HealthBadge provider="supabase" health={health?.supabase} liveStatus={liveStatus} />
-        <HealthBadge provider="firebase" health={health?.firebase} liveStatus={liveStatus} />
+      {/* ── Overview: the one card that answers "is storage okay?" ──────── */}
+      <section className="card admin-section-card mb-24">
+        <div className="card-header">
+          <h3><HardDrive size={17} className="inline mr-8" />Storage Usage</h3>
+          <span className={`badge ${overviewStatus.badgeClass}`}>{overviewStatus.label}</span>
+        </div>
+        <div className="card-body">
+          {usagePercent != null && (
+            <div className="flex items-center justify-between text-sm mb-8">
+              <span>{usagePercent.toLocaleString('en-PH', { maximumFractionDigits: 0 })}% used · {formatBytes(usedBytes)} of {formatBytes(quotaBytes)}</span>
+              {availableBytes != null && <span className="text-secondary">{formatBytes(availableBytes)} left</span>}
+            </div>
+          )}
+          {usagePercent != null && (
+            <div
+              role="progressbar"
+              aria-label="Photo storage used"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={Math.round(boundedPercent)}
+              style={{ height: 12, borderRadius: 999, overflow: 'hidden', background: 'var(--bg-secondary)' }}
+            >
+              <div style={{ width: `${boundedPercent}%`, height: '100%', background: usageTone, borderRadius: 999, transition: 'width 300ms ease' }} />
+            </div>
+          )}
+          <p className="text-sm text-secondary" style={{ margin: usagePercent != null ? '12px 0 0' : 0 }}>{overviewStatus.text}</p>
+
+          {failuresLast24h > 0 && (
+            <div className="alert-banner alert-banner-warning mt-16" role="status">
+              <AlertTriangle size={17} />
+              <span>{failuresLast24h} photo{failuresLast24h === 1 ? '' : 's'} failed to save in the last 24 hours. See Recent Photo Activity below for which ones.</span>
+            </div>
+          )}
+
+          <div style={{ marginTop: 20 }}>
+            <div className="text-xs text-secondary mb-8">What's using the space</div>
+            <div className="grid grid-3">
+              {usageCards.map(({ label, value, icon: Icon }) => (
+                <div className="flex items-center gap-8 card" style={{ padding: 12 }} key={label}>
+                  <Icon size={16} className="text-secondary" aria-hidden="true" />
+                  <div><div className="text-sm">{label}</div><strong>{number(value)}</strong></div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div className="alert-banner alert-banner-info mb-24" role="status">
+        <Sparkles size={18} />
+        <span><strong>Automatic cleanup:</strong> Every day, pickup and delivery photos are permanently removed once an order has been Delivered or Cancelled for more than 6 months. Receipt photos and photos featured on the public website are always kept. This is permanent — there is no archive copy.</span>
       </div>
 
-      <div className="grid grid-2 mb-24">
-        <section className="card admin-section-card">
-          <div className="card-header">
-            <h3><HardDrive size={17} className="inline mr-8" />Supabase Photos</h3>
-            <span className={`badge ${supabaseStorageBadge.className}`}>{supabaseStorageBadge.text}</span>
-          </div>
-          <div className="card-body">
-            <div className="grid grid-2 mb-16">
-              <div><div className="text-xs text-secondary">Plan</div><strong>{planLabel(liveStorage?.plan)}</strong></div>
-              <div><div className="text-xs text-secondary">Space used</div><strong>{formatBytes(usedBytes)}</strong></div>
-              <div><div className="text-xs text-secondary">Plan allowance</div><strong>{quotaBytes != null ? formatBytes(quotaBytes) : 'Custom'}</strong></div>
-              <div><div className="text-xs text-secondary">Space left</div><strong>{availableBytes != null ? formatBytes(availableBytes) : 'Depends on the plan'}</strong></div>
-            </div>
-
-            {usagePercent != null ? (
-              <>
-                <div className="flex items-center justify-between text-sm mb-8">
-                  <span>{usagePercent.toLocaleString('en-PH', { maximumFractionDigits: 2 })}% of allowance used</span>
-                  <span className="text-secondary">{number(liveStorage?.object_count)} stored files</span>
-                </div>
-                <div
-                  role="progressbar"
-                  aria-label="Supabase storage usage"
-                  aria-valuemin={0}
-                  aria-valuemax={100}
-                  aria-valuenow={Math.round(boundedPercent)}
-                  style={{ height: 12, borderRadius: 999, overflow: 'hidden', background: 'var(--bg-secondary)' }}
-                >
-                  <div style={{ width: `${boundedPercent}%`, height: '100%', background: usageTone, borderRadius: 999, transition: 'width 300ms ease' }} />
-                </div>
-              </>
-            ) : (
-              <div className="alert-banner alert-banner-warning" role="status">
-                <AlertTriangle size={17} />
-                <span>{liveStorage?.live_usage_status === 'available'
-                  ? 'The space used is available, but this plan does not provide a fixed allowance.'
-                  : 'Supabase space could not be checked. Live monitoring will try again automatically.'}</span>
-              </div>
-            )}
-
-            {Array.isArray(liveStorage?.buckets) && liveStorage.buckets.length > 0 && (
-              <div style={{ marginTop: 18 }}>
-                <div className="text-xs text-secondary mb-8">What uses this space</div>
-                <div className="grid grid-2">
-                  {liveStorage.buckets.map((bucket) => (
-                    <div className="flex items-center justify-between card" style={{ padding: 12 }} key={bucket.bucket_id}>
-                      <span className="text-sm">{storageAreaLabel(bucket.bucket_id)}</span>
-                      <span className="text-sm"><strong>{formatBytes(bucket.size_bytes)}</strong> · {number(bucket.object_count)} files</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <p className="text-xs text-secondary" style={{ margin: '16px 0 0' }}>
-              These numbers come from the files currently saved in Supabase
-              {liveStorage?.measured_at ? ` and were last checked on ${formatPhDateTime(liveStorage.measured_at)}` : ''}.
-              {liveStatus === 'offline'
-                ? ' The last successful values remain visible and will update when the internet returns.'
-                : ' They update when photo activity happens and are checked again automatically every minute while this screen is open.'}
-            </p>
-            {Number(liveStorage?.organization_project_count || 1) > 1 && (
-              <p className="text-xs" style={{ color: 'var(--warning-text)', margin: '8px 0 0' }}>
-                Your Supabase account has {number(liveStorage.organization_project_count)} projects sharing one allowance. The space used above is for CargoExpress only.
-              </p>
-            )}
-          </div>
-        </section>
-
-        <section className="card admin-section-card">
-          <div className="card-header">
-            <h3><Cloud size={17} className="inline mr-8" />Firebase Backup Photos</h3>
+      {/* ── Backup Photos: secondary, collapsed by default ──────────────── */}
+      <section className="card admin-section-card mb-24">
+        <button
+          type="button"
+          className="card-header"
+          style={{ width: '100%', border: 0, background: 'transparent', cursor: 'pointer' }}
+          onClick={() => setShowBackup(v => !v)}
+          aria-expanded={showBackup}
+        >
+          <h3><Cloud size={17} className="inline mr-8" />Backup Photos <span className="text-secondary text-sm" style={{ fontWeight: 400 }}>· {number(summary?.firebase_photo_count)} in use</span></h3>
+          <span className="flex items-center gap-8">
             <span className={`badge ${firebaseStorageBadge.className}`}>{firebaseStorageBadge.text}</span>
-          </div>
+            {showBackup ? <ChevronUp size={18} aria-hidden="true" /> : <ChevronDown size={18} aria-hidden="true" />}
+          </span>
+        </button>
+        {showBackup && (
           <div className="card-body">
             <p className="text-sm text-secondary" style={{ marginTop: 0 }}>
-              Firebase is the automatic backup when a new photo cannot be saved in Supabase.
+              Backup Photos is used automatically only when a new photo cannot be saved to the main photo storage.
             </p>
             <div className="grid grid-2 mb-16">
               <div><div className="text-xs text-secondary">Photos in use</div><strong>{number(summary?.firebase_photo_count)}</strong></div>
               <div><div className="text-xs text-secondary">Estimated space used</div><strong>{formatBytes(firebaseEstimatedBytes)}</strong></div>
-              <div><div className="text-xs text-secondary">Free plan guide</div><strong>{firebaseFreePlanReference != null ? formatBytes(firebaseFreePlanReference) : 'Unavailable'}</strong></div>
-              <div><div className="text-xs text-secondary">Estimated guide space left</div><strong>{formatBytes(firebaseGuideRemainingBytes)}</strong></div>
+              <div><div className="text-xs text-secondary">Reference limit</div><strong>{firebaseFreePlanReference != null ? formatBytes(firebaseFreePlanReference) : 'Unavailable'}</strong></div>
+              <div><div className="text-xs text-secondary">Estimated space left</div><strong>{formatBytes(firebaseGuideRemainingBytes)}</strong></div>
             </div>
 
             {firebaseStorage?.status !== 'available' && (
               <div className="alert-banner alert-banner-warning" role="status">
                 <AlertTriangle size={17} />
-                <span>Firebase Backup could not be checked. Live monitoring will try again automatically.</span>
+                <span>Backup Photos could not be checked. Live monitoring will try again automatically.</span>
               </div>
             )}
 
             <p className="text-xs text-secondary" style={{ margin: '16px 0 0' }}>
-              Photos in use are linked to current pickup, delivery, or receipt records. The space estimate includes all saved Firebase photo data
+              Photos in use are linked to current pickup, delivery, or receipt records. The space estimate includes all saved backup photo data
               {firebaseStorage?.measured_at ? ` checked on ${formatPhDateTime(firebaseStorage.measured_at)}` : ''}.
-              {' '}The 1 GB figure and space-left amount are free-plan guides, not a detected live limit. Check the Firebase dashboard for exact billing and total account usage.
+              {' '}The reference limit and space-left amount are a published guide, not a detected live limit for this account.
             </p>
           </div>
-        </section>
-      </div>
+        )}
+      </section>
 
-      <div className="grid grid-4 mb-24">
-        {countCards.map(({ label, value, icon: Icon }) => (
-          <div className="stat-card stat-card-primary" key={label}>
-            <div className="stat-icon"><Icon size={22} /></div>
-            <div className="stat-value">{number(value)}</div>
-            <div className="stat-label">{label}</div>
-          </div>
-        ))}
-      </div>
-
+      {/* ── Advanced routing override: secondary, collapsed by default ──── */}
       <section className="card admin-section-card mb-24">
-        <div className="card-header"><h3><Radio size={17} className="inline mr-8" />Where New Photos Are Saved</h3></div>
+        <button
+          type="button"
+          className="card-header"
+          style={{ width: '100%', border: 0, background: 'transparent', cursor: 'pointer' }}
+          onClick={() => setShowAdvanced(v => !v)}
+          aria-expanded={showAdvanced}
+        >
+          <h3><Radio size={17} className="inline mr-8" />Advanced: Where New Photos Are Saved <span className="text-secondary text-sm" style={{ fontWeight: 400 }}>· {isForceActive ? 'Backup Photos (temporary)' : 'Automatic'}</span></h3>
+          {showAdvanced ? <ChevronUp size={18} aria-hidden="true" /> : <ChevronDown size={18} aria-hidden="true" />}
+        </button>
+        {showAdvanced && (
         <div className="card-body">
           <p className="text-sm text-secondary" style={{ marginTop: 0 }}>
-            This choice affects only new pickup, delivery, and receipt photos. Existing photos stay where they are.
+            This choice affects only new pickup, delivery, and receipt photos. Existing photos stay where they are. Most admins will not need to change this — it exists as a safety valve if the main photo storage is having problems.
           </p>
           <div className="grid grid-2" style={{ marginTop: 16 }}>
             <label className="card" style={{ padding: 16, cursor: 'pointer', border: selectedMode === 'automatic' ? '2px solid var(--primary)' : undefined }}>
               <div className="flex items-start gap-12">
                 <input type="radio" name="storage-mode" value="automatic" checked={selectedMode === 'automatic'} onChange={() => setSelectedMode('automatic')} />
-                <div><strong>Automatic (recommended)</strong><p className="text-sm text-secondary" style={{ margin: '6px 0 0' }}>Save in Supabase first. Use Firebase Backup automatically if Supabase cannot save the photo.</p></div>
+                <div><strong>Automatic (recommended)</strong><p className="text-sm text-secondary" style={{ margin: '6px 0 0' }}>Save to the main photo storage first. Use Backup Photos automatically only if that fails.</p></div>
               </div>
             </label>
             <label className="card" style={{ padding: 16, cursor: 'pointer', border: selectedMode === 'force_firebase' ? '2px solid var(--warning)' : undefined }}>
               <div className="flex items-start gap-12">
                 <input type="radio" name="storage-mode" value="force_firebase" checked={selectedMode === 'force_firebase'} onChange={() => setSelectedMode('force_firebase')} />
-                <div><strong>Use Firebase Backup temporarily</strong><p className="text-sm text-secondary" style={{ margin: '6px 0 0' }}>Save all new photos in Firebase Backup for the selected time, then return to Automatic.</p></div>
+                <div><strong>Use Backup Photos temporarily</strong><p className="text-sm text-secondary" style={{ margin: '6px 0 0' }}>Save all new photos to Backup Photos for the selected time, then return to Automatic.</p></div>
               </div>
             </label>
           </div>
@@ -550,13 +581,13 @@ const PhotoStorageTab = () => {
                 </select>
               </label>
               <label className="form-group"><span className="form-label">Reason (optional)</span>
-                <input className="form-input" maxLength={500} value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Example: Supabase is being checked" />
+                <input className="form-input" maxLength={500} value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Example: Main storage is being checked" />
               </label>
             </div>
           )}
           {selectedMode === 'automatic' && (
             <label className="form-group" style={{ marginTop: 16 }}><span className="form-label">Reason (optional)</span>
-              <input className="form-input" maxLength={500} value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Example: Supabase is working again" />
+              <input className="form-input" maxLength={500} value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Example: Main storage is working again" />
             </label>
           )}
           <div className="flex justify-end" style={{ marginTop: 16 }}>
@@ -565,14 +596,10 @@ const PhotoStorageTab = () => {
             </button>
           </div>
         </div>
+        )}
       </section>
 
-      <div className="alert-banner alert-banner-info mb-24" role="status">
-        <Sparkles size={18} />
-        <span><strong>Old photo cleanup:</strong> Every day at 9:30 AM, pickup and delivery photos are permanently removed from Delivered or Cancelled orders finished more than 6 months ago. Receipt photos and photos shown on the public website are kept. This is permanent deletion, not an archive copy. Supabase space is checked four times daily, and admins are warned when it reaches 85% of the plan allowance.</span>
-      </div>
-
-      <section className="card admin-section-card">
+      <section className="card admin-section-card mb-24">
         <div className="card-header">
           <h3><CloudOff size={17} className="inline mr-8" />Recent Photo Activity</h3>
           <span className="text-xs text-secondary">Updates automatically</span>
@@ -601,6 +628,81 @@ const PhotoStorageTab = () => {
               onPageChange={setEventsPage}
             />
           </>
+        )}
+      </section>
+
+      {/* ── Technical Details: provider names, exact bytes, plan/quota
+          source, bucket names — everything a developer or a very detail-
+          oriented admin might want, kept out of the primary business view. */}
+      <section className="card admin-section-card">
+        <button
+          type="button"
+          className="card-header"
+          style={{ width: '100%', border: 0, background: 'transparent', cursor: 'pointer' }}
+          onClick={() => setShowTechnical(v => !v)}
+          aria-expanded={showTechnical}
+        >
+          <h3><Database size={17} className="inline mr-8" />Technical Details</h3>
+          {showTechnical ? <ChevronUp size={18} aria-hidden="true" /> : <ChevronDown size={18} aria-hidden="true" />}
+        </button>
+        {showTechnical && (
+          <div className="card-body">
+            <div className="grid grid-2 mb-24">
+              <HealthBadge provider="supabase" health={health?.supabase} liveStatus={liveStatus} />
+              <HealthBadge provider="firebase" health={health?.firebase} liveStatus={liveStatus} />
+            </div>
+
+            <div className="flex items-center justify-between mb-8">
+              <strong className="text-sm">Main Storage (Supabase)</strong>
+              <span className={`badge ${supabaseStorageBadge.className}`}>{supabaseStorageBadge.text}</span>
+            </div>
+            <div className="grid grid-2 mb-16">
+              <div><div className="text-xs text-secondary">Plan</div><strong>{planLabel(liveStorage?.plan)}</strong></div>
+              <div><div className="text-xs text-secondary">Space used</div><strong>{formatBytes(usedBytes)}</strong></div>
+              <div><div className="text-xs text-secondary">Plan allowance</div><strong>{quotaBytes != null ? formatBytes(quotaBytes) : 'Custom (no fixed figure)'}</strong></div>
+              <div><div className="text-xs text-secondary">Stored files</div><strong>{number(liveStorage?.object_count)}</strong></div>
+            </div>
+
+            {Array.isArray(liveStorage?.buckets) && liveStorage.buckets.length > 0 && (
+              <div style={{ marginBottom: 16 }}>
+                <div className="text-xs text-secondary mb-8">Storage areas (buckets)</div>
+                <div className="grid grid-2">
+                  {liveStorage.buckets.map((bucket) => (
+                    <div className="flex items-center justify-between card" style={{ padding: 12 }} key={bucket.bucket_id}>
+                      <span className="text-sm">{storageAreaLabel(bucket.bucket_id)} <span className="text-xs text-secondary">({bucket.bucket_id})</span></span>
+                      <span className="text-sm"><strong>{formatBytes(bucket.size_bytes)}</strong> · {number(bucket.object_count)} files</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <p className="text-xs text-secondary" style={{ margin: '0 0 16px' }}>
+              The plan allowance is the published quota for the Supabase plan detected for this project — Supabase's API does not expose an exact live quota figure, so this is a reference value, not a metered reading. Usage figures themselves (space used, stored files, buckets) are read live from Supabase Storage
+              {liveStorage?.measured_at ? `, last checked on ${formatPhDateTime(liveStorage.measured_at)}` : ''}.
+              {liveStatus === 'offline'
+                ? ' The last successful values remain visible and will update when the internet returns.'
+                : ' They are checked again automatically every minute while this screen is open.'}
+              {' '}An admin notification is sent automatically once usage reaches 85% of the plan allowance.
+            </p>
+            {Number(liveStorage?.organization_project_count || 1) > 1 && (
+              <p className="text-xs" style={{ color: 'var(--warning-text)', margin: '0 0 16px' }}>
+                This Supabase account has {number(liveStorage.organization_project_count)} projects sharing one allowance. The space used above is for CargoExpress PH only.
+              </p>
+            )}
+
+            <div className="flex items-center justify-between mb-8" style={{ marginTop: 8 }}>
+              <strong className="text-sm">Backup Photos (Firebase / Firestore)</strong>
+              <span className={`badge ${firebaseStorageBadge.className}`}>{firebaseStorageBadge.text}</span>
+            </div>
+            <p className="text-xs text-secondary" style={{ margin: '0 0 8px' }}>
+              Backup photos are stored as documents in a Firestore collection, not a Cloud Storage bucket. The space figure above is estimated from the stored image data (accounting for base64 encoding overhead), since Firestore has no built-in "bytes used" reading. The 1 GB reference is the publicly published Firestore free-tier figure, not a value detected from this project's actual billing plan — check the Firebase console for the exact plan and usage.
+            </p>
+
+            <p className="text-xs text-secondary" style={{ margin: '16px 0 0' }}>
+              "Legacy" photo references (older records saved before this monitoring existed) are counted separately in the backend and are not broken out on this page; they do not affect the Main Storage or Backup Photos figures above.
+            </p>
+          </div>
         )}
       </section>
 

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { AlertTriangle, CheckCircle2, Loader, Mail, RefreshCw, XCircle } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, ChevronDown, ChevronUp, Loader, Mail, RefreshCw, XCircle } from 'lucide-react';
 import { getEmailActivityLog, getEmailUsageSummary } from '../../lib/database';
 import { useToast } from '../../hooks/useToast';
 import usePageTitle from '../../hooks/usePageTitle';
@@ -54,6 +54,7 @@ const EmailServiceTab = () => {
   const [activity, setActivity] = useState([]);
   const [activityCount, setActivityCount] = useState(0);
   const [activityPage, setActivityPage] = useState(1);
+  const [showTechnical, setShowTechnical] = useState(false);
 
   const loadUsage = useCallback(async () => {
     try {
@@ -97,13 +98,19 @@ const EmailServiceTab = () => {
   const emailMonthlyPercent = emailMonthlyLimit > 0 ? (emailSentThisMonth / emailMonthlyLimit) * 100 : 0;
   const emailDailyOverWarning = emailDailyPercent > 90;
   const emailMonthlyOverWarning = emailMonthlyPercent > 90;
+  // One overall answer to "is email sending working?" — reuses the exact
+  // same Safe/Warning/Limit Reached tiers already used per-bar below, just
+  // taken from whichever of the two (daily, monthly) is closer to its limit.
+  const overallBadge = emailUsage
+    ? emailUsageBadge(Math.max(emailDailyPercent, emailMonthlyPercent))
+    : { className: 'badge-warning', text: 'Unknown' };
 
   return (
     <div>
       <div className="admin-page-header">
         <div>
           <h1 className="admin-page-title"><Mail size={24} color="var(--primary)" aria-hidden="true" />Email Service</h1>
-          <p className="admin-page-subtitle">Track Resend usage against the Free Plan limits and see recently sent emails.</p>
+          <p className="admin-page-subtitle">See how many emails have been sent and whether we're close to a sending limit.</p>
         </div>
         <button className="btn btn-outline" type="button" onClick={() => void handleRefresh()} disabled={refreshing}>
           {refreshing ? <Loader size={16} className="animate-spin" /> : <RefreshCw size={16} />} Refresh
@@ -111,7 +118,10 @@ const EmailServiceTab = () => {
       </div>
 
       <section className="card admin-section-card mb-24">
-        <div className="card-header"><h3><Mail size={17} className="inline mr-8" />Email Usage</h3></div>
+        <div className="card-header">
+          <h3><Mail size={17} className="inline mr-8" />Email Usage</h3>
+          <span className={`badge ${overallBadge.className}`}>{overallBadge.text}</span>
+        </div>
         <div className="card-body">
           <p className="text-sm text-secondary" style={{ marginTop: 0 }}>
             Our email service lets us send a limited number of emails for free. This tracks payment reminders and announcement emails against those limits, so we don't run out unexpectedly.
@@ -147,6 +157,29 @@ const EmailServiceTab = () => {
             </div>
           )}
         </div>
+      </section>
+
+      <section className="card admin-section-card mb-24">
+        <button
+          type="button"
+          className="card-header"
+          style={{ width: '100%', border: 0, background: 'transparent', cursor: 'pointer' }}
+          onClick={() => setShowTechnical(v => !v)}
+          aria-expanded={showTechnical}
+        >
+          <h3><Mail size={17} className="inline mr-8" />Technical Details</h3>
+          {showTechnical ? <ChevronUp size={18} aria-hidden="true" /> : <ChevronDown size={18} aria-hidden="true" />}
+        </button>
+        {showTechnical && (
+          <div className="card-body">
+            <p className="text-sm text-secondary" style={{ marginTop: 0 }}>
+              Emails are sent through Resend. The counts above are recorded by CargoExpress each time it hands a batch of emails to Resend — they are not a live reading from the Resend account itself, since Resend does not provide a usage API for this app to check against. The daily (100) and monthly (3,000) limits shown are Resend's published Free Plan limits; if the account's plan ever changes, these reference numbers would need to be updated separately.
+            </p>
+            <p className="text-xs text-secondary" style={{ margin: 0 }}>
+              "Refresh" reloads these recorded counts and the activity list below — it does not contact Resend directly.
+            </p>
+          </div>
+        )}
       </section>
 
       <section className="card admin-section-card">

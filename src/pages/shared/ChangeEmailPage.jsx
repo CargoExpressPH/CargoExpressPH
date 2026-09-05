@@ -53,7 +53,6 @@ const ChangeEmailPage = () => {
   const toast = useToast();
 
   const [newEmail,        setNewEmail]        = useState('');
-  const [confirmEmail,    setConfirmEmail]    = useState('');
   const [currentPassword, setCurrentPassword] = useState('');
   const [showPassword,    setShowPassword]    = useState(false);
   const [loading,         setLoading]         = useState(false);
@@ -65,8 +64,8 @@ const ChangeEmailPage = () => {
 
   // Block navigation when the form has unsaved input (but never after success)
   const isFormDirty = useCallback(
-    () => !submitted && Boolean(newEmail || confirmEmail || currentPassword),
-    [newEmail, confirmEmail, currentPassword, submitted]
+    () => !submitted && Boolean(newEmail || currentPassword),
+    [newEmail, currentPassword, submitted]
   );
   const blocker = useBlocker(({ currentLocation, nextLocation }) => {
     return isFormDirty() && currentLocation.pathname !== nextLocation.pathname;
@@ -75,10 +74,8 @@ const ChangeEmailPage = () => {
   const { errors, validate, clearError } = useFieldErrors();
 
   const newEmailTrimmed = newEmail.trim();
-  const confirmTrimmed = confirmEmail.trim();
   const validEmail = EMAIL_RE.test(newEmailTrimmed);
   const isDifferent = newEmailTrimmed.toLowerCase() !== currentEmail.toLowerCase();
-  const emailsMatch = newEmailTrimmed === confirmTrimmed;
 
   /**
    * Problems visible while typing — only ever on a field the user has already
@@ -92,7 +89,6 @@ const ChangeEmailPage = () => {
       : newEmail && !isDifferent
         ? 'New email must be different from your current email.'
         : null,
-    confirm_email: confirmEmail && !emailsMatch ? "Emails don't match." : null,
   };
   // A submit-time error outranks the live one: it is the more specific answer
   // to why this particular attempt was rejected.
@@ -110,11 +106,6 @@ const ChangeEmailPage = () => {
           : !isDifferent
             ? 'New email must be different from your current email.'
             : null,
-      confirm_email: !confirmTrimmed
-        ? 'Please confirm your new email address.'
-        : !emailsMatch
-          ? "Emails don't match."
-          : null,
       current_password: !currentPassword ? 'Please enter your current password.' : null,
     });
     if (!ok) return;
@@ -222,12 +213,13 @@ const ChangeEmailPage = () => {
 
               {/*
                 ── Autofill sink ──────────────────────────────────────────
-                Chromium classifies this page as a sign-in form: it sees email
-                inputs followed by a password input and does not care that
-                there is no <form> element. It then picks ONE field as "the
-                username" — in practice the last email field before the
-                password, which is Confirm New Email — and writes the saved
-                address into it. `autocomplete="off"` does not stop this;
+                Chromium classifies this page as a sign-in form: it sees an
+                email input followed by a password input and does not care
+                that there is no <form> element. It then picks that email
+                field as "the username" and writes the saved address into it
+                — the one value New Email must not contain, since the whole
+                point is to enter a different one. `autocomplete="off"` does
+                not stop this;
                 Chromium has deliberately ignored it on credential fields
                 since 2014, because sites were using it to defeat password
                 managers.
@@ -272,7 +264,7 @@ const ChangeEmailPage = () => {
                     aria-disabled="true"
                   />
                 </div>
-                <p className="form-helper">You must confirm your new email before it takes effect.</p>
+                <p className="form-helper">Your new email must be confirmed before the change takes effect.</p>
               </div>
 
               {/* New Email */}
@@ -304,37 +296,8 @@ const ChangeEmailPage = () => {
                 </div>
                 <FieldError name="new_email" errors={shownErrors} />
                 {!shownErrors.new_email && newEmail && validEmail && isDifferent && (
-                  <p className="rp-match-ok">Looks good — confirmation link will be sent here.</p>
-                )}
-              </div>
-
-              {/* Confirm New Email */}
-              <div className="form-group">
-                <label className="form-label" htmlFor="change-confirm-email">Confirm New Email <span className="required">*</span></label>
-                <div className="form-input-wrapper">
-                  <Mail size={15} className="form-input-icon" aria-hidden="true" />
-                  <input
-                    id="change-confirm-email"
-                    type="email"
-                    className={`form-input form-input-icon-left ${
-                      shownErrors.confirm_email ? invalidClass('confirm_email', shownErrors) :
-                      confirmEmail && emailsMatch && validEmail && isDifferent ? 'success' : ''
-                    }`}
-                    placeholder="Re-enter new email"
-                    value={confirmEmail}
-                    onChange={e => { setConfirmEmail(e.target.value); clearError('confirm_email'); }}
-                    autoComplete="off"
-                    autoCapitalize="none"
-                    spellCheck="false"
-                    aria-required="true"
-                    {...NO_MANAGER}
-                    {...fieldAttrs('confirm_email', shownErrors)}
-                  />
-                </div>
-                <FieldError name="confirm_email" errors={shownErrors} />
-                {!shownErrors.confirm_email && confirmEmail && emailsMatch && validEmail && isDifferent && (
                   <p className="rp-match-ok">
-                    <CheckCircle2 size={13} /> Emails match
+                    <CheckCircle2 size={13} /> Looks good — confirmation link will be sent here.
                   </p>
                 )}
               </div>
