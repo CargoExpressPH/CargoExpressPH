@@ -14,46 +14,6 @@ export const withTimeout = (promise, ms = 60000) => {
   return promise;
 };
 
-const PUSH_RETRY_ATTEMPTS = 2;
-const PUSH_RETRY_DELAY_MS = 600;
-
-const waitForPushRetry = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-
-/**
- * Push is a secondary channel: the database notification is already the
- * durable record. It still deserves a bounded retry so a transient Edge
- * Function/network error is not silently lost while the page is open.
- * send-push deduplicates attempts when a notification id is available.
- */
-const invokePushWithRetry = async (body, context = 'notification') => {
-  let lastError = null;
-
-  for (let attempt = 1; attempt <= PUSH_RETRY_ATTEMPTS; attempt += 1) {
-    try {
-      const { data, error } = await supabase.functions.invoke('send-push', { body });
-
-      // A user without a registered device is an expected, successful skip;
-      // retrying that response only adds needless traffic.
-      if (!error && data?.skipped) return data;
-      if (!error && data?.success !== false) return data;
-
-      lastError = error || new Error(data?.error || 'Push delivery failed');
-    } catch (error) {
-      lastError = error;
-    }
-
-    if (attempt < PUSH_RETRY_ATTEMPTS) {
-      await waitForPushRetry(PUSH_RETRY_DELAY_MS * attempt);
-    }
-  }
-
-  console.warn(
-    `[push] ${context} failed after ${PUSH_RETRY_ATTEMPTS} attempts:`,
-    lastError?.message || lastError,
-  );
-  return null;
-};
-
 const generateTrackingNumber = () => {
   const now = new Date();
   const date = now.toISOString().slice(0, 10).replace(/-/g, '');
@@ -299,14 +259,6 @@ export const createOrder = async (orderData) => {
   );
   
   if (error) throw error;
-
-  // ── Non-blocking: notify admin(s) of new booking ──────────────────────────
-  void createAdminNotification(
-    'New Booking',
-    `New order ${trackingNumber} from ${orderData.sender_name || 'Customer'}`,
-    'order_update',
-    data.id
-  );
 
   return data;
 };
@@ -618,14 +570,6 @@ export const requestOrderCancellation = async (orderId, reason) => {
   });
   if (error) throw error;
 
-  // The RPC creates the admin notification rows atomically. The Edge Function
-  // validates ownership and derives the push text from the saved order, so the
-  // customer cannot forge a staff push payload.
-  await invokePushWithRetry(
-    { event: 'cancellation_request', order_id: orderId, reference_id: orderId, notification_type: 'order_update' },
-    'cancellation request',
-  );
-
   return data;
 };
 
@@ -647,20 +591,6 @@ export const reviewOrderCancellation = async (orderId, approve, notes = null) =>
     p_notes: notes || null,
   });
   if (error) throw error;
-
-  // The RPC has already written the customer's in-app notification. Push is
-  // a non-blocking delivery channel and is derived from the reviewed order on
-  // the server.
-  await invokePushWithRetry(
-    {
-      event: 'cancellation_review',
-      order_id: orderId,
-      approved: Boolean(approve),
-      reference_id: orderId,
-      notification_type: 'order_update',
-    },
-    'cancellation review',
-  );
 
   return data;
 };
@@ -818,26 +748,19 @@ export const createTrip = async (tripData) => {
         if (!updateErr && updated?.length) {
           autoAssignedCount = updated.length;
           
-          // Loop through auto-assigned orders to write activity logs and notifications
+          // Activity logs only. The customer's "Order Assigned" notification is
+          // written by the orders_notify_customer_of_change trigger inside the
+          // same transaction as the trip_id write above — sending it from here
+          // as well would give every auto-assigned customer two of them.
           await Promise.all(updated.map(async (order) => {
             try {
-              // Log the activity
               logOrder('Order Assigned', order.id, order.tracking_number, {
                 previousValue: { status: 'Pending', trip_id: null },
                 newValue: { status: 'Assigned', trip_id: data.id },
                 details: `System auto-assigned to Trip ${tripNumber} during creation`
               });
-
-              // Create notification
-              await createNotification(
-                order.user_id,
-                'Order Assigned',
-                `Your order ${order.tracking_number} has been assigned to Trip ${tripNumber}.`,
-                'order_update',
-                order.id
-              );
             } catch (err) {
-              console.warn(`Failed to notify/log for auto-assigned order ${order.id}`, err);
+              console.warn(`Failed to log auto-assignment for order ${order.id}`, err);
             }
           }));
         }
@@ -993,34 +916,8 @@ export const updateTrip = async (tripId, updates) => {
     .single();
   if (error) throw error;
 
-  // Cascade status to orders
-  const TRIP_TO_ORDER = {
-    'in_progress': 'In Transit',
-    'arrived': 'Arrived at Hub',
-    'cancelled': 'Cancelled',
-  };
-
-  if (updates.status && TRIP_TO_ORDER[updates.status]) {
-    const orderStatus = TRIP_TO_ORDER[updates.status];
-    let filter;
-    
-    if (updates.status === 'in_progress') {
-      filter = ['Assigned', 'Picked Up'];
-    } else if (updates.status === 'arrived') {
-      filter = ['In Transit'];
-    } else if (updates.status === 'cancelled') {
-      filter = ['Pending', 'Assigned', 'Picked Up', 'In Transit', 'Arrived at Hub', 'Out for Delivery'];
-    }
-
-    if (filter) {
-      await supabase
-        .from('orders')
-        .update({ status: orderStatus })
-        .eq('trip_id', tripId)
-        .in('status', filter);
-    }
-  }
-
+  // Status cascades, activity history, notifications, and durable delivery
+  // jobs are committed atomically by the database trip trigger.
   return data;
 };
 
@@ -1141,45 +1038,8 @@ export const createAnnouncement = async (announcement) => {
     .single();
   if (error) throw error;
 
-  // ── Non-blocking notification fan-out ────────────────────────────────────
-  // We intentionally do NOT await this. Notifying all customers can take
-  // several seconds with many users. The announcement is already saved;
-  // notifications are a best-effort side effect and should never block the UI.
-  void (async () => {
-    try {
-      const { data: customers } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('role', 'customer');
-
-      if (customers && customers.length > 0) {
-        const notifications = customers.map(c => ({
-          user_id: c.id,
-          title: 'New Announcement',
-          message: announcement.title,
-          type: 'announcement',
-          reference_id: data.id,
-        }));
-        await supabase.from('notifications').insert(notifications);
-
-        // Send push notifications via Edge Function in a single broadcast call
-        await invokePushWithRetry(
-          {
-            user_id: 'all_customers',
-            title: 'New Announcement',
-            body: announcement.title,
-            url: '/customer/notifications',
-            reference_id: data.id,
-            notification_type: 'announcement',
-          },
-          'announcement',
-        );
-      }
-    } catch (notifErr) {
-      // Non-critical — log but do not surface to the user
-      // Notification fan-out is non-critical — announcement still created
-    }
-  })();
+  // Customer notifications and their push outbox jobs are created atomically
+  // by the announcement INSERT trigger.
 
   // ── Non-blocking email broadcast ─────────────────────────────────────────
   // Same reasoning as the push fan-out above: emailing every opted-in
@@ -1743,6 +1603,11 @@ export const updateSettings = async (key, value) => {
 };
 
 // ==================== NOTIFICATIONS HELPER ====================
+// Not used for order, trip, booking, announcement, feedback, chat or payment
+// events — every one of those is now written by a database trigger in the same
+// transaction as the change it describes. Calling this from a page again would
+// duplicate the trigger's row, and would go back to losing the notice whenever
+// the tab closes between the write and this second round trip.
 export const createNotification = async (userId, title, message, type = 'general', referenceId = null) => {
   let notificationId = null;
 
@@ -1769,55 +1634,18 @@ export const createNotification = async (userId, title, message, type = 'general
     // for a notice nobody is waiting on.
   }
 
-  await invokePushWithRetry(
-    {
-      user_id: userId,
-      title,
-      body: message,
-      url: '/customer/notifications',
-      notification_id: notificationId,
-      reference_id: referenceId,
-      notification_type: type,
-    },
-    `${type} notification`,
-  );
-
   return notificationId;
 };
 
 export const createAdminNotification = async (title, message, type = 'general', referenceId = null) => {
-  void (async () => {
-    try {
-      const { data: notifiedAdmins, error } = await supabase.rpc('create_admin_notifications_rpc', {
-        p_title: title,
-        p_message: message,
-        p_type: type,
-        p_reference_id: referenceId
-      });
-
-      if (error) throw error;
-      if (!notifiedAdmins || notifiedAdmins.length === 0) return;
-
-      // Use only the server-generated notification payload. The caller's
-      // title/message are customer-controlled and must never reach a staff
-      // push notification, even though the RPC ignores them for the in-app
-      // notification row.
-      await Promise.all(notifiedAdmins.filter(row => row.admin_id).map(row => invokePushWithRetry(
-        {
-          user_id: row.admin_id,
-          title: row.notification_title || 'New admin notification',
-          body: row.notification_message || 'Open the admin dashboard to review this update.',
-          url: '/admin',
-          notification_id: row.notification_id || null,
-          reference_id: referenceId,
-          notification_type: type,
-        },
-        `${type} admin notification`,
-      )));
-    } catch {
-      // Admin notification fan-out is non-critical
-    }
-  })();
+  const { data, error } = await supabase.rpc('create_admin_notifications_rpc', {
+    p_title: title,
+    p_message: message,
+    p_type: type,
+    p_reference_id: referenceId
+  });
+  if (error) throw error;
+  return data || [];
 };
 
 // ==================== CONTACT INQUIRIES ====================
@@ -2635,21 +2463,13 @@ export const bulkUpdateOrdersStatusByTrip = async (tripId, currentStatuses, newS
     
     if (updateErr) throw updateErr;
 
-    // Log the activity
+    // Log the activity. The customer's status notification comes from the
+    // orders_notify_customer_of_change trigger on the UPDATE above.
     logOrder(`Status Changed to ${newStatus}`, order.id, order.tracking_number, {
       previousValue: { status: order.status },
       newValue: { status: newStatus },
       details: actionDescription || `Bulk update via Trip ${tripId}`
     });
-
-    // Create notification
-    await createNotification(
-      order.user_id,
-      'Order Updated',
-      `Your order ${order.tracking_number} status has been updated to ${newStatus}`,
-      'order_update',
-      order.id
-    );
   }));
 
   return orders.length;
@@ -3018,14 +2838,6 @@ export const submitFeedback = async ({ orderId, customerId, rating, message }) =
     .single();
     
   if (error) throw error;
-
-  // ── Non-blocking: notify admin(s) of new feedback ───────────────────────
-  void createAdminNotification(
-    'New Customer Feedback',
-    `${rating}★ rating${message ? ': ' + message.slice(0, 60) : ''}`,
-    'feedback',
-    orderId
-  );
 
   return data;
 };

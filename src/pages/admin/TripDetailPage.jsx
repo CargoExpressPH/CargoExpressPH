@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { getTripById, updateTrip, getActivityLogsByRecord, bulkUpdateOrdersStatusByTrip } from '../../lib/database';
+import { getTripById, updateTrip, getActivityLogsByRecord } from '../../lib/database';
 import StatusBadge from '../../components/ui/StatusBadge';
 import ConfirmModal from '../../components/ui/ConfirmModal';
 import RescheduleTripModal from '../../components/ui/RescheduleTripModal';
@@ -100,16 +100,6 @@ const TripDetailPage = () => {
     setSaving(true);
     try {
       await updateTrip(id, { status });
-      const tripRef = data?.trip?.trip_number || id;
-      const actionMap = { in_progress: 'Trip Started', arrived: 'Trip Arrived', completed: 'Trip Completed', cancelled: 'Trip Cancelled' };
-      logTrip(actionMap[status] || `Status Changed to ${status}`, id, tripRef, { previousValue: { status: data?.trip?.status }, newValue: { status }, details: `Trip status updated to ${status}` });
-      
-      // Perform bulk order updates based on the new trip status
-      if (status === 'in_progress') {
-        await bulkUpdateOrdersStatusByTrip(id, ['Picked Up'], 'In Transit', 'Triggered by Trip Start');
-      } else if (status === 'arrived') {
-        await bulkUpdateOrdersStatusByTrip(id, ['In Transit'], 'Arrived at Hub', 'Triggered by Trip Arrival');
-      }
 
       await load();
       toast.success(`Trip updated to "${status}"`);

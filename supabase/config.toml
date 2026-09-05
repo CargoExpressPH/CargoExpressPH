@@ -48,6 +48,11 @@ verify_jwt = false
 # specifically the service role key, not just any signed-in user.
 verify_jwt = true
 
+[functions.process-push-deliveries]
+# pg_cron invokes this worker with the service-role JWT. The function also
+# compares the bearer value with SUPABASE_SERVICE_ROLE_KEY before claiming jobs.
+verify_jwt = true
+
 [functions.archive-expired-evidence-photos]
 # Called only by the evidence_photo_archive pg_cron job — same shape and
 # same reasoning as process-daily-reminders above.

@@ -108,7 +108,6 @@ serve(async (req) => {
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? ''
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    const anonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? ''
     // Use anon key with no auth for anon insert, but service_role bypasses RLS anyway
     const adminClient = createClient(supabaseUrl, serviceRoleKey)
 
@@ -145,14 +144,9 @@ serve(async (req) => {
       return json({ error: 'Could not send your message right now. Please try again.' }, 400)
     }
 
-    // Non-blocking: trigger staff push via send-push (fire and forget, don't await)
-    // The send-push function derives payload from the saved row, so no trust on client data
-    const pushUrl = `${supabaseUrl}/functions/v1/send-push`
-    fetch(pushUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${anonKey}` },
-      body: JSON.stringify({ event: 'contact_inquiry', inquiry_id: inquiryId }),
-    }).catch(() => {})
+    // The database trigger creates each admin notification in this transaction.
+    // Its notification trigger then creates durable per-device delivery jobs;
+    // pg_cron processes them independently of this request lifecycle.
 
     return json({ success: true, id: inquiryId })
   } catch (err) {

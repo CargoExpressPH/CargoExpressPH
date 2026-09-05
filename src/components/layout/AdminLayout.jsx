@@ -12,12 +12,7 @@ import ThemeToggle from '../ui/ThemeToggle';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { getUnreadNotificationCount } from '../../lib/database';
-import {
-  getCurrentPushStatus,
-  refreshFCMTokenIfNeeded,
-  requestNotificationPermission,
-  subscribeIosPush,
-} from '../../lib/push-notifications';
+import { usePushNotification } from '../../hooks/usePushNotification';
 import { useToast } from '../../hooks/useToast';
 
 const COLLAPSE_KEY = 'sidebar_collapsed';
@@ -36,6 +31,11 @@ const AdminLayout = () => {
   const menuButtonRef = useRef(null);
   const { user, userProfile } = useAuth();
   const toast = useToast();
+
+  const handleForegroundPush = useCallback((message) => {
+    toast.info(message.body || message.title);
+  }, [toast]);
+  const { enablePush, permissionState, isSubscribed } = usePushNotification(user?.id, handleForegroundPush);
 
   const closeSidebar = useCallback(() => setSidebarOpen(false), []);
 
@@ -100,64 +100,8 @@ const AdminLayout = () => {
   }, [notifOpen, user]);
 
   // ── FCM push notification registration ─────────────────────────────────────
-  useEffect(() => {
-    if (!user) return;
-
-    let cancelled = false;
-    const hasAskedThisSession = () => {
-      try {
-        return sessionStorage.getItem('admin_fcm_asked') === '1';
-      } catch {
-        return false;
-      }
-    };
-
-    const markAsked = () => {
-      try { sessionStorage.setItem('admin_fcm_asked', '1'); } catch { /* optional storage */ }
-    };
-
-    const syncPush = async () => {
-      const status = await getCurrentPushStatus(user.id);
-      if (cancelled) return;
-
-      if (status.platform === 'ios-webpush') {
-        if (!status.supported) return;
-        if (status.registered) {
-          if (!status.subscribed) await subscribeIosPush(user.id);
-          return;
-        }
-
-        // Admin push has historically been opt-out through browser permission,
-        // so preserve its first-session prompt while using the iOS path when
-        // the admin is running the installed PWA.
-        if (!hasAskedThisSession()) {
-          const permission = await Notification.requestPermission();
-          if (permission === 'granted') await subscribeIosPush(user.id);
-          markAsked();
-        }
-        return;
-      }
-
-      if (hasAskedThisSession()) {
-        await refreshFCMTokenIfNeeded(user.id);
-        return;
-      }
-
-      await requestNotificationPermission(user.id);
-      markAsked();
-    };
-
-    const timer = setTimeout(() => {
-      syncPush().catch(() => { markAsked(); });
-    }, 3000);
-
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-    };
-  }, [user]);
-
-  // ── Foreground push: show in-app toast ─────────────────────────────────────
+  // Native Web Push reaches the service worker; its foreground message is
+  // separate from Firebase's onMessage channel handled by the hook above.
   useEffect(() => {
     if (!('serviceWorker' in navigator)) return;
 
@@ -170,6 +114,20 @@ const AdminLayout = () => {
     navigator.serviceWorker.addEventListener('message', handler);
     return () => navigator.serviceWorker.removeEventListener('message', handler);
   }, [toast]);
+
+  const handleNotificationBellClick = useCallback(async () => {
+    setNotifOpen(prev => !prev);
+
+    // Notification permission must originate in an explicit user gesture, and
+    // this bell is the admin's only one. Gate on the registration rather than
+    // on the permission: signing out deletes this device's row but leaves the
+    // browser permission granted, so an admin logging back in would otherwise
+    // never re-register and would silently stop receiving push for good.
+    if (permissionState === 'denied' || isSubscribed) return;
+    const result = await enablePush();
+    if (result?.success) toast.success('Desktop notifications enabled.');
+    else if (result?.reason === 'denied') toast.error('Notification permission was denied in this browser.');
+  }, [enablePush, permissionState, isSubscribed, toast]);
 
   useEffect(() => {
     const drawerQuery = window.matchMedia(DRAWER_QUERY);
@@ -278,7 +236,7 @@ const AdminLayout = () => {
                 ref={bellRef}
                 className={`admin-notif-bell${unreadCount > 0 ? ' has-unread' : ''}${notifOpen ? ' active' : ''}`}
                 type="button"
-                onClick={() => setNotifOpen(prev => !prev)}
+                onClick={handleNotificationBellClick}
                 aria-haspopup="dialog"
                 aria-expanded={notifOpen}
                 aria-label={`Notifications${unreadCount > 0 ? `, ${unreadCount} unread` : ''}`}

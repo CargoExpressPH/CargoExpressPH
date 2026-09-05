@@ -35,6 +35,26 @@ export const isIosPushSupported = () => {
   return major > 16 || (major === 16 && minor >= 4);
 };
 
+/** Safari uses Apple's native Web Push service rather than Firebase. */
+export const isSafariBrowser = () => (
+  typeof window !== 'undefined'
+  && /safari/i.test(window.navigator.userAgent)
+  && !/(chrome|chromium|crios|edg|opr|fxios|android)/i.test(window.navigator.userAgent)
+);
+
+export const usesAppleWebPush = () => (
+  isIosPwa() || (!isIosDevice() && isSafariBrowser())
+);
+
+const isAppleWebPushSupported = () => {
+  if (typeof window === 'undefined') return false;
+  if (isIosDevice()) return isIosPwa() && isIosPushSupported();
+  return isSafariBrowser()
+    && 'Notification' in window
+    && 'serviceWorker' in navigator
+    && 'PushManager' in window;
+};
+
 const getIosServiceWorkerRegistration = async () => {
   if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return null;
   const registration = await navigator.serviceWorker.getRegistration('/');
@@ -59,9 +79,9 @@ const urlBase64ToUint8Array = (base64String) => {
   return Uint8Array.from([...rawData].map(character => character.charCodeAt(0)));
 };
 
-/** Register the native Web Push subscription used by an installed iOS PWA. */
+/** Register the native Apple Web Push subscription used by Safari/iOS PWAs. */
 export const subscribeIosPush = async (userId) => {
-  if (!userId || !isIosPwa() || !isIosPushSupported()) return null;
+  if (!userId || !usesAppleWebPush() || !isAppleWebPushSupported()) return null;
   if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return null;
 
   try {
@@ -131,9 +151,9 @@ export const getCurrentPushStatus = async (userId) => {
   const permission = notificationSupported ? Notification.permission : 'unsupported';
   const ios = isIosDevice();
 
-  if (ios) {
+  if (ios || isSafariBrowser()) {
     const installed = isIosPwa();
-    const supported = notificationSupported && installed && isIosPushSupported();
+    const supported = notificationSupported && isAppleWebPushSupported();
     let subscription = null;
     if (supported) {
       try {
@@ -149,7 +169,7 @@ export const getCurrentPushStatus = async (userId) => {
       : false;
 
     return {
-      platform: 'ios-webpush',
+      platform: 'apple-webpush',
       supported,
       notificationSupported,
       permission,
@@ -173,7 +193,7 @@ export const getCurrentPushStatus = async (userId) => {
 
 /** Remove the current platform's registration during logout. */
 export const disablePushForCurrentDevice = async (userId) => {
-  if (isIosDevice()) return unsubscribeIosPush(userId);
+  if (usesAppleWebPush()) return unsubscribeIosPush(userId);
   return disableNotificationsForDevice(userId);
 };
 

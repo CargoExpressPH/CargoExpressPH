@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { getOrderById, updateOrder, createNotification, getTripReassignments, reassignTrip, getActivityLogsByRecord, getPaymentTransactions, recordAdditionalPayment, recordPickupPayment, recordDeliveryPayment, getOrderStatusEvents, reviewOrderCancellation, cancelOrderAsAdmin, assignOrderToCustomer, getLatestPaymentAttemptByOrder, clearPaymentReceiptUrls } from '../../lib/database';
+import { getOrderById, updateOrder, getTripReassignments, reassignTrip, getActivityLogsByRecord, getPaymentTransactions, recordAdditionalPayment, recordPickupPayment, recordDeliveryPayment, getOrderStatusEvents, reviewOrderCancellation, cancelOrderAsAdmin, assignOrderToCustomer, getLatestPaymentAttemptByOrder, clearPaymentReceiptUrls } from '../../lib/database';
 import { pollPaymentStatus } from '../../lib/paymongo';
 import { logOrder, logPayment } from '../../lib/activityLog';
 import { buildStatusTimestamps } from '../../utils/statusTimestamps';
@@ -376,9 +376,12 @@ const AdminOrderDetailPage = () => {
     if (!validation.valid) { toast.error(validation.error); return; }
     setSaving(true);
     try {
+      // No createNotification() anywhere in this file on purpose: the
+      // orders_notify_customer_of_change trigger writes the customer's
+      // notification inside the same transaction as the order write, so it
+      // survives a closed tab or a dropped connection between two round trips.
       await updateOrder(id, { status: next });
       logOrder(`Status Changed to ${next}`, id, order.tracking_number, { previousValue: { status: order.status }, newValue: { status: next }, details: `Status advanced from ${order.status} to ${next}` });
-      await createNotification(order.user_id, 'Order Updated', `Order ${order.tracking_number}: ${next}`, 'order_update', order.id);
       await loadOrder();
       toast.success(`Status updated to "${next}"`);
     } catch (e) { toast.error(e.message || 'Failed to update status'); }
@@ -399,7 +402,6 @@ const AdminOrderDetailPage = () => {
         : 'pending PayMongo confirmation';
       logOrder('Pickup Processed', id, order.tracking_number, { details: `Pickup processed. Weight: ${pickupData.actual_weight}kg, Payment: ${pickupData.payment_method}, Amount: ${collected}` });
 
-      await createNotification(order.user_id, 'Pickup Complete', `Order ${order.tracking_number} has been picked up`, 'order_update', order.id);
       setShowPickupModal(false);
       await loadOrder();
       toast.success('Pickup processed successfully!');
@@ -411,7 +413,6 @@ const AdminOrderDetailPage = () => {
       await recordDeliveryPayment(id, deliveryData);
 
       logOrder('Delivery Proof Uploaded', id, order.tracking_number, { details: `Delivery processed. Photos uploaded: ${deliveryData.delivery_photos.length}` });
-      await createNotification(order.user_id, 'Delivery Complete', `Order ${order.tracking_number} has been delivered`, 'order_update', order.id);
       setShowDeliveryModal(false);
       await loadOrder();
       toast.success('Delivery processed successfully!');
@@ -422,7 +423,6 @@ const AdminOrderDetailPage = () => {
     try {
       await updateOrder(id, { trip_id: tripId, status: 'Assigned' });
       logOrder('Assigned to Trip', id, order.tracking_number, { details: `Booking assigned to trip ID ${tripId}` });
-      await createNotification(order.user_id, 'Order Assigned', `Order ${order.tracking_number} assigned to a trip`, 'order_update', order.id);
       setShowTripModal(false);
       await loadOrder();
       toast.success('Order assigned to trip!');
@@ -433,7 +433,6 @@ const AdminOrderDetailPage = () => {
     try {
       await reassignTrip(id, newTripId, reason);
       logOrder('Trip Reassigned', id, order.tracking_number, { previousValue: { trip_id: order.trip_id, trip_number: order.trips?.trip_number }, newValue: { trip_id: newTripId }, details: `Reason: ${reason}` });
-      await createNotification(order.user_id, 'Trip Reassigned', `Order ${order.tracking_number} has been moved to a new trip`, 'order_update', order.id);
       setShowReassignModal(false);
       await loadOrder();
       toast.success('Trip changed successfully!');
@@ -442,7 +441,8 @@ const AdminOrderDetailPage = () => {
 
   // Links a guest ("walk-in") booking onto the customer's own registered
   // account. The notification is what actually tells them it's there — they
-  // may never have known this booking existed under any account before now.
+  // may never have known this booking existed under any account before now,
+  // which is exactly why it is emitted by the order trigger and not from here.
   const handleAssignCustomer = async (customer) => {
     try {
       await assignOrderToCustomer(id, customer.id);
@@ -451,13 +451,6 @@ const AdminOrderDetailPage = () => {
         newValue: { user_id: customer.id },
         details: `Linked guest booking to registered customer ${customer.name || customer.email || customer.id}.`,
       });
-      await createNotification(
-        customer.id,
-        'Booking Added to Your Account',
-        `Booking ${order.tracking_number} has been added to your account history.`,
-        'order_update',
-        order.id,
-      );
       setShowAssignCustomerModal(false);
       await loadOrder();
       toast.success(`${order.tracking_number} linked to ${customer.name || 'customer'}.`);
@@ -489,7 +482,6 @@ const AdminOrderDetailPage = () => {
         newValue: { status: 'Cancelled', cancellation_details: { reason } },
         details: `Cancelled by admin. Reason: ${reason}`,
       });
-      await createNotification(order.user_id, 'Order Cancelled', `Order ${order.tracking_number} has been cancelled. Reason: ${reason}`, 'order_update', order.id);
       setShowCancelConfirm(false);
       await loadOrder();
       toast.success('Order cancelled.');
@@ -539,7 +531,6 @@ const AdminOrderDetailPage = () => {
     try {
       await updateOrder(id, { status: 'Pending', service_area_status: 'approved' });
       logOrder('Out-of-Coverage Request Approved', id, order.tracking_number, { details: 'Admin approved the special pickup request.' });
-      await createNotification(order.user_id, 'Pickup Request Approved', `Your special pickup request for Order ${order.tracking_number} has been approved.`, 'order_update', order.id);
       await loadOrder();
       toast.success('Pickup request approved.');
     } catch (e) {
@@ -554,7 +545,6 @@ const AdminOrderDetailPage = () => {
     try {
       await updateOrder(id, { status: 'Cancelled', service_area_status: 'rejected', service_area_remarks: reason });
       logOrder('Out-of-Coverage Request Rejected', id, order.tracking_number, { details: `Reason: ${reason}` });
-      await createNotification(order.user_id, 'Pickup Request Rejected', `Your special pickup request for Order ${order.tracking_number} could not be accommodated. Reason: ${reason}`, 'order_update', order.id);
       await loadOrder();
       toast.success('Pickup request rejected.');
     } catch (e) {

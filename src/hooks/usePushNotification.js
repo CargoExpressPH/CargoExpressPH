@@ -9,6 +9,7 @@ import {
   refreshFCMTokenIfNeeded,
   requestNotificationPermission,
   subscribeIosPush,
+  usesAppleWebPush,
 } from '../lib/push-notifications';
 
 /**
@@ -45,11 +46,11 @@ export function usePushNotification(userId, onMsg) {
     setPermissionState(permission);
     if (permission !== 'granted') return { success: false, reason: 'denied' };
 
-    if (isIosPwa()) {
+    if (usesAppleWebPush()) {
       const token = await subscribeIosPush(userId);
       if (token) {
         setIsSubscribed(true);
-        return { success: true, platform: 'ios-webpush' };
+        return { success: true, platform: 'apple-webpush' };
       }
       return { success: false, reason: 'ios_subscribe_failed' };
     }
@@ -67,17 +68,17 @@ export function usePushNotification(userId, onMsg) {
   const disablePush = useCallback(async () => {
     if (!userId) return { success: false, reason: 'no_user' };
 
-    const ios = isIosDevice();
+    const appleWebPush = usesAppleWebPush();
     const ok = await disablePushForCurrentDevice(userId);
     if (!ok) {
       return {
         success: false,
-        reason: ios ? 'ios_unsubscribe_failed' : 'fcm_unsubscribe_failed',
+        reason: appleWebPush ? 'ios_unsubscribe_failed' : 'fcm_unsubscribe_failed',
       };
     }
 
     setIsSubscribed(false);
-    return { success: true, platform: ios ? 'ios-webpush' : 'fcm' };
+    return { success: true, platform: appleWebPush ? 'apple-webpush' : 'fcm' };
   }, [userId]);
 
   // Sync silently on mount, but only refresh an existing registration. A
@@ -94,7 +95,7 @@ export function usePushNotification(userId, onMsg) {
       setIsSubscribed(status.subscribed);
       if (status.permission !== 'granted' || !status.registered) return;
 
-      if (status.platform === 'ios-webpush') {
+      if (status.platform === 'apple-webpush') {
         // The database row proves prior opt-in. Recreate a missing browser
         // subscription after a service-worker replacement, but never after an
         // explicit disable (which removes the row).
@@ -125,7 +126,7 @@ export function usePushNotification(userId, onMsg) {
 
   // Foreground FCM message listener (Android/Chrome/desktop).
   useEffect(() => {
-    if (!userId || isIosPwa() || !hasOnMsg) return undefined;
+    if (!userId || usesAppleWebPush() || !hasOnMsg) return undefined;
 
     const unsubscribe = onForegroundMessage((payload) => {
       if (typeof onMsgRef.current !== 'function') return;

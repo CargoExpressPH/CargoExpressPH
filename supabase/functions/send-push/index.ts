@@ -14,6 +14,16 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4'
 
 const DEFAULT_NOTIFICATION_PATH = '/customer/notifications'
+const PROVIDER_TIMEOUT_MS = 10_000
+const MAX_PROVIDER_ERROR_LENGTH = 500
+
+type ProviderResult = {
+  ok: boolean
+  messageId?: string
+  error?: string
+  stale?: boolean
+  retryable?: boolean
+}
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -42,6 +52,27 @@ function isUuid(value: unknown): value is string {
   return typeof value === 'string'
     && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
 }
+
+function errorMessage(error: unknown, fallback: string): string {
+  const message = error instanceof Error ? error.message : fallback
+  return message.replace(/[\r\n\t]+/g, ' ').slice(0, MAX_PROVIDER_ERROR_LENGTH)
+}
+
+async function readProviderJson(response: Response): Promise<Record<string, any>> {
+  const raw = (await response.text().catch(() => '')).slice(0, 32_000)
+  if (!raw) return {}
+  try {
+    return JSON.parse(raw)
+  } catch {
+    return {}
+  }
+}
+
+const providerFetch = (input: string | URL, init: RequestInit) => fetch(input, {
+  ...init,
+  redirect: 'error',
+  signal: AbortSignal.timeout(PROVIDER_TIMEOUT_MS),
+})
 
 // ─────────────────────────────────────────────────────────────────────────────
 // FCM v1 helpers (Android / Chrome)
@@ -75,12 +106,15 @@ async function getFcmAccessToken(serviceAccount: Record<string, string>): Promis
   const signature   = await crypto.subtle.sign('RSASSA-PKCS1-v1_5', cryptoKey, new TextEncoder().encode(unsignedToken))
   const signedToken = `${unsignedToken}.${btoa(String.fromCharCode(...new Uint8Array(signature))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')}`
 
-  const tokenResp = await fetch('https://oauth2.googleapis.com/token', {
+  const tokenResp = await providerFetch('https://oauth2.googleapis.com/token', {
     method:  'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body:    `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=${signedToken}`,
   })
-  const tokenData = await tokenResp.json()
+  const tokenData = await readProviderJson(tokenResp)
+  if (!tokenResp.ok || typeof tokenData.access_token !== 'string' || !tokenData.access_token) {
+    throw new Error(`Firebase OAuth rejected the request (HTTP ${tokenResp.status})`)
+  }
   return tokenData.access_token
 }
 
@@ -92,8 +126,9 @@ async function sendFcm(
   body: string,
   clickUrl: string,
   webpushLink: string | null,
-): Promise<{ ok: boolean; messageId?: string; error?: string; stale?: boolean }> {
-  const resp = await fetch(
+  deliveryTag: string,
+): Promise<ProviderResult> {
+  const resp = await providerFetch(
     `https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`,
     {
       method:  'POST',
@@ -102,18 +137,32 @@ async function sendFcm(
         message: {
           token:        fcmToken,
           notification: { title, body },
-          data:         { url: clickUrl },
+          data:         { url: clickUrl, tag: deliveryTag },
           ...(webpushLink ? { webpush: { fcm_options: { link: webpushLink } } } : {}),
         },
       }),
     },
   )
-  const result = await resp.json()
+  const result = await readProviderJson(resp)
   const err    = result?.error
   if (err) {
     const code  = err.details?.[0]?.errorCode || ''
     const stale = code === 'UNREGISTERED' || err.status === 'NOT_FOUND' || code === 'INVALID_ARGUMENT'
-    return { ok: false, error: err.message, stale }
+    return {
+      ok: false,
+      error: typeof err.message === 'string'
+        ? err.message.slice(0, MAX_PROVIDER_ERROR_LENGTH)
+        : `FCM rejected the request (HTTP ${resp.status})`,
+      stale,
+      retryable: !stale && (resp.status === 429 || resp.status >= 500),
+    }
+  }
+  if (!resp.ok) {
+    return {
+      ok: false,
+      error: `FCM rejected the request (HTTP ${resp.status})`,
+      retryable: resp.status === 429 || resp.status >= 500,
+    }
   }
   return { ok: true, messageId: result?.name }
 }
@@ -129,6 +178,45 @@ function b64uToBytes(b64: string): Uint8Array {
 
 function bytesToB64u(buf: Uint8Array): string {
   return btoa(String.fromCharCode(...buf)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+}
+
+function validateAppleWebPushSubscription(
+  subscriptionJson: Record<string, string | Record<string, string>>,
+): { endpoint: string; p256dh: string; auth: string } {
+  const endpoint = subscriptionJson?.endpoint
+  const keys = subscriptionJson?.keys
+  const p256dh = typeof keys === 'object' && keys ? keys.p256dh : null
+  const auth = typeof keys === 'object' && keys ? keys.auth : null
+
+  if (typeof endpoint !== 'string' || endpoint.length === 0 || endpoint.length > 2048) {
+    throw new Error('Invalid Web Push endpoint')
+  }
+  if (typeof p256dh !== 'string' || !/^[A-Za-z0-9_-]{87}$/.test(p256dh)) {
+    throw new Error('Invalid Web Push p256dh key')
+  }
+  if (typeof auth !== 'string' || !/^[A-Za-z0-9_-]{22}$/.test(auth)) {
+    throw new Error('Invalid Web Push auth key')
+  }
+
+  const parsed = new URL(endpoint)
+  const hostname = parsed.hostname.toLowerCase()
+  if (
+    parsed.protocol !== 'https:'
+    || parsed.username
+    || parsed.password
+    || (parsed.port && parsed.port !== '443')
+    || !hostname.endsWith('.push.apple.com')
+  ) {
+    throw new Error('Untrusted Web Push endpoint')
+  }
+
+  const publicKey = b64uToBytes(p256dh)
+  const authKey = b64uToBytes(auth)
+  if (publicKey.length !== 65 || publicKey[0] !== 4 || authKey.length !== 16) {
+    throw new Error('Invalid Web Push key material')
+  }
+
+  return { endpoint: parsed.toString(), p256dh, auth }
 }
 
 /**
@@ -172,12 +260,10 @@ async function sendWebPush(
   title: string,
   body: string,
   clickUrl: string,
-): Promise<{ ok: boolean; messageId?: string; error?: string; stale?: boolean }> {
+  deliveryTag: string,
+): Promise<ProviderResult> {
   try {
-    const endpoint = subscriptionJson.endpoint as string
-    const p256dh   = (subscriptionJson.keys as Record<string, string>).p256dh
-    const auth     = (subscriptionJson.keys as Record<string, string>).auth
-    if (!endpoint || !p256dh || !auth) return { ok: false, error: 'Subscription missing endpoint or keys' }
+    const { endpoint, p256dh, auth } = validateAppleWebPushSubscription(subscriptionJson)
 
     // ── VAPID JWT ─────────────────────────────────────────────────────────
     const audience = new URL(endpoint).origin
@@ -196,7 +282,7 @@ async function sendWebPush(
       // is the one that decides what a real push shows.
       badge: '/icons/badge-72.png',
       notification: { title, body, icon: '/icons/icon-192.png', badge: '/icons/badge-72.png' },
-      data:  { url: clickUrl, title, body },
+      data:  { url: clickUrl, title, body, tag: deliveryTag },
     }))
 
     // ── RFC 8291: ECDH + HKDF-SHA-256 + AES-128-GCM ──────────────────────
@@ -255,7 +341,7 @@ async function sendWebPush(
     content.set(ciphertext,   o)
 
     // ── POST to push service ──────────────────────────────────────────────
-    const pushResp = await fetch(endpoint, {
+    const pushResp = await providerFetch(endpoint, {
       method: 'POST',
       headers: {
         'Authorization':    `vapid t=${jwt}, k=${vapidPublicKey}`,
@@ -269,9 +355,20 @@ async function sendWebPush(
 
     if (pushResp.status === 201 || pushResp.status === 200) return { ok: true, messageId: `webpush-${Date.now()}` }
     if (pushResp.status === 410 || pushResp.status === 404) return { ok: false, stale: true, error: `Subscription expired (${pushResp.status})` }
-    return { ok: false, error: `Push service error ${pushResp.status}: ${await pushResp.text().catch(() => '')}` }
+    return {
+      ok: false,
+      error: `Apple Push Service rejected the request (HTTP ${pushResp.status})`,
+      retryable: pushResp.status === 429 || pushResp.status >= 500,
+    }
   } catch (e) {
-    return { ok: false, error: `Web Push error: ${e.message}` }
+    const message = errorMessage(e, 'Web Push request failed')
+    const invalidSubscription = message.startsWith('Invalid Web Push') || message === 'Untrusted Web Push endpoint'
+    return {
+      ok: false,
+      error: message,
+      stale: invalidSubscription,
+      retryable: !invalidSubscription,
+    }
   }
 }
 
@@ -288,6 +385,26 @@ serve(async (req) => {
   let contactInquiryId = ''
   let contactDispatchClaimId: string | null = null
 
+  const completeDeliveryJob = async (
+    jobId: string | null,
+    claimId: string | null,
+    outcome: 'sent' | 'skipped' | 'retry' | 'dead',
+    error?: string,
+  ) => {
+    if (!jobId || !claimId) return null
+    const { data, error: completionError } = await supabase.rpc('complete_notification_delivery_job', {
+      p_job_id: jobId,
+      p_claim_id: claimId,
+      p_outcome: outcome,
+      p_error: error?.slice(0, 1000) || null,
+    })
+    if (completionError) {
+      console.error('[send-push] unable to complete delivery job:', completionError.message)
+      return null
+    }
+    return data as string | null
+  }
+
   const finishContactDispatch = async (delivered: boolean) => {
     if (!contactDispatchClaimed || !contactInquiryId) return
 
@@ -302,9 +419,13 @@ serve(async (req) => {
 
   try {
     if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS_HEADERS })
+    if (req.method !== 'POST') return jsonResp({ error: 'Method not allowed' }, 405)
 
     const payload = await req.json()
     const {
+      job_id: requestedJobId,
+      job_claim_id: requestedJobClaimId,
+      device_token_id: requestedDeviceTokenId,
       notification_id: requestedNotificationId,
       reference_id: requestedReferenceId,
       notification_type: requestedNotificationType,
@@ -335,8 +456,76 @@ serve(async (req) => {
     let url: string | null = requestedUrl || null
     let isRequesterAdmin = false
     let requesterUserId = ''
+    let deliveryJobId: string | null = null
+    let deliveryJobClaimId: string | null = null
+    let targetDeviceTokenId: string | null = null
 
-    if (isContactEvent) {
+    const authHeader = req.headers.get('Authorization') || ''
+    const isServiceJobRequest = Boolean(serviceRoleKey)
+      && authHeader === `Bearer ${serviceRoleKey}`
+
+    if (isServiceJobRequest) {
+      if (
+        !isUuid(requestedJobId)
+        || !isUuid(requestedJobClaimId)
+        || !isUuid(requestedNotificationId)
+        || !isUuid(requestedDeviceTokenId)
+      ) {
+        return jsonResp({ error: 'A valid claimed delivery job is required' }, 400)
+      }
+
+      const { data: job, error: jobError } = await supabase
+        .from('notification_delivery_jobs')
+        .select('id, notification_id, user_id, device_token_id, status, claim_id')
+        .eq('id', requestedJobId)
+        .maybeSingle()
+      if (jobError) return jsonResp({ error: 'Unable to verify delivery job' }, 500)
+      if (
+        !job
+        || job.status !== 'processing'
+        || job.claim_id !== requestedJobClaimId
+        || job.notification_id !== requestedNotificationId
+        || job.device_token_id !== requestedDeviceTokenId
+      ) {
+        return jsonResp({ error: 'Delivery job claim is not valid' }, 409)
+      }
+
+      const { data: trustedNotification, error: notificationError } = await supabase
+        .from('notifications')
+        .select('id, user_id, title, message, type, reference_id')
+        .eq('id', job.notification_id)
+        .eq('user_id', job.user_id)
+        .maybeSingle()
+      if (notificationError) return jsonResp({ error: 'Unable to load notification' }, 500)
+      if (!trustedNotification) {
+        await completeDeliveryJob(requestedJobId, requestedJobClaimId, 'skipped', 'Notification no longer exists')
+        return jsonResp({ success: false, skipped: true, error: 'Notification no longer exists' })
+      }
+
+      const { data: targetProfile, error: profileError } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', trustedNotification.user_id)
+        .maybeSingle()
+      if (profileError || !targetProfile) {
+        await completeDeliveryJob(requestedJobId, requestedJobClaimId, 'retry', 'Unable to resolve notification recipient')
+        return jsonResp({ error: 'Unable to resolve notification recipient' }, 500)
+      }
+
+      deliveryJobId = requestedJobId
+      deliveryJobClaimId = requestedJobClaimId
+      targetDeviceTokenId = requestedDeviceTokenId
+      notification_id = trustedNotification.id
+      notification_reference_id = trustedNotification.reference_id
+      notification_type = trustedNotification.type
+      user_id = trustedNotification.user_id
+      title = trustedNotification.title
+      body = trustedNotification.message
+      url = targetProfile.role === 'admin' ? '/admin' : DEFAULT_NOTIFICATION_PATH
+      requesterUserId = trustedNotification.user_id
+      isRequesterAdmin = true
+
+    } else if (isContactEvent) {
       // This is the only anonymous mode. The inquiry ID is generated by the
       // public client, and the payload is always rebuilt from the saved row.
       if (typeof inquiry_id !== 'string' || !inquiry_id) {
@@ -370,7 +559,6 @@ serve(async (req) => {
       notification_reference_id = inquiry_id
       notification_type = 'inquiry'
     } else {
-      const authHeader = req.headers.get('Authorization') || ''
       if (!authHeader.startsWith('Bearer ')) return jsonResp({ error: 'Authentication required' }, 401)
 
       // Verify the caller's JWT for all authenticated notification events.
@@ -517,7 +705,16 @@ serve(async (req) => {
     let devices: { id: string; token: string; user_id: string }[] = []
     let devErr = null
 
-    if (user_id === 'all_customers' || user_id === 'all_admins') {
+    if (targetDeviceTokenId) {
+      const { data, error } = await supabase
+        .from('user_device_tokens')
+        .select('id, token, user_id')
+        .eq('id', targetDeviceTokenId)
+        .eq('user_id', user_id)
+        .maybeSingle()
+      devices = data ? [data] : []
+      devErr = error
+    } else if (user_id === 'all_customers' || user_id === 'all_admins') {
       const { data, error } = await supabase
         .from('user_device_tokens')
         .select('id, token, user_id, profiles!inner(role)')
@@ -534,8 +731,16 @@ serve(async (req) => {
     }
 
     if (devErr || !devices || devices.length === 0) {
+      if (deliveryJobId && deliveryJobClaimId) {
+        await completeDeliveryJob(
+          deliveryJobId,
+          deliveryJobClaimId,
+          devErr ? 'retry' : 'skipped',
+          devErr?.message || 'Device token no longer exists',
+        )
+      }
       if (isContactEvent) await finishContactDispatch(false)
-      if (user_id !== 'all_customers' && user_id !== 'all_admins') {
+      if (!deliveryJobId && user_id !== 'all_customers' && user_id !== 'all_admins') {
         await supabase.from('notification_delivery_attempts').insert({
           notification_id: notification_id || null,
           user_id, status: 'skipped',
@@ -604,13 +809,20 @@ serve(async (req) => {
 
     // Load FCM service account (for Android / Chrome tokens)
     const serviceAccountB64 = Deno.env.get('FIREBASE_SERVICE_ACCOUNT_B64')
-    let serviceAccount: Record<string, string> | null = null
     let fcmAccessToken = ''
     let fcmProjectId   = ''
-    if (serviceAccountB64) {
-      serviceAccount = JSON.parse(atob(serviceAccountB64))
-      fcmProjectId   = serviceAccount!.project_id
-      fcmAccessToken = await getFcmAccessToken(serviceAccount!)
+    let fcmConfigurationError = ''
+    if (serviceAccountB64 && devices.some((device) => !device.token.startsWith('webpush:'))) {
+      try {
+        const serviceAccount = JSON.parse(atob(serviceAccountB64)) as Record<string, string>
+        if (!serviceAccount.project_id || !serviceAccount.client_email || !serviceAccount.private_key) {
+          throw new Error('Firebase service account is incomplete')
+        }
+        fcmProjectId = serviceAccount.project_id
+        fcmAccessToken = await getFcmAccessToken(serviceAccount)
+      } catch (error) {
+        fcmConfigurationError = errorMessage(error, 'Firebase service account is invalid')
+      }
     }
 
     // Load VAPID keys (for iOS Web Push tokens)
@@ -619,12 +831,13 @@ serve(async (req) => {
     const vapidSubject    = Deno.env.get('VAPID_SUBJECT')     ?? 'mailto:admin@cargoexpress.ph'
 
     const logDelivery = async (targetUserId: string, deviceTokenId: string, status: string, providerMessageId?: string, errorMessage?: string, deliveryNotificationId?: string | null) => {
-      await supabase.from('notification_delivery_attempts').insert({
+      const { error } = await supabase.from('notification_delivery_attempts').insert({
         notification_id: deliveryNotificationId || null,
         user_id: targetUserId, device_token_id: deviceTokenId, status,
         provider_message_id: providerMessageId || null,
-        error_message:       errorMessage      || null,
+        error_message:       errorMessage?.slice(0, 1000) || null,
       })
+      if (error) console.error('[send-push] unable to record delivery attempt:', error.message)
     }
 
     const results = []
@@ -632,56 +845,165 @@ serve(async (req) => {
     for (const dev of devices) {
       const deliveryNotificationId = notificationIdForDevice(dev.user_id)
       const deliveryKey = deliveryNotificationId ? `${deliveryNotificationId}:${dev.id}` : null
+      let claimedJobId = deliveryJobId
+      let claimedJobClaimId = deliveryJobClaimId
+
       if (deliveryKey && sentDeliveryKeys.has(deliveryKey)) {
+        await completeDeliveryJob(claimedJobId, claimedJobClaimId, 'sent')
         results.push({ success: true, skipped: true, alreadySent: true, platform: dev.token.startsWith('webpush:') ? 'webpush' : 'fcm' })
         continue
       }
+
+      // The outbox claim is the concurrency boundary. A browser retry and the
+      // scheduled worker can race safely because only one receives a claim.
+      if (!claimedJobId && deliveryNotificationId) {
+        const { data: claimedRows, error: claimError } = await supabase.rpc(
+          'claim_notification_delivery_job',
+          { p_notification_id: deliveryNotificationId, p_device_token_id: dev.id },
+        )
+        if (claimError) {
+          console.error('[send-push] unable to claim delivery job:', claimError.message)
+          results.push({ success: false, queued: true, platform: dev.token.startsWith('webpush:') ? 'webpush' : 'fcm' })
+          continue
+        }
+
+        const claimed = Array.isArray(claimedRows) ? claimedRows[0] : claimedRows
+        if (claimed?.job_id && claimed?.job_claim_id) {
+          claimedJobId = claimed.job_id
+          claimedJobClaimId = claimed.job_claim_id
+        } else {
+          const { data: existingJob, error: existingJobError } = await supabase
+            .from('notification_delivery_jobs')
+            .select('status')
+            .eq('notification_id', deliveryNotificationId)
+            .eq('device_token_id', dev.id)
+            .maybeSingle()
+
+          if (existingJobError) {
+            console.error('[send-push] unable to inspect delivery job:', existingJobError.message)
+            results.push({ success: false, queued: true, platform: dev.token.startsWith('webpush:') ? 'webpush' : 'fcm' })
+            continue
+          }
+          if (existingJob) {
+            const alreadySent = existingJob.status === 'sent'
+            results.push({
+              success: alreadySent,
+              skipped: true,
+              alreadySent,
+              queued: ['pending', 'processing', 'retry'].includes(existingJob.status),
+              platform: dev.token.startsWith('webpush:') ? 'webpush' : 'fcm',
+            })
+            continue
+          }
+          // Notifications created before the outbox migration have no job.
+          // Preserve their legacy immediate-delivery behavior.
+        }
+      }
+
       const isWebPush = dev.token.startsWith('webpush:')
+      const deliveryTag = deliveryNotificationId || notification_reference_id || 'cargoexpress-update'
+
+      const finalizeProviderResult = async (res: ProviderResult) => {
+        if (res.stale) {
+          const { error } = await supabase.from('user_device_tokens').delete().eq('id', dev.id)
+          if (error) console.error('[send-push] unable to remove stale device token:', error.message)
+        }
+
+        const outcome = res.ok
+          ? 'sent'
+          : res.stale
+            ? 'skipped'
+            : res.retryable === false
+              ? 'dead'
+              : 'retry'
+        await logDelivery(
+          dev.user_id,
+          dev.id,
+          res.ok ? 'sent' : res.stale ? 'skipped' : 'failed',
+          res.messageId,
+          res.error,
+          deliveryNotificationId,
+        )
+        await completeDeliveryJob(claimedJobId, claimedJobClaimId, outcome, res.error)
+      }
 
       if (isWebPush) {
         // ── iOS / Safari Web Push path ────────────────────────────────────
         if (!vapidPublicKey || !vapidPrivateKey) {
-          await logDelivery(dev.user_id, dev.id, 'skipped', undefined, 'VAPID keys not configured', deliveryNotificationId)
-          results.push({ success: false, platform: 'webpush', error: 'VAPID keys not configured' })
+          const res = { ok: false, retryable: true, error: 'VAPID keys not configured' }
+          await finalizeProviderResult(res)
+          results.push({ success: false, retryScheduled: true, platform: 'webpush', error: res.error })
           continue
         }
         let subscriptionJson: Record<string, unknown>
         try {
           subscriptionJson = JSON.parse(dev.token.slice('webpush:'.length))
         } catch {
-          await logDelivery(dev.user_id, dev.id, 'failed', undefined, 'Invalid subscription JSON', deliveryNotificationId)
-          results.push({ success: false, platform: 'webpush', error: 'Invalid subscription JSON' })
+          const res = { ok: false, stale: true, retryable: false, error: 'Invalid Web Push subscription JSON' }
+          await finalizeProviderResult(res)
+          results.push({ success: false, skipped: true, stale: true, platform: 'webpush', error: res.error })
           continue
         }
         const res = await sendWebPush(
           subscriptionJson as Record<string, string | Record<string, string>>,
           vapidPublicKey, vapidPrivateKey, vapidSubject,
-          title, body || 'You have a new update', clickUrl,
+          title, body || 'You have a new update', clickUrl, deliveryTag,
         )
-        if (res.stale) await supabase.from('user_device_tokens').delete().eq('id', dev.id)
-        await logDelivery(dev.user_id, dev.id, res.ok ? 'sent' : 'failed', res.messageId, res.error, deliveryNotificationId)
-        results.push({ success: res.ok, platform: 'webpush', ...(res.error && { error: res.error }), ...(res.stale && { stale: true }) })
+        await finalizeProviderResult(res)
+        results.push({
+          success: res.ok,
+          platform: 'webpush',
+          ...(!res.ok && res.retryable !== false && !res.stale && { retryScheduled: true }),
+          ...(!res.ok && (res.stale || res.retryable === false) && { skipped: true }),
+          ...(res.error && { error: res.error }),
+          ...(res.stale && { stale: true }),
+        })
 
       } else {
         // ── FCM path (Android / Chrome / Desktop) ─────────────────────────
         if (!fcmAccessToken) {
-          await logDelivery(dev.user_id, dev.id, 'skipped', undefined, 'FIREBASE_SERVICE_ACCOUNT_B64 not configured', deliveryNotificationId)
-          results.push({ success: false, platform: 'fcm', error: 'Firebase not configured' })
+          const configurationError = fcmConfigurationError || 'FIREBASE_SERVICE_ACCOUNT_B64 not configured'
+          const res = { ok: false, retryable: true, error: configurationError }
+          await finalizeProviderResult(res)
+          results.push({ success: false, retryScheduled: true, platform: 'fcm', error: 'Firebase not configured' })
           continue
         }
-        const res = await sendFcm(dev.token, fcmProjectId, fcmAccessToken, title, body || 'You have a new update', clickUrl, webpushLink)
-        if (res.stale) await supabase.from('user_device_tokens').delete().eq('id', dev.id)
-        await logDelivery(dev.user_id, dev.id, res.ok ? 'sent' : 'failed', res.messageId, res.error, deliveryNotificationId)
-        results.push({ success: res.ok, platform: 'fcm', ...(res.messageId && { providerMessageId: res.messageId }), ...(res.error && { error: res.error }), ...(res.stale && { stale: true }) })
+        let res: ProviderResult
+        try {
+          res = await sendFcm(
+            dev.token,
+            fcmProjectId,
+            fcmAccessToken,
+            title,
+            body || 'You have a new update',
+            clickUrl,
+            webpushLink,
+            deliveryTag,
+          )
+        } catch (error) {
+          res = { ok: false, retryable: true, error: errorMessage(error, 'FCM request failed') }
+        }
+        await finalizeProviderResult(res)
+        results.push({
+          success: res.ok,
+          platform: 'fcm',
+          ...(!res.ok && res.retryable !== false && !res.stale && { retryScheduled: true }),
+          ...(!res.ok && (res.stale || res.retryable === false) && { skipped: true }),
+          ...(res.messageId && { providerMessageId: res.messageId }),
+          ...(res.error && { error: res.error }),
+          ...(res.stale && { stale: true }),
+        })
       }
     }
 
     const delivered = results.some((r) => r.success)
+    const retryScheduled = results.some((r) => r.retryScheduled)
+    const skipped = !delivered && !retryScheduled && results.every((r) => r.skipped)
     if (isContactEvent) await finishContactDispatch(delivered)
 
-    return jsonResp({ success: delivered, results })
+    return jsonResp({ success: delivered, retry_scheduled: retryScheduled, skipped, results })
   } catch (err) {
     if (contactDispatchClaimed) await finishContactDispatch(false)
-    return jsonResp({ error: err.message }, 500)
+    return jsonResp({ error: errorMessage(err, 'Push delivery failed') }, 500)
   }
 })
