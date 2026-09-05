@@ -13,6 +13,7 @@ const outboxMigration = read('supabase/migrations/20260904235457_complete_push_d
 const registrationMigration = read('supabase/migrations/20260904235511_secure_push_registrations_and_policies.sql');
 const coverageMigration = read('supabase/migrations/20260904235517_server_notification_event_coverage.sql');
 const orderAtomicityMigration = read('supabase/migrations/20260905003149_complete_order_notification_atomicity.sql');
+const paymentCopyMigration = read('supabase/migrations/20260905223244_improve_payment_notification_copy.sql');
 const orderDetailPage = read('src/pages/admin/OrderDetailPage.jsx');
 
 assert.ok(existsSync('supabase/functions/process-push-deliveries/index.ts'));
@@ -64,6 +65,19 @@ assert.match(orderAtomicityMigration, /pg_trigger_depth\(\) > 1/);
 assert.match(orderAtomicityMigration, /'Pending Cancellation'/);
 assert.doesNotMatch(orderDetailPage, /await createNotification\(/);
 assert.doesNotMatch(database, /await createNotification\(/);
+
+// Each successful ledger entry must tell the customer what changed. This also
+// prevents two same-value payment events from looking like accidental copies:
+// the balance is captured when each notification is created.
+assert.match(paymentCopyMigration, /'Payment Received'/);
+assert.match(paymentCopyMigration, /'Payment Complete'/);
+assert.match(paymentCopyMigration, /We received your payment of %s for order %s/);
+assert.match(paymentCopyMigration, /Remaining balance: %s\./);
+assert.match(paymentCopyMigration, /Your order is now fully paid\./);
+assert.match(paymentCopyMigration, /COALESCE\(NEW\.amount, 0\)/);
+assert.match(paymentCopyMigration, /COALESCE\(v_order\.remaining_balance, 0\)/);
+assert.match(paymentCopyMigration, /SECURITY DEFINER[\s\S]*SET search_path = ''/);
+assert.doesNotMatch(paymentCopyMigration, /Open the app/);
 
 assert.doesNotMatch(inquiry, /fetch\(pushUrl/);
 assert.doesNotMatch(database, /functions\.invoke\('send-push'/);
