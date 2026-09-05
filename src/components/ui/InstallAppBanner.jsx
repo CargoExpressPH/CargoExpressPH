@@ -1,12 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { X, Download, Zap, Bell, Smartphone, ShieldCheck } from 'lucide-react';
+import { isAppleMobileDevice, isStandaloneWebApp } from '../../lib/apple-platform';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
-const isIos = () => /iphone|ipad|ipod/i.test(window.navigator.userAgent);
-const isInStandaloneMode = () =>
-  window.navigator.standalone === true ||
-  window.matchMedia('(display-mode: standalone)').matches;
-
 const DISMISSED_KEY = 'install_banner_dismissed';
 const DISMISS_DURATION_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
@@ -101,7 +97,7 @@ export default function InstallAppBanner() {
 
   useEffect(() => {
     // Never compete with IosInstallBanner, and never nag an installed user
-    if (isIos() || isInStandaloneMode()) return;
+    if (isAppleMobileDevice() || isStandaloneWebApp()) return;
 
     let showTimer;
     const handlePrompt = (event) => {

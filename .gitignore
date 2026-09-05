@@ -1,6 +1,7 @@
 node_modules/
 dist/
 .env
+codex-session-*.md
 .env.*
 .DS_Store
 .vscode/

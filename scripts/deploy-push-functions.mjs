@@ -11,7 +11,7 @@ assert.ok(token, 'Supabase PAT is missing');
 assert.ok(projectRef, 'Supabase project URL is missing');
 
 const functions = [
-  { slug: 'send-push', verifyJwt: false },
+  { slug: 'send-push', verifyJwt: true },
   { slug: 'process-push-deliveries', verifyJwt: true },
   { slug: 'submit-inquiry', verifyJwt: false },
 ];

@@ -21,14 +21,14 @@ assert.match(sender, /redirect:\s*'error'/);
 assert.match(sender, /AbortSignal\.timeout\(PROVIDER_TIMEOUT_MS\)/);
 assert.match(sender, /claim_notification_delivery_job/);
 assert.match(sender, /complete_notification_delivery_job/);
-assert.match(sender, /authHeader === `Bearer \$\{serviceRoleKey\}`/);
+assert.match(sender, /authHeader !== `Bearer \$\{serviceRoleKey\}`/);
 assert.doesNotMatch(sender, /await fetch\(endpoint/);
-// Firebase returns INVALID_ARGUMENT for a bad payload as well as a bad token,
-// so it must never delete a device: one malformed message would otherwise
-// unsubscribe every healthy device it was sent to.
-assert.doesNotMatch(sender, /stale\s*=[^\n]*INVALID_ARGUMENT/);
-assert.match(sender, /const stale\s*= code === 'UNREGISTERED' \|\| err\.status === 'NOT_FOUND'/);
-assert.match(sender, /const permanent = stale \|\| code === 'INVALID_ARGUMENT'/);
+// Only Firebase's provider-specific FcmError shape identifies an invalid
+// registration token. A google.rpc.BadRequest payload error must keep devices.
+assert.match(sender, /google\.firebase\.fcm\.v1\.FcmError/);
+assert.match(sender, /const invalidRegistration = code === 'INVALID_ARGUMENT'/);
+assert.match(sender, /const permanent = stale \|\| err\.status === 'INVALID_ARGUMENT'/);
+assert.match(sender, /Service authentication required/);
 
 assert.match(worker, /claim_notification_delivery_jobs/);
 assert.match(worker, /CONCURRENCY = 5/);

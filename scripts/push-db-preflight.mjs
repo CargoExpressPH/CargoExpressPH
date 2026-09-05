@@ -62,6 +62,11 @@ const result = await query(`
 `);
 
 for (const row of result) console.log(`${row.check_name}: ${row.problem_count}`);
-const problems = result.filter(row => Number(row.problem_count) > 0);
+const migrationState = result.find(row => row.check_name === 'target_migration_already_applied');
+assert.ok(Number(migrationState?.problem_count || 0) <= 1, 'Target migration history is inconsistent');
+const problems = result.filter(row => (
+  row.check_name !== 'target_migration_already_applied'
+  && Number(row.problem_count) > 0
+));
 assert.equal(problems.length, 0, `Push migration preflight failed: ${problems.map(row => row.check_name).join(', ')}`);
-console.log('Push database preflight passed.');
+console.log(`Push database preflight passed (target migration ${Number(migrationState?.problem_count || 0) ? 'already applied' : 'pending'}).`);

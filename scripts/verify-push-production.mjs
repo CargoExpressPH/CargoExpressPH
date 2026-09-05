@@ -26,7 +26,7 @@ const functionsResponse = await fetch(`https://api.supabase.com/v1/projects/${pr
 const deployedFunctions = await functionsResponse.json();
 assert.ok(functionsResponse.ok, 'Unable to list deployed Edge Functions');
 for (const expected of [
-  ['send-push', 43, false],
+  ['send-push', 46, true],
   ['process-push-deliveries', 1, true],
   ['submit-inquiry', 13, false],
 ]) {
@@ -41,7 +41,7 @@ for (const expected of [
 const checks = await managementQuery(`
   SELECT 'migrations' AS check_name, count(*)::int AS value
   FROM supabase_migrations.schema_migrations
-  WHERE version IN ('20260904235457', '20260904235511', '20260904235517', '20260905003149')
+  WHERE version IN ('20260904235457', '20260904235511', '20260904235517', '20260905003149', '20260905051734')
   UNION ALL
   SELECT 'order_notify_trigger', count(*)::int
   FROM pg_trigger WHERE tgname = 'orders_notify_customer_of_change' AND NOT tgisinternal
@@ -51,6 +51,9 @@ const checks = await managementQuery(`
   UNION ALL
   SELECT 'purge_cron', count(*)::int FROM cron.job
   WHERE jobname = 'purge_old_notification_delivery_jobs' AND active
+  UNION ALL
+  SELECT 'health_monitor_cron', count(*)::int FROM cron.job
+  WHERE jobname = 'monitor_push_delivery_health' AND active
   UNION ALL
   SELECT 'outbox_trigger', count(*)::int
   FROM pg_trigger WHERE tgname = 'notifications_enqueue_delivery_jobs' AND NOT tgisinternal
@@ -64,10 +67,11 @@ const checks = await managementQuery(`
   WHERE status = 'processing' AND claimed_at < now() - interval '5 minutes';
 `);
 const values = Object.fromEntries(checks.map(row => [row.check_name, Number(row.value)]));
-assert.equal(values.migrations, 4, 'Push migrations are not fully applied');
+assert.equal(values.migrations, 5, 'Push migrations are not fully applied');
 assert.equal(values.order_notify_trigger, 1, 'Order lifecycle notification trigger is not active');
 assert.equal(values.worker_cron, 1, 'Push worker cron is not active');
 assert.equal(values.purge_cron, 1, 'Push retention cron is not active');
+assert.equal(values.health_monitor_cron, 1, 'Push health monitor cron is not active');
 assert.equal(values.outbox_trigger, 1, 'Notification outbox trigger is not active');
 assert.equal(values.stuck_jobs, 0, 'Push delivery jobs are stuck in processing');
 
@@ -77,6 +81,13 @@ const unauthorizedWorker = await fetch(`${projectUrl}/functions/v1/process-push-
   body: JSON.stringify({ limit: 1 }),
 });
 assert.equal(unauthorizedWorker.status, 401, 'Push worker accepted a public caller');
+
+const unauthorizedSender = await fetch(`${projectUrl}/functions/v1/send-push`, {
+  method: 'POST',
+  headers: { apikey: anonKey, Authorization: `Bearer ${anonKey}`, 'Content-Type': 'application/json' },
+  body: JSON.stringify({}),
+});
+assert.equal(unauthorizedSender.status, 401, 'Push sender accepted a public caller');
 
 const statusRows = await managementQuery(`
   SELECT status, count(*)::int AS count

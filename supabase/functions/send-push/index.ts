@@ -146,15 +146,19 @@ async function sendFcm(
   const result = await readProviderJson(resp)
   const err    = result?.error
   if (err) {
-    const code  = err.details?.[0]?.errorCode || ''
-    // Only UNREGISTERED and NOT_FOUND prove the token itself is dead, and only
-    // those delete the device row. Firebase returns INVALID_ARGUMENT for a
-    // malformed *payload* as well, so treating it as a dead token would
-    // unsubscribe every healthy device a bad message was sent to. It is still
-    // permanent for this job — retrying an identical rejected message cannot
-    // start working — so the job dead-letters while the device is kept.
-    const stale     = code === 'UNREGISTERED' || err.status === 'NOT_FOUND'
-    const permanent = stale || code === 'INVALID_ARGUMENT'
+    const details = Array.isArray(err.details) ? err.details : []
+    const fcmError = details.find((detail: Record<string, unknown>) =>
+      detail?.['@type'] === 'type.googleapis.com/google.firebase.fcm.v1.FcmError'
+    )
+    const code = typeof fcmError?.errorCode === 'string' ? fcmError.errorCode : ''
+    // A generic INVALID_ARGUMENT status may describe a bad payload, while the
+    // FcmError detail identifies an invalid registration. Only the latter is
+    // safe evidence for deleting this device registration.
+    const invalidRegistration = code === 'INVALID_ARGUMENT'
+    const stale = code === 'UNREGISTERED'
+      || err.status === 'NOT_FOUND'
+      || invalidRegistration
+    const permanent = stale || err.status === 'INVALID_ARGUMENT'
     return {
       ok: false,
       error: typeof err.message === 'string'
@@ -428,6 +432,11 @@ serve(async (req) => {
     if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS_HEADERS })
     if (req.method !== 'POST') return jsonResp({ error: 'Method not allowed' }, 405)
 
+    const authHeader = req.headers.get('Authorization') || ''
+    if (!serviceRoleKey || authHeader !== `Bearer ${serviceRoleKey}`) {
+      return jsonResp({ error: 'Service authentication required' }, 401)
+    }
+
     const payload = await req.json()
     const {
       job_id: requestedJobId,
@@ -467,9 +476,7 @@ serve(async (req) => {
     let deliveryJobClaimId: string | null = null
     let targetDeviceTokenId: string | null = null
 
-    const authHeader = req.headers.get('Authorization') || ''
-    const isServiceJobRequest = Boolean(serviceRoleKey)
-      && authHeader === `Bearer ${serviceRoleKey}`
+    const isServiceJobRequest = true
 
     if (isServiceJobRequest) {
       if (

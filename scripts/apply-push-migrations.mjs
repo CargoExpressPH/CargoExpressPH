@@ -15,6 +15,7 @@ const migrations = [
   ['20260904235511', 'secure_push_registrations_and_policies', 'supabase/migrations/20260904235511_secure_push_registrations_and_policies.sql'],
   ['20260904235517', 'server_notification_event_coverage', 'supabase/migrations/20260904235517_server_notification_event_coverage.sql'],
   ['20260905003149', 'complete_order_notification_atomicity', 'supabase/migrations/20260905003149_complete_order_notification_atomicity.sql'],
+  ['20260905051734', 'harden_push_operations', 'supabase/migrations/20260905051734_harden_push_operations.sql'],
 ];
 
 const query = async sql => {

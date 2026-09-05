@@ -5,9 +5,8 @@ verify_jwt = true
 verify_jwt = false
 
 [functions.send-push]
-# The function has one narrowly scoped anonymous mode for a public contact
-# inquiry. All other modes verify the caller's JWT inside the function.
-verify_jwt = false
+# Durable delivery jobs are the only supported caller path.
+verify_jwt = true
 
 [functions.store-photo-fallback]
 verify_jwt = false

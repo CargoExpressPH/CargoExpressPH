@@ -10,29 +10,27 @@ import {
   registerPushDevice,
   removePushDeviceRegistration,
 } from './push-device';
+import {
+  isAppleMobileDevice,
+  isAppleMobileWebPushVersion,
+  isStandaloneWebApp,
+} from './apple-platform';
 
 /** True on iPhone, iPad, or iPod. */
 export const isIosDevice = () => (
-  typeof window !== 'undefined'
-  && /iphone|ipad|ipod/i.test(window.navigator.userAgent)
+  isAppleMobileDevice()
 );
 
 /** True when the iOS app was installed with Add to Home Screen. */
 export const isIosPwa = () => {
   if (typeof window === 'undefined') return false;
-  const standalone = window.navigator.standalone === true
-    || window.matchMedia?.('(display-mode: standalone)').matches;
-  return isIosDevice() && standalone;
+  return isIosDevice() && isStandaloneWebApp();
 };
 
 /** True on iOS 16.4 or later, the minimum version with Web Push support. */
 export const isIosPushSupported = () => {
   if (!isIosDevice()) return false;
-  const match = window.navigator.userAgent.match(/OS (\d+)_(\d+)/);
-  if (!match) return false;
-  const major = Number.parseInt(match[1], 10);
-  const minor = Number.parseInt(match[2], 10);
-  return major > 16 || (major === 16 && minor >= 4);
+  return isAppleMobileWebPushVersion();
 };
 
 /** Safari uses Apple's native Web Push service rather than Firebase. */
