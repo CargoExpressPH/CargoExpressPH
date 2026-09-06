@@ -172,9 +172,6 @@ serve(async (req) => {
         }),
       }))
 
-      let batchOk = false
-      let batchErrorMessage: string | null = null
-
       try {
         const res = await fetch('https://api.resend.com/emails/batch', {
           method: 'POST',
@@ -182,35 +179,16 @@ serve(async (req) => {
           body: JSON.stringify(emails),
         })
         if (res.ok) {
-          batchOk = true
           sent += batch.length
           remindedOrderIds.push(...batch.map((b) => b.order.id))
+          console.log(`[process-daily-reminders] Resend batch sent: ${batch.length} recipient(s)`)
         } else {
           failed += batch.length
-          batchErrorMessage = `Resend batch failed (HTTP ${res.status})`
           console.error('[process-daily-reminders] Resend batch failed:', res.status, await res.text())
         }
       } catch (err) {
         failed += batch.length
-        batchErrorMessage = err instanceof Error ? err.message : 'Resend batch threw an error'
         console.error('[process-daily-reminders] Resend batch threw:', err)
-      }
-
-      // One row per recipient — email_usage_logs only tracks the batch's
-      // summed sent/failed counts, this is what powers the admin "Recent
-      // Email Activity" table. Best effort: never fail an already-sent batch.
-      const activityRows = batch.map(({ order, email, name }) => ({
-        source: 'daily_reminders',
-        recipient_email: email,
-        recipient_name: name,
-        subject: `Payment Reminder — Order ${order.tracking_number}`,
-        status: batchOk ? 'sent' : 'failed',
-        order_id: order.id,
-        error_message: batchOk ? null : batchErrorMessage,
-      }))
-      const { error: activityLogError } = await supabase.from('email_activity_log').insert(activityRows)
-      if (activityLogError) {
-        console.error('[process-daily-reminders] Failed to log email activity:', activityLogError)
       }
 
       await new Promise((resolve) => setTimeout(resolve, BATCH_DELAY_MS))
@@ -226,19 +204,6 @@ serve(async (req) => {
         .in('id', remindedOrderIds)
       if (updateError) {
         console.error('[process-daily-reminders] Failed to stamp last_reminder_sent_at:', updateError)
-      }
-    }
-
-    // Record how many emails actually reached Resend, for the admin Email
-    // Usage Monitoring widget (Resend Free Plan: 100/day, 3,000/month). Best
-    // effort — a logging failure must never fail a reminder run that already
-    // succeeded.
-    if (sent > 0) {
-      const { error: usageLogError } = await supabase
-        .from('email_usage_logs')
-        .insert({ source: 'daily_reminders', sent_count: sent, failed_count: failed })
-      if (usageLogError) {
-        console.error('[process-daily-reminders] Failed to log email usage:', usageLogError)
       }
     }
 

@@ -3147,21 +3147,3 @@ export const removeUnusedPhotos = async (confirmationToken) => {
   return data;
 };
 
-// ── Admin email usage monitoring (Resend Free Plan: 100/day, 3,000/month) ──
-export const getEmailUsageSummary = async () => {
-  const { data, error } = await supabase.rpc('get_email_usage_summary');
-  if (error) throw error;
-  return data?.[0] || null;
-};
-
-// One row per recipient (contrast getEmailUsageSummary, which is aggregate
-// counts only) — powers the admin "Recent Email Activity" table.
-export const getEmailActivityLog = async ({ page = 1, pageSize = 10 } = {}) => {
-  const { data, error } = await supabase.rpc('get_email_activity_log', {
-    p_page: page,
-    p_page_size: pageSize,
-  });
-  if (error) throw error;
-  const rows = data || [];
-  return { data: rows, count: rows[0]?.total_count ? Number(rows[0].total_count) : 0 };
-};
