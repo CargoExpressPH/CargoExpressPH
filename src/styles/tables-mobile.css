@@ -169,6 +169,25 @@
     transition: var(--transition);
   }
 
+  /* A row margin is useful between records, but leaving it on the final row
+     creates an empty band at the bottom of every mobile admin table. */
+  .data-table tbody tr:last-child,
+  .report-table tbody tr:last-child {
+    margin-bottom: 0;
+  }
+
+  /* Empty-state rows are containers, not records. Avoid placing the empty
+     state inside another padded card (and the blank strip that padding adds). */
+  .data-table tbody tr:has(> td.empty-state-cell),
+  .report-table tbody tr:has(> td.empty-state-cell) {
+    padding: 0;
+    margin-bottom: 0;
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
   .data-table tbody tr:hover,
   .report-table tbody tr:hover {
     border-color: var(--primary-lighter);
@@ -492,6 +511,21 @@
     border-radius: var(--radius-md);
     box-shadow: var(--shadow-sm);
     transition: var(--transition);
+  }
+
+  .data-table--wide tbody tr:last-child,
+  .report-table--wide tbody tr:last-child {
+    margin-bottom: 0;
+  }
+
+  .data-table--wide tbody tr:has(> td.empty-state-cell),
+  .report-table--wide tbody tr:has(> td.empty-state-cell) {
+    padding: 0;
+    margin-bottom: 0;
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
   }
 
   .data-table--wide tbody tr:hover,

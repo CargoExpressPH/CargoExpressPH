@@ -21,5 +21,8 @@ assert.match(styles, /\.unsettled-action-cell \.btn:not\(\.message-customer-btn\
 assert.match(styles, /\.unsettled-settlement-cell[\s\S]*?grid-template-columns: minmax\(0, 1fr\)/);
 assert.match(adminStyles, /@media \(hover: none\) and \(pointer: coarse\)/);
 assert.match(adminStyles, /\.app-layout \.unsettled-table tbody tr:hover/);
+assert.match(styles, /\.data-table tbody tr:last-child,[\s\S]*?margin-bottom: 0/);
+assert.match(styles, /tbody tr:has\(> td\.empty-state-cell\)[\s\S]*?padding: 0/);
+assert.match(adminStyles, /\.empty-state-premium\.empty-state-compact[\s\S]*?min-height: 0/);
 
 console.log('Unsettled deliveries mobile-layout contract passed.');

@@ -1132,6 +1132,13 @@
     overflow-x: visible;
   }
 
+  /* Keep table empty states genuinely compact. premium-refresh.css applies a
+     general phone minimum height later than the component variant otherwise. */
+  .app-layout .empty-state-premium.empty-state-compact {
+    min-height: 0;
+    padding: 28px 16px;
+  }
+
   .app-layout .data-table tbody tr,
   .app-layout .report-table tbody tr {
     background: var(--admin-panel);
