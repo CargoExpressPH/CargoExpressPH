@@ -463,12 +463,19 @@
   }
 
   /* Parent card wrappers had `overflow: hidden` for the desktop horizontal-
-     scroll table. Once the table converts to stacked cards there is nothing
-     to clip, and the hidden overflow cuts off the last card's bottom edge
-     and box-shadow on narrow viewports. */
+     scroll table (set on both `.card` base and `.admin-table-card`).
+     Once the table converts to stacked cards there is nothing to clip,
+     and the hidden overflow cuts off the last card's bottom edge and
+     box-shadow on narrow viewports.
+     Targeting every specificity path that sets overflow:hidden. */
+  .card.admin-table-card,
+  .card.admin-section-card.admin-table-card,
+  .app-layout .card.admin-table-card,
+  .app-layout .admin-table-card,
   .admin-table-card,
+  .card.activity-logs-table-card,
   .activity-logs-table-card {
-    overflow: visible;
+    overflow: visible !important;
   }
 
 }
@@ -754,10 +761,17 @@
   }
 
   /* Same overflow fix for wide-table card wrappers at the 900px breakpoint */
+  .card.admin-table-card:has(.data-table--wide),
+  .card.admin-table-card:has(.report-table--wide),
+  .app-layout .card.admin-table-card:has(.data-table--wide),
+  .app-layout .card.admin-table-card:has(.report-table--wide),
+  .app-layout .admin-table-card:has(.data-table--wide),
+  .app-layout .admin-table-card:has(.report-table--wide),
   .admin-table-card:has(.data-table--wide),
   .admin-table-card:has(.report-table--wide),
+  .card.activity-logs-table-card,
   .activity-logs-table-card {
-    overflow: visible;
+    overflow: visible !important;
   }
 }
 
