@@ -344,16 +344,14 @@ const AnimatedCounter = ({ value }) => {
 // header lands underneath the bar and the click looks like it hit blank space.
 const NAV_OFFSET = 88;
 
+// Nav intentionally shows only these 4 — Our Story, Features, Gallery and
+// FAQ remain real sections on the page (see their <motion.section> ids
+// below), just no longer linked from the top nav to keep it uncluttered.
 const SECTIONS = [
-  { id: 'hero', label: 'Home' },
-  { id: 'story', label: 'Our Story' },
-  { id: 'features', label: 'Features' },
-  { id: 'coverage', label: 'Coverage' },
+  { id: 'coverage', label: 'Coverage Area' },
   { id: 'trip-schedules', label: 'Trip Schedules' },
-  { id: 'highlights', label: 'Gallery' },
   { id: 'feedback', label: 'Reviews' },
-  { id: 'faq', label: 'FAQ' },
-  { id: 'contact', label: 'Contact' },
+  { id: 'contact', label: 'Contact Us' },
 ];
 
 // ═══════════════════════════════════════════════════════════
