@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Link } from 'react-router-dom';
-import { 
-  createContactInquiry, 
+import { Link, useLocation } from 'react-router-dom';
+import {
+  createContactInquiry,
   getCompanyInformation,
   getCoverageAreas,
   getPublicFeedback,
-  getFeaturedDeliveries
+  getFeaturedDeliveries,
+  getTrips
 } from '../../lib/database';
 import { resolvePhotoUrls } from '../../lib/storage';
 import { getFeatureIcon } from '../../lib/featureIcons';
@@ -13,7 +14,7 @@ import {
   ArrowUp, Phone, MapPin, Globe, Loader, Send,
   Mail, Clock, Calendar, CheckCircle2,
   Navigation, Award, ChevronRight, ChevronDown, ChevronLeft, X, Play, Building2, TrendingUp, Users, MessageSquare,
-  Star, Package, Search, Sparkles, Image
+  Star, Package, Search, Sparkles, Image, Truck, AlertCircle
 } from 'lucide-react';
 import { useToast } from '../../hooks/useToast';
 import usePageTitle from '../../hooks/usePageTitle';
@@ -23,6 +24,10 @@ import Footer from '../../components/layout/Footer';
 import useScrollLock from '../../hooks/useScrollLock';
 import useFieldErrors from '../../hooks/useFieldErrors';
 import FieldError, { fieldAttrs, invalidClass } from '../../components/ui/FieldError';
+import { useTripBooking } from '../../hooks/useTripBooking';
+import TripScheduleCard from '../../components/public/TripScheduleCard';
+import FAQAccordion from '../../components/public/FAQAccordion';
+import { FAQ_ITEMS } from '../../constants/faqContent';
 import { motion, useScroll, useTransform, AnimatePresence, MotionConfig } from 'framer-motion';
 import { BrandLogo, BrandWordmark } from '../../components/ui/BrandLogo';
 import L from 'leaflet';
@@ -344,8 +349,10 @@ const SECTIONS = [
   { id: 'story', label: 'Our Story' },
   { id: 'features', label: 'Features' },
   { id: 'coverage', label: 'Coverage' },
+  { id: 'trip-schedules', label: 'Trip Schedules' },
   { id: 'highlights', label: 'Gallery' },
   { id: 'feedback', label: 'Reviews' },
+  { id: 'faq', label: 'FAQ' },
   { id: 'contact', label: 'Contact' },
 ];
 
@@ -355,7 +362,9 @@ const SECTIONS = [
 const AboutPage = () => {
   usePageTitle('About Us');
   const toast = useToast();
-  
+  const location = useLocation();
+  const selectTrip = useTripBooking();
+
   const [scrolled, setScrolled] = useState(false);
   const [showBackToTop, setShowBackToTop] = useState(false);
   const [scrollProgress, setScrollProgress] = useState(0);
@@ -376,6 +385,9 @@ const AboutPage = () => {
     info: null, features: [], highlights: [], coverage: [], feedback: []
   });
   const [fetching, setFetching] = useState(true);
+  // Loaded independently of the Promise.all below: a trips-fetch failure
+  // should only blank out the Trip Schedules section, not the whole page.
+  const [tripsState, setTripsState] = useState({ trips: [], loading: true, error: null });
   const [isOnline, setIsOnline] = useState(() =>
     typeof navigator === 'undefined' ? true : navigator.onLine
   );
@@ -521,6 +533,40 @@ const AboutPage = () => {
       document.removeEventListener('visibilitychange', refreshWhenVisible);
     };
   }, []);
+
+  // ─── Trip Schedules data (same source as the customer Trips page) ───
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadTrips = async () => {
+      if (isMounted) setTripsState(prev => ({ ...prev, loading: true, error: null }));
+      try {
+        const activeTrips = await getTrips('active');
+        if (isMounted) setTripsState({ trips: activeTrips || [], loading: false, error: null });
+      } catch (err) {
+        console.error('Failed to load trip schedules', err);
+        if (isMounted) {
+          setTripsState({ trips: [], loading: false, error: 'Trip schedules could not be loaded. Please try again later.' });
+        }
+      }
+    };
+
+    loadTrips();
+    return () => { isMounted = false; };
+  }, []);
+
+  // ─── Jump to a section when the URL already carries a hash, e.g. Footer's
+  // "View Trip Schedules" (/about#trip-schedules) and "FAQs" (/about#faq")
+  // links, or a direct/bookmarked link. Waits for the loading spinner to
+  // clear first, since section elements don't exist in the DOM until then. ───
+  useEffect(() => {
+    if (fetching) return;
+    const hash = location.hash?.replace('#', '');
+    if (!hash) return;
+    const raf = requestAnimationFrame(() => scrollToSection(hash));
+    return () => cancelAnimationFrame(raf);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fetching, location.hash]);
 
   // ─── Form handlers ───
   const PHONE_RE = /^09\d{9}$/;
@@ -974,6 +1020,67 @@ const AboutPage = () => {
           )}
         </motion.section>
 
+        {/* ═══ 6b. Trip Schedules ═══ */}
+        <motion.section
+          id="trip-schedules"
+          className="about-section"
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-100px" }}
+          transition={{ duration: 0.6 }}
+        >
+          <div className="about-section-header">
+            <div className="about-section-label">Trip Schedules</div>
+            <h2 className="about-section-title">Upcoming Trips</h2>
+            <p className="about-trip-section-subtitle">
+              See our next scheduled routes and reserve cargo space ahead of time.
+            </p>
+          </div>
+
+          {tripsState.loading ? (
+            <CenteredSpinner />
+          ) : tripsState.error ? (
+            <div className="about-empty-state" role="alert">
+              <AlertCircle size={48} className="about-empty-icon" />
+              <div className="about-empty-text">{tripsState.error}</div>
+            </div>
+          ) : tripsState.trips.length === 0 ? (
+            <div className="about-empty-state">
+              <Truck size={48} className="about-empty-icon" />
+              <div className="about-empty-text">No upcoming trips are available right now.</div>
+            </div>
+          ) : (
+            <>
+              <motion.div
+                className="about-trip-grid"
+                variants={containerVariants}
+                initial="hidden"
+                whileInView="visible"
+                viewport={{ once: true, margin: "-80px" }}
+              >
+                {tripsState.trips.slice(0, 6).map((trip) => (
+                  <motion.div key={trip.id} variants={itemVariants}>
+                    <TripScheduleCard
+                      trip={trip}
+                      onSelect={(selected) => selectTrip(selected, { from: { pathname: '/about', hash: '#trip-schedules' } })}
+                    />
+                  </motion.div>
+                ))}
+              </motion.div>
+              <div className="about-trip-section-actions">
+                {tripsState.trips.length > 6 && (
+                  <Link to="/schedules" className="btn btn-outline">
+                    View All Trip Schedules
+                  </Link>
+                )}
+                <Link to="/customer/book" className="btn btn-primary">
+                  Book Cargo
+                </Link>
+              </div>
+            </>
+          )}
+        </motion.section>
+
         {/* ═══ 7. Delivery Highlights Gallery ═══ */}
         <motion.section
           id="highlights"
@@ -1152,6 +1259,31 @@ const AboutPage = () => {
               })}
             </motion.div>
           )}
+        </motion.section>
+
+        {/* ═══ 8b. FAQ ═══ */}
+        <motion.section
+          id="faq"
+          className="about-section"
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-100px" }}
+          transition={{ duration: 0.6 }}
+        >
+          <div className="about-section-header">
+            <div className="about-section-label">FAQ</div>
+            <h2 className="about-section-title">Frequently Asked Questions</h2>
+          </div>
+
+          <div className="about-faq-wrap">
+            <FAQAccordion items={FAQ_ITEMS} />
+          </div>
+
+          <div className="about-trip-section-actions">
+            <Link to="/faq" className="btn btn-outline">
+              View Full Help &amp; Guidelines
+            </Link>
+          </div>
         </motion.section>
 
         {/* ═══ 9. Contact Section ═══ */}

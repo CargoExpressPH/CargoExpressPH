@@ -6,27 +6,7 @@ import {
 } from 'lucide-react';
 import EmptyState from '../../components/ui/EmptyState';
 import usePageTitle from '../../hooks/usePageTitle';
-
-const fallbackFaqs = [
-  {
-    id: 'fallback-tracking',
-    title: 'How do I track my shipment?',
-    category: 'Tracking',
-    answer: 'Open Orders, select your tracking number, and review the latest status timeline.',
-  },
-  {
-    id: 'fallback-payment',
-    title: 'When do I pay?',
-    category: 'Payments',
-    answer: 'Payment is recorded during pickup, delivery, or approved balance settlement depending on the order.',
-  },
-  {
-    id: 'fallback-support',
-    title: 'How do I contact support?',
-    category: 'Support',
-    answer: 'Use Live Support Chat from your profile or order details page for shipment-specific questions.',
-  },
-];
+import { FAQ_ITEMS as fallbackFaqs } from '../../constants/faqContent';
 
 const guidelineSections = [
   {

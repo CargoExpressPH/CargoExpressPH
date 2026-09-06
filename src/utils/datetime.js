@@ -115,3 +115,19 @@ export const formatPhDateTime = (value, opts = {}) =>
     year: 'numeric', month: 'short', day: 'numeric',
     hour: '2-digit', minute: '2-digit', ...opts,
   });
+
+/**
+ * { month: 'AUG', day: '11', full: 'August 11, 2026' } for a trip's
+ * departure/arrival date badge — shared by the customer Trips page and the
+ * public About page's Trip Schedules section so both render the same date.
+ */
+export const formatTripScheduleDate = (value) => {
+  if (!value) return { month: 'TBD', day: '--', full: 'Date not set' };
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return { month: 'TBD', day: '--', full: 'Date not set' };
+  return {
+    month: formatPhDate(date, { month: 'short', day: undefined, year: undefined }).toUpperCase(),
+    day: formatPhDate(date, { day: 'numeric', month: undefined, year: undefined }),
+    full: formatPhDate(date, { month: 'long', day: 'numeric', year: 'numeric' }),
+  };
+};

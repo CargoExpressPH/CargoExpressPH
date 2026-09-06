@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { getTrips } from '../../lib/database';
 import StatusBadge from '../../components/ui/StatusBadge';
 import { CenteredSpinner } from '../../components/ui/Loader';
@@ -8,9 +7,8 @@ import { Calendar, Truck, AlertCircle, ChevronRight, RefreshCw } from 'lucide-re
 import usePageTitle from '../../hooks/usePageTitle';
 import PullToRefresh from '../../components/ui/PullToRefresh';
 import { formatMoney } from '../../utils/currencyInput';
-import { formatPhDate } from '../../utils/datetime';
-import { useAuth } from '../../contexts/AuthContext';
-import { useToast } from '../../hooks/useToast';
+import { formatTripScheduleDate } from '../../utils/datetime';
+import { useTripBooking } from '../../hooks/useTripBooking';
 
 // Max ms to wait before showing an error instead of an infinite spinner.
 const LOAD_TIMEOUT_MS = 15000;
@@ -24,23 +22,9 @@ const normalizeError = (err) => {
   return msg || 'Failed to load trips. Please try again.';
 };
 
-const formatTripDate = (value) => {
-  if (!value) return { month: 'TBD', day: '--', full: 'Date not set' };
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return { month: 'TBD', day: '--', full: 'Date not set' };
-  // Asia/Manila, not the viewer's zone — see src/utils/datetime.js.
-  return {
-    month: formatPhDate(date, { month: 'short', day: undefined, year: undefined }).toUpperCase(),
-    day: formatPhDate(date, { day: 'numeric', month: undefined, year: undefined }),
-    full: formatPhDate(date, { month: 'long', day: 'numeric', year: 'numeric' }),
-  };
-};
-
 const TripsPage = () => {
   usePageTitle('Trips');
-  const navigate = useNavigate();
-  const { user } = useAuth();
-  const toast = useToast();
+  const selectTrip = useTripBooking();
   const [trips, setTrips] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -131,21 +115,14 @@ const TripsPage = () => {
         </div>
       ) : (
         trips.map((trip, index) => {
-          const tripDate = formatTripDate(trip.departure_date);
+          const tripDate = formatTripScheduleDate(trip.departure_date);
           return (
             <button
               key={trip.id}
               type="button"
               className="customer-trip-list-card card card-interactive stagger-item mb-12"
               style={{ animationDelay: `${index * 60}ms` }}
-              onClick={() => {
-                if (!user) {
-                  toast.info('Login to book the schedule or inquire');
-                  navigate('/login', { state: { from: { pathname: '/schedules' } } });
-                  return;
-                }
-                navigate('/customer/book', { state: { preselectedRoute: `${trip.origin} → ${trip.destination}`, preselectedTripId: trip.id } });
-              }}
+              onClick={() => selectTrip(trip)}
             >
               <div className="card-body p-16">
                 <div className="customer-trip-row">

@@ -70,9 +70,9 @@ const Footer = ({ companyName, info, systemStatus, systemStatusLabel }) => {
           <h4 className="about-footer-heading">Quick Links</h4>
           <div className="about-footer-links">
             <Link to="/track" className="about-footer-link">Track Your Cargo</Link>
-            <Link to="/schedules" className="about-footer-link">View Trip Schedules</Link>
+            <Link to="/about#trip-schedules" className="about-footer-link">View Trip Schedules</Link>
             <Link to="/customer/book" className="about-footer-link">Book a Cargo</Link>
-            <Link to="/faq" className="about-footer-link">FAQs</Link>
+            <Link to="/about#faq" className="about-footer-link">FAQs</Link>
           </div>
         </div>
 
