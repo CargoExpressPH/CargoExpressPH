@@ -389,7 +389,8 @@ const RegisterPage = () => {
         legal_consent: {
           termsAccepted: true,
           privacyAccepted: true,
-          version: LEGAL_DOCUMENTS.terms.version,
+          termsVersion: LEGAL_DOCUMENTS.terms.version,
+          privacyVersion: LEGAL_DOCUMENTS.privacy.version,
         },
       });
 

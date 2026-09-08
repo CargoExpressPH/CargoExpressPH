@@ -808,6 +808,16 @@ const OrderDetailPage = () => {
                 <p className="m-0" style={{ opacity: 0.9 }}>“{order.cancellation_details?.review_notes}”</p>
               </div>
             )}
+
+            {order.service_area_status === 'rejected' && (
+              <div className="text-sm">
+                <div className="fw-700">Note from our team</div>
+                <p className="m-0" style={{ opacity: 0.9 }}>
+                  This booking is out of our current service coverage.
+                  {order.service_area_remarks ? ` “${order.service_area_remarks}”` : ''}
+                </p>
+              </div>
+            )}
           </div>
         </div>
       )}

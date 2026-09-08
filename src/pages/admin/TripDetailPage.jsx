@@ -264,12 +264,23 @@ const TripDetailPage = () => {
         </div>
       </div>
 
+
       {/* Capacity */}
       <div className="card admin-section-card stagger-item mb-16" style={{ animationDelay: '150ms'}}>
         <div className="card-body">
           <CapacityTracker currentWeight={current_weight} maxCapacity={trip.capacity} tripNumber={trip.trip_number} />
         </div>
       </div>
+
+      {/* Internal Notes */}
+      {trip.notes && (
+        <div className="card admin-section-card stagger-item mb-16" style={{ animationDelay: '160ms'}}>
+          <div className="card-body">
+            <h4 className="fw-700 mb-8" style={{ fontSize: '0.8125rem', color: 'var(--text-tertiary)' }}>Internal Trip Notes</h4>
+            <p className="m-0 text-sm" style={{ whiteSpace: 'pre-wrap' }}>{trip.notes}</p>
+          </div>
+        </div>
+      )}
 
       {/* Orders */}
       <div className="card admin-section-card admin-table-card stagger-item" style={{ animationDelay: '180ms' }}>

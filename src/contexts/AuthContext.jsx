@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useEffect, useRef, useMemo, useCal
 import { supabase } from '../lib/supabase';
 import { disablePushForCurrentDevice } from '../lib/push-notifications';
 import { normalizeProfileAddressFields } from '../lib/address';
-import { LEGAL_DOCUMENT_VERSION } from '../constants/legalDocuments';
+import { LEGAL_DOCUMENTS } from '../constants/legalDocuments';
 import { getProfile, createProfile } from '../lib/database';
 import { logAuth } from '../lib/activityLog';
 import useNetworkRecovery from '../hooks/useNetworkRecovery';
@@ -253,7 +253,8 @@ export const AuthProvider = ({ children }) => {
       if (
         legalConsent?.termsAccepted !== true ||
         legalConsent?.privacyAccepted !== true ||
-        legalConsent?.version !== LEGAL_DOCUMENT_VERSION
+        legalConsent?.termsVersion !== LEGAL_DOCUMENTS.terms.version ||
+        legalConsent?.privacyVersion !== LEGAL_DOCUMENTS.privacy.version
       ) {
         throw new Error('You must agree to the current Terms of Service and Privacy Policy to create an account.');
       }
@@ -277,7 +278,8 @@ export const AuthProvider = ({ children }) => {
             name: profileFields.name,
             legal_terms_accepted: true,
             legal_privacy_accepted: true,
-            legal_policy_version: legalConsent.version,
+            legal_terms_version: legalConsent.termsVersion,
+            legal_privacy_version: legalConsent.privacyVersion,
           },
         },
       });
