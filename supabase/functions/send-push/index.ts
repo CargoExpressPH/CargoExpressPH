@@ -806,11 +806,10 @@ serve(async (req) => {
       }
       if (isContactEvent) await finishContactDispatch(false)
       if (!deliveryJobId && user_id !== 'all_customers' && user_id !== 'all_admins') {
-        await supabase.from('notification_delivery_attempts').insert({
-          notification_id: notification_id || null,
-          user_id, status: 'skipped',
-          error_message: devErr?.message || 'No device tokens for user',
-        })
+        console.error(
+          `[send-push] no device tokens for user=${user_id} notification=${notification_id || 'n/a'}:`,
+          devErr?.message || 'No device tokens for user',
+        )
       }
       return jsonResp({ error: 'No device tokens for user', skipped: true })
     }
@@ -847,31 +846,6 @@ serve(async (req) => {
     const notificationIdForDevice = (deviceUserId: string) =>
       directNotificationId || notificationIdByUser.get(deviceUserId) || null
 
-    // A client retry after a provider accepted the message must not show the
-    // same push twice. Existing sent attempts are skipped for the same
-    // notification/device pair.
-    const sentDeliveryKeys = new Set<string>()
-    const correlationIds = devices
-      .map((device) => notificationIdForDevice(device.user_id))
-      .filter(Boolean)
-    if (correlationIds.length > 0) {
-      const { data: sentAttempts, error: sentAttemptLookupError } = await supabase
-        .from('notification_delivery_attempts')
-        .select('notification_id, device_token_id')
-        .in('notification_id', [...new Set(correlationIds)])
-        .in('device_token_id', devices.map((device) => device.id))
-        .eq('status', 'sent')
-      if (sentAttemptLookupError) {
-        console.warn('[send-push] sent-attempt lookup failed:', sentAttemptLookupError.message)
-      } else {
-        for (const attempt of sentAttempts || []) {
-          if (attempt.notification_id && attempt.device_token_id) {
-            sentDeliveryKeys.add(`${attempt.notification_id}:${attempt.device_token_id}`)
-          }
-        }
-      }
-    }
-
     // Load FCM service account (for Android / Chrome tokens)
     const serviceAccountB64 = Deno.env.get('FIREBASE_SERVICE_ACCOUNT_B64')
     let fcmAccessToken = ''
@@ -895,29 +869,21 @@ serve(async (req) => {
     const vapidPrivateKey = Deno.env.get('VAPID_PRIVATE_KEY') ?? ''
     const vapidSubject    = Deno.env.get('VAPID_SUBJECT')     ?? 'mailto:admin@cargoexpress.ph'
 
-    const logDelivery = async (targetUserId: string, deviceTokenId: string, status: string, providerMessageId?: string, errorMessage?: string, deliveryNotificationId?: string | null) => {
-      const { error } = await supabase.from('notification_delivery_attempts').insert({
-        notification_id: deliveryNotificationId || null,
-        user_id: targetUserId, device_token_id: deviceTokenId, status,
-        provider_message_id: providerMessageId || null,
-        error_message:       errorMessage?.slice(0, 1000) || null,
-      })
-      if (error) console.error('[send-push] unable to record delivery attempt:', error.message)
+    const logDelivery = (targetUserId: string, deviceTokenId: string, status: string, providerMessageId?: string, errorMessage?: string, deliveryNotificationId?: string | null) => {
+      const context = `user=${targetUserId} device=${deviceTokenId} notification=${deliveryNotificationId || 'n/a'}`
+      if (status === 'sent') {
+        console.log(`[send-push] sent ${context} providerMessageId=${providerMessageId || 'n/a'}`)
+      } else {
+        console.error(`[send-push] ${status} ${context}:`, errorMessage?.slice(0, 1000) || 'unknown error')
+      }
     }
 
     const results = []
 
     for (const dev of devices) {
       const deliveryNotificationId = notificationIdForDevice(dev.user_id)
-      const deliveryKey = deliveryNotificationId ? `${deliveryNotificationId}:${dev.id}` : null
       let claimedJobId = deliveryJobId
       let claimedJobClaimId = deliveryJobClaimId
-
-      if (deliveryKey && sentDeliveryKeys.has(deliveryKey)) {
-        await completeDeliveryJob(claimedJobId, claimedJobClaimId, 'sent')
-        results.push({ success: true, skipped: true, alreadySent: true, platform: dev.token.startsWith('webpush:') ? 'webpush' : 'fcm' })
-        continue
-      }
 
       // The outbox claim is the concurrency boundary. A browser retry and the
       // scheduled worker can race safely because only one receives a claim.
@@ -981,7 +947,7 @@ serve(async (req) => {
             : res.retryable === false
               ? 'dead'
               : 'retry'
-        await logDelivery(
+        logDelivery(
           dev.user_id,
           dev.id,
           res.ok ? 'sent' : res.stale ? 'skipped' : 'failed',
