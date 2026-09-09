@@ -985,7 +985,9 @@ const RegisterPage = () => {
                       aria-invalid={!!fieldErrors.legal_consent}
                       aria-describedby={fieldErrors.legal_consent ? 'reg-legal-consent-help reg-legal-consent-error' : 'reg-legal-consent-help'}
                     />
-                    <label htmlFor="reg-legal-consent">I have read and agree to the Terms of Service and Privacy Policy.</label>
+                    <label htmlFor="reg-legal-consent">
+                      I have read and agree to the Terms of Service and Privacy Policy. <span className="required">*</span>
+                    </label>
                   </div>
                   <p id="reg-legal-consent-help">
                     Review the <Link to={`${LEGAL_DOCUMENTS.terms.path}?returnTo=register`} state={{ registrationDraft: form, returnStep: 2 }}>Terms of Service</Link> and <Link to={`${LEGAL_DOCUMENTS.privacy.path}?returnTo=register`} state={{ registrationDraft: form, returnStep: 2 }}>Privacy Policy</Link>.
@@ -1010,7 +1012,7 @@ const RegisterPage = () => {
                       onChange={(e) => setWantsAnnouncements(e.target.checked)}
                     />
                     <label htmlFor="reg-wants-announcements">
-                      I want to receive email updates regarding trip schedules, promos, and announcements.
+                      I want to receive email updates regarding trip schedules, promos, and announcements. (Optional)
                     </label>
                   </div>
                 </div>
@@ -1028,7 +1030,7 @@ const RegisterPage = () => {
                 <button
                   type="submit"
                   className="auth-submit-btn auth-submit-flex"
-                  disabled={loading}
+                  disabled={loading || !legalConsent}
                   aria-busy={loading}
                 >
                   {loading
