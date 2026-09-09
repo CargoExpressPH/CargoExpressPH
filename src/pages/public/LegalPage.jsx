@@ -102,7 +102,7 @@ const PRIVACY_SECTIONS = [
   {
     heading: '5. Retention and security',
     body: [
-      'We retain information for as long as reasonably necessary for the purposes described above, including to provide the Services, maintain records, resolve disputes, meet legal obligations, and enforce agreements. Retention periods vary with the type of information and legal requirements.',
+      'We retain information for as long as reasonably necessary for the purposes described above, including to provide the Services, maintain records, resolve disputes, meet legal obligations, and enforce agreements. For your privacy and security, specific media records such as pickup and delivery photos (proof of delivery) are securely removed from our active systems 6 months after the transaction is completed.',
       'We use organisational and technical measures designed to protect information against unauthorised access, loss, misuse, alteration, or disclosure. No online service can guarantee absolute security, so please protect your credentials and notify us promptly if you suspect unauthorised access.',
     ],
   },

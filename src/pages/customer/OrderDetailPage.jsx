@@ -922,6 +922,9 @@ const OrderDetailPage = () => {
               </div>
             )}
 
+            <div className="mt-16 text-xs text-secondary" style={{ fontStyle: 'italic', borderTop: '1px solid var(--border-color)', paddingTop: '12px' }}>
+              For your privacy and security, pickup and delivery photos are securely removed from our system 6 months after the transaction is completed.
+            </div>
           </div>
         </div>
       )}

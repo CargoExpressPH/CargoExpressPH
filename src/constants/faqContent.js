@@ -23,6 +23,12 @@ export const FAQ_ITEMS = [
     category: 'Support',
     answer: 'Use Live Support Chat from your profile or order details page for shipment-specific questions.',
   },
+  {
+    id: 'photo-retention',
+    title: 'How long do you keep my delivery records?',
+    category: 'Privacy',
+    answer: 'Your transaction history remains accessible in your account. However, for your privacy and security, pickup and delivery photos (proof of delivery) are securely removed from our system 6 months after the transaction is completed.',
+  },
 ];
 
 export default FAQ_ITEMS;
