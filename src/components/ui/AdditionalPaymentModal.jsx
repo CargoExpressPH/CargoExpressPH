@@ -14,7 +14,14 @@ import { supabase } from '../../lib/supabase';
 import { useToast } from '../../hooks/useToast';
 
 /**
- * AdditionalPaymentModal — Manually collects additional payments for remaining balances.
+ * AdditionalPaymentModal — Manually collects additional balance-settlement
+ * payments. This is always a POST-pickup collection (remaining_balance is
+ * only ever non-zero after pickup sets shipping_cost), so — per the business
+ * rule that the admin will not return to the pickup location to collect cash
+ * — GCash is the only method offered here. There are two GCash channels: the
+ * PayMongo automated checkout (server-verified, recorded by the webhook) and
+ * a direct GCash transfer outside PayMongo that the admin records manually
+ * after personally verifying receipt.
  */
 const AdditionalPaymentModal = ({ order, remainingBalance, onClose, onSave, onPaymentConfirmed }) => {
   useScrollLock(true); // mounted only while open
@@ -22,12 +29,20 @@ const AdditionalPaymentModal = ({ order, remainingBalance, onClose, onSave, onPa
   const [form, setForm] = useState({
     // Stored unformatted; AmountInput adds the thousands separators for display.
     amount: sanitizeAmount(remainingBalance),
-    payment_method: 'cash',
+    payment_method: 'gcash',
     notes: '',
     payment_reference: '',
     payment_date: new Date().toISOString().split('T')[0],
+    verified_receipt: false,
   });
-  
+
+  // Generated once when this modal instance mounts and resent unchanged on
+  // every retry of THIS collection (double-click, a dropped response after
+  // the database already committed) — never regenerated on re-render, only
+  // on a genuinely new modal open (e.g. closing and reopening for another
+  // payment).
+  const [idempotencyKey] = useState(() => crypto.randomUUID());
+
   const [receiptPhoto, setReceiptPhoto] = useState(null);
   const [receiptPreview, setReceiptPreview] = useState(null);
 
@@ -242,15 +257,19 @@ const AdditionalPaymentModal = ({ order, remainingBalance, onClose, onSave, onPa
       return;
     }
 
-    if (form.payment_method === 'gcash') {
-      const hasGeneratedQR = paymentStep === 'waiting' && checkoutUrl;
-      const hasManualReference = form.payment_reference && form.payment_reference.trim().length > 0;
-      if (!hasGeneratedQR && !hasManualReference) {
-        setError('Please generate a GCash QR or enter a manual reference number.');
+    const hasGeneratedQR = paymentStep === 'waiting' && checkoutUrl;
+    const hasManualReference = form.payment_reference && form.payment_reference.trim().length > 0;
+    if (!hasGeneratedQR && !hasManualReference) {
+      setError('Please generate a GCash QR or enter a manual reference number.');
+      return;
+    }
+    if (hasManualReference) {
+      if (!form.payment_date) {
+        setError('Payment date is required for a direct GCash transfer.');
         return;
       }
-      if (hasManualReference && !form.payment_date) {
-        setError('Payment date is required for manual GCash reference');
+      if (!form.verified_receipt) {
+        setError('Confirm that you have verified receipt of this GCash transfer before recording it.');
         return;
       }
     }
@@ -266,15 +285,17 @@ const AdditionalPaymentModal = ({ order, remainingBalance, onClose, onSave, onPa
       }
       setUploadProgress('Saving...');
 
-      // onSave signature in OrderDetailPage:
-      //   (amount, method, reference, notes, date, receiptUrl)
+      // onSave signature in OrderDetailPage / UnsettledDeliveriesPage:
+      //   (amount, method, reference, notes, date, receiptUrl, idempotencyKey, verifiedReceipt)
       await onSave(
-        amount, 
-        form.payment_method, 
-        form.payment_method === 'gcash' ? form.payment_reference : null, 
+        amount,
+        form.payment_method,
+        form.payment_reference || null,
         form.notes,
-        form.payment_method === 'gcash' ? form.payment_date : null,
-        receiptUrl
+        form.payment_date,
+        receiptUrl,
+        idempotencyKey,
+        hasManualReference ? form.verified_receipt : false,
       );
     } catch (err) {
       setError(err.message);
@@ -323,24 +344,16 @@ const AdditionalPaymentModal = ({ order, remainingBalance, onClose, onSave, onPa
             </div>
 
             <div className="form-group">
-              <label className="form-label"><CreditCard size={14} className="inline mr-6" /> Payment Method *</label>
-              <div className="pickup-segment-row flex gap-8">
-                {['cash', 'gcash'].map(m => (
-                  <button
-                    key={m} type="button"
-                    className={`btn ${form.payment_method === m ? 'btn-secondary' : 'btn-outline'} btn-sm flex-1 justify-center text-capitalize`}
-                    onClick={() => setForm(p => ({ ...p, payment_method: m }))}
-                  >
-                    {m === 'gcash' ? 'GCash' : 'Cash'}
-                  </button>
-                ))}
+              <label className="form-label"><CreditCard size={14} className="inline mr-6" /> Payment Method</label>
+              <div className="text-xs text-tertiary">
+                GCash only — a remaining balance after pickup can no longer be settled in cash.
               </div>
             </div>
 
             {form.payment_method === 'gcash' && (
               <div className="mb-16 br-8" style={{ background: 'var(--bg-secondary)', padding: 14, border: '1px solid var(--border)'}}>
                 <div className="mb-8 font-semibold" style={{ fontSize: '0.8125rem' }}>GCash Payment Details</div>
-                
+
                 {/* === PayMongo Automated Flow === */}
                 {paymentStep === 'setup' && (
                   <div className="mb-12">
@@ -431,12 +444,14 @@ const AdditionalPaymentModal = ({ order, remainingBalance, onClose, onSave, onPa
                   </div>
                 )}
 
-                {/* === Manual Reference Fallback === */}
+                {/* === Direct GCash transfer (outside PayMongo) — manually verified === */}
                 {paymentStep !== 'waiting' && (
                   <>
-                    <div className="text-xs text-tertiary mb-8 text-center border-t" style={{ paddingTop: 10 }}>Or enter payment details manually</div>
+                    <div className="text-xs text-tertiary mb-8 text-center border-t" style={{ paddingTop: 10 }}>
+                      Or record a direct GCash transfer received outside PayMongo
+                    </div>
                     <div className="form-group mb-12">
-                      <label className="form-label" htmlFor="addl-payment-reference">Reference Number *</label>
+                      <label className="form-label" htmlFor="addl-payment-reference">GCash Transfer Reference *</label>
                       <input
                         id="addl-payment-reference"
                         type="text"
@@ -457,6 +472,23 @@ const AdditionalPaymentModal = ({ order, remainingBalance, onClose, onSave, onPa
                     max={new Date().toISOString().split('T')[0]}
                   />
                 </div>
+                {form.payment_reference && form.payment_reference.trim() && (
+                  <label
+                    className="flex items-start gap-8 mb-12 text-sm"
+                    style={{ background: 'var(--warning-bg)', border: '1px solid var(--warning)', borderRadius: 'var(--radius-sm)', padding: '10px 12px', cursor: 'pointer' }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={form.verified_receipt}
+                      onChange={e => setForm(p => ({ ...p, verified_receipt: e.target.checked }))}
+                      style={{ marginTop: 2 }}
+                    />
+                    <span>
+                      I have personally verified that this GCash transfer was received in the business account.
+                      A reference number alone is not proof of payment.
+                    </span>
+                  </label>
+                )}
                 <div className="form-group mb-0">
                   <label className="form-label">Receipt Screenshot (Optional)</label>
                   <p className="text-xs text-tertiary mb-8">Receipt screenshot is optional and should only be uploaded if requested by the administrator or if additional proof is needed.</p>
@@ -509,9 +541,10 @@ const AdditionalPaymentModal = ({ order, remainingBalance, onClose, onSave, onPa
               onClick={handleSave}
               disabled={
                 saving ||
-                (form.payment_method === 'gcash' && paymentStep === 'waiting' && !paymentConfirmed) ||
+                (paymentStep === 'waiting' && !paymentConfirmed) ||
                 (!isDoneStep && !amountValid) ||
-                (form.payment_method === 'gcash' && paymentStep !== 'waiting' && !(form.payment_reference && form.payment_reference.trim()))
+                (paymentStep !== 'waiting' && !(form.payment_reference && form.payment_reference.trim())) ||
+                (paymentStep !== 'waiting' && Boolean(form.payment_reference && form.payment_reference.trim()) && !form.verified_receipt)
               }
             >
               {saving ? <><Loader size={16} className="animate-spin" /> {uploadProgress || 'Saving...'}</> : <><CheckCircle size={16} /> {isDoneStep ? 'Done' : paymentStep === 'waiting' ? 'Waiting for payment' : 'Record Payment'}</>}

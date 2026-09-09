@@ -515,9 +515,9 @@ const AdminOrderDetailPage = () => {
     }
   };
 
-  const handleAdditionalPayment = async (amount, method, ref, notes, date, receiptUrl, skipInsert = false) => {
+  const handleAdditionalPayment = async (amount, method, ref, notes, date, receiptUrl, idempotencyKey = null, verifiedReceipt = false) => {
     try {
-      await recordAdditionalPayment(id, amount, method, ref, notes, date, receiptUrl, skipInsert);
+      await recordAdditionalPayment(id, amount, method, ref, notes, date, receiptUrl, idempotencyKey, verifiedReceipt);
       setShowPaymentModal(false);
       await loadOrder();
       setPaymentResultModal({ variant: 'success', amount: Number(amount), paymentMethod: method });

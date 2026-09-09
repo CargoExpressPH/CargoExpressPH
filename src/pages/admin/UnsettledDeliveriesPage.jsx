@@ -231,12 +231,12 @@ const UnsettledDeliveriesPage = () => {
 
   useEffect(() => { setCurrentPage(1); }, [filter, search]);
 
-  const handleRecordPayment = async (amount, method, ref, notes, date, receiptUrl) => {
+  const handleRecordPayment = async (amount, method, ref, notes, date, receiptUrl, idempotencyKey = null, verifiedReceipt = false) => {
     const order = payingOrder;
     // The payment_transactions database trigger writes the single activity
     // entry. A second browser-side log here would duplicate the collection.
     await recordAdditionalPayment(
-      order.id, amount, method, ref, notes, date, receiptUrl, false,
+      order.id, amount, method, ref, notes, date, receiptUrl, idempotencyKey, verifiedReceipt,
     );
     setPayingOrder(null);
     // Silent: the realtime patch usually lands first anyway, and a spinner

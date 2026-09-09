@@ -51,6 +51,16 @@ export const createPaymentCollectionState = (overrides = {}) => ({
   promised_payment_date: '',
   receiptFile: null,
   receiptPreview: null,
+  // Required before a manually-entered ("direct transfer") GCash reference
+  // may be submitted — a reference string alone is never proof the transfer
+  // was received.
+  verified_receipt: false,
+  // Generated once, when the parent modal first creates this state (parents
+  // call this inside a useState lazy initializer), and resent unchanged on
+  // every retry of the SAME collection attempt (double-click, a dropped
+  // response after the database already committed). A genuinely new
+  // collection gets a new one because it comes from a freshly mounted modal.
+  idempotency_key: crypto.randomUUID(),
   // PayMongo runtime — owned here, read by the parent at submit
   paymentStep: 'setup',          // 'setup' | 'generating' | 'waiting'
   sourceId: null,
@@ -190,6 +200,13 @@ export const validatePaymentCollection = (value, config) => {
         flagShortfall: false,
       };
     }
+    if (d.hasManualReference && !value.verified_receipt) {
+      return {
+        error: 'Confirm that you have verified receipt of this GCash transfer before recording it.',
+        field: F.method,
+        flagShortfall: false,
+      };
+    }
   }
 
   if (d.fullPaymentShortfall) {
@@ -230,6 +247,8 @@ export const buildPaymentSubmission = (value, config, receiptUrl = null) => {
     payment_reference: isGCash ? (value.payment_reference || null) : null,
     promised_payment_date: d.needsPromiseDate ? (value.promised_payment_date || null) : null,
     payment: null,
+    idempotency_key: value.idempotency_key || null,
+    admin_verified_receipt: isGCash ? Boolean(value.verified_receipt) : false,
   };
 
   // PayMongo settled it: the webhook already inserted the ledger row via the
@@ -331,8 +350,11 @@ const PaymentCollectionPanel = ({
    * to stand here waiting", and re-opens cash / manual reference.
    */
   const handleCancelGCash = () => resetFlow(
-    'GCash checkout cancelled. Collect in cash, or enter the GCash reference number manually. '
-    + 'If the customer completes that payment link later, it is still recorded against this order.'
+    config?.allowCash === false
+      ? 'GCash checkout cancelled. Enter the GCash reference number manually instead. '
+        + 'If the customer completes that payment link later, it is still recorded against this order.'
+      : 'GCash checkout cancelled. Collect in cash, or enter the GCash reference number manually. '
+        + 'If the customer completes that payment link later, it is still recorded against this order.'
   );
 
   /** Records a confirmed payment from a fresh `orders` row. */
@@ -517,11 +539,19 @@ const PaymentCollectionPanel = ({
       </div>
 
       {/* Payment Method — a segmented control, so the red boundary goes round
-          the group; there is no single input to outline. */}
+          the group; there is no single input to outline. Cash is only ever
+          offered at pickup (config.allowCash) — after pickup the admin will
+          not return to the pickup location to collect cash, so a remaining
+          balance is GCash-only. */}
       <div className="form-group">
         <label className="form-label" id="pcp-method-label">
           Payment Method {d.requiresMethod ? '*' : '(Optional)'}
         </label>
+        {config?.allowCash === false ? (
+          <div className="text-xs text-tertiary mb-4">
+            GCash only — a remaining balance after pickup can no longer be settled in cash.
+          </div>
+        ) : null}
         <div
           className={`pickup-segment-row flex gap-8 ${errors[F.method] ? 'field-group-invalid' : ''}`}
           role="group"
@@ -530,7 +560,7 @@ const PaymentCollectionPanel = ({
           aria-describedby={errors[F.method] ? errorId(F.method) : undefined}
           tabIndex={errors[F.method] ? -1 : undefined}
         >
-          {['cash', 'gcash'].map(m => (
+          {(config?.allowCash === false ? ['gcash'] : ['cash', 'gcash']).map(m => (
             <button
               key={m} type="button" disabled={disabled}
               className={`btn ${value.payment_method === m ? 'btn-secondary' : 'btn-outline'} btn-sm flex-1 justify-center text-capitalize`}
@@ -559,7 +589,7 @@ const PaymentCollectionPanel = ({
                 <CreditCard size={14} className="mr-6" /> Process via PayMongo
               </button>
               <div className="text-xs text-tertiary mt-4 text-center">
-                Opens GCash checkout for the customer to pay
+                Opens GCash checkout for the customer to pay — confirmed automatically, no verification needed
               </div>
             </div>
           )}
@@ -693,14 +723,15 @@ const PaymentCollectionPanel = ({
             </div>
           )}
 
-          {/* Manual reference fallback */}
+          {/* Direct GCash transfer, outside PayMongo — the admin must verify
+              receipt themselves; a reference number alone is not proof. */}
           {value.paymentStep !== 'waiting' && (
             <>
               <div className="text-xs text-tertiary mb-8 text-center border-t" style={{ paddingTop: 10 }}>
-                Or enter payment details manually
+                Or record a direct GCash transfer received outside PayMongo
               </div>
               <div className="form-group mb-12">
-                <label className="form-label" htmlFor="pcp-payment-reference">Reference Number {d.collected > 0 ? '*' : '(Optional)'}</label>
+                <label className="form-label" htmlFor="pcp-payment-reference">GCash Transfer Reference {d.collected > 0 ? '*' : '(Optional)'}</label>
                 <input
                   id="pcp-payment-reference"
                   type="text"
@@ -711,6 +742,24 @@ const PaymentCollectionPanel = ({
                   onChange={e => patch({ payment_reference: e.target.value })}
                 />
               </div>
+              {d.hasManualReference && (
+                <label
+                  className="flex items-start gap-8 mb-12 text-sm"
+                  style={{ background: 'var(--warning-bg)', border: '1px solid var(--warning)', borderRadius: 'var(--radius-sm)', padding: '10px 12px', cursor: 'pointer' }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={value.verified_receipt}
+                    disabled={disabled}
+                    onChange={e => { patch({ verified_receipt: e.target.checked }); clearError(F.method); }}
+                    style={{ marginTop: 2 }}
+                  />
+                  <span>
+                    I have personally verified that this GCash transfer was received in the business account.
+                    A reference number alone is not proof of payment.
+                  </span>
+                </label>
+              )}
             </>
           )}
 

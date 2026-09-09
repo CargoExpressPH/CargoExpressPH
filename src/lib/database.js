@@ -2530,6 +2530,14 @@ export const recordPaymentTransaction = async (orderId, amount, method, ref, sta
  * @param {?Object} [payload.payment] — { amount, payment_date, receipt_url }.
  *                  Null when a PayMongo QR is still pending; the webhook
  *                  records that payment into the ledger instead.
+ * @param {?string} [payload.idempotency_key] — stable id generated once by
+ *                  the caller and reused unchanged on retry (double-click, a
+ *                  dropped response after this already committed). Omitting
+ *                  it disables dedup for that call, so callers that collect
+ *                  money should always pass one.
+ * @param {boolean} [payload.admin_verified_receipt=false] — required true
+ *                  when a manual GCash reference is being recorded; attests
+ *                  the admin confirmed the transfer landed before saving it.
  * @returns {Object} the fresh order row, totals already recomputed
  */
 export const recordPickupPayment = async (orderId, payload) => {
@@ -2544,6 +2552,8 @@ export const recordPickupPayment = async (orderId, payload) => {
     p_reference: payload.payment_reference || null,
     p_payment_date: payload.payment?.payment_date || null,
     p_receipt_url: payload.payment?.receipt_url || null,
+    p_idempotency_key: payload.idempotency_key || null,
+    p_admin_verified_receipt: payload.admin_verified_receipt || false,
   });
   if (error) throw error;
   return data;
@@ -2552,6 +2562,10 @@ export const recordPickupPayment = async (orderId, payload) => {
 /**
  * Atomically record a delivery: order metadata UPDATE + optional balance
  * settlement in one transaction. Same contract as recordPickupPayment.
+ *
+ * Cash is rejected server-side here — after pickup, a remaining balance may
+ * only be settled via GCash (the admin does not return to the pickup
+ * location to collect cash).
  */
 export const recordDeliveryPayment = async (orderId, payload) => {
   const { data, error } = await supabase.rpc('record_delivery_payment', {
@@ -2565,43 +2579,54 @@ export const recordDeliveryPayment = async (orderId, payload) => {
     // Required by the business rule when cargo is handed over with a balance
     // still owing — see 20260804100000_settlement_guards.sql.
     p_promised_payment_date: payload.promised_payment_date || null,
+    p_idempotency_key: payload.idempotency_key || null,
+    p_admin_verified_receipt: payload.admin_verified_receipt || false,
   });
   if (error) throw error;
   return data;
 };
 
 /**
- * Record a counter payment against an existing balance.
+ * Record a counter payment (balance settlement / "Record Additional
+ * Payment") against an existing balance — always a POST-pickup collection,
+ * so the record_additional_payment() RPC rejects cash unconditionally.
  *
- * The payment_transactions database trigger is the ONE writer of payment
- * activity entries. That covers this admin flow, pickup/delivery RPCs, and
- * PayMongo reconciliation without duplicate or missing browser-side logs.
+ * This used to be a plain client-side `SELECT` (no row lock) followed by a
+ * raw `.insert()` into payment_transactions under RLS alone — the "SELECT
+ * then INSERT" pattern that gives no protection against a double-click, a
+ * retried request, or two admins racing on the same order. It now goes
+ * through the same locked, idempotent RPC pattern as pickup/delivery.
+ *
+ * @param {string} orderId
+ * @param {number} amount
+ * @param {string} method — must be 'gcash'; 'cash' is rejected server-side.
+ * @param {?string} ref — the GCash transfer reference (required for 'gcash').
+ * @param {?string} notes
+ * @param {?string} paymentDate
+ * @param {?string} receiptUrl
+ * @param {?string} idempotencyKey — stable id reused on retry; see
+ *   recordPickupPayment's doc comment.
+ * @param {boolean} adminVerifiedReceipt — must be true; attests the admin
+ *   confirmed the transfer actually landed before recording it.
  */
-export const recordAdditionalPayment = async (orderId, amount, method, ref, notes, paymentDate = null, receiptUrl = null, skipInsert = false) => {
-  const { data: order } = await supabase.from('orders').select('*').eq('id', orderId).single();
-  if (!order) throw new Error('Order not found');
+export const recordAdditionalPayment = async (orderId, amount, method, ref, notes, paymentDate = null, receiptUrl = null, idempotencyKey = null, adminVerifiedReceipt = false) => {
+  const { data, error } = await supabase.rpc('record_additional_payment', {
+    p_order_id: orderId,
+    p_amount: amount,
+    p_payment_method: method,
+    p_reference: ref || null,
+    p_notes: notes || null,
+    p_payment_date: paymentDate || null,
+    p_receipt_url: receiptUrl || null,
+    p_idempotency_key: idempotencyKey || null,
+    p_admin_verified_receipt: adminVerifiedReceipt || false,
+  });
+  if (error) throw error;
 
-  const previousBalance = parseFloat(order.remaining_balance || order.shipping_cost || 0);
-
-  if (!skipInsert) {
-    // Determine the status for the transaction log based on the current balance
-    const diff = previousBalance - parseFloat(amount);
-    const newBalance = Math.max(0, Math.round(diff * 100) / 100);
-    let txStatus = newBalance <= 0 ? 'paid' : 'partial';
-    
-    // Insert into payment_transactions. The DB trigger will automatically update orders.
-    const pType = newBalance <= 0 && previousBalance > 0 ? 'Balance Settlement' : 'Additional Payment';
-    await recordPaymentTransaction(orderId, amount, method, ref, txStatus, notes, pType, paymentDate, receiptUrl);
-  }
-
-  // Fetch the fresh order to get the accurately recalculated totals from the DB trigger
-  const { data: freshOrder, error: fetchErr } = await supabase.from('orders').select('*').eq('id', orderId).single();
-  if (fetchErr) throw fetchErr;
-
-  return { 
-    newAmountPaid: freshOrder.amount_paid, 
-    newBalance: freshOrder.remaining_balance, 
-    newStatus: freshOrder.payment_status 
+  return {
+    newAmountPaid: data.amount_paid,
+    newBalance: data.remaining_balance,
+    newStatus: data.payment_status,
   };
 };
 
@@ -3062,10 +3087,10 @@ export const getNewInquiryCount = async () => {
 
 // ── Receipt-cleanup step of Manual Evidence Cleanup (moved out of admin ODP) ──
 export const clearPaymentReceiptUrls = async (orderId) => {
-  const { error } = await supabase
-    .from('payment_transactions')
-    .update({ receipt_url: null })
-    .eq('order_id', orderId);
+  // payment_transactions no longer accepts a direct admin UPDATE (see
+  // 20260909030000_manual_payment_hardening.sql) — every write, including
+  // this one, goes through a SECURITY DEFINER RPC now.
+  const { error } = await supabase.rpc('clear_payment_receipt_url', { p_order_id: orderId });
   if (error) throw error;
 };
 

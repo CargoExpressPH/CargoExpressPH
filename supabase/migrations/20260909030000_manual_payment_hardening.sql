@@ -160,9 +160,15 @@ BEGIN
     RAISE EXCEPTION 'Actual weight must be greater than zero';
   END IF;
 
-  -- A manually-entered GCash reference at pickup (the PayMongo QR path never
-  -- reaches this function with money attached — the webhook records that).
-  IF COALESCE(p_amount, 0) > 0 AND v_method = 'gcash' AND COALESCE(trim(p_reference), '') <> '' THEN
+  -- Any GCash money reaching this function is, by construction, a manual
+  -- direct-transfer entry: the PayMongo QR path never sends an amount here
+  -- at all — it returns early with payment: null (see buildPaymentSubmission
+  -- in PaymentCollectionPanel.jsx) because the webhook already recorded that
+  -- money via reconcile_paymongo_payment_attempt(). So this is unconditional
+  -- on amount + method, NOT gated on a reference already being present —
+  -- otherwise a blank reference would skip verification entirely instead of
+  -- being refused by guard_manual_gcash_payment's own check.
+  IF COALESCE(p_amount, 0) > 0 AND v_method = 'gcash' THEN
     v_ref_norm := public.guard_manual_gcash_payment(p_reference, p_admin_verified_receipt);
   END IF;
 
@@ -291,7 +297,11 @@ BEGIN
       USING ERRCODE = '22023';
   END IF;
 
-  IF COALESCE(p_amount, 0) > 0 AND v_method = 'gcash' AND COALESCE(trim(p_reference), '') <> '' THEN
+  -- Any GCash money reaching this function is, by construction, a manual
+  -- direct-transfer entry (see the matching comment in record_pickup_payment)
+  -- — unconditional on amount + method so a blank reference is refused by
+  -- guard_manual_gcash_payment rather than silently skipping verification.
+  IF COALESCE(p_amount, 0) > 0 AND v_method = 'gcash' THEN
     v_ref_norm := public.guard_manual_gcash_payment(p_reference, p_admin_verified_receipt);
   END IF;
 

@@ -35,7 +35,9 @@ const DeliveryModal = ({ order, onClose, onSave }) => {
   const [payment, setPayment] = useState(() => createPaymentCollectionState({
     // Seeded with the whole balance, which is what Full Payment claims.
     amount: needsPayment ? sanitizeAmount(balance) : '0',
-    payment_method: needsPayment ? 'cash' : '',
+    // GCash only — after pickup the admin will not return to the pickup
+    // location to collect cash (see paymentConfig.allowCash below).
+    payment_method: needsPayment ? 'gcash' : '',
     promised_payment_date: order?.promised_payment_date || '',
   }));
 
@@ -63,6 +65,11 @@ const DeliveryModal = ({ order, onClose, onSave }) => {
     // is authoritative — collecting more than it at the door is an error, not a
     // rounding difference.
     capAtExpected: true,
+    // Business rule: after pickup, a remaining balance may only be settled
+    // via GCash — the admin will not return to the pickup location to
+    // collect cash. Enforced here (hides the Cash option) and again
+    // server-side in record_delivery_payment().
+    allowCash: false,
     purpose: 'Delivery',
     confirmLabel: 'Complete Delivery',
     confirmVerb: 'complete the delivery',
