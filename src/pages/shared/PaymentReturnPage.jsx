@@ -167,7 +167,12 @@ const PaymentReturnPage = () => {
       if (!mountedRef.current || confirmedRef.current) return;
       try {
         const result = await pollPaymentStatus(sourceId, orderId);
-        if (result.orderReconciled || result.status === 'paid') {
+        // `orderReconciled` is the only trustworthy signal — a bare
+        // status:'paid' can now mean "GCash confirmed it, but a concurrent
+        // request is still finalizing the ledger" (see paymongo-create-payment's
+        // poll action). Trusting the bare status here would show "payment
+        // confirmed" before the ledger genuinely reflects it.
+        if (result.orderReconciled) {
           confirmPaid(knownAmount ?? (Number(result.amount || 0) || null));
           return;
         }

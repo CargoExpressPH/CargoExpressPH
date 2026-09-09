@@ -79,6 +79,15 @@ BEGIN
   END IF;
   -- ─────────────────────────────────────────────────────────────────────────
 
+  -- No verified payment id means nothing was actually captured — a "check
+  -- the source status" call, not a "credit the order" call. Report it
+  -- honestly as not reconciled and leave the attempt's status untouched,
+  -- rather than marking it 'reconciled' with no backing ledger row.
+  IF p_payment_id IS NULL THEN
+    RETURN QUERY SELECT false, attempt_row.order_id, NULL::TEXT, 'No verified payment id supplied; nothing recorded';
+    RETURN;
+  END IF;
+
   paid_amount := COALESCE(NULLIF(p_payment_amount, 0), attempt_row.amount);
 
   SELECT *

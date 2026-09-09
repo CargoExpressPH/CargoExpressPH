@@ -341,22 +341,42 @@ serve(async (req) => {
       console.log(`[paymongo-create-payment] Poll: PayMongo source status="${sourceStatus}", amount=${sourceAmount}`)
 
       if (sourceStatus === 'paid') {
-        // PayMongo already captured — reconcile directly using the real amount
-        const healAmount = sourceAmount || Number(attempt.amount)
-        try {
-          const result = await reconcile(adminSupabase, sourceId, `auto_${sourceId}`, healAmount, 'paid')
-          console.log(`[paymongo-create-payment] Poll: reconciled. orderReconciled=${result?.order_reconciled}`)
+        // The source itself is a bare status string with no payment id
+        // attached (verified against PayMongo's current Source resource
+        // docs — no such field exists, and List Payments cannot be
+        // filtered by source). "Paid" here is a genuine, provider-confirmed
+        // signal that SOME capture already succeeded — but it is not proof
+        // of which caller's reconcile has (or will) run, and it is not
+        // itself a payment id to credit with.
+        //
+        // BUG-01 (see PAYMENT_DUPLICATE_PREVENTION_FIX.md): this branch used
+        // to paper over that by reconciling with a made-up
+        // `auto_${sourceId}` reference, which the ledger's own idempotency
+        // guard could not recognize as the same money once the real
+        // `payment.paid` webhook reconciled again with the true id. Do not
+        // invent a reference: whoever's capture call actually won already
+        // has the real id from its own POST /v1/payments response and is
+        // reconciling with it, and the `payment.paid` webhook is the
+        // independent, authoritative finisher regardless of which internal
+        // path won. Re-check our own attempt row — the winner may already
+        // have committed — and otherwise report "confirmed by GCash,
+        // finalizing" so the caller keeps polling instead of retrying a
+        // capture or treating this as an error.
+        const latest = await getAttempt(adminSupabase, sourceId)
+        if (latest?.payment_id && latest.status === 'reconciled') {
           return json({
-            paymentId: `auto_${sourceId}`,
-            status: 'paid',
-            amount: healAmount,
-            orderReconciled: !!result?.order_reconciled,
+            paymentId: latest.payment_id,
+            status: latest.payment_status || 'paid',
+            amount: Number(latest.amount),
+            orderReconciled: true,
           })
-        } catch (reconcileErr) {
-          const errMsg = reconcileErr instanceof Error ? reconcileErr.message : JSON.stringify(reconcileErr)
-          console.error(`[paymongo-create-payment] Poll: reconcile failed: ${errMsg}`)
-          return json({ error: 'Reconciliation failed, please refresh the page' }, 502)
         }
+        return json({
+          status: 'paid',
+          orderReconciled: false,
+          settling: true,
+          message: 'GCash confirmed this payment; finalizing the ledger entry. Check again in a few seconds.',
+        })
       }
 
       if (sourceStatus === 'chargeable') {
@@ -375,19 +395,25 @@ serve(async (req) => {
         } catch (captureErr) {
           const msg = captureErr instanceof Error ? captureErr.message : String(captureErr)
           if (msg.includes('not chargeable')) {
-            try {
-              const healAmount = sourceAmount || Number(attempt.amount)
-              const result = await reconcile(adminSupabase, sourceId, `auto_${sourceId}`, healAmount, 'paid')
+            // Lost the capture race to a concurrent request (see the
+            // `sourceStatus === 'paid'` branch above for why this does not
+            // invent a reference). Re-check our own row in case the winner
+            // already committed while we were talking to PayMongo.
+            const latest = await getAttempt(adminSupabase, sourceId)
+            if (latest?.payment_id && latest.status === 'reconciled') {
               return json({
-                paymentId: `auto_${sourceId}`,
-                status: 'paid',
-                amount: healAmount,
-                orderReconciled: !!result?.order_reconciled,
+                paymentId: latest.payment_id,
+                status: latest.payment_status || 'paid',
+                amount: Number(latest.amount),
+                orderReconciled: true,
               })
-            } catch (e) {
-              const eMsg = e instanceof Error ? e.message : JSON.stringify(e)
-              return json({ error: `Payment reconciliation failed: ${eMsg}` }, 502)
             }
+            return json({
+              status: 'paid',
+              orderReconciled: false,
+              settling: true,
+              message: 'GCash confirmed this payment; finalizing the ledger entry. Check again in a few seconds.',
+            })
           }
           return json({ error: msg }, 502)
         }

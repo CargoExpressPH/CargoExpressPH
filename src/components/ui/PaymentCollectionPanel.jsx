@@ -367,13 +367,17 @@ const PaymentCollectionPanel = ({
       const pollResult = await pollPaymentStatus(value.sourceId, order.id).catch(() => null);
       const attempt = await getPaymentAttemptBySource(value.sourceId);
       const fresh = await getOrderPaymentSnapshot(order.id);
+      // `orderReconciled` / the attempt's own 'reconciled' status are the
+      // only trustworthy signals — a bare status:'paid' can mean "GCash
+      // confirmed it, but a concurrent request is still finalizing the
+      // ledger," not proof this order has been credited yet.
       const sourceReconciled = pollResult?.orderReconciled
-        || pollResult?.status === 'paid'
-        || attempt?.status === 'reconciled'
-        || attempt?.payment_status === 'paid';
+        || attempt?.status === 'reconciled';
       const found = sourceReconciled && applyConfirmedOrder(fresh);
       if (!found && !silent) {
-        config.onError?.('No payment received yet. Ask the customer to complete the GCash payment, then check again.');
+        config.onError?.(pollResult?.settling
+          ? 'GCash confirmed this payment; finalizing the ledger entry. Check again in a few seconds.'
+          : 'No payment received yet. Ask the customer to complete the GCash payment, then check again.');
       }
     } catch (err) {
       if (!silent) config.onError?.(err.message || 'Could not check payment status.');

@@ -146,12 +146,16 @@ const AdditionalPaymentModal = ({ order, remainingBalance, onClose, onSave, onPa
       const pollResult = await pollPaymentStatus(paymongoSourceId, order.id).catch(() => null);
       const attempt = await getPaymentAttemptBySource(paymongoSourceId);
       const data = await getOrderPaymentSnapshot(order.id);
+      // `orderReconciled` / the attempt's own 'reconciled' status are the
+      // only trustworthy signals — a bare status:'paid' can mean "GCash
+      // confirmed it, but a concurrent request is still finalizing the
+      // ledger," not proof this order has been credited yet.
       const sourceReconciled = pollResult?.orderReconciled
-        || pollResult?.status === 'paid'
-        || attempt?.status === 'reconciled'
-        || attempt?.payment_status === 'paid';
+        || attempt?.status === 'reconciled';
       if (!sourceReconciled || !applyConfirmedPayment(data)) {
-        setError('No payment received yet. Ask the customer to complete GCash payment, then check again.');
+        setError(pollResult?.settling
+          ? 'GCash confirmed this payment; finalizing the ledger entry. Check again in a few seconds.'
+          : 'No payment received yet. Ask the customer to complete GCash payment, then check again.');
       }
     } catch (err) {
       setError(err.message || 'Could not check payment status.');

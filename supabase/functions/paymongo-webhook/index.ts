@@ -212,32 +212,35 @@ serve(async (req) => {
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err)
         if (msg.includes('not chargeable')) {
-          console.log(`[paymongo-webhook] Source ${sourceId} capture failed: not chargeable. Checking source status...`)
-
-          // Self-healing: verify source is paid via PayMongo API, then reconcile directly
-          try {
-            const sourceRes = await fetch(`https://api.paymongo.com/v1/sources/${sourceId}`, {
-              headers: { 'Authorization': paymongoAuthHeader() },
-            })
-            const sourceData = await sourceRes.json()
-            const sourceStatus = sourceData?.data?.attributes?.status
-            const sourceAmount = Number(sourceData?.data?.attributes?.amount || 0) / 100
-
-            if (sourceStatus === 'paid') {
-              console.log(`[paymongo-webhook] Source ${sourceId} confirmed PAID by PayMongo. Self-healing reconciliation...`)
-              const healAmount = sourceAmount || chargeAmount
-              const result = await reconcile(adminSupabase, sourceId, `auto_${sourceId}`, healAmount, 'paid')
-              console.log(`[paymongo-webhook] Self-healed. orderReconciled=${result?.order_reconciled}`)
-              return json({ received: true, eventId, orderReconciled: !!result?.order_reconciled, selfHealed: true })
-            }
-
-            console.log(`[paymongo-webhook] Source ${sourceId} status is "${sourceStatus}", not paid. Returning 200.`)
-            return json({ received: true, ignored: true, reason: `Source status: ${sourceStatus}` })
-          } catch (healErr) {
-            const errMsg = healErr instanceof Error ? healErr.message : JSON.stringify(healErr)
-            console.error(`[paymongo-webhook] Self-heal failed: ${errMsg}`)
-            return json({ received: true, ignored: true, reason: 'Self-heal failed, awaiting payment.paid' })
-          }
+          // "Not chargeable" here means a sibling capture call — the
+          // customer's own poll, invoked when they land back on the app
+          // right after approving GCash — won this source's ONE allowed
+          // capture a few hundred milliseconds before this webhook tried.
+          // That sibling already has the REAL PayMongo payment id from its
+          // own POST /v1/payments response and is reconciling with it right
+          // now (or already has).
+          //
+          // BUG-01 (see PAYMENT_DUPLICATE_PREVENTION_FIX.md): this branch
+          // used to treat the source's own "paid" status as license to
+          // reconcile anyway, using a MADE-UP reference (`auto_${sourceId}`)
+          // because the source endpoint does not return a payment id. That
+          // is exactly the "not proof of successful payment" shortcut the
+          // task forbids, and it defeated the ledger's own idempotency
+          // guard (two different reference strings for one real payment).
+          //
+          // There is no documented PayMongo endpoint that maps a source id
+          // back to the payment id captured against it (the Source resource
+          // has no such field, and List Payments cannot be filtered by
+          // source — verified against the current PayMongo API docs), so
+          // there is no way to obtain a REAL id from here. The correct move
+          // is to do nothing: the sibling's own reconcile call, and/or the
+          // independent `payment.paid` webhook event PayMongo fires once
+          // the capture settles, will finish the job with the real id. This
+          // event is safely re-driveable — returning success here without
+          // reconciling just means this specific delivery had nothing to
+          // do.
+          console.log(`[paymongo-webhook] Source ${sourceId} capture lost the race (not chargeable) — a concurrent capture already has or will get the real payment id. Not reconciling from here.`)
+          return json({ received: true, ignored: true, reason: 'Captured by a concurrent request; awaiting payment.paid', raced: true })
         }
         throw err
       }

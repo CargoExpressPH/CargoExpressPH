@@ -78,9 +78,38 @@ const withRequestTimeout = async (request) => {
   }
 };
 
-const isPermanentError = (error) => (
-  ['22023', '22P02', '23503', '23514', '42501'].includes(error?.code)
-);
+/**
+ * Fail-closed transient detection: only retry on conditions we KNOW are
+ * temporary. Everything else (constraint violations, permission errors,
+ * custom trigger exceptions like P0001, malformed data, etc.) is treated
+ * as permanent and the event is removed from the queue immediately.
+ *
+ * This prevents the old bug where an unrecognized Postgres error code
+ * (e.g. P0001 from a RAISE EXCEPTION in a trigger) was assumed transient
+ * and retried forever, blocking the entire audit-log queue.
+ */
+const isTransientError = (error) => {
+  // No error object at all — treat as transient (network hiccup).
+  if (!error) return true;
+
+  const code = error?.code;
+  const message = (error?.message || '').toLowerCase();
+
+  // Postgres serialization / deadlock — genuinely transient.
+  if (code === '40001' || code === '40P01') return true;
+
+  // Supabase/PostgREST rate-limit or overloaded.
+  if (code === '54000' || code === '53300') return true;
+
+  // Network-level failures surfaced by the Supabase JS client.
+  if (message.includes('fetch') || message.includes('network')
+      || message.includes('failed to fetch') || message.includes('load failed')
+      || message.includes('networkerror')) return true;
+
+  // Everything else: constraint violations (23xxx), permission denied (42501),
+  // invalid input (22xxx), custom exceptions (P0001), etc. — permanent.
+  return false;
+};
 
 /**
  * Deliver every queued activity for the current account in order. Each event
@@ -117,13 +146,13 @@ export const flushActivityLogQueue = async (knownUser = null) => {
 
       if (result?.timedOut) break;
       if (result?.error) {
-        if (isPermanentError(result.error)) {
-          console.warn('[ActivityLog] Rejected activity event:', result.error.message);
-          removeQueuedEvent(item.eventId);
-          continue;
+        if (isTransientError(result.error)) {
+          console.warn('[ActivityLog] Activity queued for retry:', result.error.message);
+          break;
         }
-        console.warn('[ActivityLog] Activity queued for retry:', result.error.message);
-        break;
+        console.warn('[ActivityLog] Rejected activity event (permanent):', result.error.message);
+        removeQueuedEvent(item.eventId);
+        continue;
       }
 
       removeQueuedEvent(item.eventId);
