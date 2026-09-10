@@ -49,11 +49,15 @@ const CreateTripPage = () => {
       : phDateKey(form.departure_date) < phDateKey(new Date().toISOString())
         ? 'Departure date cannot be in the past.'
         : null,
-    // Same-day arrival is valid now that both are date-only — only actually
-    // arriving BEFORE departure is an error.
+    // Arrival must be STRICTLY after departure — same-day is rejected too.
+    // This is stricter than the date-only scheduling rule this codebase
+    // otherwise runs on (20260829160000_trip_date_only_scheduling.sql, which
+    // deliberately allowed arrival_date === departure_date); the DB-level
+    // CHECK constraint (20260910010000_strict_arrival_after_departure.sql)
+    // enforces the same rule server-side, so keep both in sync.
     arrival_date: (form.arrival_date && form.departure_date
-      && new Date(phLocalInputToISO(form.arrival_date)) < new Date(phLocalInputToISO(form.departure_date)))
-      ? 'Estimated arrival date cannot be before the departure date.'
+      && new Date(phLocalInputToISO(form.arrival_date)) <= new Date(phLocalInputToISO(form.departure_date)))
+      ? 'Arrival date must be at least one day after departure.'
       : null,
     capacity: !form.capacity
       ? 'Capacity is required.'

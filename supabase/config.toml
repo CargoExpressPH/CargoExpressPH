@@ -56,3 +56,9 @@ verify_jwt = true
 # Called only by the evidence_photo_archive pg_cron job — same shape and
 # same reasoning as process-daily-reminders above.
 verify_jwt = true
+
+[functions.email-trip-reschedule]
+# Called only by the trips_notify_reschedule_email trigger via pg_net,
+# authenticated with the service role key as its bearer token — same shape
+# and same reasoning as process-daily-reminders above.
+verify_jwt = true

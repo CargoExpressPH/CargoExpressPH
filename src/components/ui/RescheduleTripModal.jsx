@@ -56,11 +56,12 @@ const RescheduleTripModal = ({ trip, onClose, onReschedule }) => {
         : phDateKey(form.departure_date) < phDateKey(new Date().toISOString())
           ? 'Departure date cannot be in the past.'
           : null,
-      // Same-day arrival is valid now that both are date-only — only
-      // actually arriving BEFORE departure is an error.
+      // Arrival must be STRICTLY after departure — same-day is rejected too.
+      // See CreateTripPage's buildRules() for the same rule and the DB-level
+      // CHECK constraint that mirrors it.
       arrival_date: (form.arrival_date && form.departure_date
-        && new Date(phLocalInputToISO(form.arrival_date)) < new Date(phLocalInputToISO(form.departure_date)))
-        ? 'Estimated arrival date cannot be before the departure date.'
+        && new Date(phLocalInputToISO(form.arrival_date)) <= new Date(phLocalInputToISO(form.departure_date)))
+        ? 'Arrival date must be at least one day after departure.'
         : null,
     });
     if (!ok) return;
