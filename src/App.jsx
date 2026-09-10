@@ -306,6 +306,27 @@ function App() {
   // because as far as the layout viewport is concerned the field never moved.
   useKeyboardInset(handleKeyboardInset);
 
+  // Mounted once at the root so it covers every number input in the app,
+  // admin and customer alike, without touching each page individually.
+  // Scrolling the mouse wheel/trackpad over a FOCUSED <input type="number">
+  // is the browser's built-in way to increment/decrement it — easy to
+  // trigger by accident while scrolling past one. { passive: false } is
+  // required for preventDefault() to have any effect on a wheel listener;
+  // browsers otherwise treat wheel listeners as passive by default.
+  // Note: while the cursor is directly over a focused number input, the
+  // page itself won't scroll either (that's the same default action being
+  // suppressed) — moving off the input resumes normal scrolling immediately.
+  useEffect(() => {
+    const handleWheel = (event) => {
+      const el = document.activeElement;
+      if (el?.tagName === 'INPUT' && el?.type === 'number') {
+        event.preventDefault();
+      }
+    };
+    window.addEventListener('wheel', handleWheel, { passive: false });
+    return () => window.removeEventListener('wheel', handleWheel);
+  }, []);
+
   return (
     <ThemeProvider>
     <ToastProvider>

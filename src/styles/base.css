@@ -71,6 +71,20 @@ input, select, textarea {
   font-family: inherit; outline: none;
 }
 
+/* Kill the native up/down spinner on every number input, app-wide, and (via
+   main.jsx's wheel listener) stop an unfocused scroll gesture from silently
+   incrementing/decrementing a focused one. -moz-appearance must sit on the
+   base rule (Firefox has no ::-webkit-*-spin-button pseudo-elements to
+   target); the two ::-webkit-* rules handle Chrome/Safari/Edge. */
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
 button:focus-visible,
 a:focus-visible,
 input:focus-visible,
