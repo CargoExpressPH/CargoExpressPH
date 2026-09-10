@@ -10,6 +10,7 @@
     "test:edge-functions": "node scripts/edge-function-build-test.mjs",
     "test:payment-ledger": "node scripts/payment-ledger-pgtest/run.mjs",
     "test:payment-notifications": "node scripts/payment-notification-pgtest/run.mjs",
+    "test:shipping-discount": "node scripts/shipping-discount-pgtest/run.mjs",
     "test:pwa-offline": "node scripts/pwa-offline-contract-test.mjs",
     "check": "npm run test && npm run test:edge-functions && node scripts/photo-fallback-browser-test.mjs && npm run build && npm run test:pwa-offline",
     "build": "vite build",
