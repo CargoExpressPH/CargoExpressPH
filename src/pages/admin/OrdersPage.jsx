@@ -249,7 +249,7 @@ const AdminOrdersPage = () => {
                         )}
                       </div>
                     </td>
-                    <td data-label="Customer">{o.profiles?.name || o.sender_name}</td>
+                    <td data-label="Customer">{o.sender_name || o.profiles?.name}</td>
                     <td data-label="Route" className="text-sm">{o.origin} → {o.destination}</td>
                     <td data-label="Weight">{o.actual_weight ? `${o.actual_weight} kg` : '—'}</td>
                     <td data-label="Cost" className="fw-600">{isOrderPriced(o) ? formatMoney(parseFloat(o.shipping_cost || 0)) : '—'}</td>
