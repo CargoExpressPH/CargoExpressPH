@@ -34,7 +34,7 @@ import {
 } from '../../constants/status';
 import {
   ArrowLeft, Check, Package, CreditCard, User, Phone, MapPin,
-  Truck, Loader, Save, Camera, AlertTriangle, X, Image, Clock, Trash2, Star, ChevronDown, UserPlus
+  Truck, Loader, Save, Camera, AlertTriangle, X, Image, Clock, Trash2, Star, ChevronDown, UserPlus, Tag
 } from 'lucide-react';
 import { useToast } from '../../hooks/useToast';
 import usePageTitle from '../../hooks/usePageTitle';
@@ -403,7 +403,16 @@ const AdminOrderDetailPage = () => {
       const collected = pickupData.payment
         ? `₱${pickupData.payment.amount}`
         : 'pending PayMongo confirmation';
-      logOrder('Pickup Processed', id, order.tracking_number, { details: `Pickup processed. Weight: ${pickupData.actual_weight}kg, Payment: ${pickupData.payment_method}, Amount: ${collected}` });
+      // The discount itself is already recorded on the order row (discount_
+      // amount/reason/notes/applied_by/applied_at — see the shipping-discount
+      // migrations) and in this SAME activity_logs entry via the RPC's own
+      // insert, independently of this client-side call. This second mention
+      // is only so the discount is legible in the plain-English pickup line
+      // an admin scans, not the only record of it.
+      const discountNote = pickupData.discount_amount > 0
+        ? ` Discount: ₱${pickupData.discount_amount} (${pickupData.discount_reason}).`
+        : '';
+      logOrder('Pickup Processed', id, order.tracking_number, { details: `Pickup processed. Weight: ${pickupData.actual_weight}kg, Payment: ${pickupData.payment_method}, Amount: ${collected}.${discountNote}` });
 
       setShowPickupModal(false);
       await loadOrder();
@@ -678,8 +687,13 @@ const AdminOrderDetailPage = () => {
 
   const currentWeight = parseFloat(order.actual_weight) || 0;
   const computedShippingCost = currentWeight * ratePerKg;
+  // The ORIGINAL fee is never touched by the discount — see the
+  // shipping-discount migrations' design note. What is actually owed is the
+  // original fee minus the fixed peso discount, floored at 0.
+  const computedDiscountAmount = parseFloat(order.discount_amount || 0) || 0;
+  const computedFinalFee = Math.max(0, computedShippingCost - computedDiscountAmount);
   const computedAmountPaid = parseFloat(order.amount_paid || 0);
-  const computedRemainingBalance = computedShippingCost - computedAmountPaid;
+  const computedRemainingBalance = computedFinalFee - computedAmountPaid;
   const isOverpaid = computedRemainingBalance < 0;
   const pickupPricePerKilo = ratePerKg;
 
@@ -1114,9 +1128,21 @@ const AdminOrderDetailPage = () => {
         <div className="card-body">
           <div className="admin-payment-summary">
             <div className="text-center">
-              <div className="text-xs text-tertiary" style={{ marginBottom: 2 }}>Shipping Cost</div>
+              <div className="text-xs text-tertiary" style={{ marginBottom: 2 }}>{computedDiscountAmount > 0 ? 'Original Fee' : 'Shipping Cost'}</div>
               <div className="text-lg fw-800 text-primary">{settlementState === SETTLEMENT_STATE.UNPRICED ? '—' : formatMoney(computedShippingCost)}</div>
             </div>
+            {computedDiscountAmount > 0 && (
+              <div className="text-center">
+                <div className="text-xs text-tertiary" style={{ marginBottom: 2 }}>Discount</div>
+                <div className="text-lg fw-800 text-error">− {formatMoney(computedDiscountAmount)}</div>
+              </div>
+            )}
+            {computedDiscountAmount > 0 && (
+              <div className="text-center">
+                <div className="text-xs text-tertiary" style={{ marginBottom: 2 }}>Final Fee</div>
+                <div className="text-lg fw-800 text-primary">{formatMoney(computedFinalFee)}</div>
+              </div>
+            )}
             <div className="text-center">
               <div className="text-xs text-tertiary" style={{ marginBottom: 2 }}>Amount Paid</div>
               <div className="text-lg fw-800 text-success">{settlementState === SETTLEMENT_STATE.UNPRICED ? '—' : formatMoney(computedAmountPaid)}</div>
@@ -1128,6 +1154,28 @@ const AdminOrderDetailPage = () => {
               </div>
             </div>
           </div>
+
+          {/* Discount detail — admin-internal reason/notes/who-applied stay
+              here (never sent to the customer view). Amounts alone are what
+              the customer-facing card shows. */}
+          {computedDiscountAmount > 0 && (
+            <div className="mb-16 br-8 text-sm" style={{ padding: 12, border: '1px solid var(--border)', background: 'var(--bg-secondary)' }}>
+              <div className="flex items-center gap-8 fw-700 mb-4">
+                <Tag size={14} aria-hidden="true" /> Discount Applied
+              </div>
+              <div className="text-secondary">
+                Reason: <strong className="text-capitalize">{order.discount_reason}</strong>
+                {order.discount_reason === 'Other' && order.discount_notes && (
+                  <> — "{order.discount_notes}"</>
+                )}
+              </div>
+              {order.discount_applied_at && (
+                <div className="text-xs text-tertiary mt-4">
+                  Applied {safeFormatDateTime(order.discount_applied_at)}
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="flex gap-8 flex-wrap mb-16">
             {/* Ledger first, order column only as a fallback for pre-ledger
@@ -1155,6 +1203,12 @@ const AdminOrderDetailPage = () => {
                 collected because nothing has been billed. */}
             {settlementState === SETTLEMENT_STATE.UNPRICED ? (
               <span className="badge badge-warning">Not yet weighed — no price</span>
+            ) : computedDiscountAmount > 0 && computedFinalFee <= 0 ? (
+              // 100% discount: nothing was ever paid (payment_status stays
+              // 'unpaid' at the column level — see derive_payment_status) but
+              // nothing is owed either. One unambiguous badge instead of
+              // "Unpaid" next to "Settled".
+              <span className="badge badge-success">No Payment Due (Discount)</span>
             ) : (
               <>
                 {order.payment_status && <span className={`badge ${order.payment_status === 'paid' ? 'badge-success' : order.payment_status === 'partial' ? 'badge-warning' : 'badge-error'} text-capitalize`}>{order.payment_status}</span>}

@@ -41,6 +41,7 @@ const STAT_CARDS = [
 
 const EMPTY_SUMMARY = {
   totalRevenue: 0,
+  totalDiscounts: 0,
   paidTotal: 0,
   outstandingTotal: 0,
   outstandingAllOrders: 0,
@@ -274,7 +275,10 @@ const SalesPage = () => {
             <div className="pd-section-title">I. Revenue Summary</div>
             <table className="pd-table">
               <tbody>
-                <tr><td>Total Revenue (billed)</td><td className="num">{formatCurrency(s.totalRevenue)}</td></tr>
+                <tr><td>Total Revenue (billed, net of discounts)</td><td className="num">{formatCurrency(s.totalRevenue)}</td></tr>
+                {(s.totalDiscounts || 0) > 0 && (
+                  <tr><td>Total Discounts Given</td><td className="num">{formatCurrency(s.totalDiscounts)}</td></tr>
+                )}
                 <tr><td>Total Collected</td><td className="num">{formatCurrency(s.paidTotal)}</td></tr>
                 {/* Both scopes are printed. They are different questions, and
                     naming only one "Outstanding" is what let the Sales and

@@ -1,7 +1,7 @@
 import { supabase } from './supabase';
 import { emitNotificationsChanged } from './notification-events';
 import { logOrder, logChat } from './activityLog';
-import { validateStatusTransition, outstandingBalance, ORDER_STATUS, tripCapacityState, tripCapacityRefusal, canAdminCancelOrder } from '../constants/status';
+import { validateStatusTransition, outstandingBalance, finalShippingFee, ORDER_STATUS, tripCapacityState, tripCapacityRefusal, canAdminCancelOrder } from '../constants/status';
 import { detectPickupLocation } from '../constants/phLocations';
 import { phDayRangeISO, formatPhDate } from '../utils/datetime';
 
@@ -907,7 +907,7 @@ export const getTripById = async (tripId) => {
     // user_id + the profiles embed back the "Message customer" shortcut on
     // each row. The trip's order table shows addresses, not the booker, so
     // without the embed there is no name to put on the control.
-    .select('id, tracking_number, sender_name, receiver_name, user_id, status, actual_weight, sender_province, sender_city, receiver_province, receiver_city, created_at, shipping_cost, amount_paid, remaining_balance, payment_status, promised_payment_date, profiles:user_id (name)')
+    .select('id, tracking_number, sender_name, receiver_name, user_id, status, actual_weight, sender_province, sender_city, receiver_province, receiver_city, created_at, shipping_cost, discount_amount, amount_paid, remaining_balance, payment_status, promised_payment_date, profiles:user_id (name)')
     .eq('trip_id', tripId)
     .order('created_at', { ascending: true });
 
@@ -1354,14 +1354,16 @@ export const getSalesData = async () => {
 
   const { data: allOrders } = await supabase
     .from('orders')
-    .select('id, tracking_number, created_at, status, shipping_cost, payment_method, amount_paid, remaining_balance, payment_status')
+    .select('id, tracking_number, created_at, status, shipping_cost, discount_amount, payment_method, amount_paid, remaining_balance, payment_status')
     .neq('status', 'Cancelled');
 
   const orders = allOrders || [];
-  // Revenue is what was billed; paidTotal is what was collected. Matches
+  // Revenue is what was billed, NET of any discount — matches
   // get_sales_summary() so the fallback and the RPC do not report different
-  // numbers for the same tile.
-  const totalRevenue = orders.reduce((sum, o) => sum + parseFloat(o.shipping_cost || 0), 0);
+  // numbers for the same tile. paidTotal is what was actually collected,
+  // which a discount never touches (it is a pure ledger sum).
+  const totalRevenue = orders.reduce((sum, o) => sum + finalShippingFee(o), 0);
+  const totalDiscounts = orders.reduce((sum, o) => sum + (parseFloat(o.discount_amount || 0) || 0), 0);
   const paidTotal = orders.reduce((sum, o) => sum + parseFloat(o.amount_paid || 0), 0);
 
   // Collections are split by the LEDGER's payment_method, not the order's —
@@ -1394,7 +1396,7 @@ export const getSalesData = async () => {
     const month = o.created_at?.substring(0, 7);
     if (!month) return;
     if (!monthlyMap[month]) monthlyMap[month] = { month, total_revenue: 0, collected: 0, outstanding: 0 };
-    monthlyMap[month].total_revenue += parseFloat(o.shipping_cost || 0);
+    monthlyMap[month].total_revenue += finalShippingFee(o);
     monthlyMap[month].collected += parseFloat(o.amount_paid || 0);
     monthlyMap[month].outstanding += outstandingOf(o);
   });
@@ -1403,6 +1405,7 @@ export const getSalesData = async () => {
   return {
     summary: {
       totalRevenue,
+      totalDiscounts,
       cashTotal,
       gcashTotal,
       paylaterTotal,
@@ -1536,7 +1539,7 @@ export const getUnsettledOrders = async () => {
   const { data, error } = await supabase
     .from('orders')
     // sender_phone backs the PayMongo billing block in AdditionalPaymentModal.
-    .select('id, tracking_number, sender_name, sender_phone, receiver_name, user_id, status, payment_status, payment_method, payer_type, promised_payment_date, shipping_cost, amount_paid, remaining_balance, actual_weight, origin, destination, created_at, trip_id, profiles:user_id (name, phone, email)')
+    .select('id, tracking_number, sender_name, sender_phone, receiver_name, user_id, status, payment_status, payment_method, payer_type, promised_payment_date, shipping_cost, discount_amount, amount_paid, remaining_balance, actual_weight, origin, destination, created_at, trip_id, profiles:user_id (name, phone, email)')
     .neq('status', 'Cancelled')
     .in('status', SETTLEMENT_TRACKED_STATUSES)
     .order('created_at', { ascending: false });
@@ -2243,7 +2246,7 @@ export const getReportData = async (period = 'daily', customStart = null, custom
     .from('orders')
     .select(`
       id, tracking_number, user_id, trip_id, origin, destination,
-      sender_name, status, actual_weight, shipping_cost,
+      sender_name, status, actual_weight, shipping_cost, discount_amount,
       amount_paid, remaining_balance, payment_method, created_at,
       profiles:user_id (name, email, phone)
     `)
@@ -2307,6 +2310,7 @@ export const getReportData = async (period = 'daily', customStart = null, custom
       pendingCount: pending.length,
       inTransitCount: inTransit.length,
       totalRevenue,
+      totalDiscounts: filtered.filter(o => o.status !== 'Cancelled').reduce((s, o) => s + (parseFloat(o.discount_amount || 0) || 0), 0),
       totalCollected,
       totalOutstanding,
       totalWeight,
@@ -2346,7 +2350,7 @@ const applyActivityLogFilters = (query, {
   if (adminId) query = query.eq('admin_id', adminId);
   if (dateFrom) query = query.gte('created_at', dateFrom);
   if (dateTo) query = query.lte('created_at', dateTo);
-  if (hideLogins) query = query.not('action', 'ilike', '%Logged In%');
+  if (hideLogins) query = query.not('action', 'ilike', '%Logged%');
   if (search) query = query.or(`action.ilike.%${search}%,record_ref.ilike.%${search}%,admin_name.ilike.%${search}%,details.ilike.%${search}%`);
   return query;
 };
@@ -2572,6 +2576,17 @@ export const recordPaymentTransaction = async (orderId, amount, method, ref, sta
  * @param {boolean} [payload.admin_verified_receipt=false] — required true
  *                  when a manual GCash reference is being recorded; attests
  *                  the admin confirmed the transfer landed before saving it.
+ * @param {number} [payload.discount_amount=0] — fixed peso amount off the
+ *                  ORIGINAL fee. 0 (the default) means no discount; the RPC
+ *                  clears discount_reason/notes server-side whenever this is
+ *                  0, regardless of what those two fields carry. Only settable
+ *                  here, before pickup is confirmed — see
+ *                  guard_order_update() in the shipping-discount migrations.
+ * @param {?string} [payload.discount_reason] — 'Regular customer' |
+ *                  'Negotiated price' | 'Other'. Required server-side when
+ *                  discount_amount > 0.
+ * @param {?string} [payload.discount_notes] — required server-side when
+ *                  discount_reason is 'Other'.
  * @returns {Object} the fresh order row, totals already recomputed
  */
 export const recordPickupPayment = async (orderId, payload) => {
@@ -2588,6 +2603,9 @@ export const recordPickupPayment = async (orderId, payload) => {
     p_receipt_url: payload.payment?.receipt_url || null,
     p_idempotency_key: payload.idempotency_key || null,
     p_admin_verified_receipt: payload.admin_verified_receipt || false,
+    p_discount_amount: payload.discount_amount || 0,
+    p_discount_reason: payload.discount_reason || null,
+    p_discount_notes: payload.discount_notes || null,
   });
   if (error) throw error;
   return data;

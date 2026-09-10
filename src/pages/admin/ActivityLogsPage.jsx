@@ -262,7 +262,7 @@ const ActivityLogsPage = () => {
         </div>
       </div>
 
-      {/* Filters — one row: Search, Module, Hide sign-ins, Clear.
+      {/* Filters — one row: Search, Module, Hide sign in/out, Clear.
           The old layout was a `repeat(auto-fill, minmax(180px, 1fr))` grid of
           seven controls under a "Filters" heading, with the checkbox orphaned
           on a line of its own below it. With three controls left, the heading
@@ -298,7 +298,7 @@ const ActivityLogsPage = () => {
                 checked={hideLogins}
                 onChange={e => setHideLogins(e.target.checked)}
               />
-              Hide sign-ins
+              Hide sign in/out
             </label>
 
             <button

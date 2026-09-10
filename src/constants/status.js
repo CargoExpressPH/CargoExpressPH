@@ -66,6 +66,23 @@ export const REQUIRES_TRIP = [
   ORDER_STATUS.DELIVERED,
 ];
 
+/**
+ * Statuses in which a shipping discount may still be set or changed —
+ * mirrors the identical status list enforced server-side in
+ * guard_order_update() / record_pickup_payment() (see the
+ * 20260911* shipping-discount migrations). This is a UI hint only: the
+ * database is the actual enforcement, since a discount is read-only the
+ * instant pickup is confirmed (status leaves this list) or a payment exists.
+ */
+export const DISCOUNT_EDITABLE_STATUSES = [
+  ORDER_STATUS.PENDING_REVIEW,
+  ORDER_STATUS.PENDING,
+  ORDER_STATUS.ASSIGNED,
+];
+
+export const canApplyDiscount = (order) =>
+  Boolean(order?.status) && DISCOUNT_EDITABLE_STATUSES.includes(order.status);
+
 // Trip status enum
 export const TRIP_STATUS = {
   SCHEDULED: 'scheduled',
@@ -425,19 +442,40 @@ export const isOrderPriced = (order) => {
 };
 
 /**
+ * finalShippingFee — the DISCOUNTED, payable fee: shipping_cost (the
+ * ORIGINAL fee — never redefined, see the shipping-discount migrations)
+ * minus discount_amount, floored at 0. Mirrors order_payable_amount() in
+ * Postgres exactly, so the client and the database can never disagree about
+ * what an order's final fee is.
+ */
+export const finalShippingFee = (order) => {
+  if (!order) return 0;
+  const cost = parseFloat(order.shipping_cost || 0) || 0;
+  const discount = parseFloat(order.discount_amount || 0) || 0;
+  return Math.max(0, Math.round((cost - discount) * 100) / 100);
+};
+
+/** Has a discount actually been applied to this order? */
+export const hasDiscount = (order) => (parseFloat(order?.discount_amount || 0) || 0) > 0;
+
+/**
  * outstandingBalance — THE single client-side definition of "what is owed".
  *
- * Derived from `shipping_cost - amount_paid` rather than read from the stored
- * `remaining_balance` column. Both are maintained by the database, but the
- * stored copy can lag a ledger write, and two views reading two different
- * columns is exactly what produced two different "Outstanding" figures in one
- * report. Mirrors the SQL in get_sales_summary() / get_unsettled_summary().
+ * Derived from `finalShippingFee(order) - amount_paid` rather than read from
+ * the stored `remaining_balance` column. Both are maintained by the database,
+ * but the stored copy can lag a ledger write, and two views reading two
+ * different columns is exactly what produced two different "Outstanding"
+ * figures in one report. Mirrors the SQL in get_sales_summary() / the
+ * settlement queries in lib/database.js.
+ *
+ * Discount-aware since the shipping-discount feature: a discount reduces what
+ * is owed exactly like a payment would reduce it, so it has to enter this
+ * same single formula rather than being handled ad hoc by each caller.
  */
 export const outstandingBalance = (order) => {
   if (!order) return 0;
-  const cost = parseFloat(order.shipping_cost || 0) || 0;
   const paid = parseFloat(order.amount_paid || 0) || 0;
-  return Math.max(0, Math.round((cost - paid) * 100) / 100);
+  return Math.max(0, Math.round((finalShippingFee(order) - paid) * 100) / 100);
 };
 
 /**

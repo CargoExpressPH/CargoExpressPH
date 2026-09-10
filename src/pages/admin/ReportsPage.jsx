@@ -17,7 +17,7 @@ import {
   RefreshCw, CreditCard, Loader, AlertTriangle, Download
 } from 'lucide-react';
 import usePageTitle from '../../hooks/usePageTitle';
-import { isOrderPriced } from '../../constants/status';
+import { isOrderPriced, finalShippingFee } from '../../constants/status';
 
 const formatCurrency = (val) => `₱${(val || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const formatWeight = (val) => `${(val || 0).toLocaleString('en-PH', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} kg`;
@@ -420,7 +420,7 @@ const ReportsPage = () => {
                               {formatWeight(parseFloat(order.actual_weight || 0))}
                             </td>
                             <td data-label="Amount" className="text-right fw-700">
-                              {isOrderPriced(order) ? formatCurrency(parseFloat(order.shipping_cost || 0)) : '—'}
+                              {isOrderPriced(order) ? formatCurrency(finalShippingFee(order)) : '—'}
                             </td>
                             <td data-label="Payment">
                               <span className={`badge text-capitalize badge-sm ${
@@ -574,7 +574,7 @@ const ReportsPage = () => {
                         <td>{order.origin || '—'} → {order.destination || '—'}</td>
                         <td>{order.status}</td>
                         <td className="num">{formatWeight(parseFloat(order.actual_weight || 0))}</td>
-                        <td className="num">{isOrderPriced(order) ? formatCurrency(parseFloat(order.shipping_cost || 0)) : '—'}</td>
+                        <td className="num">{isOrderPriced(order) ? formatCurrency(finalShippingFee(order)) : '—'}</td>
                         <td className="ctr text-capitalize">{order.payment_method || '—'}</td>
                         <td>{formatDate(order.created_at)}</td>
                       </tr>

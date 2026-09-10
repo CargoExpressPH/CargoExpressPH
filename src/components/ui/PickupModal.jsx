@@ -1,11 +1,12 @@
 import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Camera, Loader, Scale, CreditCard, Upload, Trash2, Package, CheckCircle } from 'lucide-react';
+import { X, Camera, Loader, Scale, CreditCard, Upload, Trash2, Package, CheckCircle, Tag, AlertTriangle } from 'lucide-react';
 import FocusTrap from './FocusTrap';
+import CustomSelect from './CustomSelect';
 import useScrollLock from '../../hooks/useScrollLock';
 import useFieldErrors from '../../hooks/useFieldErrors';
 import FieldError, { errorId, fieldAttrs, invalidClass } from './FieldError';
-import { sanitizeAmount, formatAmount } from '../../utils/currencyInput';
+import { sanitizeAmount, parseAmount, formatAmount } from '../../utils/currencyInput';
 import { uploadMultiplePhotos, uploadPhoto, deletePhoto } from '../../lib/storage';
 import { serializePhotoReference } from '../../lib/photoReference';
 import PaymentCollectionPanel, {
@@ -16,12 +17,26 @@ import PaymentCollectionPanel, {
   PAYMENT_FIELDS,
 } from './PaymentCollectionPanel';
 
+/** The only three reasons a discount may be given — mirrors the CHECK
+ * constraint on orders.discount_reason (see the shipping-discount migrations). */
+const DISCOUNT_REASONS = ['Regular customer', 'Negotiated price', 'Other'];
+
 /**
  * PickupModal — Admin pickup processing.
  *
- * Owns what is specific to a pickup: the scale weight, who pays, and the proof
- * photos. The money itself is collected by PaymentCollectionPanel, which is the
- * same component the delivery counter uses.
+ * Owns what is specific to a pickup: the scale weight, who pays, the proof
+ * photos, and (admin-only) a fixed-peso shipping discount. The money itself is
+ * collected by PaymentCollectionPanel, which is the same component the
+ * delivery counter uses — it is fed the DISCOUNTED total as its
+ * `expectedAmount`, so "Full Payment" and any PayMongo/GCash checkout
+ * generated here are always against the discounted figure, never the
+ * pre-discount one.
+ *
+ * A discount is never a payment: it only narrows what PaymentCollectionPanel
+ * is billing against. It is validated authoritatively server-side by
+ * guard_order_update() / record_pickup_payment() — this modal's checks exist
+ * only to give a fast, clear message before that round trip, exactly like the
+ * rest of this form's client-side validation.
  */
 const PickupModal = ({ order, onClose, onSave, pricePerKilo = 70 }) => {
   useScrollLock(true); // mounted only while open
@@ -47,6 +62,18 @@ const PickupModal = ({ order, onClose, onSave, pricePerKilo = 70 }) => {
   const [uploadProgress, setUploadProgress] = useState('');
   const [error, setError] = useState('');
 
+  // ── Shipping discount — OFF by default, admin-only, fixed peso amount ─────
+  // Nothing here is sent to the server unless `enabled` is true at submit —
+  // see handleSubmit, which sends discount_amount: 0 and null reason/notes
+  // whenever the toggle is off, exactly matching "toggle OFF clears the
+  // effective discount before submission."
+  const [discount, setDiscount] = useState({
+    enabled: false,
+    amount: '',
+    reason: '',
+    otherReason: '',
+  });
+
   // Field-level validation. The banner above still carries errors that belong
   // to no single field (an upload that failed, a PayMongo refusal); anything
   // attributable to a control is reported at that control instead.
@@ -66,9 +93,25 @@ const PickupModal = ({ order, onClose, onSave, pricePerKilo = 70 }) => {
   const isPrepaid = form.payer_type === 'sender';
   const estimatedCost = parseFloat(form.actual_weight || 0) * pricePerKilo;
 
+  // ── Discount math — client-side preview only; the server (guard_order_update)
+  // is the actual authority and re-validates all of this against the fee it
+  // computes itself from actual_weight. ──────────────────────────────────────
+  const discountAmountValue = discount.enabled ? (parseAmount(discount.amount) || 0) : 0;
+  // A weight/rate change after a discount was typed must never silently
+  // change the agreed discount — so this is a live flag the admin sees and
+  // must resolve, not an auto-clamp.
+  const discountExceedsFee = discount.enabled
+    && discountAmountValue > 0
+    && estimatedCost > 0
+    && discountAmountValue > estimatedCost + 0.005;
+  const finalFee = Math.max(0, Math.round((estimatedCost - discountAmountValue) * 100) / 100);
+  const noPaymentDue = isPrepaid && estimatedCost > 0 && finalFee <= 0;
+
   // Everything the shared panel needs to know about a PICKUP specifically.
   const paymentConfig = {
-    expectedAmount: estimatedCost,
+    // The DISCOUNTED total — PayMongo/GCash and "Full Payment" are always
+    // billed against this, never the pre-discount estimatedCost.
+    expectedAmount: finalFee,
     expectedNoun: 'total cost',
     amountLabels: {
       full: 'Amount Received (₱) *',
@@ -164,6 +207,22 @@ const PickupModal = ({ order, onClose, onSave, pricePerKilo = 70 }) => {
         : null,
     };
 
+    // Discount validation — independent of payer_type: the discount reduces
+    // the ORIGINAL fee regardless of who ends up paying it, and when.
+    if (discount.enabled) {
+      if (!(discountAmountValue > 0)) {
+        rules.discount_amount = 'Enter a discount amount greater than ₱0, or turn Apply Discount off.';
+      } else if (discountExceedsFee) {
+        rules.discount_amount = `Discount cannot exceed the original fee of ₱${formatAmount(estimatedCost.toFixed(2))}. `
+          + 'Adjust the discount or re-check the weight — it is not changed for you.';
+      }
+      if (!discount.reason) {
+        rules.discount_reason = 'Select a reason for this discount.';
+      } else if (discount.reason === 'Other' && !discount.otherReason.trim()) {
+        rules.discount_notes = 'Explain the discount reason.';
+      }
+    }
+
     // Payment validation applies to Prepaid only. On a Collect shipment there is
     // nobody here to pay, so demanding a payment method would be nonsensical.
     let flagShortfall = false;
@@ -221,6 +280,16 @@ const PickupModal = ({ order, onClose, onSave, pricePerKilo = 70 }) => {
         ...(isPrepaid
           ? buildPaymentSubmission(payment, paymentConfig, receiptUrl)
           : { payment_method: null, payment_reference: null, promised_payment_date: null, payment: null }),
+        // Discount — 0/null/null whenever the toggle is off, so "OFF clears
+        // the effective discount before submission" holds even if the admin
+        // had typed something into the amount field before switching it off.
+        discount_amount: discount.enabled ? discountAmountValue : 0,
+        discount_reason: discount.enabled
+          ? discount.reason
+          : null,
+        discount_notes: (discount.enabled && discount.reason === 'Other')
+          ? discount.otherReason.trim()
+          : null,
       };
 
       await onSave(payload);
@@ -310,6 +379,109 @@ const PickupModal = ({ order, onClose, onSave, pricePerKilo = 70 }) => {
             )}
           </div>
 
+          {/* ── Shipping discount — OFF by default; admin-only, fixed peso ── */}
+          <div className="form-group">
+            <label className="flex items-center gap-8" style={{ cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={discount.enabled}
+                onChange={e => {
+                  const enabled = e.target.checked;
+                  setDiscount(p => ({ ...p, enabled }));
+                  clearError('discount_amount'); clearError('discount_reason'); clearError('discount_notes');
+                }}
+                style={{ width: 18, height: 18 }}
+              />
+              <span className="form-label m-0"><Tag size={14} className="inline mr-6" />Apply Discount</span>
+            </label>
+
+            {discount.enabled && (
+              <div className="mt-12 br-8" style={{ background: 'var(--bg-secondary)', padding: 14, border: '1px solid var(--border)' }}>
+                <div className="form-group mb-12">
+                  <label className="form-label" htmlFor="pickup-discount-amount">Discount Amount (₱) *</label>
+                  <input
+                    id="pickup-discount-amount"
+                    type="number"
+                    className={`form-input ${invalidClass('discount_amount', errors)}`}
+                    placeholder="0.00"
+                    value={discount.amount}
+                    min="0" step="0.01"
+                    onChange={e => { setDiscount(p => ({ ...p, amount: e.target.value })); clearError('discount_amount'); }}
+                    {...fieldAttrs('discount_amount', errors)}
+                  />
+                  <FieldError name="discount_amount" errors={errors} />
+                  {!errors.discount_amount && discountExceedsFee && (
+                    <div className="field-error-inline" role="alert">
+                      <AlertTriangle size={13} aria-hidden="true" /> This exceeds the original fee of ₱{formatAmount(estimatedCost.toFixed(2))} — the weight may have changed. Adjust the discount.
+                    </div>
+                  )}
+                </div>
+
+                <div className="form-group mb-12">
+                  <label className="form-label" htmlFor="pickup-discount-reason">Reason *</label>
+                  <CustomSelect
+                    id="pickup-discount-reason"
+                    className={`form-select ${invalidClass('discount_reason', errors)}`}
+                    value={discount.reason}
+                    onChange={e => { setDiscount(p => ({ ...p, reason: e.target.value })); clearError('discount_reason'); }}
+                  >
+                    <option value="">Select a reason</option>
+                    {DISCOUNT_REASONS.map(r => <option key={r} value={r}>{r}</option>)}
+                  </CustomSelect>
+                  <FieldError name="discount_reason" errors={errors} />
+                </div>
+
+                {discount.reason === 'Other' && (
+                  <div className="form-group mb-0">
+                    <label className="form-label" htmlFor="pickup-discount-notes">Explanation *</label>
+                    <textarea
+                      id="pickup-discount-notes"
+                      className={`form-textarea ${invalidClass('discount_notes', errors)}`}
+                      rows={2}
+                      placeholder="Why is this discount being given?"
+                      value={discount.otherReason}
+                      onChange={e => { setDiscount(p => ({ ...p, otherReason: e.target.value })); clearError('discount_notes'); }}
+                      {...fieldAttrs('discount_notes', errors)}
+                    />
+                    <FieldError name="discount_notes" errors={errors} />
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* ── Pricing summary — updates live as weight/discount are entered ── */}
+          {form.actual_weight && (
+            <div className="mb-16 br-8" style={{ padding: 14, border: '1px solid var(--border)' }}>
+              <div className="flex justify-between text-sm" style={{ padding: '2px 0' }}>
+                <span className="text-secondary">Original Shipping Fee</span>
+                <span>₱{formatAmount(estimatedCost.toFixed(2))}</span>
+              </div>
+              {discount.enabled && discountAmountValue > 0 && (
+                <div className="flex justify-between text-sm text-error" style={{ padding: '2px 0' }}>
+                  <span>Discount</span>
+                  <span>− ₱{formatAmount(discountAmountValue.toFixed(2))}</span>
+                </div>
+              )}
+              <div className="flex justify-between text-sm fw-700" style={{ padding: '2px 0', borderTop: '1px dashed var(--border)', marginTop: 4 }}>
+                <span>Final Shipping Fee</span>
+                <span>₱{formatAmount(finalFee.toFixed(2))}</span>
+              </div>
+              {isPrepaid && (
+                <>
+                  <div className="flex justify-between text-sm text-success" style={{ padding: '2px 0' }}>
+                    <span>Amount Received</span>
+                    <span>₱{formatAmount((derived.collected || 0).toFixed(2))}</span>
+                  </div>
+                  <div className="flex justify-between text-sm fw-700" style={{ padding: '2px 0' }}>
+                    <span>Remaining Balance</span>
+                    <span>₱{formatAmount(Math.max(0, finalFee - (derived.collected || 0)).toFixed(2))}</span>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
           {/* ── Billing mode — decides whether we collect anything at all ── */}
           <div className="form-group">
             <label className="form-label">
@@ -347,15 +519,28 @@ const PickupModal = ({ order, onClose, onSave, pricePerKilo = 70 }) => {
                 Freight Collect — no payment at pickup
               </div>
               <div className="text-xs text-secondary">
-                {estimatedCost > 0 ? <>₱{formatAmount(estimatedCost.toFixed(2))} will be collected from </> : <>The freight charge will be collected from </>}
+                {finalFee > 0 ? <>₱{formatAmount(finalFee.toFixed(2))} will be collected from </> : <>The freight charge will be collected from </>}
                 <strong>{order?.receiver_name || 'the receiver'}</strong> on delivery.
                 Weigh the parcel, take the proof photos, and confirm — there is nothing to collect now.
               </div>
             </div>
           )}
 
-          {/* ── Prepaid: the shared collection panel ── */}
-          {isPrepaid && (
+          {/* ── Prepaid, fully covered by the discount: nothing to collect ── */}
+          {isPrepaid && noPaymentDue && (
+            <div className="mb-16 br-8" style={{ background: 'var(--success-bg)', padding: 14, border: '1px solid var(--success)' }}>
+              <div className="flex items-center gap-8 font-semibold" style={{ fontSize: '0.8125rem', color: 'var(--success-text)' }}>
+                <CheckCircle size={16} aria-hidden="true" /> No payment due
+              </div>
+              <div className="text-xs mt-4" style={{ color: 'var(--success-text)' }}>
+                The discount covers the full ₱{formatAmount(estimatedCost.toFixed(2))} fee. No payment method or
+                amount is needed — confirming pickup will not create a payment record.
+              </div>
+            </div>
+          )}
+
+          {/* ── Prepaid, something still owed: the shared collection panel ── */}
+          {isPrepaid && !noPaymentDue && (
             <PaymentCollectionPanel
               order={order}
               value={payment}

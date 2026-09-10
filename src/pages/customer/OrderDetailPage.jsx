@@ -23,7 +23,7 @@ import { useToast } from '../../hooks/useToast';
 import usePageTitle from '../../hooks/usePageTitle';
 import { formatPhDate, formatPhDateTime } from '../../utils/datetime';
 import { formatMoney, sanitizeAmount, parseAmount } from '../../utils/currencyInput';
-import { outstandingBalance, getSettlementState, isOrderPriced, SETTLEMENT_STATE, ORDER_STATUS, canCancelOrder, hasPendingCancellation, timelineStatus, canEditContactDetails } from '../../constants/status';
+import { outstandingBalance, finalShippingFee, getSettlementState, isOrderPriced, SETTLEMENT_STATE, ORDER_STATUS, canCancelOrder, hasPendingCancellation, timelineStatus, canEditContactDetails } from '../../constants/status';
 import { formatPaymentType, formatRecordedBy, getPaymentStatusDisplay, formatPaymentMethod as fmtMethod, getCustomerFriendlyNotes, getCustomerVisibleRef } from '../../utils/paymentDisplay';
 
 // Max time (ms) to wait for data before giving up and showing an error.
@@ -694,6 +694,10 @@ const OrderDetailPage = () => {
   const hasPhotos = resolvedPickupPhotos.length > 0;
   const balance = outstandingBalance(order);
   const settlementState = getSettlementState(order);
+  // Discount reason/notes/who-applied are admin-internal and never rendered
+  // here — only the peso amounts, which the customer needs to understand
+  // their bill.
+  const hasOrderDiscount = (parseFloat(order.discount_amount || 0) || 0) > 0;
 
   return (
     <div className="page-transition customer-order-detail-screen">
@@ -979,9 +983,21 @@ const OrderDetailPage = () => {
           <h4 className="fw-700 mb-12 flex items-center gap-8"><CreditCard size={16} aria-hidden="true" />Payment Details</h4>
           <div className="customer-payment-summary mb-20">
             <div className="text-center">
-              <div className="text-xs text-tertiary">Shipping Cost</div>
+              <div className="text-xs text-tertiary">{hasOrderDiscount ? 'Original Fee' : 'Shipping Cost'}</div>
               <div className="text-sm font-bold text-primary">{isOrderPriced(order) ? formatMoney(parseFloat(order.shipping_cost || 0)) : '—'}</div>
             </div>
+            {hasOrderDiscount && (
+              <div className="text-center">
+                <div className="text-xs text-tertiary">Discount</div>
+                <div className="text-sm font-bold text-error">− {formatMoney(parseFloat(order.discount_amount || 0))}</div>
+              </div>
+            )}
+            {hasOrderDiscount && (
+              <div className="text-center">
+                <div className="text-xs text-tertiary">Final Fee</div>
+                <div className="text-sm font-bold text-primary">{formatMoney(finalShippingFee(order))}</div>
+              </div>
+            )}
             <div className="text-center">
               <div className="text-xs text-tertiary">Paid</div>
               <div className="text-sm font-bold text-success">{formatMoney(parseFloat(order.amount_paid || 0))}</div>
@@ -1007,9 +1023,19 @@ const OrderDetailPage = () => {
             <div>
               <span className="text-xs text-tertiary">Status</span>
               <div className="text-sm">
-                <span className={`badge ${order.payment_status === 'paid' ? 'badge-success' : order.payment_status === 'partial' ? 'badge-warning' : 'badge-error text-capitalize'}`}>
-                  {order.payment_status || 'unpaid'}
-                </span>
+                {/* A 100% discount means nothing is owed even though nothing
+                    was ever paid — payment_status stays 'unpaid' at the
+                    column level (see derive_payment_status: "amount_paid <= 0"
+                    also covers a genuinely unpriced booking, so that rule is
+                    not changed), but showing "Unpaid" here would read as money
+                    still owing. This is presentation-only. */}
+                {isOrderPriced(order) && finalShippingFee(order) <= 0 ? (
+                  <span className="badge badge-success">No Payment Due</span>
+                ) : (
+                  <span className={`badge ${order.payment_status === 'paid' ? 'badge-success' : order.payment_status === 'partial' ? 'badge-warning' : 'badge-error text-capitalize'}`}>
+                    {order.payment_status || 'unpaid'}
+                  </span>
+                )}
               </div>
             </div>
           </div>

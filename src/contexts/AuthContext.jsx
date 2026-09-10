@@ -222,7 +222,7 @@ export const AuthProvider = ({ children }) => {
       }
 
       isAuthAction.current = false;
-      return { success: true, user: data.user };
+      return { success: true, user: data.user, profile: profileResult.profile };
     } catch (error) {
       isAuthAction.current = false;
       setLoading(false);

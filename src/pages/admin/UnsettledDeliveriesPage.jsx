@@ -456,7 +456,14 @@ const UnsettledDeliveriesPage = () => {
                             : `Booked ${formatDate(o.created_at)}`}
                         </div>
                       </td>
-                      <td data-label="Billed" className="num unsettled-money-cell unsettled-billed-cell">{formatCurrency(o.shipping_cost)}</td>
+                      <td data-label="Billed" className="num unsettled-money-cell unsettled-billed-cell">
+                        {formatCurrency(Math.max(0, (parseFloat(o.shipping_cost) || 0) - (parseFloat(o.discount_amount) || 0)))}
+                        {(parseFloat(o.discount_amount) || 0) > 0 && (
+                          <div className="text-xs text-tertiary fw-400">
+                            {formatCurrency(o.shipping_cost)} − {formatCurrency(o.discount_amount)} discount
+                          </div>
+                        )}
+                      </td>
                       <td data-label="Paid" className="num unsettled-money-cell unsettled-paid-cell">{formatCurrency(o.amount_paid)}</td>
                       <td data-label="Balance" className="num fw-700 text-error unsettled-money-cell unsettled-balance-cell">
                         {formatCurrency(o.outstanding)}
@@ -547,7 +554,7 @@ const UnsettledDeliveriesPage = () => {
                     <td>{o.status}</td>
                     <td>{(BUCKET_META[o.settlement_bucket] || {}).label || '—'}</td>
                     <td>{o.promised_payment_date ? formatDate(o.promised_payment_date) : '—'}</td>
-                    <td className="num">{formatCurrency(o.shipping_cost)}</td>
+                    <td className="num">{formatCurrency(Math.max(0, (parseFloat(o.shipping_cost) || 0) - (parseFloat(o.discount_amount) || 0)))}</td>
                     <td className="num">{formatCurrency(o.amount_paid)}</td>
                     <td className="num">{formatCurrency(o.outstanding)}</td>
                   </tr>
