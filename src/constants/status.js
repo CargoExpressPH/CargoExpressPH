@@ -213,6 +213,29 @@ export const hasPendingCancellation = (order) =>
   order?.status === ORDER_STATUS.PENDING_CANCELLATION;
 
 /**
+ * Statuses at which a CUSTOMER can no longer edit sender/receiver contact
+ * and address details themselves. Once the parcel is out on a delivery run
+ * or the booking is done/dead, the details on it are what the courier is
+ * already acting on (or nothing is happening at all) — a customer-side edit
+ * at that point would not reach anyone.
+ *
+ * Admin editing is a separate, override path (see AdminOrderDetailPage) and
+ * is intentionally NOT gated by this list — staff may need to correct a
+ * typo'd address at any stage short of the booking being gone.
+ */
+export const CONTACT_EDIT_LOCKED_STATUSES = [
+  ORDER_STATUS.OUT_FOR_DELIVERY,
+  ORDER_STATUS.DELIVERED,
+  ORDER_STATUS.CANCELLED,
+];
+
+/** Can the CUSTOMER still edit sender/receiver contact & address details? */
+export const canEditContactDetails = (order) => {
+  if (!order?.status) return false;
+  return !CONTACT_EDIT_LOCKED_STATUSES.includes(order.status);
+};
+
+/**
  * Which step the tracking timeline should light up.
  *
  * 'Pending Cancellation' is not on STATUS_TIMELINE — it is a hold, not a place

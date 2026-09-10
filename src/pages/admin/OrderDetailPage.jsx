@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { getOrderById, updateOrder, getTripReassignments, reassignTrip, getActivityLogsByRecord, getPaymentTransactions, recordAdditionalPayment, recordPickupPayment, recordDeliveryPayment, getOrderStatusEvents, reviewOrderCancellation, cancelOrderAsAdmin, assignOrderToCustomer, getLatestPaymentAttemptByOrder, clearPaymentReceiptUrls } from '../../lib/database';
+import { getOrderById, updateOrder, updateOrderContactDetails, getTripReassignments, reassignTrip, getActivityLogsByRecord, getPaymentTransactions, recordAdditionalPayment, recordPickupPayment, recordDeliveryPayment, getOrderStatusEvents, reviewOrderCancellation, cancelOrderAsAdmin, assignOrderToCustomer, getLatestPaymentAttemptByOrder, clearPaymentReceiptUrls } from '../../lib/database';
 import { pollPaymentStatus } from '../../lib/paymongo';
 import { logOrder, logPayment } from '../../lib/activityLog';
 import { buildStatusTimestamps } from '../../utils/statusTimestamps';
@@ -13,6 +13,7 @@ import PickupModal from '../../components/ui/PickupModal';
 import TripAssignModal from '../../components/ui/TripAssignModal';
 import TripReassignModal from '../../components/ui/TripReassignModal';
 import AssignCustomerModal from '../../components/ui/AssignCustomerModal';
+import EditContactDetailsModal from '../../components/ui/EditContactDetailsModal';
 import AdditionalPaymentModal from '../../components/ui/AdditionalPaymentModal';
 import DeliveryModal from '../../components/ui/DeliveryModal';
 import ConfirmModal from '../../components/ui/ConfirmModal';
@@ -115,6 +116,8 @@ const AdminOrderDetailPage = () => {
   const [showTripModal, setShowTripModal] = useState(false);
   const [showReassignModal, setShowReassignModal] = useState(false);
   const [showAssignCustomerModal, setShowAssignCustomerModal] = useState(false);
+  const [showEditContactModal, setShowEditContactModal] = useState(false);
+  const [savingContactDetails, setSavingContactDetails] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [paymentResultModal, setPaymentResultModal] = useState(null);
@@ -456,6 +459,25 @@ const AdminOrderDetailPage = () => {
       toast.success(`${order.tracking_number} linked to ${customer.name || 'customer'}.`);
     } catch (e) {
       toast.error(e.message || 'Failed to assign this booking to a customer.');
+    }
+  };
+
+  // Admin override: update_order_contact_details() (see lib/database.js)
+  // skips the status-lock check for an admin caller (that lock is
+  // customer-only — see canEditContactDetails) but still writes the
+  // activity_logs row in the same transaction as the update, so no separate
+  // logOrder() call is made here on purpose.
+  const handleSaveContactDetails = async (fields) => {
+    setSavingContactDetails(true);
+    try {
+      await updateOrderContactDetails(id, fields);
+      setShowEditContactModal(false);
+      await loadOrder();
+      toast.success('Sender & receiver details updated.');
+    } catch (e) {
+      toast.error(e.message || 'Failed to update sender/receiver details.');
+    } finally {
+      setSavingContactDetails(false);
     }
   };
 
@@ -930,6 +952,14 @@ const AdminOrderDetailPage = () => {
       </ErrorBoundarySection>
 
       {/* Sender / Receiver */}
+      <div className="flex items-center justify-between mb-8">
+        <h3 className="text-sm fw-700 m-0">Sender &amp; Receiver</h3>
+        {/* Admin override: unlike the customer page, this is never hidden by
+            order status — see canEditContactDetails' doc comment. */}
+        <button type="button" className="btn btn-outline btn-sm" onClick={() => setShowEditContactModal(true)}>
+          Edit Details
+        </button>
+      </div>
       <div className="grid grid-2 mb-16">
         <div className="card stagger-item" style={{ animationDelay: '180ms' }}><div className="card-body p-16">
           <div className="text-xs text-tertiary font-bold text-uppercase flex items-center gap-6" style={{ marginBottom: 10 }}><User size={12} /> Sender</div>
@@ -944,6 +974,14 @@ const AdminOrderDetailPage = () => {
           <div className="text-xs text-secondary" style={{ marginTop: 6 }}><MapPin size={12} className="inline mr-4" />{order.receiver_address}</div>
         </div></div>
       </div>
+
+      <EditContactDetailsModal
+        isOpen={showEditContactModal}
+        onClose={() => setShowEditContactModal(false)}
+        order={order}
+        onSave={handleSaveContactDetails}
+        saving={savingContactDetails}
+      />
 
       {/* Trip Assignment Info */}
       {order.trip_id && (

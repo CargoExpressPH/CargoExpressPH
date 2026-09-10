@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { getOrderById, requestOrderCancellation, getPaymentTransactions, submitFeedback, checkIfFeedbackExists, getOrderStatusEvents, getLatestPaymentAttemptByOrder } from '../../lib/database';
+import { getOrderById, updateOrderContactDetails, requestOrderCancellation, getPaymentTransactions, submitFeedback, checkIfFeedbackExists, getOrderStatusEvents, getLatestPaymentAttemptByOrder } from '../../lib/database';
 import { buildStatusTimestamps } from '../../utils/statusTimestamps';
 import { resolvePhotoUrls } from '../../lib/storage';
 import { supabase } from '../../lib/supabase';
@@ -12,6 +12,7 @@ import TrackingTimeline from '../../components/ui/TrackingTimeline';
 import ConfirmModal from '../../components/ui/ConfirmModal';
 import PaymentResultModal from '../../components/ui/PaymentResultModal';
 import CancelBookingModal from '../../components/ui/CancelBookingModal';
+import EditContactDetailsModal from '../../components/ui/EditContactDetailsModal';
 import FocusTrap from '../../components/ui/FocusTrap';
 import ImageLightbox from '../../components/ui/ImageLightbox';
 import ResolvedPhotoLink from '../../components/ui/ResolvedPhotoLink';
@@ -22,7 +23,7 @@ import { useToast } from '../../hooks/useToast';
 import usePageTitle from '../../hooks/usePageTitle';
 import { formatPhDate, formatPhDateTime } from '../../utils/datetime';
 import { formatMoney, sanitizeAmount, parseAmount } from '../../utils/currencyInput';
-import { outstandingBalance, getSettlementState, isOrderPriced, SETTLEMENT_STATE, ORDER_STATUS, canCancelOrder, hasPendingCancellation, timelineStatus } from '../../constants/status';
+import { outstandingBalance, getSettlementState, isOrderPriced, SETTLEMENT_STATE, ORDER_STATUS, canCancelOrder, hasPendingCancellation, timelineStatus, canEditContactDetails } from '../../constants/status';
 import { formatPaymentType, formatRecordedBy, getPaymentStatusDisplay, formatPaymentMethod as fmtMethod, getCustomerFriendlyNotes, getCustomerVisibleRef } from '../../utils/paymentDisplay';
 
 // Max time (ms) to wait for data before giving up and showing an error.
@@ -59,6 +60,8 @@ const OrderDetailPage = () => {
   const [error, setError] = useState(null);
   const [cancelling, setCancelling] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
+  const [showEditContactModal, setShowEditContactModal] = useState(false);
+  const [savingContactDetails, setSavingContactDetails] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(-1);
   const [lightboxImages, setLightboxImages] = useState([]);
   const [resolvedPickupPhotos, setResolvedPickupPhotos] = useState([]);
@@ -544,6 +547,25 @@ const OrderDetailPage = () => {
     }
   };
 
+  // Customer-side save for the Sender/Receiver edit modal. Routed through
+  // update_order_contact_details() (see lib/database.js), which re-checks
+  // ownership and the status lock server-side and writes the activity_logs
+  // row in the same transaction as the update — no separate logOrder() call
+  // needed here, and none is made on purpose.
+  const handleSaveContactDetails = async (fields) => {
+    setSavingContactDetails(true);
+    try {
+      await updateOrderContactDetails(id, fields);
+      setShowEditContactModal(false);
+      await loadOrder();
+      toast.success('Sender & receiver details updated.');
+    } catch (err) {
+      toast.error(normalizeError(err));
+    } finally {
+      setSavingContactDetails(false);
+    }
+  };
+
   const handleFeedbackSkip = () => {
     localStorage.setItem(`feedback_skipped_${id}`, 'true');
     setShowFeedbackModal(false);
@@ -852,6 +874,28 @@ const OrderDetailPage = () => {
           <div className="text-xs text-secondary"><MapPin size={12} className="inline mr-4" />{order.receiver_address}</div>
         </div></div>
       </div>
+
+      {/* Hidden once the parcel is out for delivery, delivered, or cancelled —
+          see canEditContactDetails. Past that point the address on the row is
+          either already what the courier is acting on or the booking is done,
+          so there is nothing left for an edit here to reach. */}
+      {canEditContactDetails(order) && (
+        <button
+          type="button"
+          className="btn btn-outline btn-sm animate-slide-up mb-16"
+          onClick={() => setShowEditContactModal(true)}
+        >
+          <User size={14} /> Edit Details
+        </button>
+      )}
+
+      <EditContactDetailsModal
+        isOpen={showEditContactModal}
+        onClose={() => setShowEditContactModal(false)}
+        order={order}
+        onSave={handleSaveContactDetails}
+        saving={savingContactDetails}
+      />
 
       {/* Package Details */}
       <div className="customer-detail-card customer-package-card card stagger-item mb-16" style={{ animationDelay: '180ms' }}>

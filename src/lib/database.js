@@ -439,6 +439,40 @@ export const updateOrder = async (orderId, updates) => {
 };
 
 /**
+ * Edit an existing booking's sender/receiver identity & address — the ONLY
+ * fields this path can touch. Routed through update_order_contact_details()
+ * rather than the plain `.update()` above because there is no "customer can
+ * update own orders" RLS policy (see 20260524190000_production_hardening.sql
+ * — every customer-side order mutation is a narrow SECURITY DEFINER RPC, not
+ * a raw table write). That RPC re-checks ownership and the status lock
+ * server-side and writes the activity_logs row in the same transaction as the
+ * update, so the audit trail cannot be lost between two round trips.
+ */
+export const updateOrderContactDetails = async (orderId, fields) => {
+  const { data, error } = await supabase.rpc('update_order_contact_details', {
+    p_order_id: orderId,
+    p_sender_name: fields.sender_name,
+    p_sender_phone: fields.sender_phone,
+    p_sender_province: fields.sender_province,
+    p_sender_city: fields.sender_city,
+    p_sender_barangay: fields.sender_barangay,
+    p_sender_street: fields.sender_street,
+    p_sender_landmark: fields.sender_landmark,
+    p_sender_address: fields.sender_address,
+    p_receiver_name: fields.receiver_name,
+    p_receiver_phone: fields.receiver_phone,
+    p_receiver_province: fields.receiver_province,
+    p_receiver_city: fields.receiver_city,
+    p_receiver_barangay: fields.receiver_barangay,
+    p_receiver_street: fields.receiver_street,
+    p_receiver_landmark: fields.receiver_landmark,
+    p_receiver_address: fields.receiver_address,
+  });
+  if (error) throw error;
+  return data;
+};
+
+/**
  * Admin cancels a booking outright, stating why.
  *
  * Distinct from reviewOrderCancellation, which rules on a request the customer
