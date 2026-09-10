@@ -203,7 +203,7 @@ const ActivityLogsPage = () => {
         search: search || null,
         hideLogins,
       });
-      const headers = ['Date & Time', 'Admin', 'Module', 'Action', 'Reference', 'Details'];
+      const headers = ['Date & Time', 'Performed By', 'Module', 'Action', 'Reference', 'Details'];
       const rows = exportLogs.map(l => [
         formatDate(l.created_at),
         l.admin_name,
@@ -248,7 +248,7 @@ const ActivityLogsPage = () => {
             <ClipboardList size={24} color="var(--primary)" aria-hidden="true" />
             Activity Logs
           </h1>
-          <p className="text-secondary text-sm mt-4">Audit trail of admin actions — logs are kept for 7 days, older entries are deleted automatically</p>
+          <p className="text-secondary text-sm mt-4">Audit trail of system actions — logs are kept for 7 days, older entries are deleted automatically</p>
         </div>
         <div className="flex items-center gap-8">
           <span className={`activity-logs-live-status activity-logs-live-status--${liveStatus}`} role="status" aria-live="polite">
@@ -336,7 +336,7 @@ const ActivityLogsPage = () => {
             <table className="data-table data-table--wide">
               <thead>
                 <tr>
-                  {['Date & Time', 'Admin', 'Module', 'Action', 'Reference', 'Details'].map(h => (
+                  {['Date & Time', 'Performed By', 'Module', 'Action', 'Reference', 'Details'].map(h => (
                     <th key={h} scope="col">{h}</th>
                   ))}
                 </tr>
@@ -350,7 +350,7 @@ const ActivityLogsPage = () => {
                         {formatDate(log.created_at)}
                       </div>
                     </td>
-                    <td data-label="Admin">
+                    <td data-label="Performed By">
                       <div className="flex items-center gap-6">
                         <User size={12} color="var(--text-tertiary)" />
                         <span className="font-bold">{log.admin_name}</span>
