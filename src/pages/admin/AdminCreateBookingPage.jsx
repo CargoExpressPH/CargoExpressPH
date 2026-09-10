@@ -279,6 +279,10 @@ const AdminCreateBookingPage = () => {
         sender_facebook: normalizeName(form.sender_facebook),
         sender_province: form.sender_province,
         sender_city: form.sender_city,
+        sender_barangay: form.sender_barangay,
+        sender_street: form.sender_street,
+        sender_lot_block: form.sender_lot_block,
+        sender_landmark: form.sender_landmark,
         // Receiver
         receiver_name: normalizeName(form.receiver_name),
         receiver_phone: form.receiver_phone.trim(),
@@ -286,6 +290,10 @@ const AdminCreateBookingPage = () => {
         receiver_facebook: normalizeName(form.receiver_facebook),
         receiver_province: form.receiver_province,
         receiver_city: form.receiver_city,
+        receiver_barangay: form.receiver_barangay,
+        receiver_street: form.receiver_street,
+        receiver_lot_block: form.receiver_lot_block,
+        receiver_landmark: form.receiver_landmark,
         // Package
         package_description: form.package_description.trim(),
         notes: form.notes.trim() || null,
