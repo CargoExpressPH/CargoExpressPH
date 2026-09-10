@@ -36,7 +36,7 @@ const SIDES = [
   { prefix: 'receiver', label: 'Receiver' },
 ];
 
-const FIELD_KEYS = ['name', 'phone', 'province', 'city', 'barangay', 'street', 'landmark'];
+const FIELD_KEYS = ['name', 'phone', 'province', 'city', 'barangay', 'street', 'lot_block', 'landmark'];
 
 const buildInitialForm = (order) => {
   const form = {};
@@ -109,7 +109,7 @@ const EditContactDetailsModal = ({ isOpen, onClose, order, onSave, saving = fals
 
       const addressColumn = `${prefix}_address`;
       payload[addressColumn] = buildFullAddress({
-        lotBlock: order[`${prefix}_lot_block`],
+        lotBlock: payload[`${prefix}_lot_block`],
         street: payload[`${prefix}_street`],
         barangay: payload[`${prefix}_barangay`],
         city: payload[`${prefix}_city`],
@@ -226,6 +226,17 @@ const EditContactDetailsModal = ({ isOpen, onClose, order, onSave, saving = fals
             {errEl('street')}
           </div>
           <div className="form-group">
+            <label className="form-label" htmlFor={id('lot_block')}>Lot / Block / Purok <span className="required">*</span></label>
+            <input
+              id={id('lot_block')}
+              className={`form-input ${fe('lot_block') ? 'field-invalid' : ''}`}
+              value={form[`${prefix}_lot_block`]}
+              onChange={(e) => u(`${prefix}_lot_block`, toAddressCase(e.target.value))}
+              autoCapitalize="words"
+            />
+            {errEl('lot_block')}
+          </div>
+          <div className="form-group col-full">
             <label className="form-label" htmlFor={id('landmark')}>Landmark <span className="required">*</span></label>
             <input
               id={id('landmark')}
