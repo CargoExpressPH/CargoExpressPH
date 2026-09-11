@@ -11,6 +11,7 @@
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4'
+import { authorizeOrderUpdate } from './authorization.js'
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -48,7 +49,7 @@ const getAttempt = async (adminSupabase: ReturnType<typeof createClient>, source
     .from('payment_attempts')
     // order_id is selected for the ownership binding in ensureAttempt / poll —
     // without it, an attempt could be silently re-pointed at another order.
-    .select('source_id, order_id, amount, status, payment_id, payment_status, payment_type, estimated_cost, promised_payment_date')
+    .select('source_id, order_id, amount, status, payment_id, payment_status, payment_type, estimated_cost, promised_payment_date, actual_weight, payer_type, pickup_photos, created_by')
     .eq('source_id', sourceId)
     .maybeSingle()
   return data
@@ -92,8 +93,11 @@ const ensureAttempt = async (
     amount,
     description,
     actual_weight: orderUpdate.actualWeight ?? null,
-    payer_type: orderUpdate.payerType || 'sender',
-    pickup_photos: orderUpdate.pickupPhotos || null,
+    // No fallback to "sender" here. A customer payment must preserve the
+    // order's existing Freight Prepaid / Freight Collect choice; only an
+    // admin-authorized pickup attempt may stage a new value.
+    payer_type: orderUpdate.payerType ?? null,
+    pickup_photos: orderUpdate.pickupPhotos ?? null,
     // Bug Fix #2: Preserve payment_type, estimated_cost, promised_payment_date.
     // These are set by the frontend when creating the payment attempt and must
     // not be reset to defaults when the edge function re-upserts the row.
@@ -104,16 +108,12 @@ const ensureAttempt = async (
   }
 
   if (existing) {
-    if (existing.status !== 'reconciled') {
-      console.log(`[paymongo-create-payment] Updating existing attempt for source ${sourceId}, status=${existing.status}`)
-      await adminSupabase
-        .from('payment_attempts')
-        .update(payload)
-        .eq('source_id', sourceId)
-    } else {
-      console.log(`[paymongo-create-payment] Attempt already reconciled for source ${sourceId}`)
-    }
-    return getAttempt(adminSupabase, sourceId)
+    // A PayMongo source is an idempotency key as well as an order binding.
+    // Its creator and staged admin metadata are immutable after the first
+    // registration. Otherwise an order owner who learns an admin checkout
+    // source could re-register it and replace/erase the trusted pickup data.
+    console.log(`[paymongo-create-payment] Attempt already registered for source ${sourceId}, status=${existing.status}`)
+    return existing
   }
 
   console.log(`[paymongo-create-payment] Inserting new attempt for source ${sourceId}`)
@@ -221,6 +221,16 @@ serve(async (req) => {
     const adminSupabase = serviceClient()
     const isAdmin = !profileError && profile?.role === 'admin'
 
+    const orderUpdateAuthorization = authorizeOrderUpdate(orderUpdate, isAdmin)
+    if (orderUpdateAuthorization.error) {
+      console.warn(
+        `[paymongo-create-payment] ORDER METADATA REJECTED user=${userData.user.id} ` +
+        `role=${isAdmin ? 'admin' : 'customer'} reason=${orderUpdateAuthorization.error}`,
+      )
+      return json({ error: orderUpdateAuthorization.error }, orderUpdateAuthorization.status)
+    }
+    const authorizedOrderUpdate = orderUpdateAuthorization.value
+
     // Load the order once — needed for BOTH the ownership check and the
     // server-side amount validation below.
     let orderRow: {
@@ -229,11 +239,11 @@ serve(async (req) => {
       tracking_number: string | null
     } | null = null
 
-    if (orderUpdate?.orderId) {
+    if (authorizedOrderUpdate?.orderId) {
       const { data } = await adminSupabase
         .from('orders')
         .select('user_id, remaining_balance, tracking_number')
-        .eq('id', orderUpdate.orderId)
+        .eq('id', authorizedOrderUpdate.orderId)
         .single()
       orderRow = data as typeof orderRow
     }
@@ -276,7 +286,7 @@ serve(async (req) => {
         }
         if (exceeds) {
           console.warn(
-            `[paymongo-create-payment] AMOUNT REJECTED order=${orderUpdate?.orderId} ` +
+            `[paymongo-create-payment] AMOUNT REJECTED order=${authorizedOrderUpdate?.orderId} ` +
             `tracking=${orderRow.tracking_number} requested=${parsedAmount} ` +
             `balance=${balance} user=${userData.user.id}`,
           )
@@ -293,7 +303,7 @@ serve(async (req) => {
         // Logged for audit; the ledger records what was actually collected.
         console.warn(
           `[paymongo-create-payment] ADMIN OVER-BALANCE CHARGE (allowed) ` +
-          `order=${orderUpdate?.orderId} tracking=${orderRow.tracking_number} ` +
+          `order=${authorizedOrderUpdate?.orderId} tracking=${orderRow.tracking_number} ` +
           `requested=${parsedAmount} stored_balance=${balance} admin=${userData.user.id}`,
         )
       }
@@ -315,7 +325,7 @@ serve(async (req) => {
       // but the attempt is looked up by sourceId alone. Without this binding a
       // customer could poll a stranger's source while passing their own order id
       // and read back its amount, status and payment id.
-      if (!isAdmin && attempt.order_id !== orderUpdate?.orderId) {
+      if (!isAdmin && attempt.order_id !== authorizedOrderUpdate?.orderId) {
         return json({ error: 'Unauthorized to poll this payment' }, 403)
       }
 
@@ -432,7 +442,7 @@ serve(async (req) => {
       sourceId,
       parsedAmount,
       description || null,
-      orderUpdate || null,
+      authorizedOrderUpdate || null,
       userData.user.id,
     )
 

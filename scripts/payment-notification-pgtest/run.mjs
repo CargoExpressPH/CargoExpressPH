@@ -60,6 +60,7 @@ const migrations = [
   '20260909020000_fix_paymongo_reconciliation_idempotency.sql',
   '20260909030000_manual_payment_hardening.sql',
   '20260909120000_payment_confirmation_notification_hardening.sql',
+  '20260911130000_secure_paymongo_order_metadata.sql',
 ];
 for (const m of migrations) {
   const sql = readFileSync(path.join(REPO, 'supabase/migrations', m), 'utf8');

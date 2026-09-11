@@ -124,6 +124,7 @@ const migrations = [
   '20260911020000_shipping_discount_guards.sql',
   '20260911030000_record_pickup_payment_discount.sql',
   '20260911040000_sales_summary_discount_aware.sql',
+  '20260911130000_secure_paymongo_order_metadata.sql',
 ];
 for (const m of migrations) {
   const sql = readFileSync(path.join(REPO, 'supabase/migrations', m), 'utf8');

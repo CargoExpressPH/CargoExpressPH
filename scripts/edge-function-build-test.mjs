@@ -1,6 +1,8 @@
 import { build } from 'esbuild';
 
 const entryPoints = [
+  'supabase/functions/paymongo-create-payment/index.ts',
+  'supabase/functions/paymongo-webhook/index.ts',
   'supabase/functions/store-photo-fallback/index.ts',
   'supabase/functions/get-photo-fallback/index.ts',
   'supabase/functions/delete-photo-fallback/index.ts',

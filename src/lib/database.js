@@ -1848,8 +1848,10 @@ export const createPaymentAttempt = async (attempt) => {
       amount: attempt.amount,
       description: attempt.description || null,
       actual_weight: attempt.actual_weight ?? null,
-      payer_type: attempt.payer_type || 'sender',
-      pickup_photos: attempt.pickup_photos || [],
+      // Omission means "preserve the order" during reconciliation. Defaulting
+      // to sender here could silently convert a Freight Collect order.
+      payer_type: attempt.payer_type ?? null,
+      pickup_photos: attempt.pickup_photos ?? null,
       payment_type: attempt.payment_type || 'full',
       estimated_cost: attempt.estimated_cost ?? null,
       promised_payment_date: attempt.promised_payment_date || null,
@@ -3223,4 +3225,3 @@ export const removeUnusedPhotos = async (confirmationToken) => {
   if (data?.error) throw new Error(data.error);
   return data;
 };
-

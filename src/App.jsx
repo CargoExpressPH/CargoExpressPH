@@ -308,7 +308,7 @@ function App() {
 
   // Mounted once at the root so it covers every number input in the app,
   // admin and customer alike, without touching each page individually.
-  // Scrolling the mouse wheel/trackpad over a FOCUSED <input type="number">
+  // Scrolling the mouse wheel/trackpad over a focused numeric input element
   // is the browser's built-in way to increment/decrement it — easy to
   // trigger by accident while scrolling past one. { passive: false } is
   // required for preventDefault() to have any effect on a wheel listener;

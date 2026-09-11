@@ -101,11 +101,11 @@ export const checkPaymentStatus = async (sourceId) => {
  * @param {string} sourceId - Chargeable source ID
  * @param {number} amount - Amount in PHP
  * @param {string} description - Payment description
- * @param {object} [orderUpdate] - Optional order data for server-side reconciliation
+ * @param {object} [orderUpdate] - Order binding plus admin-only pickup metadata
  * @param {string} [orderUpdate.orderId] - Order UUID
- * @param {number} [orderUpdate.actualWeight] - Actual weight in kg
- * @param {string} [orderUpdate.payerType] - 'sender' or 'receiver'
- * @param {string[]} [orderUpdate.pickupPhotos] - Photo URLs
+ * @param {number} [orderUpdate.actualWeight] - Admin-only actual weight in kg
+ * @param {string} [orderUpdate.payerType] - Admin-only 'sender' or 'receiver'
+ * @param {string[]} [orderUpdate.pickupPhotos] - Admin-only photo references
  */
 export const createPayment = async (sourceId, amount, description, orderUpdate = null) => {
   if (!sourceId) {
@@ -144,7 +144,7 @@ export const createPayment = async (sourceId, amount, description, orderUpdate =
  * This links the source to the order so webhooks can process it.
  * @param {string} sourceId - Created source ID
  * @param {number} amount - Amount in PHP
- * @param {object} orderUpdate - Order data { orderId, actualWeight, payerType, pickupPhotos }
+ * @param {object} orderUpdate - orderId plus optional admin-only pickup metadata
  */
 export const registerSource = async (sourceId, amount, orderUpdate) => {
   if (!sourceId || !orderUpdate?.orderId) {

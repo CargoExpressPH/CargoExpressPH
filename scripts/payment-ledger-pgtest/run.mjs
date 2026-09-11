@@ -45,6 +45,7 @@ const migrations = [
   '20260909010000_payment_ledger_integrity_columns.sql',
   '20260909020000_fix_paymongo_reconciliation_idempotency.sql',
   '20260909030000_manual_payment_hardening.sql',
+  '20260911130000_secure_paymongo_order_metadata.sql',
 ];
 for (const m of migrations) {
   const sql = readFileSync(path.join(REPO, 'supabase/migrations', m), 'utf8');
@@ -430,6 +431,94 @@ console.log('\n== Scenario: manually-entered GCash reference IS accepted at pick
   ok('pickup-time manual GCash (verified) is accepted and settles the order', res.rows[0].payment_status === 'paid');
   const raw = await db.query(`SELECT gcash_channel, transaction_reference FROM payment_transactions WHERE order_id=$1`, [orderId]);
   ok('the ledger row is tagged gcash_channel=manual', raw.rows[0].gcash_channel === 'manual');
+}
+
+console.log('\n== Scenario: customer-created PayMongo attempt cannot overwrite pickup metadata ==');
+{
+  const orderId = await newOrder('TRK-020', 1000);
+  await db.query(
+    `UPDATE orders
+        SET actual_weight = 10,
+            payer_type = 'receiver',
+            pickup_photos = '["trusted-photo"]'::jsonb,
+            promised_payment_date = CURRENT_DATE + 7
+      WHERE id = $1`,
+    [orderId]
+  );
+  await db.query(
+    `INSERT INTO payment_attempts (
+       source_id, order_id, amount, payment_type, status, created_by,
+       actual_weight, payer_type, pickup_photos, promised_payment_date
+     ) VALUES (
+       'src_020', $1, 100, 'full', 'pending', $2,
+       1, 'sender', '["untrusted-photo"]'::jsonb, CURRENT_DATE
+     )`,
+    [orderId, CUST_ID]
+  );
+  await reconcile('src_020', 'pay_020', 100, 'paid');
+  const order = await getOrder(orderId);
+  ok('customer attempt preserves trusted actual weight', Number(order.actual_weight) === 10, order.actual_weight);
+  ok('customer attempt preserves Freight Collect payer type', order.payer_type === 'receiver', order.payer_type);
+  ok('customer attempt preserves trusted pickup photos', JSON.stringify(order.pickup_photos) === JSON.stringify(['trusted-photo']), order.pickup_photos);
+  ok('customer attempt preserves the admin promise date', String(order.promised_payment_date).slice(0, 10) !== new Date().toISOString().slice(0, 10));
+  ok('the genuine customer payment is still credited', Number(order.amount_paid) === 100 && order.payment_status === 'partial');
+}
+
+console.log('\n== Scenario: admin-created PayMongo pickup attempt keeps the existing combined workflow ==');
+{
+  const orderId = await newOrder('TRK-021', 1000);
+  await db.query(
+    `UPDATE orders
+        SET actual_weight = 10,
+            payer_type = 'sender',
+            pickup_photos = '["old-photo"]'::jsonb
+      WHERE id = $1`,
+    [orderId]
+  );
+  await db.query(
+    `INSERT INTO payment_attempts (
+       source_id, order_id, amount, payment_type, status, created_by,
+       actual_weight, payer_type, pickup_photos
+     ) VALUES (
+       'src_021', $1, 1000, 'full', 'pending', $2,
+       12.5, 'receiver', '["admin-photo"]'::jsonb
+     )`,
+    [orderId, ADMIN_ID]
+  );
+  await reconcile('src_021', 'pay_021', 1000, 'paid');
+  const order = await getOrder(orderId);
+  ok('admin attempt may still apply verified actual weight', Number(order.actual_weight) === 12.5, order.actual_weight);
+  ok('admin attempt may still confirm Freight Collect', order.payer_type === 'receiver', order.payer_type);
+  ok('admin attempt may still apply pickup evidence', JSON.stringify(order.pickup_photos) === JSON.stringify(['admin-photo']), order.pickup_photos);
+  ok('admin PayMongo payment is credited normally', Number(order.amount_paid) === 1000 && order.payment_status === 'paid');
+}
+
+console.log('\n== Scenario: weight and payer defaults fail safely at the database boundary ==');
+{
+  const orderId = await newOrder('TRK-022', 500);
+  await newAttempt('src_022', orderId, 500);
+  const attempt = await db.query(`SELECT payer_type FROM payment_attempts WHERE source_id = 'src_022'`);
+  ok('an omitted payment-attempt payer type stays NULL instead of defaulting to sender', attempt.rows[0].payer_type === null);
+
+  let rejected = false;
+  try {
+    await db.query(`UPDATE orders SET actual_weight = -1 WHERE id = $1`, [orderId]);
+  } catch (e) {
+    rejected = /check_orders_actual_weight_valid/.test(e.message);
+  }
+  ok('orders reject a negative actual weight', rejected);
+
+  rejected = false;
+  try {
+    await db.query(
+      `INSERT INTO payment_attempts (source_id, order_id, amount, actual_weight)
+       VALUES ('src_022_bad', $1, 10, 0)`,
+      [orderId]
+    );
+  } catch (e) {
+    rejected = /payment_attempts_actual_weight_valid/.test(e.message);
+  }
+  ok('payment attempts reject a zero actual weight', rejected);
 }
 
 console.log('\n== Scenario: order totals stay consistent with the ledger (spot check across all orders) ==');
