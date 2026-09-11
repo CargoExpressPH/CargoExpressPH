@@ -928,7 +928,6 @@ const OrderDetailPage = () => {
             <div><span className="text-xs text-tertiary">Description</span><div className="text-sm">{order.package_description || '—'}</div></div>
 
             {order.actual_weight && <div><span className="text-xs text-tertiary">Actual Weight</span><div className="text-sm font-bold text-success">{order.actual_weight} kg</div></div>}
-            <div><span className="text-xs text-tertiary">Dimensions</span><div className="text-sm">{order.package_dimensions || '—'}</div></div>
           </div>
           {order.notes && (
             <div className="mt-12 pt-12" style={{ borderTop: '1px dashed var(--customer-line, #E2E8F0)' }}>

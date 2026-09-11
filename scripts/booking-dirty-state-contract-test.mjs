@@ -73,9 +73,30 @@ assert.equal(meaningfulStorage.getItem('booking_form'), null);
 assert.equal(meaningfulStorage.getItem('booking_step'), null);
 
 const bookingPage = readFileSync('src/pages/customer/BookShipmentPage.jsx', 'utf8');
+const customerOrderDetailPage = readFileSync('src/pages/customer/OrderDetailPage.jsx', 'utf8');
 assert.match(bookingPage, /persistBookingDraft\(form, step\)/);
 assert.match(bookingPage, /delete nextLocationState\.preselectedRoute/);
 assert.match(bookingPage, /delete nextLocationState\.preselectedTripId/);
 assert.doesNotMatch(bookingPage, /sessionStorage\.setItem\('booking_(?:form|step)'/);
+assert.match(
+  bookingPage,
+  /const shippingRateLabel = selectedTrip \? 'Shipping Rate' : 'Estimated Shipping Rate';/,
+  'Step 4 must label the fallback rate as estimated when no trip is selected.',
+);
+assert.equal(
+  bookingPage.match(/\{shippingRateLabel\}/g)?.length,
+  2,
+  'Customer Steps 4 and 5 must use the same conditional rate heading.',
+);
+assert.equal(
+  bookingPage.match(/Your total is calculated when we weigh your parcel at pickup\./g)?.length,
+  2,
+  'Customer Steps 4 and 5 must use the same pickup-weighing explanation.',
+);
+assert.doesNotMatch(
+  customerOrderDetailPage,
+  /package_dimensions|>Dimensions</,
+  'Customer order details must not display a dimensions field that is not stored by the system.',
+);
 
 console.log(`Booking dirty-state contract tests passed (${BOOKING_DATA_FIELDS.length} protected fields).`);

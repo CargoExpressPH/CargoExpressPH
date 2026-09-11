@@ -182,6 +182,7 @@ const BookShipmentPage = () => {
   );
   const selectedTrip = filteredTrips.find(t => t.id === form.trip_id);
   const effectivePricePerKilo = parseFloat(selectedTrip?.price_per_kg || 0) > 0 ? parseFloat(selectedTrip.price_per_kg) : pricePerKilo;
+  const shippingRateLabel = selectedTrip ? 'Shipping Rate' : 'Estimated Shipping Rate';
   // No cost preview: weight is the only price input and the customer no
   // longer declares one. The parcel is priced when it is weighed at pickup.
   const selectedTripCapacity = Number(selectedTrip?.capacity || 0);
@@ -902,7 +903,7 @@ const BookShipmentPage = () => {
             />
           </div>
           <div className="booking-cost-card mb-16 text-center">
-            <div className="text-sm text-secondary">Shipping Rate</div>
+            <div className="text-sm text-secondary">{shippingRateLabel}</div>
             <div className="text-2xl fw-800 text-primary">₱{effectivePricePerKilo}/kg</div>
             <div className="text-xs text-tertiary">Your total is calculated when we weigh your parcel at pickup.</div>
           </div>
@@ -943,9 +944,9 @@ const BookShipmentPage = () => {
             </div>
           </div>
           <div className="booking-cost-card text-center mb-16">
-            <div className="text-sm text-secondary">Shipping Rate</div>
+            <div className="text-sm text-secondary">{shippingRateLabel}</div>
             <div className="fw-800 text-primary" style={{ fontSize: '2rem' }}>₱{effectivePricePerKilo}/kg</div>
-            <div className="text-xs text-tertiary mt-4">Weighed at pickup — you pay for the actual weight, nothing estimated.</div>
+            <div className="text-xs text-tertiary mt-4">Your total is calculated when we weigh your parcel at pickup.</div>
           </div>
           <button
             type="button"
