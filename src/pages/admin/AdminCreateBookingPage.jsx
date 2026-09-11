@@ -604,6 +604,7 @@ const AdminCreateBookingPage = () => {
               <div className="form-group">
                 <label className="form-label" htmlFor="ab-sender-province">Province</label>
                 <CustomSelect
+                  searchable
                   id="ab-sender-province"
                   className={`form-select ${invalidClass('sender_province', fieldErrors)}`}
                   value={form.sender_province}
@@ -620,6 +621,7 @@ const AdminCreateBookingPage = () => {
               <div className="form-group">
                 <label className="form-label" htmlFor="ab-sender-city">City / Municipality</label>
                 <CustomSelect
+                  searchable
                   id="ab-sender-city"
                   className={`form-select ${invalidClass('sender_city', fieldErrors)}`}
                   value={form.sender_city}
@@ -764,6 +766,7 @@ const AdminCreateBookingPage = () => {
               <div className="form-group">
                 <label className="form-label" htmlFor="ab-receiver-province">Province</label>
                 <CustomSelect
+                  searchable
                   id="ab-receiver-province"
                   className={`form-select ${invalidClass('receiver_province', fieldErrors)}`}
                   value={form.receiver_province}
@@ -780,6 +783,7 @@ const AdminCreateBookingPage = () => {
               <div className="form-group">
                 <label className="form-label" htmlFor="ab-receiver-city">City / Municipality</label>
                 <CustomSelect
+                  searchable
                   id="ab-receiver-city"
                   className={`form-select ${invalidClass('receiver_city', fieldErrors)}`}
                   value={form.receiver_city}

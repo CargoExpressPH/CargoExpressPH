@@ -814,6 +814,7 @@ const RegisterPage = () => {
                 <div className="form-input-wrapper">
                   <MapPin size={15} className="form-input-icon" aria-hidden="true" />
                   <CustomSelect
+                    searchable
                     id="reg-province"
                     className={`form-select form-input-icon-left ${fieldErrors.address_province ? 'field-invalid' : form.address_province ? 'success' : ''}`}
                     value={form.address_province}
@@ -842,6 +843,7 @@ const RegisterPage = () => {
                 <div className="form-input-wrapper">
                   <Landmark size={15} className="form-input-icon" aria-hidden="true" />
                   <CustomSelect
+                    searchable
                     id="reg-city"
                     className={`form-select form-input-icon-left ${fieldErrors.address_city ? 'field-invalid' : form.address_city ? 'success' : ''}`}
                     value={form.address_city}

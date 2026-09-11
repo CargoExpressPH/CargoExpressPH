@@ -416,7 +416,7 @@ const BookShipmentPage = () => {
         <div className="form-group"><label className="form-label" htmlFor={id('phone')}>Mobile Number <span className="required">*</span></label><input id={id('phone')} className={`form-input ${fc('phone')}`} value={form[`${prefix}_phone`]} onChange={handlePhoneChange(`${prefix}_phone`)} inputMode="numeric" maxLength={11} placeholder="09xxxxxxxxx" autoComplete="tel" required {...a11y('phone')} />{errEl('phone')}</div>
         <div className="form-group"><label className="form-label" htmlFor={id('facebook')}>Facebook Name <span className="required">*</span></label><input id={id('facebook')} className={`form-input ${fc('facebook')}`} value={form[`${prefix}_facebook`]} onChange={handleTextChange(`${prefix}_facebook`)} placeholder="Your name on Facebook" autoCapitalize="words" required {...a11y('facebook')} />{errEl('facebook')}</div>
         <div className="form-group"><label className="form-label" htmlFor={id('province')}>Province <span className="required">*</span></label>
-          <CustomSelect id={id('province')} className={`form-select ${fc('province')}`} value={form[`${prefix}_province`]} onChange={e => { u(`${prefix}_province`, e.target.value); u(`${prefix}_city`, ''); u(`${prefix}_barangay`, ''); }} {...a11y('province')}>
+          <CustomSelect searchable id={id('province')} className={`form-select ${fc('province')}`} value={form[`${prefix}_province`]} onChange={e => { u(`${prefix}_province`, e.target.value); u(`${prefix}_city`, ''); u(`${prefix}_barangay`, ''); }} {...a11y('province')}>
             <option value="">Select Province</option>
             {getProvinces().map(p => <option key={p} value={p}>{p}</option>)}
           </CustomSelect>{errEl('province')}
@@ -428,7 +428,7 @@ const BookShipmentPage = () => {
           {isSender && form[`${prefix}_province`] === 'Other Area' ? (
             <input id={id('city')} className={`form-input ${fc('city')}`} value={form[`${prefix}_city`] || ''} onChange={e => { handleTextChange(`${prefix}_city`)(e); u(`${prefix}_barangay`, ''); }} autoCapitalize="words" required {...a11y('city')} />
           ) : (
-            <CustomSelect id={id('city')} className={`form-select ${fc('city')}`} value={form[`${prefix}_city`]} onChange={e => { u(`${prefix}_city`, e.target.value); u(`${prefix}_barangay`, ''); }} disabled={!form[`${prefix}_province`]} {...a11y('city')}>
+            <CustomSelect searchable id={id('city')} className={`form-select ${fc('city')}`} value={form[`${prefix}_city`]} onChange={e => { u(`${prefix}_city`, e.target.value); u(`${prefix}_barangay`, ''); }} disabled={!form[`${prefix}_province`]} {...a11y('city')}>
               <option value="">Select City</option>
               {cities.map(c => <option key={c} value={c}>{c}</option>)}
             </CustomSelect>

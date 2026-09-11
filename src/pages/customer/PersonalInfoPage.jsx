@@ -261,6 +261,7 @@ const PersonalInfoPage = () => {
             <div className="form-input-wrapper">
               <Map size={15} className="form-input-icon" />
               <CustomSelect
+                searchable
                 id="profile-province"
                 className="form-select form-input-icon-left"
                 value={form.address_province}
@@ -285,6 +286,7 @@ const PersonalInfoPage = () => {
             <div className="form-input-wrapper">
               <Building size={15} className="form-input-icon" />
               <CustomSelect
+                searchable
                 id="profile-city"
                 className="form-select form-input-icon-left"
                 value={form.address_city}
