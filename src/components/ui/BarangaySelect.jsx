@@ -119,6 +119,7 @@ const BarangaySelect = ({
       value={value}
       onChange={onChange}
       disabled={disabled || !city}
+      searchable
       {...rest}
     >
       <option value="">{city ? placeholder : 'Select a city first'}</option>

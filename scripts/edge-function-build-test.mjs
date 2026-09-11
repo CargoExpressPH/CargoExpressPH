@@ -1,27 +1,30 @@
 import { build } from 'esbuild';
+import fs from 'fs';
+import path from 'path';
 
-const entryPoints = [
-  'supabase/functions/paymongo-create-payment/index.ts',
-  'supabase/functions/paymongo-webhook/index.ts',
-  'supabase/functions/store-photo-fallback/index.ts',
-  'supabase/functions/get-photo-fallback/index.ts',
-  'supabase/functions/delete-photo-fallback/index.ts',
-  'supabase/functions/record-photo-storage-event/index.ts',
-  'supabase/functions/photo-storage-health/index.ts',
-  'supabase/functions/cleanup-orphaned-photos/index.ts',
-  'supabase/functions/archive-expired-evidence-photos/index.ts',
-];
+const functionsDir = 'supabase/functions';
+const entryPoints = fs.readdirSync(functionsDir)
+  .filter(f => fs.statSync(path.join(functionsDir, f)).isDirectory())
+  .map(f => path.join(functionsDir, f, 'index.ts'))
+  .filter(f => fs.existsSync(f));
+
+console.log(`Found ${entryPoints.length} edge functions. Building...`);
 
 for (const entryPoint of entryPoints) {
-  await build({
-    entryPoints: [entryPoint],
-    bundle: true,
-    write: false,
-    format: 'esm',
-    platform: 'neutral',
-    external: ['https://*'],
-    logLevel: 'silent',
-  });
+  try {
+    await build({
+      entryPoints: [entryPoint],
+      bundle: true,
+      write: false,
+      format: 'esm',
+      platform: 'neutral',
+      external: ['https://*'],
+      logLevel: 'silent',
+    });
+  } catch (error) {
+    console.error(`Failed to build ${entryPoint}:`, error);
+    process.exit(1);
+  }
 }
 
 console.log(`Edge Function build tests passed (${entryPoints.length} functions).`);

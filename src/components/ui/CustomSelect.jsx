@@ -14,6 +14,7 @@ const CustomSelect = ({
   onChange,
   children,
   disabled = false,
+  searchable = false,
   'aria-label': ariaLabel,
   ...rest
 }) => {
@@ -21,10 +22,12 @@ const CustomSelect = ({
   const [menuPlacement, setMenuPlacement] = useState('bottom');
   const [menuMaxHeight, setMenuMaxHeight] = useState(null);
   const [highlightedIndex, setHighlightedIndex] = useState(0);
+  const [searchQuery, setSearchQuery] = useState('');
   const generatedId = useId();
   const listboxId = `${generatedId}-listbox`;
   const rootRef = useRef(null);
   const menuRef = useRef(null);
+  const searchInputRef = useRef(null);
   // Type-to-jump buffer. Kept in a ref, not state: it must not re-render on
   // every keystroke, and the timer that clears it would be reset by the
   // re-render it caused.
@@ -37,6 +40,21 @@ const CustomSelect = ({
       label: optionText(child.props.children),
       disabled: Boolean(child.props.disabled),
     }));
+
+  const filterOptions = (query) => {
+    const normalized = query.trim().toLowerCase();
+    if (!searchable || !normalized) return options;
+    return options.filter(option => option.label.toLowerCase().includes(normalized));
+  };
+
+  // The list the open menu actually renders and navigates. Equal to `options`
+  // whenever search is off or the box is empty, so every non-search code path
+  // below stays correct without a separate branch.
+  const visibleOptions = filterOptions(searchQuery);
+  const firstEnabledIndex = (list) => {
+    const index = list.findIndex(option => !option.disabled);
+    return index === -1 ? 0 : index;
+  };
 
   const selected = options.find(option => String(option.value) === String(value)) || options[0];
   const selectedIndex = Math.max(0, options.findIndex(option => String(option.value) === String(value)));
@@ -61,6 +79,7 @@ const CustomSelect = ({
   const openMenu = () => {
     updateMenuPlacement();
     setHighlightedIndex(selectedIndex);
+    setSearchQuery('');
     setOpen(true);
   };
 
@@ -99,9 +118,21 @@ const CustomSelect = ({
   // which the barangay lists are (Quezon City has 142).
   useEffect(() => {
     if (!open || !menuRef.current) return;
-    const node = menuRef.current.children[highlightedIndex];
+    // The search box, when present, is the menu's first DOM child, ahead of
+    // the options — shift the lookup past it so the index still lands on the
+    // highlighted option and not the search box itself.
+    const domIndex = highlightedIndex + (searchable ? 1 : 0);
+    const node = menuRef.current.children[domIndex];
     node?.scrollIntoView({ block: 'nearest' });
-  }, [open, highlightedIndex]);
+  }, [open, highlightedIndex, searchable]);
+
+  // Auto-focus the search box the moment the menu opens, so the user can
+  // start typing immediately instead of having to click into it first.
+  useEffect(() => {
+    if (open && searchable) {
+      searchInputRef.current?.focus();
+    }
+  }, [open, searchable]);
 
   const emitChange = (nextValue) => {
     onChange?.({ target: { value: nextValue } });
@@ -109,15 +140,39 @@ const CustomSelect = ({
   };
 
   const moveSelection = (direction) => {
-    if (!options.length) return;
+    if (!visibleOptions.length) return;
     let nextIndex = highlightedIndex;
 
-    for (let i = 0; i < options.length; i += 1) {
-      nextIndex = (nextIndex + direction + options.length) % options.length;
-      if (!options[nextIndex].disabled) {
+    for (let i = 0; i < visibleOptions.length; i += 1) {
+      nextIndex = (nextIndex + direction + visibleOptions.length) % visibleOptions.length;
+      if (!visibleOptions[nextIndex].disabled) {
         setHighlightedIndex(nextIndex);
         return;
       }
+    }
+  };
+
+  const handleSearchChange = (event) => {
+    const nextQuery = event.target.value;
+    setSearchQuery(nextQuery);
+    setHighlightedIndex(firstEnabledIndex(filterOptions(nextQuery)));
+  };
+
+  const handleSearchKeyDown = (event) => {
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      moveSelection(1);
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      moveSelection(-1);
+    } else if (event.key === 'Enter') {
+      event.preventDefault();
+      const option = visibleOptions[highlightedIndex];
+      if (option && !option.disabled) emitChange(option.value);
+    } else if (event.key === 'Escape') {
+      setOpen(false);
+    } else if (event.key === 'Tab') {
+      setOpen(false);
     }
   };
 
@@ -133,7 +188,7 @@ const CustomSelect = ({
     } else if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault();
       if (open) {
-        const option = options[highlightedIndex];
+        const option = visibleOptions[highlightedIndex];
         if (option && !option.disabled) emitChange(option.value);
       } else {
         openMenu();
@@ -178,7 +233,7 @@ const CustomSelect = ({
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-controls={listboxId}
-        aria-activedescendant={open && options[highlightedIndex] ? `${listboxId}-option-${highlightedIndex}` : undefined}
+        aria-activedescendant={open && visibleOptions[highlightedIndex] ? `${listboxId}-option-${highlightedIndex}` : undefined}
         disabled={disabled}
         onClick={() => (open ? setOpen(false) : openMenu())}
         onKeyDown={handleKeyDown}
@@ -199,7 +254,26 @@ const CustomSelect = ({
           aria-label={ariaLabel}
           style={menuMaxHeight ? { maxHeight: `${menuMaxHeight}px` } : undefined}
         >
-          {options.map((option, index) => {
+          {searchable && (
+            <div className="custom-select-search">
+              <input
+                ref={searchInputRef}
+                type="text"
+                className="custom-select-search-input"
+                placeholder="Search..."
+                value={searchQuery}
+                onChange={handleSearchChange}
+                onKeyDown={handleSearchKeyDown}
+                aria-label="Search options"
+              />
+            </div>
+          )}
+
+          {visibleOptions.length === 0 && (
+            <div className="custom-select-empty">No matches found</div>
+          )}
+
+          {visibleOptions.map((option, index) => {
             const active = String(option.value) === String(value);
 
             return (

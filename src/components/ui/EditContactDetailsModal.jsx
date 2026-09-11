@@ -182,6 +182,7 @@ const EditContactDetailsModal = ({ isOpen, onClose, order, onSave, saving = fals
               className={`form-select ${fe('province') ? 'field-invalid' : ''}`}
               value={form[`${prefix}_province`]}
               onChange={(e) => { u(`${prefix}_province`, e.target.value); u(`${prefix}_city`, ''); u(`${prefix}_barangay`, ''); }}
+              searchable
             >
               <option value="">Select Province</option>
               {VALID_PROVINCES.map(p => <option key={p} value={p}>{p}</option>)}
@@ -196,6 +197,7 @@ const EditContactDetailsModal = ({ isOpen, onClose, order, onSave, saving = fals
               value={form[`${prefix}_city`]}
               onChange={(e) => { u(`${prefix}_city`, e.target.value); u(`${prefix}_barangay`, ''); }}
               disabled={!form[`${prefix}_province`]}
+              searchable
             >
               <option value="">Select City</option>
               {cities.map(c => <option key={c} value={c}>{c}</option>)}
