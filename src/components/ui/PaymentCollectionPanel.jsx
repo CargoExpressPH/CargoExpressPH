@@ -8,8 +8,10 @@ import AmountInput from './AmountInput';
 import FieldError, { errorId, fieldAttrs, invalidClass } from './FieldError';
 import { sanitizeAmount, parseAmount, formatAmount } from '../../utils/currencyInput';
 import { createGCashSource, registerSource, pollPaymentStatus } from '../../lib/paymongo';
+import { clearPendingPayment, savePendingPayment } from '../../lib/pendingPayment';
 import { getPaymentAttemptBySource, getOrderPaymentSnapshot } from '../../lib/database';
 import { supabase } from '../../lib/supabase';
+import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../hooks/useToast';
 
 /**
@@ -284,6 +286,7 @@ const PaymentCollectionPanel = ({
   clearError = () => {},
 }) => {
   const toast = useToast();
+  const { user } = useAuth();
   // Purely visual and only meaningful while the request is in flight, so it
   // stays local rather than joining the state the parent submits.
   const [checkingPayment, setCheckingPayment] = useState(false);
@@ -322,6 +325,13 @@ const PaymentCollectionPanel = ({
         orderId: order.id,
         ...(config.sourceMetadata || {}),
       });
+      savePendingPayment({
+        orderId: order.id,
+        sourceId: source.sourceId,
+        amount,
+        role: 'admin',
+        userId: user?.id,
+      });
       baselinePaidRef.current = parseFloat(order?.amount_paid || 0);
       paymentConfirmedRef.current = false;
       patch({
@@ -338,6 +348,7 @@ const PaymentCollectionPanel = ({
 
   const resetFlow = (notice = '') => {
     paymentConfirmedRef.current = false;
+    clearPendingPayment(order.id);
     patch({ paymentStep: 'setup', sourceId: null, checkoutUrl: null, confirmed: null, notice });
   };
 
@@ -357,12 +368,17 @@ const PaymentCollectionPanel = ({
         + 'If the customer completes that payment link later, it is still recorded against this order.'
   );
 
+  const handleOpenGCash = () => {
+    window.location.href = value.checkoutUrl;
+  };
+
   /** Records a confirmed payment from a fresh `orders` row. */
   const applyConfirmedOrder = (row) => {
     if (paymentConfirmedRef.current) return true;
     const paid = parseFloat(row?.amount_paid || 0);
     if (!(paid > baselinePaidRef.current)) return false;
     paymentConfirmedRef.current = true;
+    clearPendingPayment(order.id);
     setValue(prev => ({
       ...prev,
       confirmed: {
@@ -675,7 +691,7 @@ const PaymentCollectionPanel = ({
                 <button
                   type="button"
                   className="btn btn-primary btn-sm justify-center"
-                  onClick={() => { window.location.href = value.checkoutUrl; }}
+                  onClick={handleOpenGCash}
                 >
                   <ExternalLink size={14} className="mr-6" aria-hidden="true" /> Open GCash
                 </button>

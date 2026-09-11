@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { pollPaymentStatus } from '../../lib/paymongo';
+import { clearPendingPayment, getPendingPayment } from '../../lib/pendingPayment';
 import { useAuth } from '../../contexts/AuthContext';
 import PaymentResultModal from '../../components/ui/PaymentResultModal';
 import { BrandLogo } from '../../components/ui/BrandLogo';
@@ -78,10 +79,7 @@ const PaymentReturnPage = () => {
     if (channelRef.current) void supabase.removeChannel(channelRef.current);
     // Same cleanup the order page does on confirmation — a stale source id
     // left behind would otherwise be picked up by the NEXT payment return.
-    if (orderId) {
-      localStorage.removeItem(`pending_payment_${orderId}`);
-      localStorage.removeItem(`pending_payment_amount_${orderId}`);
-    }
+    clearPendingPayment(orderId);
     setPaidAmount(Number.isFinite(amount) && amount > 0 ? amount : null);
     setPhase('success');
   }, [orderId]);
@@ -92,13 +90,12 @@ const PaymentReturnPage = () => {
       return;
     }
 
-    // Source id, in order of availability: a same-device customer leaves it
-    // in localStorage before redirecting; admins have none but CAN read
-    // payment_attempts (admin-only RLS). A customer on another device can
-    // read neither — for them the order row itself is the only visible
-    // signal, so that becomes the verification path.
-    let sourceId = localStorage.getItem(`pending_payment_${orderId}`);
-    let knownAmount = Number(localStorage.getItem(`pending_payment_amount_${orderId}`) || 0) || null;
+    // Prefer the exact source this role/account opened on this device. The
+    // scoped lookup is critical on shared phones: localStorage survives
+    // logout, so an admin must never poll a customer's abandoned source.
+    const pendingPayment = getPendingPayment({ orderId, role, userId: user?.id });
+    let sourceId = pendingPayment?.sourceId || null;
+    let knownAmount = pendingPayment?.amount || null;
 
     if (!sourceId) {
       try {
@@ -186,13 +183,13 @@ const PaymentReturnPage = () => {
       }
     }
     if (mountedRef.current && !confirmedRef.current) setPhase('stuck');
-  }, [confirmPaid, orderId]);
+  }, [confirmPaid, orderId, role, user?.id]);
 
   useEffect(() => {
     // A failed return is already a final answer from PayMongo — verifying it
     // anyway would eventually swap "Payment Failed" for "Payment Processing".
     if (paymentResult === 'failed') {
-      if (orderId) localStorage.removeItem(`pending_payment_${orderId}`);
+      clearPendingPayment(orderId);
       return;
     }
     if (authLoading || !user) return;

@@ -9,9 +9,11 @@ import { uploadPhoto } from '../../lib/storage';
 import { serializePhotoReference } from '../../lib/photoReference';
 import QRCode from 'react-qr-code';
 import { createGCashSource, registerSource, pollPaymentStatus } from '../../lib/paymongo';
+import { clearPendingPayment, savePendingPayment } from '../../lib/pendingPayment';
 import { getPaymentAttemptBySource, getOrderPaymentSnapshot } from '../../lib/database';
 import { supabase } from '../../lib/supabase';
 import { useToast } from '../../hooks/useToast';
+import { useAuth } from '../../contexts/AuthContext';
 
 /**
  * AdditionalPaymentModal — Manually collects additional balance-settlement
@@ -58,6 +60,7 @@ const AdditionalPaymentModal = ({ order, remainingBalance, onClose, onSave, onPa
   const [checkingPayment, setCheckingPayment] = useState(false);
 
   const toast = useToast();
+  const { user } = useAuth();
   const receiptInputRef = useRef(null);
   const paymentChannelRef = useRef(null);
   const baselinePaidRef = useRef(Number(order?.amount_paid || 0));
@@ -112,6 +115,13 @@ const AdditionalPaymentModal = ({ order, remainingBalance, onClose, onSave, onPa
       
       const source = await createGCashSource(amount, `CargoExpress PH - ${order.tracking_number} Additional Payment`, billing, true, order.id);
       await registerSource(source.sourceId, amount, { orderId: order.id });
+      savePendingPayment({
+        orderId: order.id,
+        sourceId: source.sourceId,
+        amount,
+        role: 'admin',
+        userId: user?.id,
+      });
       
       setPaymongoSourceId(source.sourceId);
       setCheckoutUrl(source.checkoutUrl);
@@ -126,9 +136,14 @@ const AdditionalPaymentModal = ({ order, remainingBalance, onClose, onSave, onPa
   };
 
   const resetPayMongoFlow = () => {
+    clearPendingPayment(order.id);
     setPaymentStep('setup');
     setPaymongoSourceId(null);
     setCheckoutUrl(null);
+  };
+
+  const handleOpenGCash = () => {
+    window.location.href = checkoutUrl;
   };
 
   useEffect(() => {
@@ -142,6 +157,7 @@ const AdditionalPaymentModal = ({ order, remainingBalance, onClose, onSave, onPa
     const paid = Number(row?.amount_paid || 0);
     if (!(paid > baselinePaidRef.current)) return false;
     paymentConfirmedRef.current = true;
+    clearPendingPayment(order.id);
     const confirmation = {
       received: paid - baselinePaidRef.current,
       amountPaid: paid,
@@ -422,7 +438,7 @@ const AdditionalPaymentModal = ({ order, remainingBalance, onClose, onSave, onPa
                       <button
                         type="button"
                         className="btn btn-primary btn-sm justify-center"
-                        onClick={() => { window.location.href = checkoutUrl; }}
+                        onClick={handleOpenGCash}
                       >
                         <ExternalLink size={14} className="mr-6" aria-hidden="true" /> Open GCash
                       </button>

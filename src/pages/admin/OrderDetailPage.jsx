@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { getOrderById, updateOrder, updateOrderContactDetails, getTripReassignments, reassignTrip, getActivityLogsByRecord, getPaymentTransactions, recordAdditionalPayment, recordPickupPayment, recordDeliveryPayment, getOrderStatusEvents, reviewOrderCancellation, cancelOrderAsAdmin, assignOrderToCustomer, getLatestPaymentAttemptByOrder, clearPaymentReceiptUrls } from '../../lib/database';
 import { pollPaymentStatus } from '../../lib/paymongo';
+import { clearPendingPayment, getPendingPayment } from '../../lib/pendingPayment';
 import { logOrder, logPayment } from '../../lib/activityLog';
 import { buildStatusTimestamps } from '../../utils/statusTimestamps';
 import { resolvePhotoUrls, deletePhoto } from '../../lib/storage';
@@ -37,6 +38,7 @@ import {
   Truck, Loader, Save, Camera, AlertTriangle, X, Image, Clock, Trash2, Star, ChevronDown, UserPlus, Tag
 } from 'lucide-react';
 import { useToast } from '../../hooks/useToast';
+import { useAuth } from '../../contexts/AuthContext';
 import usePageTitle from '../../hooks/usePageTitle';
 import { formatPhDate, formatPhDateTime } from '../../utils/datetime';
 import { formatMoney } from '../../utils/currencyInput';
@@ -107,6 +109,7 @@ const AdminOrderDetailPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const toast = useToast();
+  const { user } = useAuth();
 
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -190,11 +193,15 @@ const AdminOrderDetailPage = () => {
   const checkedReturnRef = useRef(false);
   useEffect(() => {
     const paymentResult = searchParams.get('payment');
-    if (!paymentResult || checkedReturnRef.current) return;
+    // Wait for the authenticated account before reading an account-scoped
+    // pending source. Falling back to "latest attempt" while auth is still
+    // booting would reintroduce the same cross-attempt race this path fixes.
+    if (!paymentResult || !user?.id || checkedReturnRef.current) return;
     checkedReturnRef.current = true;
     navigate(`/admin/orders/${id}`, { replace: true });
 
     if (paymentResult === 'failed') {
+      clearPendingPayment(id);
       setPaymentResultModal({ variant: 'error' });
       return;
     }
@@ -215,17 +222,22 @@ const AdminOrderDetailPage = () => {
         }
         confirmed = true;
         if (channel) void supabase.removeChannel(channel);
+        clearPendingPayment(id);
         setPaymentResultModal({ variant: 'success', amount: Number(attempt?.amount || 0) });
         await loadOrder();
       };
 
       try {
-        attempt = await getLatestPaymentAttemptByOrder(id);
+        const pendingPayment = getPendingPayment({ orderId: id, role: 'admin', userId: user?.id });
+        attempt = pendingPayment
+          ? { source_id: pendingPayment.sourceId, amount: pendingPayment.amount, status: 'pending' }
+          : await getLatestPaymentAttemptByOrder(id);
         if (!attempt?.source_id) {
           await loadOrder();
           return;
         }
         if (attempt.status === 'reconciled') {
+          clearPendingPayment(id);
           setPaymentResultModal({ variant: 'success', amount: Number(attempt?.amount || 0) });
           await loadOrder();
           return;
@@ -271,7 +283,7 @@ const AdminOrderDetailPage = () => {
     };
     verify();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id]);
+  }, [id, user?.id]);
 
   useEffect(() => {
     let isMounted = true;

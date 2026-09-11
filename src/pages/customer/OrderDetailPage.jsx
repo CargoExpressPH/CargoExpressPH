@@ -7,6 +7,7 @@ import { resolvePhotoUrls } from '../../lib/storage';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { initiateGCashPayment, registerSource, pollPaymentStatus } from '../../lib/paymongo';
+import { clearPendingPayment, getPendingPayment, savePendingPayment } from '../../lib/pendingPayment';
 import StatusBadge from '../../components/ui/StatusBadge';
 import TrackingTimeline from '../../components/ui/TrackingTimeline';
 import ConfirmModal from '../../components/ui/ConfirmModal';
@@ -168,9 +169,9 @@ const OrderDetailPage = () => {
     ) {
       paymentConfirmedRef.current = true;
       clearPaymentReconciliation();
-      const savedAmount = parseFloat(localStorage.getItem(`pending_payment_amount_${id}`) || '0');
-      localStorage.removeItem(`pending_payment_${id}`);
-      localStorage.removeItem(`pending_payment_amount_${id}`);
+      const pendingPayment = getPendingPayment({ orderId: id, role: 'customer', userId: user?.id });
+      const savedAmount = Number(pendingPayment?.amount || 0);
+      clearPendingPayment(id);
       setPaymentVerificationPending(false);
       setVerifyingPayment(false);
       setPaymentResultModal({ variant: 'success', amount: savedAmount || Number(data.amount_paid || 0) });
@@ -189,7 +190,7 @@ const OrderDetailPage = () => {
         }
       }).catch(console.error);
     }
-  }, [id, clearPaymentReconciliation]);
+  }, [id, clearPaymentReconciliation, user?.id]);
 
   const fetchOrderData = useCallback(async () => {
     const data = await getOrderById(id);
@@ -261,6 +262,18 @@ const OrderDetailPage = () => {
     };
   }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Browsers may preserve this React tree in the back-forward cache while the
+  // customer visits GCash. Returning with the Back button then restores the
+  // old `processingPayment=true` value instead of remounting the page. Always
+  // release that navigation-only lock when the document becomes active again.
+  useEffect(() => {
+    const handlePageShow = () => {
+      if (isMountedRef.current) setProcessingPayment(false);
+    };
+    window.addEventListener('pageshow', handlePageShow);
+    return () => window.removeEventListener('pageshow', handlePageShow);
+  }, []);
+
   // ── Live tracking ─────────────────────────────────────────────────────────
   // Without this, a status advance, weigh-in, or payment recorded by staff
   // while this exact page is open only ever shows up after a manual refresh —
@@ -297,7 +310,7 @@ const OrderDetailPage = () => {
     // The success path is handled by the resilient effect below: it combines
     // realtime order updates, fallback polling, and a manual refresh action.
     if (paymentResult === 'failed') {
-      localStorage.removeItem(`pending_payment_${id}`);
+      clearPendingPayment(id);
       setPaymentResultModal({ variant: 'error' });
     }
   }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -308,9 +321,9 @@ const OrderDetailPage = () => {
     if (paymentConfirmedRef.current) return true;
     paymentConfirmedRef.current = true;
     clearPaymentReconciliation();
-    const savedAmount = parseFloat(localStorage.getItem(`pending_payment_amount_${id}`) || '0');
-    localStorage.removeItem(`pending_payment_${id}`);
-    localStorage.removeItem(`pending_payment_amount_${id}`);
+    const pendingPayment = getPendingPayment({ orderId: id, role: 'customer', userId: user?.id });
+    const savedAmount = Number(pendingPayment?.amount || 0);
+    clearPendingPayment(id);
     if (isMountedRef.current) {
       setPaymentVerificationPending(false);
       setVerifyingPayment(false);
@@ -327,7 +340,7 @@ const OrderDetailPage = () => {
       await loadOrder();
     }
     return true;
-  }, [clearPaymentReconciliation, id, loadOrder, order]);
+  }, [clearPaymentReconciliation, id, loadOrder, order, user?.id]);
 
   /**
    * Reconcile a returned PayMongo source for about 20 seconds. The webhook is
@@ -411,16 +424,16 @@ const OrderDetailPage = () => {
     if (searchParams.get('payment') !== 'success' || !id) return;
 
     paymentConfirmedRef.current = false;
-    let sourceId = localStorage.getItem(`pending_payment_${id}`);
+    const pendingPayment = getPendingPayment({ orderId: id, role: 'customer', userId: user?.id });
+    let sourceId = pendingPayment?.sourceId || null;
 
     const beginVerification = async () => {
       if (!sourceId) {
         try {
           const attempt = await getLatestPaymentAttemptByOrder(id);
           if (attempt?.status === 'reconciled') {
-            const savedAmount = parseFloat(localStorage.getItem(`pending_payment_amount_${id}`) || '0');
-            localStorage.removeItem(`pending_payment_${id}`);
-            localStorage.removeItem(`pending_payment_amount_${id}`);
+            const savedAmount = Number(pendingPayment?.amount || 0);
+            clearPendingPayment(id);
             setPaymentResultModal({ variant: 'success', amount: Number(attempt?.amount || savedAmount || 0) });
             await loadOrder();
             return;
@@ -624,9 +637,15 @@ const OrderDetailPage = () => {
 
       await registerSource(sourceId, amount, { orderId: order.id });
 
-      // Save sourceId and amount so we can reconcile when the customer returns
-      localStorage.setItem(`pending_payment_${order.id}`, sourceId);
-      localStorage.setItem(`pending_payment_amount_${order.id}`, String(amount));
+      // Save the exact source with its role/account so another account using
+      // this phone can never inherit it after logout.
+      savePendingPayment({
+        orderId: order.id,
+        sourceId,
+        amount,
+        role: 'customer',
+        userId: user?.id,
+      });
 
       // Customer-facing wording: PayMongo is our payment gateway, not a brand
       // the customer chose — speak in terms of the wallet they are opening.
