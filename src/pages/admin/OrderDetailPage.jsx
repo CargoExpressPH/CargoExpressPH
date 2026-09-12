@@ -332,8 +332,11 @@ const AdminOrderDetailPage = () => {
     return () => { cancelled = true; };
   }, [resolvedDeliveryPhotos]);
 
-  const loadOrder = async (isMounted = true) => {
-    setError(null); setLoading(true);
+  // `silent` refreshes without the full-page spinner. The spinner replaces the
+  // whole page — any open modal included — so a refresh that runs around a
+  // modal must not go through it.
+  const loadOrder = async (isMounted = true, { silent = false } = {}) => {
+    if (!silent) { setError(null); setLoading(true); }
     try {
       const data = await getOrderById(id);
       if (!isMounted) return;
@@ -353,9 +356,11 @@ const AdminOrderDetailPage = () => {
       const pmts = await getPaymentTransactions(id);
       if (isMounted) setPaymentTransactions(pmts);
     } catch (e) {
-      if (isMounted) setError(e.message || 'Failed to load order.');
+      if (!isMounted) return;
+      if (silent) toast.error(e.message || 'Failed to refresh order.');
+      else setError(e.message || 'Failed to load order.');
     } finally {
-      if (isMounted) setLoading(false);
+      if (isMounted && !silent) setLoading(false);
     }
   };
 
@@ -1499,9 +1504,14 @@ const AdminOrderDetailPage = () => {
         <AdditionalPaymentModal
           order={order}
           remainingBalance={computedRemainingBalance}
-          onClose={() => setShowPaymentModal(false)}
+          // Refresh when the modal closes, not when the GCash payment lands.
+          // Reloading on confirmation showed the full-page spinner, which
+          // unmounted this modal and reopened it blank — hiding the
+          // "Payment received" state and its Done button. Deferring it also
+          // keeps the balance fixed while the modal is open, exactly as on
+          // Unsettled Deliveries.
+          onClose={() => { setShowPaymentModal(false); void loadOrder(true, { silent: true }); }}
           onSave={handleAdditionalPayment}
-          onPaymentConfirmed={() => loadOrder()}
         />
       )}
       {refundPayment && (
