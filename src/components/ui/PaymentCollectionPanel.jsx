@@ -67,7 +67,8 @@ export const createPaymentCollectionState = (overrides = {}) => ({
   paymentStep: 'setup',          // 'setup' | 'generating' | 'waiting'
   sourceId: null,
   checkoutUrl: null,
-  confirmed: null,               // populated once the ledger records the money
+  checkoutAmount: 0,             // what the live QR charges, fixed at generation
+  confirmed: null,              // populated once the ledger records the money
   notice: '',
   // Set by a blocked submit so the amount field can be flagged in place
   shortfallBlocked: false,
@@ -338,6 +339,7 @@ const PaymentCollectionPanel = ({
         confirmed: null,
         sourceId: source.sourceId,
         checkoutUrl: source.checkoutUrl,
+        checkoutAmount: amount,
         paymentStep: 'waiting',
       });
     } catch (err) {
@@ -349,7 +351,7 @@ const PaymentCollectionPanel = ({
   const resetFlow = (notice = '') => {
     paymentConfirmedRef.current = false;
     clearPendingPayment(order.id);
-    patch({ paymentStep: 'setup', sourceId: null, checkoutUrl: null, confirmed: null, notice });
+    patch({ paymentStep: 'setup', sourceId: null, checkoutUrl: null, checkoutAmount: 0, confirmed: null, notice });
   };
 
   /**
@@ -480,6 +482,8 @@ const PaymentCollectionPanel = ({
     : (config.amountLabels?.full || 'Amount Received (₱) *');
 
   const F = PAYMENT_FIELDS;
+  const checkoutLive = value.paymentStep === 'generating'
+    || (value.paymentStep === 'waiting' && !value.confirmed);
   // `shortfallBlocked` predates the shared error map and is still what a
   // blocked submit sets, so both routes to a red amount field are honoured.
   const amountInvalid = Boolean(d.amountError || value.shortfallBlocked || errors[F.amount]);
@@ -504,7 +508,11 @@ const PaymentCollectionPanel = ({
         <div className="pickup-segment-row flex gap-8">
           {['full', 'paylater'].map(t => (
             <button
-              key={t} type="button" disabled={disabled}
+              // Switching to Full Payment rewrites the amount, so it is locked
+              // while an unconfirmed QR is showing. After confirmation it is
+              // open again: switching to Pay Later is how a part-payment gets
+              // its Promise Date.
+              key={t} type="button" disabled={disabled || checkoutLive}
               className={`btn ${value.payment_type === t ? 'btn-primary' : 'btn-outline'} btn-sm flex-1 justify-center text-capitalize`}
               onClick={() => patch({
                 payment_type: t,
@@ -530,7 +538,8 @@ const PaymentCollectionPanel = ({
             className={`form-input flex-1 w-full ${amountInvalid ? 'field-invalid' : ''}`}
             placeholder={d.isPayLater ? '0.00' : expectedText}
             value={value.amount}
-            disabled={disabled}
+            // The QR's amount is fixed at generation; the field must match it.
+            disabled={disabled || value.paymentStep !== 'setup'}
             onValueChange={v => {
               patch({ amount: v, shortfallBlocked: false });
               clearError(F.amount);
@@ -664,7 +673,10 @@ const PaymentCollectionPanel = ({
                   GCash
                 </span>
                 <span className="text-sm fw-700" style={{ color: 'var(--info-dark)' }}>
-                  ₱{formatAmount((d.collected > 0 ? d.collected : d.expected).toFixed(2))} via GCash
+                  {/* The weight (and so the expected total) can still change
+                      at pickup while the QR is up; the label shows what the
+                      QR was created for, not the live figure. */}
+                  ₱{formatAmount((value.checkoutAmount || d.collected || d.expected).toFixed(2))} via GCash
                 </span>
               </div>
 

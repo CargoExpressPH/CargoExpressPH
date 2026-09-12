@@ -56,6 +56,11 @@ const AdditionalPaymentModal = ({ order, remainingBalance, onClose, onSave, onPa
   const [paymentStep, setPaymentStep] = useState('setup');
   const [paymongoSourceId, setPaymongoSourceId] = useState(null);
   const [checkoutUrl, setCheckoutUrl] = useState(null);
+  // What the QR actually charges. The amount field is locked once a checkout
+  // exists, but the label reads this rather than the field so it can never
+  // show a figure other than the one PayMongo will collect.
+  const [checkoutAmount, setCheckoutAmount] = useState(0);
+  const [notice, setNotice] = useState('');
   const [paymentConfirmed, setPaymentConfirmed] = useState(null);
   const [checkingPayment, setCheckingPayment] = useState(false);
 
@@ -83,7 +88,10 @@ const AdditionalPaymentModal = ({ order, remainingBalance, onClose, onSave, onPa
   const amountValue = parseAmount(form.amount);
   const amountEntered = form.amount !== '' && form.amount !== null;
   let amountError = null;
-  if (amountEntered) {
+  // Only while the amount is still editable. Once a QR exists the balance
+  // refreshes underneath it (to ₱0 when the payment lands), and flagging the
+  // already-charged figure as "exceeds balance" would read as a failure.
+  if (amountEntered && paymentStep === 'setup') {
     if (Number.isNaN(amountValue)) {
       amountError = 'Enter a valid amount';
     } else if (amountValue <= 0) {
@@ -102,6 +110,7 @@ const AdditionalPaymentModal = ({ order, remainingBalance, onClose, onSave, onPa
     try {
       setPaymentStep('generating');
       setError('');
+      setNotice('');
       const amount = (parseAmount(form.amount) || 0);
       if (amount <= 0) {
         setError('Payment amount must be greater than 0.');
@@ -125,6 +134,7 @@ const AdditionalPaymentModal = ({ order, remainingBalance, onClose, onSave, onPa
       
       setPaymongoSourceId(source.sourceId);
       setCheckoutUrl(source.checkoutUrl);
+      setCheckoutAmount(amount);
       baselinePaidRef.current = Number(order?.amount_paid || 0);
       paymentConfirmedRef.current = false;
       setPaymentConfirmed(null);
@@ -140,6 +150,19 @@ const AdditionalPaymentModal = ({ order, remainingBalance, onClose, onSave, onPa
     setPaymentStep('setup');
     setPaymongoSourceId(null);
     setCheckoutUrl(null);
+    setCheckoutAmount(0);
+  };
+
+  /**
+   * Back to the manual-transfer form. The PayMongo source is not voided (the
+   * browser holds only the public key), so the old link stays payable — the
+   * notice says so, because recording a manual transfer AND having the
+   * customer pay that link would collect the balance twice.
+   */
+  const handlePayAnotherWay = () => {
+    resetPayMongoFlow();
+    setError('');
+    setNotice('GCash checkout closed. If the customer still pays that link, it is recorded against this order automatically — confirm they have not paid it before recording a direct transfer.');
   };
 
   const handleOpenGCash = () => {
@@ -334,7 +357,12 @@ const AdditionalPaymentModal = ({ order, remainingBalance, onClose, onSave, onPa
                 {error}
               </div>
             )}
-            
+            {notice && (
+              <div className="mb-16 p-12 text-sm" role="status" style={{ background: 'var(--info-bg)', color: 'var(--info-dark)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--info)' }}>
+                {notice}
+              </div>
+            )}
+
             <div className="flex justify-between items-center mb-20" style={{ background: 'var(--bg-secondary)', padding: '12px 16px', borderRadius: 'var(--radius-sm)' }}>
               <div>
                 <div className="text-sm text-secondary">Remaining Balance</div>
@@ -348,6 +376,9 @@ const AdditionalPaymentModal = ({ order, remainingBalance, onClose, onSave, onPa
                 id="ap-amount"
                 className={`form-input ${amountError ? 'field-invalid' : amountValid ? 'field-valid' : ''}`}
                 value={form.amount}
+                // A generated QR has its amount baked in; editing the field
+                // afterwards would change nothing PayMongo charges.
+                disabled={paymentStep !== 'setup'}
                 onValueChange={v => setForm(p => ({ ...p, amount: v }))}
                 aria-invalid={amountError ? 'true' : 'false'}
                 aria-describedby={amountError ? 'ap-amount-error' : undefined}
@@ -406,7 +437,7 @@ const AdditionalPaymentModal = ({ order, remainingBalance, onClose, onSave, onPa
                         GCash
                       </span>
                       <span className="text-sm fw-700" style={{ color: 'var(--info-dark)' }}>
-                        ₱{formatAmount((parseAmount(form.amount) || 0).toFixed(2))} via GCash
+                        ₱{formatAmount(checkoutAmount.toFixed(2))} via GCash
                       </span>
                     </div>
 
@@ -426,8 +457,12 @@ const AdditionalPaymentModal = ({ order, remainingBalance, onClose, onSave, onPa
                         <ol className="m-0 text-secondary" style={{ paddingLeft: 18, fontSize: '0.8125rem', lineHeight: 1.9 }}>
                           <li>Scan the QR, or tap <strong>Open GCash</strong> for the checkout page</li>
                           <li>Approve the payment in the GCash app</li>
-                          <li>This window updates automatically when the payment lands</li>
+                          <li>The payment is recorded automatically — there is nothing to submit</li>
                         </ol>
+                        <div className="flex items-center justify-center gap-8 mt-12 paymongo-waiting-status" role="status" aria-live="polite">
+                          <Loader size={14} className="animate-spin" style={{ color: 'var(--info-dark)' }} aria-hidden="true" />
+                          <span className="text-xs" style={{ color: 'var(--info-dark)' }}>Waiting for the customer to complete payment…</span>
+                        </div>
                         <button type="button" className="btn btn-secondary btn-sm w-full justify-center mt-12 paymongo-check-btn" onClick={checkPaymentNow} disabled={checkingPayment}>
                           {checkingPayment ? <><Loader size={14} className="animate-spin mr-6" /> Checking…</> : 'Check payment'}
                         </button>
@@ -457,6 +492,17 @@ const AdditionalPaymentModal = ({ order, remainingBalance, onClose, onSave, onPa
                         Copy Payment Link
                       </button>
                     </div>
+
+                    {!paymentConfirmed && (
+                      <button
+                        type="button"
+                        className="btn btn-outline btn-sm w-full justify-center mt-12 paymongo-cancel-btn"
+                        onClick={handlePayAnotherWay}
+                        disabled={checkingPayment}
+                      >
+                        <X size={14} className="mr-6" aria-hidden="true" /> Customer paid another way — record a direct transfer
+                      </button>
+                    )}
                   </div>
                 )}
 
@@ -530,41 +576,56 @@ const AdditionalPaymentModal = ({ order, remainingBalance, onClose, onSave, onPa
                   )}
                   <input ref={receiptInputRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={handleReceiptAdd} style={{ display: 'none' }} />
                 </div>
+                {/* Notes are saved only with a direct transfer. A PayMongo
+                    payment is written by the webhook, which has no notes —
+                    so the field lives here, not under the QR. */}
+                <div className="form-group mb-0 mt-12">
+                  <label className="form-label" htmlFor="addl-payment-notes">Admin Notes (Optional)</label>
+                  <textarea
+                    id="addl-payment-notes"
+                    className="form-input"
+                    placeholder="E.g., Transfer confirmed in the business GCash app"
+                    value={form.notes}
+                    onChange={e => setForm(p => ({ ...p, notes: e.target.value }))}
+                    rows={2}
+                  />
+                </div>
                 </>
                 )}
               </div>
             )}
-
-            <div className="form-group mb-0">
-              <label className="form-label" htmlFor="addl-payment-notes">Admin Notes (Optional)</label>
-              <textarea
-                id="addl-payment-notes"
-                className="form-input"
-                placeholder="E.g., Collected by Juan"
-                value={form.notes}
-                onChange={e => setForm(p => ({ ...p, notes: e.target.value }))}
-                rows={2}
-              />
-            </div>
           </div>
           
+          {/* Three footers for three situations, rather than one button that
+              sits disabled and says "Waiting for payment":
+                - QR paid: the webhook recorded it, so the only action is Done.
+                - QR showing: nothing to submit; closing is safe because the
+                  webhook still records the payment if the customer pays.
+                - Direct transfer: the form is what gets recorded. */}
           <div className="modal-footer">
-            <button className="btn btn-outline" onClick={handleSafeClose} disabled={isLocked}>Cancel</button>
-            {/* `isDoneStep` is the QR hand-off: nothing is being recorded, the
-                webhook will. Amount validity is irrelevant to closing it. */}
-            <button
-              className="btn btn-primary"
-              onClick={handleSave}
-              disabled={
-                saving ||
-                (paymentStep === 'waiting' && !paymentConfirmed) ||
-                (!isDoneStep && !amountValid) ||
-                (paymentStep !== 'waiting' && !(form.payment_reference && form.payment_reference.trim())) ||
-                (paymentStep !== 'waiting' && Boolean(form.payment_reference && form.payment_reference.trim()) && !form.verified_receipt)
-              }
-            >
-              {saving ? <><Loader size={16} className="animate-spin" /> {uploadProgress || 'Saving...'}</> : <><CheckCircle size={16} /> {isDoneStep ? 'Done' : paymentStep === 'waiting' ? 'Waiting for payment' : 'Record Payment'}</>}
-            </button>
+            {isDoneStep ? (
+              <button className="btn btn-primary" onClick={onClose}>
+                <CheckCircle size={16} /> Done
+              </button>
+            ) : paymentStep === 'waiting' ? (
+              <button className="btn btn-outline" onClick={handleSafeClose}>Close</button>
+            ) : (
+              <>
+                <button className="btn btn-outline" onClick={handleSafeClose} disabled={isLocked}>Cancel</button>
+                <button
+                  className="btn btn-primary"
+                  onClick={handleSave}
+                  disabled={
+                    isLocked ||
+                    !amountValid ||
+                    !(form.payment_reference && form.payment_reference.trim()) ||
+                    !form.verified_receipt
+                  }
+                >
+                  {saving ? <><Loader size={16} className="animate-spin" /> {uploadProgress || 'Saving...'}</> : <><CheckCircle size={16} /> Record Payment</>}
+                </button>
+              </>
+            )}
           </div>
         </div>
       </div>

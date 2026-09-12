@@ -197,7 +197,12 @@ const DeliveryModal = ({ order, onClose, onSave }) => {
     }
   };
 
-  const isLocked = saving || payment?.paymentStep === 'generating' || payment?.paymentStep === 'waiting';
+  // An unconfirmed QR keeps the modal open (cargo is not released on an open
+  // question). Once PayMongo confirms, the money is already in the ledger, so
+  // closing — e.g. to come back for the delivery photos — is safe.
+  const isLocked = saving
+    || payment?.paymentStep === 'generating'
+    || (payment?.paymentStep === 'waiting' && !payment?.confirmed);
 
   const handleSafeClose = () => {
     if (!isLocked) {
