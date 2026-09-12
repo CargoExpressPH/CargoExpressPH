@@ -1,7 +1,11 @@
 # F-005 — Legacy payment RPC overloads remain executable
 
-- **Status:** Confirmed
-- **Severity:** MEDIUM
+- **Status:** ✅ Fixed 2026-09-12 — see F-008-legacy-payment-rpc-overload-cleanup-plan.md
+  for the implementation (`20260912040000_drop_legacy_payment_rpc_overloads.sql`)
+  and `scripts/legacy-rpc-overload-cleanup-pgtest/` for the regression test
+  (8/8 passing).
+- **Severity:** MEDIUM (see F-008 — elevated to HIGH in the fix plan given its
+  interaction with F-002/F-004)
 - **Confidence:** CONFIRMED
 - **Verified:** 2026-09-11
 - **Area:** PostgreSQL payment API surface

@@ -11,6 +11,8 @@
     "test:payment-ledger": "node scripts/payment-ledger-pgtest/run.mjs",
     "test:payment-notifications": "node scripts/payment-notification-pgtest/run.mjs",
     "test:shipping-discount": "node scripts/shipping-discount-pgtest/run.mjs",
+    "test:service-area-mass-assignment": "node scripts/service-area-mass-assignment-pgtest/run.mjs",
+    "test:legacy-rpc-overload-cleanup": "node scripts/legacy-rpc-overload-cleanup-pgtest/run.mjs",
     "test:pwa-offline": "node scripts/pwa-offline-contract-test.mjs",
     "check": "npm run test && npm run test:edge-functions && node scripts/photo-fallback-browser-test.mjs && npm run build && npm run test:pwa-offline",
     "build": "vite build",

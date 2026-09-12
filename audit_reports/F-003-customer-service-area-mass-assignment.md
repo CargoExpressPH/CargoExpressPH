@@ -1,6 +1,9 @@
 # F-003 — Customer booking can submit service-area approval metadata
 
-- **Status:** Confirmed implementation gap
+- **Status:** ✅ Fixed 2026-09-12 — see F-007-service-area-mass-assignment-fix-plan.md
+  for the implementation (`20260912030000_restrict_service_area_customer_insert.sql`)
+  and `scripts/service-area-mass-assignment-pgtest/` for the regression test
+  (12/12 passing).
 - **Severity:** HIGH
 - **Confidence:** CONFIRMED
 - **Verified:** 2026-09-11
