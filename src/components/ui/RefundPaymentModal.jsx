@@ -25,7 +25,9 @@ const RefundPaymentModal = ({ transaction, order, onClose, onSuccess }) => {
   const [confirmed, setConfirmed] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const [idempotencyKey] = useState(newIdempotencyKey);
+  const [warning, setWarning] = useState('');
+  const [retryingSameRequest, setRetryingSameRequest] = useState(false);
+  const [idempotencyKey, setIdempotencyKey] = useState(newIdempotencyKey);
 
   useEffect(() => {
     const onEscape = event => { if (event.key === 'Escape' && !saving) onClose(); };
@@ -37,6 +39,7 @@ const RefundPaymentModal = ({ transaction, order, onClose, onSuccess }) => {
   const handleSubmit = async event => {
     event.preventDefault();
     setError('');
+    setWarning('');
     const parsedAmount = Number(amount);
     if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
       setError('Enter a refund amount greater than zero.');
@@ -60,9 +63,20 @@ const RefundPaymentModal = ({ transaction, order, onClose, onSuccess }) => {
         notes,
         idempotencyKey,
       });
+      if (result?.outcomeUnknown) {
+        setRetryingSameRequest(true);
+        setWarning(result.message || 'PayMongo has not confirmed the result. Retry this same protected request.');
+        return;
+      }
       await onSuccess(result, parsedAmount);
     } catch (err) {
-      setError(err?.message || 'Refund could not be submitted.');
+      if (err?.outcomeUnknown) {
+        setRetryingSameRequest(true);
+        setWarning(err.message);
+      } else {
+        setIdempotencyKey(newIdempotencyKey());
+        setError(err?.message || 'Refund could not be submitted.');
+      }
     } finally {
       setSaving(false);
     }
@@ -106,7 +120,7 @@ const RefundPaymentModal = ({ transaction, order, onClose, onSuccess }) => {
                 id="refund-amount"
                 value={amount}
                 onValueChange={value => { setAmount(value); setError(''); }}
-                disabled={saving}
+                disabled={saving || retryingSameRequest}
                 aria-describedby="refund-amount-help"
                 autoFocus
               />
@@ -115,7 +129,7 @@ const RefundPaymentModal = ({ transaction, order, onClose, onSuccess }) => {
 
             <div className="form-group">
               <label className="form-label" htmlFor="refund-reason">Reason *</label>
-              <CustomSelect id="refund-reason" className="form-select" value={reason} onChange={event => setReason(event.target.value)} disabled={saving}>
+              <CustomSelect id="refund-reason" className="form-select" value={reason} onChange={event => setReason(event.target.value)} disabled={saving || retryingSameRequest}>
                 <option value="requested_by_customer">Requested by customer</option>
                 <option value="duplicate">Duplicate payment</option>
                 <option value="fraudulent">Fraudulent payment</option>
@@ -133,24 +147,25 @@ const RefundPaymentModal = ({ transaction, order, onClose, onSuccess }) => {
                 value={notes}
                 onChange={event => setNotes(event.target.value)}
                 placeholder="Optional explanation for the history"
-                disabled={saving}
+                disabled={saving || retryingSameRequest}
               />
               <p className="form-hint text-right">{notes.length}/255</p>
             </div>
 
             <label className="flex items-start gap-10 text-sm cursor-pointer">
-              <input type="checkbox" checked={confirmed} onChange={event => { setConfirmed(event.target.checked); setError(''); }} disabled={saving} />
+              <input type="checkbox" checked={confirmed} onChange={event => { setConfirmed(event.target.checked); setError(''); }} disabled={saving || retryingSameRequest} />
               <span>I reviewed the order, original GCash payment, and refund amount.</span>
             </label>
 
             {error && <div className="alert-banner alert-banner-error mt-16" role="alert">{error}</div>}
+            {warning && <div className="alert-banner alert-banner-warning mt-16" role="status">{warning}</div>}
           </div>
 
           <div className="modal-footer">
             <button type="button" className="btn btn-outline" onClick={handleClose} disabled={saving}>Cancel</button>
             <button type="submit" className="btn btn-primary" disabled={saving || !confirmed || maxRefund <= 0}>
               {saving ? <Loader size={16} className="animate-spin" /> : <RotateCcw size={16} />}
-              {saving ? 'Submitting…' : `Refund ${formatMoney(Number(amount) || 0)}`}
+              {saving ? 'Submitting…' : retryingSameRequest ? 'Retry same refund' : `Refund ${formatMoney(Number(amount) || 0)}`}
             </button>
           </div>
         </form>

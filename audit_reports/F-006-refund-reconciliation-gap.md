@@ -1,6 +1,6 @@
 # F-006 — Refund reconciliation
 
-- **Status:** Resolved in `20260912130806_paymongo_refunds_and_failures.sql`
+- **Status:** Resolved in `20260912184434_paymongo_refunds_and_failures.sql`
 - **Severity:** MEDIUM
 - **Confidence:** CONFIRMED
 - **Verified:** 2026-09-11

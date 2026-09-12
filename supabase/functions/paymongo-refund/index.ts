@@ -5,6 +5,7 @@
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4'
+import { postPayMongoRefund, providerError } from './provider.js'
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -13,6 +14,7 @@ const CORS_HEADERS = {
 }
 
 const PROVIDER_TIMEOUT_MS = 15_000
+const PROVIDER_IDEMPOTENCY_RETRY_WINDOW_MS = 23 * 60 * 60 * 1000
 const MAX_BODY_BYTES = 32 * 1024
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 const REFUND_REASONS = new Set(['duplicate', 'fraudulent', 'requested_by_customer', 'others'])
@@ -38,14 +40,6 @@ const providerTimestamp = (value: unknown) => {
   const seconds = Number(value)
   if (!Number.isFinite(seconds) || seconds <= 0) return null
   return new Date(seconds * 1000).toISOString()
-}
-
-const providerError = (payload: any) => {
-  const item = Array.isArray(payload?.errors) ? payload.errors[0] : null
-  return {
-    code: typeof item?.code === 'string' ? item.code : null,
-    detail: typeof item?.detail === 'string' ? item.detail : 'PayMongo could not create the refund.',
-  }
 }
 
 serve(async (req) => {
@@ -116,62 +110,75 @@ serve(async (req) => {
       return json({ error: safeMessage }, 409)
     }
 
-    if (!reservation?.created) {
+    const reservationStatus = String(reservation?.status || 'processing').toLowerCase()
+    const canRetryUnresolvedRequest = !reservation?.created
+      && ['creating', 'processing'].includes(reservationStatus)
+      && !reservation?.refund_id
+
+    if (!reservation?.created && !canRetryUnresolvedRequest) {
       return json({
-        success: reservation?.status === 'succeeded',
+        success: reservationStatus === 'succeeded',
         duplicate: true,
         refundId: reservation?.refund_id || null,
-        status: reservation?.status || 'processing',
+        status: reservationStatus,
         amount: Number(reservation?.amount || amount),
-        message: reservation?.status === 'failed'
+        message: reservationStatus === 'failed'
           ? 'This refund request already failed. Close this window and start a new refund.'
           : 'This refund request is already being processed.',
-      }, reservation?.status === 'failed' ? 409 : 200)
+      }, reservationStatus === 'failed' ? 409 : 200)
     }
 
-    let response: Response
-    try {
-      response = await fetch('https://api.paymongo.com/v1/refunds', {
-        method: 'POST',
-        redirect: 'error',
-        signal: AbortSignal.timeout(PROVIDER_TIMEOUT_MS),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': paymongoAuthHeader(),
-        },
-        body: JSON.stringify({
-          data: {
-            attributes: {
-              amount: Math.round(amount * 100),
-              payment_id: reservation.payment_id,
-              reason,
-              ...(notes ? { notes } : {}),
-            },
-          },
-        }),
-      })
-    } catch {
+    if (canRetryUnresolvedRequest) {
+      const reservedAt = Date.parse(String(reservation?.created_at || ''))
+      const reservationAge = Date.now() - reservedAt
+      if (!Number.isFinite(reservedAt)
+        || reservationAge < 0
+        || reservationAge >= PROVIDER_IDEMPOTENCY_RETRY_WINDOW_MS) {
+        return json({
+          error: 'This unresolved refund is outside PayMongo\'s safe retry window. Check the PayMongo dashboard before taking any further action.',
+          status: reservationStatus,
+          manualReviewRequired: true,
+        }, 409)
+      }
+    }
+
+    // Retry from the database reservation, not mutable browser input. This
+    // guarantees the exact same PayMongo request is paired with the same key.
+    const reservedAmount = Number(reservation?.amount || amount)
+    const reservedReason = String(reservation?.reason || reason)
+    const reservedNotes = typeof reservation?.notes === 'string' ? reservation.notes : ''
+    const reservedIdempotencyKey = String(reservation?.idempotency_key || idempotencyKey)
+
+    const providerResult = await postPayMongoRefund({
+      authorization: paymongoAuthHeader(),
+      idempotencyKey: reservedIdempotencyKey,
+      paymentId: reservation.payment_id,
+      amount: reservedAmount,
+      reason: reservedReason,
+      notes: reservedNotes,
+      timeoutMs: PROVIDER_TIMEOUT_MS,
+    })
+    const { response, providerBody, outcomeUnknown } = providerResult
+
+    if (outcomeUnknown || !response) {
       await adminSupabase.rpc('mark_paymongo_refund_request', {
-        p_idempotency_key: idempotencyKey,
+        p_idempotency_key: reservedIdempotencyKey,
         p_status: 'processing',
-        p_error: 'Provider request timed out; awaiting signed webhook reconciliation',
+        p_error: 'Provider outcome unknown after safe idempotent retry; awaiting reconciliation',
       })
       return json({
         success: false,
         status: 'processing',
         outcomeUnknown: true,
-        amount,
-        message: 'PayMongo did not answer in time. Do not submit another refund; this request will be reconciled automatically.',
+        amount: reservedAmount,
+        message: 'PayMongo has not confirmed the result yet. Keep this window open and use “Retry same refund”; the same protected request will be reused and cannot create a duplicate.',
       }, 202)
     }
-
-    let providerBody: any = null
-    try { providerBody = await response.json() } catch { providerBody = null }
 
     if (!response.ok) {
       const failure = providerError(providerBody)
       await adminSupabase.rpc('mark_paymongo_refund_request', {
-        p_idempotency_key: idempotencyKey,
+        p_idempotency_key: reservedIdempotencyKey,
         p_status: 'failed',
         p_error: `${failure.code || 'provider_error'}: ${failure.detail}`,
       })
@@ -193,15 +200,15 @@ serve(async (req) => {
     const { data: reconciled, error: reconcileError } = await adminSupabase.rpc('reconcile_paymongo_refund', {
       p_refund_id: resource?.id,
       p_payment_id: attributes.payment_id || reservation.payment_id,
-      p_amount: refundAmount || amount,
+      p_amount: refundAmount || reservedAmount,
       p_status: status,
-      p_reason: attributes.reason || reason,
-      p_notes: attributes.notes || notes || null,
+      p_reason: attributes.reason || reservedReason,
+      p_notes: attributes.notes || reservedNotes || null,
       p_livemode: typeof attributes.livemode === 'boolean' ? attributes.livemode : null,
       p_event_id: null,
       p_provider_created_at: providerTimestamp(attributes.created_at),
       p_provider_updated_at: providerTimestamp(attributes.updated_at),
-      p_idempotency_key: idempotencyKey,
+      p_idempotency_key: reservedIdempotencyKey,
     })
     if (reconcileError || !reconciled?.linked) {
       console.error('[paymongo-refund] Provider refund created but local reconciliation failed')
@@ -209,7 +216,7 @@ serve(async (req) => {
         success: false,
         refundId: resource?.id || null,
         status,
-        amount: refundAmount || amount,
+        amount: refundAmount || reservedAmount,
         message: 'PayMongo accepted the refund. Local history is still reconciling from the signed webhook.',
       }, 202)
     }
@@ -218,7 +225,7 @@ serve(async (req) => {
       success: status === 'succeeded',
       refundId: resource.id,
       status,
-      amount: refundAmount || amount,
+      amount: refundAmount || reservedAmount,
       message: status === 'succeeded'
         ? 'Refund completed and the order ledger was updated.'
         : 'Refund submitted to PayMongo and is awaiting completion.',

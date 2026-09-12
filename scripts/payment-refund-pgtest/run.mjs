@@ -40,13 +40,13 @@ await db.exec(`
   );
 `);
 
-const migration = '20260912130806_paymongo_refunds_and_failures.sql';
+const migration = '20260912184434_paymongo_refunds_and_failures.sql';
 await db.exec(readFileSync(path.join(REPO, 'supabase/migrations', migration), 'utf8'));
 console.log(`  applied ${migration}`);
-const policyMigration = '20260912184741_optimize_payment_refund_select_policy.sql';
+const policyMigration = '20260912184816_optimize_payment_refund_select_policy.sql';
 await db.exec(readFileSync(path.join(REPO, 'supabase/migrations', policyMigration), 'utf8'));
 console.log(`  applied ${policyMigration}`);
-const linkageMigration = '20260912185517_harden_paymongo_webhook_linkage.sql';
+const linkageMigration = '20260912185652_harden_paymongo_webhook_linkage.sql';
 await db.exec(readFileSync(path.join(REPO, 'supabase/migrations', linkageMigration), 'utf8'));
 console.log(`  applied ${linkageMigration}`);
 

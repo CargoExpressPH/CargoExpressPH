@@ -276,7 +276,9 @@ export const createPayMongoRefund = async ({
       body: JSON.stringify({ paymentTransactionId, amount, reason, notes, idempotencyKey }),
     });
   } catch {
-    throw new Error('Refund service is temporarily unavailable. Check PayMongo before trying again.');
+    const error = new Error('The refund result is uncertain. Keep this window open and retry the same refund; the protected reference will be reused.');
+    error.outcomeUnknown = true;
+    throw error;
   }
 
   let body = null;
