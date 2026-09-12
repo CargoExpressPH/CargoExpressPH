@@ -24,11 +24,13 @@ import {
 // place still printing a bare currency CODE ("PHP 1,200.00") instead of the ₱
 // the rest of the product uses — the odd one out on the only screen a customer
 // opens specifically to read amounts.
-const formatMoney = (value) =>
-  `₱${Number(value || 0).toLocaleString('en-PH', {
+const formatMoney = (value) => {
+  const amount = Number(value || 0);
+  return `${amount < 0 ? '-' : ''}₱${Math.abs(amount).toLocaleString('en-PH', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })}`;
+};
 
 const formatDate = (value) => {
   if (!value) return 'Not set';
@@ -129,7 +131,7 @@ const PaymentDetailModal = ({ tx, onClose, onViewOrder }) => {
         <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 440 }}>
           <div className="modal-header">
             <h3 id="payment-detail-title" className="flex items-center gap-8">
-              <Receipt size={20} aria-hidden="true" /> Payment Details
+              <Receipt size={20} aria-hidden="true" /> {tx.is_refund ? 'Refund Details' : 'Payment Details'}
             </h3>
             <button type="button" className="btn-icon btn-ghost" onClick={onClose} aria-label="Close payment details">
               <X size={20} />
@@ -275,7 +277,7 @@ const PaymentHistoryPage = () => {
   );
 
   const monthTotal = useMemo(
-    () => visibleTransactions.reduce((sum, tx) => sum + Number(tx.amount || 0), 0),
+    () => visibleTransactions.reduce((sum, tx) => sum + Number(tx.financial_amount ?? tx.amount ?? 0), 0),
     [visibleTransactions],
   );
 
@@ -291,7 +293,7 @@ const PaymentHistoryPage = () => {
             <Receipt size={24} aria-hidden="true" /> Payment History
           </h1>
           <p className="text-sm text-secondary mt-4">
-            Every payment recorded on your shipments, plus anything still owing.
+            Every payment and refund recorded on your shipments, plus anything still owing.
           </p>
         </div>
       </div>
@@ -359,9 +361,9 @@ const PaymentHistoryPage = () => {
             </div>
           )}
 
-          {/* ── Recent Payments ───────────────────────────────────── */}
+          {/* ── Recent payment activity ───────────────────────────── */}
           <div className="payment-list-header">
-            <h3 className="profile-section-title m-0">Recent Payments</h3>
+            <h3 className="profile-section-title m-0">Recent Payment Activity</h3>
             <CustomSelect
               id="payment-month-filter"
               className="form-select payment-month-select"
@@ -379,7 +381,7 @@ const PaymentHistoryPage = () => {
 
           {visibleTransactions.length === 0 ? (
             <div className="card card-body text-sm text-secondary">
-              No payments were recorded in {monthLabel(selectedMonth)}.
+              No payment activity was recorded in {monthLabel(selectedMonth)}.
             </div>
           ) : (
             <>
@@ -392,7 +394,7 @@ const PaymentHistoryPage = () => {
                       key={tx.id}
                       className="payment-row"
                       onClick={() => setOpenTx(tx)}
-                      aria-label={`Payment of ${formatMoney(tx.amount)} on ${formatDate(tx.payment_date || tx.created_at)} — ${statusInfo.label}. View details`}
+                      aria-label={`${tx.is_refund ? 'Refund' : 'Payment'} of ${formatMoney(tx.amount)} on ${formatDate(tx.payment_date || tx.created_at)} — ${statusInfo.label}. View details`}
                     >
                       <span className="payment-row-date">{formatRowDate(tx.payment_date || tx.created_at)}</span>
                       <span className="payment-row-amount">{formatMoney(tx.amount)}</span>
@@ -403,7 +405,7 @@ const PaymentHistoryPage = () => {
                 })}
               </div>
               <div className="payment-list-total">
-                <span>{visibleTransactions.length} payment{visibleTransactions.length === 1 ? '' : 's'}</span>
+                <span>{visibleTransactions.length} activit{visibleTransactions.length === 1 ? 'y' : 'ies'}</span>
                 <span className="fw-800">{formatMoney(monthTotal)}</span>
               </div>
             </>

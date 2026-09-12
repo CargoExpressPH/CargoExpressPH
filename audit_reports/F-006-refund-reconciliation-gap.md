@@ -1,12 +1,12 @@
-# F-006 — Refund reconciliation is not implemented
+# F-006 — Refund reconciliation
 
-- **Status:** Confirmed feature gap
+- **Status:** Resolved in `20260912130806_paymongo_refunds_and_failures.sql`
 - **Severity:** MEDIUM
 - **Confidence:** CONFIRMED
 - **Verified:** 2026-09-11
 - **Area:** PayMongo lifecycle and payment ledger
 
-## Finding
+## Original finding
 
 The application can display a `refunded` payment status, but there is no verified refund workflow that updates the payment ledger and order state when a PayMongo refund occurs.
 
@@ -36,3 +36,23 @@ Choose and implement one of these explicit models:
 2. Create an admin-only manual refund reconciliation workflow with provider reference, amount, reason, and audit history.
 
 The order payment status, remaining balance, customer view, staff view, and reports must all use the same refund semantics.
+
+## Resolution
+
+Implemented a dedicated `payment_refunds` lifecycle ledger linked to the
+original `payment_transactions` row. Admin-created refunds reserve the amount
+under a database lock before the secret-key PayMongo request. Signed
+`payment.refunded`, `payment.refund.updated`, and compatibility
+`refund.succeeded` deliveries upsert by provider refund id, so redelivery is a
+no-op and multiple partial refunds cannot exceed the original payment.
+
+Only `succeeded` refunds reduce `orders.amount_paid`, recalculate the remaining
+balance/payment status, notify the customer, and reduce report collections.
+Pending, processing, and failed attempts stay visible in customer/admin
+history without moving money. `payment.failed` now closes the registered
+attempt without writing a payment ledger row.
+
+Regression coverage is in `scripts/payment-refund-pgtest/run.mjs`; it executes
+the real migration against embedded PostgreSQL and checks partial/full refund
+math, pending semantics, concurrency reservations, webhook idempotency,
+notification deduplication, report totals, and failed-payment behavior.

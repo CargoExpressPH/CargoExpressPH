@@ -152,6 +152,100 @@ const markAttempt = async (
     .eq('source_id', sourceId)
 }
 
+const reconcileFailure = async (
+  adminSupabase: ReturnType<typeof createClient>,
+  sourceId: string | null,
+  paymentId: string | null,
+  message: string,
+) => {
+  const { data, error } = await adminSupabase.rpc('reconcile_paymongo_payment_failure', {
+    p_source_id: sourceId,
+    p_payment_id: paymentId,
+    p_failure_message: message,
+  })
+  if (error) throw error
+  return data
+}
+
+const providerTimestamp = (value: unknown) => {
+  const seconds = Number(value)
+  if (!Number.isFinite(seconds) || seconds <= 0) return null
+  return new Date(seconds * 1000).toISOString()
+}
+
+type RefundResource = {
+  id?: string
+  attributes?: Record<string, unknown>
+}
+
+const retrieveRefund = async (refundId: string): Promise<RefundResource> => {
+  const response = await providerFetch(`https://api.paymongo.com/v1/refunds/${encodeURIComponent(refundId)}`, {
+    headers: { 'Authorization': paymongoAuthHeader() },
+  })
+  const body = await response.json()
+  if (!response.ok || !body?.data?.id) {
+    throw new Error('Could not retrieve the PayMongo refund resource')
+  }
+  return body.data
+}
+
+// PayMongo sends refund updates as a Refund resource. payment.refunded may
+// instead contain a Payment resource whose attributes include one or more
+// refunds, so normalize both documented shapes to the same list.
+const extractRefunds = (eventType: string, resource: any): RefundResource[] => {
+  if (resource?.type === 'refund' || eventType === 'refund.succeeded') {
+    return resource?.id ? [resource] : []
+  }
+
+  const raw = resource?.attributes?.refunds
+  const items = Array.isArray(raw) ? raw : Array.isArray(raw?.data) ? raw.data : []
+  return items.map((item: any) => item?.data || item).filter((item: any) => item?.id)
+}
+
+const reconcileRefund = async (
+  adminSupabase: ReturnType<typeof createClient>,
+  eventId: string | null,
+  eventType: string,
+  refund: RefundResource,
+  paymentIdFallback: string | null,
+) => {
+  // The event guide's compact refund.succeeded example omits payment_id.
+  // Retrieve the canonical Refund resource before acknowledging the webhook
+  // when an event does not include enough information to link the ledger.
+  let completeRefund = refund
+  let attributes: any = completeRefund?.attributes || {}
+  if (completeRefund.id && (!attributes.payment_id || Number(attributes.amount || 0) <= 0)) {
+    completeRefund = await retrieveRefund(completeRefund.id)
+    attributes = completeRefund?.attributes || {}
+  }
+  const amount = Number(attributes.amount || 0) / 100
+  const paymentId = attributes.payment_id || paymentIdFallback
+  const rawStatus = String(attributes.status || '').toLowerCase()
+  const status = ['pending', 'processing', 'succeeded', 'failed'].includes(rawStatus)
+    ? rawStatus
+    : (eventType === 'payment.refunded' || eventType === 'refund.succeeded') ? 'succeeded' : 'pending'
+
+  if (!completeRefund.id || !paymentId || amount <= 0) {
+    throw new Error('PayMongo refund payload is missing its payment link or amount')
+  }
+
+  const { data, error } = await adminSupabase.rpc('reconcile_paymongo_refund', {
+    p_refund_id: completeRefund.id,
+    p_payment_id: paymentId,
+    p_amount: amount,
+    p_status: status,
+    p_reason: attributes.reason || 'others',
+    p_notes: attributes.notes || null,
+    p_livemode: typeof attributes.livemode === 'boolean' ? attributes.livemode : null,
+    p_event_id: eventId,
+    p_provider_created_at: providerTimestamp(attributes.created_at),
+    p_provider_updated_at: providerTimestamp(attributes.updated_at),
+    p_idempotency_key: null,
+  })
+  if (error) throw error
+  return data
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: CORS_HEADERS })
@@ -215,6 +309,16 @@ serve(async (req) => {
         const payment = await capturePayment(sourceId, chargeAmount, attributes.description || null)
         console.log('[paymongo-webhook] Payment capture succeeded')
 
+        if (payment.status !== 'paid') {
+          await reconcileFailure(
+            adminSupabase,
+            sourceId,
+            payment.paymentId,
+            `PayMongo capture returned status ${payment.status || 'unknown'}`,
+          )
+          return json({ received: true, eventId, paymentId: payment.paymentId, paymentFailed: true })
+        }
+
         const result = await reconcile(adminSupabase, sourceId, payment.paymentId, payment.amount, payment.status)
         console.log('[paymongo-webhook] Payment reconciliation completed')
 
@@ -272,6 +376,50 @@ serve(async (req) => {
       const result = await reconcile(adminSupabase, sourceId, paymentId, amount, status)
       console.log('[paymongo-webhook] Paid payment event reconciled')
       return json({ received: true, eventId, paymentId, orderReconciled: !!result?.order_reconciled })
+    }
+
+    if (eventType === 'payment.failed') {
+      const paymentId = resource?.id || null
+      const sourceId = attributes.source?.id || null
+      const providerReason = attributes.failure_code
+        || attributes.failed_code
+        || attributes.last_payment_error?.code
+        || 'PayMongo reported payment.failed'
+
+      console.log('[paymongo-webhook] Received a failed payment event')
+      const result = await reconcileFailure(adminSupabase, sourceId, paymentId, String(providerReason))
+      return json({
+        received: true,
+        eventId,
+        paymentId,
+        attemptUpdated: !!result?.changed,
+        linked: !!result?.linked,
+      })
+    }
+
+    if (eventType === 'payment.refunded'
+        || eventType === 'payment.refund.updated'
+        || eventType === 'refund.succeeded') {
+      const refunds = extractRefunds(eventType, resource)
+      if (refunds.length === 0) {
+        return json({ received: true, eventId, ignored: true, reason: 'No refund resource found' })
+      }
+
+      console.log('[paymongo-webhook] Received a refund event')
+      const paymentIdFallback = resource?.type === 'payment' ? resource?.id : null
+      const results = []
+      // Keep refunds for one payment serialized. The RPC also locks the
+      // original ledger row, but sequential processing avoids needless lock
+      // contention when payment.refunded carries several partial refunds.
+      for (const refund of refunds) {
+        results.push(await reconcileRefund(adminSupabase, eventId, eventType, refund, paymentIdFallback))
+      }
+      return json({
+        received: true,
+        eventId,
+        refundsProcessed: results.length,
+        refundsLinked: results.filter((result: any) => result?.linked).length,
+      })
     }
 
     return json({ received: true, ignored: true, eventType })

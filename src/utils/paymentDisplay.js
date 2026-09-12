@@ -18,6 +18,8 @@ export const formatPaymentType = (type, audience = 'customer') => {
     'Initial Payment': audience === 'customer' ? 'Initial' : 'Initial Payment',
     'Additional Payment': audience === 'customer' ? 'Additional' : 'Additional Payment',
     'Balance Settlement': audience === 'customer' ? 'Settlement' : 'Balance Settlement',
+    'Refund': 'Refund',
+    'Payment Attempt': audience === 'customer' ? 'Failed payment' : 'Payment Attempt',
   };
   return map[type] || type;
 };
@@ -66,7 +68,7 @@ export const truncateRef = (ref, maxLen = 16) => {
 export const getCustomerVisibleRef = (ref) => {
   if (!ref || !ref.trim()) return null;
   // PayMongo internal ID prefixes
-  if (/^(pay_|src_|link_|paym_|pi_|re_|sub_|cus_|evt_)/i.test(ref)) return null;
+  if (/^(pay_|ref_|src_|link_|paym_|pi_|re_|sub_|cus_|evt_)/i.test(ref)) return null;
   return ref;
 };
 
@@ -113,6 +115,8 @@ export const getPaymentStatusDisplay = (status) => {
   if (s === 'failed') return { label: 'Failed', tone: 'error' };
   if (s === 'refunded') return { label: 'Refunded', tone: 'info' };
   if (s === 'pending') return { label: 'Pending', tone: 'warning' };
+  if (s === 'processing') return { label: 'Processing', tone: 'warning' };
+  if (s === 'creating') return { label: 'Starting', tone: 'warning' };
   return { label: status || 'Unknown', tone: 'default' };
 };
 

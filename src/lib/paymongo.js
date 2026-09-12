@@ -243,3 +243,44 @@ export const pollPaymentStatus = async (sourceId, orderId) => {
   inFlightPolls.set(pollKey, pollPromise);
   return pollPromise;
 };
+
+/**
+ * Create a full or partial refund for one verified PayMongo ledger payment.
+ * The secret-key provider call happens only in the admin-authorized Edge
+ * Function; the browser sends the local payment row id, never a secret key.
+ */
+export const createPayMongoRefund = async ({
+  paymentTransactionId,
+  amount,
+  reason,
+  notes = '',
+  idempotencyKey,
+}) => {
+  const { data: sessionData } = await supabase.auth.getSession();
+  const accessToken = sessionData?.session?.access_token;
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+  if (!accessToken || !supabaseUrl || !anonKey) {
+    throw new Error('Your admin session is unavailable. Sign in again and retry.');
+  }
+
+  let response;
+  try {
+    response = await fetch(`${supabaseUrl}/functions/v1/paymongo-refund`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: anonKey,
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({ paymentTransactionId, amount, reason, notes, idempotencyKey }),
+    });
+  } catch {
+    throw new Error('Refund service is temporarily unavailable. Check PayMongo before trying again.');
+  }
+
+  let body = null;
+  try { body = await response.json(); } catch { body = null; }
+  if (!response.ok) throw new Error(body?.error || `Refund request failed (${response.status}).`);
+  return body || {};
+};

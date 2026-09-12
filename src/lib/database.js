@@ -1397,7 +1397,7 @@ export const getSalesData = async () => {
   // order picked up on GCash and settled in cash would file both payments
   // under cash. Mirrors get_sales_summary(); see 20260806020000.
   const orderIds = orders.map(o => o.id);
-  const { methodTotals, ledgerTotal } = await sumTransactionsByMethod(orderIds);
+  const { methodTotals, ledgerTotal, grossLedgerTotal, refundTotal, refundCount } = await sumTransactionsByMethod(orderIds);
   const cashTotal = methodTotals.cash || 0;
   const gcashTotal = methodTotals.gcash || 0;
   const paylaterTotal = methodTotals.paylater || 0;
@@ -1437,6 +1437,11 @@ export const getSalesData = async () => {
       paylaterTotal,
       methodTotals: Object.entries(methodTotals).map(([method, total]) => ({ method, total })),
       ledgerTotal,
+      grossLedgerTotal,
+      refundTotal,
+      refundCount,
+      grossCollected: paidTotal + refundTotal,
+      netCollected: paidTotal,
       // Collected money with no ledger row behind it (pre-ledger orders).
       // Reported, not folded into Cash.
       unattributedTotal: Math.max(paidTotal - ledgerTotal, 0),
@@ -1463,32 +1468,60 @@ export const getSalesData = async () => {
  * update_order_payment_totals uses to derive orders.amount_paid, so the split
  * reconciles against the total instead of drifting from it.
  *
- * @returns {Promise<{ methodTotals: Record<string, number>, ledgerTotal: number, methodCounts: Record<string, number> }>}
+ * @returns {Promise<{ methodTotals: Record<string, number>, ledgerTotal: number, grossLedgerTotal: number, refundTotal: number, refundCount: number, methodCounts: Record<string, number> }>}
  */
 const sumTransactionsByMethod = async (orderIds) => {
   const methodTotals = {};
   const methodCounts = {};
   let ledgerTotal = 0;
-  if (!orderIds || orderIds.length === 0) return { methodTotals, ledgerTotal, methodCounts };
+  let grossLedgerTotal = 0;
+  let refundTotal = 0;
+  let refundCount = 0;
+  if (!orderIds || orderIds.length === 0) {
+    return { methodTotals, ledgerTotal, grossLedgerTotal, refundTotal, refundCount, methodCounts };
+  }
 
   const CHUNK = 200;
   for (let i = 0; i < orderIds.length; i += CHUNK) {
-    const { data } = await supabase
-      .from('payment_transactions')
-      .select('amount, payment_method, payment_status')
-      .in('order_id', orderIds.slice(i, i + CHUNK))
-      .in('payment_status', ['paid', 'partial']);
+    const ids = orderIds.slice(i, i + CHUNK);
+    const [{ data: payments, error: paymentError }, { data: refunds, error: refundError }] = await Promise.all([
+      supabase
+        .from('payment_transactions')
+        .select('id, amount, payment_method, payment_status')
+        .in('order_id', ids)
+        .in('payment_status', ['paid', 'partial']),
+      supabase
+        .from('payment_refunds')
+        .select('amount, payment_transaction_id, status')
+        .in('order_id', ids)
+        .eq('status', 'succeeded'),
+    ]);
+    if (paymentError) throw paymentError;
+    if (refundError) throw refundError;
 
-    (data || []).forEach(t => {
+    const methodByPayment = new Map();
+
+    (payments || []).forEach(t => {
       const method = (t.payment_method || '').trim().toLowerCase() || 'unspecified';
       const amount = parseFloat(t.amount || 0);
+      methodByPayment.set(t.id, method);
       methodTotals[method] = (methodTotals[method] || 0) + amount;
       methodCounts[method] = (methodCounts[method] || 0) + 1;
       ledgerTotal += amount;
+      grossLedgerTotal += amount;
+    });
+
+    (refunds || []).forEach(refund => {
+      const method = methodByPayment.get(refund.payment_transaction_id) || 'unspecified';
+      const amount = parseFloat(refund.amount || 0);
+      methodTotals[method] = (methodTotals[method] || 0) - amount;
+      ledgerTotal -= amount;
+      refundTotal += amount;
+      refundCount += 1;
     });
   }
 
-  return { methodTotals, ledgerTotal, methodCounts };
+  return { methodTotals, ledgerTotal, grossLedgerTotal, refundTotal, refundCount, methodCounts };
 };
 
 // ==================== UNSETTLED DELIVERIES ====================
@@ -2302,7 +2335,7 @@ export const getReportData = async (period = 'daily', customStart = null, custom
   // order that paid twice by two different methods (see 20260806020000).
   // Counts are payments, not orders: one order can appear in two buckets.
   const activeOrders = filtered.filter(o => o.status !== 'Cancelled');
-  const { methodTotals, ledgerTotal, methodCounts } = await sumTransactionsByMethod(
+  const { methodTotals, ledgerTotal, grossLedgerTotal, refundTotal, refundCount, methodCounts } = await sumTransactionsByMethod(
     activeOrders.map(o => o.id)
   );
   // Reconcile against the same population the ledger sum covers, so a
@@ -2354,6 +2387,11 @@ export const getReportData = async (period = 'daily', customStart = null, custom
         count: methodCounts[method] || 0,
       })),
       ledgerTotal,
+      grossLedgerTotal,
+      refundTotal,
+      refundCount,
+      grossCollected: totalCollected + refundTotal,
+      netCollected: totalCollected,
       unattributedTotal: Math.max(collectedOnActiveOrders - ledgerTotal, 0),
     },
     statusBreakdown: statusMap,
@@ -2710,14 +2748,91 @@ export const recordAdditionalPayment = async (orderId, amount, method, ref, note
   };
 };
 
+const refundFinancialStatus = status => status === 'succeeded' ? 'refunded'
+  : status === 'failed' ? 'failed'
+    : status === 'processing' ? 'processing' : 'pending';
+
+const mergePaymentActivity = (payments = [], refunds = [], attempts = []) => {
+  const refundTotals = new Map();
+  const reservedTotals = new Map();
+  for (const refund of refunds) {
+    const amount = Number(refund.amount || 0);
+    if (refund.status === 'succeeded') {
+      refundTotals.set(refund.payment_transaction_id, (refundTotals.get(refund.payment_transaction_id) || 0) + amount);
+    }
+    if (['creating', 'pending', 'processing', 'succeeded'].includes(refund.status)) {
+      reservedTotals.set(refund.payment_transaction_id, (reservedTotals.get(refund.payment_transaction_id) || 0) + amount);
+    }
+  }
+
+  const paymentRows = payments.map(payment => ({
+    ...payment,
+    is_refund: false,
+    refunded_amount: refundTotals.get(payment.id) || 0,
+    refundable_amount: Math.max(Number(payment.amount || 0) - (reservedTotals.get(payment.id) || 0), 0),
+    financial_amount: Number(payment.amount || 0),
+  }));
+  const refundRows = refunds.map(refund => ({
+    id: `refund:${refund.id}`,
+    order_id: refund.order_id,
+    amount: -Number(refund.amount || 0),
+    financial_amount: refund.status === 'succeeded' ? -Number(refund.amount || 0) : 0,
+    payment_method: 'gcash',
+    gcash_channel: 'paymongo',
+    payment_status: refundFinancialStatus(refund.status),
+    refund_status: refund.status,
+    payment_type: 'Refund',
+    payment_date: null,
+    transaction_reference: refund.refund_id,
+    notes: refund.notes,
+    admin_id: refund.initiated_by,
+    admin_name: refund.initiated_by_name || 'PayMongo Dashboard',
+    created_at: refund.provider_created_at || refund.created_at,
+    updated_at: refund.provider_updated_at || refund.updated_at,
+    original_payment_transaction_id: refund.payment_transaction_id,
+    is_refund: true,
+    livemode: refund.livemode,
+  }));
+  const failedAttemptRows = attempts.map(attempt => ({
+    id: `attempt:${attempt.id}`,
+    order_id: attempt.order_id,
+    amount: Number(attempt.amount || 0),
+    financial_amount: 0,
+    payment_method: 'gcash',
+    payment_status: 'failed',
+    payment_type: 'Payment Attempt',
+    payment_date: null,
+    transaction_reference: null,
+    notes: attempt.failure_message || 'Payment was not completed. No money was added to this order.',
+    admin_id: null,
+    admin_name: 'Payment System',
+    created_at: attempt.created_at,
+    updated_at: attempt.updated_at,
+    is_refund: false,
+    is_payment_attempt: true,
+    refundable_amount: 0,
+  }));
+
+  return [...paymentRows, ...refundRows, ...failedAttemptRows].sort((a, b) => {
+    const time = new Date(a.payment_date || a.created_at) - new Date(b.payment_date || b.created_at);
+    return time || String(a.id).localeCompare(String(b.id));
+  });
+};
+
 export const getPaymentTransactions = async (orderId) => {
-  const { data, error } = await supabase
-    .from('payment_transactions')
-    .select('*')
-    .eq('order_id', orderId)
-    .order('created_at', { ascending: true });
-  if (error) throw error;
-  return data;
+  const [
+    { data: payments, error: paymentError },
+    { data: refunds, error: refundError },
+    { data: attempts, error: attemptError },
+  ] = await Promise.all([
+    supabase.from('payment_transactions').select('*').eq('order_id', orderId).order('created_at', { ascending: true }),
+    supabase.from('payment_refunds').select('*').eq('order_id', orderId).order('created_at', { ascending: true }),
+    supabase.rpc('get_payment_attempt_history', { p_order_ids: [orderId] }),
+  ]);
+  if (paymentError) throw paymentError;
+  if (refundError) throw refundError;
+  if (attemptError) throw attemptError;
+  return mergePaymentActivity(payments || [], refunds || [], attempts || []);
 };
 
 /**
@@ -2737,7 +2852,7 @@ export const getPaymentTransactionsBatch = async (orderIds) => {
     chunks.push(uniqueIds.slice(index, index + 100));
   }
 
-  const fetchChunk = async (ids) => {
+  const fetchTableChunk = async (table, ids) => {
     const rows = [];
     const pageSize = 1000;
     let from = 0;
@@ -2747,7 +2862,7 @@ export const getPaymentTransactionsBatch = async (orderIds) => {
     // the API row limit either.
     while (true) {
       const { data, error } = await supabase
-        .from('payment_transactions')
+        .from(table)
         .select('*')
         .in('order_id', ids)
         .order('created_at', { ascending: true })
@@ -2763,13 +2878,41 @@ export const getPaymentTransactionsBatch = async (orderIds) => {
     return rows;
   };
 
-  const responses = await Promise.all(chunks.map(fetchChunk));
-  const data = responses.flat();
-  // Group by order_id
+  const [paymentResponses, refundResponses, attemptResponses] = await Promise.all([
+    Promise.all(chunks.map(ids => fetchTableChunk('payment_transactions', ids))),
+    Promise.all(chunks.map(ids => fetchTableChunk('payment_refunds', ids))),
+    Promise.all(chunks.map(async ids => {
+      const { data, error } = await supabase.rpc('get_payment_attempt_history', { p_order_ids: ids });
+      if (error) throw error;
+      return data || [];
+    })),
+  ]);
+  const payments = paymentResponses.flat();
+  const refunds = refundResponses.flat();
+  const attempts = attemptResponses.flat();
+  const paymentsByOrder = {};
+  const refundsByOrder = {};
+  const attemptsByOrder = {};
+  for (const tx of payments) {
+    if (!paymentsByOrder[tx.order_id]) paymentsByOrder[tx.order_id] = [];
+    paymentsByOrder[tx.order_id].push(tx);
+  }
+  for (const refund of refunds) {
+    if (!refundsByOrder[refund.order_id]) refundsByOrder[refund.order_id] = [];
+    refundsByOrder[refund.order_id].push(refund);
+  }
+  for (const attempt of attempts) {
+    if (!attemptsByOrder[attempt.order_id]) attemptsByOrder[attempt.order_id] = [];
+    attemptsByOrder[attempt.order_id].push(attempt);
+  }
+
   const grouped = {};
-  for (const tx of data || []) {
-    if (!grouped[tx.order_id]) grouped[tx.order_id] = [];
-    grouped[tx.order_id].push(tx);
+  for (const orderId of uniqueIds) {
+    grouped[orderId] = mergePaymentActivity(
+      paymentsByOrder[orderId] || [],
+      refundsByOrder[orderId] || [],
+      attemptsByOrder[orderId] || [],
+    );
   }
   return grouped;
 };

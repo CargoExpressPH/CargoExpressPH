@@ -17,6 +17,7 @@ import TripReassignModal from '../../components/ui/TripReassignModal';
 import AssignCustomerModal from '../../components/ui/AssignCustomerModal';
 import EditContactDetailsModal from '../../components/ui/EditContactDetailsModal';
 import AdditionalPaymentModal from '../../components/ui/AdditionalPaymentModal';
+import RefundPaymentModal from '../../components/ui/RefundPaymentModal';
 import DeliveryModal from '../../components/ui/DeliveryModal';
 import ConfirmModal from '../../components/ui/ConfirmModal';
 import PaymentResultModal from '../../components/ui/PaymentResultModal';
@@ -36,7 +37,7 @@ import {
 } from '../../constants/status';
 import {
   ArrowLeft, Check, Package, CreditCard, User, Phone, MapPin,
-  Truck, Loader, Save, Camera, AlertTriangle, X, Image, Clock, Trash2, Star, ChevronDown, UserPlus, Tag
+  Truck, Loader, Save, Camera, AlertTriangle, X, Image, Clock, Trash2, Star, ChevronDown, UserPlus, Tag, RotateCcw
 } from 'lucide-react';
 import { useToast } from '../../hooks/useToast';
 import { useAuth } from '../../contexts/AuthContext';
@@ -123,6 +124,7 @@ const AdminOrderDetailPage = () => {
   const [showEditContactModal, setShowEditContactModal] = useState(false);
   const [savingContactDetails, setSavingContactDetails] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [refundPayment, setRefundPayment] = useState(null);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [paymentResultModal, setPaymentResultModal] = useState(null);
   const [isFeatureExpanded, setIsFeatureExpanded] = useState(false);
@@ -166,7 +168,7 @@ const AdminOrderDetailPage = () => {
    */
   const paidMethods = useMemo(() => {
     const methods = paymentTransactions
-      .filter(tx => tx.status === 'paid' || tx.status === 'partial')
+      .filter(tx => !tx.is_refund && (tx.payment_status === 'paid' || tx.payment_status === 'partial'))
       .map(tx => tx.payment_method)
       .filter(Boolean);
     return [...new Set(methods)];
@@ -1261,6 +1263,7 @@ const AdminOrderDetailPage = () => {
                       <th scope="col">Status</th>
                       <th scope="col">Receipt/Ref</th>
                       <th scope="col">Recorded By</th>
+                      <th scope="col">Action</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1274,7 +1277,9 @@ const AdminOrderDetailPage = () => {
                             {!tx.payment_date && <span className="text-tertiary ml-4">{safeFormatTime(tx.created_at, {hour: '2-digit', minute:'2-digit'})}</span>}
                           </td>
                           <td data-label="Type">{tx.payment_type || 'Additional Payment'}</td>
-                          <td data-label="Amount" className="fw-600 text-success">{formatMoney(parseFloat(tx.amount || 0))}</td>
+                          <td data-label="Amount" className={`fw-600 ${tx.is_refund ? 'text-error' : 'text-success'}`}>
+                            {tx.is_refund ? `-${formatMoney(Math.abs(Number(tx.amount || 0)))}` : formatMoney(parseFloat(tx.amount || 0))}
+                          </td>
                           <td data-label="Method">{formatPaymentMethod(tx.payment_method)}</td>
                           <td data-label="Status">
                             <span className={`badge badge-${statusInfo.tone} badge-sm`}>{statusInfo.label}</span>
@@ -1304,6 +1309,17 @@ const AdminOrderDetailPage = () => {
                               ? <span className="badge badge-info badge-sm payment-auto-badge">{fmtRecordedBy(tx.admin_name, 'admin')}</span>
                               : <span>{tx.admin_name || 'System'}</span>
                             }
+                          </td>
+                          <td data-label="Action">
+                            {!tx.is_refund
+                              && tx.payment_method === 'gcash'
+                              && tx.gcash_channel === 'paymongo'
+                              && ['paid', 'partial'].includes(tx.payment_status)
+                              && Number(tx.refundable_amount || 0) > 0.005 ? (
+                                <button type="button" className="btn btn-outline btn-sm" onClick={() => setRefundPayment(tx)}>
+                                  <RotateCcw size={14} /> Refund
+                                </button>
+                              ) : <span className="text-tertiary">—</span>}
                           </td>
                         </tr>
                       );
@@ -1486,6 +1502,22 @@ const AdminOrderDetailPage = () => {
           onClose={() => setShowPaymentModal(false)}
           onSave={handleAdditionalPayment}
           onPaymentConfirmed={() => loadOrder()}
+        />
+      )}
+      {refundPayment && (
+        <RefundPaymentModal
+          transaction={refundPayment}
+          order={order}
+          onClose={() => setRefundPayment(null)}
+          onSuccess={async (result, amount) => {
+            setRefundPayment(null);
+            await loadOrder();
+            await logPayment('Refund Submitted', order.id, order.tracking_number, {
+              details: `${formatMoney(amount)} PayMongo refund ${result?.refundId || 'submitted'} (${result?.status || 'processing'})`,
+            });
+            if (result?.status === 'succeeded') toast.success('Refund completed and financial totals were updated.');
+            else toast.info(result?.message || 'Refund submitted and awaiting PayMongo confirmation.');
+          }}
         />
       )}
       {showDeliveryModal && (

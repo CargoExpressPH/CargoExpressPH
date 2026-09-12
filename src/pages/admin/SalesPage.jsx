@@ -52,6 +52,9 @@ const EMPTY_SUMMARY = {
   gcashTotal: 0,
   paylaterTotal: 0,
   unattributedTotal: 0,
+  grossCollected: 0,
+  refundTotal: 0,
+  refundCount: 0,
 };
 
 const SalesPage = () => {
@@ -222,7 +225,7 @@ const SalesPage = () => {
         {/* Payment Methods */}
         <div className="card admin-section-card stagger-item" style={{ animationDelay: '240ms' }}>
           <div className="card-header"><h3>Payment Methods</h3></div>
-          <div className="card-body" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px 16px', minHeight: '260px' }}>
+          <div className="card-body" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px 16px', minHeight: '260px' }}>
             {loading ? <CenteredSpinner /> : (
               <DonutChart
                 size={170}
@@ -233,6 +236,13 @@ const SalesPage = () => {
                   .filter(pm => pm.v > 0)
                   .map(pm => ({ label: pm.l, value: pm.v, color: pm.c }))}
               />
+            )}
+            {!loading && (
+              <div className="text-xs text-secondary text-center mt-12">
+                Gross {formatCurrency(s.grossCollected || s.paidTotal)}
+                {' · '}Refunds {formatCurrency(s.refundTotal)}
+                {' · '}Net {formatCurrency(s.paidTotal)}
+              </div>
             )}
           </div>
         </div>
@@ -279,7 +289,9 @@ const SalesPage = () => {
                 {(s.totalDiscounts || 0) > 0 && (
                   <tr><td>Total Discounts Given</td><td className="num">{formatCurrency(s.totalDiscounts)}</td></tr>
                 )}
-                <tr><td>Total Collected</td><td className="num">{formatCurrency(s.paidTotal)}</td></tr>
+                <tr><td>Gross Collected</td><td className="num">{formatCurrency(s.grossCollected || s.paidTotal)}</td></tr>
+                <tr><td>Successful Refunds ({s.refundCount || 0})</td><td className="num">−{formatCurrency(s.refundTotal)}</td></tr>
+                <tr><td>Net Collected</td><td className="num">{formatCurrency(s.paidTotal)}</td></tr>
                 {/* Both scopes are printed. They are different questions, and
                     naming only one "Outstanding" is what let the Sales and
                     Unsettled tabs disagree without either being wrong. */}
@@ -295,7 +307,7 @@ const SalesPage = () => {
 
           {/* Payment Methods */}
           <div className="pd-section">
-            <div className="pd-section-title">II. Collections by Payment Method</div>
+            <div className="pd-section-title">II. Net Collections by Payment Method</div>
             <table className="pd-table">
               <thead>
                 <tr><th scope="col">Payment Method</th><th scope="col" className="num">Amount Collected</th><th scope="col" className="num">Share of Collections</th></tr>

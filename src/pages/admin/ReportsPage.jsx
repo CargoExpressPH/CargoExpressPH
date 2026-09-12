@@ -282,7 +282,15 @@ const ReportsPage = () => {
                         <span className="report-financial-value">{formatCurrency(s.totalRevenue)}</span>
                       </div>
                       <div className="report-financial-item">
-                        <span className="report-financial-label">Total Collected</span>
+                        <span className="report-financial-label">Gross Collected</span>
+                        <span className="report-financial-value">{formatCurrency(s.grossCollected || s.totalCollected)}</span>
+                      </div>
+                      <div className="report-financial-item">
+                        <span className="report-financial-label">Successful Refunds ({s.refundCount || 0})</span>
+                        <span className="report-financial-value text-error">−{formatCurrency(s.refundTotal)}</span>
+                      </div>
+                      <div className="report-financial-item">
+                        <span className="report-financial-label">Net Collected</span>
                         <span className="report-financial-value text-success">{formatCurrency(s.totalCollected)}</span>
                       </div>
                       <div className="report-financial-item">
@@ -296,7 +304,7 @@ const ReportsPage = () => {
                     </div>
 
                     <div className="mt-16 mb-16 border-t" style={{ paddingTop: 16 }}>
-                      <div className="report-financial-sublabel">Payment Methods</div>
+                      <div className="report-financial-sublabel">Net Collections by Payment Method</div>
                       {[
                         { label: 'Cash', count: s.cashCount, total: s.cashTotal, color: 'var(--success)' },
                         { label: 'GCash', count: s.gcashCount, total: s.gcashTotal, color: 'var(--info)' },
@@ -463,19 +471,23 @@ const ReportsPage = () => {
                     </tr>
                     <tr>
                       <td>Delivered</td><td className="num">{s.deliveredCount}</td>
-                      <td>Total Collected</td><td className="num">{formatCurrency(s.totalCollected)}</td>
+                      <td>Gross Collected</td><td className="num">{formatCurrency(s.grossCollected || s.totalCollected)}</td>
                     </tr>
                     <tr>
                       <td>In Transit / Processing</td><td className="num">{s.inTransitCount}</td>
-                      <td>Outstanding Balance</td><td className="num">{formatCurrency(s.totalOutstanding)}</td>
+                      <td>Successful Refunds ({s.refundCount || 0})</td><td className="num">−{formatCurrency(s.refundTotal)}</td>
                     </tr>
                     <tr>
                       <td>Pending</td><td className="num">{s.pendingCount}</td>
-                      <td>Total Weight Shipped</td><td className="num">{formatWeight(s.totalWeight)}</td>
+                      <td>Net Collected</td><td className="num">{formatCurrency(s.totalCollected)}</td>
                     </tr>
                     <tr>
                       <td>Cancelled</td><td className="num">{s.cancelledCount}</td>
+                      <td>Outstanding Balance</td><td className="num">{formatCurrency(s.totalOutstanding)}</td>
+                    </tr>
+                    <tr>
                       <td></td><td></td>
+                      <td>Total Weight Shipped</td><td className="num">{formatWeight(s.totalWeight)}</td>
                     </tr>
                   </tbody>
                 </table>
@@ -505,7 +517,7 @@ const ReportsPage = () => {
 
               {/* Payment Methods */}
               <div className="pd-section">
-                <div className="pd-section-title">III. Collections by Payment Method</div>
+                <div className="pd-section-title">III. Net Collections by Payment Method</div>
                 <table className="pd-table">
                   <thead>
                     <tr><th scope="col">Payment Method</th><th scope="col" className="ctr">Payments</th><th scope="col" className="num">Amount Collected</th></tr>
@@ -520,7 +532,7 @@ const ReportsPage = () => {
                   </tbody>
                   <tfoot>
                     <tr>
-                      <td>Total Collected</td>
+                      <td>Net Collected</td>
                       <td className="ctr">{(s.cashCount || 0) + (s.gcashCount || 0) + (s.paylaterCount || 0)}</td>
                       <td className="num">{formatCurrency(s.totalCollected)}</td>
                     </tr>

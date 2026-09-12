@@ -183,6 +183,21 @@ const reconcile = async (
   return Array.isArray(data) ? data[0] : data
 }
 
+const reconcileFailure = async (
+  adminSupabase: ReturnType<typeof createClient>,
+  sourceId: string,
+  paymentId: string | null,
+  message: string,
+) => {
+  const { data, error } = await adminSupabase.rpc('reconcile_paymongo_payment_failure', {
+    p_source_id: sourceId,
+    p_payment_id: paymentId,
+    p_failure_message: message,
+  })
+  if (error) throw error
+  return data
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: CORS_HEADERS })
@@ -396,6 +411,19 @@ serve(async (req) => {
         const captureAmount = sourceAmount || Number(attempt.amount)
         try {
           const payment = await capturePayment(sourceId, captureAmount, description || null)
+          if (payment.status !== 'paid') {
+            await reconcileFailure(
+              adminSupabase,
+              sourceId,
+              payment.paymentId,
+              `PayMongo capture returned status ${payment.status || 'unknown'}`,
+            )
+            return json({
+              error: 'Payment was not completed. You may safely try again.',
+              status: payment.status || 'failed',
+              orderReconciled: false,
+            }, 402)
+          }
           const result = await reconcile(adminSupabase, sourceId, payment.paymentId, payment.amount, payment.status)
           console.log('[paymongo-create-payment] Poll captured and reconciled the attempt')
           return json({
@@ -493,6 +521,20 @@ serve(async (req) => {
       console.log('[paymongo-create-payment] Calling payment provider capture')
       const payment = await capturePayment(sourceId, parsedAmount, description || null)
       console.log('[paymongo-create-payment] Payment provider capture succeeded')
+
+      if (payment.status !== 'paid') {
+        await reconcileFailure(
+          adminSupabase,
+          sourceId,
+          payment.paymentId,
+          `PayMongo capture returned status ${payment.status || 'unknown'}`,
+        )
+        return json({
+          error: 'Payment was not completed. You may safely try again.',
+          status: payment.status || 'failed',
+          orderReconciled: false,
+        }, 402)
+      }
 
       const result = await reconcile(adminSupabase, sourceId, payment.paymentId, payment.amount, payment.status)
       console.log('[paymongo-create-payment] Payment reconciliation completed')
