@@ -7,6 +7,8 @@ const CORS_HEADERS = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+const PROVIDER_TIMEOUT_MS = 8_000
+
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), {
   status,
   headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
@@ -42,7 +44,8 @@ const LOW_STORAGE_WARNING_MESSAGE =
 const managementJson = async (path: string, token: string) => {
   const response = await fetch(`https://api.supabase.com${path}`, {
     headers: { Authorization: `Bearer ${token}` },
-    signal: AbortSignal.timeout(8000),
+    redirect: 'error',
+    signal: AbortSignal.timeout(PROVIDER_TIMEOUT_MS),
   })
   if (!response.ok) throw new Error(`Supabase Management API returned ${response.status}`)
   return await response.json()
@@ -109,6 +112,8 @@ async function getFirebaseAccessToken(serviceAccount: Record<string, string>): P
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=${signedToken}`,
+    redirect: 'error',
+    signal: AbortSignal.timeout(PROVIDER_TIMEOUT_MS),
   })
   if (!response.ok) throw new Error('Firebase authentication failed')
   const data = await response.json()
@@ -142,6 +147,7 @@ async function getFirestoreCollectionStats(serviceAccount: Record<string, string
         },
       }),
       signal: AbortSignal.timeout(8000),
+      redirect: 'error',
     },
   )
   if (!response.ok) throw new Error(`Firestore aggregation query failed (${response.status})`)

@@ -8,6 +8,9 @@ const CORS_HEADERS = {
 }
 
 const MAX_DATA_URL_BYTES = 700 * 1024
+const PROVIDER_TIMEOUT_MS = 15_000
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+const JPEG_DATA_URL_PREFIX = 'data:image/jpeg;base64,'
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
@@ -51,6 +54,8 @@ async function getAccessToken(serviceAccount: Record<string, string>) {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=${signedToken}`,
+    redirect: 'error',
+    signal: AbortSignal.timeout(PROVIDER_TIMEOUT_MS),
   })
   const tokenData = await tokenResponse.json()
   if (!tokenResponse.ok || !tokenData.access_token) {
@@ -103,13 +108,39 @@ serve(async (req) => {
     const { user, serviceClient } = await requireAdmin(authHeader)
     const { order_id, folder, file_name, content_type, size_bytes, data_url } = await req.json()
 
-    if (!order_id || typeof order_id !== 'string') return json({ error: 'order_id is required' }, 400)
+    if (typeof order_id !== 'string' || !UUID_RE.test(order_id)) return json({ error: 'A valid order_id is required' }, 400)
     if (!['pickup', 'delivery', 'receipt'].includes(folder)) return json({ error: 'Invalid photo folder' }, 400)
-    if (typeof data_url !== 'string' || !data_url.startsWith('data:image/jpeg;base64,')) {
+    if (typeof file_name !== 'string' || file_name.length < 1 || file_name.length > 255) {
+      return json({ error: 'A valid file_name is required' }, 400)
+    }
+    if (content_type !== 'image/jpeg') return json({ error: 'Only JPEG fallback photos are accepted' }, 400)
+    if (!Number.isSafeInteger(size_bytes) || size_bytes <= 0 || size_bytes > MAX_DATA_URL_BYTES) {
+      return json({ error: 'Invalid fallback photo size' }, 400)
+    }
+    if (typeof data_url !== 'string' || !data_url.startsWith(JPEG_DATA_URL_PREFIX)) {
       return json({ error: 'JPEG data_url is required' }, 400)
     }
     if (new TextEncoder().encode(data_url).length > MAX_DATA_URL_BYTES) {
       return json({ error: 'Fallback photo is too large for Firestore' }, 413)
+    }
+    const encodedPhoto = data_url.slice(JPEG_DATA_URL_PREFIX.length)
+    if (!encodedPhoto || encodedPhoto.length % 4 !== 0 || !/^[A-Za-z0-9+/]*={0,2}$/.test(encodedPhoto)) {
+      return json({ error: 'JPEG data_url is malformed' }, 400)
+    }
+    let decodedPhoto: string
+    try {
+      decodedPhoto = atob(encodedPhoto)
+    } catch {
+      return json({ error: 'JPEG data_url is malformed' }, 400)
+    }
+    if (
+      decodedPhoto.length !== size_bytes
+      || decodedPhoto.length < 3
+      || decodedPhoto.charCodeAt(0) !== 0xff
+      || decodedPhoto.charCodeAt(1) !== 0xd8
+      || decodedPhoto.charCodeAt(2) !== 0xff
+    ) {
+      return json({ error: 'Fallback photo content does not match a JPEG file' }, 400)
     }
 
     const { data: order, error: orderError } = await serviceClient
@@ -142,20 +173,22 @@ serve(async (req) => {
           fields: {
             order_id: { stringValue: order_id },
             folder: { stringValue: folder },
-            file_name: { stringValue: file_name || 'photo.jpg' },
-            content_type: { stringValue: content_type || 'image/jpeg' },
-            size_bytes: { integerValue: String(Number(size_bytes) || 0) },
+            file_name: { stringValue: file_name },
+            content_type: { stringValue: content_type },
+            size_bytes: { integerValue: String(size_bytes) },
             data_url: { stringValue: data_url },
             created_by: { stringValue: user.id },
             created_at: { timestampValue: createdAt },
           },
         }),
+        redirect: 'error',
+        signal: AbortSignal.timeout(PROVIDER_TIMEOUT_MS),
       },
     )
 
-    const result = await response.json()
     if (!response.ok) {
-      return json({ error: result.error?.message || 'Failed to store Firestore fallback photo' }, response.status)
+      console.error('store-photo-fallback provider request failed with status:', response.status)
+      return json({ error: 'Could not store the fallback photo right now.' }, 502)
     }
 
     return json({
@@ -166,7 +199,7 @@ serve(async (req) => {
     if (err instanceof Response) {
       return json({ error: await err.text() }, err.status)
     }
-    const message = err instanceof Error ? err.message : 'Unexpected fallback upload error'
-    return json({ error: message }, 500)
+    console.error('store-photo-fallback failed')
+    return json({ error: 'Could not store the fallback photo right now.' }, 500)
   }
 })

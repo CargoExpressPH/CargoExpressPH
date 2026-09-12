@@ -2,7 +2,6 @@ import { defineConfig, devices } from '@playwright/test';
 import dotenv from 'dotenv';
 
 dotenv.config({ path: '.env' });
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
 /**
  * Playwright configuration for the CargoExpress PH end-to-end suite.

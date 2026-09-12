@@ -33,6 +33,13 @@ const CORS_HEADERS = {
 // configurable in one place rather than assumed correct forever.
 const BATCH_SIZE = 50
 const BATCH_DELAY_MS = 600
+const PROVIDER_TIMEOUT_MS = 15_000
+
+const providerFetch = (input: string | URL, init: RequestInit = {}) => fetch(input, {
+  ...init,
+  redirect: 'error',
+  signal: AbortSignal.timeout(PROVIDER_TIMEOUT_MS),
+})
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -184,6 +191,7 @@ function buildAnnouncementEmailHtml(title: string, contentHtml: string, unsubscr
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS_HEADERS })
+  if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405)
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? ''
   const anonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? ''
@@ -289,7 +297,7 @@ serve(async (req) => {
       }))
 
       try {
-        const res = await fetch('https://api.resend.com/emails/batch', {
+        const res = await providerFetch('https://api.resend.com/emails/batch', {
           method: 'POST',
           headers: { Authorization: `Bearer ${resendApiKey}`, 'Content-Type': 'application/json' },
           body: JSON.stringify(emails),
@@ -299,7 +307,7 @@ serve(async (req) => {
           console.log(`[broadcast-announcement] Resend batch sent: ${batch.length} recipient(s)`)
         } else {
           failed += batch.length
-          console.error('[broadcast-announcement] Resend batch failed:', res.status, await res.text())
+          console.error('[broadcast-announcement] Resend batch failed with status:', res.status)
         }
       } catch (err) {
         failed += batch.length

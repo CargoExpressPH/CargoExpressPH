@@ -16,6 +16,14 @@ const CORS_HEADERS = {
   'Access-Control-Allow-Headers': 'content-type, paymongo-signature',
 }
 
+const PROVIDER_TIMEOUT_MS = 15_000
+const MAX_WEBHOOK_BYTES = 512 * 1024
+const providerFetch = (input: string | URL, init: RequestInit = {}) => fetch(input, {
+  ...init,
+  redirect: 'error',
+  signal: AbortSignal.timeout(PROVIDER_TIMEOUT_MS),
+})
+
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
     status,
@@ -85,7 +93,7 @@ const paymongoAuthHeader = () => {
 }
 
 const capturePayment = async (sourceId: string, amountPhp: number, description: string | null) => {
-  const response = await fetch('https://api.paymongo.com/v1/payments', {
+  const response = await providerFetch('https://api.paymongo.com/v1/payments', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -154,7 +162,14 @@ serve(async (req) => {
   }
 
   try {
+    const declaredLength = Number(req.headers.get('content-length') || 0)
+    if (Number.isFinite(declaredLength) && declaredLength > MAX_WEBHOOK_BYTES) {
+      return json({ error: 'Webhook payload is too large' }, 413)
+    }
     const rawBody = await req.text()
+    if (new TextEncoder().encode(rawBody).length > MAX_WEBHOOK_BYTES) {
+      return json({ error: 'Webhook payload is too large' }, 413)
+    }
     const validSignature = await verifySignature(rawBody, req.headers.get('Paymongo-Signature'))
     if (!validSignature) {
       return json({ error: 'Invalid PayMongo signature' }, 401)
@@ -172,7 +187,7 @@ serve(async (req) => {
       const amount = Number(attributes.amount || 0) / 100
       if (!sourceId || amount <= 0) return json({ received: true, ignored: true })
 
-      console.log(`[paymongo-webhook] source.chargeable: sourceId=${sourceId}, amount=${amount}`)
+      console.log('[paymongo-webhook] Received a chargeable source event')
 
       const { data: attempt } = await adminSupabase
         .from('payment_attempts')
@@ -181,27 +196,27 @@ serve(async (req) => {
         .maybeSingle()
 
       if (!attempt) {
-        console.log(`[paymongo-webhook] No matching payment attempt for sourceId=${sourceId}`)
+        console.log('[paymongo-webhook] No matching payment attempt')
         return json({ received: true, ignored: true, reason: 'No matching payment attempt' })
       }
       if (attempt.status === 'reconciled' && attempt.payment_id) {
-        console.log(`[paymongo-webhook] Already reconciled. payment_id=${attempt.payment_id}`)
+        console.log('[paymongo-webhook] Payment attempt already reconciled')
         return json({ received: true, orderReconciled: true })
       }
 
       // Use the stored attempt amount (correct for partial payments) rather than
       // the PayMongo event amount which may differ due to rounding.
       const chargeAmount = Number(attempt.amount) || amount
-      console.log(`[paymongo-webhook] Capturing payment. chargeAmount=${chargeAmount}`)
+      console.log('[paymongo-webhook] Capturing the registered payment amount')
 
       await markAttempt(adminSupabase, sourceId, { status: 'chargeable', last_error: null })
       
       try {
         const payment = await capturePayment(sourceId, chargeAmount, attributes.description || null)
-        console.log(`[paymongo-webhook] Captured. paymentId=${payment.paymentId}, status=${payment.status}`)
+        console.log('[paymongo-webhook] Payment capture succeeded')
 
         const result = await reconcile(adminSupabase, sourceId, payment.paymentId, payment.amount, payment.status)
-        console.log(`[paymongo-webhook] Reconciled. orderReconciled=${result?.order_reconciled}`)
+        console.log('[paymongo-webhook] Payment reconciliation completed')
 
         return json({
           received: true,
@@ -239,7 +254,7 @@ serve(async (req) => {
           // event is safely re-driveable — returning success here without
           // reconciling just means this specific delivery had nothing to
           // do.
-          console.log(`[paymongo-webhook] Source ${sourceId} capture lost the race (not chargeable) — a concurrent capture already has or will get the real payment id. Not reconciling from here.`)
+          console.log('[paymongo-webhook] Concurrent capture won; awaiting the payment.paid event')
           return json({ received: true, ignored: true, reason: 'Captured by a concurrent request; awaiting payment.paid', raced: true })
         }
         throw err
@@ -253,16 +268,15 @@ serve(async (req) => {
       const status = attributes.status || 'paid'
       if (!sourceId || !paymentId || amount <= 0) return json({ received: true, ignored: true })
 
-      console.log(`[paymongo-webhook] payment.paid: paymentId=${paymentId}, sourceId=${sourceId}, amount=${amount}`)
+      console.log('[paymongo-webhook] Received a paid payment event')
       const result = await reconcile(adminSupabase, sourceId, paymentId, amount, status)
-      console.log(`[paymongo-webhook] payment.paid reconciled. orderReconciled=${result?.order_reconciled}`)
+      console.log('[paymongo-webhook] Paid payment event reconciled')
       return json({ received: true, eventId, paymentId, orderReconciled: !!result?.order_reconciled })
     }
 
     return json({ received: true, ignored: true, eventType })
-  } catch (err) {
-    const message = err instanceof Error ? err.message : 'Unexpected webhook error'
-    console.error(message)
-    return json({ error: message }, 500)
+  } catch {
+    console.error('[paymongo-webhook] Webhook processing failed')
+    return json({ error: 'Webhook processing failed' }, 500)
   }
 })

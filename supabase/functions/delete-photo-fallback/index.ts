@@ -7,6 +7,8 @@ const CORS_HEADERS = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+const PROVIDER_TIMEOUT_MS = 15_000
+
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
     status,
@@ -49,6 +51,8 @@ async function getAccessToken(serviceAccount: Record<string, string>) {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=${signedToken}`,
+    redirect: 'error',
+    signal: AbortSignal.timeout(PROVIDER_TIMEOUT_MS),
   })
   const tokenData = await tokenResponse.json()
   if (!tokenResponse.ok || !tokenData.access_token) {
@@ -108,18 +112,20 @@ serve(async (req) => {
       {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${accessToken}` },
+        redirect: 'error',
+        signal: AbortSignal.timeout(PROVIDER_TIMEOUT_MS),
       },
     )
 
     if (response.status === 404) return json({ deleted: false, already_absent: true })
     if (!response.ok) {
-      const result = await response.json()
-      return json({ error: result.error?.message || 'Failed to delete Firestore fallback photo' }, response.status)
+      console.error('delete-photo-fallback provider request failed with status:', response.status)
+      return json({ error: 'Could not delete the fallback photo right now.' }, 502)
     }
     return json({ deleted: true })
   } catch (err) {
     if (err instanceof Response) return json({ error: await err.text() }, err.status)
-    const message = err instanceof Error ? err.message : 'Unexpected fallback deletion error'
-    return json({ error: message }, 500)
+    console.error('delete-photo-fallback failed')
+    return json({ error: 'Could not delete the fallback photo right now.' }, 500)
   }
 })

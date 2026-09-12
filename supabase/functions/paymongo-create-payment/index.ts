@@ -19,6 +19,16 @@ const CORS_HEADERS = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+const PROVIDER_TIMEOUT_MS = 15_000
+const PAYMONGO_SOURCE_ID = /^src_[A-Za-z0-9_-]{4,128}$/
+const PAYMENT_ACTIONS = new Set(['capture', 'poll', 'register'])
+
+const providerFetch = (input: string | URL, init: RequestInit = {}) => fetch(input, {
+  ...init,
+  redirect: 'error',
+  signal: AbortSignal.timeout(PROVIDER_TIMEOUT_MS),
+})
+
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
     status,
@@ -80,10 +90,7 @@ const ensureAttempt = async (
   // retry path.
   // ───────────────────────────────────────────────────────────────────────────
   if (existing?.order_id && existing.order_id !== orderUpdate.orderId) {
-    console.warn(
-      `[paymongo-create-payment] ATTEMPT REBIND REJECTED source=${sourceId} ` +
-      `bound_order=${existing.order_id} requested_order=${orderUpdate.orderId} user=${createdBy}`,
-    )
+    console.warn('[paymongo-create-payment] Attempt rebind rejected')
     throw new Error('This payment source is already registered to a different order.')
   }
 
@@ -112,11 +119,11 @@ const ensureAttempt = async (
     // Its creator and staged admin metadata are immutable after the first
     // registration. Otherwise an order owner who learns an admin checkout
     // source could re-register it and replace/erase the trusted pickup data.
-    console.log(`[paymongo-create-payment] Attempt already registered for source ${sourceId}, status=${existing.status}`)
+    console.log('[paymongo-create-payment] Existing payment attempt reused')
     return existing
   }
 
-  console.log(`[paymongo-create-payment] Inserting new attempt for source ${sourceId}`)
+  console.log('[paymongo-create-payment] New payment attempt registered')
   const { data, error } = await adminSupabase
     .from('payment_attempts')
     .insert(payload)
@@ -128,7 +135,7 @@ const ensureAttempt = async (
 }
 
 const capturePayment = async (sourceId: string, amount: number, description: string | null) => {
-  const response = await fetch('https://api.paymongo.com/v1/payments', {
+  const response = await providerFetch('https://api.paymongo.com/v1/payments', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -210,9 +217,16 @@ serve(async (req) => {
 
     const { sourceId, amount, description, orderUpdate, action } = await req.json()
     const parsedAmount = Number(amount)
+    const normalizedAction = action ?? 'capture'
 
-    if (!sourceId || typeof sourceId !== 'string') {
-      return json({ error: 'sourceId is required' }, 400)
+    if (typeof sourceId !== 'string' || !PAYMONGO_SOURCE_ID.test(sourceId)) {
+      return json({ error: 'A valid PayMongo sourceId is required' }, 400)
+    }
+    if (typeof normalizedAction !== 'string' || !PAYMENT_ACTIONS.has(normalizedAction)) {
+      return json({ error: 'Unsupported payment action' }, 400)
+    }
+    if (description != null && (typeof description !== 'string' || description.length > 500)) {
+      return json({ error: 'description must be a string of at most 500 characters' }, 400)
     }
     if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
       return json({ error: 'amount must be greater than zero' }, 400)
@@ -223,10 +237,7 @@ serve(async (req) => {
 
     const orderUpdateAuthorization = authorizeOrderUpdate(orderUpdate, isAdmin)
     if (orderUpdateAuthorization.error) {
-      console.warn(
-        `[paymongo-create-payment] ORDER METADATA REJECTED user=${userData.user.id} ` +
-        `role=${isAdmin ? 'admin' : 'customer'} reason=${orderUpdateAuthorization.error}`,
-      )
+      console.warn('[paymongo-create-payment] Unauthorized order metadata rejected')
       return json({ error: orderUpdateAuthorization.error }, orderUpdateAuthorization.status)
     }
     const authorizedOrderUpdate = orderUpdateAuthorization.value
@@ -270,7 +281,7 @@ serve(async (req) => {
     // sends a placeholder amount of 1 and the server uses the stored attempt
     // amount instead.
     // ─────────────────────────────────────────────────────────────────────────
-    if (action !== 'poll') {
+    if (normalizedAction !== 'poll') {
       if (!orderRow) {
         return json({ error: 'A valid order ID is required to create a payment.' }, 400)
       }
@@ -285,11 +296,7 @@ serve(async (req) => {
           return json({ error: 'This order has no outstanding balance.' }, 409)
         }
         if (exceeds) {
-          console.warn(
-            `[paymongo-create-payment] AMOUNT REJECTED order=${authorizedOrderUpdate?.orderId} ` +
-            `tracking=${orderRow.tracking_number} requested=${parsedAmount} ` +
-            `balance=${balance} user=${userData.user.id}`,
-          )
+          console.warn('[paymongo-create-payment] Customer over-balance amount rejected')
           return json({
             error: `Amount ₱${parsedAmount.toFixed(2)} exceeds the outstanding balance of ₱${balance.toFixed(2)}.`,
           }, 400)
@@ -301,20 +308,15 @@ serve(async (req) => {
         // (₱1,200). Rejecting that would break the admin pickup flow entirely.
         // Admins can already write orders directly, so this is not a new hole.
         // Logged for audit; the ledger records what was actually collected.
-        console.warn(
-          `[paymongo-create-payment] ADMIN OVER-BALANCE CHARGE (allowed) ` +
-          `order=${authorizedOrderUpdate?.orderId} tracking=${orderRow.tracking_number} ` +
-          `requested=${parsedAmount} stored_balance=${balance} admin=${userData.user.id}`,
-        )
+        console.warn('[paymongo-create-payment] Authorized admin over-balance pickup charge')
       }
     }
 
-    console.log(`[paymongo-create-payment] Request from user=${userData.user.id}, sourceId=${sourceId}, amount=${parsedAmount}, action=${action || 'capture'}`)
+    console.log(`[paymongo-create-payment] Authorized ${normalizedAction} request`)
 
     // Poll action: called by frontend when customer returns from PayMongo.
     // Uses getAttempt (read-only) — does NOT call ensureAttempt to avoid overwriting the stored amount.
-    if (action === 'poll') {
-      console.log(`[paymongo-create-payment] Poll request for sourceId=${sourceId}`)
+    if (normalizedAction === 'poll') {
 
       const attempt = await getAttempt(adminSupabase, sourceId)
       if (!attempt) {
@@ -331,7 +333,7 @@ serve(async (req) => {
 
       // If already reconciled, return immediately
       if (attempt.payment_id && attempt.status === 'reconciled') {
-        console.log(`[paymongo-create-payment] Poll: already reconciled. payment_id=${attempt.payment_id}`)
+        console.log('[paymongo-create-payment] Poll found a reconciled attempt')
         return json({
           paymentId: attempt.payment_id,
           status: attempt.payment_status || 'paid',
@@ -341,14 +343,14 @@ serve(async (req) => {
       }
 
       // Check source status from PayMongo
-      const sourceRes = await fetch(`https://api.paymongo.com/v1/sources/${sourceId}`, {
+      const sourceRes = await providerFetch(`https://api.paymongo.com/v1/sources/${sourceId}`, {
         headers: { 'Authorization': paymongoAuthHeader() },
       })
       const sourceData = await sourceRes.json()
       const sourceStatus = sourceData?.data?.attributes?.status
       const sourceAmount = Number(sourceData?.data?.attributes?.amount || 0) / 100
 
-      console.log(`[paymongo-create-payment] Poll: PayMongo source status="${sourceStatus}", amount=${sourceAmount}`)
+      console.log('[paymongo-create-payment] Provider source status checked')
 
       if (sourceStatus === 'paid') {
         // The source itself is a bare status string with no payment id
@@ -395,7 +397,7 @@ serve(async (req) => {
         try {
           const payment = await capturePayment(sourceId, captureAmount, description || null)
           const result = await reconcile(adminSupabase, sourceId, payment.paymentId, payment.amount, payment.status)
-          console.log(`[paymongo-create-payment] Poll: captured and reconciled. paymentId=${payment.paymentId}`)
+          console.log('[paymongo-create-payment] Poll captured and reconciled the attempt')
           return json({
             paymentId: payment.paymentId,
             status: payment.status,
@@ -425,7 +427,8 @@ serve(async (req) => {
               message: 'GCash confirmed this payment; finalizing the ledger entry. Check again in a few seconds.',
             })
           }
-          return json({ error: msg }, 502)
+          console.error('[paymongo-create-payment] Provider capture failed during polling')
+          return json({ error: 'Payment provider could not complete the payment.' }, 502)
         }
       }
 
@@ -446,14 +449,14 @@ serve(async (req) => {
       userData.user.id,
     )
 
-    if (action === 'register') {
-      console.log(`[paymongo-create-payment] Registration complete for sourceId=${sourceId}`)
+    if (normalizedAction === 'register') {
+      console.log('[paymongo-create-payment] Registration complete')
       return json({ success: true, sourceId })
     }
 
     // Bug Fix #3: Return early if already reconciled (idempotency)
     if (attempt?.payment_id && attempt.status === 'reconciled') {
-      console.log(`[paymongo-create-payment] Already reconciled. payment_id=${attempt.payment_id}`)
+      console.log('[paymongo-create-payment] Attempt was already reconciled')
       return json({
         paymentId: attempt.payment_id,
         status: attempt.payment_status || 'paid',
@@ -465,7 +468,7 @@ serve(async (req) => {
     // Bug Fix #3: If a payment_id exists but status is NOT reconciled, the PayMongo
     // capture succeeded but the DB reconcile transaction failed. Attempt reconcile again.
     if (attempt?.payment_id && attempt.status !== 'reconciled') {
-      console.log(`[paymongo-create-payment] Found orphaned payment_id=${attempt.payment_id}, re-reconciling...`)
+      console.log('[paymongo-create-payment] Retrying database reconciliation')
       try {
         const result = await reconcile(adminSupabase, sourceId, attempt.payment_id, parsedAmount, 'paid')
         return json({
@@ -474,25 +477,25 @@ serve(async (req) => {
           amount: parsedAmount,
           orderReconciled: !!result?.order_reconciled,
         })
-      } catch (reReconcileErr) {
-        console.error(`[paymongo-create-payment] Re-reconcile failed: ${reReconcileErr}`)
+      } catch {
+        console.error('[paymongo-create-payment] Database reconciliation retry failed')
         // Fall through to attempt capture again
       }
     }
 
     try {
-      console.log(`[paymongo-create-payment] Marking attempt as chargeable, sourceId=${sourceId}`)
+      console.log('[paymongo-create-payment] Payment attempt marked chargeable')
       await adminSupabase
         .from('payment_attempts')
         .update({ status: 'chargeable', last_error: null })
         .eq('source_id', sourceId)
 
-      console.log(`[paymongo-create-payment] Calling PayMongo capture, amount=${parsedAmount}`)
+      console.log('[paymongo-create-payment] Calling payment provider capture')
       const payment = await capturePayment(sourceId, parsedAmount, description || null)
-      console.log(`[paymongo-create-payment] Capture success. paymentId=${payment.paymentId}, status=${payment.status}`)
+      console.log('[paymongo-create-payment] Payment provider capture succeeded')
 
       const result = await reconcile(adminSupabase, sourceId, payment.paymentId, payment.amount, payment.status)
-      console.log(`[paymongo-create-payment] Reconcile complete. orderReconciled=${result?.order_reconciled}`)
+      console.log('[paymongo-create-payment] Payment reconciliation completed')
 
       return json({
         paymentId: payment.paymentId,
@@ -503,7 +506,7 @@ serve(async (req) => {
     } catch (captureErr) {
       attempt = await getAttempt(adminSupabase, sourceId)
       if (attempt?.payment_id && attempt.status === 'reconciled') {
-        console.log(`[paymongo-create-payment] Race: webhook already reconciled. payment_id=${attempt.payment_id}`)
+        console.log('[paymongo-create-payment] Concurrent webhook already reconciled the attempt')
         return json({
           paymentId: attempt.payment_id,
           status: attempt.payment_status || 'paid',
@@ -513,16 +516,20 @@ serve(async (req) => {
       }
 
       const message = captureErr instanceof Error ? captureErr.message : 'Payment capture failed'
-      console.error(`[paymongo-create-payment] Capture error: ${message}`)
+      console.error('[paymongo-create-payment] Payment capture failed')
       await adminSupabase
         .from('payment_attempts')
         .update({ status: 'failed', last_error: message })
         .eq('source_id', sourceId)
 
-      return json({ error: message }, 502)
+      return json({ error: 'Payment provider could not complete the payment.' }, 502)
     }
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unexpected payment error'
-    return json({ error: message }, 500)
+    if (message === 'This payment source is already registered to a different order.') {
+      return json({ error: message }, 409)
+    }
+    console.error('[paymongo-create-payment] Unexpected payment processing failure')
+    return json({ error: 'Payment processing failed unexpectedly.' }, 500)
   }
 })

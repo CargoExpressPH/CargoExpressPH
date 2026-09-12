@@ -20,8 +20,17 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4'
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, OPTIONS',
+  // POST is required for RFC 8058 one-click unsubscribe requests generated
+  // from the List-Unsubscribe-Post header. Both paths carry the signed email
+  // and token in the URL; no unauthenticated body value is trusted.
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
   'Access-Control-Allow-Headers': 'content-type',
+}
+
+const HTML_SECURITY_HEADERS = {
+  'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+  'Referrer-Policy': 'no-referrer',
+  'X-Content-Type-Options': 'nosniff',
 }
 
 function html(body: string, status = 200) {
@@ -36,8 +45,20 @@ function html(body: string, status = 200) {
         h1{font-size:1.25rem;margin:0 0 8px;} p{color:#57635D;line-height:1.5;margin:0;}
       </style></head>
       <body><div class="card">${body}</div></body></html>`,
-    { status, headers: { 'Content-Type': 'text/html; charset=utf-8', ...CORS_HEADERS } },
+    {
+      status,
+      headers: { 'Content-Type': 'text/html; charset=utf-8', ...CORS_HEADERS, ...HTML_SECURITY_HEADERS },
+    },
   )
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
 }
 
 const hex = (bytes: ArrayBuffer) =>
@@ -50,8 +71,7 @@ const timingSafeEqual = (a: string, b: string) => {
   return result === 0
 }
 
-async function expectedToken(email: string): Promise<string> {
-  const secret = Deno.env.get('UNSUBSCRIBE_SIGNING_SECRET') ?? ''
+async function expectedToken(email: string, secret: string): Promise<string> {
   const key = await crypto.subtle.importKey(
     'raw', new TextEncoder().encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'],
   )
@@ -61,6 +81,9 @@ async function expectedToken(email: string): Promise<string> {
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS_HEADERS })
+  if (req.method !== 'GET' && req.method !== 'POST') {
+    return html('<h1>Method not allowed</h1><p>Please use the unsubscribe link from the email.</p>', 405)
+  }
 
   const url = new URL(req.url)
   const email = (url.searchParams.get('email') || '').trim()
@@ -70,7 +93,19 @@ serve(async (req) => {
     return html('<h1>Missing link details</h1><p>This unsubscribe link is incomplete. Please use the link from the email exactly as sent.</p>', 400)
   }
 
-  const expected = await expectedToken(email)
+  if (email.length > 320 || token.length !== 32 || !/^[0-9a-f]{32}$/i.test(token)) {
+    return html('<h1>Link not valid</h1><p>We could not verify this unsubscribe link. If you keep seeing this, contact support instead.</p>', 403)
+  }
+
+  // Fail closed when the deployment secret is missing. Using an empty HMAC
+  // key would make valid tokens publicly computable for arbitrary addresses.
+  const signingSecret = Deno.env.get('UNSUBSCRIBE_SIGNING_SECRET')
+  if (!signingSecret) {
+    console.error('[unsubscribe-announcements] signing secret is not configured')
+    return html('<h1>Something went wrong</h1><p>We could not update your preference just now. Please try again shortly.</p>', 503)
+  }
+
+  const expected = await expectedToken(email, signingSecret)
   if (!timingSafeEqual(expected, token)) {
     return html('<h1>Link not valid</h1><p>We could not verify this unsubscribe link. If you keep seeing this, contact support instead.</p>', 403)
   }
@@ -93,5 +128,5 @@ serve(async (req) => {
     return html('<h1>Something went wrong</h1><p>We could not update your preference just now. Please try again shortly.</p>', 500)
   }
 
-  return html(`<h1>You're unsubscribed</h1><p>${email} will no longer receive CargoExpress PH announcement emails. You can re-enable this anytime from your profile if you have an account.</p>`)
+  return html(`<h1>You're unsubscribed</h1><p>${escapeHtml(email)} will no longer receive CargoExpress PH announcement emails. You can re-enable this anytime from your profile if you have an account.</p>`)
 })

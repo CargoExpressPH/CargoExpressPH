@@ -26,6 +26,8 @@ const CORS_HEADERS = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+const PROVIDER_TIMEOUT_MS = 15_000
+
 const BUCKET = 'cargo-photos'
 const REMOVE_BATCH_SIZE = 100
 const QUEUE_BATCH_SIZE = 500
@@ -142,6 +144,8 @@ async function getFirebaseAccessToken(serviceAccount: Record<string, string>): P
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=${signedToken}`,
+    redirect: 'error',
+    signal: AbortSignal.timeout(PROVIDER_TIMEOUT_MS),
   })
   const data = await response.json()
   if (!response.ok || !data.access_token) throw new Error(data.error_description || 'Failed to authenticate with Firebase')
@@ -292,7 +296,12 @@ serve(async (req) => {
           const [, docId] = row.storage_path.split('/')
           const response = await fetch(
             `https://firestore.googleapis.com/v1/projects/${firebaseProjectId}/databases/(default)/documents/photoFallbacks/${docId}`,
-            { method: 'DELETE', headers: { Authorization: `Bearer ${accessToken}` } },
+            {
+              method: 'DELETE',
+              headers: { Authorization: `Bearer ${accessToken}` },
+              redirect: 'error',
+              signal: AbortSignal.timeout(PROVIDER_TIMEOUT_MS),
+            },
           )
           if (response.ok || response.status === 404) completedIds.push(row.id)
           else failedIds.push(row.id)

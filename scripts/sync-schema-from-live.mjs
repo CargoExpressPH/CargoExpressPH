@@ -9,9 +9,6 @@
  * Requirements: SUPABASE_PERSONAL_ACCESS_TOKEN in .env, Node ≥ 18 (native fetch).
  */
 
-// Corporate/network proxy does SSL inspection — same workaround as deployment.js
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
-
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -66,6 +63,8 @@ async function runQuery(sql) {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({ query: sql }),
+    redirect: 'error',
+    signal: AbortSignal.timeout(20_000),
   });
   if (!res.ok) {
     const text = await res.text();

@@ -1286,6 +1286,7 @@ const OrderDetailPage = () => {
                   className="form-textarea"
                   rows={4}
                   value={feedbackMessage}
+                  maxLength={2000}
                   onChange={e => setFeedbackMessage(e.target.value)}
                   placeholder="Tell us about your experience..."
                   disabled={submittingFeedback}

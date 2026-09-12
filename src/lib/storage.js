@@ -69,7 +69,7 @@ export const compressImage = async (file) => {
   try {
     return await imageCompression(file, options);
   } catch (error) {
-    console.error('Compression failed, using original file', error);
+    console.error('[storage] Image compression failed; using the validated original file.');
     return file; // Fallback to original if compression fails
   }
 };
@@ -113,7 +113,7 @@ const getEvidenceUploadMode = async () => {
     if (error) throw error;
     return data?.[0]?.upload_mode === 'force_firebase' ? 'force_firebase' : 'automatic';
   } catch (error) {
-    console.warn('[storage] Could not read photo upload routing; using Automatic mode.', error?.message || error);
+    console.warn('[storage] Could not read photo upload routing; using Automatic mode.');
     return 'automatic';
   }
 };
@@ -127,7 +127,7 @@ const eventMessage = (error) => String(error?.message || error || 'Upload failed
 const recordEvidenceUploadEvent = (payload) => {
   if (!payload.order_id || !payload.photo_type) return;
   void supabase.functions.invoke('record-photo-storage-event', { body: payload })
-    .catch((error) => console.warn('[storage] Upload telemetry was not recorded.', error?.message || error));
+    .catch(() => console.warn('[storage] Upload telemetry was not recorded.'));
 };
 
 /**
@@ -266,9 +266,9 @@ const uploadToSupabaseStorage = async (file, folder, trackingNumber = '', index 
     if (isValidationError || !canUseFirestoreFallback) throw uploadError;
 
     try {
-      console.warn(`[storage] Supabase upload failed for ${folder}/${trackingNumber}, trying Firestore fallback`, msg);
+      console.warn('[storage] Primary evidence upload failed; trying the authorized fallback provider.');
       const fallbackDescriptor = await tryFirestoreFallback(file, folder, orderId, index, path.split('/').pop());
-      console.info(`[storage] Firestore fallback succeeded: ${fallbackDescriptor.firestore_path}`);
+      console.info('[storage] Evidence upload fallback succeeded.');
       recordEvidenceUploadEvent({
         provider: 'firebase', outcome: 'success', photo_type: photoType,
         order_id: orderId, storage_path: fallbackDescriptor.firestore_path,
@@ -279,7 +279,7 @@ const uploadToSupabaseStorage = async (file, folder, trackingNumber = '', index 
     } catch (fallbackError) {
       // If fallback also fails, surface the ORIGINAL Supabase error — the
       // primary is authoritative; fallback failure is secondary noise.
-      console.error('[storage] Firestore fallback also failed', fallbackError?.message || fallbackError);
+      console.error('[storage] Evidence upload fallback also failed.');
       recordEvidenceUploadEvent({
         provider: 'firebase', outcome: 'failure', photo_type: photoType,
         order_id: orderId, size_bytes: compressed.size, message: eventMessage(fallbackError),
@@ -378,7 +378,7 @@ export const resolvePhotoUrl = async (photo) => {
       }
       // If fallback read fails, fall through to url if present (legacy)
       if (reference.data_url) return reference.data_url;
-      console.warn('[storage] Firestore fallback read failed', error?.message || data?.error);
+      console.warn('[storage] Evidence fallback read failed.');
       return 'error://unavailable';
     }
 
@@ -398,7 +398,7 @@ export const resolvePhotoUrl = async (photo) => {
     if (reference.data_url) return reference.data_url;
     return reference.url || '';
   } catch (err) {
-    console.error('Photo resolve error:', err);
+    console.error('[storage] Photo reference could not be resolved.');
     return 'error://unavailable';
   }
 };
@@ -438,4 +438,3 @@ export const deletePhoto = async (pathOrDescriptor, bucket = COMPANY_ASSETS_BUCK
   const { error } = await supabase.storage.from(reference.bucket || bucket).remove([path]);
   if (error) throw new Error(`Failed to delete photo: ${error.message}`);
 };
-

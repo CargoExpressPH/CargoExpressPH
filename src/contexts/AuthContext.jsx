@@ -369,7 +369,7 @@ export const AuthProvider = ({ children }) => {
     if (signedInUserId) {
       await logAuth(userProfile?.role === 'admin' ? 'Admin Logged Out' : 'User Logged Out', {
         recordId: signedInUserId,
-        recordRef: userProfile?.name || user?.email || null,
+        recordRef: userProfile?.name || 'Authenticated user',
         details: 'Session ended.',
       });
     }

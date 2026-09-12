@@ -77,8 +77,17 @@ serve(async (req) => {
   try {
     const { name, message, contact_phone, contact_email, phone, wants_announcements } = await req.json()
 
+    if (typeof name !== 'string' || typeof message !== 'string') {
+      return json({ error: 'Name and message must be text.' }, 400)
+    }
+    if (contact_phone != null && typeof contact_phone !== 'string') {
+      return json({ error: 'Contact phone must be text.' }, 400)
+    }
+    if (phone != null && typeof phone !== 'string') {
+      return json({ error: 'Contact must be text.' }, 400)
+    }
     if (contact_email != null && typeof contact_email !== 'string') {
-      return json({ error: 'Please enter a valid email address.' }, 400)
+      return json({ error: 'Email address must be text.' }, 400)
     }
     const trimmedName = (name || '').trim()
     const trimmedMessage = (message || '').trim()
@@ -120,7 +129,7 @@ serve(async (req) => {
     const inquiryId = crypto.randomUUID()
     // Dual-write legacy phone for rollback; cap to 100 to satisfy CHECK 7-100.
     // Normalized columns contact_phone/email hold the full values.
-    const rawLegacy = [contact_phone || null, contact_email || null].filter(Boolean).join(' | ') || phoneVal || null
+    const rawLegacy = [contact_phone || null, trimmedEmail || null].filter(Boolean).join(' | ') || phoneVal || null
     const legacyPhone = rawLegacy && rawLegacy.length > 100 ? rawLegacy.slice(0, 100) : rawLegacy
 
     const { error } = await adminClient.from('contact_inquiries').insert({
@@ -128,7 +137,7 @@ serve(async (req) => {
       name: trimmedName,
       phone: legacyPhone || phoneVal,
       message: trimmedMessage,
-      contact_phone: contact_phone || null,
+      contact_phone: contact_phone?.trim() || null,
       contact_email: trimmedEmail || null,
       wants_announcements: wantsAnnouncements,
       ip,

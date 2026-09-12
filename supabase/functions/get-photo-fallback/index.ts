@@ -7,6 +7,8 @@ const CORS_HEADERS = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+const PROVIDER_TIMEOUT_MS = 15_000
+
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
     status,
@@ -49,6 +51,8 @@ async function getAccessToken(serviceAccount: Record<string, string>) {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=${signedToken}`,
+    redirect: 'error',
+    signal: AbortSignal.timeout(PROVIDER_TIMEOUT_MS),
   })
   const tokenData = await tokenResponse.json()
   if (!tokenResponse.ok || !tokenData.access_token) {
@@ -147,7 +151,11 @@ serve(async (req) => {
     const projectId = serviceAccount.project_id
     const response = await fetch(
       `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/photoFallbacks/${docId}`,
-      { headers: { Authorization: `Bearer ${accessToken}` } },
+      {
+        headers: { Authorization: `Bearer ${accessToken}` },
+        redirect: 'error',
+        signal: AbortSignal.timeout(PROVIDER_TIMEOUT_MS),
+      },
     )
     const doc = await response.json()
     if (!response.ok) {
@@ -168,10 +176,10 @@ serve(async (req) => {
       data_url: firestoreString(doc, 'data_url'),
       content_type: firestoreString(doc, 'content_type') || 'image/jpeg',
     })
-  } catch (err) {
+  } catch {
     // Provider/auth/parser errors can contain internal project or credential
-    // details. Keep those in server logs and return a stable public message.
-    console.error('get-photo-fallback failed', err)
+    // details. Log only the event category and return a stable public message.
+    console.error('get-photo-fallback failed')
     return json({ error: 'Could not load the fallback photo right now.' }, 500)
   }
 })
