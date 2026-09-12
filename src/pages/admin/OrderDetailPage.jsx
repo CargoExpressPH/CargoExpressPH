@@ -332,12 +332,8 @@ const AdminOrderDetailPage = () => {
     return () => { cancelled = true; };
   }, [resolvedDeliveryPhotos]);
 
-  // `silent` refreshes the data without the full-page spinner. The spinner
-  // replaces the whole page — open modals included — so a background refresh
-  // (e.g. a GCash payment landing while the payment modal is showing its
-  // confirmation) must never go through it.
-  const loadOrder = async (isMounted = true, { silent = false } = {}) => {
-    if (!silent) { setError(null); setLoading(true); }
+  const loadOrder = async (isMounted = true) => {
+    setError(null); setLoading(true);
     try {
       const data = await getOrderById(id);
       if (!isMounted) return;
@@ -357,11 +353,9 @@ const AdminOrderDetailPage = () => {
       const pmts = await getPaymentTransactions(id);
       if (isMounted) setPaymentTransactions(pmts);
     } catch (e) {
-      if (!isMounted) return;
-      if (silent) toast.error(e.message || 'Failed to refresh order.');
-      else setError(e.message || 'Failed to load order.');
+      if (isMounted) setError(e.message || 'Failed to load order.');
     } finally {
-      if (isMounted && !silent) setLoading(false);
+      if (isMounted) setLoading(false);
     }
   };
 
@@ -1505,12 +1499,9 @@ const AdminOrderDetailPage = () => {
         <AdditionalPaymentModal
           order={order}
           remainingBalance={computedRemainingBalance}
-          // Same reason as DeliveryModal: a QR paid just before closing must
-          // not leave a stale balance behind the "Record Additional Payment"
-          // button.
-          onClose={() => { setShowPaymentModal(false); void loadOrder(true, { silent: true }); }}
+          onClose={() => setShowPaymentModal(false)}
           onSave={handleAdditionalPayment}
-          onPaymentConfirmed={() => loadOrder(true, { silent: true })}
+          onPaymentConfirmed={() => loadOrder()}
         />
       )}
       {refundPayment && (
@@ -1530,14 +1521,7 @@ const AdminOrderDetailPage = () => {
         />
       )}
       {showDeliveryModal && (
-        <DeliveryModal
-          order={order}
-          // The modal can be closed after a GCash payment confirms. Refresh on
-          // close so reopening it reads the new balance instead of offering a
-          // second checkout for money that is already paid.
-          onClose={() => { setShowDeliveryModal(false); void loadOrder(true, { silent: true }); }}
-          onSave={handleDeliverySave}
-        />
+        <DeliveryModal order={order} onClose={() => setShowDeliveryModal(false)} onSave={handleDeliverySave} />
       )}
       {showCancelConfirm && (
         <ReasonModal
