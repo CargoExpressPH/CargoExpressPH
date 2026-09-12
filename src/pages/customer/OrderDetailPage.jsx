@@ -8,6 +8,7 @@ import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { initiateGCashPayment, registerSource, pollPaymentStatus } from '../../lib/paymongo';
 import { clearPendingPayment, getPendingPayment, savePendingPayment } from '../../lib/pendingPayment';
+import { isPaymentPollReconciled } from '../../utils/paymentReconciliation';
 import StatusBadge from '../../components/ui/StatusBadge';
 import TrackingTimeline from '../../components/ui/TrackingTimeline';
 import ConfirmModal from '../../components/ui/ConfirmModal';
@@ -365,7 +366,7 @@ const OrderDetailPage = () => {
 
         try {
           const result = await pollPaymentStatus(sourceId, id);
-          if (result.orderReconciled || result.status === 'paid') {
+          if (isPaymentPollReconciled(result)) {
             return await markPaymentConfirmed();
           }
         } catch {

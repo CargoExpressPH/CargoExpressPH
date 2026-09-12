@@ -3,6 +3,7 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { getOrderById, updateOrder, updateOrderContactDetails, getTripReassignments, reassignTrip, getActivityLogsByRecord, getPaymentTransactions, recordAdditionalPayment, recordPickupPayment, recordDeliveryPayment, getOrderStatusEvents, reviewOrderCancellation, cancelOrderAsAdmin, assignOrderToCustomer, getLatestPaymentAttemptByOrder, clearPaymentReceiptUrls } from '../../lib/database';
 import { pollPaymentStatus } from '../../lib/paymongo';
 import { clearPendingPayment, getPendingPayment } from '../../lib/pendingPayment';
+import { isPaymentPollReconciled } from '../../utils/paymentReconciliation';
 import { logOrder, logPayment } from '../../lib/activityLog';
 import { buildStatusTimestamps } from '../../utils/statusTimestamps';
 import { resolvePhotoUrls, deletePhoto } from '../../lib/storage';
@@ -215,7 +216,7 @@ const AdminOrderDetailPage = () => {
         if (!sourceAlreadyVerified) {
           try {
             const result = await pollPaymentStatus(attempt.source_id, id);
-            if (!(result.orderReconciled || result.status === 'paid')) return;
+            if (!isPaymentPollReconciled(result)) return;
           } catch {
             return;
           }
@@ -264,7 +265,7 @@ const AdminOrderDetailPage = () => {
           if (confirmed) return;
           try {
             const result = await pollPaymentStatus(attempt.source_id, id);
-            if (result.orderReconciled || result.status === 'paid') {
+            if (isPaymentPollReconciled(result)) {
               await finish(true);
               return;
             }
