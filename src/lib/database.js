@@ -1225,31 +1225,42 @@ export const getUnreadNotificationCount = async (userId) => {
 
 // ==================== CUSTOMERS (Admin) ====================
 /**
- * Fetch paginated, server-side filtered customer profiles.
- * @param {Object} options - { page, perPage, search }
+ * Fetch the paginated Admin customer directory. Booking totals, outstanding
+ * balance, latest booking and status are aggregated inside Postgres so the
+ * page never issues one orders query per customer.
+ * @param {Object} options - { page, perPage, search, statusFilter, province, sort }
  * @returns {{ data: Array, count: number }}
  */
 export const getCustomers = async (options = {}) => {
-  const { page = 1, perPage = 15, search = '' } = options;
+  const {
+    page = 1,
+    perPage = 15,
+    search = '',
+    statusFilter = 'all',
+    province = '',
+    sort = 'newest',
+  } = options;
 
-  let query = supabase
-    .from('profiles')
-    .select('id, name, email, phone, address_province, created_at', { count: 'exact' })
-    .eq('role', 'customer')
-    .order('created_at', { ascending: false });
-
-  if (search && search.trim()) {
-    const term = search.trim();
-    query = query.or(`name.ilike.%${term}%,email.ilike.%${term}%,phone.ilike.%${term}%,address_province.ilike.%${term}%`);
-  }
-
-  const from = (page - 1) * perPage;
-  const to = from + perPage - 1;
-  query = query.range(from, to);
-
-  const { data, error, count } = await query;
+  const { data, error } = await supabase.rpc('get_admin_customers', {
+    p_page: page,
+    p_per_page: perPage,
+    p_search: search.trim(),
+    p_status_filter: statusFilter,
+    p_province: province || null,
+    p_sort: sort,
+  });
   if (error) throw error;
-  return { data: data || [], count: count || 0 };
+  const rows = data || [];
+  return {
+    data: rows.map(({ total_count: _totalCount, ...customer }) => customer),
+    count: Number(rows[0]?.total_count || 0),
+  };
+};
+
+export const getCustomerProvinces = async () => {
+  const { data, error } = await supabase.rpc('get_admin_customer_provinces');
+  if (error) throw error;
+  return (data || []).map(row => row.province).filter(Boolean);
 };
 
 export const getCustomerById = async (customerId) => {
