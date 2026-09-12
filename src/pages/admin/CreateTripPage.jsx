@@ -110,7 +110,11 @@ const CreateTripPage = () => {
         capacity:     Number(form.capacity),
         price_per_kg: Number(form.price_per_kg),
       });
-      toast.success('Trip created successfully!');
+      if (result.autoAssignmentWarning) {
+        toast.warning(result.autoAssignmentWarning, 7000);
+      } else {
+        toast.success('Trip created successfully!');
+      }
       logTrip('Trip Created', result.id, result.trip_number || result.id, { newValue: { origin: form.origin, destination: form.destination, departure_date: form.departure_date, capacity: form.capacity, price_per_kg: form.price_per_kg }, details: `New trip created: ${form.origin} → ${form.destination}` });
       navigate(`/admin/trips/${result.id}`);
       // Not clearing `loading` here: navigate() doesn't unmount this page

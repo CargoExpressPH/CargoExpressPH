@@ -751,6 +751,7 @@ export const createTrip = async (tripData) => {
 
   // Auto-assign pending orders matching this route
   let autoAssignedCount = 0;
+  let autoAssignmentWarning = null;
   if (data.origin && data.destination) {
     const { data: pendingOrders, error: pendingErr } = await supabase
       .from('orders')
@@ -761,7 +762,9 @@ export const createTrip = async (tripData) => {
       .eq('destination', data.destination)
       .order('created_at', { ascending: true });
 
-    if (!pendingErr && pendingOrders?.length) {
+    if (pendingErr) {
+      autoAssignmentWarning = 'The trip was created, but pending bookings could not be checked for automatic assignment.';
+    } else if (pendingOrders?.length) {
       let plannedWeight = 0;
       const selectedIds = [];
       const capacity = Number(data.capacity || 0);
@@ -778,18 +781,30 @@ export const createTrip = async (tripData) => {
           .from('orders')
           .update({ trip_id: data.id, status: 'Assigned' })
           .in('id', selectedIds)
+          // Compare-and-set the state used when selecting candidates. Without
+          // these filters, a concurrent admin action could be overwritten and
+          // move an order back to Assigned or onto the wrong route.
+          .eq('status', 'Pending')
+          .is('trip_id', null)
+          .eq('origin', data.origin)
+          .eq('destination', data.destination)
           .select('id, user_id, tracking_number');
         
-        if (!updateErr && updated?.length) {
-          autoAssignedCount = updated.length;
+        if (updateErr) {
+          autoAssignmentWarning = 'The trip was created, but matching pending bookings could not be assigned automatically.';
+        } else {
+          autoAssignedCount = updated?.length || 0;
+          if (autoAssignedCount !== selectedIds.length) {
+            autoAssignmentWarning = `The trip was created, but ${selectedIds.length - autoAssignedCount} matching booking(s) changed before automatic assignment. Review the trip before departure.`;
+          }
           
           // Activity logs only. The customer's "Order Assigned" notification is
           // written by the orders_notify_customer_of_change trigger inside the
           // same transaction as the trip_id write above — sending it from here
           // as well would give every auto-assigned customer two of them.
-          await Promise.all(updated.map(async (order) => {
+          await Promise.all((updated || []).map(async (order) => {
             try {
-              logOrder('Order Assigned', order.id, order.tracking_number, {
+              await logOrder('Order Assigned', order.id, order.tracking_number, {
                 previousValue: { status: 'Pending', trip_id: null },
                 newValue: { status: 'Assigned', trip_id: data.id },
                 details: `System auto-assigned to Trip ${tripNumber} during creation`
@@ -822,7 +837,7 @@ export const createTrip = async (tripData) => {
     }
   }
 
-  return { ...data, autoAssignedCount };
+  return { ...data, autoAssignedCount, autoAssignmentWarning };
 };
 
 export const getTrips = async (statusFilter) => {
@@ -2702,12 +2717,43 @@ export const getPaymentTransactions = async (orderId) => {
  */
 export const getPaymentTransactionsBatch = async (orderIds) => {
   if (!orderIds || orderIds.length === 0) return {};
-  const { data, error } = await supabase
-    .from('payment_transactions')
-    .select('*')
-    .in('order_id', orderIds)
-    .order('created_at', { ascending: true });
-  if (error) throw error;
+  // Keep each PostgREST URL comfortably below proxy/browser limits without
+  // silently dropping older orders. Customers may have more than 200 orders,
+  // and the caller must not have to trade complete history for URL safety.
+  const uniqueIds = [...new Set(orderIds.filter(Boolean))];
+  const chunks = [];
+  for (let index = 0; index < uniqueIds.length; index += 100) {
+    chunks.push(uniqueIds.slice(index, index + 100));
+  }
+
+  const fetchChunk = async (ids) => {
+    const rows = [];
+    const pageSize = 1000;
+    let from = 0;
+
+    // Supabase projects commonly cap a response at 1,000 rows. Page within
+    // each URL-safe ID chunk so a payment-heavy account is not truncated at
+    // the API row limit either.
+    while (true) {
+      const { data, error } = await supabase
+        .from('payment_transactions')
+        .select('*')
+        .in('order_id', ids)
+        .order('created_at', { ascending: true })
+        .order('id', { ascending: true })
+        .range(from, from + pageSize - 1);
+      if (error) throw error;
+
+      const page = data || [];
+      rows.push(...page);
+      if (page.length < pageSize) break;
+      from += pageSize;
+    }
+    return rows;
+  };
+
+  const responses = await Promise.all(chunks.map(fetchChunk));
+  const data = responses.flat();
   // Group by order_id
   const grouped = {};
   for (const tx of data || []) {

@@ -77,6 +77,9 @@ serve(async (req) => {
   try {
     const { name, message, contact_phone, contact_email, phone, wants_announcements } = await req.json()
 
+    if (contact_email != null && typeof contact_email !== 'string') {
+      return json({ error: 'Please enter a valid email address.' }, 400)
+    }
     const trimmedName = (name || '').trim()
     const trimmedMessage = (message || '').trim()
     const trimmedEmail = (contact_email || '').trim()
@@ -100,6 +103,9 @@ serve(async (req) => {
     // change) means this should never trip in practice — it's a server-side
     // backstop against a client that skips the form's own validation.
     const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (trimmedEmail && !EMAIL_RE.test(trimmedEmail)) {
+      return json({ error: 'Please enter a valid email address.' }, 400)
+    }
     if (wantsAnnouncements && !EMAIL_RE.test(trimmedEmail)) {
       return json({ error: 'A valid email address is required to receive announcements.' }, 400)
     }
@@ -123,7 +129,7 @@ serve(async (req) => {
       phone: legacyPhone || phoneVal,
       message: trimmedMessage,
       contact_phone: contact_phone || null,
-      contact_email: contact_email || null,
+      contact_email: trimmedEmail || null,
       wants_announcements: wantsAnnouncements,
       ip,
     })

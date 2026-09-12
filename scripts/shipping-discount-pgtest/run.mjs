@@ -5,7 +5,7 @@
 // schema (harness-schema.sql, which is the pre-feature production SQL
 // verbatim: prepare_order_insert / guard_order_update / record_pickup_payment
 // / update_order_payment_totals / reconcile_paymongo_payment_attempt /
-// get_sales_summary as they were BEFORE this feature), then the four REAL new
+// get_sales_summary as they were BEFORE this feature), then the REAL new
 // migration files are applied verbatim on top. What is tested is therefore
 // byte-for-byte the SQL that ships, both before and after, so several
 // scenarios diff "before" against "after" to prove the discount is additive
@@ -104,6 +104,37 @@ function pickup(tx, params) {
   return tx.query(`SELECT * FROM record_pickup_payment(${args})`, values);
 }
 
+/** Named-parameter delivery call against the corrected 12-parameter RPC. */
+function deliver(tx, params) {
+  const p = {
+    p_order_id: null, p_delivery_photos: '["delivery-proof"]', p_payment_method: null,
+    p_amount: null, p_reference: null, p_payment_date: null, p_receipt_url: null,
+    p_payment_type: 'Balance Settlement', p_notes: 'test delivery',
+    p_promised_payment_date: null, p_idempotency_key: null, p_admin_verified_receipt: false,
+    ...params,
+  };
+  const names = Object.keys(p);
+  const args = names.map((n, i) => `${n} => $${i + 1}`).join(', ');
+  return tx.query(`SELECT * FROM record_delivery_payment(${args})`, names.map(n => p[n]));
+}
+
+/** Named-parameter additional-payment call against the corrected 9-parameter RPC. */
+function additionalPayment(tx, params) {
+  const p = {
+    p_order_id: null, p_amount: null, p_payment_method: 'gcash', p_reference: null,
+    p_notes: 'test additional payment', p_payment_date: null, p_receipt_url: null,
+    p_idempotency_key: null, p_admin_verified_receipt: true,
+    ...params,
+  };
+  const names = Object.keys(p);
+  const args = names.map((n, i) => `${n} => $${i + 1}`).join(', ');
+  return tx.query(`SELECT * FROM record_additional_payment(${args})`, names.map(n => p[n]));
+}
+
+async function readyForDelivery(orderId) {
+  await db.query(`UPDATE orders SET status='Out for Delivery' WHERE id=$1`, [orderId]);
+}
+
 // ══════════════════════════════════════════════════════════════════════════
 console.log('\n== BASELINE (pre-migration): establish "before" behaviour ==');
 let baselineOrderId;
@@ -125,6 +156,7 @@ const migrations = [
   '20260911030000_record_pickup_payment_discount.sql',
   '20260911040000_sales_summary_discount_aware.sql',
   '20260911060218_secure_paymongo_order_metadata.sql',
+  '20260912010000_discount_aware_manual_settlement.sql',
 ];
 for (const m of migrations) {
   const sql = readFileSync(path.join(REPO, 'supabase/migrations', m), 'utf8');
@@ -135,6 +167,13 @@ for (const m of migrations) {
     console.error(`  ERROR applying ${m}:`, e.message);
     process.exit(1);
   }
+}
+
+try {
+  await db.exec(readFileSync(path.join(REPO, 'supabase/migrations', '20260912010000_discount_aware_manual_settlement.sql'), 'utf8'));
+  ok('corrective settlement migration can be executed repeatedly without schema or data errors', true);
+} catch (e) {
+  ok('corrective settlement migration can be executed repeatedly without schema or data errors', false, e.message);
 }
 
 // ══════════════════════════════════════════════════════════════════════════
@@ -203,6 +242,322 @@ console.log('\n== Scenario: settling the remaining ₱500 via a later GCash paym
   ok('after settling: payment_status = paid (against the DISCOUNTED 900, not 1000)', o.payment_status === 'paid');
   const c = await countTx(exampleOrderId);
   ok('ledger has exactly two payments totalling ₱900, not ₱1000', c.n === 2 && Number(c.total) === 900, c);
+}
+
+console.log('\n== Scenario: exact discounted balance collected at delivery completes without a promise date ==');
+{
+  const orderId = await newOrder('TRK-DISC-DELIVERY-EXACT');
+  await asUser(ADMIN_ID, 'authenticated', tx => pickup(tx, {
+    p_order_id: orderId, p_actual_weight: 10, p_amount: 300,
+    p_payer_type: 'receiver',
+    p_discount_amount: 100, p_discount_reason: 'Regular customer',
+  }));
+  await readyForDelivery(orderId);
+
+  const key = '33333333-3333-3333-3333-333333333333';
+  const res = await asUser(ADMIN_ID, 'authenticated', tx => deliver(tx, {
+    p_order_id: orderId, p_payment_method: 'gcash', p_amount: 300,
+    p_reference: 'GC-DISC-DELIVERY-EXACT', p_idempotency_key: key,
+    p_admin_verified_receipt: true,
+  }));
+  const o = res.rows[0];
+  ok('discounted delivery: status advances to Delivered without a promise date', o.status === 'Delivered' && o.promised_payment_date === null, o);
+  ok('discounted delivery: ₱600 payable is fully settled, not compared with gross ₱700', Number(o.amount_paid) === 600 && Number(o.remaining_balance) === 0 && o.payment_status === 'paid', o);
+
+  const txRows = await db.query(
+    `SELECT amount, payment_status, payment_type FROM payment_transactions WHERE order_id=$1 ORDER BY created_at, id`,
+    [orderId]
+  );
+  const finalTx = txRows.rows.find(row => Number(row.amount) === 300 && row.payment_type === 'Balance Settlement');
+  ok('discounted delivery: final ledger row is labelled paid / Balance Settlement', finalTx?.payment_status === 'paid', txRows.rows);
+
+  await asUser(ADMIN_ID, 'authenticated', tx => deliver(tx, {
+    p_order_id: orderId, p_payment_method: 'gcash', p_amount: 300,
+    p_reference: 'GC-DISC-DELIVERY-EXACT', p_idempotency_key: key,
+    p_admin_verified_receipt: true,
+  }));
+  const c = await countTx(orderId);
+  ok('discounted delivery: retry with the same idempotency key creates no duplicate credit', c.n === 2 && Number(c.total) === 600, c);
+}
+
+console.log('\n== Scenario: no-discount manual delivery behavior is preserved ==');
+{
+  const orderId = await newOrder('TRK-NODISC-DELIVERY');
+  await asUser(ADMIN_ID, 'authenticated', tx => pickup(tx, {
+    p_order_id: orderId, p_actual_weight: 10, p_amount: 200, p_payer_type: 'receiver',
+  }));
+  await readyForDelivery(orderId);
+  const res = await asUser(ADMIN_ID, 'authenticated', tx => deliver(tx, {
+    p_order_id: orderId, p_payment_method: 'gcash', p_amount: 500,
+    p_reference: 'GC-NODISC-DELIVERY', p_admin_verified_receipt: true,
+  }));
+  const o = res.rows[0];
+  ok('no-discount delivery: the original ₱700 fee still settles normally',
+    Number(o.amount_paid) === 700 && Number(o.remaining_balance) === 0 && o.payment_status === 'paid', o);
+  ok('no-discount delivery: status advances to Delivered', o.status === 'Delivered', o.status);
+}
+
+console.log('\n== Scenario: discounted delivery shortfall is atomic and requires a promise date ==');
+{
+  const orderId = await newOrder('TRK-DISC-DELIVERY-SHORT');
+  await asUser(ADMIN_ID, 'authenticated', tx => pickup(tx, {
+    p_order_id: orderId, p_actual_weight: 10, p_amount: 200,
+    p_payer_type: 'receiver',
+    p_discount_amount: 100, p_discount_reason: 'Negotiated price',
+  }));
+  await readyForDelivery(orderId);
+
+  let rejected = false;
+  try {
+    await asUser(ADMIN_ID, 'authenticated', tx => deliver(tx, {
+      p_order_id: orderId, p_delivery_photos: '["should-roll-back"]',
+      p_payment_method: 'gcash', p_amount: 100,
+      p_reference: 'GC-DISC-DELIVERY-SHORT-FAIL', p_admin_verified_receipt: true,
+    }));
+  } catch (e) { rejected = /promise date/i.test(e.message); }
+  ok('discounted delivery shortfall: missing promise date is rejected', rejected);
+
+  let o = await getOrder(orderId);
+  let c = await countTx(orderId);
+  ok('discounted delivery shortfall: rejection rolls back status, proof and payment',
+    o.status === 'Out for Delivery' && JSON.stringify(o.delivery_photos) === '[]' && c.n === 1 && Number(c.total) === 200,
+    { order: o, ledger: c });
+
+  const res = await asUser(ADMIN_ID, 'authenticated', tx => deliver(tx, {
+    p_order_id: orderId, p_payment_method: 'gcash', p_amount: 100,
+    p_reference: 'GC-DISC-DELIVERY-SHORT-OK', p_admin_verified_receipt: true,
+    p_promised_payment_date: '2026-09-20',
+  }));
+  o = res.rows[0];
+  ok('discounted delivery shortfall: promise date permits delivery and preserves the discounted balance',
+    o.status === 'Delivered' && Number(o.amount_paid) === 300 && Number(o.remaining_balance) === 300 && o.payment_status === 'partial', o);
+}
+
+console.log('\n== Scenario: discounted manual additional payment labels an exact settlement correctly ==');
+{
+  const orderId = await newOrder('TRK-DISC-ADDITIONAL-EXACT');
+  await asUser(ADMIN_ID, 'authenticated', tx => pickup(tx, {
+    p_order_id: orderId, p_actual_weight: 10, p_amount: 300,
+    p_discount_amount: 100, p_discount_reason: 'Regular customer',
+  }));
+
+  const key = '44444444-4444-4444-4444-444444444444';
+  const res = await asUser(ADMIN_ID, 'authenticated', tx => additionalPayment(tx, {
+    p_order_id: orderId, p_amount: 300, p_reference: 'GC-DISC-ADDITIONAL-EXACT',
+    p_idempotency_key: key,
+  }));
+  const o = res.rows[0];
+  ok('discounted additional payment: order totals settle against ₱600 payable', Number(o.amount_paid) === 600 && Number(o.remaining_balance) === 0 && o.payment_status === 'paid', o);
+
+  const finalTxResult = await db.query(
+    `SELECT payment_status, payment_type FROM payment_transactions WHERE order_id=$1 AND idempotency_key=$2`,
+    [orderId, key]
+  );
+  ok('discounted additional payment: exact final transaction is paid / Balance Settlement',
+    finalTxResult.rows[0]?.payment_status === 'paid' && finalTxResult.rows[0]?.payment_type === 'Balance Settlement',
+    finalTxResult.rows[0]);
+
+  await asUser(ADMIN_ID, 'authenticated', tx => additionalPayment(tx, {
+    p_order_id: orderId, p_amount: 300, p_reference: 'GC-DISC-ADDITIONAL-EXACT',
+    p_idempotency_key: key,
+  }));
+  const c = await countTx(orderId);
+  ok('discounted additional payment: retry with the same idempotency key creates no duplicate credit', c.n === 2 && Number(c.total) === 600, c);
+}
+
+console.log('\n== Scenario: partial additional payment stays partial and overpayments are rejected ==');
+{
+  const orderId = await newOrder('TRK-DISC-ADDITIONAL-PARTIAL');
+  await asUser(ADMIN_ID, 'authenticated', tx => pickup(tx, {
+    p_order_id: orderId, p_actual_weight: 10, p_amount: 200,
+    p_payer_type: 'receiver', p_discount_amount: 100, p_discount_reason: 'Regular customer',
+  }));
+  await asUser(ADMIN_ID, 'authenticated', tx => additionalPayment(tx, {
+    p_order_id: orderId, p_amount: 100, p_reference: 'GC-DISC-ADDITIONAL-PARTIAL',
+  }));
+  const partialTx = await db.query(
+    `SELECT payment_status, payment_type FROM payment_transactions WHERE order_id=$1 AND transaction_reference='GC-DISC-ADDITIONAL-PARTIAL'`,
+    [orderId]
+  );
+  let o = await getOrder(orderId);
+  ok('discounted additional payment: a real short payment remains partial / Additional Payment',
+    partialTx.rows[0]?.payment_status === 'partial' && partialTx.rows[0]?.payment_type === 'Additional Payment' && Number(o.remaining_balance) === 300,
+    { transaction: partialTx.rows[0], order: o });
+
+  let additionalOverpayRejected = false;
+  try {
+    await asUser(ADMIN_ID, 'authenticated', tx => additionalPayment(tx, {
+      p_order_id: orderId, p_amount: 300.01, p_reference: 'GC-DISC-ADDITIONAL-OVERPAY',
+    }));
+  } catch (e) { additionalOverpayRejected = /exceeds the outstanding balance/i.test(e.message); }
+  ok('discounted additional payment: server rejects an amount above the remaining balance', additionalOverpayRejected);
+
+  await readyForDelivery(orderId);
+  let deliveryOverpayRejected = false;
+  try {
+    await asUser(ADMIN_ID, 'authenticated', tx => deliver(tx, {
+      p_order_id: orderId, p_payment_method: 'gcash', p_amount: 300.01,
+      p_reference: 'GC-DISC-DELIVERY-OVERPAY', p_admin_verified_receipt: true,
+    }));
+  } catch (e) { deliveryOverpayRejected = /exceeds the outstanding balance/i.test(e.message); }
+  ok('discounted delivery payment: server rejects an amount above the remaining balance', deliveryOverpayRejected);
+
+  o = await getOrder(orderId);
+  const c = await countTx(orderId);
+  ok('overpayment attempts leave order and ledger unchanged', o.status === 'Out for Delivery' && Number(o.remaining_balance) === 300 && c.n === 2 && Number(c.total) === 300, { order: o, ledger: c });
+}
+
+console.log('\n== Scenario: delivery rejects unverified, unsupported and unauthorized payment submissions ==');
+{
+  const orderId = await newOrder('TRK-DISC-DELIVERY-GUARDS');
+  await asUser(ADMIN_ID, 'authenticated', tx => pickup(tx, {
+    p_order_id: orderId, p_actual_weight: 10, p_amount: 200,
+    p_payer_type: 'receiver', p_discount_amount: 100, p_discount_reason: 'Regular customer',
+  }));
+  await readyForDelivery(orderId);
+
+  let unsupportedRejected = false;
+  try {
+    await asUser(ADMIN_ID, 'authenticated', tx => deliver(tx, {
+      p_order_id: orderId, p_payment_method: 'bank', p_amount: 400,
+      p_reference: 'BANK-NOT-GCASH', p_admin_verified_receipt: true,
+    }));
+  } catch (e) { unsupportedRejected = /unsupported payment method/i.test(e.message); }
+  ok('delivery: unsupported payment method cannot bypass GCash verification', unsupportedRejected);
+
+  let unverifiedRejected = false;
+  try {
+    await asUser(ADMIN_ID, 'authenticated', tx => deliver(tx, {
+      p_order_id: orderId, p_payment_method: 'gcash', p_amount: 400,
+      p_reference: 'GC-DISC-UNVERIFIED', p_admin_verified_receipt: false,
+    }));
+  } catch (e) { unverifiedRejected = /verified receipt/i.test(e.message); }
+  ok('delivery: unverified manual GCash transfer is rejected', unverifiedRejected);
+
+  let customerDeliveryRejected = false;
+  try {
+    await asUser(CUST_ID, 'authenticated', tx => deliver(tx, {
+      p_order_id: orderId, p_payment_method: 'gcash', p_amount: 400,
+      p_reference: 'GC-DISC-CUSTOMER-DELIVERY', p_admin_verified_receipt: true,
+    }));
+  } catch (e) { customerDeliveryRejected = /Admin access required/.test(e.message); }
+  ok('delivery: customer cannot invoke the settlement RPC', customerDeliveryRejected);
+
+  let customerAdditionalRejected = false;
+  try {
+    await asUser(CUST_ID, 'authenticated', tx => additionalPayment(tx, {
+      p_order_id: orderId, p_amount: 100, p_reference: 'GC-DISC-CUSTOMER-ADDITIONAL',
+    }));
+  } catch (e) { customerAdditionalRejected = /Admin access required/.test(e.message); }
+  ok('additional payment: customer cannot invoke the settlement RPC', customerAdditionalRejected);
+}
+
+console.log('\n== Scenario: delivery lifecycle and proof requirements are enforced server-side ==');
+{
+  const orderId = await newOrder('TRK-DELIVERY-LIFECYCLE-GUARDS');
+  await asUser(ADMIN_ID, 'authenticated', tx => pickup(tx, {
+    p_order_id: orderId, p_actual_weight: 10, p_amount: 700,
+  }));
+
+  let lifecycleRejected = false;
+  try {
+    await asUser(ADMIN_ID, 'authenticated', tx => deliver(tx, { p_order_id: orderId }));
+  } catch (e) { lifecycleRejected = /Out for Delivery/i.test(e.message); }
+  ok('delivery: a direct RPC call cannot skip the required lifecycle state', lifecycleRejected);
+
+  await readyForDelivery(orderId);
+  let proofRejected = false;
+  try {
+    await asUser(ADMIN_ID, 'authenticated', tx => deliver(tx, {
+      p_order_id: orderId, p_delivery_photos: '[]',
+    }));
+  } catch (e) { proofRejected = /proof of delivery/i.test(e.message); }
+  ok('delivery: an empty proof array is rejected by the database RPC', proofRejected);
+
+  const res = await asUser(ADMIN_ID, 'authenticated', tx => deliver(tx, { p_order_id: orderId }));
+  ok('delivery: an already-paid order can complete with proof and no new payment',
+    res.rows[0].status === 'Delivered' && Number(res.rows[0].remaining_balance) === 0 && Number(res.rows[0].amount_paid) === 700,
+    res.rows[0]);
+
+  const unpaidOrderId = await newOrder('TRK-DELIVERY-UNPAID-GUARD');
+  await asUser(ADMIN_ID, 'authenticated', tx => pickup(tx, {
+    p_order_id: unpaidOrderId, p_actual_weight: 10, p_amount: null, p_payer_type: 'receiver',
+  }));
+  await readyForDelivery(unpaidOrderId);
+  let unpaidRejected = false;
+  try {
+    await asUser(ADMIN_ID, 'authenticated', tx => deliver(tx, { p_order_id: unpaidOrderId }));
+  } catch (e) { unpaidRejected = /promise date/i.test(e.message); }
+  ok('delivery: an unpaid order cannot complete without collection or a promise date', unpaidRejected);
+
+  const unpaidAfter = await getOrder(unpaidOrderId);
+  const unpaidLedger = await countTx(unpaidOrderId);
+  ok('delivery: rejected unpaid completion leaves status, proof, and ledger unchanged',
+    unpaidAfter.status === 'Out for Delivery' && JSON.stringify(unpaidAfter.delivery_photos) === '[]' && unpaidLedger.n === 0,
+    { order: unpaidAfter, ledger: unpaidLedger });
+}
+
+console.log('\n== Scenario: negative settlement amounts are rejected atomically ==');
+{
+  const orderId = await newOrder('TRK-NEGATIVE-SETTLEMENT');
+  await asUser(ADMIN_ID, 'authenticated', tx => pickup(tx, {
+    p_order_id: orderId, p_actual_weight: 10, p_amount: 100, p_payer_type: 'receiver',
+  }));
+
+  let additionalRejected = false;
+  try {
+    await asUser(ADMIN_ID, 'authenticated', tx => additionalPayment(tx, {
+      p_order_id: orderId, p_amount: -1, p_reference: 'GC-NEGATIVE-ADDITIONAL',
+    }));
+  } catch (e) { additionalRejected = /greater than zero/i.test(e.message); }
+  ok('additional payment: a negative amount is rejected', additionalRejected);
+
+  await readyForDelivery(orderId);
+  let deliveryRejected = false;
+  try {
+    await asUser(ADMIN_ID, 'authenticated', tx => deliver(tx, {
+      p_order_id: orderId, p_amount: -1,
+    }));
+  } catch (e) { deliveryRejected = /negative/i.test(e.message); }
+  ok('delivery payment: a negative amount is rejected', deliveryRejected);
+
+  const after = await getOrder(orderId);
+  const ledger = await countTx(orderId);
+  ok('negative attempts leave the order and ledger unchanged',
+    after.status === 'Out for Delivery' && JSON.stringify(after.delivery_photos) === '[]' && ledger.n === 1 && Number(ledger.total) === 100,
+    { order: after, ledger });
+}
+
+console.log('\n== Scenario: idempotency keys cannot be reused across orders ==');
+{
+  const firstOrderId = await newOrder('TRK-IDEMPOTENCY-ORDER-A');
+  const secondOrderId = await newOrder('TRK-IDEMPOTENCY-ORDER-B');
+  await asUser(ADMIN_ID, 'authenticated', tx => pickup(tx, {
+    p_order_id: firstOrderId, p_actual_weight: 10, p_amount: 100,
+  }));
+  await asUser(ADMIN_ID, 'authenticated', tx => pickup(tx, {
+    p_order_id: secondOrderId, p_actual_weight: 10, p_amount: 100,
+  }));
+
+  const key = '55555555-5555-5555-5555-555555555555';
+  await asUser(ADMIN_ID, 'authenticated', tx => additionalPayment(tx, {
+    p_order_id: firstOrderId, p_amount: 100, p_reference: 'GC-IDEMPOTENCY-ORDER-A',
+    p_idempotency_key: key,
+  }));
+
+  let crossOrderRejected = false;
+  try {
+    await asUser(ADMIN_ID, 'authenticated', tx => additionalPayment(tx, {
+      p_order_id: secondOrderId, p_amount: 100, p_reference: 'GC-IDEMPOTENCY-ORDER-B',
+      p_idempotency_key: key,
+    }));
+  } catch (e) { crossOrderRejected = /another order/i.test(e.message); }
+  ok('additional payment: a key already bound to another order is rejected', crossOrderRejected);
+
+  const secondLedger = await countTx(secondOrderId);
+  ok('cross-order idempotency rejection leaves the second order ledger unchanged',
+    secondLedger.n === 1 && Number(secondLedger.total) === 100,
+    secondLedger);
 }
 
 console.log('\n== Scenario: exact full payment of the discounted fee in one shot ==');

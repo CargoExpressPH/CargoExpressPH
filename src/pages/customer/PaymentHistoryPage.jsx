@@ -75,7 +75,7 @@ const monthLabel = (key) => {
 
 const paymentOptions = [
   { title: 'GCash', icon: Smartphone, tone: 'info', detail: 'Pay through the secure GCash flow when staff sends a payment request.' },
-  { title: 'Cash', icon: Banknote, tone: 'success', detail: 'Pay the cargo handler directly at pickup or delivery.' },
+  { title: 'Cash', icon: Banknote, tone: 'success', detail: 'Pay the cargo handler directly at pickup. Remaining balances after pickup are settled through GCash.' },
   { title: 'Pay Later', icon: CalendarClock, tone: 'warning', detail: 'Downpayment now, with a promised payment date.' },
 ];
 
@@ -190,29 +190,32 @@ const PaymentHistoryPage = () => {
       if (!user?.id) return;
       setLoading(true);
       setError('');
+      let loadTimeoutId;
 
       try {
         // C-3 fix: Use batch query instead of N+1 waterfall
         const LOAD_TIMEOUT_MS = 15000;
-        const data = await Promise.race([
-          getOrders(user.id, false),
-          new Promise((_, reject) => setTimeout(() => reject(new Error('Loading timed out. Please try again.')), LOAD_TIMEOUT_MS)),
+        const { safeOrders, txMap } = await Promise.race([
+          (async () => {
+            const data = await getOrders(user.id, false);
+            const safeOrders = data || [];
+            // getPaymentTransactionsBatch chunks IDs and pages responses
+            // internally, so every order and ledger row is represented.
+            const txMap = await getPaymentTransactionsBatch(safeOrders.map(order => order.id));
+            return { safeOrders, txMap };
+          })(),
+          new Promise((_, reject) => {
+            loadTimeoutId = setTimeout(
+              () => reject(new Error('Loading timed out. Please try again.')),
+              LOAD_TIMEOUT_MS
+            );
+          }),
         ]);
-        const safeOrders = data || [];
-        // The month filter is only honest if the months it offers are backed by
-        // the payments actually loaded. The previous 30-order / 12-transaction
-        // caps existed because the list rendered everything it held; with a
-        // month picker in front of it, those caps would have made any month
-        // beyond the last dozen payments read as empty rather than as
-        // unloaded. The ceiling here is a URL-length guard on the batched
-        // `.in()`, not a display limit.
-        const recentOrders = safeOrders.slice(0, 200);
-        const txMap = await getPaymentTransactionsBatch(recentOrders.map(order => order.id));
 
         if (!isMounted) return;
         setOrders(safeOrders);
         setTransactions(
-          recentOrders
+          safeOrders
             .flatMap(order => (txMap[order.id] || []).map(tx => ({ ...tx, order })))
             .sort((a, b) => new Date(b.payment_date || b.created_at) - new Date(a.payment_date || a.created_at))
         );
@@ -221,6 +224,7 @@ const PaymentHistoryPage = () => {
         setError(err?.message || 'Failed to load payment information.');
         toast.error('Failed to load payment information.');
       } finally {
+        clearTimeout(loadTimeoutId);
         if (isMounted) setLoading(false);
       }
     };

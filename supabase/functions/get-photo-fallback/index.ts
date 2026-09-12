@@ -151,7 +151,14 @@ serve(async (req) => {
     )
     const doc = await response.json()
     if (!response.ok) {
-      return json({ error: doc.error?.message || 'Fallback photo not found' }, response.status)
+      console.error('get-photo-fallback provider request failed', {
+        status: response.status,
+        code: doc?.error?.status || null,
+      })
+      return json(
+        { error: response.status === 404 ? 'Fallback photo not found' : 'Could not load the fallback photo right now.' },
+        response.status,
+      )
     }
     if (firestoreString(doc, 'order_id') !== orderId) {
       return json({ error: 'Fallback photo ownership mismatch' }, 403)
@@ -162,7 +169,9 @@ serve(async (req) => {
       content_type: firestoreString(doc, 'content_type') || 'image/jpeg',
     })
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Unexpected fallback read error'
-    return json({ error: message }, 500)
+    // Provider/auth/parser errors can contain internal project or credential
+    // details. Keep those in server logs and return a stable public message.
+    console.error('get-photo-fallback failed', err)
+    return json({ error: 'Could not load the fallback photo right now.' }, 500)
   }
 })

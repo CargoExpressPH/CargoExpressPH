@@ -5,9 +5,6 @@ import dotenv from 'dotenv';
 // the project has a single source of truth for local configuration.
 dotenv.config({ path: '.env' });
 
-// Allow Node.js db client to connect even in environments with local TLS interception
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
-
 /**
  * Test configuration and per-run identities.
  *
