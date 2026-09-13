@@ -26,7 +26,7 @@ import usePageTitle from '../../hooks/usePageTitle';
 import { formatPhDate, formatPhDateTime } from '../../utils/datetime';
 import { formatMoney, sanitizeAmount, parseAmount } from '../../utils/currencyInput';
 import { outstandingBalance, finalShippingFee, getSettlementState, isOrderPriced, SETTLEMENT_STATE, ORDER_STATUS, canCancelOrder, hasPendingCancellation, timelineStatus, canEditContactDetails } from '../../constants/status';
-import { formatPaymentType, formatRecordedBy, getPaymentActivityStatusDisplay, formatPaymentMethod as fmtMethod, getCustomerFriendlyNotes, getCustomerVisibleRef, getRefundAmountDisplay } from '../../utils/paymentDisplay';
+import { formatPaymentType, formatRecordedBy, formatRefundRecordedBy, getPaymentActivityStatusDisplay, formatPaymentMethod as fmtMethod, getCustomerFriendlyNotes, getCustomerVisibleRef, getRefundAmountDisplay } from '../../utils/paymentDisplay';
 
 // Max time (ms) to wait for data before giving up and showing an error.
 const LOAD_TIMEOUT_MS = 15000;
@@ -1216,7 +1216,9 @@ const OrderDetailPage = () => {
                           </td>
                           <td data-label="Recorded By">
                             <div className="cell-stack">
-                              <span>{formatRecordedBy(tx.admin_name, 'customer')}</span>
+                              <span>{tx.is_refund
+                                ? formatRefundRecordedBy(tx.admin_name)
+                                : formatRecordedBy(tx.admin_name, 'customer')}</span>
                               {friendlyNotes && <span className="text-tertiary" style={{ fontSize: '0.6875rem' }}>{friendlyNotes}</span>}
                             </div>
                           </td>

@@ -178,7 +178,7 @@ When, and only when, PayMongo reports `succeeded` and CargoExpress reconciles it
 - The customer receives one deduplicated **Refund Completed** notification.
 - The shipment status remains unchanged.
 
-Customer history identifies human-entered activity only as **CargoExpress Staff**. Real administrator names and internal provider fields remain available to authorized admins, but are not returned to customers.
+For transparency, a customer refund entry's **Recorded by** field shows the name of the administrator who initiated that refund. Refunds discovered from PayMongo without a CargoExpress administrator are shown as **Payment System**. Ordinary payment entries still use **CargoExpress Staff**, and internal administrator IDs, notes, idempotency keys, and provider references are never returned to customers.
 
 Pending, processing, failed, and unknown refunds do not reduce collected totals and do not generate a completed-refund notification.
 

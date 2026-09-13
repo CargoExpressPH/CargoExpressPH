@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
   formatRecordedBy,
+  formatRefundRecordedBy,
   getNetPaymentActivityDisplay,
   getRefundAmountDisplay,
   getRefundStatusDisplay,
@@ -13,6 +14,7 @@ const modal = read('src/components/ui/PaymentResultModal.jsx');
 const styles = read('src/styles/feedback.css');
 const tokens = read('src/styles/tokens.css');
 const customerOrderDetail = read('src/pages/customer/OrderDetailPage.jsx');
+const customerPaymentHistory = read('src/pages/customer/PaymentHistoryPage.jsx');
 const adminOrderDetail = read('src/pages/admin/OrderDetailPage.jsx');
 const refundModal = read('src/components/ui/RefundPaymentModal.jsx');
 const refundEdge = read('supabase/functions/paymongo-refund/index.ts');
@@ -33,6 +35,10 @@ assert.equal(formatRecordedBy('System Webhook', 'customer'), 'Payment System (GC
 assert.equal(formatRecordedBy('System', 'customer'), 'Payment System (GCash verified)');
 assert.equal(formatRecordedBy('Maria Santos', 'customer'), 'CargoExpress Staff');
 assert.equal(formatRecordedBy('Maria Santos', 'admin'), 'Maria Santos');
+assert.equal(formatRefundRecordedBy('Maria Santos'), 'Maria Santos');
+assert.equal(formatRefundRecordedBy('System Webhook'), 'Payment System (GCash verified)');
+assert.match(customerOrderDetail, /tx\.is_refund[\s\S]*?formatRefundRecordedBy\(tx\.admin_name\)/);
+assert.match(customerPaymentHistory, /tx\.is_refund[\s\S]*?formatRefundRecordedBy\(tx\.admin_name\)/);
 assert.doesNotMatch(customerOrderDetail, /Opening GCash/);
 
 for (const status of ['creating', 'pending', 'processing']) {
@@ -76,7 +82,7 @@ assert.deepEqual(
   { label: 'Net change this month', amount: '₱0' },
 );
 assert.doesNotMatch(customerOrderDetail, /Maria Santos/);
-assert.match(read('src/pages/customer/PaymentHistoryPage.jsx'), /monthNetDisplay\.amount/);
+assert.match(customerPaymentHistory, /monthNetDisplay\.amount/);
 assert.doesNotMatch(customerOrderDetail, /`-\$\{formatMoney\(Math\.abs\(Number\(tx\.amount/);
 assert.match(adminOrderDetail, /result\?\.status === 'failed'[\s\S]*?toast\.error/);
 assert.match(refundModal, /not completed until PayMongo confirms it as succeeded/);

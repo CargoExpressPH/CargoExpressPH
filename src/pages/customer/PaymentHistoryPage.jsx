@@ -16,7 +16,7 @@ import { useToast } from '../../hooks/useToast';
 import usePageTitle from '../../hooks/usePageTitle';
 import { outstandingBalance } from '../../constants/status';
 import {
-  formatPaymentType, formatPaymentMethod as fmtMethod, formatRecordedBy,
+  formatPaymentType, formatPaymentMethod as fmtMethod, formatRecordedBy, formatRefundRecordedBy,
   getPaymentActivityStatusDisplay, getCustomerVisibleRef, getCustomerFriendlyNotes,
   getRefundAmountDisplay, getNetPaymentActivityDisplay,
 } from '../../utils/paymentDisplay';
@@ -115,7 +115,9 @@ const PaymentDetailModal = ({ tx, onClose, onViewOrder }) => {
     // receipt is shown; getCustomerVisibleRef drops PayMongo's internal ids,
     // which are unmatchable to anything the customer holds.
     ...(customerRef ? [['Reference', customerRef]] : []),
-    ['Recorded by', formatRecordedBy(tx.admin_name, 'customer')],
+    ['Recorded by', tx.is_refund
+      ? formatRefundRecordedBy(tx.admin_name)
+      : formatRecordedBy(tx.admin_name, 'customer')],
   ];
 
   // Portalled to body: every page sits inside <PageTransition>, whose transform

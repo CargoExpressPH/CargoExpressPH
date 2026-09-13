@@ -43,6 +43,21 @@ export const formatRecordedBy = (adminName, audience = 'customer') => {
 };
 
 /**
+ * Refund records intentionally identify the administrator who initiated them.
+ * This gives customers a clear audit contact without exposing internal IDs,
+ * notes, or provider data. Provider-created refunds remain system-attributed.
+ * @param {string} adminName
+ * @returns {string}
+ */
+export const formatRefundRecordedBy = (adminName) => {
+  if (!adminName) return 'Payment System';
+  const normalizedName = String(adminName).trim().toLowerCase();
+  const isAutomated = ['system webhook', 'system', 'payment system', 'paymongo dashboard']
+    .includes(normalizedName);
+  return isAutomated ? 'Payment System (GCash verified)' : adminName;
+};
+
+/**
  * Truncate a long PayMongo transaction reference for display.
  * `pay_csfXv6s32C2Vnw2gdkNu3F7A` -> `pay_csf...3F7A`
  * @param {string} ref
