@@ -77,7 +77,7 @@ const monthLabel = (key) => {
 };
 
 const paymentOptions = [
-  { title: 'GCash', icon: Smartphone, tone: 'info', detail: 'Pay through the secure GCash flow when staff sends a payment request.' },
+  { title: 'GCash', icon: Smartphone, tone: 'info', detail: 'Pay securely with GCash when CargoExpress PH sends a payment request for your order.' },
   { title: 'Cash', icon: Banknote, tone: 'success', detail: 'Pay the cargo handler directly at pickup. Remaining balances after pickup are settled through GCash.' },
   { title: 'Pay Later', icon: CalendarClock, tone: 'warning', detail: 'Downpayment now, with a promised payment date.' },
 ];
