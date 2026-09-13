@@ -77,9 +77,9 @@ const monthLabel = (key) => {
 };
 
 const paymentOptions = [
-  { title: 'GCash', icon: Smartphone, tone: 'info', detail: 'Pay securely with GCash when CargoExpress PH sends a payment request for your order.' },
-  { title: 'Cash', icon: Banknote, tone: 'success', detail: 'Pay the cargo handler directly at pickup. Remaining balances after pickup are settled through GCash.' },
-  { title: 'Pay Later', icon: CalendarClock, tone: 'warning', detail: 'Downpayment now, with a promised payment date.' },
+  { title: 'GCash', icon: Smartphone, tone: 'info' },
+  { title: 'Cash', icon: Banknote, tone: 'success' },
+  { title: 'Pay Later', icon: CalendarClock, tone: 'warning' },
 ];
 
 /**
@@ -444,7 +444,6 @@ const PaymentHistoryPage = () => {
                 </div>
                 <div>
                   <div className="fw-700 text-sm">{option.title}</div>
-                  <p className="text-xs text-secondary m-0">{option.detail}</p>
                 </div>
               </div>
             ))}
