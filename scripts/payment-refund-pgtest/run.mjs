@@ -49,6 +49,18 @@ console.log(`  applied ${policyMigration}`);
 const linkageMigration = '20260912185652_harden_paymongo_webhook_linkage.sql';
 await db.exec(readFileSync(path.join(REPO, 'supabase/migrations', linkageMigration), 'utf8'));
 console.log(`  applied ${linkageMigration}`);
+const paymentTotalsMigration = '20260913170000_serialize_order_payment_totals.sql';
+await db.exec(readFileSync(path.join(REPO, 'supabase/migrations', paymentTotalsMigration), 'utf8'));
+console.log(`  applied ${paymentTotalsMigration}`);
+
+const paymentTotalsFunction = await value(`
+  SELECT pg_get_functiondef('public.update_order_payment_totals()'::regprocedure) AS definition
+`);
+ok(
+  'payment totals recalculate only after locking the parent order',
+  paymentTotalsFunction.definition.indexOf('FOR UPDATE') < paymentTotalsFunction.definition.indexOf('SUM(amount)'),
+  paymentTotalsFunction,
+);
 
 const ADMIN = '10000000-0000-4000-8000-000000000001';
 const CUSTOMER = '10000000-0000-4000-8000-000000000002';
