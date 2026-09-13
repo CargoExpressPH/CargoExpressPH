@@ -2497,17 +2497,45 @@ export const getActivityLogsForExport = async (filters = {}) => {
 };
 
 /**
- * Fetch all activity log entries for a specific record (order/trip) for in-page timeline display.
+ * Fetch all activity log entries for a specific record (order/trip) for an
+ * in-page timeline display. Payment-triggered entries intentionally use the
+ * payment transaction id as `record_id` and the order tracking number as
+ * `record_ref`, so order detail pages must query both keys to show the full
+ * audit trail. Equality queries are kept separate instead of interpolating a
+ * user-controlled `.or(...)` filter string.
  */
-export const getActivityLogsByRecord = async (recordId) => {
-  if (!recordId) return [];
-  const { data, error } = await supabase
-    .from('activity_logs')
-    .select('*')
-    .eq('record_id', recordId)
-    .order('created_at', { ascending: true });
-  if (error) throw error;
-  return data || [];
+export const getActivityLogsByRecord = async (recordId, recordRef = null) => {
+  if (!recordId && !recordRef) return [];
+
+  const queries = [];
+  if (recordId) {
+    queries.push(
+      supabase
+        .from('activity_logs')
+        .select('*')
+        .eq('record_id', recordId),
+    );
+  }
+  if (recordRef) {
+    queries.push(
+      supabase
+        .from('activity_logs')
+        .select('*')
+        .eq('record_ref', recordRef),
+    );
+  }
+
+  const results = await Promise.all(queries);
+  const rows = results.flatMap(({ data, error }) => {
+    if (error) throw error;
+    return data || [];
+  });
+  const uniqueRows = new Map(rows.map(row => [row.id, row]));
+
+  return [...uniqueRows.values()].sort((a, b) => {
+    const timeDifference = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+    return timeDifference || String(a.id).localeCompare(String(b.id));
+  });
 };
 
 // ==================== ORDER STATUS EVENTS ====================

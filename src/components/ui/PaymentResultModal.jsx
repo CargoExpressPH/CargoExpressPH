@@ -14,7 +14,7 @@ import useScrollLock from '../../hooks/useScrollLock';
  * @param {'success'|'error'|'processing'} variant - Visual mode
  * @param {number}    [amount]       - Payment amount (e.g. 1250)
  * @param {string}    [trackingNumber] - Order tracking number -> Tracking Number
- * @param {string}    [paymentMethod]  - e.g. "GCash"
+ * @param {string}    [paymentMethod]  - Customer-friendly payment method label
  * @param {function}  [onRetry]      - If provided, shows a retry/refresh button
  */
 const PaymentResultModal = ({
@@ -23,7 +23,7 @@ const PaymentResultModal = ({
   variant = 'success',
   amount,
   trackingNumber,
-  paymentMethod = 'GCash',
+  paymentMethod = 'GCash (online)',
   onRetry,
 }) => {
   const titleId = useId();
@@ -50,14 +50,15 @@ const PaymentResultModal = ({
   const isSuccess = variant === 'success';
   const isError = variant === 'error';
   const isProcessing = variant === 'processing';
+  const displayPaymentMethod = paymentMethod || 'GCash (online)';
 
   const title = isSuccess ? 'Payment Successful!'
     : isError ? 'Payment Failed!'
     : 'Payment Processing';
 
   const subtitle = isSuccess ? 'Your payment was processed successfully!'
-    : isError ? `Your ${paymentMethod} payment was not completed. Try again or choose another payment option.`
-    : `Your ${paymentMethod} payment is being confirmed. This usually takes a few seconds.`;
+    : isError ? `Your ${displayPaymentMethod} payment was not completed. Try again or choose another payment option.`
+    : `Your ${displayPaymentMethod} payment is being confirmed. This usually takes a few seconds.`;
 
   const formattedAmount = typeof amount === 'number' && amount > 0
     ? `₱${amount.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
@@ -115,7 +116,7 @@ const PaymentResultModal = ({
           <h3 id={titleId} className="pr-title">{title}</h3>
           <p id={descId} className="pr-subtitle">{subtitle}</p>
 
-          {isSuccess && (formattedAmount || trackingNumber) && (
+          {isSuccess && (
             <div className="pr-transaction-card">
               <div className="pr-transaction-header">Transaction Details</div>
               {formattedAmount && (
@@ -125,13 +126,17 @@ const PaymentResultModal = ({
                 </div>
               )}
               <div className="pr-transaction-row">
+                <span className="pr-transaction-label">Payment Method</span>
+                <span className="pr-transaction-value">{displayPaymentMethod}</span>
+              </div>
+              <div className="pr-transaction-row">
                 <span className="pr-transaction-label">Date</span>
                 <span className="pr-transaction-value pr-transaction-date">{formattedDate}</span>
               </div>
               {trackingNumber && (
                 <div className="pr-transaction-row">
                   <span className="pr-transaction-label">Tracking Number</span>
-                  <span className="pr-transaction-value pr-transaction-id">#{trackingNumber}</span>
+                  <span className="pr-transaction-value pr-transaction-id">{trackingNumber}</span>
                 </div>
               )}
             </div>

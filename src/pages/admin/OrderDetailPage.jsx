@@ -44,7 +44,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import usePageTitle from '../../hooks/usePageTitle';
 import { formatPhDate, formatPhDateTime } from '../../utils/datetime';
 import { formatMoney } from '../../utils/currencyInput';
-import { truncateRef, isSystemGenerated, getPaymentActivityStatusDisplay, formatRecordedBy as fmtRecordedBy } from '../../utils/paymentDisplay';
+import { truncateRef, isSystemGenerated, getPaymentActivityStatusDisplay, formatPaymentMethod as formatPaymentMethodLabel, formatRecordedBy as fmtRecordedBy } from '../../utils/paymentDisplay';
 
 const safeFormatDate = (dateStr, options) => {
   if (!dateStr) return '—';
@@ -96,15 +96,9 @@ const safeFormatDateTime = (dateStr) => {
   }
 };
 
-/** 'gcash' → 'GCash', 'paylater' → 'Pay Later', anything else title-cased. */
-const formatPaymentMethod = (method) => {
-  if (!method) return '';
-  const key = String(method).toLowerCase();
-  if (key === 'gcash') return 'GCash';
-  if (key === 'paylater') return 'Pay Later';
-  if (key === 'cash') return 'Cash';
-  return key.charAt(0).toUpperCase() + key.slice(1);
-};
+const formatPaymentMethod = (method, gcashChannel = null) => (
+  formatPaymentMethodLabel(method, gcashChannel, 'admin')
+);
 
 const AdminOrderDetailPage = () => {
   usePageTitle('Order Details');
@@ -169,9 +163,9 @@ const AdminOrderDetailPage = () => {
   const paidMethods = useMemo(() => {
     const methods = paymentTransactions
       .filter(tx => !tx.is_refund && (tx.payment_status === 'paid' || tx.payment_status === 'partial'))
-      .map(tx => tx.payment_method)
-      .filter(Boolean);
-    return [...new Set(methods)];
+      .map(tx => ({ method: tx.payment_method, gcashChannel: tx.gcash_channel }))
+      .filter(tx => tx.method);
+    return [...new Map(methods.map(tx => [`${tx.method}:${tx.gcashChannel || ''}`, tx])).values()];
   }, [paymentTransactions]);
 
   // Per-step timestamps for tracking timeline
@@ -226,7 +220,7 @@ const AdminOrderDetailPage = () => {
         confirmed = true;
         if (channel) void supabase.removeChannel(channel);
         clearPendingPayment(id);
-        setPaymentResultModal({ variant: 'success', amount: Number(attempt?.amount || 0) });
+        setPaymentResultModal({ variant: 'success', amount: Number(attempt?.amount || 0), paymentMethod: 'GCash (online)' });
         await loadOrder();
       };
 
@@ -241,7 +235,7 @@ const AdminOrderDetailPage = () => {
         }
         if (attempt.status === 'reconciled') {
           clearPendingPayment(id);
-          setPaymentResultModal({ variant: 'success', amount: Number(attempt?.amount || 0) });
+          setPaymentResultModal({ variant: 'success', amount: Number(attempt?.amount || 0), paymentMethod: 'GCash (online)' });
           await loadOrder();
           return;
         }
@@ -349,7 +343,7 @@ const AdminOrderDetailPage = () => {
       });
       const history = await getTripReassignments(id);
       if (isMounted) setTripHistory(history);
-      const actLogs = await getActivityLogsByRecord(id);
+      const actLogs = await getActivityLogsByRecord(id, data.tracking_number);
       if (isMounted) setActivityHistory(actLogs);
       const events = await getOrderStatusEvents(id);
       if (isMounted) setStatusEvents(events);
@@ -571,7 +565,11 @@ const AdminOrderDetailPage = () => {
       await recordAdditionalPayment(id, amount, method, ref, notes, date, receiptUrl, idempotencyKey, verifiedReceipt);
       setShowPaymentModal(false);
       await loadOrder();
-      setPaymentResultModal({ variant: 'success', amount: Number(amount), paymentMethod: method });
+      setPaymentResultModal({
+        variant: 'success',
+        amount: Number(amount),
+        paymentMethod: formatPaymentMethod(method, ref?.trim() ? 'manual' : 'paymongo'),
+      });
     } catch (err) {
       throw err;
     }
@@ -1203,13 +1201,15 @@ const AdminOrderDetailPage = () => {
             {paidMethods.length > 1 ? (
               <span
                 className="badge badge-info"
-                title={`Paid via ${paidMethods.map(formatPaymentMethod).join(' + ')}`}
+                title={`Paid via ${paidMethods.map(({ method, gcashChannel }) => formatPaymentMethod(method, gcashChannel)).join(' + ')}`}
               >
-                Mixed Methods: {paidMethods.map(formatPaymentMethod).join(' + ')}
+                Mixed Methods: {paidMethods.map(({ method, gcashChannel }) => formatPaymentMethod(method, gcashChannel)).join(' + ')}
               </span>
             ) : (paidMethods[0] || order.payment_method) ? (
               <span className="badge badge-info">
-                {formatPaymentMethod(paidMethods[0] || order.payment_method)}
+                {paidMethods[0]
+                  ? formatPaymentMethod(paidMethods[0].method, paidMethods[0].gcashChannel)
+                  : formatPaymentMethod(order.payment_method)}
               </span>
             ) : null}
             {order.payer_type && <span className="badge badge-info text-capitalize">Payer: {order.payer_type}</span>}
@@ -1285,7 +1285,7 @@ const AdminOrderDetailPage = () => {
                           <td data-label="Amount" className={`fw-600 ${tx.is_refund ? 'text-error' : 'text-success'}`}>
                             {tx.is_refund ? `-${formatMoney(Math.abs(Number(tx.amount || 0)))}` : formatMoney(parseFloat(tx.amount || 0))}
                           </td>
-                          <td data-label="Method">{formatPaymentMethod(tx.payment_method)}</td>
+                          <td data-label="Method">{formatPaymentMethod(tx.payment_method, tx.gcash_channel)}</td>
                           <td data-label="Status">
                             <span className={`badge badge-${statusInfo.tone} badge-sm`}>{statusInfo.label}</span>
                           </td>
@@ -1612,7 +1612,7 @@ const AdminOrderDetailPage = () => {
         variant={paymentResultModal?.variant || 'success'}
         amount={paymentResultModal?.amount}
         trackingNumber={order?.tracking_number}
-        paymentMethod={paymentResultModal?.paymentMethod || 'GCash'}
+        paymentMethod={paymentResultModal?.paymentMethod || 'GCash (online)'}
         onRetry={
           paymentResultModal?.variant === 'processing'
             ? () => { setPaymentResultModal(null); loadOrder(); }

@@ -57,6 +57,7 @@ const PaymentReturnPage = () => {
 
   const [phase, setPhase] = useState(paymentResult === 'failed' ? 'failed' : 'verifying');
   const [paidAmount, setPaidAmount] = useState(null);
+  const [trackingNumber, setTrackingNumber] = useState(null);
   const channelRef = useRef(null);
   const mountedRef = useRef(true);
   const confirmedRef = useRef(false);
@@ -88,6 +89,27 @@ const PaymentReturnPage = () => {
     if (!orderId) {
       setPhase('stuck');
       return;
+    }
+
+    // The payment return is intentionally a lightweight route, so it cannot
+    // rely on the order-detail page having loaded the order already. Fetch the
+    // tracking number here so the success receipt is complete for both roles.
+    const readOrderRow = async () => {
+      const { data, error } = await supabase
+        .from('orders')
+        .select('tracking_number, payment_status, amount_paid, remaining_balance')
+        .eq('id', orderId)
+        .maybeSingle();
+      if (error) throw error;
+      if (data?.tracking_number && mountedRef.current) setTrackingNumber(data.tracking_number);
+      return data;
+    };
+
+    try {
+      await readOrderRow();
+    } catch {
+      // The attempt and payment-status checks below can still confirm the
+      // payment if this first order read is transiently unavailable.
     }
 
     // Prefer the exact source this role/account opened on this device. The
@@ -132,11 +154,7 @@ const PaymentReturnPage = () => {
     // The order row is readable by its owner under RLS and is exactly what
     // the webhook reconciliation updates — one signal every role can see.
     const checkOrderRow = async () => {
-      const { data } = await supabase
-        .from('orders')
-        .select('payment_status, amount_paid, remaining_balance')
-        .eq('id', orderId)
-        .maybeSingle();
+      const data = await readOrderRow();
       if (isOrderSettled(data)) {
         confirmPaid(knownAmount ?? (Number(data.amount_paid || 0) || null));
         return true;
@@ -236,6 +254,8 @@ const PaymentReturnPage = () => {
       isOpen
       variant={phase === 'failed' ? 'error' : phase === 'stuck' ? 'processing' : 'success'}
       amount={paidAmount ?? undefined}
+      trackingNumber={trackingNumber ?? undefined}
+      paymentMethod="GCash (online)"
       onClose={goToOrder}
     />
   );

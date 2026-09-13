@@ -1202,7 +1202,7 @@ const OrderDetailPage = () => {
                           </td>
                           <td data-label="Method">
                             <div className="cell-stack">
-                              <span>{fmtMethod(tx.payment_method)}</span>
+                              <span>{fmtMethod(tx.payment_method, tx.gcash_channel, 'customer')}</span>
                               {customerRef && <span className="text-tertiary" style={{ fontSize: '0.6875rem', wordBreak: 'break-all' }}>Ref: {customerRef}</span>}
                               {tx.receipt_url && (
                                 <ResolvedPhotoLink photo={tx.receipt_url} className="text-xs text-primary flex items-center gap-4 mt-2">
@@ -1324,7 +1324,7 @@ const OrderDetailPage = () => {
         variant={paymentResultModal?.variant || 'success'}
         amount={paymentResultModal?.amount}
         trackingNumber={order?.tracking_number}
-        paymentMethod="GCash"
+        paymentMethod="GCash (online)"
         onRetry={
           paymentResultModal?.variant === 'error' ? handlePayNow
           : paymentResultModal?.variant === 'processing' ? handleRefreshPaymentStatus

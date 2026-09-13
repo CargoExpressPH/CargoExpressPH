@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 
 const read = (path) => readFileSync(path, 'utf8');
 const migration = read('supabase/migrations/20260902020000_complete_activity_log_module_coverage.sql');
+const paymentDisplayMigration = read('supabase/migrations/20260913074625_payment_activity_display_and_order_history.sql');
 const reliabilityMigration = read('supabase/migrations/20260902030000_reliable_realtime_activity_logs.sql');
 const schema = read('supabase/schema.sql');
 const page = read('src/pages/admin/ActivityLogsPage.jsx');
@@ -22,6 +23,10 @@ assert.match(migration, /CREATE OR REPLACE FUNCTION public\.log_feedback_visibil
 assert.match(migration, /AFTER UPDATE OF is_hidden ON public\.customer_feedback/);
 assert.match(migration, /'Feedback'/);
 assert.match(migration, /IS NOT DISTINCT FROM/);
+assert.match(paymentDisplayMigration, /idx_activity_logs_record_ref/);
+assert.match(paymentDisplayMigration, /GCash online payment \(automatically verified\)/);
+assert.match(paymentDisplayMigration, /Direct GCash transfer \(staff verified\)/);
+assert.match(paymentDisplayMigration, /record_type = 'payment'/);
 
 assert.match(reliabilityMigration, /ADD COLUMN IF NOT EXISTS client_event_id UUID/);
 assert.match(reliabilityMigration, /CREATE UNIQUE INDEX IF NOT EXISTS idx_activity_logs_actor_client_event/);

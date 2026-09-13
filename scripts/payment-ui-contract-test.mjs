@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
   formatRecordedBy,
+  formatPaymentMethod,
   formatRefundRecordedBy,
   getNetPaymentActivityDisplay,
   getRefundAmountDisplay,
@@ -16,6 +17,7 @@ const tokens = read('src/styles/tokens.css');
 const customerOrderDetail = read('src/pages/customer/OrderDetailPage.jsx');
 const customerPaymentHistory = read('src/pages/customer/PaymentHistoryPage.jsx');
 const adminOrderDetail = read('src/pages/admin/OrderDetailPage.jsx');
+const paymentReturn = read('src/pages/shared/PaymentReturnPage.jsx');
 const refundModal = read('src/components/ui/RefundPaymentModal.jsx');
 const refundEdge = read('supabase/functions/paymongo-refund/index.ts');
 
@@ -28,6 +30,8 @@ assert.match(customerOrderDetail, /isPaymentPollReconciled\(result\)/);
 assert.equal((adminOrderDetail.match(/isPaymentPollReconciled\(result\)/g) || []).length, 2);
 
 assert.match(modal, /payment was not completed\. Try again or choose another payment option\./);
+assert.match(modal, /Payment Method/);
+assert.match(modal, /Tracking Number/);
 assert.doesNotMatch(modal, /No charges were made/);
 assert.match(styles, /\.pr-btn-success\s*\{[\s\S]*?background:\s*var\(--success-fill\)/);
 assert.match(styles, /\.pr-btn-danger\s*\{[\s\S]*?background:\s*var\(--error-fill\)/);
@@ -35,6 +39,9 @@ assert.equal(formatRecordedBy('System Webhook', 'customer'), 'Payment System (GC
 assert.equal(formatRecordedBy('System', 'customer'), 'Payment System (GCash verified)');
 assert.equal(formatRecordedBy('Maria Santos', 'customer'), 'CargoExpress Staff');
 assert.equal(formatRecordedBy('Maria Santos', 'admin'), 'Maria Santos');
+assert.equal(formatPaymentMethod('gcash', 'paymongo'), 'GCash (online)');
+assert.equal(formatPaymentMethod('gcash', 'manual'), 'GCash transfer (staff verified)');
+assert.equal(formatPaymentMethod('gcash', 'manual', 'admin'), 'Direct GCash transfer (staff verified)');
 assert.equal(formatRefundRecordedBy('Maria Santos'), 'Maria Santos');
 assert.equal(formatRefundRecordedBy('System Webhook'), 'Payment System (GCash verified)');
 assert.match(customerOrderDetail, /tx\.is_refund[\s\S]*?formatRefundRecordedBy\(tx\.admin_name\)/);
@@ -83,6 +90,12 @@ assert.deepEqual(
 );
 assert.doesNotMatch(customerOrderDetail, /Maria Santos/);
 assert.match(customerPaymentHistory, /monthNetDisplay\.amount/);
+assert.match(customerPaymentHistory, /GCash \(online\)/);
+assert.match(customerPaymentHistory, /tx\.gcash_channel/);
+assert.match(customerOrderDetail, /trackingNumber=\{order\?\.tracking_number\}/);
+assert.match(paymentReturn, /trackingNumber=\{trackingNumber \?\? undefined\}/);
+assert.match(paymentReturn, /paymentMethod="GCash \(online\)"/);
+assert.match(adminOrderDetail, /getActivityLogsByRecord\(id, data\.tracking_number\)/);
 assert.doesNotMatch(customerOrderDetail, /`-\$\{formatMoney\(Math\.abs\(Number\(tx\.amount/);
 assert.match(adminOrderDetail, /result\?\.status === 'failed'[\s\S]*?toast\.error/);
 assert.match(refundModal, /not completed until PayMongo confirms it as succeeded/);
