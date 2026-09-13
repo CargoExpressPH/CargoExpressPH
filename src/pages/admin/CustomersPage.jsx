@@ -216,33 +216,6 @@ const CustomersPage = () => {
             </CustomSelect>
           </div>
 
-          <div className="customer-directory-control">
-            <label htmlFor="customer-province-filter">Province</label>
-            <CustomSelect
-              id="customer-province-filter"
-              className="form-select"
-              value={province}
-              onChange={setListControl(setProvince)}
-              aria-label="Filter customers by province"
-              searchable={provinces.length > 8}
-            >
-              <option value="">All provinces</option>
-              {provinces.map(value => <option key={value} value={value}>{value}</option>)}
-            </CustomSelect>
-          </div>
-
-          <div className="customer-directory-control">
-            <label htmlFor="customer-sort">Sort by</label>
-            <CustomSelect
-              id="customer-sort"
-              className="form-select"
-              value={sort}
-              onChange={setListControl(setSort)}
-              aria-label="Sort customers"
-            >
-              {SORT_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
-            </CustomSelect>
-          </div>
 
           {(activeFilterCount > 0 || search) && (
             <button type="button" className="btn btn-ghost customer-filter-clear" onClick={clearFilters}>
