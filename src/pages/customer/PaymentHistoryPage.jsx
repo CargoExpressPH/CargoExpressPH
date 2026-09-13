@@ -18,6 +18,7 @@ import { outstandingBalance } from '../../constants/status';
 import {
   formatPaymentType, formatPaymentMethod as fmtMethod, formatRecordedBy,
   getPaymentActivityStatusDisplay, getCustomerVisibleRef, getCustomerFriendlyNotes,
+  getRefundAmountDisplay,
 } from '../../utils/paymentDisplay';
 
 // Peso sign, like every other money figure in the app. This page was the one
@@ -101,6 +102,7 @@ const PaymentDetailModal = ({ tx, onClose, onViewOrder }) => {
   if (!tx) return null;
 
   const statusInfo = getPaymentActivityStatusDisplay(tx);
+  const amountDisplay = tx.is_refund ? getRefundAmountDisplay(tx, formatMoney) : formatMoney(tx.amount);
   const customerRef = getCustomerVisibleRef(tx.transaction_reference);
   const friendlyNotes = getCustomerFriendlyNotes(tx.notes, tx.admin_name);
 
@@ -140,13 +142,19 @@ const PaymentDetailModal = ({ tx, onClose, onViewOrder }) => {
 
           <div className="modal-body">
             <div className="payment-detail-hero">
-              <div className="payment-detail-amount">{formatMoney(tx.amount)}</div>
+              <div className={`payment-detail-amount ${tx.is_refund ? 'payment-detail-amount-refund' : ''}`}>{amountDisplay}</div>
               <span className={`badge badge-${statusInfo.tone}`}>{statusInfo.label}</span>
             </div>
 
             {tx.is_refund && (
-              <div className={`alert-banner alert-banner-${statusInfo.tone === 'error' ? 'error' : statusInfo.tone === 'success' ? 'success' : 'warning'} mb-16`} role="status">
+              <div
+                className={`alert-banner alert-banner-${statusInfo.tone === 'error' ? 'error' : statusInfo.tone === 'success' ? 'success' : 'warning'} mb-16`}
+                role={statusInfo.tone === 'error' ? 'alert' : 'status'}
+              >
                 {statusInfo.description}
+                {tx.refund_status === 'failed' && tx.refund_failure_reason
+                  ? ` ${tx.refund_failure_reason}`
+                  : ''}
               </div>
             )}
 
@@ -394,16 +402,19 @@ const PaymentHistoryPage = () => {
               <div className="card payment-list">
                 {visibleTransactions.map(tx => {
                   const statusInfo = getPaymentActivityStatusDisplay(tx);
+                  const amountDisplay = tx.is_refund
+                    ? getRefundAmountDisplay(tx, formatMoney)
+                    : formatMoney(tx.amount);
                   return (
                     <button
                       type="button"
                       key={tx.id}
-                      className="payment-row"
+                      className={`payment-row ${tx.is_refund ? 'payment-row-refund' : ''}`}
                       onClick={() => setOpenTx(tx)}
-                      aria-label={`${tx.is_refund ? 'Refund' : 'Payment'} of ${formatMoney(tx.amount)} on ${formatDate(tx.payment_date || tx.created_at)} — ${statusInfo.label}. View details`}
+                      aria-label={`${tx.is_refund ? 'Refund' : 'Payment'} of ${amountDisplay} on ${formatDate(tx.payment_date || tx.created_at)} — ${statusInfo.label}. View details`}
                     >
                       <span className="payment-row-date">{formatRowDate(tx.payment_date || tx.created_at)}</span>
-                      <span className="payment-row-amount">{formatMoney(tx.amount)}</span>
+                      <span className="payment-row-amount">{amountDisplay}</span>
                       <span className={`badge badge-${statusInfo.tone} badge-sm payment-row-pill`}>{statusInfo.label}</span>
                       <ChevronRight size={16} className="payment-row-chevron" aria-hidden="true" />
                     </button>
@@ -411,7 +422,7 @@ const PaymentHistoryPage = () => {
                 })}
               </div>
               <div className="payment-list-total">
-                <span>{visibleTransactions.length} activit{visibleTransactions.length === 1 ? 'y' : 'ies'}</span>
+                <span>Net payments after completed refunds</span>
                 <span className="fw-800">{formatMoney(monthTotal)}</span>
               </div>
             </>

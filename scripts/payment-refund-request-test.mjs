@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import {
   PAYMONGO_REFUNDS_URL,
   postPayMongoRefund,
+  providerError,
+  sanitizeDiagnosticText,
 } from '../supabase/functions/paymongo-refund/provider.js';
 
 const successBody = {
@@ -55,6 +57,12 @@ const assertStableRequests = calls => {
     },
   });
 };
+
+assert.equal(
+  providerError({ errors: [{ code: 'payment_not_refundable', detail: 'Payment is not refundable' }] }).publicMessage,
+  'PayMongo says this payment is not eligible for a refund.',
+);
+assert.doesNotMatch(sanitizeDiagnosticText('Bearer secret-token sk_live_private123'), /secret-token|sk_live_private123/);
 
 {
   const calls = [];

@@ -25,18 +25,23 @@ export const formatPaymentType = (type, audience = 'customer') => {
 };
 
 /**
- * Humanise the admin_name / recorded-by field.
- * "System Webhook" -> customer-friendly system attribution; real names pass through.
+ * Humanise the admin_name / recorded-by field without disclosing an employee's
+ * personal name to customers. The database read model applies the same rule,
+ * so this is also a final presentation-layer safeguard rather than the only
+ * privacy boundary.
  * @param {string} adminName
  * @param {'customer'|'admin'} [audience='customer']
  * @returns {string}
  */
 export const formatRecordedBy = (adminName, audience = 'customer') => {
   if (!adminName) return audience === 'customer' ? 'System' : 'Unknown';
-  if (adminName === 'System Webhook' || adminName === 'System') {
+  const normalizedName = String(adminName).trim().toLowerCase();
+  const isAutomated = ['system webhook', 'system', 'payment system', 'paymongo dashboard']
+    .includes(normalizedName);
+  if (isAutomated) {
     return audience === 'customer' ? 'Payment System (GCash verified)' : 'Auto (GCash)';
   }
-  return adminName;
+  return audience === 'customer' ? 'CargoExpress Staff' : adminName;
 };
 
 /**
@@ -151,6 +156,13 @@ export const getRefundStatusDisplay = (status) => {
       description: 'PayMongo is processing the refund. It has not completed yet.',
     };
   }
+  if (s === 'uncertain') {
+    return {
+      label: 'Refund Confirmation Pending',
+      tone: 'warning',
+      description: 'CargoExpress could not confirm PayMongo’s latest response. The refund is not completed, and the protected request is being checked automatically. Do not submit another refund.',
+    };
+  }
   if (s === 'succeeded' || s === 'refunded') {
     return {
       label: 'Refund Completed',
@@ -170,6 +182,19 @@ export const getRefundStatusDisplay = (status) => {
     tone: 'default',
     description: 'The refund status is unavailable. CargoExpress does not treat it as completed.',
   };
+};
+
+/**
+ * Customer-facing refund amount copy. Refund rows always carry a positive
+ * requested amount; only `financial_amount` is negative, and only after a
+ * succeeded refund, so accounting math never leaks into ambiguous UX copy.
+ */
+export const getRefundAmountDisplay = (transaction, formatMoney) => {
+  const amount = formatMoney(Math.abs(Number(transaction?.amount || 0)));
+  const status = String(transaction?.refund_status || '').toLowerCase();
+  if (status === 'succeeded' || status === 'refunded') return `${amount} returned`;
+  if (status === 'failed') return `${amount} not refunded`;
+  return `${amount} refund requested`;
 };
 
 /** Use the exact refund lifecycle for refund rows and ordinary payment status otherwise. */

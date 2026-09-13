@@ -6,11 +6,36 @@ const firstProviderError = payload => (
   Array.isArray(payload?.errors) ? payload.errors[0] : null
 )
 
+export const sanitizeDiagnosticText = (value, fallback = 'No provider detail was returned') => {
+  const sanitized = String(value || '')
+    .replace(/[\u0000-\u001F\u007F]/g, ' ')
+    .replace(/\bsk_(?:test|live)_[A-Za-z0-9_-]+\b/gi, '[redacted-key]')
+    .replace(/\b(?:Bearer|Basic)\s+[A-Za-z0-9+/=._-]+/gi, '[redacted-authorization]')
+    .replace(/\s+/g, ' ')
+    .trim()
+  return (sanitized || fallback).slice(0, 500)
+}
+
+const safeProviderMessage = (code, detail) => {
+  const combined = `${code || ''} ${detail || ''}`.toLowerCase()
+  if (/source.?type|legacy.?source/.test(combined)) return 'This older GCash payment cannot be refunded automatically. CargoExpress support can complete it through PayMongo.'
+  if (/not.?refundable|refund.*not.*allow/.test(combined)) return 'PayMongo says this payment is not eligible for a refund.'
+  if (/amount|exceed|balance/.test(combined)) return 'PayMongo did not accept the refund amount for this payment.'
+  if (/not.?found|resource_missing/.test(combined)) return 'PayMongo could not find the original payment for this refund.'
+  if (/already.*refund|duplicate/.test(combined)) return 'PayMongo reports that this payment has already been refunded or has no refundable amount remaining.'
+  return 'PayMongo could not complete the refund. No refund amount was deducted from the order’s collected total.'
+}
+
 export const providerError = payload => {
   const item = firstProviderError(payload)
+  const code = typeof item?.code === 'string'
+    ? item.code.toLowerCase().replace(/[^a-z0-9_-]/g, '').slice(0, 80)
+    : null
+  const detail = sanitizeDiagnosticText(item?.detail, 'PayMongo returned no error detail')
   return {
-    code: typeof item?.code === 'string' ? item.code : null,
-    detail: typeof item?.detail === 'string' ? item.detail : 'PayMongo could not process the refund request.',
+    code,
+    detail,
+    publicMessage: safeProviderMessage(code, detail),
   }
 }
 
@@ -113,10 +138,7 @@ const getJson = async ({ url, authorization, fetchImpl, timeoutMs, signalFactory
   try { body = await response.json() } catch { body = null }
   if (!response.ok) {
     const failure = providerError(body)
-    const detail = failure.detail === 'PayMongo could not process the refund request.'
-      ? ''
-      : `: ${failure.detail}`
-    throw new Error(`PayMongo recovery request failed with status ${response.status}${failure.code ? ` (${failure.code})` : ''}${detail}`)
+    throw new Error(`PayMongo recovery request failed with status ${response.status}${failure.code ? ` (${failure.code})` : ''}: ${failure.detail}`)
   }
   return body
 }

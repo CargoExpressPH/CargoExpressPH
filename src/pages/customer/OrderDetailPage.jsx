@@ -26,7 +26,7 @@ import usePageTitle from '../../hooks/usePageTitle';
 import { formatPhDate, formatPhDateTime } from '../../utils/datetime';
 import { formatMoney, sanitizeAmount, parseAmount } from '../../utils/currencyInput';
 import { outstandingBalance, finalShippingFee, getSettlementState, isOrderPriced, SETTLEMENT_STATE, ORDER_STATUS, canCancelOrder, hasPendingCancellation, timelineStatus, canEditContactDetails } from '../../constants/status';
-import { formatPaymentType, formatRecordedBy, getPaymentActivityStatusDisplay, formatPaymentMethod as fmtMethod, getCustomerFriendlyNotes, getCustomerVisibleRef } from '../../utils/paymentDisplay';
+import { formatPaymentType, formatRecordedBy, getPaymentActivityStatusDisplay, formatPaymentMethod as fmtMethod, getCustomerFriendlyNotes, getCustomerVisibleRef, getRefundAmountDisplay } from '../../utils/paymentDisplay';
 
 // Max time (ms) to wait for data before giving up and showing an error.
 const LOAD_TIMEOUT_MS = 15000;
@@ -648,10 +648,6 @@ const OrderDetailPage = () => {
         userId: user?.id,
       });
 
-      // Customer-facing wording: PayMongo is our payment gateway, not a brand
-      // the customer chose — speak in terms of the wallet they are opening.
-      toast.info('Opening GCash…');
-
       // Redirect to GCash checkout in the same tab ONLY AFTER registerSource is complete
       window.location.href = checkoutUrl;
     } catch (err) {
@@ -1199,9 +1195,9 @@ const OrderDetailPage = () => {
                             </div>
                           </td>
                           <td data-label="Type">{formatPaymentType(tx.payment_type)}</td>
-                          <td data-label="Amount" className={`fw-600 ${tx.is_refund ? 'text-error' : 'text-success'}`}>
+                          <td data-label="Amount" className={`fw-600 ${tx.is_refund ? 'text-accent' : 'text-success'}`}>
                             {tx.is_refund
-                              ? `-${formatMoney(Math.abs(Number(tx.amount || 0)))}`
+                              ? getRefundAmountDisplay(tx, formatMoney)
                               : formatMoney(parseFloat(tx.amount))}
                           </td>
                           <td data-label="Method">

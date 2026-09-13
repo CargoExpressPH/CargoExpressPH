@@ -285,7 +285,11 @@ export const createPayMongoRefund = async ({
   try { body = await response.json(); } catch { body = null; }
   if (!response.ok) {
     const error = new Error(body?.error || `Refund request failed (${response.status}).`);
-    error.outcomeUnknown = Boolean(body?.outcomeUnknown);
+    // A server-side failure after the provider call may have an unknown
+    // outcome. Keep the protected idempotency key unless the server explicitly
+    // reports a terminal failed refund.
+    error.outcomeUnknown = Boolean(body?.outcomeUnknown)
+      || (response.status >= 500 && body?.status !== 'failed');
     error.manualReviewRequired = Boolean(body?.manualReviewRequired);
     error.refundStatus = body?.status || null;
     throw error;

@@ -74,6 +74,9 @@ await db.exec(`
 const migration = '20260913000441_add_paymongo_refund_recovery.sql';
 await db.exec(readFileSync(path.join(REPO, 'supabase/migrations', migration), 'utf8'));
 console.log(`  applied ${migration}`);
+const hardeningMigration = '20260913090000_refund_ux_privacy_recovery_hardening.sql';
+await db.exec(readFileSync(path.join(REPO, 'supabase/migrations', hardeningMigration), 'utf8'));
+console.log(`  applied ${hardeningMigration}`);
 
 const ADMIN = '10000000-0000-4000-8000-000000000001';
 const CUSTOMER = '10000000-0000-4000-8000-000000000002';
@@ -100,6 +103,17 @@ const payment = await value(`
 jobs = await value(`SELECT COUNT(*)::INT AS count, MIN(status) AS status FROM private.paymongo_refund_recovery_jobs`);
 ok('verified PayMongo payment is durably queued', jobs.count === 1 && jobs.status === 'active', jobs);
 
+await query(`SELECT set_config('app.uid',$1,false), set_config('app.role','authenticated',false)`, [CUSTOMER]);
+let customerLedger = await value(`SELECT admin_id,admin_name,notes,transaction_reference FROM get_payment_transaction_history(ARRAY[$1::UUID]) WHERE gcash_channel='paymongo'`, [order.id]);
+ok(
+  'customer payment read model removes staff identity and internal fields',
+  customerLedger.admin_id === null
+    && customerLedger.admin_name === 'Payment System'
+    && customerLedger.notes === null
+    && customerLedger.transaction_reference === null,
+  customerLedger,
+);
+
 const cron = await value(`SELECT schedule, command FROM cron.job WHERE jobname='paymongo_refund_recovery'`);
 ok('five-minute recovery cron is registered', cron.schedule === '*/5 * * * *' && /trigger_paymongo_refund_recovery/.test(cron.command), cron);
 
@@ -113,24 +127,31 @@ try {
 }
 ok('authenticated client cannot claim recovery work', clientClaimRejected);
 
-await query(`SELECT set_config('app.role','service_role',false)`);
+await query(`SELECT set_config('app.uid','',false), set_config('app.role','service_role',false)`);
 let claim = await value(`SELECT * FROM claim_paymongo_refund_recovery_jobs(15,FALSE)`);
 ok('service worker claims an unclassified test-mode job', claim?.payment_id === 'pay_recovery_test_001' && claim.livemode === null, claim);
 let duplicateClaim = await value(`SELECT COUNT(*)::INT AS count FROM claim_paymongo_refund_recovery_jobs(15,FALSE)`);
 ok('active lease prevents a concurrent duplicate scan', duplicateClaim.count === 0, duplicateClaim);
 
 let finished = await value(`SELECT finish_paymongo_refund_recovery_job($1,$2,TRUE,FALSE,FALSE,0,NULL) AS done`, [payment.id, claim.claim_token]);
-let state = await value(`SELECT livemode,status,consecutive_failures,next_check_at FROM private.paymongo_refund_recovery_jobs WHERE payment_transaction_id=$1`, [payment.id]);
-ok('successful scan records test mode and schedules the next scan', finished.done === true && state.livemode === false && state.status === 'active' && state.next_check_at, state);
+let state = await value(`SELECT livemode,status,consecutive_failures,next_check_at,EXTRACT(EPOCH FROM (next_check_at-NOW())) AS delay_seconds FROM private.paymongo_refund_recovery_jobs WHERE payment_transaction_id=$1`, [payment.id]);
+ok('new no-refund payment uses a bounded thirty-minute recovery interval', finished.done === true && state.livemode === false && state.status === 'active' && Number(state.delay_seconds) > 1200, state);
 
 await query(`UPDATE private.paymongo_refund_recovery_jobs SET next_check_at=NOW() WHERE payment_transaction_id=$1`, [payment.id]);
 const liveClaim = await value(`SELECT COUNT(*)::INT AS count FROM claim_paymongo_refund_recovery_jobs(15,TRUE)`);
 ok('live worker cannot claim a test-mode payment', liveClaim.count === 0, liveClaim);
 
 claim = await value(`SELECT * FROM claim_paymongo_refund_recovery_jobs(15,FALSE)`);
-finished = await value(`SELECT finish_paymongo_refund_recovery_job($1,$2,FALSE,FALSE,FALSE,0,'provider unavailable') AS done`, [payment.id, claim.claim_token]);
-state = await value(`SELECT status,consecutive_failures,last_error,claim_token FROM private.paymongo_refund_recovery_jobs WHERE payment_transaction_id=$1`, [payment.id]);
-ok('provider failure releases the lease and remains retryable', finished.done === true && state.status === 'active' && state.consecutive_failures === 1 && /provider unavailable/.test(state.last_error) && state.claim_token === null, state);
+finished = await value(`SELECT finish_paymongo_refund_recovery_job($1,$2,FALSE,FALSE,FALSE,0,'list_provider_refunds [api_error] HTTP 503: provider unavailable') AS done`, [payment.id, claim.claim_token]);
+state = await value(`SELECT status,consecutive_failures,last_error,last_error_at,claim_token FROM private.paymongo_refund_recovery_jobs WHERE payment_transaction_id=$1`, [payment.id]);
+ok('provider failure retains staged diagnostics, releases the lease, and remains retryable', finished.done === true && state.status === 'active' && state.consecutive_failures === 1 && /list_provider_refunds.*503.*provider unavailable/.test(state.last_error) && state.last_error_at && state.claim_token === null, state);
+
+await query(`UPDATE payment_transactions SET created_at=NOW()-INTERVAL '30 days' WHERE id=$1`, [payment.id]);
+await query(`UPDATE private.paymongo_refund_recovery_jobs SET next_check_at=NOW(), scan_until=NOW()+INTERVAL '30 days' WHERE payment_transaction_id=$1`, [payment.id]);
+claim = await value(`SELECT * FROM claim_paymongo_refund_recovery_jobs(15,FALSE)`);
+await query(`SELECT finish_paymongo_refund_recovery_job($1,$2,TRUE,FALSE,FALSE,0,NULL)`, [payment.id, claim.claim_token]);
+state = await value(`SELECT EXTRACT(EPOCH FROM (next_check_at-NOW())) AS delay_seconds FROM private.paymongo_refund_recovery_jobs WHERE payment_transaction_id=$1`, [payment.id]);
+ok('old payment with no refund activity is checked daily rather than every fifteen minutes', Number(state.delay_seconds) > 82800, state);
 
 await query(`
   UPDATE private.paymongo_refund_recovery_jobs
@@ -144,6 +165,22 @@ ok('expired payment completes only after a successful final scan', state.status 
 
 const IDEMPOTENCY_KEY = '20000000-0000-4000-8000-000000000777';
 await query(`SELECT prepare_paymongo_refund($1,100,'requested_by_customer','Recovery wake test',$2,$3)`, [payment.id, IDEMPOTENCY_KEY, ADMIN]);
+await query(`SELECT mark_paymongo_refund_uncertain($1,'retry_protected_request: timed out awaiting PayMongo')`, [IDEMPOTENCY_KEY]);
+let uncertainRefund = await value(`SELECT status,outcome_uncertain FROM payment_refunds WHERE idempotency_key=$1`, [IDEMPOTENCY_KEY]);
+ok('unknown provider outcome is retained as an explicit uncertain state', uncertainRefund.status === 'processing' && uncertainRefund.outcome_uncertain === true, uncertainRefund);
+
+await query(`SELECT set_config('app.uid',$1,false), set_config('app.role','authenticated',false)`, [CUSTOMER]);
+const customerRefund = await value(`SELECT initiated_by,initiated_by_name,notes,payment_id,outcome_uncertain FROM get_payment_refund_history(ARRAY[$1::UUID]) WHERE outcome_uncertain LIMIT 1`, [order.id]);
+ok(
+  'customer refund read model exposes uncertainty but not staff identity or provider internals',
+  customerRefund.initiated_by === null
+    && customerRefund.initiated_by_name === 'CargoExpress Staff'
+    && customerRefund.notes === null
+    && customerRefund.payment_id === null
+    && customerRefund.outcome_uncertain === true,
+  customerRefund,
+);
+await query(`SELECT set_config('app.uid','',false), set_config('app.role','service_role',false)`);
 state = await value(`SELECT status,next_check_at,scan_until FROM private.paymongo_refund_recovery_jobs WHERE payment_transaction_id=$1`, [payment.id]);
 ok('unresolved refund reactivates a completed payment job', state.status === 'active' && state.next_check_at !== null && Date.parse(state.scan_until) > Date.now(), state);
 
@@ -153,7 +190,20 @@ await query(`SELECT finish_paymongo_refund_recovery_job($1,$2,TRUE,FALSE,TRUE,0,
 state = await value(`SELECT status,next_check_at FROM private.paymongo_refund_recovery_jobs WHERE payment_transaction_id=$1`, [payment.id]);
 ok('unresolved refund keeps recovery active regardless of expiry', state.status === 'active' && state.next_check_at !== null, state);
 
-await query(`SELECT mark_paymongo_refund_request($1,'failed','test complete')`, [IDEMPOTENCY_KEY]);
+await query(`SELECT mark_paymongo_refund_failed(
+  $1,
+  'provider_error: internal diagnostic retained for operations',
+  'PayMongo could not complete the refund. No refund amount was deducted from the order’s collected total.'
+)`, [IDEMPOTENCY_KEY]);
+const failedRefund = await value(`SELECT status,outcome_uncertain,last_error,public_failure_reason FROM payment_refunds WHERE idempotency_key=$1`, [IDEMPOTENCY_KEY]);
+ok(
+  'failed refund separates private diagnostics from safe customer copy',
+  failedRefund.status === 'failed'
+    && failedRefund.outcome_uncertain === false
+    && /internal diagnostic/.test(failedRefund.last_error)
+    && !/internal diagnostic/.test(failedRefund.public_failure_reason),
+  failedRefund,
+);
 const health = await value(`SELECT get_paymongo_refund_recovery_health() AS payload`);
 ok('service health reports no unresolved refund after terminal failure', Number(health.payload.unresolvedRefunds) === 0, health.payload);
 

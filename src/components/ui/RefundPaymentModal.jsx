@@ -7,6 +7,7 @@ import AmountInput from './AmountInput';
 import CustomSelect from './CustomSelect';
 import FocusTrap from './FocusTrap';
 import useScrollLock from '../../hooks/useScrollLock';
+import { useToast } from '../../hooks/useToast';
 
 const newIdempotencyKey = () => {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
@@ -18,6 +19,7 @@ const newIdempotencyKey = () => {
 
 const RefundPaymentModal = ({ transaction, order, onClose, onSuccess }) => {
   useScrollLock(true);
+  const toast = useToast();
   const maxRefund = Number(transaction?.refundable_amount || 0);
   const [amount, setAmount] = useState(() => maxRefund.toFixed(2));
   const [reason, setReason] = useState('requested_by_customer');
@@ -80,7 +82,9 @@ const RefundPaymentModal = ({ transaction, order, onClose, onSuccess }) => {
         setWarning(err.message);
       } else {
         setIdempotencyKey(newIdempotencyKey());
-        setError(err?.message || 'Refund could not be submitted.');
+        const message = err?.message || 'Refund could not be submitted.';
+        setError(message);
+        if (err?.refundStatus === 'failed') toast.error(message);
       }
     } finally {
       setSaving(false);

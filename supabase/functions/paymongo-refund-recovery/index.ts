@@ -12,6 +12,7 @@ import {
   postPayMongoRefund,
   providerError,
   retrievePayMongoPaymentMode,
+  sanitizeDiagnosticText,
 } from './provider.js'
 
 const MAX_BODY_BYTES = 8 * 1024
@@ -80,6 +81,19 @@ const providerTimestamp = (value: unknown) => {
   const seconds = Number(value)
   if (!Number.isFinite(seconds) || seconds <= 0) return null
   return new Date(seconds * 1000).toISOString()
+}
+
+const recoveryDiagnostic = (error: unknown, stage: string) => {
+  const candidate = error as { message?: unknown; code?: unknown; status?: unknown } | null
+  const message = sanitizeDiagnosticText(
+    candidate?.message || (typeof error === 'string' ? error : ''),
+    'Unexpected non-error failure',
+  )
+  const code = typeof candidate?.code === 'string'
+    ? candidate.code.replace(/[^A-Za-z0-9_-]/g, '').slice(0, 48)
+    : null
+  const status = Number.isInteger(candidate?.status) ? candidate?.status : null
+  return `${stage}${code ? ` [${code}]` : ''}${status ? ` HTTP ${status}` : ''}: ${message}`
 }
 
 const mapWithConcurrency = async <T, R>(
@@ -167,6 +181,7 @@ serve(async req => {
       JOB_CONCURRENCY,
       async job => {
         let providerRefundCount = 0
+        let stage = 'validate_job'
 
         try {
           if (!UUID.test(job.payment_transaction_id)
@@ -176,6 +191,7 @@ serve(async req => {
           }
 
           if (job.livemode === null) {
+            stage = 'verify_payment_mode'
             const verifiedMode = await retrievePayMongoPaymentMode({
               authorization: paymongo.authorization,
               paymentId: job.payment_id,
@@ -188,6 +204,7 @@ serve(async req => {
 
           // The list endpoint discovers both webhook-missed app refunds and
           // refunds created directly in PayMongo Dashboard.
+          stage = 'list_provider_refunds'
           const providerRefunds = await listPayMongoRefunds({
             authorization: paymongo.authorization,
             paymentId: job.payment_id,
@@ -195,6 +212,7 @@ serve(async req => {
           })
           providerRefundCount = providerRefunds.length
 
+          stage = 'reconcile_provider_refunds'
           for (const resource of providerRefunds) {
             const refund = normalizeRefund(resource, job.payment_id)
             if (refund.livemode !== null && refund.livemode !== paymongo.livemode) {
@@ -221,6 +239,7 @@ serve(async req => {
           // Reload after list reconciliation. If PayMongo already accepted an
           // uncertain app request, the provider resource above attached to the
           // reservation and it will not be replayed here.
+          stage = 'load_local_reservations'
           const { data: unresolvedRows, error: unresolvedError } = await adminSupabase
             .from('payment_refunds')
             .select('idempotency_key, amount, reason, notes, status, refund_id, created_at')
@@ -230,6 +249,7 @@ serve(async req => {
           if (unresolvedError) throw unresolvedError
 
           for (const reservation of (unresolvedRows || []) as RefundReservation[]) {
+            stage = 'retry_protected_request'
             if (!reservation.idempotency_key || !UUID.test(reservation.idempotency_key)) {
               throw new Error('Unresolved refund is missing its protected idempotency key')
             }
@@ -240,10 +260,10 @@ serve(async req => {
             }
 
             if (reservationAge >= PROVIDER_IDEMPOTENCY_RETRY_WINDOW_MS) {
-              const { error } = await adminSupabase.rpc('mark_paymongo_refund_request', {
+              const { error } = await adminSupabase.rpc('mark_paymongo_refund_failed', {
                 p_idempotency_key: reservation.idempotency_key,
-                p_status: 'failed',
                 p_error: 'No PayMongo refund was found before the protected retry window expired',
+                p_public_error: 'PayMongo did not confirm this refund before its protected retry window expired. No refund amount was deducted from the order’s collected total.',
               })
               if (error) throw error
               continue
@@ -260,9 +280,8 @@ serve(async req => {
             })
 
             if (providerResult.outcomeUnknown || !providerResult.response) {
-              const { error } = await adminSupabase.rpc('mark_paymongo_refund_request', {
+              const { error } = await adminSupabase.rpc('mark_paymongo_refund_uncertain', {
                 p_idempotency_key: reservation.idempotency_key,
-                p_status: 'processing',
                 p_error: 'Automatic protected retry outcome is unknown; recovery will check again',
               })
               if (error) throw error
@@ -271,10 +290,10 @@ serve(async req => {
 
             if (!providerResult.response.ok) {
               const failure = providerError(providerResult.providerBody)
-              const { error } = await adminSupabase.rpc('mark_paymongo_refund_request', {
+              const { error } = await adminSupabase.rpc('mark_paymongo_refund_failed', {
                 p_idempotency_key: reservation.idempotency_key,
-                p_status: 'failed',
                 p_error: `${failure.code || 'provider_error'}: ${failure.detail}`,
+                p_public_error: failure.publicMessage,
               })
               if (error) throw error
               continue
@@ -302,6 +321,7 @@ serve(async req => {
             }
           }
 
+          stage = 'count_unresolved_refunds'
           const { count: unresolvedCount, error: countError } = await adminSupabase
             .from('payment_refunds')
             .select('id', { count: 'exact', head: true })
@@ -309,6 +329,7 @@ serve(async req => {
             .in('status', ['creating', 'pending', 'processing'])
           if (countError) throw countError
 
+          stage = 'finish_recovery_job'
           const { data: finished, error: finishError } = await adminSupabase.rpc(
             'finish_paymongo_refund_recovery_job',
             {
@@ -325,10 +346,10 @@ serve(async req => {
             throw finishError || new Error('Recovery job lease could not be completed')
           }
 
-          return { success: true, refunds: providerRefundCount }
+          return { success: true, refunds: providerRefundCount, diagnostic: null }
         } catch (error) {
-          const safeError = error instanceof Error ? error.message : 'Refund recovery failed'
-          console.error('[paymongo-refund-recovery] Payment scan failed')
+          const safeError = recoveryDiagnostic(error, stage)
+          console.error(`[paymongo-refund-recovery] ${safeError}`)
           const { error: finishError } = await adminSupabase.rpc(
             'finish_paymongo_refund_recovery_job',
             {
@@ -341,8 +362,10 @@ serve(async req => {
               p_error: safeError,
             },
           )
-          if (finishError) console.error('[paymongo-refund-recovery] Could not release failed job lease')
-          return { success: false, refunds: providerRefundCount }
+          if (finishError) {
+            console.error(`[paymongo-refund-recovery] ${recoveryDiagnostic(finishError, 'release_failed_job')}`)
+          }
+          return { success: false, refunds: providerRefundCount, diagnostic: safeError }
         }
       },
     )
@@ -353,9 +376,11 @@ serve(async req => {
       completed: results.filter(result => result.success).length,
       failed: results.filter(result => !result.success).length,
       refundsObserved: results.reduce((total, result) => total + result.refunds, 0),
+      diagnostics: results.filter(result => !result.success).map(result => result.diagnostic),
     })
-  } catch {
-    console.error('[paymongo-refund-recovery] Worker invocation failed')
-    return json({ error: 'Refund recovery worker failed' }, 500)
+  } catch (error) {
+    const diagnostic = recoveryDiagnostic(error, 'worker_invocation')
+    console.error(`[paymongo-refund-recovery] ${diagnostic}`)
+    return json({ error: 'Refund recovery worker failed', diagnostic }, 500)
   }
 })

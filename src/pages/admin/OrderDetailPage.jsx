@@ -1523,8 +1523,11 @@ const AdminOrderDetailPage = () => {
             setRefundPayment(null);
             await loadOrder();
             const isCompleted = result?.status === 'succeeded' && result?.ledgerReconciled === true;
+            const isFailed = result?.status === 'failed';
             const activity = isCompleted
               ? 'Refund Completed'
+              : isFailed
+                ? 'Refund Failed'
               : result?.status === 'succeeded'
                 ? 'Refund Reconciliation Pending'
                 : 'Refund Submitted';
@@ -1533,6 +1536,8 @@ const AdminOrderDetailPage = () => {
             });
             if (isCompleted) {
               toast.success('Refund completed. PayMongo confirmed success and the order’s financial totals were updated.');
+            } else if (isFailed) {
+              toast.error(result?.message || 'Refund failed. PayMongo did not return the money, and no refund was deducted from the order’s collected total.');
             } else {
               toast.info(result?.message || 'Refund submitted. It is not completed until PayMongo confirms it as succeeded.');
             }

@@ -1800,6 +1800,28 @@ input:checked + .toggle-slider:before {
   justify-self: end;
 }
 
+/* Refund copy intentionally includes its meaning ("returned", "not
+   refunded", or "refund requested"). Give those longer, safer labels a
+   second line instead of squeezing them into the ordinary payment grid. */
+.payment-row.payment-row-refund {
+  grid-template-columns: 60px minmax(0, 1fr) 16px;
+  grid-template-areas:
+    "refund-date refund-amount refund-chevron"
+    "refund-date refund-status refund-chevron";
+}
+
+.payment-row-refund .payment-row-date { grid-area: refund-date; }
+.payment-row-refund .payment-row-amount {
+  grid-area: refund-amount;
+  overflow-wrap: anywhere;
+}
+.payment-row-refund .payment-row-pill {
+  grid-area: refund-status;
+  white-space: normal;
+  text-align: center;
+}
+.payment-row-refund .payment-row-chevron { grid-area: refund-chevron; }
+
 .payment-list-total {
   display: flex;
   align-items: center;
@@ -1828,6 +1850,11 @@ input:checked + .toggle-slider:before {
   font-weight: 800;
   color: var(--customer-ink);
   font-variant-numeric: tabular-nums;
+}
+
+.payment-detail-amount-refund {
+  font-size: 1.25rem;
+  line-height: 1.3;
 }
 
 .payment-detail-grid {
@@ -1912,6 +1939,10 @@ input:checked + .toggle-slider:before {
     grid-template-columns: 52px 1fr minmax(70px, auto) 14px;
     gap: 8px;
     padding: 12px;
+  }
+
+  .payment-row.payment-row-refund {
+    grid-template-columns: 52px minmax(0, 1fr) 14px;
   }
 
   .payment-list-header .custom-select-root {

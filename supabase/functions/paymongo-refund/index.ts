@@ -168,14 +168,13 @@ serve(async (req) => {
     const { response, providerBody, outcomeUnknown } = providerResult
 
     if (outcomeUnknown || !response) {
-      await adminSupabase.rpc('mark_paymongo_refund_request', {
+      await adminSupabase.rpc('mark_paymongo_refund_uncertain', {
         p_idempotency_key: reservedIdempotencyKey,
-        p_status: 'processing',
         p_error: 'Provider outcome unknown after safe idempotent retry; awaiting reconciliation',
       })
       return json({
         success: false,
-        status: 'processing',
+        status: 'uncertain',
         outcomeUnknown: true,
         ledgerReconciled: false,
         amount: reservedAmount,
@@ -185,17 +184,17 @@ serve(async (req) => {
 
     if (!response.ok) {
       const failure = providerError(providerBody)
-      await adminSupabase.rpc('mark_paymongo_refund_request', {
+      await adminSupabase.rpc('mark_paymongo_refund_failed', {
         p_idempotency_key: reservedIdempotencyKey,
-        p_status: 'failed',
         p_error: `${failure.code || 'provider_error'}: ${failure.detail}`,
+        p_public_error: failure.publicMessage,
       })
       const sourceTypeUnsupported = /source type/i.test(failure.detail)
       return json({
         error: sourceTypeUnsupported
-          ? 'PayMongo does not allow an API refund for this legacy Source payment. Create the refund in PayMongo Dashboard; CargoExpress will reconcile it through the webhook or automatic recovery.'
-          : failure.detail,
-        code: failure.code,
+          ? 'This older GCash payment cannot be refunded automatically. Create the refund in the PayMongo Dashboard; CargoExpress will reconcile it automatically.'
+          : failure.publicMessage,
+        status: 'failed',
         ledgerReconciled: false,
       }, response.status >= 400 && response.status < 500 ? 422 : 502)
     }

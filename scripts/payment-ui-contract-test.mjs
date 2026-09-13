@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { formatRecordedBy, getRefundStatusDisplay } from '../src/utils/paymentDisplay.js';
+import { formatRecordedBy, getRefundAmountDisplay, getRefundStatusDisplay } from '../src/utils/paymentDisplay.js';
 import { isPaymentPollReconciled } from '../src/utils/paymentReconciliation.js';
 
 const read = path => readFileSync(path, 'utf8');
@@ -26,7 +26,9 @@ assert.match(styles, /\.pr-btn-success\s*\{[\s\S]*?background:\s*var\(--success-
 assert.match(styles, /\.pr-btn-danger\s*\{[\s\S]*?background:\s*var\(--error-fill\)/);
 assert.equal(formatRecordedBy('System Webhook', 'customer'), 'Payment System (GCash verified)');
 assert.equal(formatRecordedBy('System', 'customer'), 'Payment System (GCash verified)');
-assert.equal(formatRecordedBy('Maria Santos', 'customer'), 'Maria Santos');
+assert.equal(formatRecordedBy('Maria Santos', 'customer'), 'CargoExpress Staff');
+assert.equal(formatRecordedBy('Maria Santos', 'admin'), 'Maria Santos');
+assert.doesNotMatch(customerOrderDetail, /Opening GCash/);
 
 for (const status of ['creating', 'pending', 'processing']) {
   const display = getRefundStatusDisplay(status);
@@ -34,6 +36,10 @@ for (const status of ['creating', 'pending', 'processing']) {
   assert.doesNotMatch(display.label, /completed|succeeded/i);
   assert.match(display.description, /not (?:been )?completed|No refund has been confirmed/i);
 }
+const uncertain = getRefundStatusDisplay('uncertain');
+assert.equal(uncertain.tone, 'warning');
+assert.match(uncertain.label, /confirmation pending/i);
+assert.match(uncertain.description, /not completed/i);
 assert.deepEqual(
   getRefundStatusDisplay('succeeded'),
   {
@@ -44,8 +50,19 @@ assert.deepEqual(
 );
 assert.equal(getRefundStatusDisplay('failed').tone, 'error');
 assert.match(getRefundStatusDisplay('failed').description, /No refund amount was deducted/);
+assert.equal(
+  getRefundAmountDisplay({ amount: 500, refund_status: 'succeeded' }, value => `₱${value}`),
+  '₱500 returned',
+);
+assert.equal(
+  getRefundAmountDisplay({ amount: 500, refund_status: 'failed' }, value => `₱${value}`),
+  '₱500 not refunded',
+);
+assert.doesNotMatch(customerOrderDetail, /`-\$\{formatMoney\(Math\.abs\(Number\(tx\.amount/);
+assert.match(adminOrderDetail, /result\?\.status === 'failed'[\s\S]*?toast\.error/);
 assert.match(refundModal, /not completed until PayMongo confirms it as succeeded/);
 assert.match(refundModal, /Automatic review in progress/);
+assert.match(refundModal, /refundStatus === 'failed'/);
 assert.match(adminOrderDetail, /result\?\.status === 'succeeded' && result\?\.ledgerReconciled === true/);
 assert.match(refundEdge, /ledgerReconciled: true/);
 assert.match(refundEdge, /ledgerReconciled: false/);

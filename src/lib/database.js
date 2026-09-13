@@ -1481,23 +1481,28 @@ const sumTransactionsByMethod = async (orderIds) => {
     return { methodTotals, ledgerTotal, grossLedgerTotal, refundTotal, refundCount, methodCounts };
   }
 
-  const CHUNK = 200;
+  const CHUNK = 100;
+  const fetchHistoryPages = async (rpc, ids) => {
+    const rows = [];
+    const pageSize = 1000;
+    for (let from = 0; ; from += pageSize) {
+      const { data, error } = await supabase
+        .rpc(rpc, { p_order_ids: ids })
+        .range(from, from + pageSize - 1);
+      if (error) throw error;
+      const page = data || [];
+      rows.push(...page);
+      if (page.length < pageSize) return rows;
+    }
+  };
   for (let i = 0; i < orderIds.length; i += CHUNK) {
     const ids = orderIds.slice(i, i + CHUNK);
-    const [{ data: payments, error: paymentError }, { data: refunds, error: refundError }] = await Promise.all([
-      supabase
-        .from('payment_transactions')
-        .select('id, amount, payment_method, payment_status')
-        .in('order_id', ids)
-        .in('payment_status', ['paid', 'partial']),
-      supabase
-        .from('payment_refunds')
-        .select('amount, payment_transaction_id, status')
-        .in('order_id', ids)
-        .eq('status', 'succeeded'),
+    const [paymentRows, refundRows] = await Promise.all([
+      fetchHistoryPages('get_payment_transaction_history', ids),
+      fetchHistoryPages('get_payment_refund_history', ids),
     ]);
-    if (paymentError) throw paymentError;
-    if (refundError) throw refundError;
+    const payments = paymentRows.filter(payment => ['paid', 'partial'].includes(payment.payment_status));
+    const refunds = refundRows.filter(refund => refund.status === 'succeeded');
 
     const methodByPayment = new Map();
 
@@ -2775,18 +2780,22 @@ const mergePaymentActivity = (payments = [], refunds = [], attempts = []) => {
   const refundRows = refunds.map(refund => ({
     id: `refund:${refund.id}`,
     order_id: refund.order_id,
-    amount: -Number(refund.amount || 0),
+    // Keep the displayed/requested refund amount positive. A completed refund
+    // affects statement arithmetic through financial_amount only; pending,
+    // uncertain, and failed requests have zero financial impact.
+    amount: Number(refund.amount || 0),
     financial_amount: refund.status === 'succeeded' ? -Number(refund.amount || 0) : 0,
     payment_method: 'gcash',
     gcash_channel: 'paymongo',
     payment_status: refundFinancialStatus(refund.status),
-    refund_status: refund.status,
+    refund_status: refund.outcome_uncertain ? 'uncertain' : refund.status,
     payment_type: 'Refund',
     payment_date: null,
     transaction_reference: refund.refund_id,
     notes: refund.notes,
     admin_id: refund.initiated_by,
-    admin_name: refund.initiated_by_name || 'PayMongo Dashboard',
+    admin_name: refund.initiated_by_name || 'Payment System',
+    refund_failure_reason: refund.public_failure_reason || null,
     created_at: refund.provider_created_at || refund.created_at,
     updated_at: refund.provider_updated_at || refund.updated_at,
     original_payment_transaction_id: refund.payment_transaction_id,
@@ -2825,8 +2834,8 @@ export const getPaymentTransactions = async (orderId) => {
     { data: refunds, error: refundError },
     { data: attempts, error: attemptError },
   ] = await Promise.all([
-    supabase.from('payment_transactions').select('*').eq('order_id', orderId).order('created_at', { ascending: true }),
-    supabase.from('payment_refunds').select('*').eq('order_id', orderId).order('created_at', { ascending: true }),
+    supabase.rpc('get_payment_transaction_history', { p_order_ids: [orderId] }),
+    supabase.rpc('get_payment_refund_history', { p_order_ids: [orderId] }),
     supabase.rpc('get_payment_attempt_history', { p_order_ids: [orderId] }),
   ]);
   if (paymentError) throw paymentError;
@@ -2852,24 +2861,15 @@ export const getPaymentTransactionsBatch = async (orderIds) => {
     chunks.push(uniqueIds.slice(index, index + 100));
   }
 
-  const fetchTableChunk = async (table, ids) => {
+  const fetchHistoryChunk = async (rpc, ids) => {
     const rows = [];
     const pageSize = 1000;
     let from = 0;
-
-    // Supabase projects commonly cap a response at 1,000 rows. Page within
-    // each URL-safe ID chunk so a payment-heavy account is not truncated at
-    // the API row limit either.
     while (true) {
       const { data, error } = await supabase
-        .from(table)
-        .select('*')
-        .in('order_id', ids)
-        .order('created_at', { ascending: true })
-        .order('id', { ascending: true })
+        .rpc(rpc, { p_order_ids: ids })
         .range(from, from + pageSize - 1);
       if (error) throw error;
-
       const page = data || [];
       rows.push(...page);
       if (page.length < pageSize) break;
@@ -2879,8 +2879,8 @@ export const getPaymentTransactionsBatch = async (orderIds) => {
   };
 
   const [paymentResponses, refundResponses, attemptResponses] = await Promise.all([
-    Promise.all(chunks.map(ids => fetchTableChunk('payment_transactions', ids))),
-    Promise.all(chunks.map(ids => fetchTableChunk('payment_refunds', ids))),
+    Promise.all(chunks.map(ids => fetchHistoryChunk('get_payment_transaction_history', ids))),
+    Promise.all(chunks.map(ids => fetchHistoryChunk('get_payment_refund_history', ids))),
     Promise.all(chunks.map(async ids => {
       const { data, error } = await supabase.rpc('get_payment_attempt_history', { p_order_ids: ids });
       if (error) throw error;
