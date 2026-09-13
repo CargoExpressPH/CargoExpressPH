@@ -59,9 +59,11 @@ assert.deepEqual(
   {
     label: 'Refund Completed',
     tone: 'success',
-    description: 'PayMongo confirmed the refund as succeeded. The amount was deducted from this order’s collected total; posting to the original GCash account may take additional time.',
+    description: 'Your refund was successfully processed. It may take additional time for the refund to appear in your original GCash account.',
   },
 );
+assert.doesNotMatch(getRefundStatusDisplay('succeeded').description, /PayMongo/);
+assert.match(getRefundStatusDisplay('succeeded', 'admin').description, /PayMongo confirmed/);
 assert.equal(getRefundStatusDisplay('failed').tone, 'error');
 assert.match(getRefundStatusDisplay('failed').description, /No refund amount was deducted/);
 assert.equal(

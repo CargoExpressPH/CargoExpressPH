@@ -1277,7 +1277,7 @@ const AdminOrderDetailPage = () => {
                   </thead>
                   <tbody>
                     {paymentTransactions.map(tx => {
-                      const statusInfo = getPaymentActivityStatusDisplay(tx);
+                      const statusInfo = getPaymentActivityStatusDisplay(tx, 'admin');
                       const isAuto = isSystemGenerated(tx);
                       return (
                         <tr key={tx.id}>

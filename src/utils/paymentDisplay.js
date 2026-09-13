@@ -141,13 +141,16 @@ export const getPaymentStatusDisplay = (status) => {
 /**
  * Refund-specific status copy. A provider request and money returned to a
  * wallet are not the same event, so these labels never use completed/success
- * language before PayMongo's terminal `succeeded` state is recorded.
+ * language before the terminal `succeeded` state is recorded.
  *
  * @param {string} status - Raw payment_refunds.status
+ * @param {'customer'|'admin'} audience - Customer copy avoids provider jargon;
+ *   admins can retain the provider detail needed for operations.
  * @returns {{ label: string, tone: string, description: string }}
  */
-export const getRefundStatusDisplay = (status) => {
+export const getRefundStatusDisplay = (status, audience = 'customer') => {
   const s = (status || '').toLowerCase();
+  const isAdmin = audience === 'admin';
   if (s === 'creating') {
     return {
       label: 'Refund Preparing',
@@ -159,35 +162,45 @@ export const getRefundStatusDisplay = (status) => {
     return {
       label: 'Refund Pending',
       tone: 'warning',
-      description: 'PayMongo received the refund request. It is pending and has not completed yet.',
+      description: isAdmin
+        ? 'PayMongo received the refund request. It is pending and has not completed yet.'
+        : 'Your refund request is pending and has not completed yet.',
     };
   }
   if (s === 'processing') {
     return {
       label: 'Refund Processing',
       tone: 'warning',
-      description: 'PayMongo is processing the refund. It has not completed yet.',
+      description: isAdmin
+        ? 'PayMongo is processing the refund. It has not completed yet.'
+        : 'Your refund is being processed and has not completed yet.',
     };
   }
   if (s === 'uncertain') {
     return {
       label: 'Refund Confirmation Pending',
       tone: 'warning',
-      description: 'CargoExpress could not confirm PayMongo’s latest response. The refund is not completed, and the protected request is being checked automatically. Do not submit another refund.',
+      description: isAdmin
+        ? 'CargoExpress could not confirm PayMongo’s latest response. The refund is not completed, and the protected request is being checked automatically. Do not submit another refund.'
+        : 'We could not confirm the latest refund status. It is not completed yet, and the request is being checked automatically. Do not submit another refund.',
     };
   }
   if (s === 'succeeded' || s === 'refunded') {
     return {
       label: 'Refund Completed',
       tone: 'success',
-      description: 'PayMongo confirmed the refund as succeeded. The amount was deducted from this order’s collected total; posting to the original GCash account may take additional time.',
+      description: isAdmin
+        ? 'PayMongo confirmed the refund as succeeded. The amount was deducted from this order’s collected total; posting to the original GCash account may take additional time.'
+        : 'Your refund was successfully processed. It may take additional time for the refund to appear in your original GCash account.',
     };
   }
   if (s === 'failed') {
     return {
       label: 'Refund Failed',
       tone: 'error',
-      description: 'PayMongo did not complete the refund. No refund amount was deducted from this order’s collected total.',
+      description: isAdmin
+        ? 'PayMongo did not complete the refund. No refund amount was deducted from this order’s collected total.'
+        : 'Your refund could not be completed. No refund amount was deducted from your order’s collected total.',
     };
   }
   return {
@@ -227,9 +240,9 @@ export const getNetPaymentActivityDisplay = (value, formatMoney) => {
 };
 
 /** Use the exact refund lifecycle for refund rows and ordinary payment status otherwise. */
-export const getPaymentActivityStatusDisplay = (transaction) => (
+export const getPaymentActivityStatusDisplay = (transaction, audience = 'customer') => (
   transaction?.is_refund
-    ? getRefundStatusDisplay(transaction.refund_status || transaction.payment_status)
+    ? getRefundStatusDisplay(transaction.refund_status || transaction.payment_status, audience)
     : getPaymentStatusDisplay(transaction?.payment_status)
 );
 

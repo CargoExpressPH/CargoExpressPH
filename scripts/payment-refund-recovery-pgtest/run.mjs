@@ -86,6 +86,9 @@ console.log(`  applied ${correctiveMigration}`);
 const refundInitiatorMigration = '20260913120000_show_refund_initiator_to_customers.sql';
 await db.exec(readFileSync(path.join(REPO, 'supabase/migrations', refundInitiatorMigration), 'utf8'));
 console.log(`  applied ${refundInitiatorMigration}`);
+const customerCopyMigration = '20260913113126_customer_refund_notification_copy.sql';
+await db.exec(readFileSync(path.join(REPO, 'supabase/migrations', customerCopyMigration), 'utf8'));
+console.log(`  applied ${customerCopyMigration}`);
 
 const ADMIN = '10000000-0000-4000-8000-000000000001';
 const CUSTOMER = '10000000-0000-4000-8000-000000000002';
@@ -241,10 +244,12 @@ const notice = await value(`
   ORDER BY id DESC LIMIT 1
 `);
 ok(
-  'customer notification reserves confirmation wording for provider success',
+  'customer refund notification uses clear customer-facing wording',
   notice.title === 'Refund Completed'
-    && /PayMongo confirmed/.test(notice.message)
-    && /posting to the original GCash account may take additional time/i.test(notice.message),
+    && /Your ₱100\.00 refund for order RECOVERY-TEST-001 was successfully processed\./.test(notice.message)
+    && /remaining balance for this order is now/i.test(notice.message)
+    && /It may take additional time for the refund to appear in your original GCash account\./.test(notice.message)
+    && !/PayMongo confirmed/.test(notice.message),
   notice,
 );
 
