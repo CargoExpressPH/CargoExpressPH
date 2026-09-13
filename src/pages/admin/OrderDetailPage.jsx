@@ -1324,7 +1324,7 @@ const AdminOrderDetailPage = () => {
                                 <button type="button" className="btn btn-outline btn-sm" onClick={() => setRefundPayment(tx)}>
                                   <RotateCcw size={14} /> Refund
                                 </button>
-                              ) : <span className="text-tertiary">—</span>}
+                              ) : <span className="text-tertiary text-xs">N/A</span>}
                           </td>
                         </tr>
                       );
