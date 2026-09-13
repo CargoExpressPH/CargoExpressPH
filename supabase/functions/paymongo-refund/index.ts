@@ -116,15 +116,21 @@ serve(async (req) => {
       && !reservation?.refund_id
 
     if (!reservation?.created && !canRetryUnresolvedRequest) {
+      const duplicateMessage = reservationStatus === 'succeeded'
+        ? 'Refund completed. PayMongo already confirmed it as succeeded, and the order ledger is reconciled.'
+        : reservationStatus === 'failed'
+          ? 'This refund request failed. No refund amount was deducted from the order’s collected total.'
+          : reservationStatus === 'pending'
+            ? 'PayMongo received this refund request. It is pending and has not completed yet.'
+            : 'PayMongo is processing this refund request. It has not completed yet.'
       return json({
         success: reservationStatus === 'succeeded',
         duplicate: true,
         refundId: reservation?.refund_id || null,
         status: reservationStatus,
         amount: Number(reservation?.amount || amount),
-        message: reservationStatus === 'failed'
-          ? 'This refund request already failed. Close this window and start a new refund.'
-          : 'This refund request is already being processed.',
+        ledgerReconciled: reservationStatus === 'succeeded',
+        message: duplicateMessage,
       }, reservationStatus === 'failed' ? 409 : 200)
     }
 
@@ -135,9 +141,10 @@ serve(async (req) => {
         || reservationAge < 0
         || reservationAge >= PROVIDER_IDEMPOTENCY_RETRY_WINDOW_MS) {
         return json({
-          error: 'This unresolved refund is outside PayMongo\'s safe retry window. Check the PayMongo dashboard before taking any further action.',
+          error: 'This protected refund request is outside PayMongo\'s safe retry window and cannot be safely resubmitted. Do not create another refund; automatic recovery will continue checking its provider status.',
           status: reservationStatus,
           manualReviewRequired: true,
+          ledgerReconciled: false,
         }, 409)
       }
     }
@@ -170,8 +177,9 @@ serve(async (req) => {
         success: false,
         status: 'processing',
         outcomeUnknown: true,
+        ledgerReconciled: false,
         amount: reservedAmount,
-        message: 'PayMongo has not confirmed the result yet. Keep this window open and use “Retry same refund”; the same protected request will be reused and cannot create a duplicate.',
+        message: 'PayMongo has not confirmed the refund outcome. Do not create another refund. Automatic recovery will check this protected request, or you can retry the same request below.',
       }, 202)
     }
 
@@ -185,9 +193,10 @@ serve(async (req) => {
       const sourceTypeUnsupported = /source type/i.test(failure.detail)
       return json({
         error: sourceTypeUnsupported
-          ? 'PayMongo does not allow API refunds for this legacy Source payment. Refund it from the PayMongo dashboard; the webhook will still reconcile it here.'
+          ? 'PayMongo does not allow an API refund for this legacy Source payment. Create the refund in PayMongo Dashboard; CargoExpress will reconcile it through the webhook or automatic recovery.'
           : failure.detail,
         code: failure.code,
+        ledgerReconciled: false,
       }, response.status >= 400 && response.status < 500 ? 422 : 502)
     }
 
@@ -216,8 +225,11 @@ serve(async (req) => {
         success: false,
         refundId: resource?.id || null,
         status,
+        ledgerReconciled: false,
         amount: refundAmount || reservedAmount,
-        message: 'PayMongo accepted the refund. Local history is still reconciling from the signed webhook.',
+        message: status === 'succeeded'
+          ? 'PayMongo reports the refund as succeeded, but CargoExpress has not yet reconciled the order ledger. Automatic recovery will keep checking; do not submit another refund.'
+          : 'PayMongo accepted the refund request, but CargoExpress is still reconciling its status. It is not shown as completed; do not submit another refund.',
       }, 202)
     }
 
@@ -225,10 +237,15 @@ serve(async (req) => {
       success: status === 'succeeded',
       refundId: resource.id,
       status,
+      ledgerReconciled: true,
       amount: refundAmount || reservedAmount,
       message: status === 'succeeded'
-        ? 'Refund completed and the order ledger was updated.'
-        : 'Refund submitted to PayMongo and is awaiting completion.',
+        ? 'Refund completed. PayMongo confirmed it as succeeded, and the order’s financial totals were updated. Posting to the original GCash account may take additional time.'
+        : status === 'failed'
+          ? 'PayMongo could not complete the refund. No refund amount was deducted from the order’s collected total.'
+        : status === 'processing'
+          ? 'PayMongo is processing the refund. It has not completed yet; CargoExpress will update it automatically.'
+          : 'PayMongo received the refund request. It is pending and has not completed yet; CargoExpress will update it automatically.',
     }, status === 'succeeded' ? 200 : 202)
   } catch {
     console.error('[paymongo-refund] Refund processing failed')

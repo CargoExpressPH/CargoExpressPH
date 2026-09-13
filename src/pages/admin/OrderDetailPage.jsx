@@ -44,7 +44,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import usePageTitle from '../../hooks/usePageTitle';
 import { formatPhDate, formatPhDateTime } from '../../utils/datetime';
 import { formatMoney } from '../../utils/currencyInput';
-import { truncateRef, isSystemGenerated, getPaymentStatusDisplay, formatRecordedBy as fmtRecordedBy } from '../../utils/paymentDisplay';
+import { truncateRef, isSystemGenerated, getPaymentActivityStatusDisplay, formatRecordedBy as fmtRecordedBy } from '../../utils/paymentDisplay';
 
 const safeFormatDate = (dateStr, options) => {
   if (!dateStr) return '—';
@@ -1273,7 +1273,7 @@ const AdminOrderDetailPage = () => {
                   </thead>
                   <tbody>
                     {paymentTransactions.map(tx => {
-                      const statusInfo = getPaymentStatusDisplay(tx.payment_status);
+                      const statusInfo = getPaymentActivityStatusDisplay(tx);
                       const isAuto = isSystemGenerated(tx);
                       return (
                         <tr key={tx.id}>
@@ -1522,11 +1522,20 @@ const AdminOrderDetailPage = () => {
           onSuccess={async (result, amount) => {
             setRefundPayment(null);
             await loadOrder();
-            await logPayment('Refund Submitted', order.id, order.tracking_number, {
-              details: `${formatMoney(amount)} PayMongo refund ${result?.refundId || 'submitted'} (${result?.status || 'processing'})`,
+            const isCompleted = result?.status === 'succeeded' && result?.ledgerReconciled === true;
+            const activity = isCompleted
+              ? 'Refund Completed'
+              : result?.status === 'succeeded'
+                ? 'Refund Reconciliation Pending'
+                : 'Refund Submitted';
+            await logPayment(activity, order.id, order.tracking_number, {
+              details: `${formatMoney(amount)} PayMongo refund ${result?.refundId || 'submitted'} (${result?.status || 'processing'}; ledger ${result?.ledgerReconciled === true ? 'reconciled' : 'pending'})`,
             });
-            if (result?.status === 'succeeded') toast.success('Refund completed and financial totals were updated.');
-            else toast.info(result?.message || 'Refund submitted and awaiting PayMongo confirmation.');
+            if (isCompleted) {
+              toast.success('Refund completed. PayMongo confirmed success and the order’s financial totals were updated.');
+            } else {
+              toast.info(result?.message || 'Refund submitted. It is not completed until PayMongo confirms it as succeeded.');
+            }
           }}
         />
       )}

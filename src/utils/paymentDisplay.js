@@ -121,6 +121,65 @@ export const getPaymentStatusDisplay = (status) => {
 };
 
 /**
+ * Refund-specific status copy. A provider request and money returned to a
+ * wallet are not the same event, so these labels never use completed/success
+ * language before PayMongo's terminal `succeeded` state is recorded.
+ *
+ * @param {string} status - Raw payment_refunds.status
+ * @returns {{ label: string, tone: string, description: string }}
+ */
+export const getRefundStatusDisplay = (status) => {
+  const s = (status || '').toLowerCase();
+  if (s === 'creating') {
+    return {
+      label: 'Refund Preparing',
+      tone: 'warning',
+      description: 'The refund request is being prepared. No refund has been confirmed yet.',
+    };
+  }
+  if (s === 'pending') {
+    return {
+      label: 'Refund Pending',
+      tone: 'warning',
+      description: 'PayMongo received the refund request. It is pending and has not completed yet.',
+    };
+  }
+  if (s === 'processing') {
+    return {
+      label: 'Refund Processing',
+      tone: 'warning',
+      description: 'PayMongo is processing the refund. It has not completed yet.',
+    };
+  }
+  if (s === 'succeeded' || s === 'refunded') {
+    return {
+      label: 'Refund Completed',
+      tone: 'success',
+      description: 'PayMongo confirmed the refund as succeeded. The amount was deducted from this order’s collected total; posting to the original GCash account may take additional time.',
+    };
+  }
+  if (s === 'failed') {
+    return {
+      label: 'Refund Failed',
+      tone: 'error',
+      description: 'PayMongo did not complete the refund. No refund amount was deducted from this order’s collected total.',
+    };
+  }
+  return {
+    label: 'Refund Status Unavailable',
+    tone: 'default',
+    description: 'The refund status is unavailable. CargoExpress does not treat it as completed.',
+  };
+};
+
+/** Use the exact refund lifecycle for refund rows and ordinary payment status otherwise. */
+export const getPaymentActivityStatusDisplay = (transaction) => (
+  transaction?.is_refund
+    ? getRefundStatusDisplay(transaction.refund_status || transaction.payment_status)
+    : getPaymentStatusDisplay(transaction?.payment_status)
+);
+
+/**
  * Format payment method for clean display.
  * @param {string} method
  * @returns {string}

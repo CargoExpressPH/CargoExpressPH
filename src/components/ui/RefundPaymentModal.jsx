@@ -27,6 +27,7 @@ const RefundPaymentModal = ({ transaction, order, onClose, onSuccess }) => {
   const [error, setError] = useState('');
   const [warning, setWarning] = useState('');
   const [retryingSameRequest, setRetryingSameRequest] = useState(false);
+  const [manualReviewRequired, setManualReviewRequired] = useState(false);
   const [idempotencyKey, setIdempotencyKey] = useState(newIdempotencyKey);
 
   useEffect(() => {
@@ -65,12 +66,16 @@ const RefundPaymentModal = ({ transaction, order, onClose, onSuccess }) => {
       });
       if (result?.outcomeUnknown) {
         setRetryingSameRequest(true);
-        setWarning(result.message || 'PayMongo has not confirmed the result. Retry this same protected request.');
+        setWarning(result.message || 'PayMongo has not confirmed the outcome. Do not create another refund; automatic recovery will check this protected request.');
         return;
       }
       await onSuccess(result, parsedAmount);
     } catch (err) {
-      if (err?.outcomeUnknown) {
+      if (err?.manualReviewRequired) {
+        setManualReviewRequired(true);
+        setRetryingSameRequest(false);
+        setWarning(err.message || 'This protected request cannot be safely resubmitted. Automatic recovery will continue checking PayMongo.');
+      } else if (err?.outcomeUnknown) {
         setRetryingSameRequest(true);
         setWarning(err.message);
       } else {
@@ -104,7 +109,7 @@ const RefundPaymentModal = ({ transaction, order, onClose, onSuccess }) => {
           <div className="modal-body modal-body-scroll">
             <div className="alert-banner alert-banner-warning mb-16">
               <AlertTriangle size={16} aria-hidden="true" />
-              This sends money back through PayMongo. It does not cancel or change the shipment status.
+              This submits a refund to PayMongo for the original GCash payment. The shipment status will not change, and the refund is not completed until PayMongo confirms it as succeeded.
             </div>
 
             <dl className="payment-detail-grid mb-16">
@@ -120,7 +125,7 @@ const RefundPaymentModal = ({ transaction, order, onClose, onSuccess }) => {
                 id="refund-amount"
                 value={amount}
                 onValueChange={value => { setAmount(value); setError(''); }}
-                disabled={saving || retryingSameRequest}
+                disabled={saving || retryingSameRequest || manualReviewRequired}
                 aria-describedby="refund-amount-help"
                 autoFocus
               />
@@ -129,7 +134,7 @@ const RefundPaymentModal = ({ transaction, order, onClose, onSuccess }) => {
 
             <div className="form-group">
               <label className="form-label" htmlFor="refund-reason">Reason *</label>
-              <CustomSelect id="refund-reason" className="form-select" value={reason} onChange={event => setReason(event.target.value)} disabled={saving || retryingSameRequest}>
+              <CustomSelect id="refund-reason" className="form-select" value={reason} onChange={event => setReason(event.target.value)} disabled={saving || retryingSameRequest || manualReviewRequired}>
                 <option value="requested_by_customer">Requested by customer</option>
                 <option value="duplicate">Duplicate payment</option>
                 <option value="fraudulent">Fraudulent payment</option>
@@ -147,14 +152,14 @@ const RefundPaymentModal = ({ transaction, order, onClose, onSuccess }) => {
                 value={notes}
                 onChange={event => setNotes(event.target.value)}
                 placeholder="Optional explanation for the history"
-                disabled={saving || retryingSameRequest}
+                disabled={saving || retryingSameRequest || manualReviewRequired}
               />
               <p className="form-hint text-right">{notes.length}/255</p>
             </div>
 
             <label className="flex items-start gap-10 text-sm cursor-pointer">
-              <input type="checkbox" checked={confirmed} onChange={event => { setConfirmed(event.target.checked); setError(''); }} disabled={saving || retryingSameRequest} />
-              <span>I reviewed the order, original GCash payment, and refund amount.</span>
+              <input type="checkbox" checked={confirmed} onChange={event => { setConfirmed(event.target.checked); setError(''); }} disabled={saving || retryingSameRequest || manualReviewRequired} />
+              <span>I reviewed the order, original GCash payment, and refund amount. I understand this request is not completed until PayMongo confirms it as succeeded.</span>
             </label>
 
             {error && <div className="alert-banner alert-banner-error mt-16" role="alert">{error}</div>}
@@ -163,9 +168,13 @@ const RefundPaymentModal = ({ transaction, order, onClose, onSuccess }) => {
 
           <div className="modal-footer">
             <button type="button" className="btn btn-outline" onClick={handleClose} disabled={saving}>Cancel</button>
-            <button type="submit" className="btn btn-primary" disabled={saving || !confirmed || maxRefund <= 0}>
+            <button type="submit" className="btn btn-primary" disabled={saving || manualReviewRequired || !confirmed || maxRefund <= 0}>
               {saving ? <Loader size={16} className="animate-spin" /> : <RotateCcw size={16} />}
-              {saving ? 'Submitting…' : retryingSameRequest ? 'Retry same refund' : `Refund ${formatMoney(Number(amount) || 0)}`}
+              {saving
+                ? retryingSameRequest ? 'Checking protected request…' : 'Submitting refund…'
+                : manualReviewRequired ? 'Automatic review in progress'
+                  : retryingSameRequest ? 'Retry protected request'
+                    : `Submit ${formatMoney(Number(amount) || 0)} refund`}
             </button>
           </div>
         </form>

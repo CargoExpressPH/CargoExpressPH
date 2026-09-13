@@ -276,13 +276,19 @@ export const createPayMongoRefund = async ({
       body: JSON.stringify({ paymentTransactionId, amount, reason, notes, idempotencyKey }),
     });
   } catch {
-    const error = new Error('The refund result is uncertain. Keep this window open and retry the same refund; the protected reference will be reused.');
+    const error = new Error('PayMongo has not confirmed the refund outcome. Do not create another refund. Automatic recovery will check this protected request, or you can retry the same request below.');
     error.outcomeUnknown = true;
     throw error;
   }
 
   let body = null;
   try { body = await response.json(); } catch { body = null; }
-  if (!response.ok) throw new Error(body?.error || `Refund request failed (${response.status}).`);
+  if (!response.ok) {
+    const error = new Error(body?.error || `Refund request failed (${response.status}).`);
+    error.outcomeUnknown = Boolean(body?.outcomeUnknown);
+    error.manualReviewRequired = Boolean(body?.manualReviewRequired);
+    error.refundStatus = body?.status || null;
+    throw error;
+  }
   return body || {};
 };

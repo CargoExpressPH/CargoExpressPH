@@ -4,6 +4,11 @@ verify_jwt = true
 [functions.paymongo-refund]
 verify_jwt = true
 
+[functions.paymongo-refund-recovery]
+# Called only by pg_cron with the Vault-held service-role JWT. The function
+# also compares the bearer value with SUPABASE_SERVICE_ROLE_KEY before work.
+verify_jwt = true
+
 [functions.paymongo-webhook]
 verify_jwt = false
 

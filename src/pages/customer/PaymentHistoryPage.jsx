@@ -17,7 +17,7 @@ import usePageTitle from '../../hooks/usePageTitle';
 import { outstandingBalance } from '../../constants/status';
 import {
   formatPaymentType, formatPaymentMethod as fmtMethod, formatRecordedBy,
-  getPaymentStatusDisplay, getCustomerVisibleRef, getCustomerFriendlyNotes,
+  getPaymentActivityStatusDisplay, getCustomerVisibleRef, getCustomerFriendlyNotes,
 } from '../../utils/paymentDisplay';
 
 // Peso sign, like every other money figure in the app. This page was the one
@@ -100,7 +100,7 @@ const PaymentDetailModal = ({ tx, onClose, onViewOrder }) => {
 
   if (!tx) return null;
 
-  const statusInfo = getPaymentStatusDisplay(tx.payment_status);
+  const statusInfo = getPaymentActivityStatusDisplay(tx);
   const customerRef = getCustomerVisibleRef(tx.transaction_reference);
   const friendlyNotes = getCustomerFriendlyNotes(tx.notes, tx.admin_name);
 
@@ -143,6 +143,12 @@ const PaymentDetailModal = ({ tx, onClose, onViewOrder }) => {
               <div className="payment-detail-amount">{formatMoney(tx.amount)}</div>
               <span className={`badge badge-${statusInfo.tone}`}>{statusInfo.label}</span>
             </div>
+
+            {tx.is_refund && (
+              <div className={`alert-banner alert-banner-${statusInfo.tone === 'error' ? 'error' : statusInfo.tone === 'success' ? 'success' : 'warning'} mb-16`} role="status">
+                {statusInfo.description}
+              </div>
+            )}
 
             <dl className="payment-detail-grid">
               {rows.map(([label, value]) => (
@@ -387,7 +393,7 @@ const PaymentHistoryPage = () => {
             <>
               <div className="card payment-list">
                 {visibleTransactions.map(tx => {
-                  const statusInfo = getPaymentStatusDisplay(tx.payment_status);
+                  const statusInfo = getPaymentActivityStatusDisplay(tx);
                   return (
                     <button
                       type="button"

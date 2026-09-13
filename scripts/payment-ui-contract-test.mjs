@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { formatRecordedBy } from '../src/utils/paymentDisplay.js';
+import { formatRecordedBy, getRefundStatusDisplay } from '../src/utils/paymentDisplay.js';
 import { isPaymentPollReconciled } from '../src/utils/paymentReconciliation.js';
 
 const read = path => readFileSync(path, 'utf8');
@@ -9,6 +9,8 @@ const styles = read('src/styles/feedback.css');
 const tokens = read('src/styles/tokens.css');
 const customerOrderDetail = read('src/pages/customer/OrderDetailPage.jsx');
 const adminOrderDetail = read('src/pages/admin/OrderDetailPage.jsx');
+const refundModal = read('src/components/ui/RefundPaymentModal.jsx');
+const refundEdge = read('supabase/functions/paymongo-refund/index.ts');
 
 assert.equal(isPaymentPollReconciled({ orderReconciled: true, status: 'paid' }), true);
 assert.equal(isPaymentPollReconciled({ orderReconciled: false, status: 'paid', settling: true }), false);
@@ -25,6 +27,28 @@ assert.match(styles, /\.pr-btn-danger\s*\{[\s\S]*?background:\s*var\(--error-fil
 assert.equal(formatRecordedBy('System Webhook', 'customer'), 'Payment System (GCash verified)');
 assert.equal(formatRecordedBy('System', 'customer'), 'Payment System (GCash verified)');
 assert.equal(formatRecordedBy('Maria Santos', 'customer'), 'Maria Santos');
+
+for (const status of ['creating', 'pending', 'processing']) {
+  const display = getRefundStatusDisplay(status);
+  assert.notEqual(display.tone, 'success');
+  assert.doesNotMatch(display.label, /completed|succeeded/i);
+  assert.match(display.description, /not (?:been )?completed|No refund has been confirmed/i);
+}
+assert.deepEqual(
+  getRefundStatusDisplay('succeeded'),
+  {
+    label: 'Refund Completed',
+    tone: 'success',
+    description: 'PayMongo confirmed the refund as succeeded. The amount was deducted from this order’s collected total; posting to the original GCash account may take additional time.',
+  },
+);
+assert.equal(getRefundStatusDisplay('failed').tone, 'error');
+assert.match(getRefundStatusDisplay('failed').description, /No refund amount was deducted/);
+assert.match(refundModal, /not completed until PayMongo confirms it as succeeded/);
+assert.match(refundModal, /Automatic review in progress/);
+assert.match(adminOrderDetail, /result\?\.status === 'succeeded' && result\?\.ledgerReconciled === true/);
+assert.match(refundEdge, /ledgerReconciled: true/);
+assert.match(refundEdge, /ledgerReconciled: false/);
 
 const relativeLuminance = hex => {
   const channels = hex.match(/[a-f\d]{2}/gi).map(value => parseInt(value, 16) / 255);
