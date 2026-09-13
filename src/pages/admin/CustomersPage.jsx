@@ -282,7 +282,6 @@ const CustomersPage = () => {
               <thead>
                 <tr>
                   <th scope="col">Customer</th>
-                  <th scope="col">Contact</th>
                   <th scope="col">Location</th>
                   <th scope="col" className="num">Bookings</th>
                   <th scope="col" className="num">Outstanding</th>
@@ -303,13 +302,9 @@ const CustomersPage = () => {
                           <span className="customer-directory-avatar" aria-hidden="true">{customerInitials(name)}</span>
                           <span className="customer-directory-identity-copy">
                             <Link to={`/admin/customers/${customer.id}`} className="customer-directory-name" title={name}>{name}</Link>
-                            <span className="customer-directory-email" title={customer.email || 'Email not provided'}>
-                              {customer.email || 'Email not provided'}
-                            </span>
                           </span>
                         </div>
                       </td>
-                      <td><span className="customer-directory-truncate" title={customer.phone || 'Not provided'}>{customer.phone || 'Not provided'}</span></td>
                       <td><span className="customer-directory-truncate" title={location}>{location}</span></td>
                       <td className="num customer-directory-number">{Number(customer.total_bookings || 0).toLocaleString('en-PH')}</td>
                       <td className="num customer-directory-balance">
@@ -424,12 +419,11 @@ const CustomersPage = () => {
         .customer-directory-table { table-layout: fixed; }
         .customer-directory-table th:nth-child(1) { width: 22%; }
         .customer-directory-table th:nth-child(2) { width: 12%; }
-        .customer-directory-table th:nth-child(3) { width: 12%; }
-        .customer-directory-table th:nth-child(4) { width: 8%; }
-        .customer-directory-table th:nth-child(5) { width: 13%; }
-        .customer-directory-table th:nth-child(6) { width: 12%; }
-        .customer-directory-table th:nth-child(7) { width: 13%; }
-        .customer-directory-table th:nth-child(8) { width: 8%; }
+        .customer-directory-table th:nth-child(3) { width: 8%; }
+        .customer-directory-table th:nth-child(4) { width: 13%; }
+        .customer-directory-table th:nth-child(5) { width: 12%; }
+        .customer-directory-table th:nth-child(6) { width: 13%; }
+        .customer-directory-table th:nth-child(7) { width: 8%; }
         .customer-directory-table td { vertical-align: middle; padding-top: 12px; padding-bottom: 12px; }
         .customer-directory-identity { display: flex; align-items: center; gap: 10px; min-width: 0; }
         .customer-directory-avatar {
@@ -461,7 +455,6 @@ const CustomersPage = () => {
           white-space: nowrap;
         }
         a.customer-directory-name:hover { color: var(--primary-text); text-decoration: underline; text-underline-offset: 3px; }
-        .customer-directory-email,
         .customer-directory-truncate {
           display: block;
           min-width: 0;
