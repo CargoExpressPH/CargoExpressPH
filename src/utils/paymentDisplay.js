@@ -25,8 +25,8 @@ export const formatPaymentType = (type, audience = 'customer') => {
 };
 
 /**
- * Humanise the admin_name / recorded-by field. Always returns the actual
- * admin name regardless of audience.
+ * Humanise the admin_name / recorded-by field without exposing a staff
+ * member's personal name in customer-facing payment history.
  * @param {string} adminName
  * @param {'customer'|'admin'} [audience='customer']
  * @returns {string}
@@ -39,7 +39,7 @@ export const formatRecordedBy = (adminName, audience = 'customer') => {
   if (isAutomated) {
     return audience === 'customer' ? 'Payment System (GCash verified)' : 'Auto (GCash)';
   }
-  return adminName;
+  return audience === 'customer' ? 'CargoExpress Staff' : adminName;
 };
 
 /**
@@ -193,6 +193,22 @@ export const getRefundAmountDisplay = (transaction, formatMoney) => {
   if (status === 'succeeded' || status === 'refunded') return `${amount} returned`;
   if (status === 'failed') return `${amount} not refunded`;
   return `${amount} refund requested`;
+};
+
+/**
+ * Describe a statement-period net without exposing accounting-style negative
+ * signs. The label carries the direction; the displayed peso amount is always
+ * positive and therefore cannot be mistaken for a charge or a debt.
+ */
+export const getNetPaymentActivityDisplay = (value, formatMoney) => {
+  const amount = Number(value || 0);
+  if (amount < 0) {
+    return { label: 'Net refunded this month', amount: formatMoney(Math.abs(amount)) };
+  }
+  if (amount > 0) {
+    return { label: 'Net paid this month', amount: formatMoney(amount) };
+  }
+  return { label: 'Net change this month', amount: formatMoney(0) };
 };
 
 /** Use the exact refund lifecycle for refund rows and ordinary payment status otherwise. */

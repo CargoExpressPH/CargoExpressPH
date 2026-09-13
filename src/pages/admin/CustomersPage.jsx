@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { getCustomers, getCustomerProvinces } from '../../lib/database';
+import { getCustomers } from '../../lib/database';
 import EmptyState from '../../components/ui/EmptyState';
 import Pagination from '../../components/ui/Pagination';
 import CustomSelect from '../../components/ui/CustomSelect';
@@ -17,15 +17,6 @@ const STATUS_FILTERS = [
   { value: 'pending', label: 'With pending booking' },
   { value: 'active', label: 'With active booking' },
   { value: 'no_bookings', label: 'No bookings yet' },
-];
-
-const SORT_OPTIONS = [
-  { value: 'newest', label: 'Newest customer' },
-  { value: 'oldest', label: 'Oldest customer' },
-  { value: 'name_asc', label: 'Name A–Z' },
-  { value: 'most_bookings', label: 'Most bookings' },
-  { value: 'highest_balance', label: 'Highest outstanding balance' },
-  { value: 'recent_booking', label: 'Most recent booking' },
 ];
 
 const STATUS_PRESENTATION = {
@@ -84,18 +75,13 @@ const CustomersPage = () => {
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [province, setProvince] = useState('');
-  const [sort, setSort] = useState('newest');
-  const [provinces, setProvinces] = useState([]);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [perPage, setPerPage] = useState(15);
   const debounceTimer = useRef(null);
   const requestSequence = useRef(0);
 
-  const activeFilterCount = Number(statusFilter !== 'all')
-    + Number(Boolean(province))
-    + Number(sort !== 'newest');
+  const activeFilterCount = Number(statusFilter !== 'all');
 
   const loadCustomers = useCallback(async () => {
     const requestId = ++requestSequence.current;
@@ -107,8 +93,6 @@ const CustomersPage = () => {
         perPage,
         search: debouncedSearch,
         statusFilter,
-        province,
-        sort,
       });
       if (requestId !== requestSequence.current) return;
       setCustomers(data);
@@ -119,17 +103,9 @@ const CustomersPage = () => {
     } finally {
       if (requestId === requestSequence.current) setLoading(false);
     }
-  }, [currentPage, perPage, debouncedSearch, statusFilter, province, sort]);
+  }, [currentPage, perPage, debouncedSearch, statusFilter]);
 
   useEffect(() => { loadCustomers(); }, [loadCustomers]);
-
-  useEffect(() => {
-    let mounted = true;
-    getCustomerProvinces()
-      .then(values => { if (mounted) setProvinces(values); })
-      .catch(() => { if (mounted) setProvinces([]); });
-    return () => { mounted = false; };
-  }, []);
 
   useEffect(() => () => clearTimeout(debounceTimer.current), []);
 
@@ -151,15 +127,12 @@ const CustomersPage = () => {
     setSearch('');
     setDebouncedSearch('');
     setStatusFilter('all');
-    setProvince('');
-    setSort('newest');
     setCurrentPage(1);
     setFiltersOpen(false);
   };
 
   const hasSearchOrFilters = Boolean(debouncedSearch.trim())
-    || statusFilter !== 'all'
-    || Boolean(province);
+    || statusFilter !== 'all';
 
   return (
     <div className="page-transition admin-customers-page">
@@ -356,7 +329,7 @@ const CustomersPage = () => {
         .customer-directory-search { width: 100%; }
         .customer-directory-filters {
           display: grid;
-          grid-template-columns: repeat(3, minmax(140px, 1fr)) auto;
+          grid-template-columns: minmax(180px, 1fr) auto;
           gap: 10px;
           align-items: end;
           min-width: 0;
@@ -491,8 +464,7 @@ const CustomersPage = () => {
 
         @media (max-width: 1180px) {
           .customer-directory-toolbar { grid-template-columns: minmax(220px, 1fr) minmax(0, 2fr); }
-          .customer-directory-filters { grid-template-columns: repeat(3, minmax(120px, 1fr)); }
-          .customer-filter-clear { grid-column: 1 / -1; justify-self: end; min-height: 34px; }
+          .customer-directory-filters { grid-template-columns: minmax(160px, 1fr) auto; }
           .customer-directory-table th,
           .customer-directory-table td { padding-left: 10px; padding-right: 10px; }
           .customer-directory-avatar { width: 34px; height: 34px; flex-basis: 34px; }
@@ -501,7 +473,7 @@ const CustomersPage = () => {
         @media (max-width: 1000px) {
           .customer-directory-toolbar { grid-template-columns: minmax(0, 1fr); align-items: stretch; }
           .customer-filter-toggle { display: inline-flex; width: fit-content; min-height: 44px; }
-          .customer-directory-filters { display: none; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+          .customer-directory-filters { display: none; grid-template-columns: minmax(0, 1fr) auto; }
           .customer-directory-filters.is-open { display: grid; }
           .customer-filter-clear { grid-column: auto; justify-self: stretch; }
           .customer-directory-desktop { display: none; }

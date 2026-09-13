@@ -1,6 +1,11 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { formatRecordedBy, getRefundAmountDisplay, getRefundStatusDisplay } from '../src/utils/paymentDisplay.js';
+import {
+  formatRecordedBy,
+  getNetPaymentActivityDisplay,
+  getRefundAmountDisplay,
+  getRefundStatusDisplay,
+} from '../src/utils/paymentDisplay.js';
 import { isPaymentPollReconciled } from '../src/utils/paymentReconciliation.js';
 
 const read = path => readFileSync(path, 'utf8');
@@ -26,7 +31,7 @@ assert.match(styles, /\.pr-btn-success\s*\{[\s\S]*?background:\s*var\(--success-
 assert.match(styles, /\.pr-btn-danger\s*\{[\s\S]*?background:\s*var\(--error-fill\)/);
 assert.equal(formatRecordedBy('System Webhook', 'customer'), 'Payment System (GCash verified)');
 assert.equal(formatRecordedBy('System', 'customer'), 'Payment System (GCash verified)');
-assert.equal(formatRecordedBy('Maria Santos', 'customer'), 'Maria Santos');
+assert.equal(formatRecordedBy('Maria Santos', 'customer'), 'CargoExpress Staff');
 assert.equal(formatRecordedBy('Maria Santos', 'admin'), 'Maria Santos');
 assert.doesNotMatch(customerOrderDetail, /Opening GCash/);
 
@@ -58,6 +63,20 @@ assert.equal(
   getRefundAmountDisplay({ amount: 500, refund_status: 'failed' }, value => `₱${value}`),
   '₱500 not refunded',
 );
+assert.deepEqual(
+  getNetPaymentActivityDisplay(-500, value => `₱${value}`),
+  { label: 'Net refunded this month', amount: '₱500' },
+);
+assert.deepEqual(
+  getNetPaymentActivityDisplay(500, value => `₱${value}`),
+  { label: 'Net paid this month', amount: '₱500' },
+);
+assert.deepEqual(
+  getNetPaymentActivityDisplay(0, value => `₱${value}`),
+  { label: 'Net change this month', amount: '₱0' },
+);
+assert.doesNotMatch(customerOrderDetail, /Maria Santos/);
+assert.match(read('src/pages/customer/PaymentHistoryPage.jsx'), /monthNetDisplay\.amount/);
 assert.doesNotMatch(customerOrderDetail, /`-\$\{formatMoney\(Math\.abs\(Number\(tx\.amount/);
 assert.match(adminOrderDetail, /result\?\.status === 'failed'[\s\S]*?toast\.error/);
 assert.match(refundModal, /not completed until PayMongo confirms it as succeeded/);

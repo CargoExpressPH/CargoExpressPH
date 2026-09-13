@@ -8,7 +8,7 @@ This guide explains how an administrator should issue, monitor, and explain a Pa
 
 There are two different completion times. Do not combine them when speaking to a customer.
 
-1. **CargoExpress confirmation time:** The refund request is often returned by PayMongo within seconds. If it remains pending, processing, or the response is uncertain, CargoExpress checks it automatically. Webhooks are the immediate path; the independent recovery worker runs every 5 minutes and normally revisits active payments at least every 15 minutes. Provider outages, queue backoff, or an inaccessible historical payment can make reconciliation take longer.
+1. **CargoExpress confirmation time:** The refund request is often returned by PayMongo within seconds. If it remains pending, processing, or the response is uncertain, CargoExpress checks it automatically. Webhooks are the immediate path; the independent recovery worker runs every 5 minutes and revisits unresolved refunds every 5 minutes at first, every 30 minutes after the first hour, and every 6 hours after the first day. Provider outages, queue backoff, or an inaccessible historical payment can make reconciliation take longer.
 2. **Customer GCash posting time:** After the status becomes **Refund Completed**, PayMongo has successfully sent the refund to its payment partner. PayMongo states that eWallet refunds should normally appear in the customer's account **within the day**. This is a provider expectation, not a CargoExpress guarantee, and the customer's GCash balance may update later than CargoExpress.
 
 Never promise that the funds are already visible in GCash until the customer confirms that they received them.
@@ -73,7 +73,7 @@ Only **Refund Completed** is a successful financial outcome. Preparing, pending,
 7. The independent recovery worker also asks PayMongo for refunds so a missed webhook or a dashboard-created refund can still be discovered.
 8. Only a `succeeded` refund changes the order's financial totals and creates the customer's **Refund Completed** notification.
 
-The original successful payment remains in history. CargoExpress adds a separate negative refund row instead of rewriting or deleting the payment.
+The original successful payment remains in history. CargoExpress adds a separate refund row instead of rewriting or deleting the payment. Customer-facing history uses positive, status-aware wording such as **₱500 refund requested**, **₱500 returned**, or **₱500 not refunded**; it does not show a bare negative amount that could be mistaken for a charge.
 
 ## Full and partial refunds
 
@@ -119,7 +119,9 @@ Automatic recovery is a safety path in addition to webhooks.
 - The worker uses server-only credentials; customers and ordinary signed-in users cannot run or inspect it.
 - It checks refunds attached to verified PayMongo payments and reconciles provider changes idempotently.
 - It can discover a refund created directly in PayMongo Dashboard when the corresponding payment is still inside the recovery scan window.
-- It revisits unresolved refunds every 5 minutes after a successful scan and normally checks other active payments every 15 minutes.
+- It prioritizes unresolved work: every 5 minutes while new/unlinked or less than an hour old, every 30 minutes through the first day, and every 6 hours afterward.
+- Payments with completed or failed refund history are checked every 12 hours for additional provider activity.
+- Payments with no refund activity are checked every 6 hours for the first 7 days, daily through day 30, and every 72 hours afterward. This preserves dashboard-refund discovery without unnecessary PayMongo calls.
 - If PayMongo is temporarily unavailable, the job remains active and retries with exponential backoff, capped at 6 hours.
 - If an app request has an uncertain outcome, recovery waits at least 2 minutes and can replay only that same logical request, with the same amount, body, and idempotency key.
 - The protected automatic replay window is 23 hours. If a successful provider lookup finds no refund before that window expires, CargoExpress marks the local request failed and releases the reservation.
@@ -169,12 +171,14 @@ Test and live resources are isolated. A test payment or refund cannot be managed
 When, and only when, PayMongo reports `succeeded` and CargoExpress reconciles it:
 
 - A separate refund row appears in admin and customer payment history.
-- The refund amount is displayed as a negative amount.
+- Customer history displays a positive amount with an accurate state label: **refund requested**, **returned**, or **not refunded**. Monthly totals use **Net paid** or **Net refunded** with a positive peso amount instead of an ambiguous minus sign.
 - `orders.amount_paid` becomes gross successful payments minus succeeded refunds.
 - Remaining balance and payment status are recalculated from that net amount.
 - Sales and reports retain gross collections, show refunds separately, and calculate net collections.
 - The customer receives one deduplicated **Refund Completed** notification.
 - The shipment status remains unchanged.
+
+Customer history identifies human-entered activity only as **CargoExpress Staff**. Real administrator names and internal provider fields remain available to authorized admins, but are not returned to customers.
 
 Pending, processing, failed, and unknown refunds do not reduce collected totals and do not generate a completed-refund notification.
 

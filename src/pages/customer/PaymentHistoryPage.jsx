@@ -18,7 +18,7 @@ import { outstandingBalance } from '../../constants/status';
 import {
   formatPaymentType, formatPaymentMethod as fmtMethod, formatRecordedBy,
   getPaymentActivityStatusDisplay, getCustomerVisibleRef, getCustomerFriendlyNotes,
-  getRefundAmountDisplay,
+  getRefundAmountDisplay, getNetPaymentActivityDisplay,
 } from '../../utils/paymentDisplay';
 
 // Peso sign, like every other money figure in the app. This page was the one
@@ -294,6 +294,7 @@ const PaymentHistoryPage = () => {
     () => visibleTransactions.reduce((sum, tx) => sum + Number(tx.financial_amount ?? tx.amount ?? 0), 0),
     [visibleTransactions],
   );
+  const monthNetDisplay = getNetPaymentActivityDisplay(monthTotal, formatMoney);
 
   return (
     <div className="page-transition customer-payment-history-page">
@@ -422,8 +423,8 @@ const PaymentHistoryPage = () => {
                 })}
               </div>
               <div className="payment-list-total">
-                <span>Net payments after completed refunds</span>
-                <span className="fw-800">{formatMoney(monthTotal)}</span>
+                <span>{monthNetDisplay.label}</span>
+                <span className="fw-800">{monthNetDisplay.amount}</span>
               </div>
             </>
           )}

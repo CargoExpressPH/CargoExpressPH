@@ -80,6 +80,9 @@ console.log(`  applied ${hardeningMigration}`);
 const adminNameMigration = '20260913100000_show_admin_name_to_customers.sql';
 await db.exec(readFileSync(path.join(REPO, 'supabase/migrations', adminNameMigration), 'utf8'));
 console.log(`  applied ${adminNameMigration}`);
+const correctiveMigration = '20260913110000_restore_payment_privacy_and_recovery_efficiency.sql';
+await db.exec(readFileSync(path.join(REPO, 'supabase/migrations', correctiveMigration), 'utf8'));
+console.log(`  applied ${correctiveMigration}`);
 
 const ADMIN = '10000000-0000-4000-8000-000000000001';
 const CUSTOMER = '10000000-0000-4000-8000-000000000002';
@@ -116,6 +119,14 @@ ok(
     && customerLedger.transaction_reference === null,
   customerLedger,
 );
+const customerManualLedger = await value(`SELECT admin_name FROM get_payment_transaction_history(ARRAY[$1::UUID]) WHERE gcash_channel='manual'`, [order.id]);
+ok('customer payment read model replaces a real staff name with a generic label', customerManualLedger.admin_name === 'CargoExpress Staff', customerManualLedger);
+await query(`SELECT set_config('app.uid',$1,false)`, [ADMIN]);
+const adminManualLedger = await value(`SELECT admin_name FROM get_payment_transaction_history(ARRAY[$1::UUID]) WHERE gcash_channel='manual'`, [order.id]);
+ok('admin payment read model retains the staff audit name', adminManualLedger.admin_name === 'Admin One', adminManualLedger);
+await query(`SELECT set_config('app.uid',$1,false)`, [CUSTOMER]);
+const obsoleteReadModel = await value(`SELECT COUNT(*)::INT AS count FROM pg_proc WHERE proname='get_payment_activity_history'`);
+ok('obsolete alternate payment read model is removed', obsoleteReadModel.count === 0, obsoleteReadModel);
 
 const cron = await value(`SELECT schedule, command FROM cron.job WHERE jobname='paymongo_refund_recovery'`);
 ok('five-minute recovery cron is registered', cron.schedule === '*/5 * * * *' && /trigger_paymongo_refund_recovery/.test(cron.command), cron);
@@ -138,7 +149,15 @@ ok('active lease prevents a concurrent duplicate scan', duplicateClaim.count ===
 
 let finished = await value(`SELECT finish_paymongo_refund_recovery_job($1,$2,TRUE,FALSE,FALSE,0,NULL) AS done`, [payment.id, claim.claim_token]);
 let state = await value(`SELECT livemode,status,consecutive_failures,next_check_at,EXTRACT(EPOCH FROM (next_check_at-NOW())) AS delay_seconds FROM private.paymongo_refund_recovery_jobs WHERE payment_transaction_id=$1`, [payment.id]);
-ok('new no-refund payment uses a bounded thirty-minute recovery interval', finished.done === true && state.livemode === false && state.status === 'active' && Number(state.delay_seconds) > 1200, state);
+ok(
+  'new payment with no refund activity uses a six-hour recovery interval',
+  finished.done === true
+    && state.livemode === false
+    && state.status === 'active'
+    && Number(state.delay_seconds) > 21000
+    && Number(state.delay_seconds) <= 21600,
+  state,
+);
 
 await query(`UPDATE private.paymongo_refund_recovery_jobs SET next_check_at=NOW() WHERE payment_transaction_id=$1`, [payment.id]);
 const liveClaim = await value(`SELECT COUNT(*)::INT AS count FROM claim_paymongo_refund_recovery_jobs(15,TRUE)`);
@@ -149,12 +168,12 @@ finished = await value(`SELECT finish_paymongo_refund_recovery_job($1,$2,FALSE,F
 state = await value(`SELECT status,consecutive_failures,last_error,last_error_at,claim_token FROM private.paymongo_refund_recovery_jobs WHERE payment_transaction_id=$1`, [payment.id]);
 ok('provider failure retains staged diagnostics, releases the lease, and remains retryable', finished.done === true && state.status === 'active' && state.consecutive_failures === 1 && /list_provider_refunds.*503.*provider unavailable/.test(state.last_error) && state.last_error_at && state.claim_token === null, state);
 
-await query(`UPDATE payment_transactions SET created_at=NOW()-INTERVAL '30 days' WHERE id=$1`, [payment.id]);
+await query(`UPDATE payment_transactions SET created_at=NOW()-INTERVAL '45 days' WHERE id=$1`, [payment.id]);
 await query(`UPDATE private.paymongo_refund_recovery_jobs SET next_check_at=NOW(), scan_until=NOW()+INTERVAL '30 days' WHERE payment_transaction_id=$1`, [payment.id]);
 claim = await value(`SELECT * FROM claim_paymongo_refund_recovery_jobs(15,FALSE)`);
 await query(`SELECT finish_paymongo_refund_recovery_job($1,$2,TRUE,FALSE,FALSE,0,NULL)`, [payment.id, claim.claim_token]);
 state = await value(`SELECT EXTRACT(EPOCH FROM (next_check_at-NOW())) AS delay_seconds FROM private.paymongo_refund_recovery_jobs WHERE payment_transaction_id=$1`, [payment.id]);
-ok('old payment with no refund activity is checked daily rather than every fifteen minutes', Number(state.delay_seconds) > 82800, state);
+ok('old payment with no refund activity is checked every three days', Number(state.delay_seconds) > 258000, state);
 
 await query(`
   UPDATE private.paymongo_refund_recovery_jobs
@@ -175,9 +194,9 @@ ok('unknown provider outcome is retained as an explicit uncertain state', uncert
 await query(`SELECT set_config('app.uid',$1,false), set_config('app.role','authenticated',false)`, [CUSTOMER]);
 const customerRefund = await value(`SELECT initiated_by,initiated_by_name,notes,payment_id,outcome_uncertain FROM get_payment_refund_history(ARRAY[$1::UUID]) WHERE outcome_uncertain LIMIT 1`, [order.id]);
 ok(
-  'customer refund read model exposes uncertainty and staff identity but not provider internals',
+  'customer refund read model exposes uncertainty but masks staff and provider internals',
   customerRefund.initiated_by === null
-    && customerRefund.initiated_by_name === 'Admin One'
+    && customerRefund.initiated_by_name === 'CargoExpress Staff'
     && customerRefund.notes === null
     && customerRefund.payment_id === null
     && customerRefund.outcome_uncertain === true,

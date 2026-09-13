@@ -17,6 +17,8 @@ assert.match(page, /Phone not provided/);
 assert.match(page, /No bookings yet/);
 assert.match(page, /balance > 0 &&/);
 assert.match(page, /maxLength=\{100\}/);
+assert.doesNotMatch(page, /getCustomerProvinces|SORT_OPTIONS|setProvince|setSort/);
+assert.doesNotMatch(page, /repeat\(3, minmax\(140px, 1fr\)\)/);
 
 const mobileMarkup = page.match(/<div className="customer-directory-mobile"[\s\S]*?<div className="customer-directory-pagination">/)?.[0] || '';
 assert.ok(mobileMarkup, 'mobile customer list markup is missing');
