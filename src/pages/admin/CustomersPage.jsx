@@ -313,7 +313,7 @@ const CustomersPage = () => {
                       <td><span className="customer-directory-truncate" title={location}>{location}</span></td>
                       <td className="num customer-directory-number">{Number(customer.total_bookings || 0).toLocaleString('en-PH')}</td>
                       <td className="num customer-directory-balance">
-                        {balance > 0 ? formatMoney(balance) : <span className="customer-directory-paid">Fully paid</span>}
+                        {Number(customer.total_bookings || 0) === 0 ? <span className="text-tertiary">No balance</span> : balance > 0 ? formatMoney(balance) : <span className="customer-directory-paid">Fully paid</span>}
                       </td>
                       <td>{customer.last_booking_at ? formatPhDate(customer.last_booking_at) : <span className="text-tertiary">No bookings yet</span>}</td>
                       <td><CustomerStatus customer={customer} /></td>
