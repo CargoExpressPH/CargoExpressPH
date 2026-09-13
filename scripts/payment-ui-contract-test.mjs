@@ -26,7 +26,7 @@ assert.match(styles, /\.pr-btn-success\s*\{[\s\S]*?background:\s*var\(--success-
 assert.match(styles, /\.pr-btn-danger\s*\{[\s\S]*?background:\s*var\(--error-fill\)/);
 assert.equal(formatRecordedBy('System Webhook', 'customer'), 'Payment System (GCash verified)');
 assert.equal(formatRecordedBy('System', 'customer'), 'Payment System (GCash verified)');
-assert.equal(formatRecordedBy('Maria Santos', 'customer'), 'CargoExpress Staff');
+assert.equal(formatRecordedBy('Maria Santos', 'customer'), 'Maria Santos');
 assert.equal(formatRecordedBy('Maria Santos', 'admin'), 'Maria Santos');
 assert.doesNotMatch(customerOrderDetail, /Opening GCash/);
 

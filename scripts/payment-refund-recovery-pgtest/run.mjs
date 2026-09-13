@@ -77,6 +77,9 @@ console.log(`  applied ${migration}`);
 const hardeningMigration = '20260913090000_refund_ux_privacy_recovery_hardening.sql';
 await db.exec(readFileSync(path.join(REPO, 'supabase/migrations', hardeningMigration), 'utf8'));
 console.log(`  applied ${hardeningMigration}`);
+const adminNameMigration = '20260913100000_show_admin_name_to_customers.sql';
+await db.exec(readFileSync(path.join(REPO, 'supabase/migrations', adminNameMigration), 'utf8'));
+console.log(`  applied ${adminNameMigration}`);
 
 const ADMIN = '10000000-0000-4000-8000-000000000001';
 const CUSTOMER = '10000000-0000-4000-8000-000000000002';
@@ -172,9 +175,9 @@ ok('unknown provider outcome is retained as an explicit uncertain state', uncert
 await query(`SELECT set_config('app.uid',$1,false), set_config('app.role','authenticated',false)`, [CUSTOMER]);
 const customerRefund = await value(`SELECT initiated_by,initiated_by_name,notes,payment_id,outcome_uncertain FROM get_payment_refund_history(ARRAY[$1::UUID]) WHERE outcome_uncertain LIMIT 1`, [order.id]);
 ok(
-  'customer refund read model exposes uncertainty but not staff identity or provider internals',
+  'customer refund read model exposes uncertainty and staff identity but not provider internals',
   customerRefund.initiated_by === null
-    && customerRefund.initiated_by_name === 'CargoExpress Staff'
+    && customerRefund.initiated_by_name === 'Admin One'
     && customerRefund.notes === null
     && customerRefund.payment_id === null
     && customerRefund.outcome_uncertain === true,

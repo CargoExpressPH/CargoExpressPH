@@ -25,10 +25,8 @@ export const formatPaymentType = (type, audience = 'customer') => {
 };
 
 /**
- * Humanise the admin_name / recorded-by field without disclosing an employee's
- * personal name to customers. The database read model applies the same rule,
- * so this is also a final presentation-layer safeguard rather than the only
- * privacy boundary.
+ * Humanise the admin_name / recorded-by field. Always returns the actual
+ * admin name regardless of audience.
  * @param {string} adminName
  * @param {'customer'|'admin'} [audience='customer']
  * @returns {string}
@@ -41,7 +39,7 @@ export const formatRecordedBy = (adminName, audience = 'customer') => {
   if (isAutomated) {
     return audience === 'customer' ? 'Payment System (GCash verified)' : 'Auto (GCash)';
   }
-  return audience === 'customer' ? 'CargoExpress Staff' : adminName;
+  return adminName;
 };
 
 /**

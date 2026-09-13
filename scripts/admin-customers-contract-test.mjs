@@ -7,7 +7,7 @@ const database = readFileSync('src/lib/database.js', 'utf8');
 const migration = readFileSync('supabase/migrations/20260912022000_admin_customer_directory.sql', 'utf8');
 
 assert.match(page, /<table className="data-table customer-directory-table">/);
-for (const heading of ['Customer', 'Contact', 'Location', 'Bookings', 'Outstanding', 'Last booking', 'Status', 'Action']) {
+for (const heading of ['Customer', 'Location', 'Bookings', 'Outstanding', 'Last booking', 'Status', 'Action']) {
   assert.match(page, new RegExp(`>${heading}<`), `desktop table is missing ${heading}`);
 }
 assert.match(page, /customer-directory-mobile-card/);
