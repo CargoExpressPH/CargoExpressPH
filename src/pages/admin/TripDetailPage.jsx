@@ -38,7 +38,7 @@ const TripDetailPage = () => {
     try {
       const result = await getTripById(id);
       if (isMounted) setData(result);
-      const actLogs = await getActivityLogsByRecord(id);
+      const actLogs = await getActivityLogsByRecord(id, result?.trip?.trip_number);
       if (isMounted) setActivityHistory(actLogs);
     } catch(e) {
       if (isMounted) setError(e.message || 'Failed to load trip.');

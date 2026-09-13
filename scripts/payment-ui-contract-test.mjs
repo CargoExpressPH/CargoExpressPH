@@ -2,7 +2,6 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
   formatRecordedBy,
-  formatPaymentMethod,
   formatRefundRecordedBy,
   getNetPaymentActivityDisplay,
   getRefundAmountDisplay,
@@ -39,9 +38,6 @@ assert.equal(formatRecordedBy('System Webhook', 'customer'), 'Payment System (GC
 assert.equal(formatRecordedBy('System', 'customer'), 'Payment System (GCash verified)');
 assert.equal(formatRecordedBy('Maria Santos', 'customer'), 'CargoExpress Staff');
 assert.equal(formatRecordedBy('Maria Santos', 'admin'), 'Maria Santos');
-assert.equal(formatPaymentMethod('gcash', 'paymongo'), 'GCash (online)');
-assert.equal(formatPaymentMethod('gcash', 'manual'), 'GCash transfer (staff verified)');
-assert.equal(formatPaymentMethod('gcash', 'manual', 'admin'), 'Direct GCash transfer (staff verified)');
 assert.equal(formatRefundRecordedBy('Maria Santos'), 'Maria Santos');
 assert.equal(formatRefundRecordedBy('System Webhook'), 'Payment System (GCash verified)');
 assert.match(customerOrderDetail, /tx\.is_refund[\s\S]*?formatRefundRecordedBy\(tx\.admin_name\)/);
@@ -90,11 +86,10 @@ assert.deepEqual(
 );
 assert.doesNotMatch(customerOrderDetail, /Maria Santos/);
 assert.match(customerPaymentHistory, /monthNetDisplay\.amount/);
-assert.match(customerPaymentHistory, /GCash \(online\)/);
-assert.match(customerPaymentHistory, /tx\.gcash_channel/);
+assert.match(customerPaymentHistory, /\{ title: 'GCash', icon: Smartphone/);
 assert.match(customerOrderDetail, /trackingNumber=\{order\?\.tracking_number\}/);
 assert.match(paymentReturn, /trackingNumber=\{trackingNumber \?\? undefined\}/);
-assert.match(paymentReturn, /paymentMethod="GCash \(online\)"/);
+assert.match(paymentReturn, /paymentMethod="GCash"/);
 assert.match(adminOrderDetail, /getActivityLogsByRecord\(id, data\.tracking_number\)/);
 assert.doesNotMatch(customerOrderDetail, /`-\$\{formatMoney\(Math\.abs\(Number\(tx\.amount/);
 assert.match(adminOrderDetail, /result\?\.status === 'failed'[\s\S]*?toast\.error/);

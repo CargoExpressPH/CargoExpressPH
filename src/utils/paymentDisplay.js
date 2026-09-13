@@ -234,35 +234,17 @@ export const getPaymentActivityStatusDisplay = (transaction) => (
 );
 
 /**
- * Format payment method for clean display. GCash has two operational paths:
- * PayMongo's online checkout and a direct transfer verified by staff. Keep
- * that distinction visible anywhere a payment method is shown so a customer
- * does not confuse a system payment record with a generic GCash label.
- *
+ * Format payment method for clean display.
  * @param {string} method
- * @param {string|null} gcashChannel - `paymongo` or `manual`
- * @param {'customer'|'admin'} audience
  * @returns {string}
  */
-export const formatPaymentMethod = (method, gcashChannel = null, audience = 'customer') => {
+export const formatPaymentMethod = (method) => {
   if (!method) return '\u2014';
-  const key = String(method).toLowerCase();
-  const channel = String(gcashChannel || '').toLowerCase();
-  if (key === 'gcash') {
-    if (channel === 'manual') {
-      return audience === 'admin'
-        ? 'Direct GCash transfer (staff verified)'
-        : 'GCash transfer (staff verified)';
-    }
-    if (channel === 'paymongo') {
-      return audience === 'admin' ? 'GCash online (PayMongo)' : 'GCash (online)';
-    }
-    return 'GCash';
-  }
   const map = {
+    gcash: 'GCash',
     cash: 'Cash',
     paylater: 'Pay Later',
     bank_transfer: 'Bank Transfer',
   };
-  return map[key] || method;
+  return map[method.toLowerCase()] || method;
 };

@@ -23,7 +23,7 @@ const PaymentResultModal = ({
   variant = 'success',
   amount,
   trackingNumber,
-  paymentMethod = 'GCash (online)',
+  paymentMethod = 'GCash',
   onRetry,
 }) => {
   const titleId = useId();
@@ -50,7 +50,7 @@ const PaymentResultModal = ({
   const isSuccess = variant === 'success';
   const isError = variant === 'error';
   const isProcessing = variant === 'processing';
-  const displayPaymentMethod = paymentMethod || 'GCash (online)';
+  const displayPaymentMethod = paymentMethod || 'GCash';
 
   const title = isSuccess ? 'Payment Successful!'
     : isError ? 'Payment Failed!'

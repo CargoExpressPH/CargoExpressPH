@@ -57,7 +57,10 @@ const formatDateTime = (value) => {
 };
 
 const methodLabel = (method) => {
-  return method ? fmtMethod(method, null, 'customer') : 'Not recorded';
+  if (method === 'gcash') return 'GCash';
+  if (method === 'paylater') return 'Pay Later';
+  if (method === 'cash') return 'Cash';
+  return method || 'Not recorded';
 };
 
 /** A payment's month bucket, as a sortable `YYYY-MM` key. */
@@ -74,7 +77,7 @@ const monthLabel = (key) => {
 };
 
 const paymentOptions = [
-  { title: 'GCash (online)', icon: Smartphone, tone: 'info', detail: 'Pay securely through the GCash payment link sent by CargoExpress PH.' },
+  { title: 'GCash', icon: Smartphone, tone: 'info', detail: 'Pay through the secure GCash flow when staff sends a payment request.' },
   { title: 'Cash', icon: Banknote, tone: 'success', detail: 'Pay the cargo handler directly at pickup. Remaining balances after pickup are settled through GCash.' },
   { title: 'Pay Later', icon: CalendarClock, tone: 'warning', detail: 'Downpayment now, with a promised payment date.' },
 ];
@@ -106,7 +109,7 @@ const PaymentDetailModal = ({ tx, onClose, onViewOrder }) => {
   const rows = [
     ['Order', tx.order?.tracking_number || 'Not linked'],
     ['Payment type', formatPaymentType(tx.payment_type)],
-    ['Payment method', fmtMethod(tx.payment_method, tx.gcash_channel, 'customer')],
+    ['Method', fmtMethod(tx.payment_method)],
     ['Date recorded', formatDateTime(tx.payment_date || tx.created_at)],
     // Only a reference the customer can actually cross-check against their own
     // receipt is shown; getCustomerVisibleRef drops PayMongo's internal ids,

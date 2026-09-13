@@ -7,6 +7,7 @@ const paymentDisplayMigration = read('supabase/migrations/20260913074625_payment
 const reliabilityMigration = read('supabase/migrations/20260902030000_reliable_realtime_activity_logs.sql');
 const schema = read('supabase/schema.sql');
 const page = read('src/pages/admin/ActivityLogsPage.jsx');
+const tripDetailPage = read('src/pages/admin/TripDetailPage.jsx');
 const database = read('src/lib/database.js');
 const logger = read('src/lib/activityLog.js');
 const feedback = read('src/pages/admin/FeedbackPage.jsx');
@@ -27,6 +28,7 @@ assert.match(paymentDisplayMigration, /idx_activity_logs_record_ref/);
 assert.match(paymentDisplayMigration, /GCash online payment \(automatically verified\)/);
 assert.match(paymentDisplayMigration, /Direct GCash transfer \(staff verified\)/);
 assert.match(paymentDisplayMigration, /record_type = 'payment'/);
+assert.match(tripDetailPage, /getActivityLogsByRecord\(id, result\?\.trip\?\.trip_number\)/);
 
 assert.match(reliabilityMigration, /ADD COLUMN IF NOT EXISTS client_event_id UUID/);
 assert.match(reliabilityMigration, /CREATE UNIQUE INDEX IF NOT EXISTS idx_activity_logs_actor_client_event/);

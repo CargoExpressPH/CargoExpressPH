@@ -255,7 +255,7 @@ const PaymentReturnPage = () => {
       variant={phase === 'failed' ? 'error' : phase === 'stuck' ? 'processing' : 'success'}
       amount={paidAmount ?? undefined}
       trackingNumber={trackingNumber ?? undefined}
-      paymentMethod="GCash (online)"
+      paymentMethod="GCash"
       onClose={goToOrder}
     />
   );
