@@ -16,6 +16,7 @@
     "test:shipping-discount": "node scripts/shipping-discount-pgtest/run.mjs",
     "test:photo-gallery": "node scripts/photo-gallery-pgtest/run.mjs",
     "test:delivery-cash-payment": "node scripts/delivery-cash-payment-pgtest/run.mjs",
+    "test:contact-details-lock": "node scripts/contact-details-lock-pgtest/run.mjs && node scripts/contact-details-lock-pgtest/trigger-bypass-run.mjs",
     "test:service-area-mass-assignment": "node scripts/service-area-mass-assignment-pgtest/run.mjs",
     "test:legacy-rpc-overload-cleanup": "node scripts/legacy-rpc-overload-cleanup-pgtest/run.mjs",
     "test:pwa-offline": "node scripts/pwa-offline-contract-test.mjs",

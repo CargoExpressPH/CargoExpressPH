@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { getOrderById, updateOrder, updateOrderContactDetails, getTripReassignments, reassignTrip, getActivityLogsByRecord, getPaymentTransactions, recordAdditionalPayment, recordPickupPayment, recordDeliveryPayment, getOrderStatusEvents, reviewOrderCancellation, cancelOrderAsAdmin, assignOrderToCustomer, getLatestPaymentAttemptByOrder, clearPaymentReceiptUrls } from '../../lib/database';
+import { getOrderById, updateOrder, updateOrderContactDetails, getTripReassignments, reassignTrip, getActivityLogsByRecord, getPaymentTransactions, recordAdditionalPayment, recordPickupPayment, recordDeliveryPayment, getOrderStatusEvents, reviewOrderCancellation, cancelOrderAsAdmin, assignOrderToCustomer, getLatestPaymentAttemptByOrder, clearPaymentReceiptUrls, getOrderFeedback } from '../../lib/database';
 import { pollPaymentStatus } from '../../lib/paymongo';
 import { clearPendingPayment, getPendingPayment } from '../../lib/pendingPayment';
 import { isPaymentPollReconciled } from '../../utils/paymentReconciliation';
@@ -27,17 +27,18 @@ import Breadcrumb from '../../components/ui/Breadcrumb';
 import FocusTrap from '../../components/ui/FocusTrap';
 import { CenteredSpinner } from '../../components/ui/Loader';
 import ErrorBoundarySection from '../../components/ui/ErrorBoundarySection';
-import CustomSelect from '../../components/ui/CustomSelect';
 import MessageCustomerButton from '../../components/ui/MessageCustomerButton';
+import WebsiteFeatureModal from '../../components/ui/WebsiteFeatureModal';
 import {
   STATUS_FLOW, STATUS_TIMELINE, validateStatusTransition,
   getSettlementState, SETTLEMENT_STATE, outstandingBalance,
   PAYMENT_METHODS, PAYMENT_STATUSES, ORDER_STATUS,
-  isTripControlledAdvance, canAdminCancelOrder, hasPendingCancellation, timelineStatus
+  isTripControlledAdvance, canAdminCancelOrder, hasPendingCancellation, timelineStatus,
+  ADMIN_CONTACT_EDIT_LOCKED_STATUSES
 } from '../../constants/status';
 import {
   ArrowLeft, Check, Package, CreditCard, User, Phone, MapPin,
-  Truck, Loader, Save, Camera, AlertTriangle, X, Image, Clock, Trash2, Star, ChevronDown, UserPlus, Tag, RotateCcw
+  Truck, Loader, Camera, AlertTriangle, X, Image, Clock, Trash2, Star, ChevronDown, UserPlus, Tag, RotateCcw, Lock
 } from 'lucide-react';
 import { useToast } from '../../hooks/useToast';
 import { useAuth } from '../../contexts/AuthContext';
@@ -127,7 +128,13 @@ const AdminOrderDetailPage = () => {
   const [refundPayment, setRefundPayment] = useState(null);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [paymentResultModal, setPaymentResultModal] = useState(null);
-  const [isFeatureExpanded, setIsFeatureExpanded] = useState(false);
+  // Feature modal replaces the old inline collapsible section
+  const [showFeatureModal, setShowFeatureModal] = useState(false);
+  // Activity history collapse (collapsed = true hides the list; default expanded)
+  const [activityCollapsed, setActivityCollapsed] = useState(false);
+  // Feedback for this exact booking (fetched on demand when feature modal opens)
+  const [orderFeedback, setOrderFeedback] = useState(null);
+  const [feedbackLoading, setFeedbackLoading] = useState(false);
 
   const [showDeliveryModal, setShowDeliveryModal] = useState(false);
   const [showRejectModal, setShowRejectModal] = useState(false);
@@ -145,13 +152,8 @@ const AdminOrderDetailPage = () => {
   const [resolvedDeliveryPhotos, setResolvedDeliveryPhotos] = useState([]);
   const [deliveryPhotoLoadState, setDeliveryPhotoLoadState] = useState({});
 
-  // Feature state
-  const [featureForm, setFeatureForm] = useState({
-    featured_on_website: false,
-    featured_title: '',
-    featured_caption: '',
-    featured_image_type: 'pickup'
-  });
+  // savingFeature: owned by parent so the modal button disables correctly
+  // while the updateOrder() call is in-flight.
   const [savingFeature, setSavingFeature] = useState(false);
 
   /**
@@ -491,11 +493,14 @@ const AdminOrderDetailPage = () => {
     }
   };
 
-  // Admin override: update_order_contact_details() (see lib/database.js)
-  // skips the status-lock check for an admin caller (that lock is
-  // customer-only — see canEditContactDetails) but still writes the
-  // activity_logs row in the same transaction as the update, so no separate
-  // logOrder() call is made here on purpose.
+  // update_order_contact_details() (see lib/database.js) re-checks the
+  // status lock server-side for BOTH roles — admin is blocked at Out for
+  // Delivery/Delivered (ADMIN_CONTACT_EDIT_LOCKED_STATUSES, 20260915120000),
+  // customer additionally at Cancelled (canEditContactDetails) — so a stale
+  // form left open across a status change is rejected here with the RPC's
+  // own error message, surfaced by the catch block below. The RPC also
+  // writes the activity_logs row in the same transaction as the update, so
+  // no separate logOrder() call is made here on purpose.
   const handleSaveContactDetails = async (fields) => {
     setSavingContactDetails(true);
     try {
@@ -609,30 +614,9 @@ const AdminOrderDetailPage = () => {
     }
   };
 
-  const handleSaveFeature = async () => {
-    if (featureForm.featured_on_website && !featureForm.featured_title) {
-      toast.error('Highlight title is required when featuring.');
-      return;
-    }
-    const featuredPhotos = featureForm.featured_image_type === 'delivery'
-        && Array.isArray(order.delivery_photos)
-        && order.delivery_photos.length > 0
-      ? order.delivery_photos
-      : order.pickup_photos;
-    if (featureForm.featured_on_website
-        && (!Array.isArray(featuredPhotos) || featuredPhotos.length === 0)) {
-      toast.error('Upload at least one pickup or delivery photo before featuring this order.');
-      return;
-    }
+  const handleSaveFeature = async (dataToSave) => {
     setSavingFeature(true);
     try {
-      const dataToSave = {
-        featured_on_website: featureForm.featured_on_website,
-        featured_title: featureForm.featured_title || null,
-        featured_caption: featureForm.featured_caption || null,
-        featured_image_type: featureForm.featured_image_type,
-        featured_at: featureForm.featured_on_website ? (order.featured_at || new Date().toISOString()) : null
-      };
       await updateOrder(id, dataToSave);
       logOrder(
         dataToSave.featured_on_website ? 'Featured on Website' : 'Removed from Website Feature',
@@ -647,11 +631,30 @@ const AdminOrderDetailPage = () => {
         }
       );
       toast.success('Website feature updated.');
+      setShowFeatureModal(false);
       await loadOrder();
     } catch (err) {
       toast.error('Failed to update website feature.');
     } finally {
       setSavingFeature(false);
+    }
+  };
+
+  // Fetch feedback by order_id (a UNIQUE FK on customer_feedback — the real
+  // booking relationship, not a name match) and open the feature modal.
+  // Feedback is fetched on demand (not on every page load) to avoid an
+  // extra query on every admin visiting an order they never intend to feature.
+  const openFeatureModal = async () => {
+    setOrderFeedback(null);
+    setShowFeatureModal(true);
+    setFeedbackLoading(true);
+    try {
+      const data = await getOrderFeedback(id);
+      setOrderFeedback(data ?? null);
+    } catch (_) {
+      // Feedback fetch failure is non-fatal; the modal still works
+    } finally {
+      setFeedbackLoading(false);
     }
   };
 
@@ -990,14 +993,41 @@ const AdminOrderDetailPage = () => {
       </ErrorBoundarySection>
 
       {/* Sender / Receiver */}
-      <div className="flex items-center justify-between mb-8">
-        <h3 className="text-sm fw-700 m-0">Sender &amp; Receiver</h3>
-        {/* Admin override: unlike the customer page, this is never hidden by
-            order status — see canEditContactDetails' doc comment. */}
-        <button type="button" className="btn btn-outline btn-sm" onClick={() => setShowEditContactModal(true)}>
-          Edit Details
-        </button>
-      </div>
+      {/* Contact details are locked once the booking is Out for Delivery or Delivered.
+          ADMIN_CONTACT_EDIT_LOCKED_STATUSES mirrors the admin branch of the
+          backend SQL guard in update_order_contact_details() (20260915120000)
+          — both must agree. Deliberately NOT CONTACT_EDIT_LOCKED_STATUSES,
+          which is the customer-facing list and also includes Cancelled — an
+          admin may still correct a Cancelled booking's address. */}
+      {(() => {
+        const contactLocked = ADMIN_CONTACT_EDIT_LOCKED_STATUSES.includes(order.status);
+        return (
+          <>
+            <div className="flex items-center justify-between mb-8">
+              <h3 className="text-sm fw-700 m-0">Sender &amp; Receiver</h3>
+              {contactLocked ? (
+                <span
+                  className="flex items-center gap-4 text-xs text-tertiary"
+                  title="Customer details are locked once the booking is out for delivery."
+                >
+                  <Lock size={12} />
+                  Locked
+                </span>
+              ) : (
+                <button type="button" className="btn btn-outline btn-sm" onClick={() => setShowEditContactModal(true)}>
+                  Edit Details
+                </button>
+              )}
+            </div>
+            {contactLocked && (
+              <p className="text-xs text-secondary mb-8" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                <Lock size={11} style={{ flexShrink: 0 }} />
+                Customer details are locked once the booking is out for delivery.
+              </p>
+            )}
+          </>
+        );
+      })()}
       <div className="grid grid-2 mb-16">
         <div className="card stagger-item" style={{ animationDelay: '180ms' }}><div className="card-body p-16">
           <div className="text-xs text-tertiary font-bold text-uppercase flex items-center gap-6" style={{ marginBottom: 10 }}><User size={12} /> Sender</div>
@@ -1355,141 +1385,93 @@ const AdminOrderDetailPage = () => {
         <span>Updated: {safeFormatDateTime(order.updated_at)}</span>
       </div>
 
-      {/* Activity History */}
+      {/* Activity History — collapsible */}
       {activityHistory.length > 0 && (
         <div className="card admin-section-card stagger-item mt-16" style={{ animationDelay: '480ms' }}>
-          <div className="card-header">
+          <div className="card-header flex items-center justify-between" style={{ paddingBottom: activityCollapsed ? 16 : 8 }}>
             <h3><Clock size={16} className="inline mr-8" />Activity History</h3>
-          </div>
-          <div className="card-body" style={{ paddingTop: 8 }}>
-            <div className="relative" style={{paddingLeft: 20}}>
-              {/* Vertical line */}
-              <div className="absolute" style={{left: 7, top: 8, bottom: 8, width: 2, background: 'var(--border)', borderRadius: 'var(--radius-full)'}} />
-              {activityHistory.map((log) => (
-                <div key={log.id} className="relative" style={{marginBottom: 16, paddingLeft: 20}}>
-                  {/* Dot */}
-                  <div className="absolute" style={{left: -13, top: 4, width: 10, height: 10,
-                    borderRadius: '50%', background: 'var(--primary)', border: '2px solid var(--surface)',
-                    boxShadow: '0 0 0 2px var(--primary)',
-                  }} />
-                  <div className="text-xs text-tertiary mb-2">
-                    {safeFormatTime(log.created_at, { hour: '2-digit', minute: '2-digit' })}
-                    {' · '}
-                    {safeFormatDate(log.created_at, { month: 'short', day: 'numeric' })}
-                  </div>
-                  <div className="text-sm">
-                    <strong>{log.admin_name}</strong>
-                    {' '}
-                    <span className="text-secondary">{log.action}</span>
-                  </div>
-                  {log.details && (
-                    <div className="text-xs text-tertiary mt-2">{log.details}</div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Website Feature Section */}
-      {order.status === 'Delivered' && (resolvedPickupPhotos.length > 0 || resolvedDeliveryPhotos.length > 0) && (
-        <div className="card admin-section-card stagger-item mt-16" style={{ animationDelay: '520ms' }}>
-          <div 
-            className="card-header flex items-center justify-between cursor-pointer"
-            onClick={() => setIsFeatureExpanded(!isFeatureExpanded)}
-            style={{ paddingBottom: isFeatureExpanded ? 16 : 24 }}
-          >
-            <h3><Star size={16} className="inline mr-8 text-warning" />Website Feature</h3>
-            <button type="button" className="icon-btn p-4" aria-label="Toggle Website Feature section" onClick={(e) => { e.stopPropagation(); setIsFeatureExpanded(!isFeatureExpanded); }}>
-              <motion.div animate={{ rotate: isFeatureExpanded ? 180 : 0 }} transition={{ duration: 0.3 }}>
-                <ChevronDown size={18} />
+            <button
+              type="button"
+              className="btn-icon text-secondary"
+              aria-label={activityCollapsed ? 'Expand activity history' : 'Collapse activity history'}
+              aria-expanded={!activityCollapsed}
+              onClick={() => setActivityCollapsed((c) => !c)}
+            >
+              <motion.div animate={{ rotate: activityCollapsed ? 0 : 180 }} transition={{ duration: 0.2 }}>
+                <ChevronDown size={16} />
               </motion.div>
+              <span className="sr-only">{activityCollapsed ? 'Show' : 'Hide'}</span>
             </button>
           </div>
-          
-          <AnimatePresence>
-            {isFeatureExpanded && (
+          <AnimatePresence initial={false}>
+            {!activityCollapsed && (
               <motion.div
+                key="activity-body"
                 initial={{ height: 0, opacity: 0 }}
                 animate={{ height: 'auto', opacity: 1 }}
                 exit={{ height: 0, opacity: 0 }}
-                transition={{ duration: 0.3, ease: 'easeInOut' }}
+                transition={{ duration: 0.2, ease: 'easeInOut' }}
                 style={{ overflow: 'hidden' }}
               >
-                <div className="card-body" style={{ paddingTop: 0, borderTop: '1px solid var(--border)', marginTop: 16 }}>
-                  <div className="form-group flex items-center gap-12 mb-16" style={{ marginTop: 16 }}>
-                    <input
-                      type="checkbox"
-                      id="feature-website"
-                      checked={featureForm.featured_on_website}
-                      onChange={e => setFeatureForm({ ...featureForm, featured_on_website: e.target.checked })}
-                      className="w-18"
-                      style={{height: 18}}
-                    />
-                    <label htmlFor="feature-website" className="font-semibold text-lg cursor-pointer m-0">Feature this shipment on the website</label>
+                <div className="card-body" style={{ paddingTop: 8 }}>
+                  <div className="relative" style={{paddingLeft: 20}}>
+                    {/* Vertical line */}
+                    <div className="absolute" style={{left: 7, top: 8, bottom: 8, width: 2, background: 'var(--border)', borderRadius: 'var(--radius-full)'}} />
+                    {activityHistory.map((log) => (
+                      <div key={log.id} className="relative" style={{marginBottom: 16, paddingLeft: 20}}>
+                        {/* Dot */}
+                        <div className="absolute" style={{left: -13, top: 4, width: 10, height: 10,
+                          borderRadius: '50%', background: 'var(--primary)', border: '2px solid var(--surface)',
+                          boxShadow: '0 0 0 2px var(--primary)',
+                        }} />
+                        <div className="text-xs text-tertiary mb-2">
+                          {safeFormatTime(log.created_at, { hour: '2-digit', minute: '2-digit' })}
+                          {' · '}
+                          {safeFormatDate(log.created_at, { month: 'short', day: 'numeric' })}
+                        </div>
+                        <div className="text-sm">
+                          <strong>{log.admin_name}</strong>
+                          {' '}
+                          <span className="text-secondary">{log.action}</span>
+                        </div>
+                        {log.details && (
+                          <div className="text-xs text-tertiary mt-2">{log.details}</div>
+                        )}
+                      </div>
+                    ))}
                   </div>
-
-                  {featureForm.featured_on_website && (
-                    <div className="grid grid-2 gap-16 mt-16 p-16" style={{ background: 'var(--bg-secondary)', borderRadius: 'var(--radius-md)' }}>
-                      <div className="form-group col-full">
-                        <label className="form-label" htmlFor="order-featured-title">Highlight Title</label>
-                        <input
-                          id="order-featured-title"
-                          type="text"
-                          className="form-input"
-                          placeholder="e.g. Bound for Jagna"
-                          value={featureForm.featured_title}
-                          onChange={e => setFeatureForm({ ...featureForm, featured_title: e.target.value })}
-                        />
-                      </div>
-                      <div className="form-group col-full">
-                        <label className="form-label" htmlFor="order-featured-caption">Caption</label>
-                        <textarea
-                          id="order-featured-caption"
-                          className="form-textarea"
-                          rows={2}
-                          placeholder="Thank you for trusting CargoExpress PH..."
-                          value={featureForm.featured_caption}
-                          onChange={e => setFeatureForm({ ...featureForm, featured_caption: e.target.value })}
-                        />
-                      </div>
-                      <div className="form-group">
-                        <label className="form-label" htmlFor="order-featured-image">Featured Image</label>
-                        {/* CustomSelect for consistency with every other dropdown in
-                            the admin UI; a native select opens the OS picker instead. */}
-                        <CustomSelect
-                          id="order-featured-image"
-                          className="form-select"
-                          value={featureForm.featured_image_type}
-                          onChange={e => setFeatureForm({ ...featureForm, featured_image_type: e.target.value })}
-                        >
-                          {resolvedPickupPhotos.length > 0 && <option value="pickup">Use Pickup Proof</option>}
-                          {resolvedDeliveryPhotos.length > 0 && <option value="delivery">Use Delivery Proof</option>}
-                        </CustomSelect>
-                      </div>
-                      
-                      <div className="form-group flex justify-end col-full" style={{marginTop: 12}}>
-                        <button className="btn btn-primary" onClick={handleSaveFeature} disabled={savingFeature}>
-                          {savingFeature ? <Loader size={16} className="animate-spin" /> : <><Save size={16} /> Save Feature Settings</>}
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                  
-                  {!featureForm.featured_on_website && order.featured_on_website && (
-                     <div className="form-group flex justify-end" style={{ marginTop: 12 }}>
-                       <button className="btn btn-primary" onClick={handleSaveFeature} disabled={savingFeature}>
-                         {savingFeature ? <Loader size={16} className="animate-spin" /> : 'Save (Remove from Website)'}
-                       </button>
-                     </div>
-                  )}
                 </div>
               </motion.div>
             )}
           </AnimatePresence>
         </div>
       )}
+
+      {/* Website Feature — compact button that opens the modal */}
+      {order.status === 'Delivered' && (resolvedPickupPhotos.length > 0 || resolvedDeliveryPhotos.length > 0) && (
+        <div className="flex justify-end mt-16" style={{ animationDelay: '520ms' }}>
+          <button
+            type="button"
+            className={`btn ${order.featured_on_website ? 'btn-outline' : 'btn-secondary'} flex items-center gap-6`}
+            onClick={openFeatureModal}
+          >
+            <Star size={14} className={order.featured_on_website ? 'text-warning' : ''} />
+            {order.featured_on_website ? 'Manage Website Feature' : 'Feature This on Website'}
+          </button>
+        </div>
+      )}
+
+      <WebsiteFeatureModal
+        isOpen={showFeatureModal}
+        onClose={() => setShowFeatureModal(false)}
+        order={order}
+        feedback={orderFeedback}
+        feedbackLoading={feedbackLoading}
+        resolvedPickupPhotos={resolvedPickupPhotos}
+        resolvedDeliveryPhotos={resolvedDeliveryPhotos}
+        onSave={handleSaveFeature}
+        saving={savingFeature}
+      />
 
       {/* Modals */}
       {showPickupModal && (

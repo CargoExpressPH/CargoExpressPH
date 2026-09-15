@@ -236,15 +236,39 @@ export const hasPendingCancellation = (order) =>
  * already acting on (or nothing is happening at all) — a customer-side edit
  * at that point would not reach anyone.
  *
- * Admin editing is a separate, override path (see AdminOrderDetailPage) and
- * is intentionally NOT gated by this list — staff may need to correct a
- * typo'd address at any stage short of the booking being gone.
+ * Admin editing has its own, narrower list — ADMIN_CONTACT_EDIT_LOCKED_STATUSES
+ * below — not this one. Admins are still blocked at Out for Delivery/Delivered
+ * (see update_order_contact_details(), 20260915120000) but, unlike a customer,
+ * remain able to correct a Cancelled booking's address for archival/dispute
+ * purposes — the two roles were merged into one list once, which silently
+ * over-locked admins on Cancelled bookings; keep them separate.
  */
 export const CONTACT_EDIT_LOCKED_STATUSES = [
   ORDER_STATUS.OUT_FOR_DELIVERY,
   ORDER_STATUS.DELIVERED,
   ORDER_STATUS.CANCELLED,
 ];
+
+/**
+ * Statuses at which an ADMIN can no longer edit a booking's sender/receiver
+ * contact and address details. Mirrors the admin branch of the server-side
+ * guard in update_order_contact_details() (20260915120000) exactly — once the
+ * parcel is Out for Delivery or already Delivered, the details on file are a
+ * historical record of what was actually acted on, not a live mutable field,
+ * for admins too. Deliberately narrower than CONTACT_EDIT_LOCKED_STATUSES:
+ * a Cancelled booking stays admin-editable (archival/dispute correction),
+ * which is why this is its own list rather than a reuse of that one.
+ */
+export const ADMIN_CONTACT_EDIT_LOCKED_STATUSES = [
+  ORDER_STATUS.OUT_FOR_DELIVERY,
+  ORDER_STATUS.DELIVERED,
+];
+
+/** Can an ADMIN still edit this booking's sender/receiver contact & address details? */
+export const canAdminEditContactDetails = (order) => {
+  if (!order?.status) return false;
+  return !ADMIN_CONTACT_EDIT_LOCKED_STATUSES.includes(order.status);
+};
 
 /** Can the CUSTOMER still edit sender/receiver contact & address details? */
 export const canEditContactDetails = (order) => {

@@ -546,16 +546,6 @@
   border-top: 1px solid var(--border);
 }
 
-.storage-col-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 8px;
-  padding: 10px 12px;
-  border-bottom: 1px solid var(--border);
-}
-
 .storage-folder-list,
 .storage-photo-list {
   flex: 1;

@@ -3161,9 +3161,28 @@ export const checkIfFeedbackExists = async (orderId) => {
     .select('id')
     .eq('order_id', orderId)
     .maybeSingle();
-    
+
   if (error) throw error;
   return !!data;
+};
+
+/**
+ * The feedback (if any) for one specific booking — used by the admin
+ * Website Feature modal so it can show the actual rating/comment rather
+ * than just whether feedback exists. order_id is UNIQUE on customer_feedback
+ * (one booking, at most one review), so this is the real booking
+ * relationship, not a match on the customer's name or any other booking of
+ * theirs. Admins can read any row here ("Admins can manage all feedback").
+ */
+export const getOrderFeedback = async (orderId) => {
+  const { data, error } = await supabase
+    .from('customer_feedback')
+    .select('id, rating, message')
+    .eq('order_id', orderId)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data;
 };
 
 /**

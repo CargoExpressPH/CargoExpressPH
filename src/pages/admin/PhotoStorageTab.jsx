@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
   AlertTriangle, ArrowLeft, CheckSquare, Database, Folder, FolderOpen,
@@ -199,22 +199,14 @@ const FolderList = ({ folders, selectedKey, onSelect, onDeleteFolder, loading, m
 );
 
 /* ============================================================================
- * MIDDLE column — one folder's photos
+ * MIDDLE column — one folder's photos. Clicking a row opens it in the
+ * preview column — there is no selection state here; deletion happens either
+ * per-folder (the "⋮" menu in the left column) or per-photo ("Delete This
+ * Photo" in the preview), never through a checked-row batch.
  * ==========================================================================*/
-const PhotoRow = ({ item, thumbUrl, selected, active, onToggleSelect, onOpen }) => {
-  const canSelect = item.status === 'eligible';
+const PhotoRow = ({ item, thumbUrl, active, onOpen }) => {
   return (
     <div className={`storage-photo-row ${active ? 'storage-photo-row-active' : ''}`}>
-      <button
-        type="button"
-        className="storage-photo-row-checkbox"
-        onClick={() => canSelect && onToggleSelect(item)}
-        disabled={!canSelect}
-        aria-label={selected ? 'Deselect this photo' : canSelect ? 'Select this photo' : 'This photo cannot be selected'}
-        aria-pressed={selected}
-      >
-        {canSelect ? (selected ? <CheckSquare size={16} /> : <Square size={16} />) : <Square size={16} style={{ opacity: 0.25 }} />}
-      </button>
       <button type="button" className="storage-photo-row-thumb" onClick={() => onOpen(item)} aria-label={`Preview ${photoTypeLabel(item.photo_field)}`}>
         {thumbUrl === undefined ? (
           <Loader size={14} className="animate-spin text-secondary" />
@@ -302,7 +294,6 @@ const CargoPhotoBrowser = ({ onPhotosChanged }) => {
 
   const [selectedFolder, setSelectedFolder] = useState(null);
   const [folderPhotos, setFolderPhotos] = useState([]);
-  const [folderPhotosCount, setFolderPhotosCount] = useState(0);
   const [photosLoading, setPhotosLoading] = useState(false);
   const [thumbUrls, setThumbUrls] = useState({});
 
@@ -310,12 +301,11 @@ const CargoPhotoBrowser = ({ onPhotosChanged }) => {
   const [previewUrl, setPreviewUrl] = useState(null);
   const [previewState, setPreviewState] = useState('idle'); // idle | loading | ready | error
 
-  const [selected, setSelected] = useState(() => new Map());
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmTarget, setConfirmTarget] = useState(null); // single-item delete (preview pane)
-  // Folder-menu delete: the complete, resolved set of this folder's photos —
-  // distinct from `selected` (checkbox selection), which the folder menu
-  // never touches or depends on.
+  // Folder-menu delete: the complete, resolved set of this folder's eligible
+  // photos. These are the only two ways to delete a cargo photo — there is
+  // no checkbox/bulk-selection state in this browser.
   const [confirmFolderTarget, setConfirmFolderTarget] = useState(null);
   const [resolvingFolderKey, setResolvingFolderKey] = useState(null);
   const [deleting, setDeleting] = useState(false);
@@ -350,12 +340,11 @@ const CargoPhotoBrowser = ({ onPhotosChanged }) => {
     const requestId = ++photoSeq.current;
     setPhotosLoading(true);
     try {
-      const { data, count } = await listFolderPhotos(folderKey);
+      const { data } = await listFolderPhotos(folderKey);
       // A stale response for a folder the admin has already navigated away
       // from must never overwrite what's now on screen.
       if (requestId !== photoSeq.current) return;
       setFolderPhotos(data);
-      setFolderPhotosCount(count);
 
       const toResolve = data.filter((item) => !(item.item_key in thumbUrls));
       if (toResolve.length > 0) {
@@ -413,34 +402,6 @@ const CargoPhotoBrowser = ({ onPhotosChanged }) => {
     }
   };
 
-  const toggleSelect = (item) => {
-    if (item.status !== 'eligible') return;
-    setSelected((prev) => {
-      const next = new Map(prev);
-      if (next.has(item.item_key)) next.delete(item.item_key);
-      else next.set(item.item_key, item);
-      return next;
-    });
-  };
-
-  const eligibleLoaded = useMemo(() => folderPhotos.filter((i) => i.status === 'eligible'), [folderPhotos]);
-  const eligibleLoadedSelected = eligibleLoaded.length > 0 && eligibleLoaded.every((i) => selected.has(i.item_key));
-  const hasMoreUnloaded = folderPhotosCount > folderPhotos.length;
-
-  const toggleSelectAllLoaded = () => {
-    setSelected((prev) => {
-      const next = new Map(prev);
-      if (eligibleLoadedSelected) eligibleLoaded.forEach((i) => next.delete(i.item_key));
-      else eligibleLoaded.forEach((i) => next.set(i.item_key, i));
-      return next;
-    });
-  };
-
-  const clearSelection = () => setSelected(new Map());
-  const selectedList = useMemo(() => Array.from(selected.values()), [selected]);
-  const selectedBytesKnown = selectedList.some((i) => i.size_bytes != null);
-  const selectedBytesTotal = selectedList.reduce((sum, i) => sum + Number(i.size_bytes || 0), 0);
-
   // Fetches every page of one folder's photos — never assumes the first page
   // is the whole folder — so the confirmation shown before a folder-menu
   // delete is computed from the complete set, not a partial/cached one.
@@ -479,7 +440,8 @@ const CargoPhotoBrowser = ({ onPhotosChanged }) => {
     }
   };
 
-  const deleteTargets = confirmFolderTarget ? confirmFolderTarget.items : confirmTarget ? [confirmTarget] : selectedList;
+  // Exactly two sources: a resolved folder (menu) or a single previewed photo.
+  const deleteTargets = confirmFolderTarget ? confirmFolderTarget.items : confirmTarget ? [confirmTarget] : [];
   const deleteTargetsBytesKnown = deleteTargets.some((i) => i.size_bytes != null);
   const deleteTargetsBytesTotal = deleteTargets.reduce((sum, i) => sum + Number(i.size_bytes || 0), 0);
 
@@ -502,11 +464,6 @@ const CargoPhotoBrowser = ({ onPhotosChanged }) => {
       setConfirmTarget(null);
       setConfirmFolderTarget(null);
       const deletedKeys = new Set(deleteTargets.map((i) => i.item_key));
-      setSelected((prev) => {
-        const next = new Map(prev);
-        deletedKeys.forEach((k) => next.delete(k));
-        return next;
-      });
       if (previewItem && deletedKeys.has(previewItem.item_key)) {
         setPreviewItem(null);
         setPreviewUrl(null);
@@ -517,7 +474,7 @@ const CargoPhotoBrowser = ({ onPhotosChanged }) => {
       } else if (result.deleted_count > 0) {
         toast.error(`${result.deleted_count} removed, but ${result.failed_count + result.rejected.length} could not be. See details below.`);
       } else {
-        toast.error('None of the selected photos could be removed. See details below.');
+        toast.error('None of these photos could be removed. See details below.');
       }
 
       await Promise.allSettled([
@@ -526,7 +483,7 @@ const CargoPhotoBrowser = ({ onPhotosChanged }) => {
         Promise.resolve(onPhotosChanged?.()),
       ]);
     } catch (error) {
-      toast.error(error?.message || 'Could not delete the selected photos.');
+      toast.error(error?.message || 'Could not delete these photos.');
     } finally {
       setDeleting(false);
     }
@@ -597,35 +554,20 @@ const CargoPhotoBrowser = ({ onPhotosChanged }) => {
           ) : photosLoading && folderPhotos.length === 0 ? (
             <CenteredSpinner />
           ) : (
-            <>
-              {eligibleLoaded.length > 0 && (
-                <div className="storage-col-toolbar">
-                  <button type="button" className="btn btn-sm btn-outline" onClick={toggleSelectAllLoaded}>
-                    {eligibleLoadedSelected ? <CheckSquare size={14} /> : <Square size={14} />}
-                    {' '}Select all eligible {hasMoreUnloaded ? '(loaded)' : ''}
-                  </button>
-                  {hasMoreUnloaded && (
-                    <span className="text-xs text-secondary">Showing {folderPhotos.length} of {folderPhotosCount} — more not loaded</span>
-                  )}
-                </div>
+            <div className="storage-photo-list" role="list" aria-label="Photos in this folder">
+              {folderPhotos.map((item) => (
+                <PhotoRow
+                  key={item.item_key}
+                  item={item}
+                  thumbUrl={thumbUrls[item.item_key]}
+                  active={previewItem?.item_key === item.item_key}
+                  onOpen={openPreview}
+                />
+              ))}
+              {folderPhotos.length === 0 && (
+                <p className="text-sm text-secondary" style={{ padding: '16px 12px' }}>This folder has no photos.</p>
               )}
-              <div className="storage-photo-list" role="list" aria-label="Photos in this folder">
-                {folderPhotos.map((item) => (
-                  <PhotoRow
-                    key={item.item_key}
-                    item={item}
-                    thumbUrl={thumbUrls[item.item_key]}
-                    selected={selected.has(item.item_key)}
-                    active={previewItem?.item_key === item.item_key}
-                    onToggleSelect={toggleSelect}
-                    onOpen={openPreview}
-                  />
-                ))}
-                {folderPhotos.length === 0 && (
-                  <p className="text-sm text-secondary" style={{ padding: '16px 12px' }}>This folder has no photos.</p>
-                )}
-              </div>
-            </>
+            </div>
           )}
         </div>
 
@@ -655,21 +597,6 @@ const CargoPhotoBrowser = ({ onPhotosChanged }) => {
             {' '}Storage totals refresh now — this can take a few seconds.
           </span>
           <button type="button" className="btn btn-icon" onClick={() => setDeleteResult(null)} aria-label="Dismiss"><X size={15} /></button>
-        </div>
-      )}
-
-      {selectedList.length > 0 && (
-        <div className="card storage-selection-bar">
-          <span className="text-sm">
-            <strong>{selectedList.length}</strong> photo{selectedList.length === 1 ? '' : 's'} selected
-            {selectedBytesKnown && ` · ~${formatBytes(selectedBytesTotal)} to free`}
-          </span>
-          <div className="flex items-center gap-8">
-            <button type="button" className="btn btn-outline btn-sm" onClick={clearSelection}>Clear</button>
-            <button type="button" className="btn btn-secondary" onClick={() => { setConfirmTarget(null); setConfirmOpen(true); }}>
-              <Trash2 size={16} /> Delete Selected
-            </button>
-          </div>
         </div>
       )}
 

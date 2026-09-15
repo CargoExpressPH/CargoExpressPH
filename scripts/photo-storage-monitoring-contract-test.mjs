@@ -186,19 +186,37 @@ assert.match(page, /listEvidenceFolders/);
 assert.match(page, /listFolderPhotos/);
 assert.match(page, /Photos Without Bookings/);
 assert.match(page, /Search tracking number/);
-assert.match(page, /Select all eligible/);
-assert.match(page, /Delete Selected/);
 assert.match(page, /permanently removed from storage\. This cannot be undone/);
 assert.match(page, /booking and payment records remain/i);
-// Only eligible photos are selectable — protected ones never toggle.
-assert.match(page, /canSelect = item\.status === 'eligible'/);
 // Stale-response guards for both folder listing and per-folder photo fetch.
 assert.match(page, /requestId !== folderSeq\.current/);
 assert.match(page, /requestId !== photoSeq\.current/);
 // Single-photo delete action from the preview pane.
 assert.match(page, /Delete This Photo/);
-// Bulk-selection toolbar only renders once something is actually selected.
-assert.match(page, /selectedList\.length > 0 &&/);
+
+// ── Bulk checkbox-selection UI is GONE from the Cargo Photos browser — the
+// three-dot folder menu replaced it, it did not join it. Scoped to the
+// CargoPhotoBrowser component's own source (CompanyImagesBrowser, an
+// unrelated/out-of-scope bucket, legitimately keeps its own separate
+// checkbox multi-select — these checks must not false-positive on that). ──
+const cargoBrowserSource = page.slice(page.indexOf('const CargoPhotoBrowser'), page.indexOf('const CompanyImagesBrowser'));
+assert.doesNotMatch(cargoBrowserSource, /Select all eligible/);
+assert.doesNotMatch(cargoBrowserSource, /Delete Selected/);
+assert.doesNotMatch(cargoBrowserSource, /storage-selection-bar/);
+assert.doesNotMatch(cargoBrowserSource, /storage-col-toolbar/);
+assert.doesNotMatch(cargoBrowserSource, /storage-photo-row-checkbox/);
+assert.doesNotMatch(cargoBrowserSource, /toggleSelectAllLoaded/);
+assert.doesNotMatch(cargoBrowserSource, /eligibleLoaded/);
+assert.doesNotMatch(cargoBrowserSource, /\bselectedList\b/);
+assert.doesNotMatch(cargoBrowserSource, /selectedBytesKnown|selectedBytesTotal/);
+assert.doesNotMatch(cargoBrowserSource, /CheckSquare/);
+// PhotoRow (also scoped from this same source, defined just above
+// CargoPhotoBrowser) takes no selection props — clicking a row only opens
+// the preview.
+assert.doesNotMatch(page, /canSelect = item\.status === 'eligible'/);
+const photoRowSource = page.slice(page.indexOf('const PhotoRow'), page.indexOf('const PreviewPane'));
+assert.doesNotMatch(photoRowSource, /onToggleSelect|aria-pressed/);
+assert.match(photoRowSource, /const PhotoRow = \(\{ item, thumbUrl, active, onOpen \}\)/);
 
 // ── Per-folder "⋮" actions menu (compact, not a large folder-level button) ──
 assert.match(page, /MoreVertical/);
@@ -222,9 +240,11 @@ assert.match(page, /while \(all\.length < total\)/);
 // Confirmation is explicit about what remains protected, not just what's deleted.
 assert.match(page, /will remain in this folder because/);
 assert.match(page, /can be deleted right now — .*still protected/);
-// Reuses the SAME deletion RPC/edge-function path as single/bulk delete —
-// no parallel implementation for the folder-menu action.
-assert.match(page, /confirmFolderTarget \? confirmFolderTarget\.items/);
+// Reuses the SAME deletion RPC/edge-function path as single-photo delete —
+// no parallel implementation for the folder-menu action, and exactly two
+// delete sources exist (folder-menu, single preview photo) — no third,
+// checkbox-selection-backed source.
+assert.match(page, /confirmFolderTarget \? confirmFolderTarget\.items : confirmTarget \? \[confirmTarget\] : \[\]/);
 // The nested-button-inside-a-button trap is avoided: each folder row is a
 // row container with two SIBLING interactive controls (select + menu).
 assert.match(page, /storage-folder-row-main/);
