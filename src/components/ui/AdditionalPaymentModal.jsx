@@ -16,14 +16,16 @@ import { useToast } from '../../hooks/useToast';
 import { useAuth } from '../../contexts/AuthContext';
 
 /**
- * AdditionalPaymentModal — Manually collects additional balance-settlement
- * payments. This is always a POST-pickup collection (remaining_balance is
- * only ever non-zero after pickup sets shipping_cost), so — per the business
- * rule that the admin will not return to the pickup location to collect cash
- * — GCash is the only method offered here. There are two GCash channels: the
- * PayMongo automated checkout (server-verified, recorded by the webhook) and
- * a direct GCash transfer outside PayMongo that the admin records manually
- * after personally verifying receipt.
+ * AdditionalPaymentModal — Manually collects a LATER, out-of-band balance
+ * settlement (from OrderDetailPage / UnsettledDeliveriesPage), separate from
+ * the moment cargo actually changes hands. Cash is only ever offered at the
+ * two in-person handoffs — pickup and delivery confirmation, where the admin
+ * is physically receiving payment right then — both of which go through
+ * PaymentCollectionPanel instead. Nobody is standing at a counter to receive
+ * cash here, so GCash is the only method offered by this modal. There are two
+ * GCash channels: the PayMongo automated checkout (server-verified, recorded
+ * by the webhook) and a direct GCash transfer outside PayMongo that the admin
+ * records manually after personally verifying receipt.
  */
 const AdditionalPaymentModal = ({ order, remainingBalance, onClose, onSave, onPaymentConfirmed }) => {
   useScrollLock(true); // mounted only while open
@@ -362,7 +364,7 @@ const AdditionalPaymentModal = ({ order, remainingBalance, onClose, onSave, onPa
             <div className="form-group">
               <label className="form-label"><CreditCard size={14} className="inline mr-6" /> Payment Method</label>
               <div className="text-xs text-tertiary">
-                GCash only — a remaining balance after pickup can no longer be settled in cash.
+                GCash only — cash can only be collected in person, at pickup or during delivery confirmation.
               </div>
             </div>
 

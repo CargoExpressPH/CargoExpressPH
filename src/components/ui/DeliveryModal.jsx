@@ -20,10 +20,15 @@ import PaymentCollectionPanel, {
  * DeliveryModal — Admin delivery processing.
  *
  * Owns the delivery proof photos. The money is collected by
- * PaymentCollectionPanel, the same component the pickup counter uses — the only
- * differences are the figure being collected against (the remaining balance
- * rather than the freight total) and the fact that this one is authoritative,
- * so it caps.
+ * PaymentCollectionPanel, the same component the pickup counter uses — the
+ * admin is physically receiving payment from the receiver right now, exactly
+ * like the pickup counter, so Cash and GCash are both offered here too. The
+ * differences from pickup are the figure being collected against (the
+ * remaining balance rather than the freight total) and the fact that this one
+ * is authoritative, so it caps. A LATER, out-of-band balance settlement (once
+ * this delivery has already been confirmed) goes through
+ * AdditionalPaymentModal / record_additional_payment() instead, which stays
+ * GCash-only — nobody is standing at a counter to hand over cash there.
  */
 const DeliveryModal = ({ order, onClose, onSave }) => {
   useScrollLock(true); // mounted only while open
@@ -35,9 +40,11 @@ const DeliveryModal = ({ order, onClose, onSave }) => {
   const [payment, setPayment] = useState(() => createPaymentCollectionState({
     // Seeded with the whole balance, which is what Full Payment claims.
     amount: needsPayment ? sanitizeAmount(balance) : '0',
-    // GCash only — after pickup the admin will not return to the pickup
-    // location to collect cash (see paymentConfig.allowCash below).
-    payment_method: needsPayment ? 'gcash' : '',
+    // Left blank rather than defaulted — Cash and GCash are both legitimate
+    // here (the admin is physically receiving payment right now, same as at
+    // pickup), so the admin must make an explicit choice instead of one
+    // being pre-selected for them.
+    payment_method: '',
     promised_payment_date: order?.promised_payment_date || '',
   }));
 
@@ -65,11 +72,6 @@ const DeliveryModal = ({ order, onClose, onSave }) => {
     // is authoritative — collecting more than it at the door is an error, not a
     // rounding difference.
     capAtExpected: true,
-    // Business rule: after pickup, a remaining balance may only be settled
-    // via GCash — the admin will not return to the pickup location to
-    // collect cash. Enforced here (hides the Cash option) and again
-    // server-side in record_delivery_payment().
-    allowCash: false,
     purpose: 'Delivery',
     confirmLabel: 'Complete Delivery',
     confirmVerb: 'complete the delivery',
@@ -256,6 +258,9 @@ const DeliveryModal = ({ order, onClose, onSave }) => {
 
           {needsPayment && (
             <div className="mb-20 br-8" style={{ border: '1px solid var(--border)', padding: 16}}>
+              <div className="text-xs text-secondary mb-12">
+                Accept Cash or GCash now. Any balance left after delivery can be paid through GCash.
+              </div>
               <PaymentCollectionPanel
                 order={order}
                 value={payment}

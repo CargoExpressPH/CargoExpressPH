@@ -95,8 +95,13 @@ const OrderDetailPage = () => {
   // while the customer is mid-edit if the order refreshes in the background.
   const [payAmount, setPayAmount] = useState('');
 
-  // Statuses where payment is allowed (cargo has been picked up and weighed)
-  const PAYABLE_STATUSES = ['Picked Up', 'In Transit', 'Arrived at Hub', 'Out for Delivery'];
+  // Statuses where payment is allowed (cargo has been picked up and weighed).
+  // Includes 'Delivered': a Pay Later delivery can leave a genuine remaining
+  // balance (see record_delivery_payment's Cash-or-GCash-at-delivery rule),
+  // and the server (paymongo-create-payment) never restricted by status in
+  // the first place — it only ever checks remaining_balance. Excluding
+  // 'Delivered' here was a UI-only gap that hid an already-supported action.
+  const PAYABLE_STATUSES = ['Picked Up', 'In Transit', 'Arrived at Hub', 'Out for Delivery', 'Delivered'];
 
   // Timeout ref — cleared if data arrives before LOAD_TIMEOUT_MS
   const timeoutRef = useRef(null);

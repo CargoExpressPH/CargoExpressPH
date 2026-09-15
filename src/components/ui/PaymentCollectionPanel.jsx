@@ -19,9 +19,17 @@ import { useToast } from '../../hooks/useToast';
  *
  * Pickup collects from the sender against the freight total; delivery collects
  * from the receiver against the remaining balance. Those are the same act
- * against a different number, so they are the same component: Payment Type,
- * amount, method, the GCash/PayMongo flow, the manual-reference fallback, the
- * receipt, and the Promise Date all live here and nowhere else.
+ * against a different number — the admin is physically receiving money right
+ * now in both cases — so they are the same component, and both offer Cash and
+ * GCash: Payment Type, amount, method, the GCash/PayMongo flow, the
+ * manual-reference fallback, the receipt, and the Promise Date all live here
+ * and nowhere else.
+ *
+ * A LATER, out-of-band balance settlement (AdditionalPaymentModal, used once
+ * an order already has a recorded remaining balance and nobody is standing at
+ * a counter to hand over cash) does NOT use this panel and stays GCash-only —
+ * that is a deliberately different component with a deliberately narrower
+ * rule, not something this panel's config can express.
  *
  * The panel is CONTROLLED. The parent holds one state object and passes
  * `value` + `setValue` (a `useState` setter — the panel uses updater form).
@@ -361,11 +369,8 @@ const PaymentCollectionPanel = ({
    * to stand here waiting", and re-opens cash / manual reference.
    */
   const handleCancelGCash = () => resetFlow(
-    config?.allowCash === false
-      ? 'GCash checkout cancelled. Enter the GCash reference number manually instead. '
-        + 'If the customer completes that payment link later, it is still recorded against this order.'
-      : 'GCash checkout cancelled. Collect in cash, or enter the GCash reference number manually. '
-        + 'If the customer completes that payment link later, it is still recorded against this order.'
+    'GCash checkout cancelled. Collect in cash, or enter the GCash reference number manually. '
+    + 'If the customer completes that payment link later, it is still recorded against this order.'
   );
 
   const handleOpenGCash = () => {
@@ -451,11 +456,24 @@ const PaymentCollectionPanel = ({
     };
   }, [value.paymentStep, order?.id, value.sourceId, value.confirmed]);
 
-  // Switching away from GCash abandons any flow in progress.
+  // Switching away from GCash abandons any flow in progress. If a checkout
+  // had actually been opened (or already confirmed), the typed amount is no
+  // longer trustworthy for the new method: carrying it into Cash would either
+  // silently relabel an unconfirmed GCash amount as cash received, or —
+  // worse — double-charge money the webhook already recorded once PayMongo
+  // confirmed it. Clear it and make the admin re-enter what is actually being
+  // collected now. A method switch that never opened a checkout (the common
+  // case — picking Cash vs GCash before doing anything) is untouched.
   useEffect(() => {
     if (value.payment_method !== 'gcash'
       && (value.paymentStep !== 'setup' || value.sourceId || value.checkoutUrl)) {
-      resetFlow();
+      paymentConfirmedRef.current = false;
+      clearPendingPayment(order.id);
+      patch({
+        paymentStep: 'setup', sourceId: null, checkoutUrl: null, confirmed: null,
+        amount: '', payment_reference: '', verified_receipt: false,
+        notice: 'Switched away from GCash. Enter the amount being collected under the new payment method.',
+      });
     }
   }, [value.payment_method]);
 
@@ -555,19 +573,13 @@ const PaymentCollectionPanel = ({
       </div>
 
       {/* Payment Method — a segmented control, so the red boundary goes round
-          the group; there is no single input to outline. Cash is only ever
-          offered at pickup (config.allowCash) — after pickup the admin will
-          not return to the pickup location to collect cash, so a remaining
-          balance is GCash-only. */}
+          the group; there is no single input to outline. Both Cash and GCash
+          are offered here — the admin is physically receiving this payment
+          right now (pickup counter or delivery handoff). */}
       <div className="form-group">
         <label className="form-label" id="pcp-method-label">
           Payment Method {d.requiresMethod ? '*' : '(Optional)'}
         </label>
-        {config?.allowCash === false ? (
-          <div className="text-xs text-tertiary mb-4">
-            GCash only — a remaining balance after pickup can no longer be settled in cash.
-          </div>
-        ) : null}
         <div
           className={`pickup-segment-row flex gap-8 ${errors[F.method] ? 'field-group-invalid' : ''}`}
           role="group"
@@ -576,7 +588,7 @@ const PaymentCollectionPanel = ({
           aria-describedby={errors[F.method] ? errorId(F.method) : undefined}
           tabIndex={errors[F.method] ? -1 : undefined}
         >
-          {(config?.allowCash === false ? ['gcash'] : ['cash', 'gcash']).map(m => (
+          {['cash', 'gcash'].map(m => (
             <button
               key={m} type="button" disabled={disabled}
               className={`btn ${value.payment_method === m ? 'btn-secondary' : 'btn-outline'} btn-sm flex-1 justify-center text-capitalize`}
@@ -588,6 +600,14 @@ const PaymentCollectionPanel = ({
         </div>
         <FieldError name={F.method} errors={errors} />
       </div>
+
+      {/* Cash — no PayMongo controls, no reference to verify. The entered
+          amount above is what the admin is holding in hand right now. */}
+      {value.payment_method === 'cash' && (
+        <div className="mb-16 br-8 text-xs" style={{ background: 'var(--success-bg)', color: 'var(--success-text)', padding: 14, border: '1px solid var(--success)'}}>
+          Cash received — ₱{formatAmount((d.collected > 0 ? d.collected : 0).toFixed(2))} collected directly from {config?.billing?.name || 'the customer'}.
+        </div>
+      )}
 
       {/* GCash */}
       {value.payment_method === 'gcash' && (

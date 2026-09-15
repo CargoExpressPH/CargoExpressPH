@@ -2714,9 +2714,10 @@ export const recordPickupPayment = async (orderId, payload) => {
  * Atomically record a delivery: order metadata UPDATE + optional balance
  * settlement in one transaction. Same contract as recordPickupPayment.
  *
- * Cash is rejected server-side here — after pickup, a remaining balance may
- * only be settled via GCash (the admin does not return to the pickup
- * location to collect cash).
+ * Cash and GCash are both accepted here — the admin is physically receiving
+ * payment from the receiver right now, same as at pickup. A LATER,
+ * out-of-band balance settlement goes through recordAdditionalPayment()
+ * instead, which stays GCash-only.
  */
 export const recordDeliveryPayment = async (orderId, payload) => {
   const { data, error } = await supabase.rpc('record_delivery_payment', {
