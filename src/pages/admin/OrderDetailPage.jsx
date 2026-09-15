@@ -617,18 +617,18 @@ const AdminOrderDetailPage = () => {
         id,
         order.tracking_number,
         {
-          previousValue: { featured_on_website: order.featured_on_website, featured_title: order.featured_title },
-          newValue: { featured_on_website: dataToSave.featured_on_website, featured_title: dataToSave.featured_title },
+          previousValue: { featured_on_website: order.featured_on_website },
+          newValue: { featured_on_website: dataToSave.featured_on_website },
           details: dataToSave.featured_on_website
-            ? `Published this delivery to the public website as "${dataToSave.featured_title}".`
-            : 'Removed this delivery from the public website.',
+            ? 'Published this delivery’s photo alongside its customer feedback.'
+            : 'Removed this delivery’s photo from its customer feedback.',
         }
       );
-      toast.success('Website feature updated.');
+      toast.success('Feedback photo updated.');
       setShowFeatureModal(false);
       await loadOrder();
     } catch (err) {
-      toast.error('Failed to update website feature.');
+      toast.error('Failed to update feedback photo.');
     } finally {
       setSavingFeature(false);
     }
@@ -1450,7 +1450,7 @@ const AdminOrderDetailPage = () => {
             onClick={openFeatureModal}
           >
             <Star size={14} className={order.featured_on_website ? 'text-warning' : ''} />
-            {order.featured_on_website ? 'Manage Website Feature' : 'Feature This on Website'}
+            {order.featured_on_website ? 'Manage Feedback Photo' : 'Add Photo to Customer Feedback'}
           </button>
         </div>
       )}

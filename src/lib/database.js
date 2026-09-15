@@ -3221,20 +3221,6 @@ export const getPublicFeedback = async () => {
   }));
 };
 
-/**
- * Featured delivery gallery for the About page.
- *
- * Goes through the get_featured_deliveries() RPC. The RPC returns a single
- * `featured_photo` TEXT path (the admin-selected pickup or delivery proof)
- * instead of the full pickup_photos / delivery_photos JSONB arrays, preventing
- * enumeration of all proof photos for a featured order via the anon key.
- */
-export const getFeaturedDeliveries = async () => {
-  const { data, error } = await supabase.rpc('get_featured_deliveries');
-  if (error) throw error;
-  return data || [];
-};
-
 export const getAdminFeedback = async () => {
   const { data, error } = await supabase
     .from('customer_feedback')

@@ -9,12 +9,14 @@ import useScrollLock from '../../hooks/useScrollLock';
  * WebsiteFeatureModal — replaces the inline collapsible "Website Feature"
  * section on the Admin OrderDetailPage.
  *
- * Shows the existing featuring controls (title, caption, image type,
- * publish/unfeature) plus:
+ * Publishes this booking's pickup/delivery photo alongside its customer
+ * feedback on the public About page (the standalone "Featured Shipments"
+ * gallery this modal used to also feed was removed — see featured_photo /
+ * featured_image_type usage in getPublicFeedback()). Shows:
  *  - A "Customer feedback received" indicator when feedback exists for this
  *    exact booking (matched by order_id, not by customer name).
  *  - The actual rating and comment when feedback is present.
- *  - A preview label of what will appear on the website.
+ *  - A preview of the photo that will appear on the website.
  *
  * Privacy rules enforced:
  *  - Addresses, phone numbers and payment details are never shown.
@@ -50,8 +52,6 @@ const WebsiteFeatureModal = ({
 }) => {
   const [form, setForm] = useState({
     featured_on_website: false,
-    featured_title: '',
-    featured_caption: '',
     featured_image_type: 'pickup',
   });
   const [localError, setLocalError] = useState('');
@@ -61,8 +61,6 @@ const WebsiteFeatureModal = ({
     if (isOpen && order) {
       setForm({
         featured_on_website: order.featured_on_website ?? false,
-        featured_title: order.featured_title ?? '',
-        featured_caption: order.featured_caption ?? '',
         featured_image_type: order.featured_image_type ?? 'pickup',
       });
       setLocalError('');
@@ -82,10 +80,6 @@ const WebsiteFeatureModal = ({
 
   const handlePublish = useCallback(async () => {
     setLocalError('');
-    if (form.featured_on_website && !form.featured_title.trim()) {
-      setLocalError('A highlight title is required to feature this booking.');
-      return;
-    }
     const featuredPhotos =
       form.featured_image_type === 'delivery' &&
       Array.isArray(order.delivery_photos) &&
@@ -98,8 +92,6 @@ const WebsiteFeatureModal = ({
     }
     await onSave({
       featured_on_website: form.featured_on_website,
-      featured_title: form.featured_title.trim() || null,
-      featured_caption: form.featured_caption.trim() || null,
       featured_image_type: form.featured_image_type,
       featured_at: form.featured_on_website
         ? (order.featured_at || new Date().toISOString())
@@ -138,7 +130,7 @@ const WebsiteFeatureModal = ({
           <div className="modal-header flex items-center justify-between">
             <h2 id="website-feature-modal-title" className="flex items-center gap-8 m-0" style={{ fontSize: '1rem' }}>
               <Star size={16} className="text-warning" />
-              {isAlreadyFeatured ? 'Manage Website Feature' : 'Feature This on Website'}
+              {isAlreadyFeatured ? 'Manage Feedback Photo' : 'Add Photo to Customer Feedback'}
             </h2>
             <button
               type="button"
@@ -208,7 +200,7 @@ const WebsiteFeatureModal = ({
                 disabled={saving}
               />
               <label htmlFor="wf-feature-website" className="font-semibold cursor-pointer m-0">
-                Feature this shipment on the website
+                Show this booking's photo with its customer feedback
               </label>
             </div>
 
@@ -217,34 +209,6 @@ const WebsiteFeatureModal = ({
                 className="grid gap-12 p-12 mb-12"
                 style={{ background: 'var(--bg-secondary)', borderRadius: 'var(--radius-md)' }}
               >
-                <div className="form-group">
-                  <label className="form-label" htmlFor="wf-featured-title">
-                    Highlight Title <span className="text-error">*</span>
-                  </label>
-                  <input
-                    id="wf-featured-title"
-                    type="text"
-                    className="form-input"
-                    placeholder="e.g. Bound for Jagna"
-                    value={form.featured_title}
-                    onChange={(e) => setForm((f) => ({ ...f, featured_title: e.target.value }))}
-                    disabled={saving}
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label" htmlFor="wf-featured-caption">Caption</label>
-                  <textarea
-                    id="wf-featured-caption"
-                    className="form-textarea"
-                    rows={2}
-                    placeholder="Thank you for trusting CargoExpress PH…"
-                    value={form.featured_caption}
-                    onChange={(e) => setForm((f) => ({ ...f, featured_caption: e.target.value }))}
-                    disabled={saving}
-                  />
-                </div>
-
                 <div className="form-group">
                   <label className="form-label" htmlFor="wf-featured-image">Featured Image</label>
                   <CustomSelect
@@ -272,7 +236,7 @@ const WebsiteFeatureModal = ({
                 >
                   <div className="flex items-center gap-6 mb-8">
                     <Globe size={13} className="text-primary flex-shrink-0" />
-                    <span className="text-xs font-semibold text-secondary">Website preview</span>
+                    <span className="text-xs font-semibold text-secondary">Feedback photo preview</span>
                   </div>
                   <div className="flex gap-10 items-start">
                     {previewPhotoUrl ? (
@@ -293,10 +257,9 @@ const WebsiteFeatureModal = ({
                       </div>
                     )}
                     <span className="text-xs text-secondary">
-                      <strong>{form.featured_title || '(title required)'}</strong>
-                      {form.featured_caption && (
-                        <><br />{form.featured_caption.slice(0, 90)}{form.featured_caption.length > 90 ? '…' : ''}</>
-                      )}
+                      {feedback
+                        ? 'This photo will appear on this booking’s customer feedback card.'
+                        : 'This photo will appear once the customer leaves feedback for this booking.'}
                     </span>
                   </div>
                 </div>
@@ -306,7 +269,7 @@ const WebsiteFeatureModal = ({
             {/* Unfeature note */}
             {!form.featured_on_website && isAlreadyFeatured && (
               <p className="text-xs text-warning mb-12">
-                Saving with this unchecked will remove this booking from the website.
+                Saving with this unchecked will remove this photo from the customer feedback card.
               </p>
             )}
 
