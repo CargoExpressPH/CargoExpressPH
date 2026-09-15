@@ -20,6 +20,7 @@ const requiredFiles = [
   'supabase/migrations/20260908112100_prepare_photo_retention.sql',
   'supabase/migrations/20260911075700_secure_photo_cleanup_functions.sql',
   'supabase/migrations/20260915090000_simplify_storage_monitoring_gallery.sql',
+  'supabase/migrations/20260915110000_photo_storage_folder_browser.sql',
   'supabase/functions/paymongo-create-payment/index.ts',
 ];
 

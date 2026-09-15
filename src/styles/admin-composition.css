@@ -500,3 +500,286 @@
     min-height: 30px;
   }
 }
+
+/* ============================================================================
+   Storage Monitoring — three-column booking-folder browser (Cargo Photos and
+   Company Images share this shell). Desktop shows all three columns side by
+   side; below the breakpoint, columns become sequential full-width panes
+   driven by [data-pane] on .storage-browser, mirroring the list/detail
+   collapse pattern in chat-inbox.css. All three panes stay mounted at all
+   times (only CSS visibility changes) so switching panes on mobile never
+   loses scroll position or resets state.
+   ============================================================================ */
+.storage-browser-card {
+  padding: 0;
+}
+
+.storage-browser {
+  display: grid;
+  grid-template-columns: 260px minmax(260px, 1fr) minmax(280px, 1.15fr);
+  min-height: 480px;
+}
+
+.storage-col {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  border-right: 1px solid var(--border);
+}
+
+.storage-col:last-child {
+  border-right: none;
+}
+
+.storage-col-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  border-bottom: 1px solid var(--border);
+  min-height: 44px;
+}
+
+.storage-col-footer {
+  padding: 4px 8px;
+  border-top: 1px solid var(--border);
+}
+
+.storage-col-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.storage-folder-list,
+.storage-photo-list {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 200px;
+  max-height: 620px;
+}
+
+.storage-folder-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+}
+
+.storage-folder-row:hover {
+  background: var(--bg-secondary);
+}
+
+.storage-folder-row-active {
+  background: var(--bg-secondary);
+  box-shadow: inset 3px 0 0 var(--primary);
+}
+
+.storage-folder-row-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.storage-folder-row-title {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.storage-folder-row-sub {
+  font-size: 0.6875rem;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.storage-folder-row-count {
+  font-size: 0.6875rem;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.storage-photo-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.storage-photo-row-active {
+  background: var(--bg-secondary);
+}
+
+.storage-photo-row-checkbox {
+  border: none;
+  background: transparent;
+  padding: 4px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  display: flex;
+  flex-shrink: 0;
+}
+
+.storage-photo-row-checkbox:disabled {
+  cursor: not-allowed;
+}
+
+.storage-photo-row-thumb {
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xs, 6px);
+  background: var(--bg-secondary);
+  padding: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.storage-photo-row-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.storage-photo-row-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+  border: none;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+}
+
+.storage-photo-row-title {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.storage-photo-row-meta {
+  font-size: 0.6875rem;
+  color: var(--text-secondary);
+}
+
+.storage-photo-row-reason {
+  flex-shrink: 0;
+  max-width: 140px;
+  font-size: 0.625rem;
+  color: var(--warning-text);
+  text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.storage-preview-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+  text-align: center;
+}
+
+.storage-preview {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.storage-preview-image-wrap {
+  flex: 1;
+  min-height: 260px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-secondary);
+  padding: 12px;
+}
+
+.storage-preview-image-wrap img {
+  max-width: 100%;
+  max-height: 480px;
+  object-fit: contain;
+}
+
+.storage-preview-details {
+  padding: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.storage-selection-bar {
+  position: sticky;
+  bottom: 16px;
+  margin-top: 16px;
+  padding: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+}
+
+.storage-browser-mobile-back {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .storage-browser {
+    display: block;
+    min-height: 0;
+  }
+
+  .storage-browser .storage-col {
+    border-right: none;
+  }
+
+  .storage-browser .storage-col-folders,
+  .storage-browser .storage-col-photos,
+  .storage-browser .storage-col-preview {
+    display: none;
+  }
+
+  .storage-browser[data-pane="folders"] .storage-col-folders,
+  .storage-browser[data-pane="photos"] .storage-col-photos,
+  .storage-browser[data-pane="preview"] .storage-col-preview {
+    display: flex;
+  }
+
+  .storage-folder-list,
+  .storage-photo-list {
+    max-height: none;
+  }
+
+  .storage-browser-mobile-back {
+    display: inline-flex;
+  }
+}

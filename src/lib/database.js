@@ -3409,15 +3409,26 @@ export const checkPhotoStorageHealth = async () => {
   return data;
 };
 
-// ── Admin photo gallery: list + select-and-delete ──
-// One unified eligibility check backs both the listing and the delete
-// action — list_evidence_photos() is read-only (never deletes anything);
-// delete_evidence_photos() (called inside the Edge Function below) re-derives
-// eligibility from scratch for every photo rather than trusting this list.
-export const listEvidencePhotos = async ({ filter = 'all', search = '', page = 1, pageSize = 20 } = {}) => {
-  const { data, error } = await supabase.rpc('list_evidence_photos', {
-    p_filter: filter,
+// ── Admin photo browser: booking folders, one folder's photos, select-and-delete ──
+// Both listing functions are read-only and share one eligibility
+// implementation (evidence_photo_rows(), not exposed directly); delete_
+// evidence_photos() (called inside the Edge Function below) re-derives
+// eligibility from scratch for every photo rather than trusting either list.
+export const listEvidenceFolders = async ({ search = '', page = 1, pageSize = 30 } = {}) => {
+  const { data, error } = await supabase.rpc('list_evidence_folders', {
     p_search: search || null,
+    p_page: page,
+    p_page_size: pageSize,
+  });
+  if (error) throw error;
+  const rows = data || [];
+  return { data: rows, count: rows[0]?.total_count ? Number(rows[0].total_count) : 0 };
+};
+
+// folderKey: a tracking_number, or '__unbooked__' for the "Photos Without Bookings" folder.
+export const listFolderPhotos = async (folderKey, { page = 1, pageSize = 100 } = {}) => {
+  const { data, error } = await supabase.rpc('list_folder_photos', {
+    p_folder_key: folderKey,
     p_page: page,
     p_page_size: pageSize,
   });
@@ -3435,4 +3446,17 @@ export const deleteEvidencePhotos = async (items) => {
   if (error) throw await photoFunctionError(error, 'Could not delete the selected photos.');
   if (data?.error) throw new Error(data.error);
   return data;
+};
+
+// ── Company Images (company-assets bucket) ──
+// Listing/reading uses the Storage SDK directly (list()/createSignedUrl()) —
+// admins already have full access to this bucket via its own RLS policy, so
+// no RPC is needed just to browse it. The one thing the browser can't safely
+// decide on its own — "is this the image currently live on the site" — is
+// re-checked here before the caller is allowed to call storage.remove().
+export const checkCompanyAssetDeletable = async (paths) => {
+  if (!Array.isArray(paths) || paths.length === 0) throw new Error('Select at least one file.');
+  const { data, error } = await supabase.rpc('check_company_asset_deletable', { p_paths: paths });
+  if (error) throw error;
+  return data || [];
 };

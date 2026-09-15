@@ -9,9 +9,11 @@ const safetyMigration = read('supabase/migrations/20260901030000_safe_photo_clea
 const retentionMigration = read('supabase/migrations/20260908112100_prepare_photo_retention.sql');
 const retentionSecurityMigration = read('supabase/migrations/20260911075700_secure_photo_cleanup_functions.sql');
 const galleryMigration = read('supabase/migrations/20260915090000_simplify_storage_monitoring_gallery.sql');
+const folderMigration = read('supabase/migrations/20260915110000_photo_storage_folder_browser.sql');
 const storage = read('src/lib/storage.js');
 const database = read('src/lib/database.js');
 const page = read('src/pages/admin/PhotoStorageTab.jsx');
+const css = read('src/styles/admin-composition.css');
 const app = read('src/App.jsx');
 const config = read('supabase/config.toml');
 const eventFunction = read('supabase/functions/record-photo-storage-event/index.ts');
@@ -29,10 +31,10 @@ for (const path of [
 }
 assert.ok(
   !existsSync('supabase/functions/cleanup-orphaned-photos'),
-  'cleanup-orphaned-photos was superseded by delete-storage-photos + the unified gallery and should stay removed — see STORAGE_MONITORING_SIMPLIFICATION_IMPLEMENTATION.md',
+  'cleanup-orphaned-photos was superseded by delete-storage-photos + the unified gallery and should stay removed locally — see STORAGE_FOLDER_BROWSER_IMPLEMENTATION.md for its live-undeploy status.',
 );
 
-// ── Original module DDL (unchanged by the simplification) ─────────────────
+// ── Original module DDL (unchanged by the folder-browser redesign) ────────
 assert.match(migration, /CREATE TABLE public\.photo_storage_settings/);
 assert.match(migration, /CHECK \(upload_mode IN \('automatic', 'force_firebase'\)\)/);
 assert.match(migration, /force_firebase_requires_expiry/);
@@ -61,60 +63,95 @@ assert.match(retentionMigration, /purge_old_photo_cleanup_queue/);
 assert.match(retentionSecurityMigration, /GRANT EXECUTE ON FUNCTION public\.purge_old_photo_storage_events\(INT\) TO service_role/);
 assert.match(retentionSecurityMigration, /GRANT EXECUTE ON FUNCTION public\.purge_old_photo_cleanup_queue\(INT\) TO service_role/);
 
-// ── New gallery/deletion migration ──────────────────────────────────────
+// The AUTOMATIC 6-month cleanup rule lives ONLY in get_expired_evidence_orders
+// (called by archive-expired-evidence-photos) and is completely untouched by
+// this task — it never calls, and is never called by, anything the folder
+// browser migration defines.
+assert.match(cleanupMigration, /get_expired_evidence_orders/);
+// The folder migration may only ever MENTION get_expired_evidence_orders in
+// prose (explaining the separation) — it must never actually CALL it.
+assert.doesNotMatch(folderMigration, /(SELECT|FROM|JOIN)\s+public\.get_expired_evidence_orders|\.rpc\('get_expired_evidence_orders'/);
+assert.doesNotMatch(scheduledCleanupFunction, /list_evidence_folders|list_folder_photos|delete_evidence_photos/);
+
+// ── 20260915090000: still provides the classifiers the folder browser depends on ──
 assert.match(galleryMigration, /CREATE OR REPLACE FUNCTION public\.text_to_photo_ref/);
 assert.match(galleryMigration, /CREATE OR REPLACE FUNCTION public\.classify_evidence_photo_ref/);
-assert.match(galleryMigration, /CREATE OR REPLACE FUNCTION public\.list_evidence_photos/);
-assert.match(galleryMigration, /CREATE OR REPLACE FUNCTION public\.delete_evidence_photos/);
-// list/delete both re-check admin from scratch — never trust the caller's role claim.
-assert.match(galleryMigration, /RAISE EXCEPTION 'Admin access required' USING ERRCODE = '42501'/);
-// Every protection the existing 6-month archive already enforces must be
-// re-derived here too, not merely copied from a client-supplied flag.
-assert.match(galleryMigration, /Receipt photos are always kept/);
-assert.match(galleryMigration, /Featured on the public website/);
-assert.match(galleryMigration, /Shipment is still in progress/);
-assert.match(galleryMigration, /Delivered\/cancelled recently — kept for 6 months/);
-assert.match(galleryMigration, /Photo reference no longer matches this booking/);
-assert.match(galleryMigration, /v_cutoff timestamptz := now\(\) - INTERVAL '6 months'/);
+
+// ── 20260915110000: folder browser + corrected manual-deletion rule ───────
+assert.match(folderMigration, /DROP FUNCTION IF EXISTS public\.list_evidence_photos\(text, text, integer, integer\)/);
+assert.match(folderMigration, /CREATE OR REPLACE FUNCTION public\.evidence_photo_rows\(\)/);
+assert.match(folderMigration, /CREATE OR REPLACE FUNCTION public\.list_evidence_folders/);
+assert.match(folderMigration, /CREATE OR REPLACE FUNCTION public\.list_folder_photos/);
+assert.match(folderMigration, /CREATE OR REPLACE FUNCTION public\.delete_evidence_photos/);
+assert.match(folderMigration, /CREATE OR REPLACE FUNCTION public\.check_company_asset_deletable/);
+// Every admin-facing function re-checks admin from scratch.
+assert.match(folderMigration, /RAISE EXCEPTION 'Admin access required' USING ERRCODE = '42501'/);
+// The corrected manual-deletion rule: 6-month wait is GONE from this file...
+assert.doesNotMatch(folderMigration, /kept for 6 months/i);
+assert.doesNotMatch(folderMigration, /v_cutoff timestamptz := now\(\) - INTERVAL '6 months'/);
+// terminal_status_at may still be mentioned in prose (explaining what was
+// removed and why) but must never be DECLARED as a working variable again.
+assert.doesNotMatch(folderMigration, /v_terminal_status_at\s+timestamptz/);
+// ...receipt/featured/active-shipment protections remain...
+assert.match(folderMigration, /Receipt photos are always kept/);
+assert.match(folderMigration, /Featured on the public website/);
+assert.match(folderMigration, /Shipment is still in progress/);
+assert.match(folderMigration, /Photo reference no longer matches this booking/);
+// ...and the new pending-payment-reconciliation protection is present, using
+// the SAME classify-and-compare pattern the array-rebuild loop already used
+// (never raw jsonb equality against a reconstructed object).
+assert.match(folderMigration, /status IN \('pending', 'chargeable'\)/);
+assert.match(folderMigration, /still being reconciled/);
+assert.match(folderMigration, /classify_evidence_photo_ref\(pe\.value\)/);
 // Row-locked before the jsonb array is rewritten, so a concurrent edit can't
 // be silently overwritten.
-assert.match(galleryMigration, /FOR UPDATE;/);
-// Orphan claims are re-verified at execution time too, not trusted from an
-// earlier list_evidence_photos() read.
-assert.match(galleryMigration, /it is no longer unused/i);
+assert.match(folderMigration, /FOR UPDATE;/);
+// Orphan claims are re-verified at execution time too.
+assert.match(folderMigration, /it is no longer unused/i);
 // Deletion is queued through the existing durable retry table, never a
-// direct provider delete from inside SQL.
-assert.match(galleryMigration, /INSERT INTO public\.photo_cleanup_queue/);
-assert.doesNotMatch(galleryMigration, /DELETE FROM storage\.objects/i);
-assert.doesNotMatch(galleryMigration, /DELETE FROM public\.orders/i);
-assert.doesNotMatch(galleryMigration, /DELETE FROM public\.payment_transactions/i);
-assert.match(galleryMigration, /REVOKE ALL ON FUNCTION public\.list_evidence_photos.*FROM PUBLIC/);
-assert.match(galleryMigration, /GRANT EXECUTE ON FUNCTION public\.list_evidence_photos.*TO authenticated/);
-assert.match(galleryMigration, /REVOKE ALL ON FUNCTION public\.delete_evidence_photos\(jsonb\) FROM PUBLIC/);
-assert.match(galleryMigration, /GRANT EXECUTE ON FUNCTION public\.delete_evidence_photos\(jsonb\) TO authenticated/);
-// The two retention functions (added 2026-09-08, secured 2026-09-11) were
-// never scheduled — this migration is what finally schedules them.
-assert.match(galleryMigration, /cron\.schedule\(\s*\n\s*'purge_photo_storage_operational_logs'/);
-assert.match(galleryMigration, /purge_old_photo_storage_events\(30\)/);
-assert.match(galleryMigration, /purge_old_photo_cleanup_queue\(7\)/);
-// The manual force_firebase toggle is removed from the UI — this migration
-// safely resets it to automatic instead of leaving a stale override live.
-assert.match(galleryMigration, /UPDATE public\.photo_storage_settings/);
-assert.match(galleryMigration, /WHERE id = TRUE AND upload_mode <> 'automatic'/);
+// direct provider delete from inside SQL, and never a row DELETE either.
+assert.match(folderMigration, /INSERT INTO public\.photo_cleanup_queue/);
+assert.doesNotMatch(folderMigration, /DELETE FROM storage\.objects/i);
+assert.doesNotMatch(folderMigration, /DELETE FROM public\.orders/i);
+assert.doesNotMatch(folderMigration, /DELETE FROM public\.payment_transactions/i);
+// Grants: PUBLIC and anon both explicitly revoked (the audit-flagged gap on
+// the previous migration's list/delete functions) — only `authenticated`
+// can call any admin-gated function here.
+for (const fn of [
+  'list_evidence_folders\\(text, integer, integer\\)',
+  'list_folder_photos\\(text, integer, integer\\)',
+  'delete_evidence_photos\\(jsonb\\)',
+  'check_company_asset_deletable\\(text\\[\\]\\)',
+]) {
+  const revokePublic = new RegExp(`REVOKE ALL ON FUNCTION public\\.${fn} FROM PUBLIC`);
+  const revokeAnon = new RegExp(`REVOKE ALL ON FUNCTION public\\.${fn} FROM anon`);
+  const grantAuth = new RegExp(`GRANT EXECUTE ON FUNCTION public\\.${fn} TO authenticated`);
+  assert.match(folderMigration, revokePublic, `${fn} missing REVOKE ... FROM PUBLIC`);
+  assert.match(folderMigration, revokeAnon, `${fn} missing REVOKE ... FROM anon`);
+  assert.match(folderMigration, grantAuth, `${fn} missing GRANT ... TO authenticated`);
+}
+// evidence_photo_rows() is deliberately NOT granted to authenticated/anon —
+// only called internally by the two wrapper functions above.
+assert.doesNotMatch(folderMigration, /GRANT EXECUTE ON FUNCTION public\.evidence_photo_rows\(\) TO authenticated/);
 
-// ── Upload/fallback client code is unchanged by this simplification ────────
+// ── Upload/fallback client code is unchanged by this task ──────────────────
 assert.match(storage, /get_effective_photo_storage_mode/);
 assert.match(storage, /force_firebase/);
 assert.match(storage, /record-photo-storage-event/);
 assert.match(storage, /Firebase fallback upload failed/);
 
-// ── database.js: manual-mode wrappers removed, gallery wrappers added ─────
-assert.match(database, /export const listEvidencePhotos/);
+// ── database.js: folder-browser wrappers present, old flat-list wrapper gone ──
+assert.match(database, /export const listEvidenceFolders/);
+assert.match(database, /export const listFolderPhotos/);
 assert.match(database, /export const deleteEvidencePhotos/);
-assert.match(database, /list_evidence_photos/);
+assert.match(database, /export const checkCompanyAssetDeletable/);
+assert.match(database, /list_evidence_folders/);
+assert.match(database, /list_folder_photos/);
+assert.match(database, /check_company_asset_deletable/);
 assert.match(database, /delete-storage-photos/);
 assert.match(database, /export const checkPhotoStorageHealth/);
 assert.match(database, /export const getPhotoStorageSummary/);
+assert.doesNotMatch(database, /export const listEvidencePhotos\b/);
 assert.doesNotMatch(database, /export const getPhotoStorageMode/);
 assert.doesNotMatch(database, /export const setPhotoStorageMode/);
 assert.doesNotMatch(database, /export const checkUnusedPhotos/);
@@ -122,42 +159,59 @@ assert.doesNotMatch(database, /export const removeUnusedPhotos/);
 assert.doesNotMatch(database, /export const getPhotoStorageEvents/);
 assert.doesNotMatch(database, /cleanup-orphaned-photos/);
 
-// ── Simplified admin page ──────────────────────────────────────────────────
-// Technical clutter removed: manual routing controls, upload activity table,
-// realtime activity subscription, provider health/diagnostic panel.
+// ── Three-column folder browser page ───────────────────────────────────────
+// The flat All Photos / Can Be Deleted / Still Needed classification tabs
+// are gone — this is the actual redesign, not a cosmetic rename.
+assert.doesNotMatch(page, /All Photos/);
+assert.doesNotMatch(page, /'Can Be Deleted'/);
+assert.doesNotMatch(page, /'Still Needed'/);
+assert.doesNotMatch(page, /Still Needed<\/span>/);
+assert.doesNotMatch(page, /listEvidencePhotos\(/);
+// No leftover manual-routing / diagnostic clutter.
 assert.doesNotMatch(page, /force_firebase/);
-assert.doesNotMatch(page, /Use Backup Photos temporarily/);
-assert.doesNotMatch(page, /Advanced: Where New Photos Are Saved/);
 assert.doesNotMatch(page, /Technical Details/);
 assert.doesNotMatch(page, /Recent Photo Activity/);
 assert.doesNotMatch(page, /postgres_changes/);
-assert.doesNotMatch(page, /HealthBadge/);
-assert.doesNotMatch(page, /planLabel/);
-// Core usage summary is kept, honestly labelled.
+// Core usage summary is kept, honestly labelled, compact.
 assert.match(page, /Storage Usage/);
 assert.match(page, /role="progressbar"/);
 assert.match(page, /included_storage_bytes/);
-assert.match(page, /published plan limit, not a number read from your account/);
-assert.match(page, /This total includes every file in photo storage, including website images/);
-assert.match(page, /Backup storage separately holds/);
-// Percent formatting never shows a misleading bare "0%" for a small nonzero amount.
 assert.match(page, /'<1%'/);
-// Gallery: search, filters, selection, delete.
-assert.match(page, /listEvidencePhotos/);
-assert.match(page, /deleteEvidencePhotos/);
-assert.match(page, /Search by booking \/ tracking number/);
-assert.match(page, /'Can Be Deleted'/);
-assert.match(page, /'Still Needed'/);
-assert.match(page, /Select all eligible on this page/);
+// The three-column browser itself.
+assert.match(page, /storage-browser/);
+assert.match(page, /storage-col-folders/);
+assert.match(page, /storage-col-photos/);
+assert.match(page, /storage-col-preview/);
+assert.match(page, /listEvidenceFolders/);
+assert.match(page, /listFolderPhotos/);
+assert.match(page, /Photos Without Bookings/);
+assert.match(page, /Search tracking number/);
+assert.match(page, /Select all eligible/);
 assert.match(page, /Delete Selected/);
 assert.match(page, /permanently removed from storage\. This cannot be undone/);
-assert.match(page, /booking and payment records are not affected/i);
-// Only eligible photos are selectable — protected ones never render a checkbox.
-assert.match(page, /item\.status !== 'eligible'\) return;/);
+assert.match(page, /booking and payment records remain/i);
+// Only eligible photos are selectable — protected ones never toggle.
 assert.match(page, /canSelect = item\.status === 'eligible'/);
-assert.match(page, /ImageLightbox/);
-assert.match(page, /Pagination/);
+// Stale-response guards for both folder listing and per-folder photo fetch.
+assert.match(page, /requestId !== folderSeq\.current/);
+assert.match(page, /requestId !== photoSeq\.current/);
+// Single-photo delete action from the preview pane.
+assert.match(page, /Delete This Photo/);
+// Company Images tab.
+assert.match(page, /CompanyImagesBrowser/);
+assert.match(page, /checkCompanyAssetDeletable/);
+assert.match(page, /company-assets/);
+assert.match(page, /Company Images/);
 assert.doesNotMatch(page, /> Refresh\s*</);
+
+// ── CSS: three-column desktop grid collapsing to sequential mobile panes ───
+assert.match(css, /\.storage-browser\s*\{/);
+assert.match(css, /grid-template-columns:\s*260px/);
+assert.match(css, /@media \(max-width: 900px\)/);
+assert.match(css, /\.storage-browser\[data-pane="folders"\] \.storage-col-folders/);
+assert.match(css, /\.storage-browser\[data-pane="photos"\] \.storage-col-photos/);
+assert.match(css, /\.storage-browser\[data-pane="preview"\] \.storage-col-preview/);
+assert.match(css, /\.storage-browser-mobile-back/);
 
 assert.match(app, /storage-monitoring/);
 assert.match(config, /\[functions\.record-photo-storage-event\]/);
