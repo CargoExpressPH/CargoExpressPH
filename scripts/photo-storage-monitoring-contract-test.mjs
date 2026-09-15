@@ -197,6 +197,39 @@ assert.match(page, /requestId !== folderSeq\.current/);
 assert.match(page, /requestId !== photoSeq\.current/);
 // Single-photo delete action from the preview pane.
 assert.match(page, /Delete This Photo/);
+// Bulk-selection toolbar only renders once something is actually selected.
+assert.match(page, /selectedList\.length > 0 &&/);
+
+// ── Per-folder "⋮" actions menu (compact, not a large folder-level button) ──
+assert.match(page, /MoreVertical/);
+assert.match(page, /Delete Photos in Folder/);
+assert.match(page, /role="menu"/);
+assert.match(page, /role="menuitem"/);
+assert.match(page, /aria-haspopup="menu"/);
+assert.match(page, /aria-expanded=\{open\}/);
+assert.match(page, /Photo actions for \$\{label\}/);
+// Portal-rendered so the folder column's own overflow-y:auto never clips it.
+assert.match(page, /createPortal/);
+assert.match(page, /document\.body/);
+// Escape closes and focus returns to the trigger.
+assert.match(page, /e\.key === 'Escape'/);
+assert.match(page, /triggerRef\.current\?\.focus\(\)/);
+// The menu action resolves the COMPLETE folder (paginated), never assumes
+// the first page is everything, before any confirmation is shown.
+assert.match(page, /resolveFolderPhotos/);
+assert.match(page, /FOLDER_RESOLVE_PAGE_SIZE/);
+assert.match(page, /while \(all\.length < total\)/);
+// Confirmation is explicit about what remains protected, not just what's deleted.
+assert.match(page, /will remain in this folder because/);
+assert.match(page, /can be deleted right now — .*still protected/);
+// Reuses the SAME deletion RPC/edge-function path as single/bulk delete —
+// no parallel implementation for the folder-menu action.
+assert.match(page, /confirmFolderTarget \? confirmFolderTarget\.items/);
+// The nested-button-inside-a-button trap is avoided: each folder row is a
+// row container with two SIBLING interactive controls (select + menu).
+assert.match(page, /storage-folder-row-main/);
+assert.doesNotMatch(page, /<button[^>]*storage-folder-row[^>]*>[\s\S]{0,400}<button/);
+
 // Company Images tab.
 assert.match(page, /CompanyImagesBrowser/);
 assert.match(page, /checkCompanyAssetDeletable/);

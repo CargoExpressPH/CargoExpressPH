@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   AlertTriangle, ArrowLeft, CheckSquare, Database, Folder, FolderOpen,
-  HardDrive, Image as ImageIcon, Loader, Search, Square, Trash2, X,
+  HardDrive, Image as ImageIcon, Loader, MoreVertical, Search, Square, Trash2, X,
 } from 'lucide-react';
 import {
   checkCompanyAssetDeletable, checkPhotoStorageHealth, deleteEvidencePhotos,
@@ -19,6 +20,11 @@ import Pagination from '../../components/ui/Pagination';
 const FOLDER_PAGE_SIZE = 20;
 const SEARCH_DEBOUNCE_MS = 350;
 const UNBOOKED = '__unbooked__';
+// list_folder_photos() caps at 200/page server-side; a real booking folder
+// never comes close, but the "Photos Without Bookings" folder can — so
+// resolving "everything in this folder" before showing the delete
+// confirmation loops pages rather than assuming one call is complete.
+const FOLDER_RESOLVE_PAGE_SIZE = 200;
 
 const number = (value) => Number(value || 0).toLocaleString('en-PH');
 
@@ -56,36 +62,134 @@ const toDescriptor = (item) => (
     : { type: 'supabase_storage', bucket: 'cargo-photos', path: item.storage_path }
 );
 
+const folderLabelFor = (folder) => (folder.folder_key === UNBOOKED ? 'Photos Without Bookings' : folder.folder_key);
+
+/* ============================================================================
+ * LEFT column — the per-folder "⋮" actions menu.
+ *
+ * Rendered via a portal into document.body, positioned from the trigger's own
+ * getBoundingClientRect() at open time, rather than CSS position:absolute
+ * inside the row. The left column (.storage-folder-list) scrolls with
+ * overflow-y:auto, which clips ANY absolutely-positioned descendant that
+ * would otherwise render outside its visible bounds — a portal is the only
+ * way for the menu to float above the whole page regardless of scroll
+ * position. Closing (rather than repositioning) on scroll/resize keeps this
+ * simple and correct: the menu can never end up floating in the wrong place.
+ * ==========================================================================*/
+const FolderActionsMenu = ({ folder, onDeleteFolder, disabled }) => {
+  const [open, setOpen] = useState(false);
+  const [anchorRect, setAnchorRect] = useState(null);
+  const triggerRef = useRef(null);
+  const menuRef = useRef(null);
+  const label = folderLabelFor(folder);
+
+  const close = useCallback(() => {
+    setOpen(false);
+    triggerRef.current?.focus();
+  }, []);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    // Focus the one menu item on open, matching native menu behavior.
+    menuRef.current?.querySelector('[role="menuitem"]')?.focus();
+
+    const handlePointerDown = (e) => {
+      if (menuRef.current?.contains(e.target) || triggerRef.current?.contains(e.target)) return;
+      setOpen(false);
+    };
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') { e.preventDefault(); close(); }
+    };
+    // A scroll anywhere (the folder column, or the page) or a resize makes
+    // the captured anchorRect stale — closing is simpler and safer than
+    // tracking a moving target.
+    const handleDismiss = () => setOpen(false);
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('resize', handleDismiss);
+    document.addEventListener('scroll', handleDismiss, true);
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('resize', handleDismiss);
+      document.removeEventListener('scroll', handleDismiss, true);
+    };
+  }, [open, close]);
+
+  const toggleOpen = () => {
+    if (!open) setAnchorRect(triggerRef.current.getBoundingClientRect());
+    setOpen((prev) => !prev);
+  };
+
+  return (
+    <>
+      <button
+        type="button"
+        ref={triggerRef}
+        className="btn-icon storage-folder-menu-trigger"
+        onClick={toggleOpen}
+        disabled={disabled}
+        aria-label={`Photo actions for ${label}`}
+        aria-haspopup="menu"
+        aria-expanded={open}
+      >
+        <MoreVertical size={16} aria-hidden="true" />
+      </button>
+      {open && anchorRect && createPortal(
+        <div
+          ref={menuRef}
+          role="menu"
+          aria-label={`Photo actions for ${label}`}
+          className="storage-folder-menu"
+          style={{ top: anchorRect.bottom + 4, right: Math.max(8, window.innerWidth - anchorRect.right) }}
+          onKeyDown={(e) => { if (e.key === 'Escape') { e.preventDefault(); close(); } }}
+        >
+          <button
+            type="button"
+            role="menuitem"
+            className="storage-folder-menu-item danger"
+            onClick={() => { setOpen(false); onDeleteFolder(folder); }}
+          >
+            <Trash2 size={14} aria-hidden="true" /> Delete Photos in Folder
+          </button>
+        </div>,
+        document.body,
+      )}
+    </>
+  );
+};
+
 /* ============================================================================
  * LEFT column — booking folders
  * ==========================================================================*/
-const FolderList = ({ folders, selectedKey, onSelect, loading }) => (
+const FolderList = ({ folders, selectedKey, onSelect, onDeleteFolder, loading, menuDisabled }) => (
   <div className="storage-folder-list" role="list" aria-label="Booking folders">
     {folders.map((f) => {
       const isUnbooked = f.folder_key === UNBOOKED;
       const active = f.folder_key === selectedKey;
       return (
-        <button
-          key={f.folder_key}
-          type="button"
-          role="listitem"
-          onClick={() => onSelect(f.folder_key)}
-          className={`storage-folder-row ${active ? 'storage-folder-row-active' : ''}`}
-          disabled={loading && active}
-        >
-          {active ? <FolderOpen size={16} aria-hidden="true" /> : <Folder size={16} aria-hidden="true" />}
-          <span className="storage-folder-row-text">
-            <span className="storage-folder-row-title">
-              {isUnbooked ? 'Photos Without Bookings' : f.folder_key}
-            </span>
-            {!isUnbooked && (f.customer_name || f.order_status) && (
-              <span className="storage-folder-row-sub">
-                {[f.customer_name, f.order_status].filter(Boolean).join(' · ')}
+        <div key={f.folder_key} role="listitem" className={`storage-folder-row storage-folder-row-has-menu ${active ? 'storage-folder-row-active' : ''}`}>
+          <button
+            type="button"
+            onClick={() => onSelect(f.folder_key)}
+            className="storage-folder-row-main"
+            disabled={loading && active}
+          >
+            {active ? <FolderOpen size={16} aria-hidden="true" /> : <Folder size={16} aria-hidden="true" />}
+            <span className="storage-folder-row-text">
+              <span className="storage-folder-row-title">
+                {isUnbooked ? 'Photos Without Bookings' : f.folder_key}
               </span>
-            )}
-          </span>
-          <span className="storage-folder-row-count">{number(f.photo_count)}</span>
-        </button>
+              {!isUnbooked && (f.customer_name || f.order_status) && (
+                <span className="storage-folder-row-sub">
+                  {[f.customer_name, f.order_status].filter(Boolean).join(' · ')}
+                </span>
+              )}
+            </span>
+            <span className="storage-folder-row-count">{number(f.photo_count)}</span>
+          </button>
+          <FolderActionsMenu folder={f} onDeleteFolder={onDeleteFolder} disabled={menuDisabled} />
+        </div>
       );
     })}
     {!loading && folders.length === 0 && (
@@ -185,7 +289,7 @@ const PreviewPane = ({ item, url, urlState, onDelete, canDelete }) => {
 /* ============================================================================
  * Cargo Photos — the three-column booking-folder browser
  * ==========================================================================*/
-const CargoPhotoBrowser = () => {
+const CargoPhotoBrowser = ({ onPhotosChanged }) => {
   const toast = useToast();
 
   const [folders, setFolders] = useState([]);
@@ -208,7 +312,12 @@ const CargoPhotoBrowser = () => {
 
   const [selected, setSelected] = useState(() => new Map());
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [confirmTarget, setConfirmTarget] = useState(null); // null = bulk selection, item = single
+  const [confirmTarget, setConfirmTarget] = useState(null); // single-item delete (preview pane)
+  // Folder-menu delete: the complete, resolved set of this folder's photos —
+  // distinct from `selected` (checkbox selection), which the folder menu
+  // never touches or depends on.
+  const [confirmFolderTarget, setConfirmFolderTarget] = useState(null);
+  const [resolvingFolderKey, setResolvingFolderKey] = useState(null);
   const [deleting, setDeleting] = useState(false);
   const [deleteResult, setDeleteResult] = useState(null);
 
@@ -332,9 +441,54 @@ const CargoPhotoBrowser = () => {
   const selectedBytesKnown = selectedList.some((i) => i.size_bytes != null);
   const selectedBytesTotal = selectedList.reduce((sum, i) => sum + Number(i.size_bytes || 0), 0);
 
-  const deleteTargets = confirmTarget ? [confirmTarget] : selectedList;
+  // Fetches every page of one folder's photos — never assumes the first page
+  // is the whole folder — so the confirmation shown before a folder-menu
+  // delete is computed from the complete set, not a partial/cached one.
+  const resolveFolderPhotos = async (folderKey) => {
+    let page = 1;
+    let total = Infinity;
+    const all = [];
+    while (all.length < total) {
+      const { data, count } = await listFolderPhotos(folderKey, { page, pageSize: FOLDER_RESOLVE_PAGE_SIZE });
+      if (page === 1) total = count;
+      all.push(...data);
+      if (data.length === 0) break; // safety net against an unexpected short/empty page
+      page += 1;
+    }
+    return all;
+  };
+
+  const handleDeleteFolderClick = async (folder) => {
+    if (resolvingFolderKey || deleting) return; // one resolve/delete flow at a time
+    setResolvingFolderKey(folder.folder_key);
+    try {
+      const all = await resolveFolderPhotos(folder.folder_key);
+      const eligible = all.filter((i) => i.status === 'eligible');
+      if (eligible.length === 0) {
+        toast.error(all.length === 0
+          ? `${folderLabelFor(folder)} has no photos to delete.`
+          : `None of the ${all.length} photo${all.length === 1 ? '' : 's'} in ${folderLabelFor(folder)} can be deleted right now — ${all.length === 1 ? 'it is' : 'they are'} still protected.`);
+        return;
+      }
+      setConfirmFolderTarget({ folder, items: eligible, totalInFolder: all.length, protectedCount: all.length - eligible.length });
+      setConfirmOpen(true);
+    } catch (error) {
+      toast.error(error?.message || 'Could not check this folder’s photos.');
+    } finally {
+      setResolvingFolderKey(null);
+    }
+  };
+
+  const deleteTargets = confirmFolderTarget ? confirmFolderTarget.items : confirmTarget ? [confirmTarget] : selectedList;
   const deleteTargetsBytesKnown = deleteTargets.some((i) => i.size_bytes != null);
   const deleteTargetsBytesTotal = deleteTargets.reduce((sum, i) => sum + Number(i.size_bytes || 0), 0);
+
+  const closeConfirm = () => {
+    if (deleting) return;
+    setConfirmOpen(false);
+    setConfirmTarget(null);
+    setConfirmFolderTarget(null);
+  };
 
   const runDelete = async () => {
     setDeleting(true);
@@ -346,6 +500,7 @@ const CargoPhotoBrowser = () => {
       setDeleteResult(result);
       setConfirmOpen(false);
       setConfirmTarget(null);
+      setConfirmFolderTarget(null);
       const deletedKeys = new Set(deleteTargets.map((i) => i.item_key));
       setSelected((prev) => {
         const next = new Map(prev);
@@ -368,6 +523,7 @@ const CargoPhotoBrowser = () => {
       await Promise.allSettled([
         loadFolders(),
         selectedFolder ? loadFolderPhotos(selectedFolder) : Promise.resolve(),
+        Promise.resolve(onPhotosChanged?.()),
       ]);
     } catch (error) {
       toast.error(error?.message || 'Could not delete the selected photos.');
@@ -409,7 +565,14 @@ const CargoPhotoBrowser = () => {
           {foldersLoading && folders.length === 0 ? (
             <CenteredSpinner />
           ) : (
-            <FolderList folders={folders} selectedKey={selectedFolder} onSelect={openFolder} loading={foldersLoading} />
+            <FolderList
+              folders={folders}
+              selectedKey={selectedFolder}
+              onSelect={openFolder}
+              onDeleteFolder={handleDeleteFolderClick}
+              loading={foldersLoading}
+              menuDisabled={Boolean(resolvingFolderKey) || deleting}
+            />
           )}
           <div className="storage-col-footer">
             <Pagination totalItems={foldersCount} currentPage={folderPage} itemsPerPage={FOLDER_PAGE_SIZE} onPageChange={setFolderPage} />
@@ -512,10 +675,19 @@ const CargoPhotoBrowser = () => {
 
       <ConfirmModal
         isOpen={confirmOpen}
-        onClose={() => { if (!deleting) { setConfirmOpen(false); setConfirmTarget(null); } }}
+        onClose={closeConfirm}
         onConfirm={() => void runDelete()}
-        title="Permanently delete this photo evidence?"
-        message={`${deleteTargets.length} photo${deleteTargets.length === 1 ? '' : 's'}${deleteTargetsBytesKnown ? ` (~${formatBytes(deleteTargetsBytesTotal)})` : ''} will be permanently removed from storage. This cannot be undone. The related booking and payment records remain — only the photo file itself will no longer be available.`}
+        title={confirmFolderTarget
+          ? `Delete photos in ${folderLabelFor(confirmFolderTarget.folder)}?`
+          : 'Permanently delete this photo evidence?'}
+        message={confirmFolderTarget
+          ? `${confirmFolderTarget.items.length} of ${confirmFolderTarget.totalInFolder} photo${confirmFolderTarget.totalInFolder === 1 ? '' : 's'} in ${folderLabelFor(confirmFolderTarget.folder)} will be permanently deleted`
+            + `${deleteTargetsBytesKnown ? ` (~${formatBytes(deleteTargetsBytesTotal)})` : ''}. `
+            + (confirmFolderTarget.protectedCount > 0
+              ? `${confirmFolderTarget.protectedCount} photo${confirmFolderTarget.protectedCount === 1 ? '' : 's'} will remain in this folder because ${confirmFolderTarget.protectedCount === 1 ? 'it is' : 'they are'} still protected. `
+              : '')
+            + 'This cannot be undone. The booking record will remain — only the deleted photo evidence will no longer be available.'
+          : `${deleteTargets.length} photo${deleteTargets.length === 1 ? '' : 's'}${deleteTargetsBytesKnown ? ` (~${formatBytes(deleteTargetsBytesTotal)})` : ''} will be permanently removed from storage. This cannot be undone. The related booking and payment records remain — only the photo file itself will no longer be available.`}
         confirmLabel="Permanently Delete"
         variant="warning"
         loading={deleting}
@@ -532,7 +704,7 @@ const CargoPhotoBrowser = () => {
  * ==========================================================================*/
 const COMPANY_BUCKET = 'company-assets';
 
-const CompanyImagesBrowser = () => {
+const CompanyImagesBrowser = ({ onFilesChanged }) => {
   const toast = useToast();
   const [groups, setGroups] = useState(null); // null = loading
   const [selectedGroup, setSelectedGroup] = useState(null);
@@ -649,6 +821,7 @@ const CompanyImagesBrowser = () => {
       setSelected((prev) => { const next = new Set(prev); approved.forEach((p) => next.delete(p)); return next; });
       if (previewFile && approved.includes(previewFile.fullPath)) { setPreviewFile(null); setPreviewUrl(null); }
       if (selectedGroup) await openGroup(selectedGroup);
+      onFilesChanged?.();
     } catch (error) {
       toast.error(error?.message || 'Could not delete the selected files.');
     } finally {
@@ -787,18 +960,19 @@ const PhotoStorageTab = () => {
   const [summary, setSummary] = useState(null);
   const [bucket, setBucket] = useState('cargo'); // 'cargo' | 'company'
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      setOverviewLoading(true);
-      const [healthResult, summaryResult] = await Promise.allSettled([checkPhotoStorageHealth(), getPhotoStorageSummary()]);
-      if (cancelled) return;
-      if (healthResult.status === 'fulfilled') setHealth(healthResult.value);
-      if (summaryResult.status === 'fulfilled') setSummary(summaryResult.value);
-      setOverviewLoading(false);
-    })();
-    return () => { cancelled = true; };
+  // Reusable so a deletion (single, bulk, or folder-menu, in either browser)
+  // can refresh the usage card without a full-page reload — the "Storage
+  // totals refresh now" copy on the delete-result banner only became true
+  // once this was wired up as a callback the browsers can call.
+  const loadOverview = useCallback(async ({ quiet = false } = {}) => {
+    if (!quiet) setOverviewLoading(true);
+    const [healthResult, summaryResult] = await Promise.allSettled([checkPhotoStorageHealth(), getPhotoStorageSummary()]);
+    if (healthResult.status === 'fulfilled') setHealth(healthResult.value);
+    if (summaryResult.status === 'fulfilled') setSummary(summaryResult.value);
+    if (!quiet) setOverviewLoading(false);
   }, []);
+
+  useEffect(() => { void loadOverview(); }, [loadOverview]);
 
   if (overviewLoading) return <CenteredSpinner />;
 
@@ -868,7 +1042,9 @@ const PhotoStorageTab = () => {
       </div>
 
       <section className="card admin-section-card storage-browser-card">
-        {bucket === 'cargo' ? <CargoPhotoBrowser /> : <CompanyImagesBrowser />}
+        {bucket === 'cargo'
+          ? <CargoPhotoBrowser onPhotosChanged={() => loadOverview({ quiet: true })} />
+          : <CompanyImagesBrowser onFilesChanged={() => loadOverview({ quiet: true })} />}
       </section>
     </div>
   );

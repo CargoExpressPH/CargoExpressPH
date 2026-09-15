@@ -616,6 +616,81 @@
   flex-shrink: 0;
 }
 
+/* Cargo folder rows carry a per-folder "⋮" actions menu beside the main
+   select button — two siblings, not one button nested in another. The plain
+   .storage-folder-row (Company Images' group buttons, no menu) is untouched;
+   this modifier only changes the row that has both children. */
+.storage-folder-row-has-menu {
+  padding: 0;
+  gap: 0;
+}
+
+.storage-folder-row-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+  padding: 10px 4px 10px 12px;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.storage-folder-menu-trigger {
+  flex-shrink: 0;
+  margin-right: 6px;
+  color: var(--text-secondary);
+}
+
+/* Portal-rendered into document.body (see FolderActionsMenu) so it is never
+   clipped by .storage-folder-list's own overflow-y:auto. Positioned via
+   inline top/right computed from the trigger's own bounding rect. */
+.storage-folder-menu {
+  position: fixed;
+  z-index: 200;
+  min-width: 220px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+  padding: 4px;
+}
+
+.storage-folder-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 10px;
+  border: none;
+  border-radius: var(--radius-xs, 6px);
+  background: transparent;
+  color: var(--text);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  text-align: left;
+}
+
+.storage-folder-menu-item:hover,
+.storage-folder-menu-item:focus-visible {
+  background: var(--bg-secondary);
+}
+
+.storage-folder-menu-item.danger {
+  color: var(--error);
+}
+
+.storage-folder-menu-item.danger:hover,
+.storage-folder-menu-item.danger:focus-visible {
+  background: rgba(239, 68, 68, 0.08);
+}
+
 .storage-photo-row {
   display: flex;
   align-items: center;
