@@ -457,6 +457,9 @@ body.keyboard-open .customer-chat-fab {
     flex: 0 0 auto;
     min-width: 0;
   }
+  .modal.modal-lg .fs-remove-btn {
+    flex: 0 0 auto;
+  }
 }
 @media (max-width: 639px) {
   .modal.modal-lg .fs-modal-footer {
@@ -480,5 +483,6 @@ body.keyboard-open .customer-chat-fab {
   }
   .modal.modal-lg .fs-remove-btn {
     width: 100%;
+    flex: 0 0 auto;
   }
 }
