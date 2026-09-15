@@ -65,6 +65,20 @@ await db.exec(`
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
   );
 
+  -- Real shape (supabase/schema.sql) — what log_order_status_event() writes
+  -- on every orders.status change. Rows are inserted directly by the test
+  -- fixtures below (simulating the trigger) rather than reapplying the
+  -- trigger itself, since only get_featured_deliveries()'s READ of this
+  -- table is under test here.
+  CREATE TABLE public.order_status_events (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    order_id UUID NOT NULL REFERENCES public.orders(id) ON DELETE CASCADE,
+    status VARCHAR(30) NOT NULL,
+    changed_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    changed_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+    note TEXT
+  );
+
   -- Real RLS on orders (from supabase/schema.sql) — the actual authorization
   -- boundary for the write path this feature uses (updateOrder()).
   ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
@@ -89,8 +103,9 @@ function extractFunction(sql, name) {
 await db.exec(extractFunction(schemaSql, 'mask_name'));
 await db.exec(extractFunction(schemaSql, 'is_featured_photo_path'));
 
-console.log('== Applying 20260915140000 verbatim (the migration under test) ==');
+console.log('== Applying 20260915140000 and 20260915150000 verbatim (the migrations under test) ==');
 await db.exec(readFileSync(path.join(REPO, 'supabase/migrations/20260915140000_separate_featured_shipments_from_feedback.sql'), 'utf8'));
+await db.exec(readFileSync(path.join(REPO, 'supabase/migrations/20260915150000_add_delivered_at_to_featured_deliveries.sql'), 'utf8'));
 
 const ADMIN_ID = '00000000-0000-0000-0000-000000000001';
 const CUST_ID = '00000000-0000-0000-0000-000000000002';
@@ -132,6 +147,13 @@ async function addFeedback(orderId, { rating = 5, message = 'Great service!', hi
   await db.query(
     `INSERT INTO customer_feedback (order_id, customer_id, rating, message, is_hidden) VALUES ($1,$2,$3,$4,$5)`,
     [orderId, CUST_ID, rating, message, hidden],
+  );
+}
+
+async function logStatusEvent(orderId, status, changedAt) {
+  await db.query(
+    `INSERT INTO order_status_events (order_id, status, changed_at) VALUES ($1,$2,$3)`,
+    [orderId, status, changedAt],
   );
 }
 
@@ -329,6 +351,81 @@ console.log('\n-- Authorization (RLS on the write path) --');
   ));
   row = (await db.query(`SELECT featured_on_website, featured_title FROM orders WHERE id = $1`, [orderId])).rows[0];
   ok('an admin can feature it', row.featured_on_website === true && row.featured_title === 'Admin featured this', row);
+}
+
+// ============================================================================
+// 9. delivered_at — the authoritative delivery-completion timestamp
+// ============================================================================
+console.log('\n-- delivered_at (order_status_events, not updated_at/created_at) --');
+{
+  const orderId = await makeOrder('ORDER-DELIVERED-AT-1', {
+    featured: true, featuredTitle: 'Delivered date test', featuredImageType: 'pickup',
+    pickupPhotos: bareStringPhoto('pickup-proofs/ORDER-DELIVERED-AT-1/pickup-1.jpg'),
+  });
+  // A realistic history: booked, then several status hops, then Delivered —
+  // none of which is delivered_at.
+  await logStatusEvent(orderId, 'Pending', '2026-09-10T09:00:00+08:00');
+  await logStatusEvent(orderId, 'Assigned', '2026-09-11T10:00:00+08:00');
+  await logStatusEvent(orderId, 'Picked Up', '2026-09-12T08:00:00+08:00');
+  await logStatusEvent(orderId, 'Out for Delivery', '2026-09-14T07:00:00+08:00');
+  await logStatusEvent(orderId, 'Delivered', '2026-09-14T15:30:00+08:00');
+  // A later, unrelated edit (e.g. an admin fixing a contact detail) bumps
+  // updated_at in the real schema but must never change delivered_at.
+  await db.query(`UPDATE orders SET featured_caption = 'edited later' WHERE id = $1`, [orderId]);
+
+  const rows = await getFeaturedDeliveries();
+  const row = rows.find(r => r.id === orderId);
+  ok('delivered_at matches the logged Delivered status event, not any other status', new Date(row.delivered_at).toISOString() === new Date('2026-09-14T15:30:00+08:00').toISOString(), row);
+
+  await db.query(`UPDATE orders SET featured_title = 'Delivered date test (still same)' WHERE id = $1`, [orderId]);
+  const rowsAfterEdit = await getFeaturedDeliveries();
+  const rowAfterEdit = rowsAfterEdit.find(r => r.id === orderId);
+  ok('a later admin edit to the featured card does not change delivered_at', new Date(rowAfterEdit.delivered_at).toISOString() === new Date('2026-09-14T15:30:00+08:00').toISOString(), rowAfterEdit);
+}
+{
+  // Redelivery/reopening: 'Delivered' logged twice for the same order (no
+  // real workflow does this today, but the query must still behave
+  // predictably if one ever does) — the FIRST occurrence wins, matching
+  // get_public_order_events()'s own MIN(changed_at) convention.
+  const orderId = await makeOrder('ORDER-REDELIVERED-1', {
+    featured: true, featuredTitle: 'Redelivered test', featuredImageType: 'pickup',
+    pickupPhotos: bareStringPhoto('pickup-proofs/ORDER-REDELIVERED-1/pickup-1.jpg'),
+  });
+  await logStatusEvent(orderId, 'Delivered', '2026-09-10T12:00:00+08:00');
+  await logStatusEvent(orderId, 'Out for Delivery', '2026-09-11T09:00:00+08:00'); // hypothetical reopen
+  await logStatusEvent(orderId, 'Delivered', '2026-09-12T16:00:00+08:00'); // hypothetical redelivery
+  const rows = await getFeaturedDeliveries();
+  const row = rows.find(r => r.id === orderId);
+  ok('a re-entered Delivered status reports the FIRST occurrence, not the latest', new Date(row.delivered_at).toISOString() === new Date('2026-09-10T12:00:00+08:00').toISOString(), row);
+}
+{
+  // Missing history: a booking with no logged Delivered event at all (older
+  // data predating this trigger, or a data gap) — must be NULL, never
+  // fabricated from created_at/updated_at or any other timestamp.
+  const orderId = await makeOrder('ORDER-NO-DELIVERY-EVENT-1', {
+    featured: true, featuredTitle: 'No delivery event on file', featuredImageType: 'pickup',
+    pickupPhotos: bareStringPhoto('pickup-proofs/ORDER-NO-DELIVERY-EVENT-1/pickup-1.jpg'),
+  });
+  const rows = await getFeaturedDeliveries();
+  const row = rows.find(r => r.id === orderId);
+  ok('a booking with no logged Delivered event reports delivered_at as NULL, not a fabricated date', row.delivered_at === null, row);
+}
+{
+  // Midnight-boundary sanity check: a Delivered event logged just before PH
+  // midnight must not silently shift to the next/previous UTC calendar day
+  // when read back. This asserts the stored instant round-trips exactly —
+  // the actual PH-calendar-day rendering is formatPhDate() in the frontend
+  // (utils/datetime.js), already covered by its own existing usage
+  // elsewhere; this pgtest only proves the RPC hands back the real instant.
+  const orderId = await makeOrder('ORDER-MIDNIGHT-1', {
+    featured: true, featuredTitle: 'Midnight edge case', featuredImageType: 'pickup',
+    pickupPhotos: bareStringPhoto('pickup-proofs/ORDER-MIDNIGHT-1/pickup-1.jpg'),
+  });
+  // 11:50 PM Asia/Manila on Sep 14 — 15:50 UTC same day.
+  await logStatusEvent(orderId, 'Delivered', '2026-09-14T23:50:00+08:00');
+  const rows = await getFeaturedDeliveries();
+  const row = rows.find(r => r.id === orderId);
+  ok('a near-midnight PH timestamp round-trips to the exact same instant', new Date(row.delivered_at).toISOString() === new Date('2026-09-14T23:50:00+08:00').toISOString(), row);
 }
 
 console.log(`\n${passed} passed, ${failed} failed`);

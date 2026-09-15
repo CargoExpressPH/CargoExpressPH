@@ -771,7 +771,7 @@ $function$
 
 
 CREATE OR REPLACE FUNCTION public.get_featured_deliveries()
- RETURNS TABLE(id uuid, featured_title text, featured_caption text, featured_image_type text, featured_at timestamp with time zone, featured_photo text, receiver_city text, receiver_province text)
+ RETURNS TABLE(id uuid, featured_title text, featured_caption text, featured_image_type text, featured_at timestamp with time zone, featured_photo text, receiver_city text, receiver_province text, delivered_at timestamp with time zone)
  LANGUAGE sql
  STABLE SECURITY DEFINER
  SET search_path TO 'public'
@@ -791,7 +791,12 @@ AS $function$
       ELSE NULL
     END AS featured_photo,
     o.receiver_city,
-    o.receiver_province
+    o.receiver_province,
+    (
+      SELECT MIN(e.changed_at)
+      FROM public.order_status_events e
+      WHERE e.order_id = o.id AND e.status = 'Delivered'
+    ) AS delivered_at
   FROM public.orders o
   WHERE o.featured_on_website = true
     AND o.featured_title IS NOT NULL

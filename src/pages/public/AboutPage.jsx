@@ -24,6 +24,8 @@ import Footer from '../../components/layout/Footer';
 import useScrollLock from '../../hooks/useScrollLock';
 import useFieldErrors from '../../hooks/useFieldErrors';
 import FieldError, { fieldAttrs, invalidClass } from '../../components/ui/FieldError';
+import CustomSelect from '../../components/ui/CustomSelect';
+import { formatPhDate } from '../../utils/datetime';
 import { useTripBooking } from '../../hooks/useTripBooking';
 import TripScheduleCard from '../../components/public/TripScheduleCard';
 import FAQAccordion from '../../components/public/FAQAccordion';
@@ -50,6 +52,16 @@ import {
 const getGoogleMapsSearchUrl = (address) => (
   `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address?.trim() || '')}`
 );
+
+// A review card shows a short excerpt with "Read more" past this length,
+// breaking on the nearest earlier space so a word is never cut mid-way.
+const REVIEW_EXCERPT_LIMIT = 220;
+const getReviewExcerpt = (message) => {
+  if (!message || message.length <= REVIEW_EXCERPT_LIMIT) return message || '';
+  const cut = message.slice(0, REVIEW_EXCERPT_LIMIT);
+  const lastSpace = cut.lastIndexOf(' ');
+  return `${cut.slice(0, lastSpace > 40 ? lastSpace : REVIEW_EXCERPT_LIMIT)}…`;
+};
 
 // ─── Lightbox Component (with prev/next navigation) ───
 const Lightbox = ({ images, currentIndex, onClose, onNavigate }) => {
@@ -119,6 +131,60 @@ const Lightbox = ({ images, currentIndex, onClose, onNavigate }) => {
             )}
           </div>
         )}
+      </div>
+    </FocusTrap>
+  );
+};
+
+// ─── Star rating (shared by review cards and the review modal) ───
+const ReviewStars = ({ rating, size = 20 }) => (
+  <div className="about-review-stars">
+    {[1, 2, 3, 4, 5].map(star => (
+      <svg key={star} width={size} height={size} viewBox="0 0 24 24" fill={star <= rating ? "var(--warning)" : "var(--border)"} stroke="none">
+        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+      </svg>
+    ))}
+  </div>
+);
+
+// ─── Full-review modal — opened by "Read more" on a long review ───
+const ReviewModal = ({ review, onClose }) => {
+  useScrollLock(!!review);
+
+  useEffect(() => {
+    if (!review) return;
+    const handleKeyDown = (e) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [review, onClose]);
+
+  if (!review) return null;
+  const firstName = review.profiles?.name?.split(' ')[0] || 'Customer';
+
+  return (
+    <FocusTrap active={!!review}>
+      <div className="about-review-modal-overlay" onClick={onClose} role="dialog" aria-modal="true" aria-label="Full customer review">
+        <div className="about-review-modal" onClick={(e) => e.stopPropagation()}>
+          <button type="button" className="about-review-modal-close" onClick={onClose} aria-label="Close review">
+            <X size={20} />
+          </button>
+          <ReviewStars rating={review.rating} />
+          <p className="about-review-modal-text">{review.message}</p>
+          <div className="about-reviewer-row">
+            <div className="about-reviewer-avatar">{firstName[0].toUpperCase()}</div>
+            <div>
+              <div className="about-reviewer-name">{'—'} {firstName}</div>
+              {review.orders?.receiver_city && (
+                <div className="about-reviewer-location">
+                  Delivered to {review.orders.receiver_city}{review.orders.receiver_province ? `, ${review.orders.receiver_province}` : ''}
+                </div>
+              )}
+              {review.created_at && (
+                <div className="about-review-date">Reviewed {formatPhDate(review.created_at)}</div>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
     </FocusTrap>
   );
@@ -374,6 +440,9 @@ const AboutPage = () => {
   const [selectedRegionId, setSelectedRegionId] = useState(null);
   const [selectedRating, setSelectedRating] = useState('all');
   const [citySearchQuery, setCitySearchQuery] = useState('');
+  const feedbackScrollRef = useRef(null);
+  const [feedbackScrollState, setFeedbackScrollState] = useState({ canScrollLeft: false, canScrollRight: false, overflowing: false });
+  const [expandedReview, setExpandedReview] = useState(null);
   
   const { scrollY } = useScroll();
   const yHero = useTransform(scrollY, [0, 600], [0, 200]);
@@ -633,6 +702,53 @@ const AboutPage = () => {
       return next;
     });
   }, [lightboxImages.length]);
+
+  // ─── Feedback horizontal scroller: nav-button availability, kept in sync
+  // with actual scroll position/content width rather than assumed ───
+  const updateFeedbackScrollState = useCallback(() => {
+    const el = feedbackScrollRef.current;
+    if (!el) return;
+    setFeedbackScrollState({
+      canScrollLeft: el.scrollLeft > 4,
+      canScrollRight: el.scrollLeft < el.scrollWidth - el.clientWidth - 4,
+      overflowing: el.scrollWidth > el.clientWidth + 4,
+    });
+  }, []);
+
+  useEffect(() => {
+    const el = feedbackScrollRef.current;
+    if (!el) return undefined;
+    updateFeedbackScrollState();
+    el.addEventListener('scroll', updateFeedbackScrollState, { passive: true });
+    window.addEventListener('resize', updateFeedbackScrollState);
+    return () => {
+      el.removeEventListener('scroll', updateFeedbackScrollState);
+      window.removeEventListener('resize', updateFeedbackScrollState);
+    };
+    // data.feedback (not the per-render-recomputed filteredFeedback) is the
+    // stable trigger for "the card list actually changed" — it only changes
+    // when a fetch completes, not on every render.
+  }, [data.feedback, updateFeedbackScrollState]);
+
+  // Reset horizontal scroll to the start whenever the rating filter changes,
+  // per the request — a stale mid-scroll position from the previous filter
+  // would otherwise show the wrong cards first under the new one.
+  useEffect(() => {
+    const el = feedbackScrollRef.current;
+    if (!el) return;
+    el.scrollTo({ left: 0, behavior: 'auto' });
+    const raf = requestAnimationFrame(updateFeedbackScrollState);
+    return () => cancelAnimationFrame(raf);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedRating]);
+
+  const scrollFeedbackBy = (direction) => {
+    const el = feedbackScrollRef.current;
+    if (!el) return;
+    const card = el.querySelector('.about-feedback-card');
+    const step = card ? card.getBoundingClientRect().width + 14 : el.clientWidth * 0.9;
+    el.scrollBy({ left: direction * step, behavior: 'smooth' });
+  };
 
   // ─── Section scroll helper ───
   const scrollToSection = (id) => {
@@ -1119,6 +1235,9 @@ const AboutPage = () => {
                     )}
                     <div className="about-highlight-meta">
                       <span>{highlight.receiver_city}{highlight.receiver_province ? `, ${highlight.receiver_province}` : ''}</span>
+                      {highlight.delivered_at && (
+                        <span>Delivered {formatPhDate(highlight.delivered_at)}</span>
+                      )}
                     </div>
                   </div>
                 </motion.button>
@@ -1141,28 +1260,47 @@ const AboutPage = () => {
             <h2 className="about-section-title">What Our Customers Say</h2>
           </div>
 
-          {/* Feedback Star Filter Chips */}
+          {/* Rating filter \u2014 compact chips on desktop, one dropdown once
+              narrower than they comfortably fit (CSS swap, same state). */}
           <div className="about-feedback-filters">
-            {['all', '5', '4', '3', '2', '1'].map(rating => {
-              const isActive = selectedRating === rating;
-              return (
-                <button
-                  key={rating}
-                  type="button"
-                  className={`about-filter-chip ${isActive ? 'active' : ''}`}
-                  onClick={() => setSelectedRating(rating)}
-                >
-                  {rating === 'all' ? 'All Reviews' : `${rating} Star${rating !== '1' ? 's' : ''}`}
-                  {rating !== 'all' && (
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill={isActive ? "#fff" : "var(--warning)"} stroke="none">
-                      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
-                    </svg>
-                  )}
-                </button>
-              );
-            })}
+            <div className="about-filter-chips">
+              {['all', '5', '4', '3', '2', '1'].map(rating => {
+                const isActive = selectedRating === rating;
+                return (
+                  <button
+                    key={rating}
+                    type="button"
+                    className={`about-filter-chip ${isActive ? 'active' : ''}`}
+                    onClick={() => setSelectedRating(rating)}
+                  >
+                    {rating === 'all' ? 'All Reviews' : `${rating} Star${rating !== '1' ? 's' : ''}`}
+                    {rating !== 'all' && (
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill={isActive ? "#fff" : "var(--warning)"} stroke="none">
+                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                      </svg>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="about-filter-select-wrap">
+              <CustomSelect
+                id="about-rating-filter"
+                className="about-rating-select"
+                value={selectedRating}
+                onChange={(e) => setSelectedRating(e.target.value)}
+                aria-label="Filter reviews by rating"
+              >
+                <option value="all">All Ratings</option>
+                <option value="5">5 Stars</option>
+                <option value="4">4 Stars</option>
+                <option value="3">3 Stars</option>
+                <option value="2">2 Stars</option>
+                <option value="1">1 Star</option>
+              </CustomSelect>
+            </div>
           </div>
-          
+
           {(!feedback || feedback.length === 0) ? (
             <div className="about-empty-state about-empty-state-lg">
               <MessageSquare size={48} className="about-empty-icon" />
@@ -1174,34 +1312,53 @@ const AboutPage = () => {
               <div className="about-empty-text">No {selectedRating}-star reviews found.</div>
             </div>
           ) : (
-            <motion.div 
-              className="about-reviews-grid"
-              variants={containerVariants}
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true, margin: "-60px" }}
-            >
-              {filteredFeedback.map((fb, idx) => {
-                const firstName = fb.profiles?.name?.split(' ')[0] || 'Customer';
-                const isHero = idx === 0 && filteredFeedback.length > 2;
-                return (
-                  <motion.div 
-                    key={fb.id} 
-                    className={`about-feedback-card ${isHero ? 'hero-testimonial' : ''}`}
-                    variants={itemVariants}
-                  >
-                    {/* Decorative quote mark */}
-                    <div className="about-quote-mark">"</div>
-                    
-                    <div>
-                      <div className="about-review-stars">
-                        {[1, 2, 3, 4, 5].map(star => (
-                          <svg key={star} width="20" height="20" viewBox="0 0 24 24" fill={star <= fb.rating ? "var(--warning)" : "var(--border)"} stroke="none">
-                            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
-                          </svg>
-                        ))}
-                      </div>
-                      <p className="about-review-text">"{fb.message}"</p>
+            <div className="about-reviews-scroller">
+              {feedbackScrollState.overflowing && filteredFeedback.length > 1 && (
+                <button
+                  type="button"
+                  className="about-reviews-nav prev"
+                  onClick={() => scrollFeedbackBy(-1)}
+                  disabled={!feedbackScrollState.canScrollLeft}
+                  aria-label="Previous reviews"
+                >
+                  <ChevronLeft size={20} />
+                </button>
+              )}
+
+              <motion.div
+                className="about-reviews-scroll"
+                ref={feedbackScrollRef}
+                variants={containerVariants}
+                initial="hidden"
+                whileInView="visible"
+                viewport={{ once: true, margin: "-60px" }}
+                role="list"
+                aria-label="Customer reviews"
+                tabIndex={0}
+              >
+                {filteredFeedback.map((fb) => {
+                  const firstName = fb.profiles?.name?.split(' ')[0] || 'Customer';
+                  const excerpt = getReviewExcerpt(fb.message);
+                  const isTruncated = excerpt !== fb.message;
+                  return (
+                    <motion.div
+                      key={fb.id}
+                      className="about-feedback-card"
+                      variants={itemVariants}
+                      role="listitem"
+                    >
+                      <ReviewStars rating={fb.rating} />
+                      <p className="about-review-text">
+                        {excerpt}
+                        {isTruncated && (
+                          <>
+                            {' '}
+                            <button type="button" className="about-review-readmore" onClick={() => setExpandedReview(fb)}>
+                              Read more
+                            </button>
+                          </>
+                        )}
+                      </p>
 
                       <div className="about-reviewer-row">
                         <div className="about-reviewer-avatar">
@@ -1216,13 +1373,28 @@ const AboutPage = () => {
                               Delivered to {fb.orders.receiver_city}{fb.orders.receiver_province ? `, ${fb.orders.receiver_province}` : ''}
                             </div>
                           )}
+                          {fb.created_at && (
+                            <div className="about-review-date">Reviewed {formatPhDate(fb.created_at)}</div>
+                          )}
                         </div>
                       </div>
-                    </div>
-                  </motion.div>
-                );
-              })}
-            </motion.div>
+                    </motion.div>
+                  );
+                })}
+              </motion.div>
+
+              {feedbackScrollState.overflowing && filteredFeedback.length > 1 && (
+                <button
+                  type="button"
+                  className="about-reviews-nav next"
+                  onClick={() => scrollFeedbackBy(1)}
+                  disabled={!feedbackScrollState.canScrollRight}
+                  aria-label="Next reviews"
+                >
+                  <ChevronRight size={20} />
+                </button>
+              )}
+            </div>
           )}
         </motion.section>
 
@@ -1446,6 +1618,9 @@ const AboutPage = () => {
           onNavigate={handleLightboxNavigate}
         />
       )}
+
+      {/* ═══ Full Review Modal ═══ */}
+      <ReviewModal review={expandedReview} onClose={() => setExpandedReview(null)} />
 
       {/* ═══ Back to Top ═══ */}
       <AnimatePresence>
