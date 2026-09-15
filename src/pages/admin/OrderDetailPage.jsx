@@ -343,12 +343,6 @@ const AdminOrderDetailPage = () => {
       const data = await getOrderById(id);
       if (!isMounted) return;
       setOrder(data);
-      setFeatureForm({
-        featured_on_website: data.featured_on_website || false,
-        featured_title: data.featured_title || '',
-        featured_caption: data.featured_caption || '',
-        featured_image_type: data.featured_image_type || 'pickup'
-      });
       const history = await getTripReassignments(id);
       if (isMounted) setTripHistory(history);
       const actLogs = await getActivityLogsByRecord(id, data.tracking_number);
