@@ -5,6 +5,7 @@
 
 /* ── Keyframes ── */
 @keyframes aboutFadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes aboutSlideUp { from { opacity: 0; transform: translateY(40px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes aboutPulseGlow {
   0% { box-shadow: 0 0 0 0 rgba(var(--primary-rgb), 0.4); }
   70% { box-shadow: 0 0 0 15px rgba(var(--primary-rgb), 0); }
@@ -230,11 +231,52 @@
   will-change: transform;
   cursor: pointer;
 }
+/* base.css sets a global `a:hover { color: var(--primary-dark) }` with no
+   device gating, and it outranks this button's own unqualified base `color`
+   rule on specificity — so a touch tap's "sticky hover" (:hover still
+   matches on tap even though the (hover: hover) media feature below is
+   false) would otherwise recolor the text away from white regardless of the
+   media query. Pin it back here at matching specificity before deciding,
+   per hover capability, what :hover should actually look like. */
 .about-hero-cta-secondary:hover {
-  background: rgba(255,255,255,0.95);
-  color: var(--text);
-  border-color: transparent;
-  transform: translateY(-2px);
+  color: #fff;
+}
+/* Hover-invert (translucent glass -> solid white pill + dark text) only on
+   devices with real hover (mouse/trackpad). This pill sits on a fixed dark
+   hero photo regardless of the site's light/dark theme, so its readable
+   hover text color below is hardcoded (see the sibling #0f172a usage on
+   .about-leaflet-map .leaflet-control-zoom a above) rather than var(--text) —
+   var(--text) flips to a near-white color in dark theme, which combined
+   with this same near-white hover background rendered invisible text.
+   Gating on (hover: hover) also stops the recolor from ever being applied
+   on touch, where tapping triggers :hover with no matching mouseleave — on
+   Android Chrome this can be left "stuck" showing a stale/partial repaint
+   when the page is restored from the back-forward cache after the tap
+   navigated out to an external app (e.g. Facebook) and back. */
+@media (hover: hover) and (pointer: fine) {
+  .about-hero-cta-secondary:hover {
+    background: rgba(255,255,255,0.95);
+    color: #0f172a;
+    border-color: transparent;
+    transform: translateY(-2px);
+  }
+  /* Pressing while already hovered (mouse) stays inside the hover palette
+     above — only nudge the lift so contrast never drops mid-click. */
+  .about-hero-cta-secondary:active {
+    transform: translateY(-1px) scale(0.98);
+  }
+}
+/* Touch feedback where hover never applies: :active releases on
+   touchend/pointerup rather than lingering the way :hover can, so a brief
+   non-inverting tint is enough — text stays the button's own readable white
+   throughout instead of switching palettes mid-tap. */
+@media (hover: none), (pointer: coarse) {
+  .about-hero-cta-secondary:active {
+    background: rgba(255,255,255,0.3);
+    border-color: rgba(255,255,255,0.45);
+    transform: translateY(0) scale(0.98);
+    transition-duration: 0.1s;
+  }
 }
 
 /* Scroll hint arrow */
@@ -518,6 +560,163 @@
 @media (max-width: 640px) {
   .about-map-box { height: 380px; border-radius: 20px; }
   .about-region-card { padding: 20px 16px; border-radius: 20px; }
+}
+
+/* ── Gallery / Highlights ── */
+.about-highlight-card {
+  position: relative;
+  height: 320px;
+  border-radius: 24px;
+  overflow: hidden;
+  cursor: pointer;
+  border: none;
+  padding: 0;
+  background: var(--bg-secondary);
+  width: 100%;
+  text-align: left;
+  display: block;
+  outline: none;
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.4s ease;
+}
+.about-highlight-card:hover {
+  transform: translateY(-8px);
+  box-shadow: var(--shadow-xl);
+}
+.about-highlight-card img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.about-highlight-card:hover img {
+  transform: scale(1.08);
+}
+.about-highlight-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.2) 40%, transparent 100%);
+  opacity: 0;
+  transition: opacity 0.35s ease;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: 24px;
+}
+.about-highlight-card:hover .about-highlight-overlay {
+  opacity: 1;
+}
+.about-highlight-title {
+  color: #fff;
+  font-weight: 800;
+  font-size: 1.125rem;
+  transform: translateY(8px);
+  transition: transform 0.35s ease;
+}
+.about-highlight-card:hover .about-highlight-title { transform: translateY(0); }
+.about-highlight-caption {
+  color: rgba(255,255,255,0.85);
+  font-size: 0.875rem;
+  margin-top: 8px;
+  transform: translateY(8px);
+  transition: transform 0.35s ease 0.05s;
+}
+.about-highlight-card:hover .about-highlight-caption { transform: translateY(0); }
+.about-highlight-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 12px;
+  color: rgba(255,255,255,0.6);
+  font-size: 0.75rem;
+  transform: translateY(8px);
+  transition: transform 0.35s ease 0.1s;
+}
+.about-highlight-card:hover .about-highlight-meta { transform: translateY(0); }
+
+/* ── Lightbox ── */
+.about-lightbox-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(0, 0, 0, 0.92);
+  backdrop-filter: blur(12px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: aboutFadeIn 0.2s ease-out;
+}
+.about-lightbox-close {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  background: rgba(255,255,255,0.1);
+  border: none;
+  color: #fff;
+  border-radius: 50%;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.2s;
+  z-index: 10;
+}
+.about-lightbox-close:hover { background: rgba(255,255,255,0.2); }
+.about-lightbox-nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(255,255,255,0.1);
+  border: none;
+  color: #fff;
+  border-radius: 50%;
+  width: 52px;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.2s ease, background-color 0.2s ease;
+  z-index: 10;
+}
+.about-lightbox-nav:hover { background: rgba(255,255,255,0.2); transform: translateY(-50%) scale(1.08); }
+.about-lightbox-nav.prev { left: 24px; }
+.about-lightbox-nav.next { right: 24px; }
+.about-lightbox-img {
+  max-width: 85%;
+  max-height: 85vh;
+  object-fit: contain;
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+  animation: aboutSlideUp 0.3s ease-out;
+}
+.about-lightbox-info {
+  position: absolute;
+  bottom: 40px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0,0,0,0.6);
+  padding: 16px 28px;
+  border-radius: 16px;
+  backdrop-filter: blur(10px);
+  text-align: center;
+  max-width: 80%;
+}
+.about-lightbox-info-title {
+  color: #fff;
+  font-weight: 700;
+  font-size: 1.25rem;
+  margin-bottom: 4px;
+}
+.about-lightbox-info-desc {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.9rem;
+}
+.about-lightbox-info-counter {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.75rem;
+  margin-top: 8px;
 }
 
 /* ── Testimonials / Feedback ── */
@@ -1116,6 +1315,13 @@
 .about-region-card[aria-expanded="true"] .about-region-chevron { transform: rotate(180deg); }
 .about-region-munis { display: flex; flex-wrap: wrap; gap: 8px; padding-bottom: 4px; }
 
+/* ── Gallery / Highlights ── */
+.about-highlights-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 24px;
+}
+.about-highlight-title-inner { display: flex; align-items: center; gap: 8px; }
+.about-highlight-pkg-icon { color: var(--primary-text); flex-shrink: 0; }
+
 /* ── Customer Feedback / Reviews ── */
 .about-reviews-grid {
   display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 24px;
@@ -1126,11 +1332,6 @@
   font-style: italic; position: relative; z-index: 1;
 }
 .about-feedback-card.hero-testimonial .about-review-text { font-size: 1.15rem; }
-.about-review-photo {
-  margin-bottom: 24px; border-radius: 16px; overflow: hidden; height: 160px;
-}
-.about-feedback-card.hero-testimonial .about-review-photo { height: 200px; }
-.about-review-photo img { width: 100%; height: 100%; object-fit: cover; }
 .about-reviewer-row { display: flex; align-items: center; gap: 12px; }
 .about-reviewer-avatar {
   width: 42px; height: 42px; border-radius: 50%;

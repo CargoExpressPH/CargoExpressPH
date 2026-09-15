@@ -15,6 +15,7 @@
     "test:payment-notifications": "node scripts/payment-notification-pgtest/run.mjs",
     "test:shipping-discount": "node scripts/shipping-discount-pgtest/run.mjs",
     "test:photo-gallery": "node scripts/photo-gallery-pgtest/run.mjs",
+    "test:featured-shipments": "node scripts/featured-shipments-pgtest/run.mjs",
     "test:delivery-cash-payment": "node scripts/delivery-cash-payment-pgtest/run.mjs",
     "test:contact-details-lock": "node scripts/contact-details-lock-pgtest/run.mjs && node scripts/contact-details-lock-pgtest/trigger-bypass-run.mjs",
     "test:service-area-mass-assignment": "node scripts/service-area-mass-assignment-pgtest/run.mjs",

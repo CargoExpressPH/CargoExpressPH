@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { getOrderById, updateOrder, updateOrderContactDetails, getTripReassignments, reassignTrip, getActivityLogsByRecord, getPaymentTransactions, recordAdditionalPayment, recordPickupPayment, recordDeliveryPayment, getOrderStatusEvents, reviewOrderCancellation, cancelOrderAsAdmin, assignOrderToCustomer, getLatestPaymentAttemptByOrder, clearPaymentReceiptUrls, getOrderFeedback } from '../../lib/database';
+import { getOrderById, updateOrder, updateOrderContactDetails, getTripReassignments, reassignTrip, getActivityLogsByRecord, getPaymentTransactions, recordAdditionalPayment, recordPickupPayment, recordDeliveryPayment, getOrderStatusEvents, reviewOrderCancellation, cancelOrderAsAdmin, assignOrderToCustomer, getLatestPaymentAttemptByOrder, clearPaymentReceiptUrls } from '../../lib/database';
 import { pollPaymentStatus } from '../../lib/paymongo';
 import { clearPendingPayment, getPendingPayment } from '../../lib/pendingPayment';
 import { isPaymentPollReconciled } from '../../utils/paymentReconciliation';
@@ -28,7 +28,7 @@ import FocusTrap from '../../components/ui/FocusTrap';
 import { CenteredSpinner } from '../../components/ui/Loader';
 import ErrorBoundarySection from '../../components/ui/ErrorBoundarySection';
 import MessageCustomerButton from '../../components/ui/MessageCustomerButton';
-import WebsiteFeatureModal from '../../components/ui/WebsiteFeatureModal';
+import FeatureShipmentModal from '../../components/ui/FeatureShipmentModal';
 import {
   STATUS_FLOW, STATUS_TIMELINE, validateStatusTransition,
   getSettlementState, SETTLEMENT_STATE, outstandingBalance,
@@ -128,13 +128,10 @@ const AdminOrderDetailPage = () => {
   const [refundPayment, setRefundPayment] = useState(null);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [paymentResultModal, setPaymentResultModal] = useState(null);
-  // Feature modal replaces the old inline collapsible section
+  // Feature-Shipment modal, opened from the Shipment Evidence card
   const [showFeatureModal, setShowFeatureModal] = useState(false);
   // Activity history collapse (collapsed = true hides the list; default expanded)
   const [activityCollapsed, setActivityCollapsed] = useState(false);
-  // Feedback for this exact booking (fetched on demand when feature modal opens)
-  const [orderFeedback, setOrderFeedback] = useState(null);
-  const [feedbackLoading, setFeedbackLoading] = useState(false);
 
   const [showDeliveryModal, setShowDeliveryModal] = useState(false);
   const [showRejectModal, setShowRejectModal] = useState(false);
@@ -613,42 +610,24 @@ const AdminOrderDetailPage = () => {
     try {
       await updateOrder(id, dataToSave);
       logOrder(
-        dataToSave.featured_on_website ? 'Featured on Website' : 'Removed from Website Feature',
+        dataToSave.featured_on_website ? 'Featured Shipment Published' : 'Featured Shipment Removed',
         id,
         order.tracking_number,
         {
-          previousValue: { featured_on_website: order.featured_on_website },
-          newValue: { featured_on_website: dataToSave.featured_on_website },
+          previousValue: { featured_on_website: order.featured_on_website, featured_title: order.featured_title },
+          newValue: { featured_on_website: dataToSave.featured_on_website, featured_title: dataToSave.featured_title },
           details: dataToSave.featured_on_website
-            ? 'Published this delivery’s photo alongside its customer feedback.'
-            : 'Removed this delivery’s photo from its customer feedback.',
+            ? `Published this delivery to the public Featured Shipments gallery as "${dataToSave.featured_title}".`
+            : 'Removed this delivery from the public Featured Shipments gallery.',
         }
       );
-      toast.success('Feedback photo updated.');
+      toast.success('Featured shipment updated.');
       setShowFeatureModal(false);
       await loadOrder();
     } catch (err) {
-      toast.error('Failed to update feedback photo.');
+      toast.error('Failed to update featured shipment.');
     } finally {
       setSavingFeature(false);
-    }
-  };
-
-  // Fetch feedback by order_id (a UNIQUE FK on customer_feedback — the real
-  // booking relationship, not a name match) and open the feature modal.
-  // Feedback is fetched on demand (not on every page load) to avoid an
-  // extra query on every admin visiting an order they never intend to feature.
-  const openFeatureModal = async () => {
-    setOrderFeedback(null);
-    setShowFeatureModal(true);
-    setFeedbackLoading(true);
-    try {
-      const data = await getOrderFeedback(id);
-      setOrderFeedback(data ?? null);
-    } catch (_) {
-      // Feedback fetch failure is non-fatal; the modal still works
-    } finally {
-      setFeedbackLoading(false);
     }
   };
 
@@ -1164,7 +1143,24 @@ const AdminOrderDetailPage = () => {
                 </div>
               </div>
             )}
-            
+
+            {/* Feature on Website — Delivered bookings only. Does not
+                require customer feedback; it publishes a delivery photo to
+                the public "Featured Shipments" gallery, a separate thing
+                from a customer's own review. */}
+            {order.status === 'Delivered' && (
+              <div className="flex justify-end mt-16 pt-16" style={{ borderTop: '1px solid var(--border)' }}>
+                <button
+                  type="button"
+                  className={`btn btn-sm ${order.featured_on_website ? 'btn-outline' : 'btn-secondary'} flex items-center gap-6`}
+                  onClick={() => setShowFeatureModal(true)}
+                >
+                  <Star size={14} className={order.featured_on_website ? 'text-warning' : ''} />
+                  {order.featured_on_website ? 'Manage Featured Shipment' : 'Feature Delivery on Website'}
+                </button>
+              </div>
+            )}
+
           </div>
         </div>
       </ErrorBoundarySection>
@@ -1441,26 +1437,10 @@ const AdminOrderDetailPage = () => {
         </div>
       )}
 
-      {/* Website Feature — compact button that opens the modal */}
-      {order.status === 'Delivered' && (resolvedPickupPhotos.length > 0 || resolvedDeliveryPhotos.length > 0) && (
-        <div className="flex justify-end mt-16" style={{ animationDelay: '520ms' }}>
-          <button
-            type="button"
-            className={`btn ${order.featured_on_website ? 'btn-outline' : 'btn-secondary'} flex items-center gap-6`}
-            onClick={openFeatureModal}
-          >
-            <Star size={14} className={order.featured_on_website ? 'text-warning' : ''} />
-            {order.featured_on_website ? 'Manage Feedback Photo' : 'Add Photo to Customer Feedback'}
-          </button>
-        </div>
-      )}
-
-      <WebsiteFeatureModal
+      <FeatureShipmentModal
         isOpen={showFeatureModal}
         onClose={() => setShowFeatureModal(false)}
         order={order}
-        feedback={orderFeedback}
-        feedbackLoading={feedbackLoading}
         resolvedPickupPhotos={resolvedPickupPhotos}
         resolvedDeliveryPhotos={resolvedDeliveryPhotos}
         onSave={handleSaveFeature}

@@ -1,50 +1,38 @@
 import { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { Star, X, Loader, Globe, MessageSquare, CheckCircle } from 'lucide-react';
+import { Star, X, Loader, Globe } from 'lucide-react';
 import FocusTrap from './FocusTrap';
 import CustomSelect from './CustomSelect';
 import useScrollLock from '../../hooks/useScrollLock';
 
 /**
- * WebsiteFeatureModal — replaces the inline collapsible "Website Feature"
- * section on the Admin OrderDetailPage.
+ * FeatureShipmentModal — opened from the "Feature Delivery on Website" /
+ * "Manage Featured Shipment" button inside Shipment Evidence on the Admin
+ * OrderDetailPage.
  *
- * Publishes this booking's pickup/delivery photo alongside its customer
- * feedback on the public About page (the standalone "Featured Shipments"
- * gallery this modal used to also feed was removed — see featured_photo /
- * featured_image_type usage in getPublicFeedback()). Shows:
- *  - A "Customer feedback received" indicator when feedback exists for this
- *    exact booking (matched by order_id, not by customer name).
- *  - The actual rating and comment when feedback is present.
- *  - A preview of the photo that will appear on the website.
+ * Publishes an admin-selected pickup/delivery photo to the public "Featured
+ * Shipments" gallery (get_featured_deliveries()). This is deliberately
+ * independent of customer feedback — a booking does not need a review to be
+ * featured, and featuring it never attaches its photo to that booking's
+ * feedback card (see getPublicFeedback(), which carries no photo field at
+ * all — 20260915140000_separate_featured_shipments_from_feedback.sql).
  *
  * Privacy rules enforced:
  *  - Addresses, phone numbers and payment details are never shown.
- *  - Submitting feedback does NOT auto-publish it; admin must explicitly click
- *    Publish.
- *  - Opening or closing the modal does not modify any data.
- *  - No duplicate entries: publishing is idempotent (updateOrder overwrites).
+ *  - Publishing requires an explicit admin action (Publish/Update Feature);
+ *    opening or closing the modal never modifies any data.
+ *  - No duplicate entries: publishing is idempotent — it's a plain UPDATE on
+ *    the one order row, not an insert into a separate table.
+ *  - The exact photo that would go public is previewed before publishing, so
+ *    the admin can check it for a shipping label, a visible address, or
+ *    anything else personal. There is no automatic detection of that —
+ *    this is a manual review step, not a scan.
  */
 
-const StarRating = ({ rating }) => (
-  <span className="flex items-center gap-2" aria-label={`${rating} out of 5 stars`}>
-    {[1, 2, 3, 4, 5].map((s) => (
-      <Star
-        key={s}
-        size={14}
-        fill={s <= rating ? 'var(--warning)' : 'none'}
-        color={s <= rating ? 'var(--warning)' : 'var(--border)'}
-      />
-    ))}
-  </span>
-);
-
-const WebsiteFeatureModal = ({
+const FeatureShipmentModal = ({
   isOpen,
   onClose,
   order,
-  feedback,        // { id, rating, message } | null  — pass null if loading or not found
-  feedbackLoading, // bool
   resolvedPickupPhotos,
   resolvedDeliveryPhotos,
   onSave,          // async (dataToSave) => void  — parent handles the API call
@@ -52,6 +40,8 @@ const WebsiteFeatureModal = ({
 }) => {
   const [form, setForm] = useState({
     featured_on_website: false,
+    featured_title: '',
+    featured_caption: '',
     featured_image_type: 'pickup',
   });
   const [localError, setLocalError] = useState('');
@@ -61,6 +51,8 @@ const WebsiteFeatureModal = ({
     if (isOpen && order) {
       setForm({
         featured_on_website: order.featured_on_website ?? false,
+        featured_title: order.featured_title ?? '',
+        featured_caption: order.featured_caption ?? '',
         featured_image_type: order.featured_image_type ?? 'pickup',
       });
       setLocalError('');
@@ -80,6 +72,10 @@ const WebsiteFeatureModal = ({
 
   const handlePublish = useCallback(async () => {
     setLocalError('');
+    if (form.featured_on_website && !form.featured_title.trim()) {
+      setLocalError('A title is required to feature this shipment.');
+      return;
+    }
     const featuredPhotos =
       form.featured_image_type === 'delivery' &&
       Array.isArray(order.delivery_photos) &&
@@ -92,6 +88,8 @@ const WebsiteFeatureModal = ({
     }
     await onSave({
       featured_on_website: form.featured_on_website,
+      featured_title: form.featured_title.trim() || null,
+      featured_caption: form.featured_caption.trim() || null,
       featured_image_type: form.featured_image_type,
       featured_at: form.featured_on_website
         ? (order.featured_at || new Date().toISOString())
@@ -104,11 +102,10 @@ const WebsiteFeatureModal = ({
   const hasPickup = resolvedPickupPhotos.length > 0;
   const hasDelivery = resolvedDeliveryPhotos.length > 0;
   const isAlreadyFeatured = order.featured_on_website;
-  // Mirrors get_featured_deliveries()/get_public_feedback()'s own CASE logic
-  // exactly (delivery photo only when the type is 'delivery' AND one exists,
-  // pickup otherwise) — this is the literal photo that would go public, not
-  // an approximation, so the admin can actually inspect it (shipping labels,
-  // visible addresses, etc.) before publishing.
+  // Mirrors get_featured_deliveries()'s own CASE logic exactly (delivery
+  // photo only when the type is 'delivery' AND one exists, pickup
+  // otherwise) — this is the literal photo that would go public, not an
+  // approximation.
   const previewPhotoUrl = form.featured_image_type === 'delivery' && hasDelivery
     ? resolvedDeliveryPhotos[0]
     : resolvedPickupPhotos[0] || null;
@@ -118,7 +115,7 @@ const WebsiteFeatureModal = ({
       className="modal-overlay"
       role="dialog"
       aria-modal="true"
-      aria-labelledby="website-feature-modal-title"
+      aria-labelledby="feature-shipment-modal-title"
       onClick={(e) => { if (e.target === e.currentTarget && !saving) onClose(); }}
     >
       <FocusTrap active={isOpen}>
@@ -128,14 +125,14 @@ const WebsiteFeatureModal = ({
         >
           {/* Header */}
           <div className="modal-header flex items-center justify-between">
-            <h2 id="website-feature-modal-title" className="flex items-center gap-8 m-0" style={{ fontSize: '1rem' }}>
+            <h2 id="feature-shipment-modal-title" className="flex items-center gap-8 m-0" style={{ fontSize: '1rem' }}>
               <Star size={16} className="text-warning" />
-              {isAlreadyFeatured ? 'Manage Feedback Photo' : 'Add Photo to Customer Feedback'}
+              {isAlreadyFeatured ? 'Manage Featured Shipment' : 'Feature Delivery on Website'}
             </h2>
             <button
               type="button"
               className="btn-icon btn-ghost"
-              aria-label="Close website feature modal"
+              aria-label="Close feature shipment modal"
               onClick={onClose}
               disabled={saving}
             >
@@ -151,56 +148,19 @@ const WebsiteFeatureModal = ({
               Booking <strong>{order.tracking_number}</strong> · {order.receiver_city}, {order.receiver_province}
             </p>
 
-            {/* Customer feedback indicator */}
-            <div
-              className="p-12 mb-16"
-              style={{
-                background: 'var(--bg-secondary)',
-                borderRadius: 'var(--radius-md)',
-                border: '1px solid var(--border)',
-              }}
-            >
-              <div className="flex items-center gap-8 mb-4">
-                <MessageSquare size={14} className="text-secondary" />
-                <span className="text-xs font-bold text-secondary text-uppercase">Customer Feedback</span>
-                {feedbackLoading && <Loader size={12} className="animate-spin text-tertiary" />}
-              </div>
-
-              {!feedbackLoading && feedback ? (
-                <>
-                  <div className="flex items-center gap-8 mb-6">
-                    <CheckCircle size={14} className="text-success" />
-                    <span className="text-xs text-success font-semibold">Customer feedback received</span>
-                    <StarRating rating={feedback.rating} />
-                  </div>
-                  <blockquote
-                    className="text-sm text-secondary m-0"
-                    style={{ borderLeft: '3px solid var(--border)', paddingLeft: 10, fontStyle: 'italic' }}
-                  >
-                    "{feedback.message}"
-                  </blockquote>
-                  <p className="text-xs text-tertiary mt-6">
-                    Note: Submitting feedback does not automatically publish it. Use the controls below to publish.
-                  </p>
-                </>
-              ) : !feedbackLoading ? (
-                <p className="text-xs text-tertiary m-0">No customer feedback submitted for this booking yet.</p>
-              ) : null}
-            </div>
-
             {/* Feature toggle */}
             <div className="form-group flex items-center gap-12 mb-16">
               <input
                 type="checkbox"
-                id="wf-feature-website"
+                id="fs-feature-website"
                 checked={form.featured_on_website}
                 onChange={(e) => setForm((f) => ({ ...f, featured_on_website: e.target.checked }))}
                 className="w-18"
                 style={{ height: 18 }}
                 disabled={saving}
               />
-              <label htmlFor="wf-feature-website" className="font-semibold cursor-pointer m-0">
-                Show this booking's photo with its customer feedback
+              <label htmlFor="fs-feature-website" className="font-semibold cursor-pointer m-0">
+                Feature this delivery on the public Featured Shipments gallery
               </label>
             </div>
 
@@ -210,9 +170,37 @@ const WebsiteFeatureModal = ({
                 style={{ background: 'var(--bg-secondary)', borderRadius: 'var(--radius-md)' }}
               >
                 <div className="form-group">
-                  <label className="form-label" htmlFor="wf-featured-image">Featured Image</label>
+                  <label className="form-label" htmlFor="fs-featured-title">
+                    Title <span className="text-error">*</span>
+                  </label>
+                  <input
+                    id="fs-featured-title"
+                    type="text"
+                    className="form-input"
+                    placeholder="e.g. Bound for Jagna"
+                    value={form.featured_title}
+                    onChange={(e) => setForm((f) => ({ ...f, featured_title: e.target.value }))}
+                    disabled={saving}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label" htmlFor="fs-featured-caption">Caption</label>
+                  <textarea
+                    id="fs-featured-caption"
+                    className="form-textarea"
+                    rows={2}
+                    placeholder="Thank you for trusting CargoExpress PH…"
+                    value={form.featured_caption}
+                    onChange={(e) => setForm((f) => ({ ...f, featured_caption: e.target.value }))}
+                    disabled={saving}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label" htmlFor="fs-featured-image">Featured Photo</label>
                   <CustomSelect
-                    id="wf-featured-image"
+                    id="fs-featured-image"
                     className="form-select"
                     value={form.featured_image_type}
                     onChange={(e) => setForm((f) => ({ ...f, featured_image_type: e.target.value }))}
@@ -223,9 +211,10 @@ const WebsiteFeatureModal = ({
                   </CustomSelect>
                 </div>
 
-                {/* Preview — the literal photo that would go public, so the
-                    admin can check it for a shipping label, a visible
-                    address, or anything else personal before publishing. */}
+                {/* Preview — the literal card that would go public, so the
+                    admin can check the photo for a shipping label, a visible
+                    address, or anything else personal before publishing.
+                    This is a manual look, not an automatic scan. */}
                 <div
                   className="p-10"
                   style={{
@@ -236,7 +225,7 @@ const WebsiteFeatureModal = ({
                 >
                   <div className="flex items-center gap-6 mb-8">
                     <Globe size={13} className="text-primary flex-shrink-0" />
-                    <span className="text-xs font-semibold text-secondary">Feedback photo preview</span>
+                    <span className="text-xs font-semibold text-secondary">Public shipment card preview</span>
                   </div>
                   <div className="flex gap-10 items-start">
                     {previewPhotoUrl ? (
@@ -257,9 +246,12 @@ const WebsiteFeatureModal = ({
                       </div>
                     )}
                     <span className="text-xs text-secondary">
-                      {feedback
-                        ? 'This photo will appear on this booking’s customer feedback card.'
-                        : 'This photo will appear once the customer leaves feedback for this booking.'}
+                      <strong>{form.featured_title || '(title required)'}</strong>
+                      {form.featured_caption && (
+                        <><br />{form.featured_caption.slice(0, 90)}{form.featured_caption.length > 90 ? '…' : ''}</>
+                      )}
+                      <br />
+                      {order.receiver_city}{order.receiver_province ? `, ${order.receiver_province}` : ''}
                     </span>
                   </div>
                 </div>
@@ -269,7 +261,7 @@ const WebsiteFeatureModal = ({
             {/* Unfeature note */}
             {!form.featured_on_website && isAlreadyFeatured && (
               <p className="text-xs text-warning mb-12">
-                Saving with this unchecked will remove this photo from the customer feedback card.
+                Saving with this unchecked will remove this shipment from the public gallery. The original photo and booking are not deleted.
               </p>
             )}
 
@@ -313,4 +305,4 @@ const WebsiteFeatureModal = ({
   return createPortal(modalContent, document.body);
 };
 
-export default WebsiteFeatureModal;
+export default FeatureShipmentModal;

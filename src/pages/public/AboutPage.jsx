@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
   createContactInquiry,
   getCompanyInformation,
   getCoverageAreas,
   getPublicFeedback,
+  getFeaturedDeliveries,
   getTrips
 } from '../../lib/database';
 import { resolvePhotoUrls } from '../../lib/storage';
@@ -12,13 +13,15 @@ import { getFeatureIcon } from '../../lib/featureIcons';
 import {
   ArrowUp, Phone, MapPin, Globe, Loader, Send,
   Mail, Clock, Calendar, CheckCircle2,
-  Navigation, Award, ChevronRight, ChevronDown, Play, Building2, TrendingUp, Users, MessageSquare,
-  Star, Search, Sparkles, Truck, AlertCircle
+  Navigation, Award, ChevronRight, ChevronDown, ChevronLeft, X, Play, Building2, TrendingUp, Users, MessageSquare,
+  Star, Package, Search, Sparkles, Image, Truck, AlertCircle
 } from 'lucide-react';
 import { useToast } from '../../hooks/useToast';
 import usePageTitle from '../../hooks/usePageTitle';
+import FocusTrap from '../../components/ui/FocusTrap';
 import { CenteredSpinner } from '../../components/ui/Loader';
 import Footer from '../../components/layout/Footer';
+import useScrollLock from '../../hooks/useScrollLock';
 import useFieldErrors from '../../hooks/useFieldErrors';
 import FieldError, { fieldAttrs, invalidClass } from '../../components/ui/FieldError';
 import { useTripBooking } from '../../hooks/useTripBooking';
@@ -47,6 +50,79 @@ import {
 const getGoogleMapsSearchUrl = (address) => (
   `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address?.trim() || '')}`
 );
+
+// ─── Lightbox Component (with prev/next navigation) ───
+const Lightbox = ({ images, currentIndex, onClose, onNavigate }) => {
+  // Shared hook: ref-counted and iOS-safe. The previous inline version reset
+  // body overflow to 'unset' rather than restoring the prior value.
+  useScrollLock(currentIndex >= 0);
+
+  useEffect(() => {
+    if (currentIndex < 0) return;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') onClose();
+      if (e.key === 'ArrowLeft') onNavigate(-1);
+      if (e.key === 'ArrowRight') onNavigate(1);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [currentIndex, onClose, onNavigate]);
+
+  if (currentIndex < 0 || !images?.length) return null;
+  const image = images[currentIndex];
+  const hasPrev = currentIndex > 0;
+  const hasNext = currentIndex < images.length - 1;
+
+  return (
+    <FocusTrap active={currentIndex >= 0}>
+      <div className="about-lightbox-overlay" onClick={onClose} role="dialog" aria-modal="true" aria-label="Image gallery lightbox">
+        <button className="about-lightbox-close" onClick={onClose} aria-label="Close lightbox">
+          <X size={24} />
+        </button>
+
+        {hasPrev && (
+          <button
+            className="about-lightbox-nav prev"
+            onClick={(e) => { e.stopPropagation(); onNavigate(-1); }}
+            aria-label="Previous image"
+          >
+            <ChevronLeft size={28} />
+          </button>
+        )}
+
+        {hasNext && (
+          <button
+            className="about-lightbox-nav next"
+            onClick={(e) => { e.stopPropagation(); onNavigate(1); }}
+            aria-label="Next image"
+          >
+            <ChevronRight size={28} />
+          </button>
+        )}
+
+        <img
+          src={image.image_url}
+          alt={image.title || 'Delivery photo'}
+          className="about-lightbox-img"
+          onClick={(e) => e.stopPropagation()}
+        />
+        {(image.title || image.description) && (
+          <div className="about-lightbox-info" onClick={(e) => e.stopPropagation()}>
+            {image.title && <div className="about-lightbox-info-title">{image.title}</div>}
+            {image.description && <div className="about-lightbox-info-desc">{image.description}</div>}
+            {images.length > 1 && (
+              <div className="about-lightbox-info-counter">
+                {currentIndex + 1} / {images.length}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </FocusTrap>
+  );
+};
 
 // ─── Interactive Map Component ───
 const DEFAULT_MAP_TILE_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
@@ -294,6 +370,7 @@ const AboutPage = () => {
   const [form, setForm] = useState({ name: '', phone: '', email: '', message: '', wantsAnnouncements: false });
   const { errors, validate, clearError } = useFieldErrors();
   const [loading, setLoading] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState(-1);
   const [selectedRegionId, setSelectedRegionId] = useState(null);
   const [selectedRating, setSelectedRating] = useState('all');
   const [citySearchQuery, setCitySearchQuery] = useState('');
@@ -303,7 +380,7 @@ const AboutPage = () => {
   const opacityHero = useTransform(scrollY, [0, 450], [1, 0.2]);
   
   const [data, setData] = useState({
-    info: null, features: [], coverage: [], feedback: []
+    info: null, features: [], highlights: [], coverage: [], feedback: []
   });
   const [fetching, setFetching] = useState(true);
   // Loaded independently of the Promise.all below: a trips-fetch failure
@@ -371,29 +448,30 @@ const AboutPage = () => {
       try {
         if (initial) setFetching(true);
         setSystemStatus('checking');
-        const [info, coverage, feedback] = await Promise.all([
-          getCompanyInformation(),
+        const [info, highlights, coverage, feedback] = await Promise.all([
+          getCompanyInformation(), getFeaturedDeliveries(),
           getCoverageAreas(), getPublicFeedback()
         ]);
         const features = info?.features || [];
 
-        // Resolve feedback photos — RPC returns a single `featured_photo` path
-        const resolvedFeedback = await Promise.all(feedback.map(async (fb) => {
-          const order = fb.orders;
-          if (!order || !order.featured_on_website) return { ...fb, resolved_image: null };
-          const path = order.featured_photo || null;
-          if (!path) return { ...fb, resolved_image: null };
+        // Resolve featured-shipment photos — RPC returns a single
+        // `featured_photo` path. Customer feedback carries no photo of its
+        // own (see getPublicFeedback()), so there is nothing to resolve for
+        // the feedback list — it renders straight from the RPC rows.
+        const resolvedHighlights = await Promise.all(highlights.map(async (h) => {
+          const path = h.featured_photo || null;
+          if (!path) return { ...h, resolved_image: null };
           try {
             const urls = await resolvePhotoUrls([path]);
-            return { ...fb, resolved_image: urls[0] };
+            return { ...h, resolved_image: urls[0] };
           } catch (e) {
-            return { ...fb, resolved_image: null };
+            return { ...h, resolved_image: null };
           }
         }));
 
         if (isMounted && requestId === requestSequence) {
           setIsOnline(true);
-          setData({ info, features, coverage, feedback: resolvedFeedback });
+          setData({ info, features, highlights: resolvedHighlights.filter(h => h.resolved_image), coverage, feedback });
           setSystemStatus('online');
         }
       } catch (err) {
@@ -542,6 +620,20 @@ const AboutPage = () => {
     }
   };
 
+  // ─── Lightbox navigation ───
+  const lightboxImages = data.highlights.map(h => ({
+    image_url: h.resolved_image,
+    title: h.featured_title,
+    description: h.featured_caption,
+  }));
+  const handleLightboxNavigate = useCallback((direction) => {
+    setLightboxIndex(prev => {
+      const next = prev + direction;
+      if (next < 0 || next >= lightboxImages.length) return prev;
+      return next;
+    });
+  }, [lightboxImages.length]);
+
   // ─── Section scroll helper ───
   const scrollToSection = (id) => {
     const el = document.getElementById(id);
@@ -556,7 +648,7 @@ const AboutPage = () => {
     window.scrollTo({ top: Math.max(top, 0), behavior: 'smooth' });
   };
 
-  const { info, features, coverage, feedback } = data;
+  const { info, features, highlights, coverage, feedback } = data;
   const resolvedSystemStatus = !isOnline ? 'offline' : systemStatus;
   const systemStatusLabel = {
     checking: 'Checking System',
@@ -976,6 +1068,65 @@ const AboutPage = () => {
           )}
         </motion.section>
 
+        {/* ═══ 7. Featured Shipments ═══ */}
+        {highlights?.length > 0 && (
+          <motion.section
+            id="highlights"
+            className="about-section"
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: "-100px" }}
+            transition={{ duration: 0.6 }}
+          >
+            <div className="about-section-header">
+              <div className="about-section-label">Delivery Highlights</div>
+              <h2 className="about-section-title">Featured Shipments</h2>
+            </div>
+
+            <motion.div
+              className="about-highlights-grid"
+              variants={containerVariants}
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, margin: "-60px" }}
+            >
+              {highlights.map((highlight, idx) => (
+                <motion.button
+                  type="button"
+                  key={highlight.id}
+                  className="about-highlight-card"
+                  onClick={() => setLightboxIndex(idx)}
+                  aria-label={`View delivery photo for ${highlight.featured_title}`}
+                  variants={itemVariants}
+                >
+                  <img
+                    src={highlight.resolved_image}
+                    alt={highlight.featured_title || 'Delivery photo'}
+                    loading="lazy"
+                    onError={(e) => {
+                      e.target.closest('.about-highlight-card').style.display = 'none';
+                    }}
+                  />
+                  <div className="about-highlight-overlay">
+                    <div className="about-highlight-title about-highlight-title-inner">
+                      <Package size={18} className="about-highlight-pkg-icon" />
+                      <span>{highlight.featured_title}</span>
+                    </div>
+                    {highlight.featured_caption && (
+                      <div className="about-highlight-caption">
+                        {highlight.featured_caption}
+                      </div>
+                    )}
+                    <div className="about-highlight-meta">
+                      <span>{highlight.receiver_city}{highlight.receiver_province ? `, ${highlight.receiver_province}` : ''}</span>
+                    </div>
+                  </div>
+                </motion.button>
+              ))}
+            </motion.div>
+          </motion.section>
+        )}
+
         {/* ═══ 8. Customer Feedback ═══ */}
         <motion.section 
           id="feedback"
@@ -1051,20 +1202,6 @@ const AboutPage = () => {
                         ))}
                       </div>
                       <p className="about-review-text">"{fb.message}"</p>
-                      
-                      {fb.resolved_image && (
-                        <div className="about-review-photo">
-                          <img 
-                            src={fb.resolved_image} 
-                            alt="Delivery Proof" 
-                            loading="lazy" 
-                            onError={(e) => {
-                              const photoContainer = e.target.closest('.about-review-photo');
-                              if (photoContainer) photoContainer.style.display = 'none';
-                            }}
-                          />
-                        </div>
-                      )}
 
                       <div className="about-reviewer-row">
                         <div className="about-reviewer-avatar">
@@ -1299,6 +1436,16 @@ const AboutPage = () => {
         systemStatus={resolvedSystemStatus}
         systemStatusLabel={systemStatusLabel}
       />
+
+      {/* ═══ Lightbox ═══ */}
+      {lightboxIndex >= 0 && (
+        <Lightbox
+          images={lightboxImages}
+          currentIndex={lightboxIndex}
+          onClose={() => setLightboxIndex(-1)}
+          onNavigate={handleLightboxNavigate}
+        />
+      )}
 
       {/* ═══ Back to Top ═══ */}
       <AnimatePresence>

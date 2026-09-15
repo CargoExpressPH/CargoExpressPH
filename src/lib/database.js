@@ -3167,25 +3167,6 @@ export const checkIfFeedbackExists = async (orderId) => {
 };
 
 /**
- * The feedback (if any) for one specific booking — used by the admin
- * Website Feature modal so it can show the actual rating/comment rather
- * than just whether feedback exists. order_id is UNIQUE on customer_feedback
- * (one booking, at most one review), so this is the real booking
- * relationship, not a match on the customer's name or any other booking of
- * theirs. Admins can read any row here ("Admins can manage all feedback").
- */
-export const getOrderFeedback = async (orderId) => {
-  const { data, error } = await supabase
-    .from('customer_feedback')
-    .select('id, rating, message')
-    .eq('order_id', orderId)
-    .maybeSingle();
-
-  if (error) throw error;
-  return data;
-};
-
-/**
  * Public testimonials for the About page.
  *
  * Goes through the get_public_feedback() RPC rather than reading
@@ -3200,6 +3181,12 @@ export const getOrderFeedback = async (orderId) => {
  * Note: authors now actually have names. The old PostgREST embed
  * profiles:customer_id(name) returned NULL for anon (profiles RLS blocks it),
  * so every public testimonial rendered as "Customer".
+ *
+ * This intentionally carries no photo/shipment-feature fields — a feedback
+ * card shows only what the customer actually submitted (rating, message)
+ * plus approved display details. See getFeaturedDeliveries() below for the
+ * separate, admin-curated "Featured Shipments" gallery; a booking's delivery
+ * photo is never auto-attached to its feedback (20260915140000).
  */
 export const getPublicFeedback = async () => {
   const { data, error } = await supabase.rpc('get_public_feedback');
@@ -3212,13 +3199,26 @@ export const getPublicFeedback = async () => {
     created_at: row.created_at,
     profiles: { name: row.customer_name },
     orders: {
-      featured_on_website: row.featured_on_website,
-      featured_image_type: row.featured_image_type,
-      featured_photo: row.featured_photo,   // single admin-selected path (replaces pickup/delivery arrays)
       receiver_city: row.receiver_city,
       receiver_province: row.receiver_province,
     },
   }));
+};
+
+/**
+ * Admin-curated "Featured Shipments" gallery for the About page — distinct
+ * from getPublicFeedback() above. Goes through the get_featured_deliveries()
+ * RPC, which returns a single `featured_photo` TEXT path (the admin-selected
+ * pickup or delivery proof) rather than the full pickup_photos/delivery_photos
+ * JSONB arrays, preventing enumeration of every proof photo on a featured
+ * order via the anon key. The RPC also requires a title to be set
+ * (20260915140000) before a row is published here — see that migration for
+ * why.
+ */
+export const getFeaturedDeliveries = async () => {
+  const { data, error } = await supabase.rpc('get_featured_deliveries');
+  if (error) throw error;
+  return data || [];
 };
 
 export const getAdminFeedback = async () => {

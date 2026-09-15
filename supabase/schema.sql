@@ -794,6 +794,8 @@ AS $function$
     o.receiver_province
   FROM public.orders o
   WHERE o.featured_on_website = true
+    AND o.featured_title IS NOT NULL
+    AND btrim(o.featured_title) <> ''
   ORDER BY o.featured_at DESC NULLS LAST;
 $function$
 
@@ -948,7 +950,7 @@ $function$
 
 
 CREATE OR REPLACE FUNCTION public.get_public_feedback()
- RETURNS TABLE(id uuid, rating integer, message text, created_at timestamp with time zone, customer_name text, featured_on_website boolean, featured_image_type text, featured_photo text, receiver_city text, receiver_province text)
+ RETURNS TABLE(id uuid, rating integer, message text, created_at timestamp with time zone, customer_name text, receiver_city text, receiver_province text)
  LANGUAGE sql
  STABLE SECURITY DEFINER
  SET search_path TO 'public'
@@ -958,17 +960,7 @@ AS $function$
     f.rating,
     f.message,
     f.created_at,
-    public.mask_name(p.name)              AS customer_name,
-    COALESCE(o.featured_on_website, false) AS featured_on_website,
-    o.featured_image_type,
-    CASE
-      WHEN o.featured_image_type = 'delivery'
-           AND jsonb_array_length(COALESCE(o.delivery_photos, '[]'::jsonb)) > 0
-        THEN o.delivery_photos ->> 0
-      WHEN jsonb_array_length(COALESCE(o.pickup_photos, '[]'::jsonb)) > 0
-        THEN o.pickup_photos ->> 0
-      ELSE NULL
-    END AS featured_photo,
+    public.mask_name(p.name) AS customer_name,
     o.receiver_city,
     o.receiver_province
   FROM public.customer_feedback f
