@@ -17,8 +17,8 @@
   }
 
   /* Hide the entire application UI */
-  body * {
-    visibility: hidden;
+  #root {
+    display: none !important;
   }
 
   /* Reveal only the formal document */
@@ -29,10 +29,6 @@
 
   .print-doc {
     display: block;
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 100%;
     background: #fff;
     color: #000;
     font-family: 'Times New Roman', Georgia, serif;

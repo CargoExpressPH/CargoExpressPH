@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { getCompanyInformation } from '../../lib/database';
 import PrintHeader from './PrintHeader';
 
@@ -21,7 +22,7 @@ const PrintDocument = ({ title, subtitle, generatedAt, preparedBy, children }) =
     return () => { mounted = false; };
   }, []);
 
-  return (
+  const content = (
     <div className="print-doc" aria-hidden="true">
       <PrintHeader company={company} />
 
@@ -56,6 +57,8 @@ const PrintDocument = ({ title, subtitle, generatedAt, preparedBy, children }) =
       </footer>
     </div>
   );
+
+  return document.body ? createPortal(content, document.body) : null;
 };
 
 export default PrintDocument;
