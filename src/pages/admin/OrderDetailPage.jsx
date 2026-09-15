@@ -131,7 +131,7 @@ const AdminOrderDetailPage = () => {
   // Feature-Shipment modal, opened from the Shipment Evidence card
   const [showFeatureModal, setShowFeatureModal] = useState(false);
   // Activity history collapse (collapsed = true hides the list; default expanded)
-  const [activityCollapsed, setActivityCollapsed] = useState(false);
+  const [activityCollapsed, setActivityCollapsed] = useState(true);
 
   const [showDeliveryModal, setShowDeliveryModal] = useState(false);
   const [showRejectModal, setShowRejectModal] = useState(false);
