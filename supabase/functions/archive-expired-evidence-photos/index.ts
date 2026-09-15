@@ -269,7 +269,7 @@ serve(async (req) => {
 
     // A batch with no error is trusted as fully removed rather than
     // correlated against the response body — see the identical note in
-    // cleanup-orphaned-photos/index.ts. Every path here came straight from
+    // delete-storage-photos/index.ts. Every path here came straight from
     // get_expired_evidence_orders(), so a successful call is strong evidence
     // the whole batch is gone.
     const pendingSupabase = pendingRows.filter((row) => row.provider === 'supabase')

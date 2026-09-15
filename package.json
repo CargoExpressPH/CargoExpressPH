@@ -14,6 +14,7 @@
     "test:payment-refund-recovery": "node scripts/payment-refund-recovery-provider-test.mjs && node scripts/payment-refund-recovery-pgtest/run.mjs",
     "test:payment-notifications": "node scripts/payment-notification-pgtest/run.mjs",
     "test:shipping-discount": "node scripts/shipping-discount-pgtest/run.mjs",
+    "test:photo-gallery": "node scripts/photo-gallery-pgtest/run.mjs",
     "test:service-area-mass-assignment": "node scripts/service-area-mass-assignment-pgtest/run.mjs",
     "test:legacy-rpc-overload-cleanup": "node scripts/legacy-rpc-overload-cleanup-pgtest/run.mjs",
     "test:pwa-offline": "node scripts/pwa-offline-contract-test.mjs",

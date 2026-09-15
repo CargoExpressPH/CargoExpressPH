@@ -11,12 +11,15 @@ const requiredFiles = [
   'supabase/functions/delete-photo-fallback/index.ts',
   'supabase/functions/record-photo-storage-event/index.ts',
   'supabase/functions/photo-storage-health/index.ts',
-  'supabase/functions/cleanup-orphaned-photos/index.ts',
+  'supabase/functions/delete-storage-photos/index.ts',
   'supabase/functions/archive-expired-evidence-photos/index.ts',
   'supabase/migrations/20260831170000_photo_storage_monitoring_and_routing.sql',
   'supabase/migrations/20260901010000_live_supabase_storage_usage.sql',
   'supabase/migrations/20260901020000_photo_storage_cleanup_archiving_and_alerts.sql',
   'supabase/migrations/20260901030000_safe_photo_cleanup_and_health_checks.sql',
+  'supabase/migrations/20260908112100_prepare_photo_retention.sql',
+  'supabase/migrations/20260911075700_secure_photo_cleanup_functions.sql',
+  'supabase/migrations/20260915090000_simplify_storage_monitoring_gallery.sql',
   'supabase/functions/paymongo-create-payment/index.ts',
 ];
 

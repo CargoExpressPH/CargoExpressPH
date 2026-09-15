@@ -31,9 +31,12 @@ verify_jwt = false
 [functions.photo-storage-health]
 verify_jwt = false
 
-[functions.cleanup-orphaned-photos]
+[functions.delete-storage-photos]
 # Same family as record-photo-storage-event / photo-storage-health above:
-# self-authenticates via requireAdmin() inside the function.
+# self-authenticates via requireAdmin() inside the function, and re-verifies
+# eligibility server-side via delete_evidence_photos() before deleting
+# anything. Replaces cleanup-orphaned-photos (removed — its orphan-scan
+# logic is now one case inside the unified gallery/delete flow).
 verify_jwt = false
 
 [functions.submit-inquiry]

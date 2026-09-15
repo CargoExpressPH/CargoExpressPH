@@ -3376,40 +3376,16 @@ export const clearPaymentReceiptUrls = async (orderId) => {
   if (error) throw error;
 };
 
-// â”€â”€ Admin photo-storage monitoring and new-upload routing â”€â”€
-export const getPhotoStorageMode = async () => {
-  const { data, error } = await supabase.rpc('get_effective_photo_storage_mode');
-  if (error) throw error;
-  return data?.[0] || null;
-};
-
-export const setPhotoStorageMode = async (uploadMode, reason = null, expiresAt = null) => {
-  const { data, error } = await supabase.rpc('set_photo_storage_mode', {
-    p_upload_mode: uploadMode,
-    p_reason: reason,
-    p_force_firebase_expires_at: expiresAt,
-  });
-  if (error) throw error;
-  return data?.[0] || null;
-};
-
+// ── Admin photo-storage monitoring: usage summary + live health ──
+// get_effective_photo_storage_mode() / set_photo_storage_mode() remain in the
+// database as a backend-only safety valve (Storage RLS still enforces
+// whichever mode is set — see is_supabase_evidence_upload_allowed) but are no
+// longer exposed from the admin UI, so no client wrapper is kept for them.
+// An operator can still call them directly by SQL during an incident.
 export const getPhotoStorageSummary = async () => {
   const { data, error } = await supabase.rpc('get_photo_storage_summary');
   if (error) throw error;
   return data?.[0] || null;
-};
-
-export const getPhotoStorageEvents = async ({ page = 1, pageSize = 10 } = {}) => {
-  const safePageSize = Math.max(1, Math.min(Number(pageSize) || 10, 100));
-  const from = (Math.max(1, Number(page) || 1) - 1) * safePageSize;
-  const to = from + safePageSize - 1;
-  const { data, error, count } = await supabase
-    .from('photo_storage_events')
-    .select('id, event_type, provider, outcome, photo_type, order_id, storage_path, size_bytes, message, metadata, created_at, created_by, profiles:created_by(name, email)', { count: 'exact' })
-    .order('created_at', { ascending: false })
-    .range(from, to);
-  if (error) throw error;
-  return { data: data || [], count: count || 0 };
 };
 
 const photoFunctionError = async (error, fallbackMessage) => {
@@ -3432,24 +3408,30 @@ export const checkPhotoStorageHealth = async () => {
   return data;
 };
 
-// The server computes a read-only preview; no client-provided path can be
-// redirected at another file. Deletion requires the short-lived confirmation
-// token tied to the exact preview returned to this administrator.
-export const checkUnusedPhotos = async () => {
-  const { data, error } = await supabase.functions.invoke('cleanup-orphaned-photos', {
-    body: { action: 'preview' },
+// ── Admin photo gallery: list + select-and-delete ──
+// One unified eligibility check backs both the listing and the delete
+// action — list_evidence_photos() is read-only (never deletes anything);
+// delete_evidence_photos() (called inside the Edge Function below) re-derives
+// eligibility from scratch for every photo rather than trusting this list.
+export const listEvidencePhotos = async ({ filter = 'all', search = '', page = 1, pageSize = 20 } = {}) => {
+  const { data, error } = await supabase.rpc('list_evidence_photos', {
+    p_filter: filter,
+    p_search: search || null,
+    p_page: page,
+    p_page_size: pageSize,
   });
-  if (error) throw await photoFunctionError(error, 'Could not check unused photos.');
-  if (data?.error) throw new Error(data.error);
-  return data;
+  if (error) throw error;
+  const rows = data || [];
+  return { data: rows, count: rows[0]?.total_count ? Number(rows[0].total_count) : 0 };
 };
 
-export const removeUnusedPhotos = async (confirmationToken) => {
-  if (!confirmationToken) throw new Error('Check unused photos again before deleting.');
-  const { data, error } = await supabase.functions.invoke('cleanup-orphaned-photos', {
-    body: { action: 'delete', confirmation_token: confirmationToken },
+// items: [{ order_id, photo_field, provider, storage_path }]
+export const deleteEvidencePhotos = async (items) => {
+  if (!Array.isArray(items) || items.length === 0) throw new Error('Select at least one photo.');
+  const { data, error } = await supabase.functions.invoke('delete-storage-photos', {
+    body: { items },
   });
-  if (error) throw await photoFunctionError(error, 'Could not remove unused photos.');
+  if (error) throw await photoFunctionError(error, 'Could not delete the selected photos.');
   if (data?.error) throw new Error(data.error);
   return data;
 };
