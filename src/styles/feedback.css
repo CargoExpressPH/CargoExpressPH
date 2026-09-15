@@ -63,6 +63,61 @@
   display: flex; gap: 12px; justify-content: flex-end;
 }
 
+/* Opt-in wider size for modals whose content genuinely needs more room
+   (e.g. a two-column form + preview) — the base .modal's 560px cap stays
+   the default for every other modal; only one that adds this class widens.
+   720-800px, comfortably clear of the 900px "narrow-screen modal hardening"
+   band in tables-mobile.css so desktop widths (1024px+) get the full width. */
+/* `width` here (not `max-width`) is deliberate: FocusTrap (the modal's
+   immediate parent) renders a bare, unstyled <div> with no width of its
+   own, so inside .modal-overlay's flex row that wrapper shrink-wraps to
+   its content's own max-content size — and a percentage `width: 100%` on
+   .modal is resolved against that same indefinite box, so it collapses to
+   .modal's *content* max-content width instead of actually filling the
+   available viewport space (reproduced: a bare `max-width: 760px` here
+   still rendered ~324px wide at 1440px). `100vw`-based sizing is an
+   absolute length, not a percentage of that ambiguous parent, so it breaks
+   the circular dependency without touching FocusTrap or the shared .modal
+   rule every other modal in the app also uses. */
+.modal.modal-lg {
+  width: min(calc(100vw - 32px), 760px);
+  max-width: min(calc(100vw - 32px), 760px);
+}
+
+/* Feature-Shipment modal body: fields on the left, public-card preview on
+   the right once there's room; single column below that. */
+.fs-modal-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 20px;
+}
+@media (min-width: 640px) {
+  .fs-modal-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(240px, 300px);
+    align-items: start;
+  }
+}
+
+/* Footer: Remove from Website (when present) stays visually separate from
+   the Cancel/Save pair rather than sharing the same button group. */
+.fs-modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.fs-modal-footer-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: auto;
+}
+/* Footer-button sizing overrides (flex/min-width for .fs-modal-footer-actions
+   .btn) live in viewport-hardening.css, not here — see the note there for
+   why: this file's `components` layer loses to later layers regardless of
+   selector specificity. */
+
 .pickup-summary-card {
   min-width: 0;
   gap: 12px;

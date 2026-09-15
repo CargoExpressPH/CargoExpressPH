@@ -435,3 +435,50 @@ body.keyboard-open .customer-chat-fab {
   opacity: 0;
   pointer-events: none;
 }
+
+/* FeatureShipmentModal (.modal-lg) footer buttons — deliberately placed in
+   this file, not feedback.css. feedback.css is @import'd as layer(components)
+   in main.css; premium-refresh.css's unconditional `.modal-footer .btn
+   { min-width: min(140px, 100%) }` and tables-mobile.css's `@media
+   (max-width: 900px) .modal-footer .btn { flex: 1 1 140px }` are both in
+   LATER layers (`refresh`, `pages`), and CSS layers override selector
+   specificity entirely regardless of how many classes are stacked — a
+   `.modal.modal-lg .fs-modal-footer-actions .btn` selector still lost to
+   those. (A `@layer hardening { … }` block written *inside* feedback.css
+   was tried first and doesn't work either: @import ... layer(components)
+   nests any @layer rule inside it as a sub-layer of `components`, not the
+   top-level `hardening` layer — confirmed via computed styles before
+   landing here.) This file is the one already @import'd as layer(hardening)
+   in main.css, which is later than both `refresh` and `pages`, so rules
+   written here win as plain CSS with no extra layer wrapper needed. Without
+   this, "Save Changes" rendered clipped to "Save Change" at a fixed 140px. */
+@media (min-width: 640px) {
+  .modal.modal-lg .fs-modal-footer-actions .btn {
+    flex: 0 0 auto;
+    min-width: 0;
+  }
+}
+@media (max-width: 639px) {
+  .modal.modal-lg .fs-modal-footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .modal.modal-lg .fs-modal-footer-actions {
+    margin-left: 0;
+    width: 100%;
+    /* Overrides feedback.css's align-items: center for this pair. App-wide
+       convention below 640px (premium-refresh.css) lets a long button
+       label wrap to two lines instead of clipping ("Save Changes" does, at
+       the narrowest phones, while "Cancel" doesn't) — stretch is what keeps
+       both buttons the same height in that case: the shorter one grows to
+       match its wrapped sibling instead of sitting shorter and centered. */
+    align-items: stretch;
+  }
+  .modal.modal-lg .fs-modal-footer-actions .btn {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+  .modal.modal-lg .fs-remove-btn {
+    width: 100%;
+  }
+}
