@@ -26,11 +26,34 @@ const formatDateTime = (d) => new Date(d).toLocaleString('en-PH', { month: 'shor
 
 const STATUS_ORDER = ['Pending', 'Assigned', 'Picked Up', 'In Transit', 'Arrived at Hub', 'Out for Delivery', 'Delivered', 'Cancelled'];
 
+// Formats a YYYY-MM-DD string as "Sep 1, 2026" without timezone shifting.
+// new Date('2026-09-01') parses as UTC midnight and toLocaleDateString then
+// shifts to the local timezone — causing an off-by-one-day bug on negative
+// UTC-offset machines. Parsing the parts manually avoids this entirely.
+const formatReportDate = (isoDate) => {
+  const [year, month, day] = isoDate.split('-').map(Number);
+  return new Date(year, month - 1, day).toLocaleDateString('en-US', {
+    month: 'short', day: 'numeric', year: 'numeric',
+  });
+};
+
+const buildReportFilename = (start, end, withExt = true) => {
+  const startLabel = formatReportDate(start);
+  const endLabel = formatReportDate(end);
+  const label = start === end ? startLabel : `${startLabel} to ${endLabel}`;
+  return `CargoExpress PH Report (${label})${withExt ? '.pdf' : ''}`;
+};
+
 const ReportsPage = () => {
   usePageTitle('Reports');
   const { userProfile } = useAuth();
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
+  // Tracks the date range of the GENERATED report — decoupled from filter
+  // inputs so editing the pickers without regenerating never mislabels the
+  // existing report.
+  const [reportedStart, setReportedStart] = useState('');
+  const [reportedEnd, setReportedEnd] = useState('');
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -52,6 +75,11 @@ const ReportsPage = () => {
     try {
       const result = await getReportData('custom', customStart, customEnd);
       setData(result);
+      // Snapshot the dates that produced this report. Only updated here so
+      // that editing the date pickers without regenerating never corrupts the
+      // label of the already-displayed report.
+      setReportedStart(customStart);
+      setReportedEnd(customEnd);
     } catch (e) {
       setError(e.message || 'Failed to load report data.');
     } finally {
@@ -60,16 +88,32 @@ const ReportsPage = () => {
   };
 
   const handlePrint = () => {
-    logActivity({ module: 'Sales & Reports', action: 'Report Printed', details: `Printed report for ${customStart} to ${customEnd}` });
-    window.print();
+    logActivity({ module: 'Sales & Reports', action: 'Report Printed', details: `Printed report for ${reportedStart} to ${reportedEnd}` });
+    // Chrome's Save-as-PDF dialog uses document.title as its suggested filename.
+    // Temporarily swap to the descriptive report title, then restore on afterprint
+    // (fires on both Save and Cancel, so the normal tab title always comes back).
+    const originalTitle = document.title;
+    if (reportedStart) {
+      document.title = buildReportFilename(reportedStart, reportedEnd, false);
+    }
+    const restore = () => {
+      document.title = originalTitle;
+      window.removeEventListener('afterprint', restore);
+    };
+    window.addEventListener('afterprint', restore);
+    // rAF lets the browser read the updated title before opening the dialog.
+    requestAnimationFrame(() => window.print());
   };
 
   const handleExportPDF = async () => {
     if (!data?.orders?.length || exporting) return;
     setExporting(true);
     try {
-      await exportPrintDocumentToPdf(`CargoExpress_Report_${customStart}_to_${customEnd}.pdf`);
-      logActivity({ module: 'Sales & Reports', action: 'Report Exported', details: `Exported report for ${customStart} to ${customEnd} to PDF` });
+      const filename = reportedStart
+        ? buildReportFilename(reportedStart, reportedEnd)
+        : 'CargoExpress PH Report.pdf';
+      await exportPrintDocumentToPdf(filename);
+      logActivity({ module: 'Sales & Reports', action: 'Report Exported', details: `Exported report for ${reportedStart} to ${reportedEnd} to PDF` });
     } catch (e) {
       console.error('PDF export failed:', e);
     } finally {
