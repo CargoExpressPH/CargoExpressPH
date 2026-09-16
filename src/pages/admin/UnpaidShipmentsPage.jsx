@@ -21,12 +21,12 @@ import { useToast } from '../../hooks/useToast';
 import usePageTitle from '../../hooks/usePageTitle';
 
 const formatCurrency = (val) =>
-  `â‚±${(parseFloat(val) || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  `₱${(parseFloat(val) || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 const formatDate = (value) => {
-  if (!value) return 'â€”';
+  if (!value) return '—';
   const d = new Date(value.length === 10 ? `${value}T00:00:00` : value);
-  if (Number.isNaN(d.getTime())) return 'â€”';
+  if (Number.isNaN(d.getTime())) return '—';
   return d.toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' });
 };
 
@@ -54,7 +54,7 @@ const BUCKET_META = {
   },
   [SETTLEMENT_BUCKETS.COLLECT]: {
     label: 'Freight collect', tone: 'info',
-    hint: 'Receiver pays at the door â€” due on delivery, not late.',
+    hint: 'Receiver pays at the door — due on delivery, not late.',
   },
   [SETTLEMENT_BUCKETS.IN_FLIGHT]: {
     label: 'In transit', tone: 'info',
@@ -63,7 +63,7 @@ const BUCKET_META = {
 };
 
 /**
- * UnpaidShipmentsPage â€” the money side of the delivery pipeline.
+ * UnpaidShipmentsPage — the money side of the delivery pipeline.
  *
  * Rendered as a section of Sales & Reports rather than its own route, so all
  * financial views stay in one place. Every row here is an order the Phase 1b
@@ -71,7 +71,7 @@ const BUCKET_META = {
  * "Held at hub" rows, and `guard_trip_completion` refuses to close a trip
  * while any of these are still attached to it.
  */
-/** "just now" / "3m ago" â€” how fresh the numbers on screen are. */
+/** "just now" / "3m ago" — how fresh the numbers on screen are. */
 const formatFreshness = (date, now) => {
   if (!date) return '';
   const seconds = Math.max(0, Math.round((now - date) / 1000));
@@ -121,7 +121,7 @@ const UnpaidShipmentsPage = () => {
       setLoadedAt(new Date());
     } catch (e) {
       // A failed background refresh must not blank out good data the admin is
-      // reading â€” surface the error only when this was an explicit load.
+      // reading — surface the error only when this was an explicit load.
       if (!silent) setError(e.message || 'Failed to load Unpaid Shipments.');
     } finally {
       if (silent) setRefreshing(false); else setLoading(false);
@@ -133,7 +133,7 @@ const UnpaidShipmentsPage = () => {
   // webhook, another admin's screen, and the customer's own phone. Without
   // this, a laptop left open on this page shows figures that quietly go stale.
   //
-  // Rows already on screen are patched in place â€” no refetch, no scroll jump,
+  // Rows already on screen are patched in place — no refetch, no scroll jump,
   // no closed modal. A refetch happens only when a row that is NOT on screen
   // starts qualifying, because only the query carries the customer join.
   const ordersRef = useRef(orders);
@@ -171,7 +171,7 @@ const UnpaidShipmentsPage = () => {
         const merged = { ...known, ...row, profiles: known.profiles };
         byId.set(row.id, { ...merged, ...deriveSettlement(merged, today) });
       } else if (qualifiesAsUnsettled(row)) {
-        needsFullReload = true;           // new arrival â€” needs the customer join
+        needsFullReload = true;           // new arrival — needs the customer join
         touched += 1;
       }
     });
@@ -291,12 +291,12 @@ const UnpaidShipmentsPage = () => {
         <div>
           <h1 className="admin-page-title"><Wallet size={24} color="var(--primary)" aria-hidden="true" />Unpaid Shipments</h1>
           <p className="admin-page-subtitle">
-            Shipments in the pipeline that still owe money â€” who owes it, how much, and how overdue.
+            Shipments in the pipeline that still owe money — who owes it, how much, and how overdue.
           </p>
           {!loading && loadedAt && (
             <div className="text-xs text-tertiary mt-4 no-print" role="status" aria-live="polite">
               {refreshing ? (
-                <><Loader size={12} className="animate-spin inline mr-6" aria-hidden="true" /> Updatingâ€¦</>
+                <><Loader size={12} className="animate-spin inline mr-6" aria-hidden="true" /> Updating”¦</>
               ) : (
                 <>
                   <span
@@ -306,8 +306,8 @@ const UnpaidShipmentsPage = () => {
                       background: 'var(--success)', marginRight: 6, verticalAlign: 'middle',
                     }}
                   />
-                  Live Â· updated {formatFreshness(loadedAt, now)}
-                  {liveCount > 0 && <> Â· {liveCount} change{liveCount === 1 ? '' : 's'} received</>}
+                  Live · updated {formatFreshness(loadedAt, now)}
+                  {liveCount > 0 && <> · {liveCount} change{liveCount === 1 ? '' : 's'} received</>}
                 </>
               )}
             </div>
@@ -388,7 +388,7 @@ const UnpaidShipmentsPage = () => {
             name="qunsettled"
             type="search"
             aria-label="Search Unpaid Shipments"
-            placeholder="Search tracking or customerâ€¦"
+            placeholder="Search tracking or customer”¦"
             value={search}
             onChange={e => setSearch(e.target.value)}
           />
@@ -431,12 +431,12 @@ const UnpaidShipmentsPage = () => {
                     <tr key={o.id}>
                       <td data-label="Tracking" className="unpaid-tracking-cell">
                         <Link to={`/admin/orders/${o.id}`} className="fw-700 text-accent">{o.tracking_number}</Link>
-                        <div className="text-xs text-tertiary">{o.origin} â†’ {o.destination}</div>
+                        <div className="text-xs text-tertiary">{o.origin} → {o.destination}</div>
                       </td>
                       <td data-label="Customer" className="unpaid-customer-cell">
                         {/* Chasing a balance is the case where an admin most
                             often needs to talk to the customer, so the shortcut
-                            sits on the name itself. Icon only â€” the column is
+                            sits on the name itself. Icon only — the column is
                             narrow and the row already has a labelled action. */}
                         <div className="flex items-center gap-4">
                           <span>{o.profiles?.name || o.sender_name}</span>
@@ -446,7 +446,7 @@ const UnpaidShipmentsPage = () => {
                           />
                         </div>
                         <div className="text-xs text-tertiary">
-                          {(o.payer_type || 'sender') === 'receiver' ? `Receiver pays Â· ${o.receiver_name}` : 'Sender pays'}
+                          {(o.payer_type || 'sender') === 'receiver' ? `Receiver pays · ${o.receiver_name}` : 'Sender pays'}
                         </div>
                       </td>
                       <td data-label="Status" className="unpaid-status-cell"><StatusBadge status={o.status} size="sm" /></td>
@@ -455,7 +455,7 @@ const UnpaidShipmentsPage = () => {
                         <div className="text-xs text-tertiary mt-4">
                           {o.promised_payment_date
                             ? (o.days_overdue > 0
-                                ? `${o.days_overdue} day${o.days_overdue === 1 ? '' : 's'} overdue Â· promised ${formatDate(o.promised_payment_date)}`
+                                ? `${o.days_overdue} day${o.days_overdue === 1 ? '' : 's'} overdue · promised ${formatDate(o.promised_payment_date)}`
                                 : `Promised ${formatDate(o.promised_payment_date)}`)
                             : `Booked ${formatDate(o.created_at)}`}
                         </div>
@@ -472,7 +472,7 @@ const UnpaidShipmentsPage = () => {
                       <td data-label="Balance" className="num fw-700 text-error unpaid-money-cell unpaid-balance-cell">
                         {formatCurrency(o.outstanding)}
                         {o.balance_mismatch && (
-                          <div className="text-xs text-tertiary fw-400" title={`Stored remaining_balance is ${formatCurrency(o.remaining_balance)} â€” the ledger total is stale and should be reconciled.`}>
+                          <div className="text-xs text-tertiary fw-400" title={`Stored remaining_balance is ${formatCurrency(o.remaining_balance)} — the ledger total is stale and should be reconciled.`}>
                             ledger says {formatCurrency(o.remaining_balance)}
                           </div>
                         )}
@@ -509,7 +509,7 @@ const UnpaidShipmentsPage = () => {
         </div>
       )}
 
-      {/* â”€â”€ Formal printed document (bond paper) â€” replaces UI in print â”€â”€ */}
+      {/* â”€â”€ Formal printed document (bond paper) — replaces UI in print â”€â”€ */}
       {!loading && filtered.length > 0 && (
         <PrintDocument
           title="Unpaid Shipments Report"
@@ -535,7 +535,7 @@ const UnpaidShipmentsPage = () => {
           <div className="pd-section pd-flow">
             <div className="pd-section-title">
               II. Outstanding Shipments ({filtered.length}
-              {filter !== 'all' ? ` â€” ${filterOptions.find(f => f.value === filter)?.label} only` : ''})
+              {filter !== 'all' ? ` — ${filterOptions.find(f => f.value === filter)?.label} only` : ''})
             </div>
             <table className="pd-table">
               <thead>
@@ -556,8 +556,8 @@ const UnpaidShipmentsPage = () => {
                     <td>{o.tracking_number}</td>
                     <td>{o.profiles?.name || o.sender_name}</td>
                     <td>{o.status}</td>
-                    <td>{(BUCKET_META[o.settlement_bucket] || {}).label || 'â€”'}</td>
-                    <td>{o.promised_payment_date ? formatDate(o.promised_payment_date) : 'â€”'}</td>
+                    <td>{(BUCKET_META[o.settlement_bucket] || {}).label || '—'}</td>
+                    <td>{o.promised_payment_date ? formatDate(o.promised_payment_date) : '—'}</td>
                     <td className="num">{formatCurrency(Math.max(0, (parseFloat(o.shipping_cost) || 0) - (parseFloat(o.discount_amount) || 0)))}</td>
                     <td className="num">{formatCurrency(o.amount_paid)}</td>
                     <td className="num">{formatCurrency(o.outstanding)}</td>
