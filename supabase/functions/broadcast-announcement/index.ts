@@ -1,7 +1,7 @@
-// Supabase Edge Function: broadcast-announcement
+﻿// Supabase Edge Function: broadcast-announcement
 //
 // Emails an announcement to everyone who has actually opted in to receive
-// announcement emails — NOT every registered account. Two sources, deduped
+// announcement emails â€” NOT every registered account. Two sources, deduped
 // by email address:
 //   1. profiles        WHERE role = 'customer' AND wants_announcements = true
 //   2. contact_inquiries WHERE wants_announcements = true (public leads)
@@ -12,10 +12,10 @@
 //
 // Required Supabase secrets:
 //   SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY
-//   RESEND_API_KEY        — https://resend.com/api-keys
-//   RESEND_FROM_EMAIL     — must be on a domain verified in Resend, e.g.
+//   RESEND_API_KEY        â€” https://resend.com/api-keys
+//   RESEND_FROM_EMAIL     â€” must be on a domain verified in Resend, e.g.
 //                           "CargoExpress PH <announcements@yourdomain.com>"
-//   UNSUBSCRIBE_SIGNING_SECRET — any long random string; signs unsubscribe
+//   UNSUBSCRIBE_SIGNING_SECRET â€” any long random string; signs unsubscribe
 //                           links so a recipient can only unsubscribe their
 //                           own address, never someone else's
 
@@ -28,7 +28,7 @@ const CORS_HEADERS = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-// Resend's batch endpoint limit changes over time — verify against current
+// Resend's batch endpoint limit changes over time â€” verify against current
 // Resend docs before relying on this in production. Kept conservative and
 // configurable in one place rather than assumed correct forever.
 const BATCH_SIZE = 50
@@ -60,7 +60,7 @@ function escapeHtml(value: string): string {
 const hex = (bytes: ArrayBuffer) =>
   Array.from(new Uint8Array(bytes)).map(b => b.toString(16).padStart(2, '0')).join('')
 
-/** Same HMAC-SHA256 shape as paymongo-webhook's signature check — signs the
+/** Same HMAC-SHA256 shape as paymongo-webhook's signature check â€” signs the
  *  lowercased email so the unsubscribe link only ever works for that address. */
 async function signUnsubscribeToken(email: string): Promise<string> {
   const secret = Deno.env.get('UNSUBSCRIBE_SIGNING_SECRET')
@@ -83,10 +83,10 @@ const FONT_STACK = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica
 /**
  * Branded HTML template: an image banner header, the announcement, a
  * divider, a fixed bilingual CTA driving signups, an About Us link, and the
- * unsubscribe footer. No emoji anywhere in the template's own copy — only
+ * unsubscribe footer. No emoji anywhere in the template's own copy â€” only
  * admin-authored announcement content (title/contentHtml) can contain any.
  *
- * Built table-based with every meaningful style inlined — the layout most
+ * Built table-based with every meaningful style inlined â€” the layout most
  * likely to render correctly across Gmail, Apple Mail and Outlook's Word
  * engine, none of which reliably support modern CSS in email. `title` and
  * `contentHtml` must already be HTML-escaped by the caller.
@@ -119,10 +119,10 @@ function buildAnnouncementEmailHtml(title: string, contentHtml: string, unsubscr
           <tr>
             <td align="center" style="padding:40px 32px 24px; border-bottom:1px solid #e2e8f0; background-color:#ffffff;">
               <h1 style="margin:0; font-family:${FONT_STACK}; font-size:36px; font-weight:800; letter-spacing:-1px;">
-                <span style="color:#10b981;">CARGO</span><span style="color:#0f172a;">EXPRESS</span>
+                <span style="color:#10b981;">CARGO</span><span style="color:#0f172a;">EXPRESS PH</span>
               </h1>
               <p style="margin:8px 0 0; font-family:${FONT_STACK}; font-size:14px; color:#64748b; font-weight:500;">
-                Manila ⇄ Bohol Cargo Delivery
+                Manila â‡„ Bohol Cargo Delivery
               </p>
             </td>
           </tr>
@@ -201,8 +201,8 @@ serve(async (req) => {
   const supabase = createClient(supabaseUrl, serviceRoleKey)
 
   try {
-    // ── Verify the caller is an admin. verify_jwt=true already guarantees a
-    // valid JWT reached us; this step is the actual authorization check. ──
+    // â”€â”€ Verify the caller is an admin. verify_jwt=true already guarantees a
+    // valid JWT reached us; this step is the actual authorization check. â”€â”€
     const authHeader = req.headers.get('Authorization') || ''
     if (!authHeader.startsWith('Bearer ')) return json({ error: 'Authentication required' }, 401)
     const userClient = createClient(supabaseUrl, anonKey, { global: { headers: { Authorization: authHeader } } })
@@ -239,7 +239,7 @@ serve(async (req) => {
     // never re-email everyone a second time.
     if (announcement.emailed_at) return json({ success: true, already_sent: true })
 
-    // ── Build the recipient list, deduped by lowercased email ──
+    // â”€â”€ Build the recipient list, deduped by lowercased email â”€â”€
     const recipients = new Map<string, { email: string; name: string | null }>()
 
     const { data: subscribedProfiles, error: profilesError } = await supabase
@@ -271,7 +271,7 @@ serve(async (req) => {
 
     const safeTitle = escapeHtml(announcement.title)
     // Content is admin-authored, not user-authored, but it's still rendered
-    // as HTML in a real inbox — escape it the same as any other untrusted
+    // as HTML in a real inbox â€” escape it the same as any other untrusted
     // string reaching an HTML sink, and preserve line breaks explicitly
     // rather than relying on the (escaped) source having real <br> tags.
     const safeContentHtml = escapeHtml(announcement.content).replace(/\n/g, '<br>')
@@ -290,7 +290,7 @@ serve(async (req) => {
           subject: announcement.title,
           html: buildAnnouncementEmailHtml(safeTitle, safeContentHtml, unsubscribeUrl),
           // List-Unsubscribe headers let mailbox providers offer a one-click
-          // unsubscribe in their own UI — required by Gmail/Yahoo's 2024
+          // unsubscribe in their own UI â€” required by Gmail/Yahoo's 2024
           // bulk-sender rules for any sender pushing real volume.
           headers: { 'List-Unsubscribe': `<${unsubscribeUrl}>`, 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' },
         }

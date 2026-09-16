@@ -1,11 +1,11 @@
-// Supabase Edge Function: email-trip-reschedule
+﻿// Supabase Edge Function: email-trip-reschedule
 //
 // Emails every customer with an active (non-cancelled) booking on a trip
 // whose departure_date or arrival_date just changed, PROVIDED they opted in
 // (profiles.wants_announcements = true). Triggered exclusively by the
 // trips_notify_reschedule_email trigger (see the
 // 20260910020000_trip_reschedule_email_trigger.sql migration) the instant a
-// trip's schedule is updated — never called from the app itself.
+// trip's schedule is updated â€” never called from the app itself.
 //
 // Same auth shape as process-daily-reminders: caller must present the
 // project's service role key as the bearer token. This mass-emails
@@ -14,8 +14,8 @@
 //
 // Required Supabase secrets:
 //   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
-//   RESEND_API_KEY        — https://resend.com/api-keys
-//   RESEND_FROM_EMAIL     — must be on a domain verified in Resend, e.g.
+//   RESEND_API_KEY        â€” https://resend.com/api-keys
+//   RESEND_FROM_EMAIL     â€” must be on a domain verified in Resend, e.g.
 //                           "CargoExpress PH <updates@yourdomain.com>"
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
@@ -27,7 +27,7 @@ const CORS_HEADERS = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-// Resend's batch endpoint limit changes over time — verify against current
+// Resend's batch endpoint limit changes over time â€” verify against current
 // Resend docs before relying on this in production. Kept conservative and
 // configurable in one place rather than assumed correct forever.
 const BATCH_SIZE = 50
@@ -65,7 +65,7 @@ function escapeHtml(value: string): string {
 }
 
 // departure_date/arrival_date are TIMESTAMPTZ stamped at PH midnight
-// (20260829160000_trip_date_only_scheduling.sql) — render as a PH calendar
+// (20260829160000_trip_date_only_scheduling.sql) â€” render as a PH calendar
 // date, not whatever the server's local timezone happens to be.
 function formatPhDate(iso: string | null): string {
   if (!iso) return 'TBA'
@@ -119,10 +119,10 @@ function buildRescheduleEmailHtml(opts: {
           <tr>
             <td align="center" style="padding:40px 32px 24px; border-bottom:1px solid #e2e8f0; background-color:#ffffff;">
               <h1 style="margin:0; font-family:${FONT_STACK}; font-size:36px; font-weight:800; letter-spacing:-1px;">
-                <span style="color:#10b981;">CARGO</span><span style="color:#0f172a;">EXPRESS</span>
+                <span style="color:#10b981;">CARGO</span><span style="color:#0f172a;">EXPRESS PH</span>
               </h1>
               <p style="margin:8px 0 0; font-family:${FONT_STACK}; font-size:14px; color:#64748b; font-weight:500;">
-                Manila ⇄ Bohol Cargo Delivery
+                Manila â‡„ Bohol Cargo Delivery
               </p>
             </td>
           </tr>
@@ -132,7 +132,7 @@ function buildRescheduleEmailHtml(opts: {
               <h1 style="margin:0 0 16px;font-family:${FONT_STACK};font-size:22px;font-weight:800;color:#1B2320;line-height:1.3;">Trip Schedule Update</h1>
               <p style="margin:0 0 16px;font-family:${FONT_STACK};font-size:15px;line-height:1.7;color:#333333;">
                 Hi ${safeName}, the trip carrying your booking(s) <strong>${orderList}</strong>
-                (${escapeHtml(opts.origin)} → ${escapeHtml(opts.destination)}) has a new schedule.
+                (${escapeHtml(opts.origin)} â†’ ${escapeHtml(opts.destination)}) has a new schedule.
               </p>
             </td>
           </tr>
@@ -204,9 +204,9 @@ serve(async (req) => {
   const fromEmail = Deno.env.get('RESEND_FROM_EMAIL') ?? ''
 
   try {
-    // ── Only the DB trigger, authenticated with the service role key, may
+    // â”€â”€ Only the DB trigger, authenticated with the service role key, may
     // call this. Same reasoning as process-daily-reminders: this mass-emails
-    // everyone booked on a trip, so it can't be "any signed-in user". ──
+    // everyone booked on a trip, so it can't be "any signed-in user". â”€â”€
     const authHeader = req.headers.get('Authorization') || ''
     const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : ''
     if (!serviceRoleKey || token !== serviceRoleKey) {
@@ -232,7 +232,7 @@ serve(async (req) => {
     if (tripError) return json({ error: tripError.message }, 500)
     if (!trip) return json({ error: 'Trip not found' }, 404)
 
-    // ── Active (non-cancelled) bookings on this trip, grouped by customer ──
+    // â”€â”€ Active (non-cancelled) bookings on this trip, grouped by customer â”€â”€
     const { data: orders, error: ordersError } = await supabase
       .from('orders')
       .select('id, tracking_number, user_id')
@@ -251,7 +251,7 @@ serve(async (req) => {
       trackingByUser.set(o.user_id as string, list)
     }
 
-    // ── Only customers who opted in to announcement/update emails ──
+    // â”€â”€ Only customers who opted in to announcement/update emails â”€â”€
     const userIds = Array.from(trackingByUser.keys())
     const { data: profiles, error: profilesError } = await supabase
       .from('profiles')
@@ -278,7 +278,7 @@ serve(async (req) => {
       const emails = batch.map((profile) => ({
         from: fromEmail,
         to: profile.email as string,
-        subject: `Schedule Update — Trip ${trip.trip_number}`,
+        subject: `Schedule Update â€” Trip ${trip.trip_number}`,
         html: buildRescheduleEmailHtml({
           customerName: profile.name || 'Customer',
           trackingNumbers: trackingByUser.get(profile.id as string) || [],

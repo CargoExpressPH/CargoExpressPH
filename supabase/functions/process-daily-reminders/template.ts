@@ -1,4 +1,4 @@
-export const emailTemplate = `
+﻿export const emailTemplate = `
 <!doctype html>
 <html lang="en">
 <head>
@@ -25,10 +25,10 @@ export const emailTemplate = `
           <tr>
             <td align="center" style="padding:40px 32px 24px; border-bottom:1px solid #e2e8f0; background-color:#ffffff;">
               <h1 style="margin:0; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; font-size:36px; font-weight:800; letter-spacing:-1px;">
-                <span style="color:#10b981;">CARGO</span><span style="color:#0f172a;">EXPRESS</span>
+                <span style="color:#10b981;">CARGO</span><span style="color:#0f172a;">EXPRESS PH</span>
               </h1>
               <p style="margin:8px 0 0; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; font-size:14px; color:#64748b; font-weight:500;">
-                Manila ⇄ Bohol Cargo Delivery
+                Manila â‡„ Bohol Cargo Delivery
               </p>
             </td>
           </tr>
@@ -45,7 +45,7 @@ export const emailTemplate = `
                 <tr>
                   <td style="padding:20px 24px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:14px;color:#333333;line-height:1.9;">
                     <strong>Tracking Number:</strong> {{tracking_number}}<br>
-                    <strong>Route:</strong> {{origin}} → {{destination}}<br>
+                    <strong>Route:</strong> {{origin}} â†’ {{destination}}<br>
                     <strong>Amount Due:</strong> <span style="color:#DC2626;font-weight:700;">{{remaining_balance}}</span><br>
                     <strong>Promised Payment Date:</strong> {{promised_date}}
                   </td>
