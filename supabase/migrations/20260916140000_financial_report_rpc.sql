@@ -3,7 +3,7 @@ RETURNS JSONB
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public
-AS $func
+AS $$
 DECLARE
   payload JSONB;
 BEGIN
@@ -115,13 +115,13 @@ BEGIN
 
   RETURN payload;
 END;
-$func;
+$$;
 CREATE OR REPLACE FUNCTION public.get_sales_overview_data(p_year INT DEFAULT EXTRACT(YEAR FROM now() AT TIME ZONE 'Asia/Manila'))
 RETURNS JSONB
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public
-AS $func
+AS $$
 DECLARE
   payload JSONB;
   v_today_start TIMESTAMPTZ;
@@ -207,7 +207,7 @@ BEGIN
 
   RETURN payload;
 END;
-$func;
+$$;
 
 GRANT EXECUTE ON FUNCTION public.get_financial_report_data(TIMESTAMPTZ, TIMESTAMPTZ) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.get_sales_overview_data(INT) TO authenticated;
