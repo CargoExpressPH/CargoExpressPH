@@ -317,6 +317,14 @@ const CargoPhotoBrowser = ({ onPhotosChanged }) => {
 
   useEffect(() => () => clearTimeout(debounceTimer.current), []);
 
+  useEffect(() => {
+    if (!deleteResult) return;
+    const timer = setTimeout(() => {
+      setDeleteResult(null);
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, [deleteResult]);
+
   const loadFolders = useCallback(async () => {
     const requestId = ++folderSeq.current;
     setFoldersLoading(true);
