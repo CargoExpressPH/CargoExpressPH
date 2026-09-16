@@ -522,7 +522,22 @@ serve(async (req) => {
     let deliveryJobClaimId: string | null = null
     let targetDeviceTokenId: string | null = null
 
-    const isServiceJobRequest = true
+    // A durable-outbox worker call (process-push-deliveries) always supplies
+    // all four of these as real UUIDs. This must be a real condition, not a
+    // hardcoded true — a hardcoded value here made every other branch below
+    // (cancellation_request, cancellation_review, contact_inquiry, and the
+    // generic authenticated path) permanently unreachable, since this first
+    // `if` always won and returned 400 for anything that wasn't a worker
+    // call. Confirmed no code anywhere still calls this function with those
+    // other shapes today (process-push-deliveries is the only caller found),
+    // so this was previously silent dead code rather than an active failure
+    // — but it's still wrong, and the next thing that tries to call this
+    // function directly (e.g. for an immediate, non-outbox push) would have
+    // hit this exact wall.
+    const isServiceJobRequest = isUuid(requestedJobId)
+      && isUuid(requestedJobClaimId)
+      && isUuid(requestedNotificationId)
+      && isUuid(requestedDeviceTokenId)
 
     if (isServiceJobRequest) {
       if (
