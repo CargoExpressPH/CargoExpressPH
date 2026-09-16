@@ -46,7 +46,12 @@ export const AuthProvider = ({ children }) => {
     // hash directly, synchronously, on mount closes that race outright rather
     // than hoping the event is still in flight when we ask.
     if (window.location.hash.includes('type=recovery') && window.location.pathname !== '/reset-password') {
-      window.location.assign(`/reset-password${window.location.hash}`);
+      // replace(), not assign(): this carries the raw recovery token in the
+      // URL hash, and assign() would push it into browser history as its own
+      // entry — a Back navigation later would return to a URL containing
+      // that (now-consumed, but still sensitive-looking) token. replace()
+      // swaps the current entry instead of adding one.
+      window.location.replace(`/reset-password${window.location.hash}`);
       return () => { isMounted = false; };
     }
 
@@ -101,7 +106,12 @@ export const AuthProvider = ({ children }) => {
           setAuthTransition(null);
           setLoading(false);
           if (window.location.pathname !== '/reset-password') {
-            window.location.assign('/reset-password');
+            // replace(), not assign() — see the hash-detection branch above
+            // for why: this fires on a tab that wasn't the one that opened
+            // the recovery link (cross-tab session sync), and it should swap
+            // that tab to /reset-password without adding a history entry the
+            // customer could Back into.
+            window.location.replace('/reset-password');
           }
           return;
         }

@@ -51,7 +51,16 @@ const ResetPasswordPage = () => {
     // allow a script to close a tab it opened itself, so this silently
     // no-ops (and falls through to navigate) when it wasn't.
     window.close();
-    navigate('/login');
+    // `replace: true` drops this completed reset form from history so Back
+    // from /login lands on whatever preceded it, not a stale success screen
+    // whose recovery session has already been destroyed by logout() above.
+    // The message rides in router state (not a query/hash param) so it never
+    // ends up in browser history or server logs, and only shows once — a
+    // manual reload of /login won't have this state and won't repeat it.
+    navigate('/login', {
+      replace: true,
+      state: { flashMessage: 'Password updated successfully. Please sign in with your new password.' },
+    });
   }, [logout, navigate]);
 
   // Cross-tab stranding: a recovery link opens in a new tab while Supabase's

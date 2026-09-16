@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import {
-  Eye, EyeOff, AlertTriangle, Mail, Lock,
+  Eye, EyeOff, AlertTriangle, CheckCircle2, Mail, Lock,
 } from 'lucide-react';
 import usePageTitle from '../../hooks/usePageTitle';
 import { logAuth } from '../../lib/activityLog';
@@ -78,6 +78,18 @@ const LoginPage = () => {
   const navigate   = useNavigate();
   const location   = useLocation();
 
+  // A one-time flash message handed off via router state (e.g. from a
+  // completed password reset). Read once on mount, then scrubbed from
+  // history immediately so a later Back navigation or reload of /login
+  // never re-shows it.
+  const [flashMessage, setFlashMessage] = useState(() => location.state?.flashMessage || '');
+  useEffect(() => {
+    if (location.state?.flashMessage) {
+      navigate(location.pathname, { replace: true, state: null });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const loginErrorTimerRef = useRef(null);
 
   useEffect(() => () => {
@@ -111,11 +123,13 @@ const LoginPage = () => {
   const handleEmailChange = (e) => {
     setEmail(e.target.value);
     clearLoginFieldError('email');
+    setFlashMessage('');
   };
 
   const handlePasswordChange = (e) => {
     setPassword(e.target.value);
     clearLoginFieldError('password');
+    setFlashMessage('');
   };
 
   const handleLogin = async (e) => {
@@ -220,6 +234,13 @@ const LoginPage = () => {
             <h2 className="login-form-title">Welcome back</h2>
             <p className="login-form-sub">Sign in to manage your shipments &amp; track orders.</p>
           </div>
+
+          {!loginError && flashMessage && (
+            <div className="login-success-box" role="status">
+              <CheckCircle2 size={15} />
+              <span>{flashMessage}</span>
+            </div>
+          )}
 
           {loginError && (
             <div className="login-error-box" role="alert">

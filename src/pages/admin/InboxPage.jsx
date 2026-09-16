@@ -18,7 +18,7 @@ import {
   CONVERSATION_STATUS,
 } from '../../lib/database';
 import EmptyState from '../../components/ui/EmptyState';
-import { MessageSquare, Send, Loader, User, Bot, Clock, CheckCircle, ArrowLeft, Search, AlertCircle, X } from 'lucide-react';
+import { MessageSquare, Send, Loader, User, Headset, Bot, Clock, CheckCircle, ArrowLeft, Search, AlertCircle, X } from 'lucide-react';
 import usePageTitle from '../../hooks/usePageTitle';
 import { logChat } from '../../lib/activityLog';
 import { renderMarkdown } from '../../lib/markdown';
@@ -640,7 +640,7 @@ const InboxPage = () => {
             {!isAdmin && (
               <div className={`inbox-msg-avatar ${isBot ? 'is-bot' : 'is-customer'}`}>
                 {isBot
-                  ? <Bot size={13} color="var(--text-secondary)" />
+                  ? <Headset size={13} color="var(--text-secondary)" />
                   : <User size={13} color="white" />
                 }
               </div>
@@ -659,7 +659,7 @@ const InboxPage = () => {
               )}
               {isBot && (
                 <div className="inbox-msg-sender-label">
-                  <Bot size={11} aria-hidden="true" /> CargoMate PH
+                  <Headset size={11} aria-hidden="true" /> CargoMate PH
                 </div>
               )}
               {isCustomer && (
@@ -851,7 +851,7 @@ const InboxPage = () => {
                         <div className="inbox-conv-preview">
                           {conv.last_message.sender_role === 'admin'
                             ? `${previewSender(conv.last_message)}: `
-                            : conv.last_message.sender_role === 'bot' ? 'Bot: ' : ''}
+                            : conv.last_message.sender_role === 'bot' ? 'Support: ' : ''}
                           {conv.last_message.message}
                         </div>
                       ) : searching ? (

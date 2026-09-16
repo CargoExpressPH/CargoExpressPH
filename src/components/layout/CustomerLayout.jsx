@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Outlet, NavLink, useNavigate, Link, useLocation } from 'react-router-dom';
-import { Bell, User, LogOut, Bot, Package, MapPin, Plus, Home, ChevronRight } from 'lucide-react';
+import { Bell, User, LogOut, Headset, Bot, Package, MapPin, Plus, Home, ChevronRight } from 'lucide-react';
 import BrandLockup from '../ui/BrandLogo';
 import ThemeToggle from '../ui/ThemeToggle';
 import { useAuth } from '../../contexts/AuthContext';
@@ -19,7 +19,7 @@ const desktopNavItems = [
   { to: '/customer/book', icon: Plus, label: 'Book Shipment' },
   { to: '/customer/orders', icon: Package, label: 'Bookings' },
   { to: '/customer/trips', icon: MapPin, label: 'Trips' },
-  { to: '/customer/support', icon: Bot, label: 'Chat Support' },
+  { to: '/customer/support', icon: Headset, label: 'Chat Support' },
 ];
 
 const bottomNavItems = [
@@ -415,7 +415,7 @@ const CustomerLayout = () => {
           title="Ask CargoMate — chat support"
         >
           <span className="customer-chat-fab-inner">
-            <Bot size={24} aria-hidden="true" />
+            <Headset size={24} aria-hidden="true" />
           </span>
         </Link>
       )}

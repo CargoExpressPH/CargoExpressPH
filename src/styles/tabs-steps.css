@@ -335,6 +335,16 @@ button.step.clickable:focus-visible {
   line-height: 1.4;
 }
 
+/* Success box (e.g. "password updated" flash message carried from another page) */
+.login-success-box {
+  background: var(--success-bg); color: var(--success-text);
+  padding: 12px 14px; border-radius: var(--radius-md);
+  font-size: 0.875rem; margin-bottom: 18px;
+  border: 1px solid var(--success);
+  display: flex; align-items: flex-start; gap: 8px;
+  line-height: 1.4;
+}
+
 /* Form input with icon */
 .form-input-wrapper {
   position: relative; display: flex; align-items: center;

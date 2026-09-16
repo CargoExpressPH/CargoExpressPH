@@ -15,7 +15,7 @@ import {
 } from '../../lib/database';
 import { getBotReply, BOT_GREETING } from '../../lib/supportChatEngine';
 import {
-  Send, Bot, Loader, MessageSquare, AlertTriangle,
+  Send, Headset, Bot, Loader, MessageSquare, AlertTriangle,
   RefreshCw, Clock, User, AlertCircle, CheckCircle2, X,
 } from 'lucide-react';
 import EmptyState from '../../components/ui/EmptyState';
@@ -85,11 +85,11 @@ const MessageBubble = ({ m, showResolutionPrompt, onResolve, onEscalate, onRetry
     <div className={`support-message-row ${isMe ? 'is-me' : 'is-admin'}`}>
       {!isMe && (
         <div className={`chat-avatar ${isBot ? 'bot-avatar' : 'admin-avatar'}`}>
-          {isBot ? <Bot size={12} /> : <User size={12} />}
+          {isBot ? <Headset size={12} /> : <User size={12} />}
         </div>
       )}
       <div className="support-message-stack">
-        {isBot && <div className="chat-sender-label bot-label"><Bot size={11} aria-hidden="true" /> CargoMate PH</div>}
+        {isBot && <div className="chat-sender-label bot-label"><Headset size={11} aria-hidden="true" /> CargoMate PH</div>}
         {m.sender_role === 'admin' && <div className="chat-sender-label admin-label"><User size={11} aria-hidden="true" /> {resolvedAdminName}</div>}
 
         <div className={`support-message-bubble ${isMe ? 'user-bubble' : isBot ? 'bot-bubble' : 'admin-bubble'}${m.failed ? ' is-failed' : ''}`}>
@@ -155,7 +155,7 @@ const MessageBubble = ({ m, showResolutionPrompt, onResolve, onEscalate, onRetry
 const ChatHeader = ({ subtitle, onClose }) => (
   <header className="support-chat-header">
     <span className="support-chat-header-avatar" aria-hidden="true">
-      <Bot size={18} />
+      <Headset size={18} />
     </span>
     <div className="support-chat-header-text">
       <h2 className="support-chat-header-title">Support Chat</h2>
@@ -826,9 +826,9 @@ const SupportChatPage = () => {
             {/* Bot typing indicator */}
             {botTyping && (
               <div className="support-message-row is-admin" role="status" aria-label="Assistant is typing">
-                <div className="chat-avatar bot-avatar"><Bot size={12} /></div>
+                <div className="chat-avatar bot-avatar"><Headset size={12} /></div>
                 <div className="support-message-stack">
-                  <div className="chat-sender-label bot-label"><Bot size={11} aria-hidden="true" /> CargoMate PH</div>
+                  <div className="chat-sender-label bot-label"><Headset size={11} aria-hidden="true" /> CargoMate PH</div>
                   <div className="chat-typing-dots"><span /><span /><span /></div>
                 </div>
               </div>
