@@ -9,7 +9,7 @@ import DonutChart from '../../components/ui/DonutChart';
 import MiniBarChart from '../../components/ui/MiniBarChart';
 import PrintDocument from '../../components/ui/PrintDocument';
 import { exportPrintDocumentToPdf } from '../../lib/exportPdf';
-import { DollarSign, CheckCircle, AlertTriangle, Clock, Printer, Download, Loader, BarChart3 } from 'lucide-react';
+import { PhilippinePeso, CheckCircle, AlertTriangle, Clock, Printer, Download, Loader, BarChart3 } from 'lucide-react';
 import EmptyState from '../../components/ui/EmptyState';
 import usePageTitle from '../../hooks/usePageTitle';
 
@@ -253,7 +253,7 @@ const SalesPage = () => {
           <div className="card-body">
             {loading ? <CenteredSpinner /> : monthlySales.length === 0 ? (
               <EmptyState
-                icon={DollarSign}
+                icon={PhilippinePeso}
                 title="No sales data"
                 description="No revenue records available for this period."
               />

@@ -73,6 +73,7 @@ export const registerPushDevice = async (userId, token) => {
     });
 
     if (!error) return true;
+    console.error('[push-debug] registerPushDevice: claim_push_device_registration RPC failed', error.code, error.message, error);
     if (!isMissingLifecycleRpc(error)) return false;
   }
 
@@ -81,6 +82,9 @@ export const registerPushDevice = async (userId, token) => {
   const { error } = await supabase
     .from('user_device_tokens')
     .upsert({ user_id: userId, token }, { onConflict: 'token' });
+  if (error) {
+    console.error('[push-debug] registerPushDevice: fallback upsert failed', error.code, error.message, error);
+  }
   return !error;
 };
 

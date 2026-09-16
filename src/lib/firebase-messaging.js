@@ -18,16 +18,42 @@ const isFcmSupported = () => (
 );
 
 const getMessagingContext = async () => {
-  if (!app || !isFcmSupported() || Notification.permission !== 'granted') return null;
+  if (!app) {
+    console.error('[push-debug] getMessagingContext: firebase app is null (missing VITE_FIREBASE_API_KEY / VITE_FIREBASE_PROJECT_ID at build time)');
+    return null;
+  }
+  if (!isFcmSupported()) {
+    console.error('[push-debug] getMessagingContext: isFcmSupported() is false (no Notification or serviceWorker API)');
+    return null;
+  }
+  if (Notification.permission !== 'granted') {
+    console.error('[push-debug] getMessagingContext: Notification.permission is', Notification.permission);
+    return null;
+  }
 
   const messaging = getMessaging(app);
   const swRegistration = await navigator.serviceWorker.getRegistration('/');
-  if (!swRegistration) return null;
+  if (!swRegistration) {
+    console.error('[push-debug] getMessagingContext: no service worker registration found at scope "/" — is sw.js registered/active?');
+    return null;
+  }
   const vapidKey = import.meta.env.VITE_FIREBASE_VAPID_KEY;
+  if (!vapidKey) {
+    console.error('[push-debug] getMessagingContext: VITE_FIREBASE_VAPID_KEY is missing — getToken will use Firebase default key and likely fail');
+  }
   const options = { serviceWorkerRegistration: swRegistration };
   if (vapidKey) options.vapidKey = vapidKey;
 
-  return { messaging, token: await getToken(messaging, options) };
+  try {
+    const token = await getToken(messaging, options);
+    if (!token) {
+      console.error('[push-debug] getMessagingContext: getToken() resolved with an empty token');
+    }
+    return { messaging, token };
+  } catch (error) {
+    console.error('[push-debug] getMessagingContext: getToken() threw', error?.code, error?.message, error);
+    throw error;
+  }
 };
 
 /** Read the current browser token without asking for permission. */
@@ -35,7 +61,8 @@ export const getCurrentFcmToken = async () => {
   try {
     const context = await getMessagingContext();
     return context?.token || null;
-  } catch {
+  } catch (error) {
+    console.error('[push-debug] getCurrentFcmToken: caught', error?.code, error?.message, error);
     return null;
   }
 };
@@ -94,14 +121,21 @@ export const requestNotificationPermission = async (userId, { permissionAlreadyG
     if (permission !== 'granted') return null;
 
     const token = await getCurrentFcmToken();
-    if (!token) return null;
+    if (!token) {
+      console.error('[push-debug] requestNotificationPermission: getCurrentFcmToken() returned null');
+      return null;
+    }
 
     const registered = await registerPushDevice(userId, token);
-    if (!registered) return null;
+    if (!registered) {
+      console.error('[push-debug] requestNotificationPermission: registerPushDevice() returned false for userId', userId);
+      return null;
+    }
 
     clearLegacyPushState();
     return token;
-  } catch {
+  } catch (error) {
+    console.error('[push-debug] requestNotificationPermission: caught', error?.code, error?.message, error);
     return null;
   }
 };

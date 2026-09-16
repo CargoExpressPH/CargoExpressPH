@@ -13,7 +13,7 @@ import DatePicker from '../../components/ui/DatePicker';
 import { exportPrintDocumentToPdf } from '../../lib/exportPdf';
 import {
   FileText, Printer, Package, CheckCircle,
-  DollarSign, TrendingUp, Truck, MapPin, BarChart3,
+  PhilippinePeso, TrendingUp, Truck, MapPin, BarChart3,
   RefreshCw, CreditCard, Loader, AlertTriangle, Download
 } from 'lucide-react';
 import usePageTitle from '../../hooks/usePageTitle';

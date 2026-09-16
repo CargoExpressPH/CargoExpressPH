@@ -1,10 +1,10 @@
-import { Ship, Package, DollarSign, Search, Zap } from 'lucide-react';
+import { Ship, Package, PhilippinePeso, Search, Zap } from 'lucide-react';
 import { BrandLogo, BrandWordmark } from '../ui/BrandLogo';
 
 const FEATURES = [
   { icon: Package,    text: 'Door-to-door delivery' },
   { icon: Search,     text: 'Real-time tracking' },
-  { icon: DollarSign, text: 'Affordable per-kilo rates' },
+  { icon: PhilippinePeso, text: 'Affordable per-kilo rates' },
   { icon: Zap,        text: 'Fast and reliable service' },
 ];
 
