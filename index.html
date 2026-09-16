@@ -98,10 +98,10 @@
             });
 
             if (!isDev) {
-              // Check for updates periodically (every 60 minutes)...
+              // Check for updates periodically (every 1 minute)...
               setInterval(() => {
                 registration.update();
-              }, 60 * 60 * 1000);
+              }, 1 * 60 * 1000);
 
               // ...and the moment the installed app is actually reopened or
               // refocused, since that is exactly when a returning customer or
