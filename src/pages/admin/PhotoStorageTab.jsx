@@ -639,6 +639,90 @@ const CargoPhotoBrowser = ({ onPhotosChanged }) => {
  * ==========================================================================*/
 const COMPANY_BUCKET = 'company-assets';
 
+const GroupActionsMenu = ({ groupName, onDeleteGroup, disabled }) => {
+  const [open, setOpen] = useState(false);
+  const [anchorRect, setAnchorRect] = useState(null);
+  const triggerRef = useRef(null);
+  const menuRef = useRef(null);
+
+  const close = useCallback(() => {
+    setOpen(false);
+    triggerRef.current?.focus();
+  }, []);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    menuRef.current?.querySelector('[role="menuitem"]')?.focus();
+
+    const handlePointerDown = (e) => {
+      if (menuRef.current?.contains(e.target) || triggerRef.current?.contains(e.target)) return;
+      setOpen(false);
+    };
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') { e.preventDefault(); close(); }
+    };
+    const handleDismiss = () => setOpen(false);
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('resize', handleDismiss);
+    const scrollContainers = document.querySelectorAll('.storage-folder-list');
+    scrollContainers.forEach(c => c.addEventListener('scroll', handleDismiss));
+
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('resize', handleDismiss);
+      scrollContainers.forEach(c => c.removeEventListener('scroll', handleDismiss));
+    };
+  }, [open, close]);
+
+  return (
+    <>
+      <button
+        type="button"
+        ref={triggerRef}
+        className="btn-icon storage-folder-row-menu-btn"
+        onClick={(e) => {
+          e.stopPropagation();
+          if (open) return close();
+          setAnchorRect(e.currentTarget.getBoundingClientRect());
+          setOpen(true);
+        }}
+        aria-label={`Actions for ${groupName}`}
+        aria-expanded={open}
+        aria-haspopup="menu"
+        disabled={disabled}
+      >
+        <MoreVertical size={16} aria-hidden="true" />
+      </button>
+
+      {open && anchorRect && createPortal(
+        <div
+          ref={menuRef}
+          role="menu"
+          className="storage-folder-menu"
+          style={{
+            top: anchorRect.bottom + 4,
+            left: anchorRect.left - 180 + anchorRect.width,
+            width: 180,
+          }}
+        >
+          <button
+            type="button"
+            role="menuitem"
+            className="storage-folder-menu-item danger"
+            onClick={() => { setOpen(false); onDeleteGroup(groupName); }}
+          >
+            <Trash2 size={14} aria-hidden="true" /> Delete Photos in Group
+          </button>
+        </div>,
+        document.body,
+      )}
+    </>
+  );
+};
+
+
 const CompanyImagesBrowser = ({ onFilesChanged }) => {
   const toast = useToast();
   const [groups, setGroups] = useState(null); // null = loading
@@ -650,7 +734,8 @@ const CompanyImagesBrowser = ({ onFilesChanged }) => {
   const [previewUrl, setPreviewUrl] = useState(null);
   const [previewState, setPreviewState] = useState('idle');
   const [deletability, setDeletability] = useState({});
-  const [selected, setSelected] = useState(() => new Set());
+  const [confirmGroupTarget, setConfirmGroupTarget] = useState(null);
+  const [resolvingGroupKey, setResolvingGroupKey] = useState(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmTarget, setConfirmTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
@@ -720,19 +805,37 @@ const CompanyImagesBrowser = ({ onFilesChanged }) => {
     else setPreviewState('error');
   };
 
-  const toggleSelect = (file) => {
-    const d = deletability[file.fullPath];
-    if (d && d.deletable === false) return;
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(file.fullPath)) next.delete(file.fullPath);
-      else next.add(file.fullPath);
-      return next;
-    });
+  const handleDeleteGroupClick = async (groupName) => {
+    if (resolvingGroupKey || deleting) return;
+    setResolvingGroupKey(groupName);
+    try {
+      const { data, error } = await supabase.storage.from(COMPANY_BUCKET).list(groupName, { limit: 200 });
+      if (error) throw error;
+      const rows = (data || []).filter((f) => f.id).map((f) => `${groupName}/${f.name}`);
+      if (rows.length === 0) {
+        toast.error(`${groupName} has no files to delete.`);
+        return;
+      }
+      const checks = await checkCompanyAssetDeletable(rows).catch(() => []);
+      const byPath = Object.fromEntries(checks.map((c) => [c.storage_path, c]));
+      const eligible = rows.filter((p) => byPath[p]?.deletable);
+
+      if (eligible.length === 0) {
+        toast.error(`None of the ${rows.length} file${rows.length === 1 ? '' : 's'} in ${groupName} can be deleted right now — ${rows.length === 1 ? 'it is' : 'they are'} still protected.`);
+        return;
+      }
+      setConfirmGroupTarget({ groupName, items: eligible, totalInFolder: rows.length, protectedCount: rows.length - eligible.length });
+      setConfirmOpen(true);
+    } catch (error) {
+      toast.error(error?.message || 'Could not check this group’s files.');
+    } finally {
+      setResolvingGroupKey(null);
+    }
   };
 
+  
   const runDelete = async () => {
-    const targets = confirmTarget ? [confirmTarget] : Array.from(selected);
+    const targets = confirmGroupTarget ? confirmGroupTarget.items : confirmTarget ? [confirmTarget] : [];
     setDeleting(true);
     try {
       const checks = await checkCompanyAssetDeletable(targets);
@@ -753,7 +856,7 @@ const CompanyImagesBrowser = ({ onFilesChanged }) => {
 
       setConfirmOpen(false);
       setConfirmTarget(null);
-      setSelected((prev) => { const next = new Set(prev); approved.forEach((p) => next.delete(p)); return next; });
+      setConfirmGroupTarget(null);
       if (previewFile && approved.includes(previewFile.fullPath)) { setPreviewFile(null); setPreviewUrl(null); }
       if (selectedGroup) await openGroup(selectedGroup);
       onFilesChanged?.();
@@ -765,8 +868,7 @@ const CompanyImagesBrowser = ({ onFilesChanged }) => {
   };
 
   const activePane = previewFile ? 'preview' : selectedGroup ? 'photos' : 'folders';
-  const selectedList = Array.from(selected);
-  const deleteTargets = confirmTarget ? [confirmTarget] : selectedList;
+  const deleteTargets = confirmGroupTarget ? confirmGroupTarget.items : confirmTarget ? [confirmTarget] : [];
 
   return (
     <>
@@ -776,16 +878,17 @@ const CompanyImagesBrowser = ({ onFilesChanged }) => {
           {groups == null ? <CenteredSpinner /> : (
             <div className="storage-folder-list" role="list">
               {groups.map((g) => (
-                <button
-                  key={g.name}
-                  type="button"
-                  role="listitem"
-                  onClick={() => openGroup(g.name)}
-                  className={`storage-folder-row ${selectedGroup === g.name ? 'storage-folder-row-active' : ''}`}
-                >
-                  {selectedGroup === g.name ? <FolderOpen size={16} /> : <Folder size={16} />}
-                  <span className="storage-folder-row-text"><span className="storage-folder-row-title">{g.name}</span></span>
-                </button>
+                <div key={g.name} role="listitem" className={`storage-folder-row storage-folder-row-has-menu ${selectedGroup === g.name ? 'storage-folder-row-active' : ''}`}>
+                  <button
+                    type="button"
+                    onClick={() => openGroup(g.name)}
+                    className="storage-folder-row-main"
+                  >
+                    {selectedGroup === g.name ? <FolderOpen size={16} aria-hidden="true" /> : <Folder size={16} aria-hidden="true" />}
+                    <span className="storage-folder-row-text"><span className="storage-folder-row-title">{g.name}</span></span>
+                  </button>
+                  <GroupActionsMenu groupName={g.name} onDeleteGroup={handleDeleteGroupClick} disabled={Boolean(resolvingGroupKey) || deleting} />
+                </div>
               ))}
               {groups.length === 0 && <p className="text-sm text-secondary" style={{ padding: '16px 12px' }}>No company images found.</p>}
             </div>
@@ -806,9 +909,6 @@ const CompanyImagesBrowser = ({ onFilesChanged }) => {
                 const blocked = d?.deletable === false;
                 return (
                   <div key={f.fullPath} className={`storage-photo-row ${previewFile?.fullPath === f.fullPath ? 'storage-photo-row-active' : ''}`}>
-                    <button type="button" className="storage-photo-row-checkbox" onClick={() => toggleSelect(f)} disabled={blocked} aria-label={selected.has(f.fullPath) ? 'Deselect' : 'Select'}>
-                      {blocked ? <Square size={16} style={{ opacity: 0.25 }} /> : selected.has(f.fullPath) ? <CheckSquare size={16} /> : <Square size={16} />}
-                    </button>
                     <button type="button" className="storage-photo-row-thumb" onClick={() => openPreview(f)}>
                       {thumbUrls[f.fullPath] === undefined ? <Loader size={14} className="animate-spin text-secondary" /> : thumbUrls[f.fullPath] ? <img src={thumbUrls[f.fullPath]} alt="" /> : <ImageIcon size={16} className="text-secondary" />}
                     </button>
@@ -860,22 +960,18 @@ const CompanyImagesBrowser = ({ onFilesChanged }) => {
         </div>
       </div>
 
-      {selectedList.length > 0 && (
-        <div className="card storage-selection-bar">
-          <span className="text-sm"><strong>{selectedList.length}</strong> file{selectedList.length === 1 ? '' : 's'} selected</span>
-          <div className="flex items-center gap-8">
-            <button type="button" className="btn btn-outline btn-sm" onClick={() => setSelected(new Set())}>Clear</button>
-            <button type="button" className="btn btn-secondary" onClick={() => { setConfirmTarget(null); setConfirmOpen(true); }}><Trash2 size={16} /> Delete Selected</button>
-          </div>
-        </div>
-      )}
-
       <ConfirmModal
         isOpen={confirmOpen}
-        onClose={() => { if (!deleting) { setConfirmOpen(false); setConfirmTarget(null); } }}
+        onClose={() => { if (!deleting) { setConfirmOpen(false); setConfirmTarget(null); setConfirmGroupTarget(null); } }}
         onConfirm={() => void runDelete()}
-        title="Permanently delete these files?"
-        message={`${deleteTargets.length} file${deleteTargets.length === 1 ? '' : 's'} will be permanently removed from storage. This cannot be undone.`}
+        title={confirmGroupTarget ? `Delete files in ${confirmGroupTarget.groupName}?` : "Permanently delete this file?"}
+        message={confirmGroupTarget
+          ? `${confirmGroupTarget.items.length} of ${confirmGroupTarget.totalInFolder} file${confirmGroupTarget.totalInFolder === 1 ? '' : 's'} in ${confirmGroupTarget.groupName} will be permanently deleted. `
+            + (confirmGroupTarget.protectedCount > 0
+              ? `${confirmGroupTarget.protectedCount} file${confirmGroupTarget.protectedCount === 1 ? '' : 's'} will remain because ${confirmGroupTarget.protectedCount === 1 ? 'it is' : 'they are'} still protected. `
+              : '')
+            + 'This cannot be undone.'
+          : "This file will be permanently removed from storage. This cannot be undone."}
         confirmLabel="Permanently Delete"
         variant="warning"
         loading={deleting}
