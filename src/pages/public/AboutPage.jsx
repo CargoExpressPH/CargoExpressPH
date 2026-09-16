@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '../../hooks/useToast';
 import usePageTitle from '../../hooks/usePageTitle';
+import { toTitleCase, normalizeName } from '../../utils/string';
 import FocusTrap from '../../components/ui/FocusTrap';
 import { CenteredSpinner } from '../../components/ui/Loader';
 import Footer from '../../components/layout/Footer';
@@ -664,7 +665,7 @@ const AboutPage = () => {
     const phone = form.phone.trim();
     const email = form.email.trim();
     const ok = validate({
-      name: !form.name.trim() ? 'Please enter your name.' : null,
+      name: !normalizeName(form.name) ? 'Please enter your name.' : null,
       phone: phoneFieldError(phone),
       email: emailFieldError(email),
       message: !form.message.trim() ? 'Please write your message.' : null,
@@ -674,7 +675,7 @@ const AboutPage = () => {
     setLoading(true);
     try {
       await createContactInquiry({
-        name: form.name.trim(),
+        name: normalizeName(form.name),
         message: form.message.trim(),
         contact_phone: normalizePhone(phone),
         contact_email: email,
@@ -1519,7 +1520,7 @@ const AboutPage = () => {
                       className={`about-premium-input ${invalidClass('name', errors)}`}
                       placeholder="Juan Dela Cruz"
                       value={form.name}
-                      onChange={e => { setForm(p => ({ ...p, name: e.target.value })); clearError('name'); }}
+                      onChange={e => { setForm(p => ({ ...p, name: toTitleCase(e.target.value) })); clearError('name'); }}
                       required
                       {...fieldAttrs('name', errors)}
                     />
