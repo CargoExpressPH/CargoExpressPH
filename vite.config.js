@@ -16,7 +16,7 @@ function swVersionPlugin() {
   return {
     name: 'sw-version-stamp',
 
-    // Cache every emitted JS/CSS chunk. The app has many lazy routes, and a
+    // Cache every emitted JS/CSS chunk and local font. The app has many lazy routes, and a
     // cached entry bundle alone cannot render a route whose chunk was never
     // visited. A complete code cache is intentionally a few MB: it makes every
     // installed-PWA screen bootable after a successful update. Live data still
@@ -39,7 +39,7 @@ function swVersionPlugin() {
 
       for (const chunk of Object.values(bundle)) {
         if (chunk.type === 'chunk') visit(chunk.fileName)
-        if (chunk.type === 'asset' && chunk.fileName.endsWith('.css')) {
+        if (chunk.type === 'asset' && /\.(?:css|woff2?)$/.test(chunk.fileName)) {
           collected.add(chunk.fileName)
         }
       }

@@ -21,11 +21,15 @@ const main = readFileSync('src/main.jsx', 'utf8');
 const lazy = readFileSync('src/lib/lazyWithRetry.js', 'utf8');
 
 const buildAssets = walk('dist/assets')
-  .filter((file) => /\.(?:js|css)$/.test(file))
+  .filter((file) => /\.(?:js|css|woff2?)$/.test(file))
   .map((file) => `/${relative('dist', file).replaceAll('\\', '/')}`);
 const missingAssets = buildAssets.filter((asset) => !sw.includes(asset));
+const fontAssets = buildAssets.filter((asset) => /\.woff2?$/.test(asset));
 
-if (buildAssets.length === 0) throw new Error('Build emitted no JS/CSS assets.');
+if (buildAssets.length === 0) throw new Error('Build emitted no JS/CSS/font assets.');
+if (fontAssets.length < 2) {
+  throw new Error('Build did not emit both local Inter font styles.');
+}
 if (missingAssets.length > 0) {
   throw new Error(`Service worker did not precache: ${missingAssets.join(', ')}`);
 }
@@ -51,4 +55,4 @@ if (!lazy.includes("code = 'OFFLINE_CHUNK_UNAVAILABLE'")) {
   throw new Error('Lazy imports do not expose a recognizable offline error.');
 }
 
-console.log(`PWA offline checks passed (${buildAssets.length} JS/CSS assets precached).`);
+console.log(`PWA offline checks passed (${buildAssets.length} JS/CSS/font assets precached).`);

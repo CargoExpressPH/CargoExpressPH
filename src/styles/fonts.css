@@ -1,0 +1,20 @@
+/*
+ * Self-host Inter so the UI keeps the same typography without depending on
+ * Google Fonts at runtime. These two Latin variable files cover the complete
+ * 100-900 weight range used by the app, including Filipino characters.
+ */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url('@fontsource-variable/inter/files/inter-latin-opsz-normal.woff2') format('woff2-variations');
+}
+
+@font-face {
+  font-family: 'Inter';
+  font-style: italic;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url('@fontsource-variable/inter/files/inter-latin-opsz-italic.woff2') format('woff2-variations');
+}
