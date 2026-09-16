@@ -122,7 +122,7 @@ function buildRescheduleEmailHtml(opts: {
                 <span style="color:#10b981;">CARGO</span><span style="color:#0f172a;">EXPRESS PH</span>
               </h1>
               <p style="margin:8px 0 0; font-family:${FONT_STACK}; font-size:14px; color:#64748b; font-weight:500;">
-                Manila â‡„ Bohol Cargo Delivery
+                Manila ⇄ Bohol Cargo Delivery
               </p>
             </td>
           </tr>
