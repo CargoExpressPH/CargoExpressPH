@@ -163,40 +163,6 @@ serve(async (req) => {
     // Its notification trigger then creates durable per-device delivery jobs;
     // pg_cron processes them independently of this request lifecycle.
 
-    // ── Trip & Announcement Emails subscription ──────────────────────────
-    // This is a standing subscription for the recipient, independent of
-    // this (or any) inquiry's lifecycle — it is intentionally NOT written
-    // when the box is unchecked. An unchecked box on a later inquiry from
-    // the same address must never silently cancel a subscription that
-    // already exists; only an explicit unsubscribe (the link in the emails
-    // themselves, or the customer's own Profile toggle) does that. Service
-    // role bypasses RLS, so this is a direct table write rather than an RPC
-    // — the same pattern unsubscribe-announcements already uses.
-    if (wantsAnnouncements) {
-      const subEmail = trimmedEmail.toLowerCase()
-      const { error: subError } = await adminClient
-        .from('email_subscriptions')
-        .upsert({
-          email: subEmail,
-          subscribed: true,
-          name: trimmedName,
-          source_inquiry_id: inquiryId,
-          last_source: 'public_form',
-          subscribed_at: new Date().toISOString(),
-        }, { onConflict: 'email' })
-      if (subError) {
-        console.warn('submit-inquiry: email_subscriptions upsert failed', subError)
-      } else {
-        const { error: eventError } = await adminClient.from('email_subscription_events').insert({
-          email: subEmail,
-          action: 'subscribed',
-          source: 'public_form',
-          source_inquiry_id: inquiryId,
-        })
-        if (eventError) console.warn('submit-inquiry: email_subscription_events insert failed', eventError)
-      }
-    }
-
     return json({ success: true, id: inquiryId })
   } catch (err) {
     console.error('submit-inquiry failed', err)
