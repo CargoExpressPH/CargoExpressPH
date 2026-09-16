@@ -193,19 +193,19 @@ const ReportsPage = () => {
               <div className="grid grid-4 report-summary-cards mb-20 mt-16">
                 <div className="stat-card stat-card-info stagger-item" style={{ animationDelay: '0ms' }}>
                   <div className="stat-value"><AnimatedCounter value={data.grossCollected} prefix="₱" decimals={2} duration={1000} /></div>
-                  <div className="stat-label">Gross Collected</div>
+                  <div className="stat-label">Gross Collected in Period</div>
                 </div>
                 <div className="stat-card stat-card-warning stagger-item" style={{ animationDelay: '60ms' }}>
                   <div className="stat-value"><AnimatedCounter value={data.successfulRefunds} prefix="₱" decimals={2} duration={1000} /></div>
-                  <div className="stat-label">Successful Refunds</div>
+                  <div className="stat-label">Successful Refunds in Period</div>
                 </div>
                 <div className="stat-card stat-card-success stagger-item" style={{ animationDelay: '120ms' }}>
                   <div className="stat-value"><AnimatedCounter value={data.netCollected} prefix="₱" decimals={2} duration={1000} /></div>
-                  <div className="stat-label">Net Collected</div>
+                  <div className="stat-label">Net Collected in Period</div>
                 </div>
                 <div className="stat-card stat-card-primary stagger-item" style={{ animationDelay: '180ms' }}>
                   <div className="stat-value"><AnimatedCounter value={data.deliveredShipmentValue} prefix="₱" decimals={2} duration={1000} /></div>
-                  <div className="stat-label">Delivered Value</div>
+                  <div className="stat-label">Delivered Value (Current Snapshot)</div>
                 </div>
               </div>
 
@@ -235,7 +235,7 @@ const ReportsPage = () => {
                   <div className="card-header">
                     <h3 className="flex items-center gap-8">
                       <CreditCard size={18} className="text-primary" />
-                      Collection Breakdown
+                      Payment and Refund Events in Selected Period
                     </h3>
                   </div>
                   <div className="card-body">
@@ -306,23 +306,26 @@ const ReportsPage = () => {
                 <div className="card-header flex justify-between items-center">
                   <h3 className="flex items-center gap-8">
                     <Package size={18} className="text-primary" />
-                    Completed Deliveries in Period
+                    Deliveries Completed in Period — Current Financial Snapshot
                   </h3>
                   <span className="badge badge-primary">{data.completedDeliveries?.length || 0} deliveries</span>
                 </div>
                 <div className="card-body p-0">
+                  <p className="text-secondary fs-12" style={{ padding: '0 16px 12px' }}>
+                    Payments and refunds above are events within the selected period. The values below are each booking's current charge, paid amount, and balance as of {formatDateTime(data.generatedAt)}; they are not expected to total to the period collections.
+                  </p>
                   <div className="table-responsive">
                     <table className="admin-table">
                       <thead>
                         <tr>
-                          <th>Tracking #</th>
-                          <th>Customer</th>
-                          <th>Route</th>
-                          <th>Delivered On</th>
-                          <th className="text-right">Final Charge</th>
-                          <th className="text-right">Paid (Current)</th>
-                          <th className="text-right">Balance (Current)</th>
-                          <th className="text-center">Status</th>
+                          <th scope="col">Tracking #</th>
+                          <th scope="col">Customer</th>
+                          <th scope="col">Route</th>
+                          <th scope="col">Delivered On</th>
+                          <th scope="col" className="text-right">Final Charge</th>
+                          <th scope="col" className="text-right">Paid (Current)</th>
+                          <th scope="col" className="text-right">Balance (Current)</th>
+                          <th scope="col" className="text-center">Status</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -363,33 +366,33 @@ const ReportsPage = () => {
                 <div className="pd-section">
                   <div className="pd-summary-grid" style={{ display: 'flex', gap: '16px', marginBottom: '24px' }}>
                     <div style={{ flex: 1, border: '1px solid #ddd', padding: '12px', borderRadius: '4px' }}>
-                      <div style={{ fontSize: '12px', color: '#666' }}>Gross Collected</div>
+                      <div style={{ fontSize: '12px', color: '#666' }}>Gross Collected in Period</div>
                       <div style={{ fontSize: '20px', fontWeight: 'bold' }}>{formatCurrency(data.grossCollected)}</div>
                     </div>
                     <div style={{ flex: 1, border: '1px solid #ddd', padding: '12px', borderRadius: '4px' }}>
-                      <div style={{ fontSize: '12px', color: '#666' }}>Successful Refunds</div>
+                      <div style={{ fontSize: '12px', color: '#666' }}>Successful Refunds in Period</div>
                       <div style={{ fontSize: '20px', fontWeight: 'bold' }}>{formatCurrency(data.successfulRefunds)}</div>
                     </div>
                     <div style={{ flex: 1, border: '1px solid #ddd', padding: '12px', borderRadius: '4px' }}>
-                      <div style={{ fontSize: '12px', color: '#666' }}>Net Collected</div>
+                      <div style={{ fontSize: '12px', color: '#666' }}>Net Collected in Period</div>
                       <div style={{ fontSize: '20px', fontWeight: 'bold' }}>{formatCurrency(data.netCollected)}</div>
                     </div>
                     <div style={{ flex: 1, border: '1px solid #ddd', padding: '12px', borderRadius: '4px' }}>
-                      <div style={{ fontSize: '12px', color: '#666' }}>Delivered Value</div>
+                      <div style={{ fontSize: '12px', color: '#666' }}>Delivered Value (Current Snapshot)</div>
                       <div style={{ fontSize: '20px', fontWeight: 'bold' }}>{formatCurrency(data.deliveredShipmentValue)}</div>
                     </div>
                   </div>
                 </div>
 
                 <div className="pd-section">
-                  <h4 className="pd-section-title">Collection Breakdown</h4>
+                  <h4 className="pd-section-title">Payment and Refund Events in Selected Period</h4>
                   <table className="pd-table">
                     <thead>
                       <tr>
-                        <th>Method</th>
-                        <th style={{ textAlign: 'right' }}>Gross</th>
-                        <th style={{ textAlign: 'right' }}>Refunds</th>
-                        <th style={{ textAlign: 'right' }}>Net</th>
+                        <th scope="col">Method</th>
+                        <th scope="col" style={{ textAlign: 'right' }}>Gross</th>
+                        <th scope="col" style={{ textAlign: 'right' }}>Refunds</th>
+                        <th scope="col" style={{ textAlign: 'right' }}>Net</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -406,17 +409,20 @@ const ReportsPage = () => {
                 </div>
 
                 <div className="pd-section">
-                  <h4 className="pd-section-title">Completed Deliveries</h4>
+                  <h4 className="pd-section-title">Deliveries Completed in Period — Current Financial Snapshot</h4>
+                  <p style={{ fontSize: '10px', color: '#666', margin: '0 0 8px' }}>
+                    Current booking values as of {formatDateTime(data.generatedAt)}. These rows are a current snapshot and do not need to total to the period event collections.
+                  </p>
                   <table className="pd-table" style={{ fontSize: '11px' }}>
                     <thead>
                       <tr>
-                        <th>Tracking #</th>
-                        <th>Customer</th>
-                        <th>Route</th>
-                        <th>Delivered On</th>
-                        <th style={{ textAlign: 'right' }}>Final Charge</th>
-                        <th style={{ textAlign: 'right' }}>Paid (Current)</th>
-                        <th style={{ textAlign: 'right' }}>Balance (Current)</th>
+                        <th scope="col">Tracking #</th>
+                        <th scope="col">Customer</th>
+                        <th scope="col">Route</th>
+                        <th scope="col">Delivered On</th>
+                        <th scope="col" style={{ textAlign: 'right' }}>Final Charge</th>
+                        <th scope="col" style={{ textAlign: 'right' }}>Paid (Current)</th>
+                        <th scope="col" style={{ textAlign: 'right' }}>Balance (Current)</th>
                       </tr>
                     </thead>
                     <tbody>

@@ -7,6 +7,7 @@ import { getProfile, createProfile } from '../lib/database';
 import { logAuth } from '../lib/activityLog';
 import useNetworkRecovery from '../hooks/useNetworkRecovery';
 import { AUTH_TRANSITIONS } from '../lib/authRouteState';
+import { clearBookingDraftStorage } from '../lib/bookingDraft';
 
 const AuthContext = createContext({});
 
@@ -406,8 +407,9 @@ export const AuthProvider = ({ children }) => {
     setUserProfile(null);
     setLoading(false);
 
-    // Remove only auth-related storage keys (preserve PWA cache, user preferences, drafts)
+    // Remove only account/session data; preserve unrelated device preferences.
     try {
+      clearBookingDraftStorage(signedInUserId);
       Object.keys(localStorage)
         .filter(k => k.startsWith('sb-') || k === 'supabase.auth.token')
         .forEach(k => localStorage.removeItem(k));

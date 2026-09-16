@@ -1,8 +1,10 @@
 -- ============================================================
--- CargoExpress PH — Complete Supabase PostgreSQL Schema
--- Single source-of-truth for the entire database.
--- Synced from LIVE database on 2026-09-01
--- Run this in: Supabase Dashboard → SQL Editor → New Query
+-- CargoExpress PH — HISTORICAL schema snapshot (2026-09-01)
+-- NON-AUTHORITATIVE: this file predates later payment, refund, reporting,
+-- subscription, and delivery migrations. Do not use it to deploy or rebuild.
+-- The ordered, append-only files in supabase/migrations/ are the deployment
+-- authority. Regenerate this snapshot only from a disposable database after
+-- applying the complete migration sequence and comparing schema objects.
 -- ============================================================
 
 

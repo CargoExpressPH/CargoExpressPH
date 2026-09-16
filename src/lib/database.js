@@ -1049,7 +1049,10 @@ export const getAnnouncements = async () => {
   const cutoff = new Date(Date.now() - ANNOUNCEMENT_MAX_AGE_DAYS * 24 * 60 * 60 * 1000).toISOString();
   const { data, error } = await supabase
     .from('announcements')
-    .select(`*, profiles:author_id (name)`)
+    .select(`*, profiles:author_id (name), email_broadcast:announcement_email_broadcasts (
+      status, total_recipients, accepted_count, skipped_count,
+      retryable_count, failed_count, needs_review_count, completed_at
+    )`)
     .eq('is_active', true)
     .gte('created_at', cutoff)
     .order('created_at', { ascending: false });
@@ -1093,8 +1096,9 @@ export const createAnnouncement = async (announcement) => {
 
   // Ã¢â€â‚¬Ã¢â€â‚¬ Non-blocking email broadcast Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
   // Same reasoning as the push fan-out above: emailing every opted-in
-  // subscriber can take a while and is best-effort. The announcement is
-  // already saved and visible in-app regardless of whether this succeeds.
+  // subscriber can take a while. The durable worker records recipient state;
+  // this initial call can return in the background and admins can resume any
+  // unfinished recipients from the announcement status.
   // The Edge Function re-checks the caller is an admin itself Ã¢â‚¬â€ it does not
   // trust `send_email` alone as authorization.
   if (announcement.send_email) {
@@ -1107,6 +1111,14 @@ export const createAnnouncement = async (announcement) => {
     });
   }
 
+  return data;
+};
+
+export const retryAnnouncementBroadcast = async (announcementId) => {
+  const { data, error } = await supabase.functions.invoke('broadcast-announcement', {
+    body: { announcement_id: announcementId },
+  });
+  if (error) throw error;
   return data;
 };
 

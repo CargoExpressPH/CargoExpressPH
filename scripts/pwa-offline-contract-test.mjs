@@ -27,8 +27,12 @@ const missingAssets = buildAssets.filter((asset) => !sw.includes(asset));
 const fontAssets = buildAssets.filter((asset) => /\.woff2?$/.test(asset));
 
 if (buildAssets.length === 0) throw new Error('Build emitted no JS/CSS/font assets.');
-if (fontAssets.length < 2) {
-  throw new Error('Build did not emit both local Inter font styles.');
+if (fontAssets.length < 1) {
+  throw new Error('Build did not emit a local Inter font asset.');
+}
+const fontsCss = readFileSync('src/styles/fonts.css', 'utf8');
+if (!/@font-face[\s\S]*font-family: ['\"]Inter['\"]/.test(fontsCss)) {
+  throw new Error('Local Inter @font-face declaration is missing.');
 }
 if (missingAssets.length > 0) {
   throw new Error(`Service worker did not precache: ${missingAssets.join(', ')}`);

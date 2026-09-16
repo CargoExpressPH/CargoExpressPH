@@ -35,6 +35,7 @@
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4'
+import { runAnnouncementBroadcast, type BroadcastAdapter, type ClaimedRecipient } from '../_shared/announcement-broadcast-worker.ts'
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -42,11 +43,6 @@ const CORS_HEADERS = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-// Resend's batch endpoint limit changes over time â€” verify against current
-// Resend docs before relying on this in production. Kept conservative and
-// configurable in one place rather than assumed correct forever.
-const BATCH_SIZE = 50
-const BATCH_DELAY_MS = 600
 const PROVIDER_TIMEOUT_MS = 15_000
 
 const providerFetch = (input: string | URL, init: RequestInit = {}) => fetch(input, {
@@ -84,12 +80,6 @@ async function signUnsubscribeToken(email: string): Promise<string> {
   )
   const sig = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(email.toLowerCase().trim()))
   return hex(sig).slice(0, 32)
-}
-
-function chunk<T>(items: T[], size: number): T[][] {
-  const out: T[][] = []
-  for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size))
-  return out
 }
 
 const FONT_STACK = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif"
@@ -211,12 +201,10 @@ serve(async (req) => {
   const anonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? ''
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
   const resendApiKey = Deno.env.get('RESEND_API_KEY') ?? ''
-  const fromEmail = Deno.env.get('RESEND_FROM_EMAIL') ?? ''
+  const configuredFromEmail = Deno.env.get('RESEND_FROM_EMAIL') ?? ''
   const supabase = createClient(supabaseUrl, serviceRoleKey)
 
   try {
-    // â”€â”€ Verify the caller is an admin. verify_jwt=true already guarantees a
-    // valid JWT reached us; this step is the actual authorization check. â”€â”€
     const authHeader = req.headers.get('Authorization') || ''
     if (!authHeader.startsWith('Bearer ')) return json({ error: 'Authentication required' }, 401)
     const userClient = createClient(supabaseUrl, anonKey, { global: { headers: { Authorization: authHeader } } })
@@ -228,11 +216,8 @@ serve(async (req) => {
       .select('role')
       .eq('id', userData.user.id)
       .single()
-    if (requesterError || requester?.role !== 'admin') {
-      return json({ error: 'Admin privileges required' }, 403)
-    }
-
-    if (!resendApiKey || !fromEmail) {
+    if (requesterError || requester?.role !== 'admin') return json({ error: 'Admin privileges required' }, 403)
+    if (!resendApiKey || !configuredFromEmail) {
       return json({ error: 'Email broadcast is not configured (RESEND_API_KEY / RESEND_FROM_EMAIL).' }, 500)
     }
 
@@ -241,106 +226,98 @@ serve(async (req) => {
       return json({ error: 'announcement_id is required' }, 400)
     }
 
-    const { data: announcement, error: announcementError } = await supabase
-      .from('announcements')
-      .select('id, title, content, send_email, emailed_at')
-      .eq('id', announcement_id)
-      .maybeSingle()
-    if (announcementError) return json({ error: announcementError.message }, 500)
-    if (!announcement) return json({ error: 'Announcement not found' }, 404)
-    if (!announcement.send_email) return json({ error: 'This announcement was not marked for email broadcast' }, 400)
-    // Idempotent: a retry (e.g. the client re-invoking after a timeout) must
-    // never re-email everyone a second time.
-    if (announcement.emailed_at) return json({ success: true, already_sent: true })
-
-    // â”€â”€ Recipients: email_subscriptions is the sole source. It's keyed by
-    // email (PK), so there is no cross-table dedup to do here â€” one row per
-    // address, independent of how many contact_inquiries rows or whether a
-    // profiles account exists for it. â”€â”€
-    const { data: subscriptions, error: subscriptionsError } = await supabase
-      .from('email_subscriptions')
-      .select('email')
-      .eq('subscribed', true)
-    if (subscriptionsError) return json({ error: subscriptionsError.message }, 500)
-
-    const list = (subscriptions || []).map(s => ({ email: s.email, name: null as string | null }))
-    if (list.length === 0) {
-      await supabase.from('announcements').update({ emailed_at: new Date().toISOString() }).eq('id', announcement_id)
-      return json({ success: true, sent: 0, failed: 0, note: 'No subscribers opted in yet.' })
+    const workerToken = crypto.randomUUID()
+    const rpc = async (name: string, args: Record<string, unknown>) => {
+      const { data, error } = await supabase.rpc(name, args)
+      if (error) throw new Error(`${name}: ${error.message}`)
+      return data
     }
 
-    const safeTitle = escapeHtml(announcement.title)
-    // Content is admin-authored, not user-authored, but it's still rendered
-    // as HTML in a real inbox â€” escape it the same as any other untrusted
-    // string reaching an HTML sink, and preserve line breaks explicitly
-    // rather than relying on the (escaped) source having real <br> tags.
-    const safeContentHtml = escapeHtml(announcement.content).replace(/\n/g, '<br>')
-
-    let sent = 0
-    let failed = 0
-
-    for (const initialBatch of chunk(list, BATCH_SIZE)) {
-      // Recheck subscription state for exactly this batch immediately before
-      // sending it, not just once at the top of the function. A broadcast to
-      // a large list can take a while (BATCH_DELAY_MS per batch); a recipient
-      // who unsubscribes mid-run must not still receive this send.
-      const { data: stillSubscribed, error: recheckError } = await supabase
-        .from('email_subscriptions')
-        .select('email')
-        .in('email', initialBatch.map(r => r.email))
-        .eq('subscribed', true)
-      if (recheckError) {
-        console.error('[broadcast-announcement] recheck failed, sending batch as originally loaded:', recheckError.message)
-      }
-      const stillSubscribedSet = recheckError ? null : new Set((stillSubscribed || []).map(r => r.email))
-      const batch = stillSubscribedSet ? initialBatch.filter(r => stillSubscribedSet.has(r.email)) : initialBatch
-      if (batch.length === 0) {
-        await new Promise(resolve => setTimeout(resolve, BATCH_DELAY_MS))
-        continue
-      }
-
-      const emails = await Promise.all(batch.map(async (recipient) => {
+    const adapter: BroadcastAdapter = {
+      claimBroadcast: (token) => rpc('claim_announcement_email_broadcast', {
+        p_announcement_id: announcement_id,
+        p_from_email: configuredFromEmail,
+        p_worker_token: token,
+        p_lease_seconds: 600,
+      }),
+      claimRecipient: (token) => rpc('claim_announcement_email_recipient', {
+        p_announcement_id: announcement_id,
+        p_worker_token: token,
+        p_lease_seconds: 90,
+      }),
+      isSubscribed: async (email) => {
+        const { data, error } = await supabase
+          .from('email_subscriptions')
+          .select('email')
+          .eq('email', email)
+          .eq('subscribed', true)
+          .maybeSingle()
+        if (error) throw error
+        return Boolean(data)
+      },
+      buildPayload: async (recipient: ClaimedRecipient, claim) => {
         const token = await signUnsubscribeToken(recipient.email)
         const unsubscribeUrl =
           `${supabaseUrl}/functions/v1/unsubscribe-announcements?email=${encodeURIComponent(recipient.email)}&token=${token}`
+        const subject = String(claim.subject ?? '')
+        const content = String(claim.content ?? '')
         return {
-          from: fromEmail,
+          from: String(claim.from_email ?? configuredFromEmail),
           to: recipient.email,
-          subject: announcement.title,
-          html: buildAnnouncementEmailHtml(safeTitle, safeContentHtml, unsubscribeUrl),
-          // List-Unsubscribe headers let mailbox providers offer a one-click
-          // unsubscribe in their own UI â€” required by Gmail/Yahoo's 2024
-          // bulk-sender rules for any sender pushing real volume.
-          headers: { 'List-Unsubscribe': `<${unsubscribeUrl}>`, 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' },
+          subject,
+          html: buildAnnouncementEmailHtml(
+            escapeHtml(subject),
+            escapeHtml(content).replace(/\n/g, '<br>'),
+            unsubscribeUrl,
+          ),
+          headers: {
+            'List-Unsubscribe': `<${unsubscribeUrl}>`,
+            'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+          },
         }
-      }))
-
-      try {
-        const res = await providerFetch('https://api.resend.com/emails/batch', {
+      },
+      preparePayload: (recipient, token, payload) => rpc('prepare_announcement_email_payload', {
+        p_announcement_id: announcement_id,
+        p_worker_token: token,
+        p_recipient_id: recipient.id,
+        p_recipient_token: recipient.recipient_token,
+        p_payload: payload,
+      }),
+      send: async (payload, idempotencyKey) => {
+        const response = await providerFetch('https://api.resend.com/emails', {
           method: 'POST',
-          headers: { Authorization: `Bearer ${resendApiKey}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify(emails),
+          headers: {
+            Authorization: `Bearer ${resendApiKey}`,
+            'Content-Type': 'application/json',
+            'Idempotency-Key': idempotencyKey,
+          },
+          body: JSON.stringify(payload),
         })
-        if (res.ok) {
-          sent += batch.length
-          console.log(`[broadcast-announcement] Resend batch sent: ${batch.length} recipient(s)`)
-        } else {
-          failed += batch.length
-          console.error('[broadcast-announcement] Resend batch failed with status:', res.status)
-        }
-      } catch (err) {
-        failed += batch.length
-        console.error('[broadcast-announcement] Resend batch threw:', err)
-      }
-
-      await new Promise(resolve => setTimeout(resolve, BATCH_DELAY_MS))
+        let body: Record<string, unknown> | null = null
+        try { body = await response.json() } catch { /* response status is sufficient */ }
+        return { status: response.status, body }
+      },
+      record: (recipient, token, outcome, details = {}) => rpc('record_announcement_email_outcome', {
+        p_announcement_id: announcement_id,
+        p_worker_token: token,
+        p_recipient_id: recipient.id,
+        p_recipient_token: recipient.recipient_token,
+        p_outcome: outcome,
+        p_provider_message_id: details.providerMessageId ?? null,
+        p_error: details.error ?? null,
+        p_retry_after_seconds: 60,
+      }).then(() => undefined),
+      finish: (token) => rpc('finish_announcement_email_broadcast', {
+        p_announcement_id: announcement_id,
+        p_worker_token: token,
+      }),
     }
 
-    await supabase.from('announcements').update({ emailed_at: new Date().toISOString() }).eq('id', announcement_id)
-
-    return json({ success: true, sent, failed, total: list.length })
+    const result = await runAnnouncementBroadcast(adapter, workerToken, 25)
+    const complete = result.state === 'completed'
+    return json({ success: complete, ...result }, complete || result.state === 'busy' ? 200 : 207)
   } catch (err) {
     console.error('[broadcast-announcement] failed:', err)
-    return json({ error: 'Broadcast failed. Please try again.' }, 500)
+    return json({ error: 'Broadcast failed. It remains retryable.', detail: err instanceof Error ? err.message : String(err) }, 500)
   }
 })

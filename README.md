@@ -223,7 +223,7 @@ the same admin/owner/exact-public-feature authorization model.
 
 ### 7. Engineering Discipline
 
-- **88 timestamped migrations** — the complete schema history is reproducible and auditable; applied migrations are never edited
+- **Timestamped migrations** — `supabase/migrations/` is the deployment authority; applied migrations are never edited
 - **Automated quality gates** in `npm test`:
   - `smoke-check` — asserts that critical security functions and booking safeguards still exist in the schema and data layer
   - `axe-lint` — fails the build on missing `alt` text, unlabelled controls, empty ARIA labels or duplicate IDs
@@ -321,8 +321,8 @@ CargoExpressPH/
 │   ├── constants/          Status state machines, settlement rules, PH locations
 │   └── styles/       (36)  Token-driven CSS in explicit cascade layers
 ├── supabase/
-│   ├── schema.sql          Full DDL — 18 tables, RLS, triggers, RPCs
-│   ├── migrations/   (88)  Incremental, timestamped, append-only history
+│   ├── schema.sql          Historical, non-authoritative schema snapshot
+│   ├── migrations/         Deployment authority; timestamped, append-only history
 │   └── functions/     (5)  Deno Edge Functions
 ├── public/                 PWA manifest, service workers, icons
 ├── scripts/                Build-time invariant and accessibility linters

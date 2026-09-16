@@ -21,6 +21,7 @@ import {
   clearBookingDraftStorage,
   hasMeaningfulBookingData,
   persistBookingDraft,
+  readBookingDraft,
 } from '../../lib/bookingDraft';
 
 const luxeEase = [0.22, 1, 0.36, 1];
@@ -62,6 +63,18 @@ const formatKg = (value) => {
   return `${Number.isInteger(n) ? n.toFixed(0) : n.toFixed(1)} kg`;
 };
 
+const emptyBookingForm = ({ route = '', tripId = '' } = {}) => ({
+  route, trip_id: tripId,
+  sender_name: '', sender_phone: '', sender_facebook: '',
+  sender_lot_block: '', sender_street: '', sender_barangay: '',
+  sender_city: '', sender_province: '', sender_landmark: '',
+  receiver_name: '', receiver_phone: '', receiver_facebook: '',
+  receiver_lot_block: '', receiver_street: '', receiver_barangay: '',
+  receiver_city: '', receiver_province: '', receiver_landmark: '',
+  package_description: '', payer_type: 'sender',
+  payment_preference: 'unspecified', notes: '', sender_other_province: '',
+});
+
 const BookShipmentPage = () => {
   usePageTitle('Book Shipment');
   const { user, userProfile } = useAuth();
@@ -72,40 +85,20 @@ const BookShipmentPage = () => {
   const preRoute  = location.state?.preselectedRoute  || '';
   const preTripId = location.state?.preselectedTripId || '';
 
-  const [step, setStep] = useState(() => {
-    try {
-      const savedStep = sessionStorage.getItem('booking_step');
-      return savedStep ? parseInt(savedStep, 10) : 1;
-    } catch {
-      return 1;
-    }
-  });
+  // Start clean. The account-scoped restore effect below runs only after an
+  // authenticated user id exists, so no personal draft is read during auth boot.
+  const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [success, setSuccess] = useState(null);
   const [trips, setTrips] = useState([]);
   const [pricePerKilo, setPricePerKilo] = useState(70);
 
-  const [form, setForm] = useState(() => {
-    const defaultForm = {
-      route: preRoute, trip_id: preTripId,
-      sender_name: '', sender_phone: '', sender_facebook: '',
-      sender_lot_block: '', sender_street: '', sender_barangay: '',
-      sender_city: '', sender_province: '', sender_landmark: '',
-      receiver_name: '', receiver_phone: '', receiver_facebook: '',
-      receiver_lot_block: '', receiver_street: '', receiver_barangay: '',
-      receiver_city: '', receiver_province: '', receiver_landmark: '',
-      package_description: '',
-      payer_type: 'sender', payment_preference: 'unspecified', notes: '', sender_other_province: '',
-    };
-    try {
-      const savedForm = sessionStorage.getItem('booking_form');
-      const parsed = savedForm ? JSON.parse(savedForm) : null;
-      return parsed ? { ...defaultForm, ...parsed, ...(preRoute ? { route: preRoute } : {}), ...(preTripId ? { trip_id: preTripId } : {}) } : defaultForm;
-    } catch {
-      return defaultForm;
-    }
-  });
+  const [form, setForm] = useState(() => emptyBookingForm({ route: preRoute, tripId: preTripId }));
+  const [draftReadyUserId, setDraftReadyUserId] = useState(null);
+  const activeDraftUserRef = useRef(null);
+  const autosaveTimerRef = useRef(null);
+  const initialPreselectionRef = useRef({ route: preRoute, tripId: preTripId });
 
   // Guards against a double POST; see handleSubmit.
   const submittingRef = useRef(false);
@@ -143,6 +136,41 @@ const BookShipmentPage = () => {
     );
   }, [location.hash, location.pathname, location.search, location.state, navigate, preRoute, preTripId]);
 
+  // A mounted route can observe account switching through Supabase auth. Reset
+  // first, then restore only the new account's namespaced draft.
+  useEffect(() => {
+    if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
+    activeDraftUserRef.current = null;
+    setDraftReadyUserId(null);
+    setSuccess(null);
+    setStep(1);
+    const preselection = initialPreselectionRef.current;
+    setForm(emptyBookingForm(preselection));
+
+    const userId = user?.id;
+    if (!userId) return;
+    const draft = readBookingDraft(userId);
+    if (draft) {
+      setForm({
+        ...emptyBookingForm(preselection),
+        ...draft.form,
+        ...(preselection.route ? { route: preselection.route } : {}),
+        ...(preselection.tripId ? { trip_id: preselection.tripId } : {}),
+      });
+      setStep(draft.step);
+    }
+    // Route state is a one-time suggestion. Do not carry it to another account
+    // if auth changes while this page remains mounted.
+    initialPreselectionRef.current = { route: '', tripId: '' };
+    activeDraftUserRef.current = userId;
+    setDraftReadyUserId(userId);
+
+    return () => {
+      activeDraftUserRef.current = null;
+      if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
+    };
+  }, [user?.id]);
+
   const u = (k, v) => {
     setForm(p => ({ ...p, [k]: v }));
     // Clear field error on edit
@@ -168,8 +196,17 @@ const BookShipmentPage = () => {
   // refreshing returns to a clean Step 1. Once real booking details exist, save
   // the form and current step together so a genuine draft can be recovered.
   useEffect(() => {
-    persistBookingDraft(form, step);
-  }, [form, step]);
+    const userId = user?.id;
+    if (!userId || draftReadyUserId !== userId) return undefined;
+    if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
+    autosaveTimerRef.current = setTimeout(() => {
+      // A stale timeout from account A must never write after logout/switch.
+      if (activeDraftUserRef.current === userId) {
+        persistBookingDraft(userId, form, step);
+      }
+    }, 150);
+    return () => clearTimeout(autosaveTimerRef.current);
+  }, [draftReadyUserId, form, step, user?.id]);
 
   const selectedRoute = ROUTES.find(r => r.label === form.route);
   // Route match AND departure not yet past — a trip an admin forgot to close
@@ -383,7 +420,7 @@ const BookShipmentPage = () => {
       // the early-return below, and this page never reads `loading` again —
       // clearing it would risk a frame of the un-loading form before that
       // switch.
-      clearBookingDraftStorage();
+      clearBookingDraftStorage(user.id);
     } catch (err) {
       toast.error(err.message || 'An unexpected error occurred while saving the booking.');
       if (!focusingInvalidField) window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -646,7 +683,7 @@ const BookShipmentPage = () => {
               type="button"
               className="btn booking-success-btn-outline"
               onClick={() => {
-                clearBookingDraftStorage();
+                clearBookingDraftStorage(user.id);
                 // handleSubmit deliberately leaves `loading` true on success
                 // (see the comment there) so the success screen replaces the
                 // form without a flash of the un-loading form first. Coming
@@ -705,7 +742,7 @@ const BookShipmentPage = () => {
       <ConfirmModal
         isOpen={blocker.state === 'blocked'}
         onClose={() => blocker.reset()}
-        onConfirm={() => { clearBookingDraftStorage(); blocker.proceed(); }}
+        onConfirm={() => { clearBookingDraftStorage(user.id); blocker.proceed(); }}
         title="Discard unsaved booking?"
         message="You have unsaved changes in your booking form. If you leave now, all entered data will be lost."
         confirmLabel="Discard"

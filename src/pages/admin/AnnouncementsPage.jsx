@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { getAnnouncements, createAnnouncement, deleteAnnouncement, withTimeout } from '../../lib/database';
+import { getAnnouncements, createAnnouncement, deleteAnnouncement, retryAnnouncementBroadcast, withTimeout } from '../../lib/database';
 import ConfirmModal from '../../components/ui/ConfirmModal';
 import { logAnnouncement } from '../../lib/activityLog';
 import EmptyState from '../../components/ui/EmptyState';
@@ -167,6 +167,7 @@ const AnnouncementsPage = () => {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const { errors, validate, clearError, clearAll } = useFieldErrors();
   const [deleting, setDeleting] = useState(false);
+  const [retryingId, setRetryingId] = useState(null);
   const toast = useToast();
 
   useEffect(() => { load(); }, []);
@@ -230,6 +231,21 @@ const AnnouncementsPage = () => {
       toast.error(e.message || 'Failed to create announcement.');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleRetryEmail = async (announcement) => {
+    setRetryingId(announcement.id);
+    try {
+      const result = await withTimeout(retryAnnouncementBroadcast(announcement.id));
+      await load();
+      if (result?.state === 'completed') toast.success('Email broadcast completed.');
+      else if (result?.state === 'busy') toast.info('The email broadcast is already being processed.');
+      else toast.info('Retry saved. Any unfinished recipients remain visible in the status.');
+    } catch (e) {
+      toast.error(e.message || 'Email retry failed. The saved recipient states were preserved.');
+    } finally {
+      setRetryingId(null);
     }
   };
 
@@ -328,6 +344,8 @@ const AnnouncementsPage = () => {
         items.map((a, i) => {
           const cat = getAnnouncementCategoryInfo(a);
           const CatIcon = cat.icon;
+          const emailJob = Array.isArray(a.email_broadcast) ? a.email_broadcast[0] : a.email_broadcast;
+          const emailIncomplete = a.send_email && !a.emailed_at;
           return (
             <div key={a.id} className="card stagger-item mb-12" style={{animationDelay: `${i * 60}ms`}}>
               <div className="card-body p-16">
@@ -354,10 +372,25 @@ const AnnouncementsPage = () => {
                   by {a.profiles?.name||'Admin'} • {formatPhDate(a.created_at)}
                   {a.send_email && (
                     <span className="ml-8">
-                      • {a.emailed_at ? `Emailed ${formatPhDate(a.emailed_at)}` : 'Emailing subscribers…'}
+                      • {a.emailed_at
+                        ? `Emailed ${formatPhDate(a.emailed_at)}`
+                        : emailJob
+                          ? `Email ${emailJob.status}: ${emailJob.accepted_count || 0} accepted, ${emailJob.retryable_count || 0} retryable, ${(emailJob.failed_count || 0) + (emailJob.needs_review_count || 0)} need review`
+                          : 'Email queued'}
                     </span>
                   )}
                 </div>
+                {emailIncomplete && (
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm mt-8"
+                    disabled={retryingId === a.id}
+                    onClick={() => handleRetryEmail(a)}
+                  >
+                    {retryingId === a.id && <Loader size={14} className="animate-spin" />}
+                    Retry unfinished emails
+                  </button>
+                )}
                 <AnnouncementComments
                   announcementId={a.id}
                   comments={a.comments}

@@ -779,54 +779,54 @@
   }
 }
 
-/* Unsettled deliveries is an eight-field financial record, not a generic
+/* Unpaid shipments is an eight-field financial record, not a generic
    table row. On phones, the default label/value conversion made every order
    almost a full screen tall, squeezed promise details into a narrow column,
    and wrapped its primary action. Keep the semantic table for desktop and
    assistive technology, but compose each mobile row as a purpose-built card:
    identity, operational state, a three-column money strip, then one action. */
 @media (max-width: 640px) {
-  .unsettled-table-card {
+  .unpaid-table-card {
     overflow: visible;
     background: transparent;
     border: 0;
     box-shadow: none;
   }
 
-  .unsettled-table tbody tr {
+  .unpaid-table tbody tr {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     padding: 14px;
   }
 
-  .unsettled-table td {
+  .unpaid-table td {
     grid-column: 1 / -1;
   }
 
-  .unsettled-table .unsettled-customer-cell,
-  .unsettled-table .unsettled-status-cell {
+  .unpaid-table .unpaid-customer-cell,
+  .unpaid-table .unpaid-status-cell {
     grid-template-columns: 78px minmax(0, 1fr);
     column-gap: 10px;
   }
 
-  .unsettled-table .unsettled-settlement-cell {
+  .unpaid-table .unpaid-settlement-cell {
     grid-template-columns: minmax(0, 1fr);
     row-gap: 4px;
     padding-top: 10px;
   }
 
-  .unsettled-table .unsettled-settlement-cell::before,
-  .unsettled-table.data-table--wide td.unsettled-settlement-cell[data-label] > * {
+  .unpaid-table .unpaid-settlement-cell::before,
+  .unpaid-table.data-table--wide td.unpaid-settlement-cell[data-label] > * {
     grid-column: 1;
     justify-self: start;
     text-align: left;
   }
 
-  .unsettled-table .unsettled-settlement-cell .badge {
+  .unpaid-table .unpaid-settlement-cell .badge {
     margin-left: 0;
   }
 
-  .unsettled-table .unsettled-money-cell {
+  .unpaid-table .unpaid-money-cell {
     grid-column: auto;
     display: flex;
     flex-direction: column;
@@ -845,7 +845,7 @@
     font-variant-numeric: tabular-nums;
   }
 
-  .unsettled-table .unsettled-money-cell::before {
+  .unpaid-table .unpaid-money-cell::before {
     display: block;
     color: var(--text-tertiary);
     font-size: 0.625rem;
@@ -854,34 +854,34 @@
     text-align: left;
   }
 
-  .unsettled-table .unsettled-billed-cell {
+  .unpaid-table .unpaid-billed-cell {
     border-left: 1px solid var(--border-light);
     border-radius: var(--radius-sm) 0 0 var(--radius-sm);
   }
 
-  .unsettled-table .unsettled-balance-cell {
+  .unpaid-table .unpaid-balance-cell {
     border-right: 1px solid var(--border-light);
     border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
   }
 
-  .unsettled-table .unsettled-money-cell > .text-xs {
+  .unpaid-table .unpaid-money-cell > .text-xs {
     align-self: stretch;
     white-space: normal;
     overflow-wrap: anywhere;
     text-align: left;
   }
 
-  .unsettled-table .unsettled-action-cell {
+  .unpaid-table .unpaid-action-cell {
     grid-template-columns: minmax(0, 1fr);
     padding-top: 12px;
     margin-top: 10px;
   }
 
-  .unsettled-table .unsettled-action-cell::before {
+  .unpaid-table .unpaid-action-cell::before {
     display: none;
   }
 
-  .unsettled-table .unsettled-action-cell .btn:not(.message-customer-btn) {
+  .unpaid-table .unpaid-action-cell .btn:not(.message-customer-btn) {
     grid-column: 1;
     justify-self: stretch;
     width: 100%;
@@ -890,11 +890,11 @@
     white-space: nowrap;
   }
 
-  .unsettled-table tfoot tr {
+  .unpaid-table tfoot tr {
     margin-top: 0;
   }
 
-  .unsettled-table-card .pagination-wrap {
+  .unpaid-table-card .pagination-wrap {
     margin-top: 12px;
     border: 1px solid var(--border-light);
     border-radius: var(--radius-md);

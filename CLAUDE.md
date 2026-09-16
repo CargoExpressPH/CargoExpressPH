@@ -58,8 +58,10 @@ There is no separate lint command; `scripts/axe-lint.mjs` (accessibility) and
 
 ## Database changes
 
-- Schema lives in `supabase/schema.sql` (full DDL) plus `supabase/migrations/` (88+ timestamped,
+- `supabase/migrations/` is the database deployment authority (timestamped,
   append-only files — **never edit an applied migration**; add a new one).
+  `supabase/schema.sql` is a historical, non-authoritative snapshot until it is
+  regenerated from a disposable database after the full migration sequence.
 - Apply with `supabase db push`; the Supabase CLI must be linked to a project first
   (`supabase link --project-ref <ref>`).
 - Edge Functions (`supabase/functions/*`, Deno) are the only place server secrets live

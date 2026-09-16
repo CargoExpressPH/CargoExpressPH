@@ -1097,17 +1097,17 @@
     justify-content: center;
   }
 
-  .unsettled-filter-row {
+  .unpaid-filter-row {
     flex-direction: column;
     align-items: stretch;
     gap: 12px;
   }
 
-  .unsettled-filter-row .responsive-filter {
+  .unpaid-filter-row .responsive-filter {
     width: 100%;
   }
 
-  .unsettled-filter-row .unsettled-search-box {
+  .unpaid-filter-row .unpaid-search-box {
     width: 100%;
     max-width: none;
   }
@@ -1115,7 +1115,7 @@
   /* The unsettled rows are already individual mobile cards. Remove the
      desktop table-card shell so phones do not show a second border/background
      around the list and sacrifice another layer of horizontal space. */
-  .app-layout .unsettled-table-card {
+  .app-layout .unpaid-table-card {
     overflow: visible;
     background: transparent;
     border: 0;
@@ -1191,7 +1191,7 @@
    pale-green unsettled card visible in the supplied phone captures. Keep the
    hover affordance for a mouse, but return coarse touch screens to neutral. */
 @media (hover: none) and (pointer: coarse) {
-  .app-layout .unsettled-table tbody tr:hover {
+  .app-layout .unpaid-table tbody tr:hover {
     background: var(--admin-panel);
     border-color: var(--admin-line);
     box-shadow: var(--admin-shadow-soft);
