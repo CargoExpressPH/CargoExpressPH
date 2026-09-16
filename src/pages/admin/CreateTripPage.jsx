@@ -262,7 +262,7 @@ const CreateTripPage = () => {
               </span>
             </label>
             <p className="text-xs text-secondary mt-8">
-              Publishes an announcement and emails everyone who opted in to trip/promo updates — subscribed customers and public contact-form leads. Does not email anyone who hasn't opted in.
+              Publishes an announcement and emails everyone subscribed to Email Updates — from the public form, their Profile, or an admin-confirmed agreement on a contact inquiry. Does not email anyone who hasn't opted in.
             </p>
           </div>
         </div>

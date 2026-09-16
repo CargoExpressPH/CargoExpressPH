@@ -6,11 +6,11 @@ import { detectPickupLocation } from '../constants/phLocations';
 import { phDayRangeISO, formatPhDate } from '../utils/datetime';
 
 // ==================== HELPER ====================
-// ─────────────────────────────────────────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 // withTimeout is now a pass-through.
 // Timeouts and automatic retries are now handled globally by the custom fetch
 // wrapper in supabase.js (45 seconds timeout + 3 retries).
-// ─────────────────────────────────────────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 export const withTimeout = (promise, ms = 60000) => {
   return promise;
 };
@@ -50,14 +50,14 @@ const getGlobalPricePerKilo = async () => {
  * (20260830000000_get_trips_load_rpc.sql) rather than a direct
  * `.from('orders').select(...)`. The "Users can view own orders" RLS policy
  * only lets a signed-in customer read their OWN order rows, so a direct
- * client-side query — and a client-side SUM() over it — silently undercounts
+ * client-side query Ã¢â‚¬â€ and a client-side SUM() over it Ã¢â‚¬â€ silently undercounts
  * every other customer's cargo on the trip. The RPC does the SUM() inside
  * Postgres, bypassing RLS for the aggregate only, and returns nothing more
  * granular than trip_id + total weight.
  *
  * excludeOrderId is handled here by subtracting that one order's OWN weight
  * (which the caller can always read under RLS, since the excluded order is
- * always the caller's own) from the RPC's true total — re-weighing an order
+ * always the caller's own) from the RPC's true total Ã¢â‚¬â€ re-weighing an order
  * still compares the NEW weight against the trip without that order's OLD
  * weight, exactly as before.
  */
@@ -85,7 +85,7 @@ const getTripCurrentWeight = async (tripId, excludeOrderId = null) => {
 };
 
 /**
- * Refuses cargo that would put a trip past its absolute ceiling — planned
+ * Refuses cargo that would put a trip past its absolute ceiling Ã¢â‚¬â€ planned
  * capacity + TRIP_CAPACITY_ALLOWANCE_KG (200 kg).
  *
  * Every path that puts weight on a trip funnels through here: a customer
@@ -99,7 +99,7 @@ const getTripCurrentWeight = async (tripId, excludeOrderId = null) => {
  * measured as if 101 kg were being added on top of the 100 already counted.
  *
  * This is a UX guard, not the enforcement. It runs in the browser, so a direct
- * PostgREST call still writes whatever it likes — `20260526010000` removed the
+ * PostgREST call still writes whatever it likes Ã¢â‚¬â€ `20260526010000` removed the
  * database's capacity trigger on purpose. Making this a real invariant needs
  * that trigger back.
  */
@@ -175,10 +175,10 @@ export const createProfile = async (profile) => {
   // WHY: Supabase may have an auth trigger (on_auth_user_created) that
   // auto-inserts a minimal profile row when signUp() runs. If that happens,
   // a plain .insert() fails with a duplicate-key error (23505) because the
-  // row already exists — but with empty data (no name, phone, address, etc.).
+  // row already exists Ã¢â‚¬â€ but with empty data (no name, phone, address, etc.).
   // Upsert handles both cases:
-  //   - Row doesn't exist → INSERT with all the registration data
-  //   - Row already exists → UPDATE it with the registration data
+  //   - Row doesn't exist Ã¢â€ â€™ INSERT with all the registration data
+  //   - Row already exists Ã¢â€ â€™ UPDATE it with the registration data
   const { data, error } = await supabase
     .from('profiles')
     .upsert(profile, { onConflict: 'id' })
@@ -203,7 +203,7 @@ export const createOrder = async (orderData) => {
 
   // A booking has no weight: the customer describes the parcel, the scale
   // prices it at pickup. Kept as 0 so the trip-capacity call below keeps its
-  // shape — the rate is still resolved because it is shown to the customer.
+  // shape Ã¢â‚¬â€ the rate is still resolved because it is shown to the customer.
   const weight = 0;
   let pricePerKilo = await getGlobalPricePerKilo();
 
@@ -313,7 +313,7 @@ export const getOrders = async (userId, isAdmin = false, options = {}) => {
 };
 
 /**
- * { 'Pending': 12, 'In Transit': 3, … } across every order — admin only.
+ * { 'Pending': 12, 'In Transit': 3, Ã¢â‚¬Â¦ } across every order Ã¢â‚¬â€ admin only.
  *
  * One grouped aggregate in one round trip, not one COUNT per filter tab. The
  * caller sums these into whatever groups it displays; a status with no orders
@@ -353,7 +353,7 @@ export const updateOrder = async (orderId, updates) => {
     if (currentOrder) {
       // Pickup saves (identified by pickup_photos or payment_reference) are allowed
       // to bypass strict sequential status validation. The GCash payment is captured
-      // BEFORE the order status is saved — so the order may still be 'Pending' or
+      // BEFORE the order status is saved Ã¢â‚¬â€ so the order may still be 'Pending' or
       // 'Assigned' when we try to set it to 'Picked Up'. Blocking this would leave
       // the customer charged with an unrecorded payment.
       const isPickupSave = updates.pickup_photos !== undefined || updates.payment_reference !== undefined;
@@ -408,7 +408,7 @@ export const updateOrder = async (orderId, updates) => {
       // booking onto a trip; this path is an admin recording what the scale
       // said about cargo that is already physically there. Refusing it would
       // not un-load the van, it would only stop the system from knowing the
-      // truth — and every downstream figure (price, balance, the trip's own
+      // truth Ã¢â‚¬â€ and every downstream figure (price, balance, the trip's own
       // load) is derived from that weight. An overloaded trip is a dispatch
       // problem to be solved by reassigning cargo, which the assign and
       // reassign paths police.
@@ -418,15 +418,15 @@ export const updateOrder = async (orderId, updates) => {
     updates.shipping_cost = weight * pricePerKilo;
   }
   
-  // ── Payment totals are NOT derived here ──────────────────────────────────
+  // Ã¢â€â‚¬Ã¢â€â‚¬ Payment totals are NOT derived here Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
   // amount_paid / remaining_balance / payment_status are owned exclusively by
   // the payment_transactions ledger, via the update_order_payment_totals
   // trigger. This function used to compute them client-side, which competed
-  // with that trigger and with PickupModal — three writers for three columns.
+  // with that trigger and with PickupModal Ã¢â‚¬â€ three writers for three columns.
   // Money now flows through record_pickup_payment / record_delivery_payment
   // (atomic) or recordPaymentTransaction (ledger insert). See P0-1 in
   // docs/database-architecture-review.md.
-  // ─────────────────────────────────────────────────────────────────────────
+  // Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
   const { data, error } = await supabase
     .from('orders')
@@ -439,11 +439,11 @@ export const updateOrder = async (orderId, updates) => {
 };
 
 /**
- * Edit an existing booking's sender/receiver identity & address — the ONLY
+ * Edit an existing booking's sender/receiver identity & address Ã¢â‚¬â€ the ONLY
  * fields this path can touch. Routed through update_order_contact_details()
  * rather than the plain `.update()` above because there is no "customer can
  * update own orders" RLS policy (see 20260524190000_production_hardening.sql
- * — every customer-side order mutation is a narrow SECURITY DEFINER RPC, not
+ * Ã¢â‚¬â€ every customer-side order mutation is a narrow SECURITY DEFINER RPC, not
  * a raw table write). That RPC re-checks ownership and the status lock
  * server-side and writes the activity_logs row in the same transaction as the
  * update, so the audit trail cannot be lost between two round trips.
@@ -476,7 +476,7 @@ export const updateOrderContactDetails = async (orderId, fields) => {
  * Admin cancels a booking outright, stating why.
  *
  * Distinct from reviewOrderCancellation, which rules on a request the customer
- * made. Here nobody asked — the admin is ending the booking — so the reason is
+ * made. Here nobody asked Ã¢â‚¬â€ the admin is ending the booking Ã¢â‚¬â€ so the reason is
  * the only record of why, and it is written in the SAME statement as the
  * status. The activity log and the customer's notification are separate round
  * trips that can be lost; the row cannot be left saying 'Cancelled' with no
@@ -490,12 +490,12 @@ export const updateOrderContactDetails = async (orderId, fields) => {
  * back here.
  *
  * The eligibility check re-fetches status rather than trusting a caller's
- * cached copy — this is the last line of defense before the write, not a
+ * cached copy Ã¢â‚¬â€ this is the last line of defense before the write, not a
  * pre-flight convenience, so a stale `order` object sitting in a page that
  * hasn't refreshed cannot force a cancellation the current row no longer
  * allows. It only re-implements the same rule the admin console's button
  * visibility already enforces (canAdminCancelOrder); it is not a substitute
- * for a database-level guarantee, which would need a dedicated RPC — nothing
+ * for a database-level guarantee, which would need a dedicated RPC Ã¢â‚¬â€ nothing
  * stops a caller with an admin session from bypassing this file entirely and
  * writing to `orders` directly.
  */
@@ -516,7 +516,7 @@ export const cancelOrderAsAdmin = async (orderId, reason) => {
     throw new Error(
       current.status === ORDER_STATUS.PENDING_CANCELLATION
         ? 'This order has a cancellation request awaiting review. Approve or decline it instead.'
-        : `An order that is "${current.status}" can no longer be cancelled — it has already left for the other island.`
+        : `An order that is "${current.status}" can no longer be cancelled Ã¢â‚¬â€ it has already left for the other island.`
     );
   }
 
@@ -535,7 +535,7 @@ export const cancelOrderAsAdmin = async (orderId, reason) => {
  * Re-attach a guest ("walk-in") booking to a customer's registered account.
  *
  * AdminCreateBookingPage inserts a walk-in booking under the ADMIN's own
- * user_id, on purpose — that is what lets a non-techy customer who doesn't
+ * user_id, on purpose Ã¢â‚¬â€ that is what lets a non-techy customer who doesn't
  * want to register still get a trackable order. If that customer later
  * registers for real, this is the sanctioned way ownership moves onto their
  * account so the booking joins their history.
@@ -588,8 +588,8 @@ export const assignOrderToCustomer = async (orderId, customerId) => {
  *
  * This does NOT cancel anything. It moves the order to 'Pending Cancellation'
  * and notifies every admin; the booking keeps its trip slot until someone
- * rules on it. `cancelOwnOrder` — which flipped the row straight to
- * 'Cancelled' with no reason recorded — is gone with the RPC behind it
+ * rules on it. `cancelOwnOrder` Ã¢â‚¬â€ which flipped the row straight to
+ * 'Cancelled' with no reason recorded Ã¢â‚¬â€ is gone with the RPC behind it
  * (20260816100000).
  *
  * The reason is validated server-side too; this check only saves a round trip.
@@ -611,7 +611,7 @@ export const requestOrderCancellation = async (orderId, reason) => {
 /**
  * Admin rules on a cancellation request.
  *
- * Approve → 'Cancelled'. Reject → back to `cancellation_previous_status`, the
+ * Approve Ã¢â€ â€™ 'Cancelled'. Reject Ã¢â€ â€™ back to `cancellation_previous_status`, the
  * exact status the order was standing in when the request was made, so a
  * rejection puts an Assigned booking back as Assigned rather than guessing
  * 'Pending' and silently detaching it from a trip it is still on.
@@ -660,7 +660,7 @@ export const getPendingGrouped = async () => {
   // Group by route
   const groups = {};
   (orders || []).forEach(order => {
-    const key = `${order.origin}→${order.destination}`;
+    const key = `${order.origin}Ã¢â€ â€™${order.destination}`;
     if (!groups[key]) {
       groups[key] = { origin: order.origin, destination: order.destination, count: 0, orders: [] };
     }
@@ -676,7 +676,7 @@ export const getPendingGrouped = async () => {
 /**
  * One route may run once per calendar day. The message is built here so the
  * pre-flight check in the form and the failure thrown by createTrip word it
- * identically — the admin should not be able to tell which one caught it.
+ * identically Ã¢â‚¬â€ the admin should not be able to tell which one caught it.
  */
 export const duplicateTripMessage = (origin, destination, departureDate) =>
   `A trip from ${origin} to ${destination} is already scheduled for ${formatPhDate(departureDate)}.`;
@@ -688,7 +688,7 @@ export const duplicateTripMessage = (origin, destination, departureDate) =>
  * departure is stored as 22:00 UTC the previous day, so comparing UTC dates
  * would file it under the wrong day. See phDayRangeISO.
  *
- * This is a courtesy check, not the enforcement — two admins submitting at once
+ * This is a courtesy check, not the enforcement Ã¢â‚¬â€ two admins submitting at once
  * both pass it. The unique index added in 20260818090000 is what actually
  * prevents the duplicate row; createTrip translates its 23505 back into this
  * same sentence.
@@ -715,7 +715,7 @@ export const findDuplicateTrip = async ({ origin, destination, departure_date, e
 };
 
 export const createTrip = async (tripData) => {
-  // Our own flag, not a trips column — pulled out before the insert below,
+  // Our own flag, not a trips column Ã¢â‚¬â€ pulled out before the insert below,
   // then used after the trip (and its trip_number) actually exist.
   const { announce_via_email, ...tripFields } = tripData;
   const tripNumber = generateTripNumber();
@@ -800,7 +800,7 @@ export const createTrip = async (tripData) => {
           
           // Activity logs only. The customer's "Order Assigned" notification is
           // written by the orders_notify_customer_of_change trigger inside the
-          // same transaction as the trip_id write above — sending it from here
+          // same transaction as the trip_id write above Ã¢â‚¬â€ sending it from here
           // as well would give every auto-assigned customer two of them.
           await Promise.all((updated || []).map(async (order) => {
             try {
@@ -819,7 +819,7 @@ export const createTrip = async (tripData) => {
   }
 
   // Trip-schedule email blast. Reuses createAnnouncement exactly as the
-  // admin's own Announcements page does — same insert, same in-app +
+  // admin's own Announcements page does Ã¢â‚¬â€ same insert, same in-app +
   // push fan-out, same non-blocking broadcast-announcement invocation.
   // The consent check (profiles.wants_announcements / contact_inquiries.
   // wants_announcements) lives entirely inside that Edge Function; nothing
@@ -827,12 +827,12 @@ export const createTrip = async (tripData) => {
   if (announce_via_email) {
     try {
       await createAnnouncement({
-        title: `Bagong Biyahe: ${data.origin} → ${data.destination}`,
+        title: `Bagong Biyahe: ${data.origin} Ã¢â€ â€™ ${data.destination}`,
         content: `Bagong Biyahe! Mayroon kaming bagong scheduled trip papuntang ${data.destination} sa ${formatPhDate(data.departure_date)}. I-secure na ang slot ng inyong cargo habang may space pa!`,
         send_email: true,
       });
     } catch (announceErr) {
-      // Non-critical — the trip itself is already created and usable.
+      // Non-critical Ã¢â‚¬â€ the trip itself is already created and usable.
       console.warn('[createTrip] trip announcement failed to publish:', announceErr);
     }
   }
@@ -846,14 +846,14 @@ export const getTrips = async (statusFilter) => {
     .select('*');
 
   if (statusFilter === 'active') {
-    // Only 'scheduled' trips whose PH calendar day hasn't passed — mirrors
+    // Only 'scheduled' trips whose PH calendar day hasn't passed Ã¢â‚¬â€ mirrors
     // guard_customer_order_insert()'s ph_calendar_day() cutoff exactly (see
     // 20260829160000_trip_date_only_scheduling.sql), so a trip shown here is
     // never one the database would then reject at booking time.
     //
     // phDayRangeISO's `start` is PH midnight of "today" as an offset-
     // qualified ISO string. A bare "YYYY-MM-DD" string here would be read by
-    // PostgREST as UTC midnight — 8 hours ahead of PH midnight — which would
+    // PostgREST as UTC midnight Ã¢â‚¬â€ 8 hours ahead of PH midnight Ã¢â‚¬â€ which would
     // wrongly exclude a trip scheduled for later TODAY (departure_date is
     // now stored as PH midnight, i.e. before that UTC cutoff) until 8am PH.
     const { start: todayStartPH } = phDayRangeISO(new Date().toISOString());
@@ -875,13 +875,13 @@ export const getTrips = async (statusFilter) => {
   const trips = data || [];
   if (trips.length === 0) return trips;
 
-  // ── Batch weight query (avoids N+1) ──────────────────────
+  // Ã¢â€â‚¬Ã¢â€â‚¬ Batch weight query (avoids N+1) Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
   // get_trips_load (20260830000000_get_trips_load_rpc.sql) is a SECURITY
   // DEFINER RPC, not a direct `.from('orders')` select: RLS ("Users can view
   // own orders") only lets a customer read their own rows, so a direct query
   // here would sum only that one customer's cargo per trip and report every
   // trip as far emptier than it truly is. The RPC aggregates server-side
-  // across ALL orders on the trip and returns just trip_id + total weight —
+  // across ALL orders on the trip and returns just trip_id + total weight Ã¢â‚¬â€
   // no per-order data.
   const tripIds = trips.map(t => t.id);
   if (tripIds.length > 0) {
@@ -915,7 +915,7 @@ export const getTripById = async (tripId) => {
 
   const { data: orders } = await supabase
     .from('orders')
-    // shipping_cost + amount_paid are what outstandingBalance() derives from —
+    // shipping_cost + amount_paid are what outstandingBalance() derives from Ã¢â‚¬â€
     // the trip-completion guard reads that, not the stored remaining_balance,
     // so it agrees with the Unsettled tab. remaining_balance is still selected
     // for the settlement column's stale-value annotation.
@@ -941,7 +941,7 @@ export const getTripById = async (tripId) => {
 };
 
 // Starting a trip (updates.status === 'in_progress') does NOT need
-// departure_at set here — guard_trip_status_transition() stamps it to the
+// departure_at set here Ã¢â‚¬â€ guard_trip_status_transition() stamps it to the
 // server's own now() the instant the status write lands, and overwrites
 // anything a caller sent for it. That is the whole point: the actual
 // departure instant is server-truth, never client-supplied.
@@ -978,7 +978,7 @@ export const deleteTrip = async (tripId) => {
     .eq('id', tripId);
   if (error) {
     // trips.id is ON DELETE SET NULL, so deleting a trip tries to null the
-    // trip_id of every order aboard — which orders_trip_required_for_active_status
+    // trip_id of every order aboard Ã¢â‚¬â€ which orders_trip_required_for_active_status
     // now refuses for anything at 'Assigned' or beyond. The raw 23514 names a
     // constraint, not the problem.
     if (error.code === '23514' && /orders_trip_required_for_active_status/.test(error.message || '')) {
@@ -991,7 +991,7 @@ export const deleteTrip = async (tripId) => {
 export const reassignTrip = async (orderId, newTripId, reason) => {
   // Reassignment moves weight onto a trip exactly as a first assignment does,
   // so it answers to the same ceiling. It goes through the `reassign_trip` RPC
-  // rather than updateOrder, which is why the check has to be repeated here —
+  // rather than updateOrder, which is why the check has to be repeated here Ã¢â‚¬â€
   // without it, "move it to another trip" would be the way around the limit.
   if (newTripId) {
     const [{ data: trip }, { data: order }] = await Promise.all([
@@ -1030,7 +1030,7 @@ export const getTripReassignments = async (orderId) => {
 // ==================== ANNOUNCEMENTS ====================
 /**
  * Announcements are news, and news expires. Anything past this window stops
- * being served — a schedule change from four months ago is not information,
+ * being served Ã¢â‚¬â€ a schedule change from four months ago is not information,
  * it is clutter that pushes the current notice down the page.
  */
 export const ANNOUNCEMENT_MAX_AGE_DAYS = 60;
@@ -1039,8 +1039,8 @@ export const ANNOUNCEMENT_MAX_AGE_DAYS = 60;
  * The live announcements: active, and posted within the last 60 days.
  *
  * The cutoff is applied here rather than at each call site because both
- * surfaces that read announcements — the customer HomePage feed and the admin
- * Announcements page — want the same answer. It does mean an admin stops
+ * surfaces that read announcements Ã¢â‚¬â€ the customer HomePage feed and the admin
+ * Announcements page Ã¢â‚¬â€ want the same answer. It does mean an admin stops
  * seeing announcements older than the window, which is intended: they are
  * already invisible to every customer, so there is nothing left to manage.
  * Nothing is deleted; the rows stay, they are just no longer served.
@@ -1091,11 +1091,11 @@ export const createAnnouncement = async (announcement) => {
   // Customer notifications and their push outbox jobs are created atomically
   // by the announcement INSERT trigger.
 
-  // ── Non-blocking email broadcast ─────────────────────────────────────────
+  // Ã¢â€â‚¬Ã¢â€â‚¬ Non-blocking email broadcast Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
   // Same reasoning as the push fan-out above: emailing every opted-in
   // subscriber can take a while and is best-effort. The announcement is
   // already saved and visible in-app regardless of whether this succeeds.
-  // The Edge Function re-checks the caller is an admin itself — it does not
+  // The Edge Function re-checks the caller is an admin itself Ã¢â‚¬â€ it does not
   // trust `send_email` alone as authorization.
   if (announcement.send_email) {
     void supabase.functions.invoke('broadcast-announcement', {
@@ -1114,7 +1114,7 @@ export const createAnnouncement = async (announcement) => {
  * Post a comment on an announcement.
  *
  * Customers hold SELECT on `announcements` and nothing else, so this cannot be
- * an UPDATE from here — `add_announcement_comment` is SECURITY DEFINER and
+ * an UPDATE from here Ã¢â‚¬â€ `add_announcement_comment` is SECURITY DEFINER and
  * derives the author from the JWT rather than from anything we send. We pass
  * the text and nothing else on purpose: a client-supplied name or id would be
  * a client-supplied identity.
@@ -1155,7 +1155,7 @@ export const deleteAnnouncement = async (id) => {
  *
  * The `id` tiebreak is what makes that true. `created_at` is not unique: a trip
  * status change cascades to every order on the trip inside ONE transaction, and
- * now() is the transaction timestamp — so a customer with two parcels on the
+ * now() is the transaction timestamp Ã¢â‚¬â€ so a customer with two parcels on the
  * same trip gets two notifications stamped identically to the microsecond.
  * Ordering by `created_at` alone leaves their relative order up to the planner,
  * which may return them in a different order on the next query and step over
@@ -1293,7 +1293,7 @@ export const getCustomerById = async (customerId) => {
 
 // ==================== DASHBOARD STATS ====================
 export const getDashboardStats = async () => {
-  // ── Run all count queries in parallel with Promise.allSettled ─────────────
+  // Ã¢â€â‚¬Ã¢â€â‚¬ Run all count queries in parallel with Promise.allSettled Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
   // allSettled (not Promise.all) means one slow/failed query doesn't block the
   // others. Each count gracefully falls back to 0 if its query fails.
   const [
@@ -1384,7 +1384,7 @@ export const getSalesData = async () => {
     .neq('status', 'Cancelled');
 
   const orders = allOrders || [];
-  // Revenue is what was billed, NET of any discount — matches
+  // Revenue is what was billed, NET of any discount Ã¢â‚¬â€ matches
   // get_sales_summary() so the fallback and the RPC do not report different
   // numbers for the same tile. paidTotal is what was actually collected,
   // which a discount never touches (it is a pure ledger sum).
@@ -1392,7 +1392,7 @@ export const getSalesData = async () => {
   const totalDiscounts = orders.reduce((sum, o) => sum + (parseFloat(o.discount_amount || 0) || 0), 0);
   const paidTotal = orders.reduce((sum, o) => sum + parseFloat(o.amount_paid || 0), 0);
 
-  // Collections are split by the LEDGER's payment_method, not the order's —
+  // Collections are split by the LEDGER's payment_method, not the order's Ã¢â‚¬â€
   // orders.payment_method only records the most recent payment event, so an
   // order picked up on GCash and settled in cash would file both payments
   // under cash. Mirrors get_sales_summary(); see 20260806020000.
@@ -1401,7 +1401,7 @@ export const getSalesData = async () => {
   const cashTotal = methodTotals.cash || 0;
   const gcashTotal = methodTotals.gcash || 0;
   const paylaterTotal = methodTotals.paylater || 0;
-  // ONE definition of "outstanding", derived — never the stored
+  // ONE definition of "outstanding", derived Ã¢â‚¬â€ never the stored
   // remaining_balance column, which can lag a ledger write. Reported at two
   // NAMED scopes so the Sales tab and the Unsettled tab can be reconciled
   // instead of quietly disagreeing. Mirrors get_sales_summary().
@@ -1464,7 +1464,7 @@ export const getSalesData = async () => {
  * own payment_method. Chunked because the id list goes into a URL `in.()`
  * filter, and an all-time sales query can carry thousands of order ids.
  *
- * Only 'paid'/'partial' rows are counted — the same predicate
+ * Only 'paid'/'partial' rows are counted Ã¢â‚¬â€ the same predicate
  * update_order_payment_totals uses to derive orders.amount_paid, so the split
  * reconciles against the total instead of drifting from it.
  *
@@ -1532,17 +1532,17 @@ const sumTransactionsByMethod = async (orderIds) => {
 // ==================== UNSETTLED DELIVERIES ====================
 
 /**
- * Settlement buckets — why an order still owes money, in the operational
+ * Settlement buckets Ã¢â‚¬â€ why an order still owes money, in the operational
  * sense the admin acts on. Derived from the same three columns the Phase 1b
  * guards read (status, payer_type, promised_payment_date), so what this list
  * shows and what the database will refuse to dispatch cannot drift apart.
  */
 export const SETTLEMENT_BUCKETS = {
-  HELD: 'held',              // Arrived at Hub, prepaid, no promise → dispatch BLOCKED by guard_order_update
+  HELD: 'held',              // Arrived at Hub, prepaid, no promise Ã¢â€ â€™ dispatch BLOCKED by guard_order_update
   OVERDUE: 'overdue',        // A promise date that has already passed
   PROMISED: 'promised',      // Dispatched on a promise that is still in the future
   DELIVERED: 'delivered',    // Cargo handed over, balance still owing
-  COLLECT: 'collect',        // Freight collect, in flight — due at the door, not late
+  COLLECT: 'collect',        // Freight collect, in flight Ã¢â‚¬â€ due at the door, not late
   IN_FLIGHT: 'in_flight',    // Prepaid, still moving, not yet at the dispatch gate
 };
 
@@ -1576,7 +1576,7 @@ const classifySettlement = (order, today) => {
  * list. Admin-only by RLS (`orders` grants admins full read); no widened
  * anon access and no new RPC needed.
  *
- * Only orders that have actually been picked up are included — a booking that
+ * Only orders that have actually been picked up are included Ã¢â‚¬â€ a booking that
  * has not been weighed yet has a placeholder balance, not a receivable.
  *
  * WHAT COUNTS AS OWING (widened 2026-08-04):
@@ -1584,7 +1584,7 @@ const classifySettlement = (order, today) => {
  *
  * `remaining_balance` is not used as the filter. It is trigger-derived and
  * correct on every row the current triggers have touched, but legacy rows
- * predating them can carry NULL — and `.gt('remaining_balance', 0)` drops
+ * predating them can carry NULL Ã¢â‚¬â€ and `.gt('remaining_balance', 0)` drops
  * NULLs silently, hiding genuinely unpaid old cargo. Deriving the figure from
  * the two columns that are always populated catches those rows.
  *
@@ -1592,7 +1592,7 @@ const classifySettlement = (order, today) => {
  * here and the query narrows by status only.
  *
  * Rows where the stored and derived figures disagree are flagged
- * `balance_mismatch` — that is a stale ledger total worth a human look, not
+ * `balance_mismatch` Ã¢â‚¬â€ that is a stale ledger total worth a human look, not
  * something to paper over.
  *
  * @returns {{orders: Array, totals: Object}} orders carry `settlement_bucket`,
@@ -1623,7 +1623,7 @@ export const getUnsettledOrders = async () => {
  * Shared by the full fetch above and by the realtime patch path in
  * UnsettledDeliveriesPage. Realtime hands us a raw `orders` row from the
  * WebSocket, and it must be classified by exactly the same rules as a row
- * that arrived through the query — otherwise a payment that lands while the
+ * that arrived through the query Ã¢â‚¬â€ otherwise a payment that lands while the
  * admin is watching would render differently from the same payment after a
  * refresh.
  *
@@ -1635,7 +1635,7 @@ export const getUnsettledOrders = async () => {
 export const deriveSettlement = (order, today = null) => {
   const ref = today || (() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; })();
 
-  // Shared with the dispatch gate, the admin badges and get_sales_summary() —
+  // Shared with the dispatch gate, the admin badges and get_sales_summary() Ã¢â‚¬â€
   // one implementation of "what is owed", so no two views can disagree.
   const outstanding = outstandingBalance(order);
   const stored = order.remaining_balance == null ? null : parseFloat(order.remaining_balance);
@@ -1648,7 +1648,7 @@ export const deriveSettlement = (order, today = null) => {
 
   return {
     outstanding,
-    // NULL is the legacy case the widening exists for — not a mismatch to
+    // NULL is the legacy case the widening exists for Ã¢â‚¬â€ not a mismatch to
     // report, just an absent figure the derived one stands in for.
     balance_mismatch: stored != null && Math.abs(stored - outstanding) > 0.01,
     settlement_bucket: classifySettlement(order, ref),
@@ -1710,7 +1710,7 @@ export const updateSettings = async (key, value) => {
 
 // ==================== NOTIFICATIONS HELPER ====================
 // Not used for order, trip, booking, announcement, feedback, chat or payment
-// events — every one of those is now written by a database trigger in the same
+// events Ã¢â‚¬â€ every one of those is now written by a database trigger in the same
 // transaction as the change it describes. Calling this from a page again would
 // duplicate the trigger's row, and would go back to losing the notice whenever
 // the tab closes between the write and this second round trip.
@@ -1730,7 +1730,7 @@ export const createNotification = async (userId, title, message, type = 'general
       .select('id')
       .single();
     notificationId = insertedNotification?.id || null;
-    // Insert error is non-critical — the ledger/order write that spawned this
+    // Insert error is non-critical Ã¢â‚¬â€ the ledger/order write that spawned this
     // notification has already succeeded, and a failed notice must not roll
     // the user's action back.
   } catch {
@@ -1761,13 +1761,13 @@ export const createAdminNotification = async (title, message, type = 'general', 
  * @param {Object} data
  * @param {string} data.name
  * @param {string} data.message
- * @param {string} [data.contact_phone] — mobile number, if supplied
- * @param {string} [data.contact_email] — email address, if supplied
- * @param {boolean} [data.wants_announcements] — opted in to trip/promo/announcement emails
+ * @param {string} [data.contact_phone] Ã¢â‚¬â€ mobile number, if supplied
+ * @param {string} [data.contact_email] Ã¢â‚¬â€ email address, if supplied
+ * @param {boolean} [data.wants_announcements] Ã¢â‚¬â€ opted in to trip/promo/announcement emails
  *
  * Writes the normalized contact_phone/contact_email columns and, for this
  * release only, keeps the legacy polymorphic `phone` column in sync so a
- * rollback loses nothing. `phone` is deprecated — see
+ * rollback loses nothing. `phone` is deprecated Ã¢â‚¬â€ see
  * 20260803140000_contact_inquiries_normalize.sql.
  */
 export const createContactInquiry = async (data) => {
@@ -1825,13 +1825,71 @@ export const createContactInquiry = async (data) => {
   throw new Error('Could not send your message right now. Please try again.')
 };
 
+/**
+ * Contact inquiries, each annotated with `email_subscription` Ã¢â‚¬â€ the
+ * authoritative "Email Updates" preference for that inquiry's email address
+ * (from `email_subscriptions`, not the inquiry's own `wants_announcements`
+ * snapshot, which is just a historical record of what was checked on that
+ * particular submission and is never rewritten after the fact).
+ *
+ * `email_subscription` is `null` when no preference has ever been recorded
+ * for that address (never checked the box, never toggled anywhere) Ã¢â‚¬â€ this
+ * is a distinct third state from an explicit "disabled", and the admin UI
+ * should render it differently (e.g. "Not set" vs. "Off").
+ *
+ * A second query rather than a join: contact_inquiries.contact_email is a
+ * plain text column, not a foreign key into email_subscriptions (which is
+ * keyed by every possible email address, most of which have no inquiry at
+ * all), so there's no relationship for PostgREST to embed.
+ */
 export const getContactInquiries = async () => {
   const { data, error } = await supabase
     .from('contact_inquiries')
     .select('*, assigned_admin:assigned_admin_id (name)')
     .order('created_at', { ascending: false });
   if (error) throw error;
-  return data || [];
+  const inquiries = data || [];
+
+  const emails = Array.from(new Set(
+    inquiries
+      .map(i => (i.contact_email || '').trim().toLowerCase())
+      .filter(Boolean)
+  ));
+  if (emails.length === 0) return inquiries;
+
+  const { data: subs, error: subsError } = await supabase
+    .from('email_subscriptions')
+    .select('email, subscribed, updated_at')
+    .in('email', emails);
+  // A failed lookup should not hide the inquiry list itself Ã¢â‚¬â€ just fall back
+  // to "unknown" preference for every row rather than throwing.
+  if (subsError) return inquiries.map(i => ({ ...i, email_subscription: null }));
+
+  const byEmail = new Map((subs || []).map(s => [s.email, s]));
+  return inquiries.map(i => {
+    const email = (i.contact_email || '').trim().toLowerCase();
+    const sub = email ? byEmail.get(email) : undefined;
+    return {
+      ...i,
+      email_subscription: sub ? { subscribed: sub.subscribed, updatedAt: sub.updated_at } : null,
+    };
+  });
+};
+
+/**
+ * Admin enable/disable of the "Email Updates" preference for an inquiry's
+ * email address. Admin identity and the change timestamp are derived
+ * server-side by the RPC Ã¢â‚¬â€ never passed from here.
+ */
+export const adminSetEmailSubscription = async (email, subscribed) => {
+  const { data, error } = await supabase.rpc('admin_set_email_subscription', {
+    p_email: email,
+    p_subscribed: subscribed,
+  });
+  if (error) throw error;
+  // The RPC returns the email_subscriptions row directly (a single
+  // composite value, not a set), so PostgREST hands it back as one object.
+  return data || null;
 };
 
 /**
@@ -1842,7 +1900,7 @@ export const getContactInquiries = async () => {
  * `.is('assigned_admin_id', null)` is the actual enforcement, not the UI that
  * calls this. Without it, two admins opening the same unclaimed inquiry
  * within the same round trip both "succeed" and whoever's write lands last
- * silently steals the other's claim — the exact failure this feature exists
+ * silently steals the other's claim Ã¢â‚¬â€ the exact failure this feature exists
  * to prevent. The `.select().maybeSingle()` afterward is how the caller can
  * tell "I got it" from "someone beat me to it": an unconditional `.update()`
  * reports no error either way, since matching zero rows isn't a failure to
@@ -1928,7 +1986,7 @@ export const createPaymentAttempt = async (attempt) => {
   return data;
 };
 
-/** Latest PayMongo attempt for an order — the source the return path should poll. */
+/** Latest PayMongo attempt for an order Ã¢â‚¬â€ the source the return path should poll. */
 export const getLatestPaymentAttemptByOrder = async (orderId) => {
   const { data, error } = await supabase
     .from('payment_attempts')
@@ -1943,7 +2001,7 @@ export const getLatestPaymentAttemptByOrder = async (orderId) => {
 
 // ==================== CHAT SUPPORT ====================
 export const getOrCreateConversation = async (customerId) => {
-  // Try to find existing — use .limit(1) instead of .single() to avoid
+  // Try to find existing Ã¢â‚¬â€ use .limit(1) instead of .single() to avoid
   // PGRST116 errors when multiple rows exist (no unique constraint on
   // customer_id). .single() fails when 0 OR 2+ rows match, which caused
   // the snowballing duplicate-conversation bug.
@@ -1961,7 +2019,7 @@ export const getOrCreateConversation = async (customerId) => {
   // If not exists, create with status='bot_active' so the chatbot becomes the
   // first responder. It moves to 'waiting' only when the customer escalates.
   //
-  // This used to insert 'closed' — the same value an admin wrote when they
+  // This used to insert 'closed' Ã¢â‚¬â€ the same value an admin wrote when they
   // FINISHED a conversation. One value meaning both "never needed a human"
   // and "a human is done" is why "nobody has replied yet" was unrepresentable.
   // See 20260804210000_conversation_service_state.sql.
@@ -1984,19 +2042,19 @@ export const getOrCreateConversation = async (customerId) => {
  */
 /**
  * Every state is DERIVED from who spoke last, by trigger. The only one a
- * human sets is `resolved` — see 20260804260000_simplify_conversation_states.
+ * human sets is `resolved` Ã¢â‚¬â€ see 20260804260000_simplify_conversation_states.
  */
 export const CONVERSATION_STATUS = {
   BOT_ACTIVE: 'bot_active',            // bot handling; new chat or a returning customer
-  WAITING: 'waiting',                  // customer spoke last — OUR TURN, the queue
-  WAITING_CUSTOMER: 'waiting_customer',// an admin spoke last — their turn
+  WAITING: 'waiting',                  // customer spoke last Ã¢â‚¬â€ OUR TURN, the queue
+  WAITING_CUSTOMER: 'waiting_customer',// an admin spoke last Ã¢â‚¬â€ their turn
   RESOLVED: 'resolved',                // an admin said so; the only manual state
 };
 
 /**
  * Inbox ordering, shared by the initial fetch and the realtime updates so a
  * live change cannot reshuffle the list differently from a reload.
- * Waiting first — that is the whole point of the queue — then oldest wait
+ * Waiting first Ã¢â‚¬â€ that is the whole point of the queue Ã¢â‚¬â€ then oldest wait
  * first within it, so the person who has waited longest is at the top.
  */
 export const compareConversations = (a, b) => {
@@ -2122,7 +2180,7 @@ export const getAdminConversations = async () => {
  * 20260807120000_reopen_resolved_conversations.sql.
  *
  * DISPLAY ONLY. The trigger decides the actual routing, and the client clock
- * can disagree with the server's near the boundary — which is why the send path
+ * can disagree with the server's near the boundary Ã¢â‚¬â€ which is why the send path
  * re-reads the conversation after inserting rather than trusting this figure.
  * Use it to phrase the UI, never to decide whether the bot runs.
  */
@@ -2194,7 +2252,7 @@ export const markCustomerMessagesRead = async (conversationId) => {
 // Count unread ADMIN messages across the customer's own conversations.
 //
 // The conversation filter is a PostgREST inner-join embed, NOT a nested .in().
-// `.in()` takes an array and does not accept a query builder — passing one made
+// `.in()` takes an array and does not accept a query builder Ã¢â‚¬â€ passing one made
 // it throw `TypeError: object is not iterable` on every single call. The catch
 // in useCustomerChatUnread swallowed that, so the badge sat at 0 forever and a
 // customer never saw that an admin had replied.
@@ -2215,14 +2273,14 @@ export const getCustomerUnreadChatCount = async (userId) => {
 /**
  * Count unread CUSTOMER messages that are actually owed a human reply.
  *
- * Scoped to conversations in 'waiting' — the state the trigger sets when the
+ * Scoped to conversations in 'waiting' Ã¢â‚¬â€ the state the trigger sets when the
  * customer spoke last AND a human owns the thread. Everything the bot handled
  * while the conversation sat in 'bot_active' is excluded, which is the whole
  * point: those messages were answered, just not by a person, and counting them
  * inflated the inbox badge to the size of total chat traffic. An admin looking
  * at "23" had no way to know that 20 of them were already resolved.
  *
- * Same PostgREST inner-join embed as getCustomerUnreadChatCount — one round
+ * Same PostgREST inner-join embed as getCustomerUnreadChatCount Ã¢â‚¬â€ one round
  * trip, filtered on the joined column. See the note there about why a nested
  * .in() cannot work.
  */
@@ -2264,147 +2322,34 @@ export const sendMessage = async (conversationId, senderId, senderRole, text) =>
 };
 
 // ==================== REPORTS ====================
-export const getReportData = async (period = 'daily', customStart = null, customEnd = null) => {
-  const now = new Date();
-
-  // Filter orders by period
-  let startDate, endDate, periodLabel;
-  if (customStart && customEnd) {
-    startDate = new Date(customStart);
-    endDate = new Date(customEnd);
-    endDate.setHours(23, 59, 59, 999);
-    periodLabel = `${startDate.toLocaleDateString('en-PH')} – ${endDate.toLocaleDateString('en-PH')}`;
-  } else {
-    switch (period) {
-      case 'daily':
-        startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
-        periodLabel = `Today — ${now.toLocaleDateString('en-PH', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}`;
-        break;
-      case 'weekly': {
-        const dayOfWeek = now.getDay();
-        const mondayOffset = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
-        startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - mondayOffset);
-        endDate = new Date(startDate);
-        endDate.setDate(endDate.getDate() + 6);
-        endDate.setHours(23, 59, 59, 999);
-        periodLabel = `Week of ${startDate.toLocaleDateString('en-PH', { month: 'short', day: 'numeric' })} – ${endDate.toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })}`;
-        break;
-      }
-      case 'monthly':
-        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
-        endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
-        periodLabel = now.toLocaleDateString('en-PH', { month: 'long', year: 'numeric' });
-        break;
-      case 'yearly':
-        startDate = new Date(now.getFullYear(), 0, 1);
-        endDate = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999);
-        periodLabel = `Year ${now.getFullYear()}`;
-        break;
-      default:
-        startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
-        periodLabel = 'Today';
-    }
-  }
-
-  const { data: filteredOrders, error } = await supabase
-    .from('orders')
-    .select(`
-      id, tracking_number, user_id, trip_id, origin, destination,
-      sender_name, status, actual_weight, shipping_cost, discount_amount,
-      amount_paid, remaining_balance, payment_method, created_at,
-      profiles:user_id (name, email, phone)
-    `)
-    .gte('created_at', startDate.toISOString())
-    .lte('created_at', endDate.toISOString())
-    .order('created_at', { ascending: false });
+export const getFinancialReportData = async (customStart, customEnd) => {
+  if (!customStart || !customEnd) throw new Error('Start and end dates are required');
+  
+  // Create Manila-timezone bounds manually. Date input is YYYY-MM-DD.
+  const startDateStr = customStart + 'T00:00:00+08:00';
+  const endDateObj = new Date(customEnd + 'T00:00:00+08:00');
+  endDateObj.setDate(endDateObj.getDate() + 1);
+  const endDateStr = endDateObj.toISOString(); // next day 00:00:00 exclusive
+  
+  const { data, error } = await supabase.rpc('get_financial_report_data', {
+    p_start_date: startDateStr,
+    p_end_date: endDateStr
+  });
   if (error) throw error;
-
-  const filtered = filteredOrders || [];
-
-  // Summary calculations
-  const totalOrders = filtered.length;
-  const delivered = filtered.filter(o => o.status === 'Delivered');
-  const cancelled = filtered.filter(o => o.status === 'Cancelled');
-  const pending = filtered.filter(o => o.status === 'Pending');
-  const inTransit = filtered.filter(o => ['In Transit', 'Picked Up', 'Assigned', 'Arrived at Hub', 'Out for Delivery'].includes(o.status));
-  const totalRevenue = filtered.filter(o => o.status !== 'Cancelled').reduce((s, o) => s + parseFloat(o.amount_paid || 0), 0);
-  const totalCollected = filtered.reduce((s, o) => s + parseFloat(o.amount_paid || 0), 0);
-  const totalOutstanding = filtered.filter(o => o.status !== 'Cancelled').reduce((s, o) => s + outstandingBalance(o), 0);
-  const totalWeight = filtered.filter(o => o.status !== 'Cancelled').reduce((s, o) => s + parseFloat(o.actual_weight || 0), 0);
-
-  // Payment breakdown — from the ledger, grouped by each transaction's own
-  // payment_method. orders.payment_method holds only the most recent payment
-  // event, so bucketing the cumulative amount_paid by it misattributes every
-  // order that paid twice by two different methods (see 20260806020000).
-  // Counts are payments, not orders: one order can appear in two buckets.
-  const activeOrders = filtered.filter(o => o.status !== 'Cancelled');
-  const { methodTotals, ledgerTotal, grossLedgerTotal, refundTotal, refundCount, methodCounts } = await sumTransactionsByMethod(
-    activeOrders.map(o => o.id)
-  );
-  // Reconcile against the same population the ledger sum covers, so a
-  // cancelled order's payments cannot masquerade as unattributed money.
-  const collectedOnActiveOrders = activeOrders.reduce((s, o) => s + parseFloat(o.amount_paid || 0), 0);
-
-  // Route breakdown
-  const routeMap = {};
-  filtered.filter(o => o.status !== 'Cancelled').forEach(o => {
-    const key = `${o.origin || 'N/A'} → ${o.destination || 'N/A'}`;
-    if (!routeMap[key]) routeMap[key] = { route: key, count: 0, revenue: 0, weight: 0 };
-    routeMap[key].count++;
-    routeMap[key].revenue += parseFloat(o.amount_paid || 0);
-    routeMap[key].weight += parseFloat(o.actual_weight || 0);
-  });
-  const routeBreakdown = Object.values(routeMap).sort((a, b) => b.count - a.count);
-
-  // Status breakdown
-  const statusMap = {};
-  filtered.forEach(o => {
-    statusMap[o.status] = (statusMap[o.status] || 0) + 1;
-  });
-
+  
   return {
-    periodLabel,
-    startDate: startDate.toISOString(),
-    endDate: endDate.toISOString(),
+    startDate: startDateStr,
+    endDate: endDateStr,
     generatedAt: new Date().toISOString(),
-    summary: {
-      totalOrders,
-      deliveredCount: delivered.length,
-      cancelledCount: cancelled.length,
-      pendingCount: pending.length,
-      inTransitCount: inTransit.length,
-      totalRevenue,
-      totalDiscounts: filtered.filter(o => o.status !== 'Cancelled').reduce((s, o) => s + (parseFloat(o.discount_amount || 0) || 0), 0),
-      totalCollected,
-      totalOutstanding,
-      totalWeight,
-      cashCount: methodCounts.cash || 0,
-      cashTotal: methodTotals.cash || 0,
-      gcashCount: methodCounts.gcash || 0,
-      gcashTotal: methodTotals.gcash || 0,
-      paylaterCount: methodCounts.paylater || 0,
-      paylaterTotal: methodTotals.paylater || 0,
-      methodTotals: Object.entries(methodTotals).map(([method, total]) => ({
-        method,
-        total,
-        count: methodCounts[method] || 0,
-      })),
-      ledgerTotal,
-      grossLedgerTotal,
-      refundTotal,
-      refundCount,
-      grossCollected: totalCollected + refundTotal,
-      netCollected: totalCollected,
-      unattributedTotal: Math.max(collectedOnActiveOrders - ledgerTotal, 0),
-    },
-    statusBreakdown: statusMap,
-    routeBreakdown,
-    orders: filtered,
+    ...data
   };
 };
 
+export const getSalesOverviewData = async () => {
+  const { data, error } = await supabase.rpc('get_sales_overview_data');
+  if (error) throw error;
+  return data;
+};
 // ==================== ACTIVITY LOGS ====================
 
 const applyActivityLogFilters = (query, {
@@ -2565,7 +2510,7 @@ export const getOrderStatusEvents = async (orderId) => {
  * Status history for the anonymous tracking page.
  *
  * Anonymous visitors cannot read order_status_events directly (RLS), so this
- * goes through an RPC that returns only status + timestamp — no names, no
+ * goes through an RPC that returns only status + timestamp Ã¢â‚¬â€ no names, no
  * amounts, no ids.
  */
 export const getPublicOrderEvents = async (trackingNumber) => {
@@ -2653,7 +2598,7 @@ export const recordPaymentTransaction = async (orderId, amount, method, ref, sta
  * recordPaymentTransaction() sequence, where a failure between the two left
  * the order marked paid with no backing ledger row.
  *
- * Never pass amount_paid / remaining_balance / payment_status — the ledger
+ * Never pass amount_paid / remaining_balance / payment_status Ã¢â‚¬â€ the ledger
  * trigger derives them. Pass the money under `payment` instead.
  *
  * @param {string} orderId
@@ -2664,27 +2609,27 @@ export const recordPaymentTransaction = async (orderId, amount, method, ref, sta
  * @param {Array}  [payload.pickup_photos=[]]
  * @param {string} [payload.promised_payment_date]
  * @param {string} [payload.payment_reference]
- * @param {?Object} [payload.payment] — { amount, payment_date, receipt_url }.
+ * @param {?Object} [payload.payment] Ã¢â‚¬â€ { amount, payment_date, receipt_url }.
  *                  Null when a PayMongo QR is still pending; the webhook
  *                  records that payment into the ledger instead.
- * @param {?string} [payload.idempotency_key] — stable id generated once by
+ * @param {?string} [payload.idempotency_key] Ã¢â‚¬â€ stable id generated once by
  *                  the caller and reused unchanged on retry (double-click, a
  *                  dropped response after this already committed). Omitting
  *                  it disables dedup for that call, so callers that collect
  *                  money should always pass one.
- * @param {boolean} [payload.admin_verified_receipt=false] — required true
+ * @param {boolean} [payload.admin_verified_receipt=false] Ã¢â‚¬â€ required true
  *                  when a manual GCash reference is being recorded; attests
  *                  the admin confirmed the transfer landed before saving it.
- * @param {number} [payload.discount_amount=0] — fixed peso amount off the
+ * @param {number} [payload.discount_amount=0] Ã¢â‚¬â€ fixed peso amount off the
  *                  ORIGINAL fee. 0 (the default) means no discount; the RPC
  *                  clears discount_reason/notes server-side whenever this is
  *                  0, regardless of what those two fields carry. Only settable
- *                  here, before pickup is confirmed — see
+ *                  here, before pickup is confirmed Ã¢â‚¬â€ see
  *                  guard_order_update() in the shipping-discount migrations.
- * @param {?string} [payload.discount_reason] — 'Regular customer' |
+ * @param {?string} [payload.discount_reason] Ã¢â‚¬â€ 'Regular customer' |
  *                  'Negotiated price' | 'Other'. Required server-side when
  *                  discount_amount > 0.
- * @param {?string} [payload.discount_notes] — required server-side when
+ * @param {?string} [payload.discount_notes] Ã¢â‚¬â€ required server-side when
  *                  discount_reason is 'Other'.
  * @returns {Object} the fresh order row, totals already recomputed
  */
@@ -2714,7 +2659,7 @@ export const recordPickupPayment = async (orderId, payload) => {
  * Atomically record a delivery: order metadata UPDATE + optional balance
  * settlement in one transaction. Same contract as recordPickupPayment.
  *
- * Cash and GCash are both accepted here — the admin is physically receiving
+ * Cash and GCash are both accepted here Ã¢â‚¬â€ the admin is physically receiving
  * payment from the receiver right now, same as at pickup. A LATER,
  * out-of-band balance settlement goes through recordAdditionalPayment()
  * instead, which stays GCash-only.
@@ -2729,7 +2674,7 @@ export const recordDeliveryPayment = async (orderId, payload) => {
     p_payment_date: payload.payment?.payment_date || null,
     p_receipt_url: payload.payment?.receipt_url || null,
     // Required by the business rule when cargo is handed over with a balance
-    // still owing — see 20260804100000_settlement_guards.sql.
+    // still owing Ã¢â‚¬â€ see 20260804100000_settlement_guards.sql.
     p_promised_payment_date: payload.promised_payment_date || null,
     p_idempotency_key: payload.idempotency_key || null,
     p_admin_verified_receipt: payload.admin_verified_receipt || false,
@@ -2740,25 +2685,25 @@ export const recordDeliveryPayment = async (orderId, payload) => {
 
 /**
  * Record a counter payment (balance settlement / "Record Additional
- * Payment") against an existing balance — always a POST-pickup collection,
+ * Payment") against an existing balance Ã¢â‚¬â€ always a POST-pickup collection,
  * so the record_additional_payment() RPC rejects cash unconditionally.
  *
  * This used to be a plain client-side `SELECT` (no row lock) followed by a
- * raw `.insert()` into payment_transactions under RLS alone — the "SELECT
+ * raw `.insert()` into payment_transactions under RLS alone Ã¢â‚¬â€ the "SELECT
  * then INSERT" pattern that gives no protection against a double-click, a
  * retried request, or two admins racing on the same order. It now goes
  * through the same locked, idempotent RPC pattern as pickup/delivery.
  *
  * @param {string} orderId
  * @param {number} amount
- * @param {string} method — must be 'gcash'; 'cash' is rejected server-side.
- * @param {?string} ref — the GCash transfer reference (required for 'gcash').
+ * @param {string} method Ã¢â‚¬â€ must be 'gcash'; 'cash' is rejected server-side.
+ * @param {?string} ref Ã¢â‚¬â€ the GCash transfer reference (required for 'gcash').
  * @param {?string} notes
  * @param {?string} paymentDate
  * @param {?string} receiptUrl
- * @param {?string} idempotencyKey — stable id reused on retry; see
+ * @param {?string} idempotencyKey Ã¢â‚¬â€ stable id reused on retry; see
  *   recordPickupPayment's doc comment.
- * @param {boolean} adminVerifiedReceipt — must be true; attests the admin
+ * @param {boolean} adminVerifiedReceipt Ã¢â‚¬â€ must be true; attests the admin
  *   confirmed the transfer actually landed before recording it.
  */
 export const recordAdditionalPayment = async (orderId, amount, method, ref, notes, paymentDate = null, receiptUrl = null, idempotencyKey = null, adminVerifiedReceipt = false) => {
@@ -2950,13 +2895,13 @@ export const getPaymentTransactionsBatch = async (orderIds) => {
 
 // Conversation ASSIGNMENT is gone (20260808150000). `assignConversation`,
 // `unassignConversation` and `reassignConversation` all wrote
-// conversations.assigned_admin_id, a column that no longer exists — support
+// conversations.assigned_admin_id, a column that no longer exists Ã¢â‚¬â€ support
 // chat is a shared inbox and any admin may reply to any thread at any time.
 // Who said what is read from chat_messages.sender_id, which is where it has
 // always been; the inbox names the sender of each reply.
 
 /**
- * Admin roster, as an id → name lookup for attributing chat replies.
+ * Admin roster, as an id Ã¢â€ â€™ name lookup for attributing chat replies.
  *
  * It used to populate the reassign dropdown. It survives that control's
  * removal because a message row only carries `sender_id`: the paginated
@@ -2984,7 +2929,7 @@ export const getAdminProfiles = async () => {
  * customer, closed was a claim about the admin's screen. `resolved_at` is
  * stamped by a trigger, not written here.
  *
- * Not final — if the customer writes again the trigger returns the
+ * Not final Ã¢â‚¬â€ if the customer writes again the trigger returns the
  * conversation to `waiting`.
  */
 export const resolveConversation = async (conversationId) => {
@@ -3002,13 +2947,13 @@ export const resolveConversation = async (conversationId) => {
 /**
  * Record whether the bot actually answered the customer's question.
  *
- * `bot_resolved` starts NULL — "we do not know". 12 of the conversations in
+ * `bot_resolved` starts NULL Ã¢â‚¬â€ "we do not know". 12 of the conversations in
  * the service study ended with a bot reply and no human follow-up, and
  * success (the bot deflected the question) was indistinguishable from
  * failure (the customer gave up). This is the one signal that separates
  * them, and it comes from the only party who knows: the customer.
  *
- * Written on every vote, including repeat votes in a long conversation —
+ * Written on every vote, including repeat votes in a long conversation Ã¢â‚¬â€
  * the latest answer wins, because it reflects the most recent exchange.
  */
 export const recordBotOutcome = async (conversationId, resolved) => {
@@ -3023,7 +2968,7 @@ export const recordBotOutcome = async (conversationId, resolved) => {
  * escalateConversation
  * Called when the bot matches an escalation pattern, or the customer says
  * their concern is unresolved. Sets `waiting` (the queue) and raises the
- * `escalated` flag — status answers "whose turn", escalated answers
+ * `escalated` flag Ã¢â‚¬â€ status answers "whose turn", escalated answers
  * "how urgent". They are separate on purpose.
  */
 export const escalateConversation = async (conversationId) => {
@@ -3050,7 +2995,7 @@ export const updateCompanyInformation = async (updates) => {
 };
 
 
-// ── Coverage helpers (JSONB on company_information) ──────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬ Coverage helpers (JSONB on company_information) Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 const COMPANY_ID = '00000000-0000-0000-0000-000000000001';
 
 const _getCoverage = async () => {
@@ -3171,8 +3116,8 @@ export const checkIfFeedbackExists = async (orderId) => {
  *
  * Goes through the get_public_feedback() RPC rather than reading
  * customer_feedback directly. The old query relied on two over-broad RLS
- * policies that exposed customer_id — a stable identifier linking a public
- * review to a user account — to anonymous visitors. The RPC never returns it
+ * policies that exposed customer_id Ã¢â‚¬â€ a stable identifier linking a public
+ * review to a user account Ã¢â‚¬â€ to anonymous visitors. The RPC never returns it
  * and masks the author name via mask_name().
  *
  * The flat RPC rows are re-shaped into the nested { profiles, orders } form
@@ -3182,7 +3127,7 @@ export const checkIfFeedbackExists = async (orderId) => {
  * profiles:customer_id(name) returned NULL for anon (profiles RLS blocks it),
  * so every public testimonial rendered as "Customer".
  *
- * This intentionally carries no photo/shipment-feature fields — a feedback
+ * This intentionally carries no photo/shipment-feature fields Ã¢â‚¬â€ a feedback
  * card shows only what the customer actually submitted (rating, message)
  * plus approved display details. See getFeaturedDeliveries() below for the
  * separate, admin-curated "Featured Shipments" gallery; a booking's delivery
@@ -3206,13 +3151,13 @@ export const getPublicFeedback = async () => {
 };
 
 /**
- * Admin-curated "Featured Shipments" gallery for the About page — distinct
+ * Admin-curated "Featured Shipments" gallery for the About page Ã¢â‚¬â€ distinct
  * from getPublicFeedback() above. Goes through the get_featured_deliveries()
  * RPC, which returns a single `featured_photo` TEXT path (the admin-selected
  * pickup or delivery proof) rather than the full pickup_photos/delivery_photos
  * JSONB arrays, preventing enumeration of every proof photo on a featured
  * order via the anon key. The RPC also requires a title to be set
- * (20260915140000) before a row is published here — see that migration for
+ * (20260915140000) before a row is published here Ã¢â‚¬â€ see that migration for
  * why.
  */
 export const getFeaturedDeliveries = async () => {
@@ -3255,7 +3200,7 @@ export const updateFeedbackVisibility = async (id, isHidden) => {
  * These go to the dedicated PUBLIC `company-assets` bucket rather than
  * `cargo-photos`. Website decoration is meant to be world-readable; cargo
  * evidence is not, and sharing one bucket forced a single privacy setting on
- * both — which is why proof photos ended up publicly reachable.
+ * both Ã¢â‚¬â€ which is why proof photos ended up publicly reachable.
  * See migration 20260804180000_customer_photo_access.sql.
  */
 export const uploadPublicAsset = async (file, path) => {
@@ -3308,7 +3253,7 @@ export const updateCompanyFeaturesOrder = async (updates) => {
   return data;
 };
 
-// ── Public tracking (wraps the anon RPC so pages never touch supabase directly) ──
+// Ã¢â€â‚¬Ã¢â€â‚¬ Public tracking (wraps the anon RPC so pages never touch supabase directly) Ã¢â€â‚¬Ã¢â€â‚¬
 export const getPublicTrackingResult = async (trackingNumber) => {
   const { data, error } = await supabase
     .rpc('track_order_public', { p_tracking_number: trackingNumber })
@@ -3317,7 +3262,7 @@ export const getPublicTrackingResult = async (trackingNumber) => {
   return data;
 };
 
-// ── Profile self-service update (moved out of PersonalInfoPage) ──
+// Ã¢â€â‚¬Ã¢â€â‚¬ Profile self-service update (moved out of PersonalInfoPage) Ã¢â€â‚¬Ã¢â€â‚¬
 export const updateOwnProfile = async (userId, fields) => {
   const { error } = await supabase
     .from('profiles')
@@ -3326,7 +3271,7 @@ export const updateOwnProfile = async (userId, fields) => {
   if (error) throw error;
 };
 
-// ── Admin inbox directory search (moved out of InboxPage) ──
+// Ã¢â€â‚¬Ã¢â€â‚¬ Admin inbox directory search (moved out of InboxPage) Ã¢â€â‚¬Ã¢â€â‚¬
 export const searchCustomerDirectory = async (term) => {
   // Strip PostgREST filter delimiters so user input can't break the .or() expression
   const clean = String(term || '').replace(/[,()]/g, ' ').trim();
@@ -3342,7 +3287,7 @@ export const searchCustomerDirectory = async (term) => {
   return data || [];
 };
 
-// ── PayMongo reconcile helpers (moved out of PaymentCollectionPanel / AdditionalPaymentModal) ──
+// Ã¢â€â‚¬Ã¢â€â‚¬ PayMongo reconcile helpers (moved out of PaymentCollectionPanel / AdditionalPaymentModal) Ã¢â€â‚¬Ã¢â€â‚¬
 export const getPaymentAttemptBySource = async (sourceId) => {
   const { data, error } = await supabase
     .from('payment_attempts')
@@ -3363,7 +3308,7 @@ export const getOrderPaymentSnapshot = async (orderId) => {
   return data;
 };
 
-// ── New-inquiry badge count (moved out of Sidebar) ──
+// Ã¢â€â‚¬Ã¢â€â‚¬ New-inquiry badge count (moved out of Sidebar) Ã¢â€â‚¬Ã¢â€â‚¬
 export const getNewInquiryCount = async () => {
   const { count, error } = await supabase
     .from('contact_inquiries')
@@ -3373,19 +3318,19 @@ export const getNewInquiryCount = async () => {
   return count || 0;
 };
 
-// ── Receipt-cleanup step of Manual Evidence Cleanup (moved out of admin ODP) ──
+// Ã¢â€â‚¬Ã¢â€â‚¬ Receipt-cleanup step of Manual Evidence Cleanup (moved out of admin ODP) Ã¢â€â‚¬Ã¢â€â‚¬
 export const clearPaymentReceiptUrls = async (orderId) => {
   // payment_transactions no longer accepts a direct admin UPDATE (see
-  // 20260909030000_manual_payment_hardening.sql) — every write, including
+  // 20260909030000_manual_payment_hardening.sql) Ã¢â‚¬â€ every write, including
   // this one, goes through a SECURITY DEFINER RPC now.
   const { error } = await supabase.rpc('clear_payment_receipt_url', { p_order_id: orderId });
   if (error) throw error;
 };
 
-// ── Admin photo-storage monitoring: usage summary + live health ──
+// Ã¢â€â‚¬Ã¢â€â‚¬ Admin photo-storage monitoring: usage summary + live health Ã¢â€â‚¬Ã¢â€â‚¬
 // get_effective_photo_storage_mode() / set_photo_storage_mode() remain in the
 // database as a backend-only safety valve (Storage RLS still enforces
-// whichever mode is set — see is_supabase_evidence_upload_allowed) but are no
+// whichever mode is set Ã¢â‚¬â€ see is_supabase_evidence_upload_allowed) but are no
 // longer exposed from the admin UI, so no client wrapper is kept for them.
 // An operator can still call them directly by SQL during an incident.
 export const getPhotoStorageSummary = async () => {
@@ -3414,7 +3359,7 @@ export const checkPhotoStorageHealth = async () => {
   return data;
 };
 
-// ── Admin photo browser: booking folders, one folder's photos, select-and-delete ──
+// Ã¢â€â‚¬Ã¢â€â‚¬ Admin photo browser: booking folders, one folder's photos, select-and-delete Ã¢â€â‚¬Ã¢â€â‚¬
 // Both listing functions are read-only and share one eligibility
 // implementation (evidence_photo_rows(), not exposed directly); delete_
 // evidence_photos() (called inside the Edge Function below) re-derives
@@ -3453,11 +3398,11 @@ export const deleteEvidencePhotos = async (items) => {
   return data;
 };
 
-// ── Company Images (company-assets bucket) ──
-// Listing/reading uses the Storage SDK directly (list()/createSignedUrl()) —
+// Ã¢â€â‚¬Ã¢â€â‚¬ Company Images (company-assets bucket) Ã¢â€â‚¬Ã¢â€â‚¬
+// Listing/reading uses the Storage SDK directly (list()/createSignedUrl()) Ã¢â‚¬â€
 // admins already have full access to this bucket via its own RLS policy, so
 // no RPC is needed just to browse it. The one thing the browser can't safely
-// decide on its own — "is this the image currently live on the site" — is
+// decide on its own Ã¢â‚¬â€ "is this the image currently live on the site" Ã¢â‚¬â€ is
 // re-checked here before the caller is allowed to call storage.remove().
 export const checkCompanyAssetDeletable = async (paths) => {
   if (!Array.isArray(paths) || paths.length === 0) throw new Error('Select at least one file.');

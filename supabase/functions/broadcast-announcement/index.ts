@@ -1,10 +1,24 @@
 ﻿// Supabase Edge Function: broadcast-announcement
 //
-// Emails an announcement to everyone who has actually opted in to receive
-// announcement emails â€” NOT every registered account. Two sources, deduped
-// by email address:
+// Emails an announcement to everyone subscribed to "Email Updates" (trip
+// schedules, promos, announcements) — NOT every registered account, and not
+// gated by any single contact_inquiries row. Recipients come from
+// email_subscriptions, a dedicated preference keyed by email address (one
+// row per address, independent of inquiry status or account existence),
+// populated by the public contact form, a customer's own Profile toggle,
+// admin-confirmed agreement on an inquiry, or the unsubscribe link. See
+// 20260916150000_email_updates_subscription.sql.
+//
+// This function also fires for a newly published trip: src/lib/database.js
+// createTrip() calls createAnnouncement({ send_email: true }) when an admin
+// publishes a trip with "announce via email", which reaches this same
+// function through the same announcement row/send_email flag.
+//
+// (Formerly: two sources, deduped by email —
 //   1. profiles        WHERE role = 'customer' AND wants_announcements = true
 //   2. contact_inquiries WHERE wants_announcements = true (public leads)
+// — replaced because those columns could disagree for the same address with
+// no way to say which one was current.)
 //
 // Caller must be an authenticated admin (verify_jwt = true in config.toml
 // rejects unauthenticated requests at the gateway; this function re-checks
@@ -239,31 +253,17 @@ serve(async (req) => {
     // never re-email everyone a second time.
     if (announcement.emailed_at) return json({ success: true, already_sent: true })
 
-    // â”€â”€ Build the recipient list, deduped by lowercased email â”€â”€
-    const recipients = new Map<string, { email: string; name: string | null }>()
+    // â”€â”€ Recipients: email_subscriptions is the sole source. It's keyed by
+    // email (PK), so there is no cross-table dedup to do here â€” one row per
+    // address, independent of how many contact_inquiries rows or whether a
+    // profiles account exists for it. â”€â”€
+    const { data: subscriptions, error: subscriptionsError } = await supabase
+      .from('email_subscriptions')
+      .select('email')
+      .eq('subscribed', true)
+    if (subscriptionsError) return json({ error: subscriptionsError.message }, 500)
 
-    const { data: subscribedProfiles, error: profilesError } = await supabase
-      .from('profiles')
-      .select('email, name')
-      .eq('role', 'customer')
-      .eq('wants_announcements', true)
-    if (profilesError) return json({ error: profilesError.message }, 500)
-    for (const p of subscribedProfiles || []) {
-      if (p.email) recipients.set(p.email.toLowerCase().trim(), { email: p.email, name: p.name || null })
-    }
-
-    const { data: subscribedInquiries, error: inquiriesError } = await supabase
-      .from('contact_inquiries')
-      .select('contact_email, name')
-      .eq('wants_announcements', true)
-      .not('contact_email', 'is', null)
-    if (inquiriesError) return json({ error: inquiriesError.message }, 500)
-    for (const c of subscribedInquiries || []) {
-      const key = (c.contact_email || '').toLowerCase().trim()
-      if (key && !recipients.has(key)) recipients.set(key, { email: c.contact_email, name: c.name || null })
-    }
-
-    const list = Array.from(recipients.values())
+    const list = (subscriptions || []).map(s => ({ email: s.email, name: null as string | null }))
     if (list.length === 0) {
       await supabase.from('announcements').update({ emailed_at: new Date().toISOString() }).eq('id', announcement_id)
       return json({ success: true, sent: 0, failed: 0, note: 'No subscribers opted in yet.' })
@@ -279,7 +279,26 @@ serve(async (req) => {
     let sent = 0
     let failed = 0
 
-    for (const batch of chunk(list, BATCH_SIZE)) {
+    for (const initialBatch of chunk(list, BATCH_SIZE)) {
+      // Recheck subscription state for exactly this batch immediately before
+      // sending it, not just once at the top of the function. A broadcast to
+      // a large list can take a while (BATCH_DELAY_MS per batch); a recipient
+      // who unsubscribes mid-run must not still receive this send.
+      const { data: stillSubscribed, error: recheckError } = await supabase
+        .from('email_subscriptions')
+        .select('email')
+        .in('email', initialBatch.map(r => r.email))
+        .eq('subscribed', true)
+      if (recheckError) {
+        console.error('[broadcast-announcement] recheck failed, sending batch as originally loaded:', recheckError.message)
+      }
+      const stillSubscribedSet = recheckError ? null : new Set((stillSubscribed || []).map(r => r.email))
+      const batch = stillSubscribedSet ? initialBatch.filter(r => stillSubscribedSet.has(r.email)) : initialBatch
+      if (batch.length === 0) {
+        await new Promise(resolve => setTimeout(resolve, BATCH_DELAY_MS))
+        continue
+      }
+
       const emails = await Promise.all(batch.map(async (recipient) => {
         const token = await signUnsubscribeToken(recipient.email)
         const unsubscribeUrl =

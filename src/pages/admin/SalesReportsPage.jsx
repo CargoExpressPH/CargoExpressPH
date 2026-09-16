@@ -2,11 +2,11 @@ import { useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import SalesPage from './SalesPage';
 import ReportsPage from './ReportsPage';
-import UnsettledDeliveriesPage from './UnsettledDeliveriesPage';
+import UnpaidShipmentsPage from './UnpaidShipmentsPage';
 import ErrorBoundarySection from '../../components/ui/ErrorBoundarySection';
 
 /**
- * SalesReportsPage — Combined Sales & Reports page.
+ * SalesReportsPage â€” Combined Sales & Reports page.
  * All three views live behind a single admin navigation entry.
  * Sales = all-time revenue/collection overview; Unsettled = shipments that
  * still owe money, row by row; Reports = period-based operational analytics.
@@ -21,7 +21,7 @@ import ErrorBoundarySection from '../../components/ui/ErrorBoundarySection';
  */
 const SECTIONS = [
   { value: 'reports', label: 'Reports & Analytics' },
-  { value: 'unsettled', label: 'Unsettled Deliveries' },
+  { value: 'unsettled', label: 'Unpaid Shipments' },
   { value: 'sales', label: 'Sales Overview' },
 ];
 
@@ -65,8 +65,8 @@ const SalesReportsPage = ({ initialSection = 'sales' }) => {
         </ErrorBoundarySection>
       )}
       {section === 'unsettled' && (
-        <ErrorBoundarySection key="unsettled" message="Unsettled deliveries report failed to load.">
-          <UnsettledDeliveriesPage />
+        <ErrorBoundarySection key="unsettled" message="Unpaid Shipments report failed to load.">
+          <UnpaidShipmentsPage />
         </ErrorBoundarySection>
       )}
       {section === 'reports' && (

@@ -21,12 +21,12 @@ import { useToast } from '../../hooks/useToast';
 import usePageTitle from '../../hooks/usePageTitle';
 
 const formatCurrency = (val) =>
-  `₱${(parseFloat(val) || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  `â‚±${(parseFloat(val) || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 const formatDate = (value) => {
-  if (!value) return '—';
+  if (!value) return 'â€”';
   const d = new Date(value.length === 10 ? `${value}T00:00:00` : value);
-  if (Number.isNaN(d.getTime())) return '—';
+  if (Number.isNaN(d.getTime())) return 'â€”';
   return d.toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' });
 };
 
@@ -54,7 +54,7 @@ const BUCKET_META = {
   },
   [SETTLEMENT_BUCKETS.COLLECT]: {
     label: 'Freight collect', tone: 'info',
-    hint: 'Receiver pays at the door — due on delivery, not late.',
+    hint: 'Receiver pays at the door â€” due on delivery, not late.',
   },
   [SETTLEMENT_BUCKETS.IN_FLIGHT]: {
     label: 'In transit', tone: 'info',
@@ -63,7 +63,7 @@ const BUCKET_META = {
 };
 
 /**
- * UnsettledDeliveriesPage — the money side of the delivery pipeline.
+ * UnpaidShipmentsPage â€” the money side of the delivery pipeline.
  *
  * Rendered as a section of Sales & Reports rather than its own route, so all
  * financial views stay in one place. Every row here is an order the Phase 1b
@@ -71,7 +71,7 @@ const BUCKET_META = {
  * "Held at hub" rows, and `guard_trip_completion` refuses to close a trip
  * while any of these are still attached to it.
  */
-/** "just now" / "3m ago" — how fresh the numbers on screen are. */
+/** "just now" / "3m ago" â€” how fresh the numbers on screen are. */
 const formatFreshness = (date, now) => {
   if (!date) return '';
   const seconds = Math.max(0, Math.round((now - date) / 1000));
@@ -81,8 +81,8 @@ const formatFreshness = (date, now) => {
   return date.toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit' });
 };
 
-const UnsettledDeliveriesPage = () => {
-  usePageTitle('Unsettled Deliveries');
+const UnpaidShipmentsPage = () => {
+  usePageTitle('Unpaid Shipments');
   const { user, userProfile } = useAuth();
   const toast = useToast();
 
@@ -121,19 +121,19 @@ const UnsettledDeliveriesPage = () => {
       setLoadedAt(new Date());
     } catch (e) {
       // A failed background refresh must not blank out good data the admin is
-      // reading — surface the error only when this was an explicit load.
-      if (!silent) setError(e.message || 'Failed to load unsettled deliveries.');
+      // reading â€” surface the error only when this was an explicit load.
+      if (!silent) setError(e.message || 'Failed to load Unpaid Shipments.');
     } finally {
       if (silent) setRefreshing(false); else setLoading(false);
     }
   };
 
-  // ── Realtime ──────────────────────────────────────────────────────────────
+  // â”€â”€ Realtime â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   // Payments land here from three directions the admin cannot see: the GCash
   // webhook, another admin's screen, and the customer's own phone. Without
   // this, a laptop left open on this page shows figures that quietly go stale.
   //
-  // Rows already on screen are patched in place — no refetch, no scroll jump,
+  // Rows already on screen are patched in place â€” no refetch, no scroll jump,
   // no closed modal. A refetch happens only when a row that is NOT on screen
   // starts qualifying, because only the query carries the customer join.
   const ordersRef = useRef(orders);
@@ -171,7 +171,7 @@ const UnsettledDeliveriesPage = () => {
         const merged = { ...known, ...row, profiles: known.profiles };
         byId.set(row.id, { ...merged, ...deriveSettlement(merged, today) });
       } else if (qualifiesAsUnsettled(row)) {
-        needsFullReload = true;           // new arrival — needs the customer join
+        needsFullReload = true;           // new arrival â€” needs the customer join
         touched += 1;
       }
     });
@@ -197,22 +197,26 @@ const UnsettledDeliveriesPage = () => {
     onBatch: handleRealtimeBatch,
   });
 
-  const filterOptions = useMemo(() => {
-    const countOf = (bucket) => orders.filter(o => o.settlement_bucket === bucket).length;
+    const filterOptions = useMemo(() => {
+    const isOverdue = (o) => o.days_overdue > 0;
+    const isDelivered = (o) => o.status === 'Delivered';
+    const isOngoing = (o) => !isDelivered(o) && !isOverdue(o);
+    
     return [
       { value: 'all', label: 'All', count: orders.length },
-      { value: SETTLEMENT_BUCKETS.OVERDUE, label: 'Overdue', count: countOf(SETTLEMENT_BUCKETS.OVERDUE) },
-      { value: SETTLEMENT_BUCKETS.HELD, label: 'Held at hub', count: countOf(SETTLEMENT_BUCKETS.HELD) },
-      { value: SETTLEMENT_BUCKETS.DELIVERED, label: 'Delivered', count: countOf(SETTLEMENT_BUCKETS.DELIVERED) },
-      { value: SETTLEMENT_BUCKETS.PROMISED, label: 'Promised', count: countOf(SETTLEMENT_BUCKETS.PROMISED) },
-      { value: SETTLEMENT_BUCKETS.COLLECT, label: 'Collect', count: countOf(SETTLEMENT_BUCKETS.COLLECT) },
+      { value: 'Delivered', label: 'Delivered', count: orders.filter(isDelivered).length },
+      { value: 'Ongoing', label: 'Ongoing', count: orders.filter(isOngoing).length },
+      { value: 'Overdue', label: 'Overdue', count: orders.filter(isOverdue).length },
     ];
   }, [orders]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return orders.filter(o => {
-      if (filter !== 'all' && o.settlement_bucket !== filter) return false;
+      if (filter === 'Delivered' && o.status !== 'Delivered') return false;
+      if (filter === 'Overdue' && !(o.days_overdue > 0)) return false;
+      if (filter === 'Ongoing' && (o.status === 'Delivered' || o.days_overdue > 0)) return false;
+      
       if (!q) return true;
       return [o.tracking_number, o.sender_name, o.receiver_name, o.profiles?.name]
         .some(v => (v || '').toLowerCase().includes(q));
@@ -248,7 +252,7 @@ const UnsettledDeliveriesPage = () => {
   const handlePrint = () => {
     logActivity({
       module: 'Sales & Reports',
-      action: 'Unsettled Deliveries Printed',
+      action: 'Unpaid Shipments Printed',
       details: `Printed ${filtered.length} unsettled delivery record(s)`,
     });
     window.print();
@@ -261,7 +265,7 @@ const UnsettledDeliveriesPage = () => {
       await exportPrintDocumentToPdf(`CargoExpress_UnsettledDeliveries_${new Date().toISOString().slice(0, 10)}.pdf`);
       logActivity({
         module: 'Sales & Reports',
-        action: 'Unsettled Deliveries Exported',
+        action: 'Unpaid Shipments Exported',
         details: `Exported ${filtered.length} unsettled delivery record(s) to PDF`,
       });
     } catch (e) {
@@ -285,14 +289,14 @@ const UnsettledDeliveriesPage = () => {
     <div>
       <div className="admin-page-header">
         <div>
-          <h1 className="admin-page-title"><Wallet size={24} color="var(--primary)" aria-hidden="true" />Unsettled Deliveries</h1>
+          <h1 className="admin-page-title"><Wallet size={24} color="var(--primary)" aria-hidden="true" />Unpaid Shipments</h1>
           <p className="admin-page-subtitle">
-            Shipments in the pipeline that still owe money — who owes it, how much, and how overdue.
+            Shipments in the pipeline that still owe money â€” who owes it, how much, and how overdue.
           </p>
           {!loading && loadedAt && (
             <div className="text-xs text-tertiary mt-4 no-print" role="status" aria-live="polite">
               {refreshing ? (
-                <><Loader size={12} className="animate-spin inline mr-6" aria-hidden="true" /> Updating…</>
+                <><Loader size={12} className="animate-spin inline mr-6" aria-hidden="true" /> Updatingâ€¦</>
               ) : (
                 <>
                   <span
@@ -302,8 +306,8 @@ const UnsettledDeliveriesPage = () => {
                       background: 'var(--success)', marginRight: 6, verticalAlign: 'middle',
                     }}
                   />
-                  Live · updated {formatFreshness(loadedAt, now)}
-                  {liveCount > 0 && <> · {liveCount} change{liveCount === 1 ? '' : 's'} received</>}
+                  Live Â· updated {formatFreshness(loadedAt, now)}
+                  {liveCount > 0 && <> Â· {liveCount} change{liveCount === 1 ? '' : 's'} received</>}
                 </>
               )}
             </div>
@@ -328,7 +332,7 @@ const UnsettledDeliveriesPage = () => {
         <div className="grid grid-4 mb-24">
           {[
             { l: 'Total Outstanding', v: formatCurrency(t.outstanding), tone: 'danger' },
-            { l: 'Unsettled Shipments', v: t.count || 0, tone: 'primary' },
+            { l: 'Unpaid Shipments', v: t.count || 0, tone: 'primary' },
             { l: 'Held at Hub', v: t.held || 0, tone: 'warning' },
             { l: 'Overdue Promises', v: t.overdue || 0, tone: 'danger' },
           ].map((c, i) => (
@@ -368,23 +372,23 @@ const UnsettledDeliveriesPage = () => {
         </div>
       )}
 
-      <div className="flex gap-8 flex-wrap items-center mb-16 no-print unsettled-filter-row">
+      <div className="flex gap-8 flex-wrap items-center mb-16 no-print unpaid-filter-row">
         <ResponsiveFilterControls
           options={filterOptions}
           value={filter}
           onChange={setFilter}
-          ariaLabel="Filter unsettled deliveries by settlement state"
+          ariaLabel="Filter Unpaid Shipments by settlement state"
           label="Settlement state"
           desktopClassName="tabs admin-mobile-tabs"
         />
-        <div className="search-box unsettled-search-box" role="search">
+        <div className="search-box unpaid-search-box" role="search">
           <Search size={16} className="search-icon" aria-hidden="true" />
           <input
-            id="admin-unsettled-search"
+            id="admin-unpaid-search"
             name="qunsettled"
             type="search"
-            aria-label="Search unsettled deliveries"
-            placeholder="Search tracking or customer…"
+            aria-label="Search Unpaid Shipments"
+            placeholder="Search tracking or customerâ€¦"
             value={search}
             onChange={e => setSearch(e.target.value)}
           />
@@ -404,9 +408,9 @@ const UnsettledDeliveriesPage = () => {
           />
         </div>
       ) : (
-        <div className="card admin-section-card admin-table-card unsettled-table-card animate-fade-in no-print">
+        <div className="card admin-section-card admin-table-card unpaid-table-card animate-fade-in no-print">
           <div className="table-container">
-            <table className="data-table data-table--wide unsettled-table">
+            <table className="data-table data-table--wide unpaid-table">
               <caption className="sr-only">Deliveries with an outstanding balance</caption>
               <thead>
                 <tr>
@@ -425,14 +429,14 @@ const UnsettledDeliveriesPage = () => {
                   const meta = BUCKET_META[o.settlement_bucket] || BUCKET_META[SETTLEMENT_BUCKETS.IN_FLIGHT];
                   return (
                     <tr key={o.id}>
-                      <td data-label="Tracking" className="unsettled-tracking-cell">
+                      <td data-label="Tracking" className="unpaid-tracking-cell">
                         <Link to={`/admin/orders/${o.id}`} className="fw-700 text-accent">{o.tracking_number}</Link>
-                        <div className="text-xs text-tertiary">{o.origin} → {o.destination}</div>
+                        <div className="text-xs text-tertiary">{o.origin} â†’ {o.destination}</div>
                       </td>
-                      <td data-label="Customer" className="unsettled-customer-cell">
+                      <td data-label="Customer" className="unpaid-customer-cell">
                         {/* Chasing a balance is the case where an admin most
                             often needs to talk to the customer, so the shortcut
-                            sits on the name itself. Icon only — the column is
+                            sits on the name itself. Icon only â€” the column is
                             narrow and the row already has a labelled action. */}
                         <div className="flex items-center gap-4">
                           <span>{o.profiles?.name || o.sender_name}</span>
@@ -442,38 +446,38 @@ const UnsettledDeliveriesPage = () => {
                           />
                         </div>
                         <div className="text-xs text-tertiary">
-                          {(o.payer_type || 'sender') === 'receiver' ? `Receiver pays · ${o.receiver_name}` : 'Sender pays'}
+                          {(o.payer_type || 'sender') === 'receiver' ? `Receiver pays Â· ${o.receiver_name}` : 'Sender pays'}
                         </div>
                       </td>
-                      <td data-label="Status" className="unsettled-status-cell"><StatusBadge status={o.status} size="sm" /></td>
-                      <td data-label="Settlement" className="unsettled-settlement-cell">
+                      <td data-label="Status" className="unpaid-status-cell"><StatusBadge status={o.status} size="sm" /></td>
+                      <td data-label="Settlement" className="unpaid-settlement-cell">
                         <span className={`badge badge-${meta.tone}`} title={meta.hint}>{meta.label}</span>
                         <div className="text-xs text-tertiary mt-4">
                           {o.promised_payment_date
                             ? (o.days_overdue > 0
-                                ? `${o.days_overdue} day${o.days_overdue === 1 ? '' : 's'} overdue · promised ${formatDate(o.promised_payment_date)}`
+                                ? `${o.days_overdue} day${o.days_overdue === 1 ? '' : 's'} overdue Â· promised ${formatDate(o.promised_payment_date)}`
                                 : `Promised ${formatDate(o.promised_payment_date)}`)
                             : `Booked ${formatDate(o.created_at)}`}
                         </div>
                       </td>
-                      <td data-label="Billed" className="num unsettled-money-cell unsettled-billed-cell">
+                      <td data-label="Billed" className="num unpaid-money-cell unpaid-billed-cell">
                         {formatCurrency(Math.max(0, (parseFloat(o.shipping_cost) || 0) - (parseFloat(o.discount_amount) || 0)))}
                         {(parseFloat(o.discount_amount) || 0) > 0 && (
                           <div className="text-xs text-tertiary fw-400">
-                            {formatCurrency(o.shipping_cost)} − {formatCurrency(o.discount_amount)} discount
+                            {formatCurrency(o.shipping_cost)} âˆ’ {formatCurrency(o.discount_amount)} discount
                           </div>
                         )}
                       </td>
-                      <td data-label="Paid" className="num unsettled-money-cell unsettled-paid-cell">{formatCurrency(o.amount_paid)}</td>
-                      <td data-label="Balance" className="num fw-700 text-error unsettled-money-cell unsettled-balance-cell">
+                      <td data-label="Paid" className="num unpaid-money-cell unpaid-paid-cell">{formatCurrency(o.amount_paid)}</td>
+                      <td data-label="Balance" className="num fw-700 text-error unpaid-money-cell unpaid-balance-cell">
                         {formatCurrency(o.outstanding)}
                         {o.balance_mismatch && (
-                          <div className="text-xs text-tertiary fw-400" title={`Stored remaining_balance is ${formatCurrency(o.remaining_balance)} — the ledger total is stale and should be reconciled.`}>
+                          <div className="text-xs text-tertiary fw-400" title={`Stored remaining_balance is ${formatCurrency(o.remaining_balance)} â€” the ledger total is stale and should be reconciled.`}>
                             ledger says {formatCurrency(o.remaining_balance)}
                           </div>
                         )}
                       </td>
-                      <td data-label="Action" className="unsettled-action-cell">
+                      <td data-label="Action" className="unpaid-action-cell">
                         <button
                           type="button"
                           className="btn btn-secondary btn-sm"
@@ -505,10 +509,10 @@ const UnsettledDeliveriesPage = () => {
         </div>
       )}
 
-      {/* ── Formal printed document (bond paper) — replaces UI in print ── */}
+      {/* â”€â”€ Formal printed document (bond paper) â€” replaces UI in print â”€â”€ */}
       {!loading && filtered.length > 0 && (
         <PrintDocument
-          title="Unsettled Deliveries Report"
+          title="Unpaid Shipments Report"
           subtitle="Shipments with an Outstanding Balance"
           generatedAt={loadedAt ? loadedAt.toLocaleString('en-PH', { month: 'long', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true }) : ''}
           preparedBy={userProfile?.name}
@@ -518,7 +522,7 @@ const UnsettledDeliveriesPage = () => {
             <table className="pd-table">
               <tbody>
                 <tr><td>Total Outstanding (all shipments)</td><td className="num">{formatCurrency(t.outstanding)}</td></tr>
-                <tr><td>Unsettled Shipments</td><td className="num">{t.count || 0}</td></tr>
+                <tr><td>Unpaid Shipments</td><td className="num">{t.count || 0}</td></tr>
                 <tr><td>Held at Hub (dispatch blocked)</td><td className="num">{t.held || 0}</td></tr>
                 <tr><td>Overdue Promises</td><td className="num">{t.overdue || 0}</td></tr>
                 <tr><td>Overdue Amount</td><td className="num">{formatCurrency(t.overdueAmount)}</td></tr>
@@ -531,7 +535,7 @@ const UnsettledDeliveriesPage = () => {
           <div className="pd-section pd-flow">
             <div className="pd-section-title">
               II. Outstanding Shipments ({filtered.length}
-              {filter !== 'all' ? ` — ${filterOptions.find(f => f.value === filter)?.label} only` : ''})
+              {filter !== 'all' ? ` â€” ${filterOptions.find(f => f.value === filter)?.label} only` : ''})
             </div>
             <table className="pd-table">
               <thead>
@@ -552,8 +556,8 @@ const UnsettledDeliveriesPage = () => {
                     <td>{o.tracking_number}</td>
                     <td>{o.profiles?.name || o.sender_name}</td>
                     <td>{o.status}</td>
-                    <td>{(BUCKET_META[o.settlement_bucket] || {}).label || '—'}</td>
-                    <td>{o.promised_payment_date ? formatDate(o.promised_payment_date) : '—'}</td>
+                    <td>{(BUCKET_META[o.settlement_bucket] || {}).label || 'â€”'}</td>
+                    <td>{o.promised_payment_date ? formatDate(o.promised_payment_date) : 'â€”'}</td>
                     <td className="num">{formatCurrency(Math.max(0, (parseFloat(o.shipping_cost) || 0) - (parseFloat(o.discount_amount) || 0)))}</td>
                     <td className="num">{formatCurrency(o.amount_paid)}</td>
                     <td className="num">{formatCurrency(o.outstanding)}</td>
@@ -584,4 +588,4 @@ const UnsettledDeliveriesPage = () => {
   );
 };
 
-export default UnsettledDeliveriesPage;
+export default UnpaidShipmentsPage;

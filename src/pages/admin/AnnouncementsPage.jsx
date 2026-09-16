@@ -305,7 +305,7 @@ const AnnouncementsPage = () => {
               Send via Email to all subscribers
             </label>
             <p className="text-xs text-secondary mt-4">
-              Emails everyone who opted in to announcement emails — subscribed customers and public contact-form leads. In-app and push notifications always go out regardless of this setting.
+              Emails everyone subscribed to Email Updates — from the public form, their Profile, or an admin-confirmed agreement on a contact inquiry. In-app and push notifications always go out regardless of this setting.
             </p>
           </div>
           <div className="admin-form-actions">

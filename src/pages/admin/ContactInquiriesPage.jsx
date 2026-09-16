@@ -1,14 +1,15 @@
 import { useState, useEffect, useRef } from 'react';
-import { getContactInquiries, updateContactInquiry, assignInquiry, unassignInquiry } from '../../lib/database';
-import { logChat } from '../../lib/activityLog';
+import { getContactInquiries, updateContactInquiry, assignInquiry, unassignInquiry, adminSetEmailSubscription } from '../../lib/database';
+import { logChat, logActivity } from '../../lib/activityLog';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { CenteredSpinner } from '../../components/ui/Loader';
 import EmptyState from '../../components/ui/EmptyState';
 import ResponsiveFilterControls from '../../components/ui/ResponsiveFilterControls';
+import ConfirmModal from '../../components/ui/ConfirmModal';
 import {
   Mail, Phone, Clock, CheckCircle, Eye, UserCheck,
-  Loader, MessageSquare, AlertCircle, X
+  Loader, MessageSquare, AlertCircle, X, Megaphone
 } from 'lucide-react';
 import usePageTitle from '../../hooks/usePageTitle';
 import FocusTrap from '../../components/ui/FocusTrap';
@@ -39,6 +40,25 @@ const readContact = (inquiry) => {
   const parts = v.split('|').map(p => p.trim());
   if (parts.length > 1) return { phone: parts[0], email: parts[1] };
   return parts[0].includes('@') ? { phone: '', email: parts[0] } : { phone: parts[0], email: '' };
+};
+
+/**
+ * Compact list-view indicator for the authoritative "Email Updates"
+ * preference (src/lib/database.js getContactInquiries() annotates each row
+ * with `email_subscription`). Renders nothing when no preference has ever
+ * been recorded for the address — that is a distinct state from an
+ * explicit "Off", not worth a badge of its own in the tight list view.
+ */
+const EmailSubscriptionBadge = ({ subscription }) => {
+  if (!subscription) return null;
+  return (
+    <span
+      className={`badge text-xs ${subscription.subscribed ? 'badge-success' : 'badge-default'}`}
+      title={subscription.subscribed ? 'Email Updates: Enabled' : 'Email Updates: Disabled'}
+    >
+      {subscription.subscribed ? 'Email: On' : 'Email: Off'}
+    </span>
+  );
 };
 
 const getContactHref = (value) => {
@@ -89,6 +109,8 @@ const ContactInquiriesPage = () => {
   const [updating, setUpdating] = useState(null);
   const [selectedInquiry, setSelectedInquiry] = useState(null);
   const [filter, setFilter] = useState('all');
+  const [emailToggleBusy, setEmailToggleBusy] = useState(false);
+  const [showEnableEmailConfirm, setShowEnableEmailConfirm] = useState(false);
 
   useEffect(() => { loadInquiries(); }, []);
 
@@ -238,6 +260,76 @@ const ContactInquiriesPage = () => {
     }
   };
 
+  // Applies a successful email-subscription change to both the list and an
+  // open detail modal, without a full reload — same pattern as
+  // handleStatusChange/handleAssign above.
+  const applyEmailSubscriptionPatch = (email, result) => {
+    const patch = { email_subscription: { subscribed: result.subscribed, updatedAt: result.updated_at } };
+    setInquiries(prev => prev.map(i => (
+      (i.contact_email || '').trim().toLowerCase() === email ? { ...i, ...patch } : i
+    )));
+    setSelectedInquiry(prev => (
+      prev && (prev.contact_email || '').trim().toLowerCase() === email ? { ...prev, ...patch } : prev
+    ));
+  };
+
+  // Disabling needs no confirmation (per spec) — only enabling does, since
+  // that's the action that claims the customer explicitly agreed.
+  const handleEmailUpdatesToggle = async (inquiry, nextEnabled) => {
+    const email = (inquiry.contact_email || '').trim().toLowerCase();
+    if (!email || emailToggleBusy) return;
+
+    if (nextEnabled) {
+      setShowEnableEmailConfirm(true);
+      return;
+    }
+
+    setEmailToggleBusy(true);
+    try {
+      const result = await adminSetEmailSubscription(email, false);
+      applyEmailSubscriptionPatch(email, result);
+      logActivity({
+        module: 'System',
+        action: 'Disabled Email Updates',
+        recordType: 'email_subscription',
+        recordRef: email,
+        details: `Admin disabled trip/announcement email updates for ${email} (inquiry from ${inquiry.name || 'Unknown'}).`,
+      });
+      toast.success('Email updates disabled for this customer.');
+    } catch (e) {
+      toast.error(e.message || 'Could not update the email preference. Please try again.');
+    } finally {
+      setEmailToggleBusy(false);
+    }
+  };
+
+  const handleConfirmEnableEmailUpdates = async () => {
+    if (!selectedInquiry) return;
+    const email = (selectedInquiry.contact_email || '').trim().toLowerCase();
+    if (!email) return;
+
+    setEmailToggleBusy(true);
+    try {
+      const result = await adminSetEmailSubscription(email, true);
+      applyEmailSubscriptionPatch(email, result);
+      logActivity({
+        module: 'System',
+        action: 'Enabled Email Updates',
+        recordType: 'email_subscription',
+        recordRef: email,
+        details: `Admin recorded the customer's agreement to receive trip schedule, promo, and announcement emails for ${email} (inquiry from ${selectedInquiry.name || 'Unknown'}).`,
+      });
+      toast.success('Email updates enabled for this customer.');
+      setShowEnableEmailConfirm(false);
+    } catch (e) {
+      // Leave the confirmation open so the admin can retry without
+      // reopening it — do not show a success state before the save succeeds.
+      toast.error(e.message || 'Could not enable email updates. Please try again.');
+    } finally {
+      setEmailToggleBusy(false);
+    }
+  };
+
   const filtered = filter === 'all'
     ? inquiries
     : inquiries.filter(i => i.status === filter);
@@ -363,7 +455,10 @@ const ContactInquiriesPage = () => {
                         </div>
                       </td>
                       <td data-label="Contact" className="text-sm text-secondary">
-                        <ContactLink inquiry={inq} className="text-secondary" />
+                        <div className="flex items-center gap-6 flex-wrap">
+                          <ContactLink inquiry={inq} className="text-secondary" />
+                          <EmailSubscriptionBadge subscription={inq.email_subscription} />
+                        </div>
                       </td>
                       <td data-label="Message">
                         <div
@@ -497,6 +592,46 @@ const ContactInquiriesPage = () => {
                 </div>
               </div>
 
+              {selectedContact.email && (
+                <div className="mb-16 p-16" style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)' }}>
+                  <div className="flex items-center justify-between gap-8">
+                    <div className="flex items-center gap-8">
+                      <Megaphone size={16} color="var(--primary)" aria-hidden="true" />
+                      <div>
+                        <div className="text-sm fw-700">Email Updates</div>
+                        <div className="text-xs text-secondary">
+                          {selectedInquiry.email_subscription
+                            ? (selectedInquiry.email_subscription.subscribed ? 'Enabled' : 'Disabled')
+                            : 'Not set'}
+                          {selectedInquiry.email_subscription?.updatedAt && (
+                            <>
+                              {' · '}
+                              {selectedInquiry.email_subscription.subscribed ? 'Enabled on' : 'Last updated'}{' '}
+                              {new Date(selectedInquiry.email_subscription.updatedAt).toLocaleDateString('en-PH', {
+                                month: 'short', day: 'numeric', year: 'numeric',
+                              })}
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <label className={`toggle-switch${emailToggleBusy ? ' opacity-50' : ''}`}>
+                      <input
+                        type="checkbox"
+                        checked={!!selectedInquiry.email_subscription?.subscribed}
+                        disabled={emailToggleBusy}
+                        onChange={(e) => handleEmailUpdatesToggle(selectedInquiry, e.target.checked)}
+                        aria-label="Toggle Email Updates"
+                      />
+                      <span className="toggle-slider" />
+                    </label>
+                  </div>
+                  <p className="text-xs text-secondary mt-8">
+                    Send this customer emails when new trip schedules or public announcements are published.
+                  </p>
+                </div>
+              )}
+
               {selectedInquiry.first_response_at && (
                 <div className="text-xs text-tertiary mb-16 flex items-center gap-4">
                   <Clock size={12} aria-hidden="true" />
@@ -557,6 +692,18 @@ const ContactInquiriesPage = () => {
         </div>
         </FocusTrap>
       )}
+
+      <ConfirmModal
+        isOpen={showEnableEmailConfirm}
+        onClose={() => { if (!emailToggleBusy) setShowEnableEmailConfirm(false); }}
+        onConfirm={handleConfirmEnableEmailUpdates}
+        title="Enable email updates?"
+        message="The customer agreed to receive trip schedules, promos, and announcements."
+        confirmLabel="Confirm & Enable"
+        variant="success"
+        icon={Megaphone}
+        loading={emailToggleBusy}
+      />
     </div>
   );
 };

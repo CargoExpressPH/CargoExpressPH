@@ -7,9 +7,13 @@
 // signUnsubscribeToken(); this endpoint can only unsubscribe the address the
 // token was signed for, never an arbitrary one.
 //
-// Flips wants_announcements to false everywhere that address appears —
-// profiles (registered customers) and contact_inquiries (public leads) —
-// since a person shouldn't have to know which list they're on to leave it.
+// Flips the address's row in email_subscriptions to unsubscribed — the sole
+// authoritative source broadcast-announcement reads from (see
+// 20260916150000_email_updates_subscription.sql) — via the
+// unsubscribe_email_updates() RPC, which also mirrors the disable into
+// profiles.wants_announcements (for the separate, pre-existing
+// trip-reschedule courtesy email) and contact_inquiries.wants_announcements
+// (each inquiry's own historical record), all in one transaction.
 //
 // Required Supabase secrets:
 //   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
@@ -114,17 +118,11 @@ serve(async (req) => {
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
   const supabase = createClient(supabaseUrl, serviceRoleKey)
 
-  const { error: profileError } = await supabase
-    .from('profiles')
-    .update({ wants_announcements: false })
-    .ilike('email', email)
-  const { error: inquiryError } = await supabase
-    .from('contact_inquiries')
-    .update({ wants_announcements: false })
-    .ilike('contact_email', email)
-
-  if (profileError || inquiryError) {
-    console.error('[unsubscribe-announcements] update failed:', profileError?.message, inquiryError?.message)
+  const { error: unsubError } = await supabase.rpc('unsubscribe_email_updates', {
+    p_email: email,
+  })
+  if (unsubError) {
+    console.error('[unsubscribe-announcements] unsubscribe_email_updates failed:', unsubError.message)
     return html('<h1>Something went wrong</h1><p>We could not update your preference just now. Please try again shortly.</p>', 500)
   }
 
