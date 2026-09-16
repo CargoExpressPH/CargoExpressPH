@@ -114,6 +114,28 @@ serve(async (req) => {
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
   const supabase = createClient(supabaseUrl, serviceRoleKey)
 
+  const normalizedEmail = email.toLowerCase()
+
+  // email_subscriptions is now the sole recipient source for
+  // broadcast-announcement — this is what actually stops future trip/
+  // announcement emails. profiles/contact_inquiries are kept in sync
+  // best-effort only so the separate, pre-existing trip-reschedule courtesy
+  // email (which reads profiles.wants_announcements directly and is not
+  // otherwise touched by this feature) keeps reflecting the same choice.
+  const { error: subError } = await supabase
+    .from('email_subscriptions')
+    .update({ subscribed: false, unsubscribed_at: new Date().toISOString() })
+    .eq('email', normalizedEmail)
+  if (subError) {
+    console.error('[unsubscribe-announcements] email_subscriptions update failed:', subError.message)
+    return html('<h1>Something went wrong</h1><p>We could not update your preference just now. Please try again shortly.</p>', 500)
+  }
+  await supabase.from('email_subscription_events').insert({
+    email: normalizedEmail,
+    action: 'unsubscribed',
+    source: 'unsubscribe_link',
+  })
+
   const { error: profileError } = await supabase
     .from('profiles')
     .update({ wants_announcements: false })
@@ -124,8 +146,9 @@ serve(async (req) => {
     .ilike('contact_email', email)
 
   if (profileError || inquiryError) {
-    console.error('[unsubscribe-announcements] update failed:', profileError?.message, inquiryError?.message)
-    return html('<h1>Something went wrong</h1><p>We could not update your preference just now. Please try again shortly.</p>', 500)
+    console.warn('[unsubscribe-announcements] legacy mirror update failed:', profileError?.message, inquiryError?.message)
+    // Not fatal: email_subscriptions above is the source of truth for
+    // future sends and has already been updated successfully.
   }
 
   return html(`<h1>You're unsubscribed</h1><p>${escapeHtml(email)} will no longer receive CargoExpress PH announcement emails. You can re-enable this anytime from your profile if you have an account.</p>`)

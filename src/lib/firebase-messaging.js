@@ -17,6 +17,36 @@ const isFcmSupported = () => (
   && 'serviceWorker' in navigator
 );
 
+// sw.js registers on the window `load` event (index.html), not synchronously
+// on script start — see the "Service Worker Registration" block in
+// index.html. A customer who opens the app and immediately taps "Enable
+// Push" can reach this code before that registration has *activated*.
+// `getRegistration('/')` returns the registration the instant it exists,
+// even mid-install, with `.active` still null — and the Push API's
+// `pushManager.subscribe()` (which `getToken()` calls internally) rejects
+// with an InvalidStateError against a registration with no active worker.
+// `navigator.serviceWorker.ready` is the correct primitive here: it only
+// resolves once a registration for this scope has an active worker. It's
+// wrapped in a bounded timeout because an outright registration failure
+// (e.g. /sw.js 404s, or is served the SPA's HTML fallback instead of the
+// real script — see index.html's registration try/catch) would otherwise
+// leave this Promise pending forever instead of failing visibly.
+const SW_READY_TIMEOUT_MS = 10000;
+const getReadyServiceWorkerRegistration = async () => {
+  if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return null;
+  try {
+    return await Promise.race([
+      navigator.serviceWorker.ready,
+      new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Service worker did not become active in time')), SW_READY_TIMEOUT_MS);
+      }),
+    ]);
+  } catch (error) {
+    console.error('[push-debug] getReadyServiceWorkerRegistration: service worker never became active —', error?.message);
+    return null;
+  }
+};
+
 const getMessagingContext = async () => {
   if (!app) {
     console.error('[push-debug] getMessagingContext: firebase app is null (missing VITE_FIREBASE_API_KEY / VITE_FIREBASE_PROJECT_ID at build time)');
@@ -32,9 +62,9 @@ const getMessagingContext = async () => {
   }
 
   const messaging = getMessaging(app);
-  const swRegistration = await navigator.serviceWorker.getRegistration('/');
+  const swRegistration = await getReadyServiceWorkerRegistration();
   if (!swRegistration) {
-    console.error('[push-debug] getMessagingContext: no service worker registration found at scope "/" — is sw.js registered/active?');
+    console.error('[push-debug] getMessagingContext: no ACTIVE service worker registration — is sw.js registered/active? (see getReadyServiceWorkerRegistration log above for why)');
     return null;
   }
   const vapidKey = import.meta.env.VITE_FIREBASE_VAPID_KEY;
