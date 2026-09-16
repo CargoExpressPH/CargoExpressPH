@@ -1,4 +1,4 @@
-﻿CREATE OR REPLACE FUNCTION private.monitor_push_delivery_health()
+CREATE OR REPLACE FUNCTION private.monitor_push_delivery_health()
 RETURNS VOID
 LANGUAGE plpgsql
 SECURITY DEFINER
