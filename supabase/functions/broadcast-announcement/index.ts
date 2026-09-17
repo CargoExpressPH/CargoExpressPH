@@ -83,6 +83,8 @@ async function signUnsubscribeToken(email: string): Promise<string> {
 }
 
 const FONT_STACK = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif"
+const BRAND_HOME_URL = 'https://www.cargo-express-ph.online'
+const BRAND_LOGO_URL = `${BRAND_HOME_URL}/images/logo-nav.png`
 
 /**
  * Branded HTML template: an image banner header, the announcement, a
@@ -164,10 +166,13 @@ function buildAnnouncementEmailHtml(
       <td align="center" style="padding:32px 16px;">
         <table role="presentation" class="ce-container" width="600" cellpadding="0" cellspacing="0" style="width:600px;max-width:600px;background:#FFFFFF;border-radius:12px;overflow:hidden;">
 
-          <!-- Text-based Header -->
+          <!-- CargoExpress PH brand header -->
           <tr>
-            <td align="center" style="padding:40px 32px 24px; border-bottom:1px solid #e2e8f0; background-color:#ffffff;">
-              <h1 style="margin:0; font-family:${FONT_STACK}; font-size:36px; font-weight:800; letter-spacing:-1px;">
+            <td align="center" style="padding:28px 32px 24px; border-bottom:1px solid #e2e8f0; background-color:#ffffff;">
+              <a href="${BRAND_HOME_URL}" target="_blank" rel="noopener" aria-label="CargoExpress PH">
+                <img src="${BRAND_LOGO_URL}" alt="CargoExpress PH" width="64" height="64" style="display:block;width:64px;height:64px;border:0;border-radius:50%;margin:0 auto 14px;" />
+              </a>
+              <h1 style="margin:0; font-family:${FONT_STACK}; font-size:32px; font-weight:800; letter-spacing:-1px;">
                 <span style="color:#10b981;">CARGO</span><span style="color:#0f172a;">EXPRESS PH</span>
               </h1>
               <p style="margin:8px 0 0; font-family:${FONT_STACK}; font-size:14px; color:#64748b; font-weight:500;">
