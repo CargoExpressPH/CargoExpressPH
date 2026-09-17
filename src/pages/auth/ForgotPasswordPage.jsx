@@ -78,6 +78,7 @@ const ForgotPasswordPage = () => {
 
   const handleResend = async () => {
     if (countdown > 0) return;
+    setError('');
     setLoading(true);
     try {
       const result = await resetPassword(email.trim());

@@ -12,6 +12,11 @@ import { getPasswordStrength } from '../../utils/password';
 import useFieldErrors from '../../hooks/useFieldErrors';
 import FieldError, { fieldAttrs, invalidClass } from '../../components/ui/FieldError';
 import { BrandLogo, BrandWordmark } from '../../components/ui/BrandLogo';
+import {
+  INVALID_RECOVERY_LINK_MESSAGE,
+  isUsableRecoverySession,
+  parsePasswordRecoveryUrl,
+} from '../../lib/passwordRecovery';
 
 /* ══════════════════════════════════════════════════════════════════════════
    ResetPasswordPage — World-Class Premium Redesign
@@ -25,12 +30,19 @@ const ResetPasswordPage = () => {
   const [loading,         setLoading]         = useState(false);
   const [error,           setError]           = useState('');
   const [success,         setSuccess]         = useState(false);
-  const [ready,           setReady]           = useState(false);
+  const initialUrlStateRef = useRef(null);
+  if (initialUrlStateRef.current === null) {
+    initialUrlStateRef.current = parsePasswordRecoveryUrl(
+      typeof window === 'undefined' ? '' : window.location.hash,
+    );
+  }
+  const [ready,           setReady]           = useState(Boolean(initialUrlStateRef.current.errorMessage));
   // Set once verification finishes with no usable session — the link is
   // missing, malformed, expired, or already used. Distinct from `ready`,
   // which only means "we're done checking," not "the link was good."
-  const [linkInvalid,     setLinkInvalid]     = useState(false);
-  const { user, loading: authLoading, changePassword, logout } = useAuth();
+  const [linkInvalid,     setLinkInvalid]     = useState(Boolean(initialUrlStateRef.current.errorMessage));
+  const [linkError,       setLinkError]       = useState(initialUrlStateRef.current.errorMessage);
+  const { changePassword, logout } = useAuth();
   const navigate = useNavigate();
 
   // Shared by the 3s auto-redirect and the manual "Go to Sign In" button so
@@ -63,33 +75,9 @@ const ResetPasswordPage = () => {
     });
   }, [logout, navigate]);
 
-  // Cross-tab stranding: a recovery link opens in a new tab while Supabase's
-  // cross-tab sync also lands the original tab on /reset-password. Once that
-  // other tab finishes the reset and logs out, this tab's shared session is
-  // gone too, but it's still sitting on the form with nothing telling it to
-  // leave. Treat "not loading, no user, no success of our own" as exactly
-  // that — the recovery session was pulled out from under this tab — and
-  // send it to /login instead of leaving it stranded.
-  //
-  // The 1s debounce guards against a startup race: on the tab that actually
-  // opened the recovery link, authLoading can briefly flip to false before
-  // initialize() finishes populating `user` from that session. Without the
-  // delay this effect would fire on that flicker and kick the tab to
-  // /login before it ever got a session — and by the time initialize()
-  // caught up, AuthRoute would see it as a normal logged-in user and bounce
-  // it to the dashboard instead. If `user` lands within the window, this
-  // effect re-runs and the pending redirect is cleared before it fires.
-  useEffect(() => {
-    if (!authLoading && !user && !success) {
-      const timer = setTimeout(() => {
-        navigate('/login');
-      }, 1000);
-      return () => clearTimeout(timer);
-    }
-  }, [user, authLoading, success, navigate]);
-
-  // Verify there is an actual usable session instead of assuming a flat delay
-  // was enough. Two things can produce one here:
+  // Verify there is an actual recovery session instead of treating the normal
+  // application `user` state (or any ordinary signed-in session) as proof.
+  // Two things can produce one here:
   //   1. `getSession()` already reflects it — the GoTrue client parses a
   //      recovery link's token out of the URL hash at construction time
   //      (detectSessionInUrl), which on this route usually finishes before
@@ -104,25 +92,45 @@ const ResetPasswordPage = () => {
   useEffect(() => {
     let cancelled = false;
     let settled = false;
+    const initialUrlState = initialUrlStateRef.current;
 
-    const settle = (valid) => {
+    const settle = (valid, message = '') => {
       if (cancelled || settled) return;
       settled = true;
       setReady(true);
       setLinkInvalid(!valid);
+      setLinkError(valid ? '' : (message || INVALID_RECOVERY_LINK_MESSAGE));
     };
 
+    if (initialUrlState.errorMessage) {
+      if (typeof window !== 'undefined') {
+        window.history.replaceState(
+          window.history.state,
+          '',
+          `${window.location.pathname}${window.location.search}`,
+        );
+      }
+      return () => { cancelled = true; };
+    }
+
     supabase.auth.getSession()
-      .then(({ data }) => { if (data?.session) settle(true); })
+      .then(({ data }) => {
+        if (isUsableRecoverySession({
+          session: data?.session,
+          initialRecoveryIntent: initialUrlState.hasRecoveryIntent,
+        })) {
+          settle(true);
+        }
+      })
       .catch(() => {});
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (session && (event === 'PASSWORD_RECOVERY' || event === 'SIGNED_IN' || event === 'INITIAL_SESSION')) {
+      if (isUsableRecoverySession({ event, session })) {
         settle(true);
       }
     });
 
-    const timer = setTimeout(() => settle(false), 4000);
+    const timer = setTimeout(() => settle(false, INVALID_RECOVERY_LINK_MESSAGE), 4000);
 
     return () => {
       cancelled = true;
@@ -230,8 +238,7 @@ const ResetPasswordPage = () => {
             </div>
             <h1 className="fp-title">Link Expired or Invalid</h1>
             <p className="fp-subtitle">
-              This password reset link is no longer valid — it may have already been used, or it has expired.
-              Request a new one and we'll send a fresh link.
+              {linkError || INVALID_RECOVERY_LINK_MESSAGE}
             </p>
           </div>
           <Link to="/forgot-password" className="auth-submit-btn text-no-underline mt-12">

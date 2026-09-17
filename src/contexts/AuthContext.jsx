@@ -27,6 +27,12 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [authTransition, setAuthTransition] = useState(null);
 
+  // Supabase shares auth events across tabs. Remember whether this particular
+  // tab opened the recovery URL so another tab is not unexpectedly hijacked.
+  const recoveryLinkDetected = useRef(
+    typeof window !== 'undefined' && window.location.hash.includes('type=recovery'),
+  );
+
   // Flag to prevent onAuthStateChange from fetching profile during login/registration.
   // The login() and register() functions handle fetchProfile themselves.
   const isAuthAction = useRef(false);
@@ -46,7 +52,7 @@ export const AuthProvider = ({ children }) => {
     // (below) before this effect's listener even subscribes. Checking the
     // hash directly, synchronously, on mount closes that race outright rather
     // than hoping the event is still in flight when we ask.
-    if (window.location.hash.includes('type=recovery') && window.location.pathname !== '/reset-password') {
+    if (recoveryLinkDetected.current && window.location.pathname !== '/reset-password') {
       // replace(), not assign(): this carries the raw recovery token in the
       // URL hash, and assign() would push it into browser history as its own
       // entry — a Back navigation later would return to a URL containing
@@ -65,7 +71,7 @@ export const AuthProvider = ({ children }) => {
           return;
         }
 
-        if (session?.user) {
+        if (session?.user && !recoveryLinkDetected.current) {
           if (isMounted) setUser(session.user);
           fetchProfile(session.user.id, isMounted);
         } else {
@@ -106,12 +112,13 @@ export const AuthProvider = ({ children }) => {
         if (event === 'PASSWORD_RECOVERY') {
           setAuthTransition(null);
           setLoading(false);
-          if (window.location.pathname !== '/reset-password') {
+          if (recoveryLinkDetected.current && window.location.pathname !== '/reset-password') {
             // replace(), not assign() — see the hash-detection branch above
             // for why: this fires on a tab that wasn't the one that opened
             // the recovery link (cross-tab session sync), and it should swap
-            // that tab to /reset-password without adding a history entry the
-            // customer could Back into.
+            // the tab that opened the recovery URL to /reset-password without
+            // adding a history entry the customer could Back into. Other tabs
+            // receive the shared event but must not be hijacked.
             window.location.replace('/reset-password');
           }
           return;
