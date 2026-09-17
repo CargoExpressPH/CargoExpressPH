@@ -3,7 +3,7 @@ import { emitNotificationsChanged } from './notification-events';
 import { logOrder, logChat } from './activityLog';
 import { validateStatusTransition, outstandingBalance, finalShippingFee, ORDER_STATUS, tripCapacityState, tripCapacityRefusal, canAdminCancelOrder } from '../constants/status';
 import { detectPickupLocation } from '../constants/phLocations';
-import { phDayRangeISO, formatPhDate } from '../utils/datetime';
+import { phDayRangeISO, formatPhDate, phDateKey } from '../utils/datetime';
 
 // ==================== HELPER ====================
 // Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
@@ -970,6 +970,97 @@ export const updateTrip = async (tripId, updates) => {
   // jobs are committed atomically by the database trip trigger.
   return data;
 };
+
+/**
+ * Reschedule a trip's dates through the `reschedule_trip` RPC, optionally
+ * emailing the schedule change to every enabled Email Updates subscriber —
+ * not just customers booked on this trip.
+ *
+ * "Genuine change" and the private/public email coordination both live in
+ * the database (reschedule_trip + the trigger it coordinates with, see
+ * 20260917100000_public_trip_reschedule_broadcast.sql): this function only
+ * asks for the public broadcast when the RPC itself reports
+ * `schedule_changed`, so an unchanged-dates save or a duplicate submit never
+ * queues a second notice.
+ *
+ * The public broadcast reuses the exact same announcements +
+ * broadcast-announcement pipeline createTrip() already uses for "announce
+ * via email" on a new trip — same recipient source (email_subscriptions),
+ * same durable job/idempotency machinery. Unlike createTrip's fire-and-forget
+ * call, this one is awaited so the admin gets a truthful, synchronous
+ * "email could not be completed" instead of a silent console warning — a
+ * reschedule notice is worth failing loudly on, since the button explicitly
+ * promised subscribers would be emailed.
+ *
+ * Returns `{ trip, scheduleChanged, announcementId, emailQueued, emailError }`.
+ * `announcementId` (when set) can be passed to `retryAnnouncementBroadcast`
+ * to retry a failed/partial send without touching the trip again.
+ */
+export const rescheduleTrip = async (tripId, {
+  departure_date, arrival_date, notify_all_subscribers = false, public_reason = '',
+}, tripContext) => {
+  const { data: rpcResult, error: rpcError } = await supabase.rpc('reschedule_trip', {
+    p_trip_id: tripId,
+    p_departure_date: departure_date,
+    p_arrival_date: arrival_date,
+    p_notify_all_subscribers: notify_all_subscribers,
+    p_public_reason: public_reason || null,
+  });
+  if (rpcError) throw rpcError;
+
+  const trip = rpcResult.trip;
+  const scheduleChanged = Boolean(rpcResult.schedule_changed);
+
+  let announcementId = null;
+  let emailQueued = false;
+  let emailError = null;
+
+  if (notify_all_subscribers && scheduleChanged) {
+    const origin = tripContext?.origin || trip.origin;
+    const destination = tripContext?.destination || trip.destination;
+    const bookable = phDateKey(trip.departure_date) >= phDateKey(new Date().toISOString())
+      && trip.status === 'scheduled';
+    const reasonLine = rpcResult.public_reason ? `\nReason: ${rpcResult.public_reason}` : '';
+
+    try {
+      const { data: user } = await supabase.auth.getUser();
+      const { data: announcement, error: insertError } = await supabase
+        .from('announcements')
+        .insert({
+          title: `Schedule Update: ${origin} → ${destination}`,
+          content: `The trip from ${origin} to ${destination} previously scheduled for `
+            + `${formatPhDate(rpcResult.old_departure_date)} has a new schedule: `
+            + `${formatPhDate(trip.departure_date)}${trip.arrival_date ? ` (arriving ${formatPhDate(trip.arrival_date)})` : ''}.`
+            + `${reasonLine}`,
+          send_email: true,
+          cta_label: bookable ? 'Book This Trip' : 'View Updated Schedule',
+          cta_url: 'https://cargoexpress-ph.online/schedules',
+          author_id: user?.user?.id,
+        })
+        .select()
+        .single();
+      if (insertError) throw insertError;
+      announcementId = announcement.id;
+
+      const { error: broadcastError } = await supabase.functions.invoke('broadcast-announcement', {
+        body: { announcement_id: announcementId },
+      });
+      if (broadcastError) throw broadcastError;
+      emailQueued = true;
+    } catch (err) {
+      emailError = err?.message || 'Email notification could not be completed.';
+    }
+  }
+
+  return { trip, scheduleChanged, announcementId, emailQueued, emailError };
+};
+
+/** Retry a previously-created reschedule (or any) announcement broadcast
+ * without changing anything about the trip/announcement itself — safe to
+ * call repeatedly, since already-accepted recipients are never re-sent
+ * (see announcement_email_recipients' per-recipient idempotency). */
+export const retryTripReschedulePublicNotice = (announcementId) =>
+  retryAnnouncementBroadcast(announcementId);
 
 export const deleteTrip = async (tripId) => {
   const { error } = await supabase

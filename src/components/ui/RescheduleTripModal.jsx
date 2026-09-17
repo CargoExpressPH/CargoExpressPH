@@ -35,6 +35,8 @@ const RescheduleTripModal = ({ trip, onClose, onReschedule }) => {
     departure_date: phDateKey(trip.departure_date),
     arrival_date: phDateKey(trip.arrival_date),
   });
+  const [notifyAllSubscribers, setNotifyAllSubscribers] = useState(false);
+  const [publicReason, setPublicReason] = useState('');
   const [saving, setSaving] = useState(false);
   const { errors, validate, clearError, setError, containerRef } = useFieldErrors();
 
@@ -85,7 +87,12 @@ const RescheduleTripModal = ({ trip, onClose, onReschedule }) => {
         return;
       }
 
-      await onReschedule({ departure_date: departureISO, arrival_date: arrivalISO });
+      await onReschedule({
+        departure_date: departureISO,
+        arrival_date: arrivalISO,
+        notify_all_subscribers: notifyAllSubscribers,
+        public_reason: notifyAllSubscribers ? publicReason.trim() : '',
+      });
     } catch {
       // Save error handled by parent (toast); modal stays open to retry.
     } finally {
@@ -144,6 +151,45 @@ const RescheduleTripModal = ({ trip, onClose, onReschedule }) => {
                 aria-describedby={errors.arrival_date ? 'reschedule-arrival-date-error' : undefined}
               />
               <FieldError name="arrival_date" errors={errors} id="reschedule-arrival-date-error" />
+            </div>
+
+            <div className="form-group mb-0" style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
+              <label className="checkbox-label" style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                <input
+                  type="checkbox"
+                  checked={notifyAllSubscribers}
+                  onChange={(e) => setNotifyAllSubscribers(e.target.checked)}
+                  disabled={saving}
+                />
+                <span>
+                  Email this schedule update to all subscribers
+                  <br />
+                  <small style={{ color: 'var(--text-tertiary)', fontWeight: 400 }}>
+                    Sends a public notice (route, previous/new schedule, no booking details) to
+                    everyone with Email Updates enabled — including inquiry-only subscribers and
+                    customers not booked on this trip. Customers already booked on this trip and
+                    opted in still get their own private schedule-change email either way, never
+                    both.
+                  </small>
+                </span>
+              </label>
+              {notifyAllSubscribers && (
+                <div className="form-group" style={{ marginTop: 12, marginBottom: 0 }}>
+                  <label className="form-label" htmlFor="reschedule-public-reason">
+                    Reason (optional, shown to subscribers)
+                  </label>
+                  <textarea
+                    id="reschedule-public-reason"
+                    className="form-input"
+                    rows={2}
+                    maxLength={280}
+                    value={publicReason}
+                    onChange={(e) => setPublicReason(e.target.value)}
+                    disabled={saving}
+                    placeholder="e.g. Adjusted due to weather advisory"
+                  />
+                </div>
+              )}
             </div>
           </div>
 

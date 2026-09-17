@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { getTripById, updateTrip, getActivityLogsByRecord } from '../../lib/database';
+import { getTripById, updateTrip, getActivityLogsByRecord, rescheduleTrip, retryTripReschedulePublicNotice } from '../../lib/database';
 import StatusBadge from '../../components/ui/StatusBadge';
 import ConfirmModal from '../../components/ui/ConfirmModal';
 import RescheduleTripModal from '../../components/ui/RescheduleTripModal';
@@ -25,6 +25,8 @@ const TripDetailPage = () => {
   const [saving, setSaving] = useState(false);
   const [confirmAction, setConfirmAction] = useState(null);
   const [showRescheduleModal, setShowRescheduleModal] = useState(false);
+  const [pendingRescheduleNotice, setPendingRescheduleNotice] = useState(null);
+  const [retryingNotice, setRetryingNotice] = useState(false);
   const toast = useToast();
 
   useEffect(() => {
@@ -132,20 +134,55 @@ const TripDetailPage = () => {
   // strings; this just does the write, logs it, and refreshes. Errors are
   // caught here (not swallowed in the modal) so the toast fires and the
   // modal's own catch just keeps it open for another try.
-  const handleReschedule = async ({ departure_date, arrival_date }) => {
+  const handleReschedule = async ({ departure_date, arrival_date, notify_all_subscribers, public_reason }) => {
     try {
-      await updateTrip(id, { departure_date, arrival_date });
-      logTrip('Trip Rescheduled', id, trip.trip_number, {
-        previousValue: { departure_date: trip.departure_date, arrival_date: trip.arrival_date },
-        newValue: { departure_date, arrival_date },
-        details: `Schedule updated to depart ${formatPhDate(departure_date)}`,
-      });
+      const result = await rescheduleTrip(id, {
+        departure_date, arrival_date, notify_all_subscribers, public_reason,
+      }, { origin: trip.origin, destination: trip.destination });
+
+      if (result.scheduleChanged) {
+        logTrip('Trip Rescheduled', id, trip.trip_number, {
+          previousValue: { departure_date: trip.departure_date, arrival_date: trip.arrival_date },
+          newValue: { departure_date, arrival_date },
+          details: `Schedule updated to depart ${formatPhDate(departure_date)}`
+            + (notify_all_subscribers ? ' (public subscriber notice requested)' : ''),
+        });
+      }
       await load();
-      toast.success('Trip schedule updated.');
+
+      if (!notify_all_subscribers || !result.scheduleChanged) {
+        toast.success('Trip schedule updated.');
+      } else if (result.emailQueued) {
+        toast.success('Trip schedule updated. Subscriber email notification sent.');
+        setPendingRescheduleNotice(null);
+      } else {
+        toast.error('Schedule updated. Email notification could not be completed.');
+        setPendingRescheduleNotice({ announcementId: result.announcementId, error: result.emailError });
+      }
       setShowRescheduleModal(false);
     } catch (e) {
       toast.error(e.message || 'Failed to update trip schedule.');
       throw e;
+    }
+  };
+
+  const handleRetryRescheduleNotice = async () => {
+    if (!pendingRescheduleNotice?.announcementId) return;
+    setRetryingNotice(true);
+    try {
+      const result = await retryTripReschedulePublicNotice(pendingRescheduleNotice.announcementId);
+      if (result?.state === 'completed') {
+        toast.success('Subscriber email notification sent.');
+        setPendingRescheduleNotice(null);
+      } else if (result?.state === 'partial' || result?.state === 'busy') {
+        toast.success(`Still sending: ${result.accepted ?? 0} accepted so far. Retry again to continue.`);
+      } else {
+        toast.error('Email notification still could not be completed. You can retry again.');
+      }
+    } catch (e) {
+      toast.error(e.message || 'Retry failed. The schedule itself was not changed.');
+    } finally {
+      setRetryingNotice(false);
     }
   };
 
@@ -246,6 +283,24 @@ const TripDetailPage = () => {
               </button>
             )}
           </div>
+          {pendingRescheduleNotice && (
+            <div className="alert-banner alert-banner-warning mb-12" role="alert" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+              <span>
+                Schedule updated, but the subscriber email notification could not be completed
+                {pendingRescheduleNotice.error ? `: ${pendingRescheduleNotice.error}` : '.'}
+              </span>
+              {pendingRescheduleNotice.announcementId && (
+                <button
+                  type="button"
+                  className="btn btn-outline btn-sm"
+                  onClick={handleRetryRescheduleNotice}
+                  disabled={retryingNotice}
+                >
+                  {retryingNotice ? <Loader size={14} className="animate-spin" /> : null} Retry email notification
+                </button>
+              )}
+            </div>
+          )}
           <div className="grid grid-2 gap-16">
             <div>
               <div className="text-xs text-tertiary">Scheduled Departure</div>

@@ -95,7 +95,52 @@ const FONT_STACK = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica
  * engine, none of which reliably support modern CSS in email. `title` and
  * `contentHtml` must already be HTML-escaped by the caller.
  */
-function buildAnnouncementEmailHtml(title: string, contentHtml: string, unsubscribeUrl: string): string {
+function buildAnnouncementEmailHtml(
+  title: string,
+  contentHtml: string,
+  unsubscribeUrl: string,
+  cta: { label: string; url: string } | null = null,
+): string {
+  // A trip-reschedule public notice (or any future announcement with an
+  // explicit cta_label/cta_url, see 20260917100000_public_trip_reschedule_
+  // broadcast.sql) gets its own real button instead of the generic
+  // "Visit CargoExpress PH" signup pitch, which doesn't make sense for a
+  // notice that's already about a specific trip.
+  const ctaBlock = cta ? `
+          <!-- CTA -->
+          <tr>
+            <td class="ce-padding" align="center" style="padding:28px 32px 8px;">
+              <table role="presentation" cellpadding="0" cellspacing="0" align="center">
+                <tr>
+                  <td style="border-radius:8px;background:#16A34A;">
+                    <a href="${cta.url}" target="_blank" rel="noopener"
+                       style="display:inline-block;padding:14px 36px;font-family:${FONT_STACK};font-size:15px;font-weight:700;color:#FFFFFF;text-decoration:none;border-radius:8px;">
+                      ${cta.label}
+                    </a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>` : `
+          <!-- CTA -->
+          <tr>
+            <td class="ce-padding" align="center" style="padding:28px 32px 8px;">
+              <p style="margin:0 0 20px;font-family:${FONT_STACK};font-size:14px;line-height:1.7;color:#57635D;">
+                Gusto mo bang mas mapadali ang padala mo? Para makapag-book nang mabilis, ma-track ang status ng iyong cargo nang real-time, at makatanggap ng exclusive updates, gumawa na ng libreng account sa amin!
+              </p>
+              <table role="presentation" cellpadding="0" cellspacing="0" align="center">
+                <tr>
+                  <td style="border-radius:8px;background:#16A34A;">
+                    <a href="https://cargoexpress-ph.online" target="_blank" rel="noopener"
+                       style="display:inline-block;padding:14px 36px;font-family:${FONT_STACK};font-size:15px;font-weight:700;color:#FFFFFF;text-decoration:none;border-radius:8px;">
+                      Visit CargoExpress PH
+                    </a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>`
+
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -146,24 +191,7 @@ function buildAnnouncementEmailHtml(title: string, contentHtml: string, unsubscr
             </td>
           </tr>
 
-          <!-- CTA -->
-          <tr>
-            <td class="ce-padding" align="center" style="padding:28px 32px 8px;">
-              <p style="margin:0 0 20px;font-family:${FONT_STACK};font-size:14px;line-height:1.7;color:#57635D;">
-                Gusto mo bang mas mapadali ang padala mo? Para makapag-book nang mabilis, ma-track ang status ng iyong cargo nang real-time, at makatanggap ng exclusive updates, gumawa na ng libreng account sa amin!
-              </p>
-              <table role="presentation" cellpadding="0" cellspacing="0" align="center">
-                <tr>
-                  <td style="border-radius:8px;background:#16A34A;">
-                    <a href="https://cargoexpress-ph.online" target="_blank" rel="noopener"
-                       style="display:inline-block;padding:14px 36px;font-family:${FONT_STACK};font-size:15px;font-weight:700;color:#FFFFFF;text-decoration:none;border-radius:8px;">
-                      Visit CargoExpress PH
-                    </a>
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
+          ${ctaBlock}
 
           <!-- About Us -->
           <tr>
@@ -269,6 +297,9 @@ serve(async (req) => {
             escapeHtml(subject),
             escapeHtml(content).replace(/\n/g, '<br>'),
             unsubscribeUrl,
+            typeof claim.cta_label === 'string' && typeof claim.cta_url === 'string'
+              ? { label: claim.cta_label, url: claim.cta_url }
+              : null,
           ),
           headers: {
             'List-Unsubscribe': `<${unsubscribeUrl}>`,

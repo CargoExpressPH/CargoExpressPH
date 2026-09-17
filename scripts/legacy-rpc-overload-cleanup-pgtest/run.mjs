@@ -22,8 +22,9 @@
 import { PGlite } from '@electric-sql/pglite';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const HERE = path.dirname(new URL(import.meta.url).pathname);
+const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO = path.resolve(HERE, '..', '..');
 const SHIPPING_DISCOUNT_HARNESS = path.join(REPO, 'scripts/shipping-discount-pgtest/harness-schema.sql');
 

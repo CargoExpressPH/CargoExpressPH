@@ -375,7 +375,24 @@ const AnnouncementsPage = () => {
                       • {a.emailed_at
                         ? `Emailed ${formatPhDate(a.emailed_at)}`
                         : emailJob
-                          ? `Email ${emailJob.status}: ${emailJob.accepted_count || 0} accepted, ${emailJob.retryable_count || 0} retryable, ${(emailJob.failed_count || 0) + (emailJob.needs_review_count || 0)} need review`
+                          ? (() => {
+                              // "Accepted" means the email provider took it, not that it
+                              // reached an inbox — see N-3 in
+                              // POST_DEPLOYMENT_TARGETED_FIX_REPORT.md. `pending` (never
+                              // yet attempted, e.g. beyond the 25-per-invocation cap) was
+                              // previously invisible here, which could read as "basically
+                              // done" on a large list that was actually mostly untouched.
+                              const total = emailJob.total_recipients || 0;
+                              const accepted = emailJob.accepted_count || 0;
+                              const skipped = emailJob.skipped_count || 0;
+                              const retryable = emailJob.retryable_count || 0;
+                              const review = (emailJob.failed_count || 0) + (emailJob.needs_review_count || 0);
+                              const pending = Math.max(0, total - accepted - skipped - retryable - review);
+                              return `Email ${emailJob.status}: ${accepted} accepted by provider, `
+                                + `${pending} pending, ${retryable} retry needed, ${review} need review`
+                                + (skipped ? `, ${skipped} skipped` : '')
+                                + ` (of ${total})`;
+                            })()
                           : 'Email queued'}
                     </span>
                   )}
