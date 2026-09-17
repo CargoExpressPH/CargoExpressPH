@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 import {
@@ -42,38 +42,41 @@ const ResetPasswordPage = () => {
   // which only means "we're done checking," not "the link was good."
   const [linkInvalid,     setLinkInvalid]     = useState(Boolean(initialUrlStateRef.current.errorMessage));
   const [linkError,       setLinkError]       = useState(initialUrlStateRef.current.errorMessage);
-  const { changePassword, logout } = useAuth();
+  const { changePassword, logout, discardPasswordRecovery } = useAuth();
   const navigate = useNavigate();
 
-  // Shared by the 3s auto-redirect and the manual "Go to Sign In" button so
-  // both paths behave identically: the recovery link left an active Supabase
-  // session, and it must be destroyed before navigating to /login, otherwise
-  // AuthRoute sees a logged-in user and bounces them to their dashboard
-  // instead of the login form where they can confirm the new password. The
-  // ref guards against running it twice if the button is clicked just before
-  // the timeout fires.
+  // Every way out of this page must destroy the temporary recovery session
+  // before navigating. Clicking a recovery email creates a real Supabase
+  // session, and leaving it alive makes /login look like an already signed-in
+  // visit. It also makes a reused one-time email link appear to log the user
+  // in instead of showing the expired-link state. The ref prevents duplicate
+  // sign-outs when an automatic redirect and a click happen together.
   const navigatedAwayRef = useRef(false);
-  const goToSignIn = useCallback(async () => {
+  const leaveRecovery = useCallback(async (endSession, destination, state = null) => {
     if (navigatedAwayRef.current) return;
     navigatedAwayRef.current = true;
-    await logout();
-    // Email clients force recovery links open in a new tab. If this tab is
-    // that new one, closing it drops the customer back on their original
-    // tab, which the effect below auto-redirects to /login. Browsers only
-    // allow a script to close a tab it opened itself, so this silently
-    // no-ops (and falls through to navigate) when it wasn't.
-    window.close();
-    // `replace: true` drops this completed reset form from history so Back
-    // from /login lands on whatever preceded it, not a stale success screen
-    // whose recovery session has already been destroyed by logout() above.
-    // The message rides in router state (not a query/hash param) so it never
-    // ends up in browser history or server logs, and only shows once — a
-    // manual reload of /login won't have this state and won't repeat it.
-    navigate('/login', {
-      replace: true,
-      state: { flashMessage: 'Password updated successfully. Please sign in with your new password.' },
-    });
-  }, [logout, navigate]);
+    try {
+      await endSession();
+    } finally {
+      navigate(destination, { replace: true, state });
+    }
+  }, [navigate]);
+
+  // A completed password change intentionally uses the full logout path,
+  // revoking the recovery session. Cancelling uses local-only cleanup so it
+  // does not sign the customer out on unrelated devices.
+  const goToSignIn = useCallback(() => leaveRecovery(logout, '/login', {
+    flashMessage: 'Password updated successfully. Please sign in with your new password.',
+  }), [leaveRecovery, logout]);
+
+  const cancelRecovery = useCallback(
+    () => leaveRecovery(discardPasswordRecovery, '/login'),
+    [discardPasswordRecovery, leaveRecovery],
+  );
+  const requestNewLink = useCallback(
+    () => leaveRecovery(discardPasswordRecovery, '/forgot-password'),
+    [discardPasswordRecovery, leaveRecovery],
+  );
 
   // Verify there is an actual recovery session instead of treating the normal
   // application `user` state (or any ordinary signed-in session) as proof.
@@ -241,15 +244,24 @@ const ResetPasswordPage = () => {
               {linkError || INVALID_RECOVERY_LINK_MESSAGE}
             </p>
           </div>
-          <Link to="/forgot-password" className="auth-submit-btn text-no-underline mt-12">
+          <button
+            type="button"
+            onClick={requestNewLink}
+            className="auth-submit-btn text-no-underline mt-12"
+          >
             Request New Link
-          </Link>
+          </button>
           <div className="auth-card-footer">
             <p>
-              <Link to="/login" className="auth-link">
+              <button
+                type="button"
+                onClick={cancelRecovery}
+                className="auth-link bg-none border-none cursor-pointer p-0"
+                style={{ font: 'inherit' }}
+              >
                 <ArrowLeft size={12} style={{ verticalAlign: 'middle', marginRight: 2 }} />
                 Back to Sign In
-              </Link>
+              </button>
             </p>
           </div>
         </div>
@@ -448,10 +460,15 @@ const ResetPasswordPage = () => {
 
           <div className="auth-card-footer">
             <p>
-              <Link to="/login" className="auth-link">
+              <button
+                type="button"
+                onClick={cancelRecovery}
+                className="auth-link bg-none border-none cursor-pointer p-0"
+                style={{ font: 'inherit' }}
+              >
                 <ArrowLeft size={12} style={{ verticalAlign: 'middle', marginRight: 2 }} />
                 Back to Sign In
-              </Link>
+              </button>
             </p>
           </div>
         </div>

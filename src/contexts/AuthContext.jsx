@@ -21,6 +21,16 @@ const getPasswordResetRedirectUrl = () => {
   return `${fallback.replace(/\/+$/, '')}/reset-password`;
 };
 
+const clearSupabaseAuthStorage = () => {
+  try {
+    Object.keys(localStorage)
+      .filter(k => k.startsWith('sb-') || k === 'supabase.auth.token')
+      .forEach(k => localStorage.removeItem(k));
+  } catch {
+    // Storage access can fail in some browsers (for example incognito Safari).
+  }
+};
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
@@ -417,9 +427,7 @@ export const AuthProvider = ({ children }) => {
     // Remove only account/session data; preserve unrelated device preferences.
     try {
       clearBookingDraftStorage(signedInUserId);
-      Object.keys(localStorage)
-        .filter(k => k.startsWith('sb-') || k === 'supabase.auth.token')
-        .forEach(k => localStorage.removeItem(k));
+      clearSupabaseAuthStorage();
       sessionStorage.removeItem('fcm_asked');
       sessionStorage.removeItem('admin_fcm_asked');
     } catch (e) {
@@ -434,6 +442,28 @@ export const AuthProvider = ({ children }) => {
     
     return { success: true };
   }, [user, userProfile]);
+
+  // A password-recovery token creates a temporary authenticated session, but
+  // abandoning the reset is not a normal account logout. Remove that session
+  // from this browser only: do not revoke sessions on the customer's other
+  // devices, write a logout activity entry, or disable push notifications.
+  const discardPasswordRecovery = useCallback(async () => {
+    lastProfileUserId.current = null;
+    setAuthTransition(null);
+    setUser(null);
+    setUserProfile(null);
+    setLoading(false);
+
+    try {
+      await supabase.auth.signOut({ scope: 'local' });
+    } catch {
+      // Local cleanup below is the reliable fallback when the SDK cannot
+      // complete its own storage operation (for example restricted storage).
+    }
+    clearSupabaseAuthStorage();
+
+    return { success: true };
+  }, []);
 
   const resetPassword = useCallback(async (email) => {
     try {
@@ -527,11 +557,12 @@ export const AuthProvider = ({ children }) => {
     register,
     completeRegistrationTransition,
     logout,
+    discardPasswordRecovery,
     resetPassword,
     changePassword,
     changeEmail,
     refreshProfile,
-  }), [user, userProfile, loading, authTransition, logout, resetPassword, changePassword, changeEmail, refreshProfile, completeRegistrationTransition]);
+  }), [user, userProfile, loading, authTransition, logout, discardPasswordRecovery, resetPassword, changePassword, changeEmail, refreshProfile, completeRegistrationTransition]);
 
   return (
     <AuthContext.Provider value={value}>

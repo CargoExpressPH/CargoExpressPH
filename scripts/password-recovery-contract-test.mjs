@@ -56,7 +56,31 @@ assert.doesNotMatch(
 );
 assert.match(resetPage, /event, session[\s\S]*isUsableRecoverySession/);
 assert.match(resetPage, /window\.history\.replaceState/);
+assert.match(
+  resetPage,
+  /const leaveRecovery[\s\S]*await endSession\(\)[\s\S]*navigate\(destination/,
+  'Every recovery-page exit must destroy the temporary session before navigating.',
+);
+assert.match(resetPage, /leaveRecovery\(logout, '\/login'/);
+assert.match(resetPage, /leaveRecovery\(discardPasswordRecovery, '\/login'/);
+assert.match(resetPage, /leaveRecovery\(discardPasswordRecovery, '\/forgot-password'/);
+assert.match(resetPage, /onClick=\{requestNewLink\}/);
+assert.equal(
+  (resetPage.match(/onClick=\{cancelRecovery\}/g) || []).length,
+  2,
+  'Both valid and invalid recovery states must sign out before returning to login.',
+);
+assert.doesNotMatch(
+  resetPage,
+  /<Link to="\/(?:login|forgot-password)"[^>]*>[\s\S]{0,200}(?:Back to Sign In|Request New Link)/,
+  'Recovery exits must not bypass session cleanup with a plain route link.',
+);
 assert.match(forgotPage, /const handleResend[\s\S]*setError\(''\)/);
 assert.match(authContext, /recoveryLinkDetected\.current && window\.location\.pathname !== '\/reset-password'/);
+assert.match(
+  authContext,
+  /const discardPasswordRecovery[\s\S]*signOut\(\{ scope: 'local' \}\)/,
+  'Abandoning recovery must clear only the browser recovery session, not other device sessions.',
+);
 
 console.log('Password recovery contract tests passed.');
