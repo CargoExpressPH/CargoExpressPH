@@ -207,14 +207,19 @@ const TripDetailPage = () => {
   // problem to name first.
   const pendingCancellationOrders = orders.filter(o => o.status === 'Pending Cancellation');
   const notYetPickedUp = orders.filter(o => o.status === 'Pending' || o.status === 'Assigned');
+  const eligibleOrders = orders.filter(o => !['Cancelled', 'Pending Cancellation', 'Pending', 'Assigned'].includes(o.status));
+  const eligibleWeight = eligibleOrders.reduce((sum, o) => sum + (Number(o.actual_weight) || 0), 0);
+
   const startTripBlockReason =
-    orders.length === 0
-      ? 'No bookings are assigned to this trip yet.'
-      : pendingCancellationOrders.length > 0
-        ? `${pendingCancellationOrders.length} order${pendingCancellationOrders.length === 1 ? '' : 's'} awaiting a cancellation decision: ${pendingCancellationOrders.slice(0, 3).map(o => o.tracking_number).join(', ')}${pendingCancellationOrders.length > 3 ? '…' : ''}. Approve or decline before starting.`
-        : notYetPickedUp.length > 0
-          ? `${notYetPickedUp.length} order${notYetPickedUp.length === 1 ? '' : 's'} not yet picked up: ${notYetPickedUp.slice(0, 3).map(o => o.tracking_number).join(', ')}${notYetPickedUp.length > 3 ? '…' : ''}.`
-          : null;
+    pendingCancellationOrders.length > 0
+      ? `${pendingCancellationOrders.length} order${pendingCancellationOrders.length === 1 ? '' : 's'} awaiting a cancellation decision: ${pendingCancellationOrders.slice(0, 3).map(o => o.tracking_number).join(', ')}${pendingCancellationOrders.length > 3 ? '…' : ''}. Approve or decline before starting.`
+      : notYetPickedUp.length > 0
+        ? `${notYetPickedUp.length} order${notYetPickedUp.length === 1 ? '' : 's'} not yet picked up: ${notYetPickedUp.slice(0, 3).map(o => o.tracking_number).join(', ')}${notYetPickedUp.length > 3 ? '…' : ''}.`
+        : eligibleOrders.length === 0
+          ? 'Cannot start trip: no active shipments are ready for departure.'
+          : eligibleWeight <= 0
+            ? 'Cannot start trip: record pickup and actual cargo weight first.'
+            : null;
   const canStartTrip = !startTripBlockReason;
 
   return (
