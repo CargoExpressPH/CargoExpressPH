@@ -307,11 +307,7 @@ const ManualRefundModal = ({ transaction, order, onClose, onSuccess }) => {
                   disabled={saving}
                 />
                 <p id="manual-refund-reference-help" className="form-hint">
-                  Enter the reference number from the completed GCash transfer receipt — the
-                  reference of the refund transfer you just sent, not the customer's original
-                  payment, an email/phone number, or an internal payment ID. This confirms the
-                  reference is formatted like a real one; it does not by itself prove the transfer
-                  happened — that's what the confirmation checkbox below is for.
+                  Enter the GCash reference number from the completed refund transfer.
                 </p>
                 {returnReference && !referenceCheck.valid && (
                   <p className="form-hint" style={{ color: 'var(--error-text)' }}>{referenceCheck.error}</p>
