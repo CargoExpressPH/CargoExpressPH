@@ -15,6 +15,32 @@
 // trip-reschedule courtesy email) and contact_inquiries.wants_announcements
 // (each inquiry's own historical record), all in one transaction.
 //
+// This endpoint is JSON-only, not HTML. The confirmation page a recipient
+// actually sees is rendered by the frontend at /unsubscribe (see
+// src/pages/public/UnsubscribePage.jsx) — hosted platform edge-function
+// deployments have been observed to not reliably serve a styled HTML
+// document for this route, so the page lives in the app itself and this
+// function is reduced to two safe primitives it always controls:
+//
+//   GET  ?email=&token=            -> 302 redirect to the frontend page,
+//                                      carrying the same query string. Never
+//                                      mutates — safe for email security
+//                                      scanners / link-preview bots that
+//                                      prefetch every link in an email body.
+//   GET  ?email=&token=&check=1    -> JSON status check (valid / already
+//                                      unsubscribed / invalid), used by the
+//                                      frontend page on load. Never mutates.
+//   POST ?email=&token=            -> performs the unsubscribe and returns
+//                                      JSON. Used both by the frontend's
+//                                      explicit "Unsubscribe" button AND by
+//                                      RFC 8058 one-click (mail clients POST
+//                                      here directly per List-Unsubscribe /
+//                                      List-Unsubscribe-Post below) — both
+//                                      are deliberate, explicit actions (a
+//                                      person clicking a button), unlike a
+//                                      GET, which a scanner can issue with
+//                                      no human involved.
+//
 // Required Supabase secrets:
 //   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
 //   UNSUBSCRIBE_SIGNING_SECRET — must match broadcast-announcement's value
@@ -22,47 +48,42 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4'
 
+// Hardcoded, not derived from any request header, so the 302 below can never
+// become an open redirect to an attacker-controlled host. Matches the
+// domain already hardcoded in broadcast-announcement's/email-trip-reschedule's
+// own email templates.
+const FRONTEND_BASE_URL = 'https://cargoexpress-ph.online'
+
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
   // POST is required for RFC 8058 one-click unsubscribe requests generated
-  // from the List-Unsubscribe-Post header. Both paths carry the signed email
-  // and token in the URL; no unauthenticated body value is trusted.
+  // from the List-Unsubscribe-Post header, and for the frontend page's own
+  // confirm-button call. Both paths carry the signed email and token in the
+  // URL; no unauthenticated body value is trusted.
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'content-type',
+  // authorization/apikey are required because the frontend /unsubscribe page
+  // (src/pages/public/UnsubscribePage.jsx) calls this endpoint directly with
+  // the anon key, the same pattern submit-inquiry uses for its public,
+  // no-session calls.
+  'Access-Control-Allow-Headers': 'content-type, authorization, x-client-info, apikey',
 }
 
-const HTML_SECURITY_HEADERS = {
-  'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
-  'Referrer-Policy': 'no-referrer',
-  'X-Content-Type-Options': 'nosniff',
-}
-
-function html(body: string, status = 200) {
-  return new Response(
-    `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-      <title>Email Preferences</title>
-      <style>
-        body{font-family:-apple-system,Segoe UI,Roboto,sans-serif;background:#F5F7F4;color:#1B2320;
-             display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;padding:24px;}
-        .card{background:#fff;border-radius:12px;padding:32px;max-width:420px;text-align:center;
-              box-shadow:0 1px 2px rgba(0,0,0,.04),0 6px 20px -8px rgba(0,0,0,.1);}
-        h1{font-size:1.25rem;margin:0 0 8px;} p{color:#57635D;line-height:1.5;margin:0;}
-      </style></head>
-      <body><div class="card">${body}</div></body></html>`,
-    {
-      status,
-      headers: { 'Content-Type': 'text/html; charset=utf-8', ...CORS_HEADERS, ...HTML_SECURITY_HEADERS },
+function json(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: {
+      'Content-Type': 'application/json; charset=utf-8',
+      'Cache-Control': 'no-store',
+      // Belt-and-suspenders even for a JSON body: if a misconfigured proxy
+      // ever stripped Content-Type, CSP still stops the response from being
+      // executed as a document, and nosniff stops it being interpreted by
+      // its guessed type at all.
+      'Content-Security-Policy': "default-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+      'Referrer-Policy': 'no-referrer',
+      'X-Content-Type-Options': 'nosniff',
+      ...CORS_HEADERS,
     },
-  )
-}
-
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;')
+  })
 }
 
 const hex = (bytes: ArrayBuffer) =>
@@ -83,48 +104,100 @@ async function expectedToken(email: string, secret: string): Promise<string> {
   return hex(sig).slice(0, 32)
 }
 
-serve(async (req) => {
-  if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS_HEADERS })
-  if (req.method !== 'GET' && req.method !== 'POST') {
-    return html('<h1>Method not allowed</h1><p>Please use the unsubscribe link from the email.</p>', 405)
-  }
-
-  const url = new URL(req.url)
-  const email = (url.searchParams.get('email') || '').trim()
-  const token = (url.searchParams.get('token') || '').trim()
-
-  if (!email || !token) {
-    return html('<h1>Missing link details</h1><p>This unsubscribe link is incomplete. Please use the link from the email exactly as sent.</p>', 400)
-  }
-
+/**
+ * Validates the email+token pair. Never mutates anything and never throws —
+ * every branch returns a plain reason string so callers can respond
+ * consistently whether they're building a redirect, a check response, or a
+ * confirm response.
+ */
+async function verifyToken(email: string, token: string):
+  Promise<{ ok: true } | { ok: false; reason: 'missing' | 'malformed' | 'server_error' | 'invalid' }> {
+  if (!email || !token) return { ok: false, reason: 'missing' }
   if (email.length > 320 || token.length !== 32 || !/^[0-9a-f]{32}$/i.test(token)) {
-    return html('<h1>Link not valid</h1><p>We could not verify this unsubscribe link. If you keep seeing this, contact support instead.</p>', 403)
+    return { ok: false, reason: 'malformed' }
   }
-
   // Fail closed when the deployment secret is missing. Using an empty HMAC
   // key would make valid tokens publicly computable for arbitrary addresses.
   const signingSecret = Deno.env.get('UNSUBSCRIBE_SIGNING_SECRET')
   if (!signingSecret) {
     console.error('[unsubscribe-announcements] signing secret is not configured')
-    return html('<h1>Something went wrong</h1><p>We could not update your preference just now. Please try again shortly.</p>', 503)
+    return { ok: false, reason: 'server_error' }
   }
-
   const expected = await expectedToken(email, signingSecret)
-  if (!timingSafeEqual(expected, token)) {
-    return html('<h1>Link not valid</h1><p>We could not verify this unsubscribe link. If you keep seeing this, contact support instead.</p>', 403)
+  if (!timingSafeEqual(expected, token)) return { ok: false, reason: 'invalid' }
+  return { ok: true }
+}
+
+serve(async (req) => {
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS_HEADERS })
+  if (req.method !== 'GET' && req.method !== 'POST') {
+    return json({ error: 'method_not_allowed' }, 405)
   }
 
-  const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? ''
-  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-  const supabase = createClient(supabaseUrl, serviceRoleKey)
+  const url = new URL(req.url)
+  const email = (url.searchParams.get('email') || '').trim()
+  const token = (url.searchParams.get('token') || '').trim()
+  const isCheck = url.searchParams.get('check') === '1'
 
-  const { error: unsubError } = await supabase.rpc('unsubscribe_email_updates', {
-    p_email: email,
-  })
+  // Plain GET from an email client / link-preview bot / security scanner:
+  // redirect straight to the rendered frontend page, unchanged and without
+  // touching the database. This also preserves every previously-sent
+  // email's link — it still resolves, it just now lands on a real page
+  // instead of raw text.
+  if (req.method === 'GET' && !isCheck) {
+    const dest = new URL('/unsubscribe', FRONTEND_BASE_URL)
+    if (email) dest.searchParams.set('email', email)
+    if (token) dest.searchParams.set('token', token)
+    return new Response(null, {
+      status: 302,
+      headers: { Location: dest.toString(), 'Cache-Control': 'no-store', ...CORS_HEADERS },
+    })
+  }
+
+  const verification = await verifyToken(email, token)
+
+  if (req.method === 'GET' && isCheck) {
+    if (!verification.ok) {
+      const status = verification.reason === 'server_error' ? 503 : verification.reason === 'missing' ? 400 : 403
+      return json({ valid: false, reason: verification.reason }, status)
+    }
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+    )
+    const { data, error } = await supabase
+      .from('email_subscriptions')
+      .select('subscribed')
+      .eq('email', email.toLowerCase().trim())
+      .maybeSingle()
+    if (error) {
+      console.error('[unsubscribe-announcements] status check failed:', error.message)
+      return json({ valid: false, reason: 'server_error' }, 500)
+    }
+    // No row yet, or a row with subscribed=true, both mean "still subscribed"
+    // (mirrors unsubscribe_email_updates' own upsert semantics).
+    const alreadyUnsubscribed = data?.subscribed === false
+    return json({ valid: true, alreadyUnsubscribed, email })
+  }
+
+  // POST — the one and only mutating path. Reached either by a mail
+  // client's RFC 8058 one-click request or by the frontend page's explicit
+  // "Unsubscribe" button; both represent a deliberate action, not a
+  // passive prefetch, so both are safe to act on immediately.
+  if (!verification.ok) {
+    const status = verification.reason === 'server_error' ? 503 : verification.reason === 'missing' ? 400 : 403
+    return json({ success: false, reason: verification.reason }, status)
+  }
+
+  const supabase = createClient(
+    Deno.env.get('SUPABASE_URL') ?? '',
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+  )
+  const { error: unsubError } = await supabase.rpc('unsubscribe_email_updates', { p_email: email })
   if (unsubError) {
     console.error('[unsubscribe-announcements] unsubscribe_email_updates failed:', unsubError.message)
-    return html('<h1>Something went wrong</h1><p>We could not update your preference just now. Please try again shortly.</p>', 500)
+    return json({ success: false, reason: 'server_error' }, 500)
   }
 
-  return html(`<h1>You're unsubscribed</h1><p>${escapeHtml(email)} will no longer receive CargoExpress PH announcement emails. You can re-enable this anytime from your profile if you have an account.</p>`)
+  return json({ success: true, email })
 })

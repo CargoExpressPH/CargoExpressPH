@@ -43,18 +43,36 @@ assert.match(
 );
 assert.match(
   unsubscribe,
-  /if \(!signingSecret\)[\s\S]*?return html\([\s\S]*?, 503\)/,
-  'unsubscribe must fail closed when its signing secret is absent',
+  /if \(!signingSecret\)[\s\S]*?reason: 'server_error'/,
+  'unsubscribe must fail closed (server_error) when its signing secret is absent',
+);
+assert.match(
+  unsubscribe,
+  /reason === 'server_error' \? 503/,
+  'a missing signing secret must surface as an HTTP 503, not a silent 200',
 );
 assert.doesNotMatch(
   unsubscribe,
   /UNSUBSCRIBE_SIGNING_SECRET'\) \?\? ''/,
   'unsubscribe must not derive HMACs with a public empty key',
 );
+// The endpoint is JSON-only (the confirmation UI lives at the frontend's
+// /unsubscribe page, see src/pages/public/UnsubscribePage.jsx) — it must
+// never hand-render an HTML document that could echo untrusted text.
+assert.doesNotMatch(
+  unsubscribe,
+  /<!doctype html>/i,
+  'unsubscribe must not hand-render HTML — the frontend page owns presentation',
+);
 assert.match(
   unsubscribe,
-  /escapeHtml\(email\)/,
-  'untrusted email text must be escaped before insertion into HTML',
+  /JSON\.stringify\(body\)/,
+  'unsubscribe responses must be JSON, not hand-built markup strings',
+);
+assert.match(
+  unsubscribe,
+  /GET.*mutate|Never mutates/i,
+  'a plain GET (e.g. an email security scanner prefetching the link) must be documented as non-mutating',
 );
 assert.match(unsubscribe, /Content-Security-Policy/);
 assert.match(unsubscribe, /X-Content-Type-Options/);

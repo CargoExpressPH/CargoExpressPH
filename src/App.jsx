@@ -71,6 +71,7 @@ const StorageMonitoringPage = lazyWithRetry(() => import('./pages/admin/StorageM
 // Public Pages
 const TrackingPage = lazyWithRetry(() => import('./pages/public/TrackingPage'));
 const AboutPage = lazyWithRetry(() => import('./pages/public/AboutPage'));
+const UnsubscribePage = lazyWithRetry(() => import('./pages/public/UnsubscribePage'));
 const NotFoundPage = lazyWithRetry(() => import('./pages/public/NotFoundPage'));
 const TermsPage = lazyWithRetry(() => import('./pages/public/LegalPage').then(({ TermsPage: Page }) => ({ default: Page })));
 const PrivacyPage = lazyWithRetry(() => import('./pages/public/LegalPage').then(({ PrivacyPage: Page }) => ({ default: Page })));
@@ -192,6 +193,11 @@ const router = createBrowserRouter([
       { path: '/about', element: <AboutPage /> },
       { path: '/terms', element: <Suspense fallback={<PageLoader />}><TermsPage /></Suspense> },
       { path: '/privacy', element: <Suspense fallback={<PageLoader />}><PrivacyPage /></Suspense> },
+      // Public, no-auth: the email footer "Unsubscribe" link lands here (see
+      // supabase/functions/broadcast-announcement + unsubscribe-announcements).
+      // Not behind ProtectedRoute/AuthRoute — a recipient without an account
+      // must be able to reach it.
+      { path: '/unsubscribe', element: <Suspense fallback={<PageLoader />}><UnsubscribePage /></Suspense> },
 
       // Public — guest-accessible pages that reuse a customer page's
       // component (no auth-dependent logic in either) under a minimal

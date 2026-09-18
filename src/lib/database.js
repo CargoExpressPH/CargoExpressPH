@@ -1933,6 +1933,78 @@ export const createContactInquiry = async (data) => {
   throw new Error('Could not send your message right now. Please try again.')
 };
 
+// ── Announcement email unsubscribe (public, no auth — /unsubscribe page) ──
+// The Edge Function is JSON-only (see supabase/functions/unsubscribe-
+// announcements): a GET+check=1 only reads the current preference, a POST
+// is the one and only action that actually flips it. Both calls carry the
+// same signed email+token pair the link was issued with; the server
+// re-validates that signature itself, so a caller cannot unsubscribe an
+// address it wasn't given a valid token for.
+const unsubscribeEndpoint = (email, token, extraParams = '') => {
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+  if (!supabaseUrl) throw new Error('Service not configured.')
+  return `${supabaseUrl}/functions/v1/unsubscribe-announcements?email=${encodeURIComponent(email)}&token=${encodeURIComponent(token)}${extraParams}`
+}
+
+const parseUnsubscribeNetworkError = (e) => {
+  const msg = e?.message || ''
+  if (
+    msg.includes('Failed to fetch') ||
+    msg.includes('NetworkError') ||
+    msg.includes('Network offline') ||
+    msg.includes('Failed to send a request')
+  ) {
+    return new Error('Could not reach the server. Check your connection and try again.')
+  }
+  return new Error(msg || 'Something went wrong. Please try again.');
+}
+
+/**
+ * Read-only status check — never changes the saved preference. Returns
+ * { valid, alreadyUnsubscribed, email } or throws with a user-facing message.
+ */
+export const checkUnsubscribeStatus = async ({ email, token }) => {
+  const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+  let res
+  try {
+    res = await fetch(unsubscribeEndpoint(email, token, '&check=1'), {
+      method: 'GET',
+      headers: { apikey: anonKey, Authorization: `Bearer ${anonKey}` },
+    })
+  } catch (e) {
+    throw parseUnsubscribeNetworkError(e)
+  }
+  let body = null
+  try { body = await res.json() } catch { body = null }
+  if (res.ok && body?.valid) return body
+  const reason = body?.reason || 'server_error'
+  throw new Error(reason)
+};
+
+/**
+ * The one and only action that actually disables announcement emails for
+ * this address. Only ever called from an explicit user click (the page's
+ * "Unsubscribe" button) — never on page load — so a link preview or
+ * security-scanner prefetch of the /unsubscribe page can never trigger this.
+ */
+export const confirmUnsubscribe = async ({ email, token }) => {
+  const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+  let res
+  try {
+    res = await fetch(unsubscribeEndpoint(email, token), {
+      method: 'POST',
+      headers: { apikey: anonKey, Authorization: `Bearer ${anonKey}` },
+    })
+  } catch (e) {
+    throw parseUnsubscribeNetworkError(e)
+  }
+  let body = null
+  try { body = await res.json() } catch { body = null }
+  if (res.ok && body?.success) return body
+  const reason = body?.reason || 'server_error'
+  throw new Error(reason)
+};
+
 /**
  * Contact inquiries, each annotated with `email_subscription` — the
  * authoritative "Email Updates" preference for that inquiry's email address

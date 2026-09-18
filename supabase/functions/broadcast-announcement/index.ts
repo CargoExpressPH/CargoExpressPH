@@ -285,8 +285,18 @@ serve(async (req) => {
       },
       buildPayload: async (recipient: ClaimedRecipient, claim) => {
         const token = await signUnsubscribeToken(recipient.email)
-        const unsubscribeUrl =
+        // Two distinct URLs, same email+token pair:
+        //   - oneClickUrl points straight at the Edge Function. Mail clients
+        //     that implement RFC 8058 POST here directly (List-Unsubscribe-
+        //     Post below) — this must stay a direct API endpoint, not a page.
+        //   - footerUrl is the link actually shown inside the email body. It
+        //     opens the frontend's own /unsubscribe page, which renders a
+        //     proper branded confirmation screen instead of depending on the
+        //     Edge Function's hosting gateway to serve styled HTML reliably.
+        const oneClickUrl =
           `${supabaseUrl}/functions/v1/unsubscribe-announcements?email=${encodeURIComponent(recipient.email)}&token=${token}`
+        const footerUrl =
+          `https://cargoexpress-ph.online/unsubscribe?email=${encodeURIComponent(recipient.email)}&token=${token}`
         const subject = String(claim.subject ?? '')
         const content = String(claim.content ?? '')
         return {
@@ -296,13 +306,13 @@ serve(async (req) => {
           html: buildAnnouncementEmailHtml(
             escapeHtml(subject),
             escapeHtml(content).replace(/\n/g, '<br>'),
-            unsubscribeUrl,
+            footerUrl,
             typeof claim.cta_label === 'string' && typeof claim.cta_url === 'string'
               ? { label: claim.cta_label, url: claim.cta_url }
               : null,
           ),
           headers: {
-            'List-Unsubscribe': `<${unsubscribeUrl}>`,
+            'List-Unsubscribe': `<${oneClickUrl}>`,
             'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
           },
         }

@@ -278,7 +278,7 @@ serve(async (req) => {
       const emails = batch.map((profile) => ({
         from: fromEmail,
         to: profile.email as string,
-        subject: `Schedule Update â€” Trip ${trip.trip_number}`,
+        subject: `Schedule Update — Trip ${trip.trip_number}`,
         html: buildRescheduleEmailHtml({
           customerName: profile.name || 'Customer',
           trackingNumbers: trackingByUser.get(profile.id as string) || [],
