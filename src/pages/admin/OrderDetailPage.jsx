@@ -18,6 +18,7 @@ import AssignCustomerModal from '../../components/ui/AssignCustomerModal';
 import EditContactDetailsModal from '../../components/ui/EditContactDetailsModal';
 import AdditionalPaymentModal from '../../components/ui/AdditionalPaymentModal';
 import RefundPaymentModal from '../../components/ui/RefundPaymentModal';
+import ManualRefundModal from '../../components/ui/ManualRefundModal';
 import DeliveryModal from '../../components/ui/DeliveryModal';
 import ConfirmModal from '../../components/ui/ConfirmModal';
 import PaymentResultModal from '../../components/ui/PaymentResultModal';
@@ -126,6 +127,7 @@ const AdminOrderDetailPage = () => {
   const [savingContactDetails, setSavingContactDetails] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [refundPayment, setRefundPayment] = useState(null);
+  const [manualRefundPayment, setManualRefundPayment] = useState(null);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [paymentResultModal, setPaymentResultModal] = useState(null);
   // Feature-Shipment modal, opened from the Shipment Evidence card
@@ -573,6 +575,28 @@ const AdminOrderDetailPage = () => {
     }
   };
 
+  // Same refresh-then-validate pattern as openRefundModal, for the manual
+  // (Cash / manual-GCash) path instead of the PayMongo one.
+  const openManualRefundModal = async (txId) => {
+    try {
+      const fresh = await getPaymentTransactions(id);
+      setPaymentTransactions(fresh);
+      const freshTx = fresh.find(t => t.id === txId) || null;
+      const stillEligible = freshTx
+        && !freshTx.is_refund
+        && ['paid', 'partial'].includes(freshTx.payment_status)
+        && !(freshTx.payment_method === 'gcash' && freshTx.gcash_channel === 'paymongo')
+        && Number(freshTx.refundable_amount || 0) > 0.005;
+      if (!stillEligible) {
+        toast.error('This payment is no longer eligible for a manual refund — the data has been refreshed.');
+        return;
+      }
+      setManualRefundPayment(freshTx);
+    } catch (e) {
+      toast.error(e.message || 'Failed to refresh payment data.');
+    }
+  };
+
   // Cancellation review buttons refresh the ledger before opening their
   // modal for the same reason as openRefundModal above: a late payment
   // during "Pending Cancellation" is preserved by design (see the RPCs
@@ -903,6 +927,7 @@ const AdminOrderDetailPage = () => {
               eligibleRefundTx={eligibleRefundTx}
               unrefundablePaidTx={unrefundablePaidTx}
               onSelectRefund={(tx) => openRefundModal(tx.id)}
+              onSelectManualRefund={(tx) => openManualRefundModal(tx.id)}
             />
           </div>
         </div>
@@ -941,6 +966,7 @@ const AdminOrderDetailPage = () => {
               eligibleRefundTx={eligibleRefundTx}
               unrefundablePaidTx={unrefundablePaidTx}
               onSelectRefund={(tx) => openRefundModal(tx.id)}
+              onSelectManualRefund={(tx) => openManualRefundModal(tx.id)}
             />
             <div className="admin-action-group mt-16">
               <button
@@ -1458,15 +1484,22 @@ const AdminOrderDetailPage = () => {
                                 </button>
                               ) : !tx.is_refund
                                 && ['paid', 'partial'].includes(tx.payment_status)
-                                && !(tx.payment_method === 'gcash' && tx.gcash_channel === 'paymongo') ? (
-                                  // No automated refund path exists for Cash or a
-                                  // manually-recorded GCash payment — PayMongo has
-                                  // no record of either, so prepare_paymongo_refund()
-                                  // would reject it. Say so instead of showing a
-                                  // clickable-looking action with no backend behind it.
-                                  <span className="text-tertiary text-xs" title="PayMongo has no record of a Cash or manually-recorded GCash payment, so it cannot be refunded through this system. Any return of money must be arranged manually.">
-                                    Manual refund only
-                                  </span>
+                                && !(tx.payment_method === 'gcash' && tx.gcash_channel === 'paymongo')
+                                && Number(tx.refundable_amount || 0) > 0.005 ? (
+                                  // No AUTOMATED refund path exists for Cash or a
+                                  // manually-recorded GCash payment — PayMongo has no
+                                  // record of either, so prepare_paymongo_refund()
+                                  // would reject it. This opens ManualRefundModal
+                                  // instead, which only RECORDS a return that has
+                                  // already happened — it never moves money itself.
+                                  <button
+                                    type="button"
+                                    className="btn btn-outline btn-sm"
+                                    onClick={() => openManualRefundModal(tx.id)}
+                                    title="Record that this Cash or manually-recorded GCash payment was already returned to the customer. This does not send any money."
+                                  >
+                                    <RotateCcw size={14} /> Record Manual Refund
+                                  </button>
                                 ) : <span className="text-tertiary text-xs">N/A</span>}
                           </td>
                         </tr>
@@ -1620,6 +1653,24 @@ const AdminOrderDetailPage = () => {
             } else {
               toast.info(result?.message || 'Refund submitted. It is not completed until PayMongo confirms it as succeeded.');
             }
+          }}
+        />
+      )}
+      {manualRefundPayment && (
+        <ManualRefundModal
+          transaction={manualRefundPayment}
+          order={order}
+          onClose={() => setManualRefundPayment(null)}
+          onSuccess={async (result) => {
+            setManualRefundPayment(null);
+            // No client-side logPayment() here on purpose: record_manual_refund()
+            // writes the activity_logs entry itself, inside the same database
+            // transaction as the refund row — the same pattern as
+            // review_order_cancellation(). A second, client-side log call here
+            // would duplicate that entry, and could be lost if the tab closes
+            // right after the request succeeds.
+            await loadOrder();
+            toast.success(result?.message || 'Manual refund recorded.');
           }}
         />
       )}
@@ -1813,6 +1864,7 @@ const CancellationPaymentSummary = ({
   eligibleRefundTx,
   unrefundablePaidTx,
   onSelectRefund,
+  onSelectManualRefund,
 }) => {
   const netCollected = grossCollected - refundSucceeded;
   return (
@@ -1873,14 +1925,28 @@ const CancellationPaymentSummary = ({
       )}
 
       {unrefundablePaidTx.length > 0 && (
-        <div className="mt-12 text-xs flex items-start gap-4" style={{ color: 'var(--warning-dark)' }}>
-          <AlertTriangle size={13} style={{ flexShrink: 0, marginTop: 1 }} />
-          <span>
-            {unrefundablePaidTx.length === 1 ? 'One payment' : `${unrefundablePaidTx.length} payments`} on this order
-            ({unrefundablePaidTx.map(tx => formatPaymentMethod(tx.payment_method)).join(', ')}) cannot be refunded
-            automatically — PayMongo has no record of a Cash or manually-recorded GCash payment. Any return of that
-            money must be arranged manually and is not tracked by this system yet.
-          </span>
+        <div className="mt-12">
+          <div className="text-xs flex items-start gap-4 mb-8" style={{ color: 'var(--warning-dark)' }}>
+            <AlertTriangle size={13} style={{ flexShrink: 0, marginTop: 1 }} />
+            <span>
+              {unrefundablePaidTx.length === 1 ? 'One payment' : `${unrefundablePaidTx.length} payments`} on this order
+              ({unrefundablePaidTx.map(tx => formatPaymentMethod(tx.payment_method)).join(', ')}) cannot be refunded
+              through PayMongo — it has no record of a Cash or manually-recorded GCash payment. Physically return the
+              money first, then use Record Manual Refund below to log it.
+            </span>
+          </div>
+          <div className="flex flex-col gap-8">
+            {unrefundablePaidTx.filter(tx => Number(tx.refundable_amount || 0) > 0.005).map(tx => (
+              <div key={tx.id} className="flex items-center justify-between gap-8 flex-wrap" style={{ fontSize: '0.8125rem' }}>
+                <span>
+                  {formatPaymentMethod(tx.payment_method)} · paid {formatMoney(Number(tx.amount || 0))} · up to {formatMoney(Number(tx.refundable_amount || 0))} refundable
+                </span>
+                <button type="button" className="btn btn-outline btn-sm" onClick={() => onSelectManualRefund(tx)}>
+                  <RotateCcw size={14} /> Record Manual Refund
+                </button>
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>
