@@ -8,6 +8,11 @@ import { logAuth } from '../lib/activityLog';
 import useNetworkRecovery from '../hooks/useNetworkRecovery';
 import { AUTH_TRANSITIONS } from '../lib/authRouteState';
 import { clearBookingDraftStorage } from '../lib/bookingDraft';
+import {
+  clearPasswordRecoveryPending,
+  hasPendingPasswordRecovery,
+  markPasswordRecoveryPending,
+} from '../lib/passwordRecovery';
 
 const AuthContext = createContext({});
 
@@ -31,6 +36,20 @@ const clearSupabaseAuthStorage = () => {
   }
 };
 
+const clearPersistedRecoverySession = async () => {
+  try {
+    // A recovery session is only a temporary credential for setting a new
+    // password. It must never be restored as a normal app session after the
+    // reset page is abandoned or the app is restarted.
+    await supabase.auth.signOut({ scope: 'local' });
+  } catch {
+    // The synchronous storage cleanup below is still enough to prevent the
+    // browser from restoring the stale session on the next render.
+  }
+  clearSupabaseAuthStorage();
+  clearPasswordRecoveryPending();
+};
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
@@ -42,6 +61,18 @@ export const AuthProvider = ({ children }) => {
   const recoveryLinkDetected = useRef(
     typeof window !== 'undefined' && window.location.hash.includes('type=recovery'),
   );
+
+  // Supabase removes the recovery hash after exchanging it for a session. The
+  // marker survives that URL cleanup and a full browser/PWA restart, allowing
+  // boot to discard an unfinished recovery session instead of treating it as
+  // an ordinary signed-in session.
+  const pendingRecoveryCleanup = useRef(
+    !recoveryLinkDetected.current && hasPendingPasswordRecovery(),
+  );
+
+  if (recoveryLinkDetected.current) {
+    markPasswordRecoveryPending();
+  }
 
   // Flag to prevent onAuthStateChange from fetching profile during login/registration.
   // The login() and register() functions handle fetchProfile themselves.
@@ -74,6 +105,17 @@ export const AuthProvider = ({ children }) => {
 
     const initialize = async () => {
       try {
+        if (pendingRecoveryCleanup.current) {
+          pendingRecoveryCleanup.current = false;
+          await clearPersistedRecoverySession();
+          if (isMounted) {
+            setUser(null);
+            setUserProfile(null);
+            setLoading(false);
+          }
+          return;
+        }
+
         const { data: { session }, error } = await supabase.auth.getSession();
 
         if (error) {
@@ -120,6 +162,7 @@ export const AuthProvider = ({ children }) => {
         // resulting session lives in the Supabase client, not in the URL, so
         // nothing is lost by replacing the location.
         if (event === 'PASSWORD_RECOVERY') {
+          markPasswordRecoveryPending();
           setAuthTransition(null);
           setLoading(false);
           if (recoveryLinkDetected.current && window.location.pathname !== '/reset-password') {
@@ -249,6 +292,10 @@ export const AuthProvider = ({ children }) => {
         throw new Error(`Failed to retrieve user profile: ${profileResult.error.message || 'Unknown database error'}`);
       }
 
+      // A successful ordinary login replaces any abandoned recovery attempt
+      // on this browser. Do this only after the profile is ready so a failed
+      // login cannot accidentally discard the recovery cleanup marker.
+      clearPasswordRecoveryPending();
       isAuthAction.current = false;
       return { success: true, user: data.user, profile: profileResult.profile };
     } catch (error) {
@@ -372,6 +419,7 @@ export const AuthProvider = ({ children }) => {
         );
       }
 
+      clearPasswordRecoveryPending();
       return { success: true, user: data.user, profileIncomplete: !profileSaved };
     } catch (error) {
       isAuthAction.current = false;
@@ -428,6 +476,7 @@ export const AuthProvider = ({ children }) => {
     try {
       clearBookingDraftStorage(signedInUserId);
       clearSupabaseAuthStorage();
+      clearPasswordRecoveryPending();
       sessionStorage.removeItem('fcm_asked');
       sessionStorage.removeItem('admin_fcm_asked');
     } catch (e) {
@@ -461,6 +510,7 @@ export const AuthProvider = ({ children }) => {
       // complete its own storage operation (for example restricted storage).
     }
     clearSupabaseAuthStorage();
+    clearPasswordRecoveryPending();
 
     return { success: true };
   }, []);

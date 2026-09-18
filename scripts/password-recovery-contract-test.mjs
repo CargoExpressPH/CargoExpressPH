@@ -2,9 +2,37 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
   INVALID_RECOVERY_LINK_MESSAGE,
+  PASSWORD_RECOVERY_PENDING_KEY,
+  clearPasswordRecoveryPending,
+  hasPendingPasswordRecovery,
   isUsableRecoverySession,
+  markPasswordRecoveryPending,
   parsePasswordRecoveryUrl,
 } from '../src/lib/passwordRecovery.js';
+
+const previousLocalStorage = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
+const values = new Map();
+Object.defineProperty(globalThis, 'localStorage', {
+  configurable: true,
+  value: {
+    getItem: key => values.get(key) ?? null,
+    setItem: (key, value) => values.set(key, String(value)),
+    removeItem: key => values.delete(key),
+  },
+});
+
+assert.equal(hasPendingPasswordRecovery(), false, 'A fresh browser must not have a pending recovery marker.');
+assert.equal(markPasswordRecoveryPending(), true, 'Recovery start must persist a marker.');
+assert.equal(values.get(PASSWORD_RECOVERY_PENDING_KEY), '1');
+assert.equal(hasPendingPasswordRecovery(), true, 'The pending recovery marker must survive app restarts.');
+assert.equal(clearPasswordRecoveryPending(), true, 'Recovery cleanup must remove the marker.');
+assert.equal(hasPendingPasswordRecovery(), false, 'A completed or abandoned recovery must not remain marked.');
+
+if (previousLocalStorage) {
+  Object.defineProperty(globalThis, 'localStorage', previousLocalStorage);
+} else {
+  delete globalThis.localStorage;
+}
 
 assert.deepEqual(
   parsePasswordRecoveryUrl('#access_token=token&type=recovery'),
@@ -81,6 +109,21 @@ assert.match(
   authContext,
   /const discardPasswordRecovery[\s\S]*signOut\(\{ scope: 'local' \}\)/,
   'Abandoning recovery must clear only the browser recovery session, not other device sessions.',
+);
+assert.match(
+  authContext,
+  /pendingRecoveryCleanup[\s\S]*clearPersistedRecoverySession/,
+  'A browser restart during recovery must discard the temporary session before normal initialization.',
+);
+assert.match(
+  authContext,
+  /markPasswordRecoveryPending\(\)/,
+  'Opening or receiving a recovery session must persist its temporary-session marker.',
+);
+assert.match(
+  resetPage,
+  /markPasswordRecoveryPending\(\)/,
+  'The reset page must preserve the recovery marker even if the SDK consumed the URL hash first.',
 );
 
 console.log('Password recovery contract tests passed.');

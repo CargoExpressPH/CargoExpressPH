@@ -15,6 +15,7 @@ import { BrandLogo, BrandWordmark } from '../../components/ui/BrandLogo';
 import {
   INVALID_RECOVERY_LINK_MESSAGE,
   isUsableRecoverySession,
+  markPasswordRecoveryPending,
   parsePasswordRecoveryUrl,
 } from '../../lib/passwordRecovery';
 
@@ -44,6 +45,15 @@ const ResetPasswordPage = () => {
   const [linkError,       setLinkError]       = useState(initialUrlStateRef.current.errorMessage);
   const { changePassword, logout, discardPasswordRecovery } = useAuth();
   const navigate = useNavigate();
+
+  // Keep the recovery-session marker even if Supabase has already consumed the
+  // hash before this page mounts. If the user closes the app now, AuthContext
+  // will clear the persisted recovery session on the next launch.
+  useEffect(() => {
+    if (initialUrlStateRef.current.hasRecoveryIntent) {
+      markPasswordRecoveryPending();
+    }
+  }, []);
 
   // Every way out of this page must destroy the temporary recovery session
   // before navigating. Clicking a recovery email creates a real Supabase
