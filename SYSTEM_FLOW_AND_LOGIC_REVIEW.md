@@ -192,25 +192,47 @@ All four of these — `shipping_cost`, `amount_paid`, `remaining_balance`, `paym
 1. **Automated (PayMongo QR):** the customer pays through a PayMongo-hosted checkout. Only the PayMongo **webhook** (server-to-server callback, authenticated with a server-only key) is allowed to credit the payment — the browser is structurally incapable of crediting a GCash-QR payment on its own, even if it wanted to.
 2. **Manual (admin types in a reference number):** requires the admin to tick "I verified the receipt," and the reference number is checked against a uniqueness rule so the same reference can't be credited twice.
 
-**Worked example (matches the user's requested scenario):**
+**Worked example — PRIMARY (the user's exact two-refund scenario):**
 
 ```
-Original fee:        ₱35,000
-Discount:             ₱1,000
-Final charge:        ₱34,000
-Payment received:    ₱20,000  (cash, 2026-09-15)
-Cash refund:         ₱10,000  (2026-09-20)
-Manual GCash refund: ₱10,000  (2026-09-20)
-```
-> Note: the user's example lists both a ₱10,000 cash refund *and* a ₱10,000 manual GCash refund against a ₱20,000 payment — that would total ₱20,000 refunded against ₱20,000 paid, which is allowed (a full refund can be split across two return methods), but it means **net retained = ₱0**, not the "active booking, unchanged final charge, ₱14,000 after a new ₱20,000 payment" example the prompt also describes. Both scenarios are computed below for clarity — the formula is the same either way.
+Setup:
+  Original fee:         ₱35,000
+  Discount:              ₱1,000
+  Final charge:         ₱34,000  ← this is what the customer owes
 
-**If only the ₱10,000 cash refund happened (single refund, as in the "active booking" example):**
+After ₱20,000 payment (cash at pickup):
+  gross_paid            = ₱20,000
+  successful_refunds    =       ₱0
+  net_paid              = ₱20,000
+  remaining_balance     = ₱34,000 − ₱20,000 = ₱14,000
+  payment_status        = 'partial'
+
+After BOTH refunds succeed (₱10,000 cash + ₱10,000 GCash = ₱20,000 total):
+  gross_paid            = ₱20,000  (unchanged — no new payment)
+  successful_refunds    = ₱20,000
+  net_paid              = ₱20,000 − ₱20,000 = ₱0
+  remaining_balance     = ₱34,000 − ₱0 = ₱34,000
+  payment_status        = 'unpaid'
+  Note: booking is still ACTIVE. Company has returned all collected money.
+
+After a NEW ₱20,000 payment:
+  gross_paid            = ₱40,000
+  successful_refunds    = ₱20,000  (unchanged)
+  net_paid              = ₱40,000 − ₱20,000 = ₱20,000
+  remaining_balance     = ₱34,000 − ₱20,000 = ₱14,000  ← correct final answer
+  payment_status        = 'partial'
 ```
-gross_paid        = ₱20,000
-net_paid          = ₱20,000 − ₱10,000 = ₱10,000
-remaining_balance = ₱34,000 − ₱10,000 = ₱24,000
+
+**Secondary example — single refund only (for comparison; NOT the above scenario):**
 ```
-A new ₱20,000 payment afterward → `net_paid = 30,000`, `remaining_balance = 34,000 − 30,000 = ₱4,000` (not ₱14,000 — the "₱14,000" figure in the prompt's example assumes a starting balance of ₱34,000 with **no refund yet**, i.e. `34,000 − 20,000 = 14,000`; the review confirms the *formula* is correct either way — the discrepancy is just which starting numbers are plugged in).
+  One ₱10,000 cash refund only:
+  net_paid          = ₱20,000 − ₱10,000 = ₱10,000
+  remaining_balance = ₱34,000 − ₱10,000 = ₱24,000
+
+  Then a new ₱20,000 payment:
+  net_paid          = ₱30,000
+  remaining_balance = ₱34,000 − ₱30,000 = ₱4,000
+```
 
 **Over-refund protection (confirmed in code and by test):** the database sums *all* in-flight or completed refunds against a specific payment (regardless of channel — manual or PayMongo) before allowing a new refund, and rejects any refund that would push the total refunded past the original payment amount. A dedicated test proves "a second admin cannot refund past the fully-reserved amount."
 
@@ -346,7 +368,7 @@ Covered in depth in §4.3. Summary of what was tested and what wasn't:
 |---|---|---|---|
 | Medium-High | Reports | `get_sales_overview_data()` refund period-bucketing bug (sibling of an already-fixed bug) | Confirmed, open |
 | Medium-High | Pricing | Company price-per-kilo change can retroactively re-price a weighed-but-not-trip-assigned order | Confirmed, open |
-| Medium | Chat security | Customer's "mark as read" update policy may not restrict the message-content column | Suspected, needs live test |
+| Medium | Chat security | ~~Customer's "mark as read" update policy may not restrict the message-content column~~ **CORRECTED:** A BEFORE UPDATE trigger (`guard_chat_message_update`, migration `20260831070000`) explicitly raises exception '42501' if `NEW.message` differs from `OLD.message`. The RLS policy alone is insufficient, but the trigger closes the gap — this is NOT exploitable. | **Confirmed: not exploitable at database layer** (verified from trigger code) |
 | Medium | Auth | Password/email change doesn't invalidate other device sessions | Confirmed, open |
 | Medium | Reports/PDF | Print/PDF renders unbounded rows where the screen caps at 50 | Confirmed in code, not tested live |
 | Low-Medium | Auth | Activity-log retry queue survives logout, tagged with prior user's ID | Confirmed, open |
