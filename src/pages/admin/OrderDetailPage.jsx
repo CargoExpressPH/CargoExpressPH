@@ -545,6 +545,44 @@ const AdminOrderDetailPage = () => {
   // activity log and the customer's notification inside the same transaction
   // as the status change. An audit entry that can be lost because the tab was
   // closed between two round trips is not an audit entry.
+  // Re-fetches the ledger immediately before opening the refund modal, so
+  // the amount the admin sees (and the modal's own default/max) reflects a
+  // payment that may have completed moments ago — a PayMongo webhook or a
+  // manually-recorded additional payment can land at any time, independent
+  // of this order's status (neither RPC checks it — see database migrations
+  // 20260912010000 and 20260912184434), and stale figures here would make
+  // the modal's own server-side validation the only thing catching it.
+  const openRefundModal = async (txId) => {
+    try {
+      const fresh = await getPaymentTransactions(id);
+      setPaymentTransactions(fresh);
+      const freshTx = fresh.find(t => t.id === txId) || null;
+      const stillEligible = freshTx
+        && !freshTx.is_refund
+        && freshTx.payment_method === 'gcash'
+        && freshTx.gcash_channel === 'paymongo'
+        && ['paid', 'partial'].includes(freshTx.payment_status)
+        && Number(freshTx.refundable_amount || 0) > 0.005;
+      if (!stillEligible) {
+        toast.error('This payment is no longer eligible for a refund — the data has been refreshed.');
+        return;
+      }
+      setRefundPayment(freshTx);
+    } catch (e) {
+      toast.error(e.message || 'Failed to refresh payment data.');
+    }
+  };
+
+  // Cancellation review buttons refresh the ledger before opening their
+  // modal for the same reason as openRefundModal above: a late payment
+  // during "Pending Cancellation" is preserved by design (see the RPCs
+  // above), not blocked, so the admin should see the current amount before
+  // deciding, not whatever was on screen when the page first loaded.
+  const openCancellationDecision = async (setter) => {
+    await loadOrder(true, { silent: true });
+    setter(true);
+  };
+
   const handleReviewCancellation = async (approve, notes = null) => {
     setReviewingCancellation(true);
     try {
@@ -702,6 +740,45 @@ const AdminOrderDetailPage = () => {
   // same way — an unweighed parcel is none of paid, unpaid, or settled.
   const settlementState = getSettlementState(order);
 
+  // Cancellation approval and refund submission are two separate database
+  // writes (review_order_cancellation() never touches payment_refunds) — this
+  // summary exists so an admin reviewing or having just approved a
+  // cancellation can see the actual money state in one place instead of
+  // assuming "Cancelled" implies anything about a refund. `refund_status` on
+  // a refund row is `outcome_uncertain ? 'uncertain' : status` (see
+  // database.js mergePaymentActivity) — 'uncertain' is not a real
+  // payment_refunds.status value, just how an ambiguous provider outcome is
+  // surfaced here.
+  const refundRows = paymentTransactions.filter(tx => tx.is_refund);
+  const grossCollected = paymentTransactions
+    .filter(tx => !tx.is_refund && ['paid', 'partial'].includes(tx.payment_status))
+    .reduce((sum, tx) => sum + Number(tx.amount || 0), 0);
+  const refundSucceeded = refundRows
+    .filter(tx => tx.refund_status === 'succeeded')
+    .reduce((sum, tx) => sum + Math.abs(Number(tx.amount || 0)), 0);
+  const refundPending = refundRows
+    .filter(tx => ['creating', 'pending', 'processing', 'uncertain'].includes(tx.refund_status))
+    .reduce((sum, tx) => sum + Math.abs(Number(tx.amount || 0)), 0);
+  const refundFailed = refundRows
+    .filter(tx => tx.refund_status === 'failed')
+    .reduce((sum, tx) => sum + Math.abs(Number(tx.amount || 0)), 0);
+  // Same gate the per-row "Refund" button already uses (payment_method
+  // 'gcash' + gcash_channel 'paymongo' is what prepare_paymongo_refund()
+  // actually requires) — kept in one place so the summary and the row action
+  // can never disagree about which transactions are provider-refundable.
+  const eligibleRefundTx = paymentTransactions.filter(tx =>
+    !tx.is_refund
+    && tx.payment_method === 'gcash'
+    && tx.gcash_channel === 'paymongo'
+    && ['paid', 'partial'].includes(tx.payment_status)
+    && Number(tx.refundable_amount || 0) > 0.005
+  );
+  const unrefundablePaidTx = paymentTransactions.filter(tx =>
+    !tx.is_refund
+    && ['paid', 'partial'].includes(tx.payment_status)
+    && !(tx.payment_method === 'gcash' && tx.gcash_channel === 'paymongo')
+  );
+
   return (
     <div className="page-transition">
       <Breadcrumb items={[
@@ -806,6 +883,27 @@ const AdminOrderDetailPage = () => {
                 </blockquote>
               </>
             )}
+
+            {/* Approving/force-cancelling only ever changes orders.status —
+                neither path touches payment_refunds, so say so explicitly
+                rather than let "Cancelled" be read as "refunded". */}
+            {refundSucceeded === 0 && refundPending === 0 && refundFailed === 0 ? (
+              <div className="alert-banner alert-banner-info mt-16 py-8 px-12" style={{ fontSize: '0.8125rem' }}>
+                Booking cancelled. No money has been refunded by this action.
+                {grossCollected > 0 && ' Use "Start Refund" below if a refund is owed.'}
+              </div>
+            ) : null}
+
+            <CancellationPaymentSummary
+              finalCharge={computedFinalFee}
+              grossCollected={grossCollected}
+              refundSucceeded={refundSucceeded}
+              refundPending={refundPending}
+              refundFailed={refundFailed}
+              eligibleRefundTx={eligibleRefundTx}
+              unrefundablePaidTx={unrefundablePaidTx}
+              onSelectRefund={(tx) => openRefundModal(tx.id)}
+            />
           </div>
         </div>
       )}
@@ -834,11 +932,21 @@ const AdminOrderDetailPage = () => {
             >
               {order.cancellation_details?.reason || 'No reason recorded.'}
             </blockquote>
-            <div className="admin-action-group">
+            <CancellationPaymentSummary
+              finalCharge={computedFinalFee}
+              grossCollected={grossCollected}
+              refundSucceeded={refundSucceeded}
+              refundPending={refundPending}
+              refundFailed={refundFailed}
+              eligibleRefundTx={eligibleRefundTx}
+              unrefundablePaidTx={unrefundablePaidTx}
+              onSelectRefund={(tx) => openRefundModal(tx.id)}
+            />
+            <div className="admin-action-group mt-16">
               <button
                 type="button"
                 className="btn btn-danger"
-                onClick={() => setShowApproveCancellationModal(true)}
+                onClick={() => openCancellationDecision(setShowApproveCancellationModal)}
                 disabled={reviewingCancellation}
               >
                 {reviewingCancellation ? <Loader size={16} className="animate-spin" /> : <Check size={16} />}
@@ -847,7 +955,7 @@ const AdminOrderDetailPage = () => {
               <button
                 type="button"
                 className="btn btn-secondary btn-sm"
-                onClick={() => setShowDeclineCancelModal(true)}
+                onClick={() => openCancellationDecision(setShowDeclineCancelModal)}
                 disabled={reviewingCancellation}
               >
                 Decline Request
@@ -1345,10 +1453,21 @@ const AdminOrderDetailPage = () => {
                               && tx.gcash_channel === 'paymongo'
                               && ['paid', 'partial'].includes(tx.payment_status)
                               && Number(tx.refundable_amount || 0) > 0.005 ? (
-                                <button type="button" className="btn btn-outline btn-sm" onClick={() => setRefundPayment(tx)}>
+                                <button type="button" className="btn btn-outline btn-sm" onClick={() => openRefundModal(tx.id)}>
                                   <RotateCcw size={14} /> Refund
                                 </button>
-                              ) : <span className="text-tertiary text-xs">N/A</span>}
+                              ) : !tx.is_refund
+                                && ['paid', 'partial'].includes(tx.payment_status)
+                                && !(tx.payment_method === 'gcash' && tx.gcash_channel === 'paymongo') ? (
+                                  // No automated refund path exists for Cash or a
+                                  // manually-recorded GCash payment — PayMongo has
+                                  // no record of either, so prepare_paymongo_refund()
+                                  // would reject it. Say so instead of showing a
+                                  // clickable-looking action with no backend behind it.
+                                  <span className="text-tertiary text-xs" title="PayMongo has no record of a Cash or manually-recorded GCash payment, so it cannot be refunded through this system. Any return of money must be arranged manually.">
+                                    Manual refund only
+                                  </span>
+                                ) : <span className="text-tertiary text-xs">N/A</span>}
                           </td>
                         </tr>
                       );
@@ -1673,5 +1792,99 @@ const RejectModal = ({ isOpen, onClose, onConfirm, loading }) => (
     submitLabel="Reject Request"
   />
 );
+
+/**
+ * Shown both in the "Cancellation Request Review" action bar and in the
+ * static "Cancellation Details" card on an already-cancelled order — same
+ * numbers, same component, so the two views can never drift apart.
+ *
+ * "Eligible for provider refund" (the per-row max PayMongo will accept) is
+ * deliberately labelled separately from any notion of an "approved" amount —
+ * the maximum technically refundable is not automatically what the business
+ * has decided to return; the admin still chooses the actual amount inside
+ * RefundPaymentModal.
+ */
+const CancellationPaymentSummary = ({
+  finalCharge,
+  grossCollected,
+  refundSucceeded,
+  refundPending,
+  refundFailed,
+  eligibleRefundTx,
+  unrefundablePaidTx,
+  onSelectRefund,
+}) => {
+  const netCollected = grossCollected - refundSucceeded;
+  return (
+    <div
+      className="admin-refund-summary br-8"
+      style={{ background: 'var(--bg-secondary)', padding: '12px 14px', overflowWrap: 'anywhere' }}
+    >
+      <div className="text-xs fw-700 text-uppercase text-tertiary mb-8">Payment &amp; Refund Summary</div>
+      <div className="grid grid-2 gap-8" style={{ fontSize: '0.8125rem' }}>
+        <div>
+          <div className="text-tertiary">Original / final charge</div>
+          <div className="fw-700">{formatMoney(finalCharge)}</div>
+        </div>
+        <div>
+          <div className="text-tertiary">Gross amount collected</div>
+          <div className="fw-700">{formatMoney(grossCollected)}</div>
+        </div>
+        <div>
+          <div className="text-tertiary">Successfully refunded</div>
+          <div className="fw-700" style={{ color: refundSucceeded > 0 ? 'var(--error-text)' : undefined }}>{formatMoney(refundSucceeded)}</div>
+        </div>
+        <div>
+          <div className="text-tertiary">Net collected</div>
+          <div className="fw-700">{formatMoney(netCollected)}</div>
+        </div>
+        {refundPending > 0 && (
+          <div>
+            <div className="text-tertiary">Refunds pending / awaiting confirmation</div>
+            <div className="fw-700" style={{ color: 'var(--warning-dark)' }}>{formatMoney(refundPending)}</div>
+          </div>
+        )}
+        {refundFailed > 0 && (
+          <div>
+            <div className="text-tertiary">Failed refund attempts</div>
+            <div className="fw-700" style={{ color: 'var(--error-text)' }}>{formatMoney(refundFailed)}</div>
+          </div>
+        )}
+      </div>
+
+      {eligibleRefundTx.length > 0 && (
+        <div className="mt-12">
+          <div className="text-xs text-tertiary mb-4">
+            Eligible for provider refund per transaction (technical maximum — not the amount approved to return):
+          </div>
+          <div className="flex flex-col gap-8">
+            {eligibleRefundTx.map(tx => (
+              <div key={tx.id} className="flex items-center justify-between gap-8 flex-wrap" style={{ fontSize: '0.8125rem' }}>
+                <span>
+                  {formatPaymentMethod(tx.payment_method)} · paid {formatMoney(Number(tx.amount || 0))} · up to {formatMoney(Number(tx.refundable_amount || 0))} refundable
+                </span>
+                <button type="button" className="btn btn-outline btn-sm" onClick={() => onSelectRefund(tx)}>
+                  <RotateCcw size={14} /> Start Refund
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {unrefundablePaidTx.length > 0 && (
+        <div className="mt-12 text-xs flex items-start gap-4" style={{ color: 'var(--warning-dark)' }}>
+          <AlertTriangle size={13} style={{ flexShrink: 0, marginTop: 1 }} />
+          <span>
+            {unrefundablePaidTx.length === 1 ? 'One payment' : `${unrefundablePaidTx.length} payments`} on this order
+            ({unrefundablePaidTx.map(tx => formatPaymentMethod(tx.payment_method)).join(', ')}) cannot be refunded
+            automatically — PayMongo has no record of a Cash or manually-recorded GCash payment. Any return of that
+            money must be arranged manually and is not tracked by this system yet.
+          </span>
+        </div>
+      )}
+    </div>
+  );
+};
 
 export default AdminOrderDetailPage;

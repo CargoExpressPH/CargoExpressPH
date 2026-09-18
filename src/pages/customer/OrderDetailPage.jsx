@@ -715,6 +715,23 @@ const OrderDetailPage = () => {
   const hasPhotos = resolvedPickupPhotos.length > 0;
   const balance = outstandingBalance(order);
   const settlementState = getSettlementState(order);
+  // Refund status shown on a cancelled booking must reflect actual
+  // `payment_refunds` rows, not the order's status. A refund row's amount is
+  // stored positive; `refund_status` is `outcome_uncertain ? 'uncertain' :
+  // status` (see database.js mergePaymentActivity) — never invent a
+  // "Refund completed" state just because the order is Cancelled or a
+  // request was merely submitted.
+  const refundRows = paymentTransactions.filter(tx => tx.is_refund);
+  const refundSucceeded = refundRows
+    .filter(tx => tx.refund_status === 'succeeded')
+    .reduce((sum, tx) => sum + Math.abs(Number(tx.amount || 0)), 0);
+  const refundPending = refundRows
+    .filter(tx => ['creating', 'pending', 'processing', 'uncertain'].includes(tx.refund_status))
+    .reduce((sum, tx) => sum + Math.abs(Number(tx.amount || 0)), 0);
+  const refundFailed = refundRows
+    .filter(tx => tx.refund_status === 'failed')
+    .reduce((sum, tx) => sum + Math.abs(Number(tx.amount || 0)), 0);
+  const hasAnyRefundRecord = refundRows.length > 0;
   // Discount reason/notes/who-applied are admin-internal and never rendered
   // here — only the peso amounts, which the customer needs to understand
   // their bill.
@@ -865,6 +882,37 @@ const OrderDetailPage = () => {
                 </p>
               </div>
             )}
+
+            {/* Cancelling a booking never refunds money by itself — that is a
+                separate admin action. Say plainly when nothing has happened
+                yet, instead of leaving the customer to guess from silence
+                whether "Cancelled" also means "refunded". */}
+            <div className="text-sm" style={{ borderTop: '1px solid rgba(0,0,0,0.08)', paddingTop: 10, marginTop: 4 }}>
+              <div className="fw-700 mb-4">Refund status</div>
+              {!hasAnyRefundRecord ? (
+                <p className="m-0" style={{ opacity: 0.9 }}>
+                  No refund recorded yet for this booking. Cancelling a booking does not automatically refund any amount collected — message us if you're expecting one.
+                </p>
+              ) : (
+                <div className="flex flex-col gap-4">
+                  {refundSucceeded > 0 && (
+                    <p className="m-0" style={{ opacity: 0.9 }}>
+                      <strong>{formatMoney(refundSucceeded)}</strong> refunded and confirmed.
+                    </p>
+                  )}
+                  {refundPending > 0 && (
+                    <p className="m-0" style={{ opacity: 0.9 }}>
+                      <strong>{formatMoney(refundPending)}</strong> refund in progress / awaiting confirmation — not completed yet.
+                    </p>
+                  )}
+                  {refundFailed > 0 && (
+                    <p className="m-0" style={{ opacity: 0.9 }}>
+                      <strong>{formatMoney(refundFailed)}</strong> refund attempt failed — no amount was deducted from your collected total.
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -1024,7 +1072,18 @@ const OrderDetailPage = () => {
             </div>
             <div className="text-center">
               <div className="text-xs text-tertiary">Balance</div>
-              {settlementState === SETTLEMENT_STATE.UNPRICED ? (
+              {/* A cancelled order always reads SETTLED from getSettlementState
+                  (nothing is collectible on a cancelled booking), but the raw
+                  `balance` figure underneath (shipping_cost - amount_paid) can
+                  still be a positive peso number after only a partial refund —
+                  update_order_payment_totals() has no status-aware branch. Showing
+                  that raw number in success-green here would read as "you're owed
+                  a settled ₱X", which is not what it means. Label it plainly
+                  instead of rendering the raw figure — mirrors the admin page's
+                  own settlementState-gated render just above the payment table. */}
+              {isCancelled ? (
+                <div className="text-sm font-bold text-tertiary">Cancelled</div>
+              ) : settlementState === SETTLEMENT_STATE.UNPRICED ? (
                 <div className="text-sm font-bold text-tertiary">—</div>
               ) : (
                 <div className={`text-sm font-bold ${settlementState === SETTLEMENT_STATE.OWING ? 'text-error' : 'text-success'}`}>
