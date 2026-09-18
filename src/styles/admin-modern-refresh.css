@@ -954,6 +954,12 @@
   background: color-mix(in srgb, var(--admin-line) 70%, transparent);
 }
 
+.unpaid-filter-row .unpaid-search-box {
+  flex: 1;
+  min-width: 250px;
+}
+
+
 @media (max-width: 1024px) {
   .app-layout .sidebar,
   .app-layout .sidebar.collapsed {
