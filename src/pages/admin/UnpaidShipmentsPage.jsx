@@ -128,7 +128,7 @@ const UnpaidShipmentsPage = () => {
     }
   };
 
-  // â”€â”€ Realtime â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // -- Realtime --------------------------------------------------------------
   // Payments land here from three directions the admin cannot see: the GCash
   // webhook, another admin's screen, and the customer's own phone. Without
   // this, a laptop left open on this page shows figures that quietly go stale.
@@ -296,7 +296,7 @@ const UnpaidShipmentsPage = () => {
           {!loading && loadedAt && (
             <div className="text-xs text-tertiary mt-4 no-print" role="status" aria-live="polite">
               {refreshing ? (
-                <><Loader size={12} className="animate-spin inline mr-6" aria-hidden="true" /> Updating”¦</>
+                <><Loader size={12} className="animate-spin inline mr-6" aria-hidden="true" /> Updating...</>
               ) : (
                 <>
                   <span
@@ -388,7 +388,7 @@ const UnpaidShipmentsPage = () => {
             name="qunsettled"
             type="search"
             aria-label="Search Unpaid Shipments"
-            placeholder="Search tracking or customer”¦"
+            placeholder="Search tracking or customer..."
             value={search}
             onChange={e => setSearch(e.target.value)}
           />
@@ -464,7 +464,7 @@ const UnpaidShipmentsPage = () => {
                         {formatCurrency(Math.max(0, (parseFloat(o.shipping_cost) || 0) - (parseFloat(o.discount_amount) || 0)))}
                         {(parseFloat(o.discount_amount) || 0) > 0 && (
                           <div className="text-xs text-tertiary fw-400">
-                            {formatCurrency(o.shipping_cost)} âˆ’ {formatCurrency(o.discount_amount)} discount
+                            {formatCurrency(o.shipping_cost)} - {formatCurrency(o.discount_amount)} discount
                           </div>
                         )}
                       </td>
@@ -509,7 +509,7 @@ const UnpaidShipmentsPage = () => {
         </div>
       )}
 
-      {/* â”€â”€ Formal printed document (bond paper) — replaces UI in print â”€â”€ */}
+      {/* -- Formal printed document (bond paper) — replaces UI in print -- */}
       {!loading && filtered.length > 0 && (
         <PrintDocument
           title="Unpaid Shipments Report"

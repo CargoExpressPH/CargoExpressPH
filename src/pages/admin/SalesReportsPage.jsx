@@ -6,7 +6,7 @@ import UnpaidShipmentsPage from './UnpaidShipmentsPage';
 import ErrorBoundarySection from '../../components/ui/ErrorBoundarySection';
 
 /**
- * SalesReportsPage â€” Combined Sales & Reports page.
+ * SalesReportsPage - Combined Sales & Reports page.
  * All three views live behind a single admin navigation entry.
  * Sales = all-time revenue/collection overview; Unsettled = shipments that
  * still owe money, row by row; Reports = period-based operational analytics.
