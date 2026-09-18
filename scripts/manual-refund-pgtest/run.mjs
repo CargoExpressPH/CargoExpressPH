@@ -103,6 +103,7 @@ for (const migration of [
   '20260913170000_serialize_order_payment_totals.sql',
   '20260918010000_refund_period_bucketing_fix.sql',
   '20260918020000_manual_refund_recording.sql',
+  '20260919000000_manual_refund_reference_validation.sql',
 ]) {
   await db.exec(readFileSync(path.join(REPO, 'supabase/migrations', migration), 'utf8'));
   console.log(`  applied ${migration}`);
@@ -175,6 +176,24 @@ const paymongoPayment = await value(`
   ) VALUES ($1,700,'gcash','paid','pay_manual_guard_001','paymongo','System Webhook') RETURNING id
 `, [paymongoOrder.id]);
 
+// Dedicated fixture for the reference-format validation tests below, so the
+// two cases that actually SUCCEED there don't eat into manualGcashPayment's
+// balance ahead of the full-amount refund test further down.
+const referenceFormatOrder = await value(`
+  INSERT INTO orders (tracking_number,shipping_cost,actual_weight,status,user_id)
+  VALUES ('MANUAL-GCASH-REFFMT-001',300,3,'Picked Up',$1) RETURNING id
+`, [CUSTOMER]);
+// A realistic, mostly-numeric original reference (matching the documented
+// "Ref No." shape) — needed so the "matches the original payment's own
+// reference" check actually gets exercised; a reference with too few
+// digits would be rejected earlier by the generic digit-content check
+// instead, before ever reaching that specific comparison.
+const referenceFormatPayment = await value(`
+  INSERT INTO payment_transactions (
+    order_id,amount,payment_method,payment_status,transaction_reference,gcash_channel,admin_name
+  ) VALUES ($1,300,'gcash','paid','1001 543 610277','manual','Admin One') RETURNING id
+`, [referenceFormatOrder.id]);
+
 // ------------------------------------------------------------------
 // 3. Direct-call / authorization guards
 // ------------------------------------------------------------------
@@ -234,6 +253,96 @@ await asRole('service_role', null);
     rejected = /transfer reference is required/.test(error.message);
   }
   ok('a GCash return without a transfer reference is rejected server-side', rejected);
+}
+
+// ------------------------------------------------------------------
+// 3b. GCash reference format validation — the actual bug this migration
+// fixes (an email/phone/internal-id previously passed the old 4-character
+// minimum check). Every case here is rejected server-side, independent of
+// whatever the browser modal does or does not catch.
+// ------------------------------------------------------------------
+
+{
+  let rejected = false;
+  try {
+    await query(`SELECT record_manual_refund($1,100,'requested_by_customer',NULL,'gcash','admin@cargoexpressph.com',NOW(),$2,$3)`,
+      [manualGcashPayment.id, '30000000-0000-4000-8000-000000000030', ADMIN]);
+  } catch (error) {
+    rejected = /email address/.test(error.message);
+  }
+  ok('an email address entered as the GCash reference is rejected server-side', rejected);
+}
+
+{
+  let rejected = false;
+  try {
+    await query(`SELECT record_manual_refund($1,100,'requested_by_customer',NULL,'gcash','09171234567',NOW(),$2,$3)`,
+      [manualGcashPayment.id, '30000000-0000-4000-8000-000000000031', ADMIN]);
+  } catch (error) {
+    rejected = /phone number/.test(error.message);
+  }
+  ok('a phone number entered as the GCash reference is rejected server-side', rejected);
+}
+
+{
+  let rejected = false;
+  try {
+    await query(`SELECT record_manual_refund($1,100,'requested_by_customer',NULL,'gcash','pay_9f8a7b6c5d4e3f2a1b0c',NOW(),$2,$3)`,
+      [manualGcashPayment.id, '30000000-0000-4000-8000-000000000032', ADMIN]);
+  } catch (error) {
+    rejected = /internal payment system ID/.test(error.message);
+  }
+  ok('a PayMongo-shaped payment/refund ID entered as the GCash reference is rejected server-side', rejected);
+}
+
+{
+  // referenceFormatPayment's own transaction_reference is
+  // '1001 543 610277' (the ORIGINAL payment) — entering that exact value
+  // back as the refund's OWN reference must be rejected, since it would
+  // misrepresent the original payment as if it were the new outgoing
+  // refund transfer.
+  let rejected = false;
+  try {
+    await query(`SELECT record_manual_refund($1,100,'requested_by_customer',NULL,'gcash','1001 543 610277',NOW(),$2,$3)`,
+      [referenceFormatPayment.id, '30000000-0000-4000-8000-000000000033', ADMIN]);
+  } catch (error) {
+    rejected = /own reference/.test(error.message);
+  }
+  ok('a reference identical to the ORIGINAL payment\'s own reference is rejected (would misrepresent it as the refund transfer)', rejected);
+}
+
+{
+  let rejected = false;
+  try {
+    await query(`SELECT record_manual_refund($1,100,'requested_by_customer',NULL,'gcash','no digits here',NOW(),$2,$3)`,
+      [manualGcashPayment.id, '30000000-0000-4000-8000-000000000034', ADMIN]);
+  } catch (error) {
+    rejected = /completed GCash transfer receipt/.test(error.message);
+  }
+  ok('a reference with no meaningful digit content is rejected (every documented GCash-adjacent reference format is numeric-based)', rejected);
+}
+
+{
+  // Leading zeros must survive storage — this is a TEXT column, and nothing
+  // in the accepted path may coerce it to a number or strip characters.
+  const LEADING_ZERO_IDEM = '30000000-0000-4000-8000-000000000035';
+  const leadingZeroResult = await value(
+    `SELECT record_manual_refund($1,50,'requested_by_customer',NULL,'gcash','0091 234 567890',NOW(),$2,$3) AS payload`,
+    [referenceFormatPayment.id, LEADING_ZERO_IDEM, ADMIN]
+  );
+  ok('a valid reference with leading zeros is accepted and stored exactly as pasted, with no digits stripped', leadingZeroResult.payload.created === true && leadingZeroResult.payload.return_reference === '0091 234 567890', leadingZeroResult.payload);
+}
+
+{
+  // Whitespace is trimmed at the edges only — not collapsed or removed
+  // internally, since that could turn one valid-looking reference into a
+  // different one.
+  const TRIM_IDEM = '30000000-0000-4000-8000-000000000036';
+  const trimResult = await value(
+    `SELECT record_manual_refund($1,25,'requested_by_customer',NULL,'gcash','  1234 567 890123  ',NOW(),$2,$3) AS payload`,
+    [referenceFormatPayment.id, TRIM_IDEM, ADMIN]
+  );
+  ok('surrounding whitespace is trimmed but internal spacing is preserved exactly', trimResult.payload.created === true && trimResult.payload.return_reference === '1234 567 890123', trimResult.payload);
 }
 
 // ------------------------------------------------------------------
@@ -313,10 +422,10 @@ ok('after both cash refunds, the order is fully unwound: amount_paid 0, remainin
 
 const GCASH_IDEM = '30000000-0000-4000-8000-000000000020';
 const gcashResult = await value(
-  `SELECT record_manual_refund($1,500,'requested_by_customer','Returned in full via GCash transfer.','gcash','GCASH-XFER-REF-99','2024-01-16T08:00:00Z',$2,$3) AS payload`,
+  `SELECT record_manual_refund($1,500,'requested_by_customer','Returned in full via GCash transfer.','gcash','1001 543 610299','2024-01-16T08:00:00Z',$2,$3) AS payload`,
   [manualGcashPayment.id, GCASH_IDEM, ADMIN]
 );
-ok('manual GCash-return refund is created with its transfer reference recorded', gcashResult.payload.created === true && gcashResult.payload.return_reference === 'GCASH-XFER-REF-99', gcashResult.payload);
+ok('manual GCash-return refund is created with its transfer reference recorded', gcashResult.payload.created === true && gcashResult.payload.return_reference === '1001 543 610299', gcashResult.payload);
 
 const gcashNotification = await value(`SELECT message FROM notifications WHERE payment_refund_id=$1`, [gcashResult.payload.id]);
 ok('a manual GCash return notification says our team returned it, not "your original GCash account" (which implies an automated provider posting)', /recorded as returned by our team/.test(gcashNotification.message), gcashNotification);
@@ -356,20 +465,22 @@ const financialReport = await value(
 );
 const report = financialReport.payload;
 // Fixtures in scope: cash 1000 (refunded 400+600), manual-GCash 500
-// (refunded 500), and the PayMongo-channel 700 fixture created earlier only
-// to prove record_manual_refund refuses it — never refunded here.
-ok('period financial report gross collected includes every payment fixture (1000 cash + 500 manual-GCash + 700 PayMongo-channel)', Number(report.grossCollected) === 2200, report.grossCollected);
-ok('period financial report successful refunds include BOTH manual refunds in full (400 + 600 cash + 500 gcash = 1500)', Number(report.successfulRefunds) === 1500, report.successfulRefunds);
-ok('net collected is gross minus refunds (2200 - 1500 = 700) — manual refunds are not silently excluded from the RPC', Number(report.netCollected) === 700, report.netCollected);
+// (refunded 500), the PayMongo-channel 700 fixture created earlier only to
+// prove record_manual_refund refuses it (never refunded), and
+// referenceFormatPayment 300 (refunded 50+25 by the leading-zero/whitespace
+// format-validation tests above).
+ok('period financial report gross collected includes every payment fixture (1000 cash + 500 manual-GCash + 700 PayMongo-channel + 300 reference-format)', Number(report.grossCollected) === 2500, report.grossCollected);
+ok('period financial report successful refunds include every manual refund in full (400 + 600 cash + 500 gcash + 50 + 25 = 1575)', Number(report.successfulRefunds) === 1575, report.successfulRefunds);
+ok('net collected is gross minus refunds (2500 - 1575 = 925) — manual refunds are not silently excluded from the RPC', Number(report.netCollected) === 925, report.netCollected);
 
 const cashMethodRow = report.methodTotals.find(row => row.method === 'cash');
 ok('the Cash method bucket specifically is fully reduced by the manual cash refunds (was inflating Cash Sales before this feature existed)', Number(cashMethodRow.gross) === 1000 && Number(cashMethodRow.refunds) === 1000 && Number(cashMethodRow.net) === 0, cashMethodRow);
 
 const gcashMethodRow = report.methodTotals.find(row => row.method === 'gcash');
-ok('the GCash method bucket is reduced by the manual GCash return, but not by the unrelated never-refunded PayMongo fixture (gross 500+700=1200, refunds 500, net 700)', Number(gcashMethodRow.gross) === 1200 && Number(gcashMethodRow.refunds) === 500 && Number(gcashMethodRow.net) === 700, gcashMethodRow);
+ok('the GCash method bucket is reduced by the manual GCash returns, but not by the unrelated never-refunded PayMongo fixture (gross 500+700+300=1500, refunds 500+75=575, net 925)', Number(gcashMethodRow.gross) === 1500 && Number(gcashMethodRow.refunds) === 575 && Number(gcashMethodRow.net) === 925, gcashMethodRow);
 
 const refundDetailRows = report.paymentRefundDetail.filter(row => row.type === 'refund');
-ok('all three manual refunds appear individually in the combined payment/refund detail ledger (no double counting, no join fan-out)', refundDetailRows.length === 3, refundDetailRows.length);
+ok('all five manual refunds appear individually in the combined payment/refund detail ledger (no double counting, no join fan-out)', refundDetailRows.length === 5, refundDetailRows.length);
 
 // ------------------------------------------------------------------
 // 9. Cancelled-order settlement stays correct after a manual refund

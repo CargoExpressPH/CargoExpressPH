@@ -44,6 +44,46 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-
 const REFUND_REASONS = new Set(['duplicate', 'fraudulent', 'requested_by_customer', 'others'])
 const RETURN_METHODS = new Set(['cash', 'gcash'])
 
+// Mirrors src/utils/gcashReference.js and the equivalent checks in
+// record_manual_refund() (20260919000000_manual_refund_reference_validation.sql)
+// — kept in sync by hand across the three layers (browser, Edge Function,
+// database) rather than shared code, since a Vite frontend module and a Deno
+// Edge Function do not share a build step in this project. There is no
+// single universal GCash reference format to enforce exactly (see that
+// migration's header comment for the sources), so this checks structure and
+// clearly-wrong values rather than one fixed length/pattern. Browser
+// validation is a UX convenience only — this is the layer that actually
+// matters, since nothing stops a request from arriving here without ever
+// having gone through the browser form.
+const EMAIL_PATTERN = /\S+@\S+\.\S+/
+// Checked FIRST, before any digit-stripping — otherwise stripping
+// non-digits from an alphanumeric value (e.g. a PayMongo id like
+// "pay_9f8a7b6c5d4e3f2a1b0c") can coincidentally leave a 10-digit string
+// starting with 9, which would misread as a phone number even though the
+// original value plainly wasn't one.
+const PHONE_SHAPED_PATTERN = /^[\d\s()+-]+$/
+const PH_MOBILE_DIGITS_PATTERN = /^(?:63|0)?9\d{9}$/
+const PAYMONGO_ID_PATTERN = /^(?:pay|ref|src|link|paym|pi|re|sub|cus|evt)_[A-Za-z0-9_-]+$/i
+
+const gcashReferenceError = (value: string, originalReference: string | null): string | null => {
+  if (!value) return 'Enter the reference number from the completed GCash transfer receipt'
+  if (value.length < 4) return 'That reference looks too short'
+  if (value.length > 255) return 'That reference is too long'
+  if (EMAIL_PATTERN.test(value)) return 'That looks like an email address, not a GCash transfer reference'
+  const digitsOnly = value.replace(/\D/g, '')
+  if (PHONE_SHAPED_PATTERN.test(value) && PH_MOBILE_DIGITS_PATTERN.test(digitsOnly) && digitsOnly.length <= 12) {
+    return 'That looks like a phone number, not a GCash transfer reference'
+  }
+  if (PAYMONGO_ID_PATTERN.test(value)) return 'That looks like an internal payment system ID, not a GCash transfer reference'
+  if (originalReference && value.toLowerCase() === originalReference.trim().toLowerCase()) {
+    return "That matches the original payment's own reference. Enter the reference of the NEW outgoing refund transfer."
+  }
+  if ((digitsOnly.match(/\d/g) || []).length < 4) {
+    return 'Enter the reference number from the completed GCash transfer receipt'
+  }
+  return null
+}
+
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), {
   status,
   headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
@@ -123,8 +163,13 @@ serve(async (req) => {
     if (!REFUND_REASONS.has(reason)) return json({ error: 'Select a valid refund reason' }, 400)
     if (notes.length > 255) return json({ error: 'Notes must be 255 characters or fewer' }, 400)
     if (!RETURN_METHODS.has(returnMethod)) return json({ error: 'Select how the money was actually returned: Cash or GCash' }, 400)
-    if (returnMethod === 'gcash' && returnReference.length < 4) {
-      return json({ error: 'Enter the GCash transfer reference for this return' }, 400)
+    if (returnMethod === 'gcash') {
+      // Stateless format checks only (no original-payment-reference match
+      // here — that needs a DB lookup this function doesn't otherwise make;
+      // record_manual_refund() performs that specific check authoritatively
+      // once it has the payment row loaded).
+      const referenceError = gcashReferenceError(returnReference, null)
+      if (referenceError) return json({ error: referenceError }, 400)
     }
     if (returnMethod === 'cash' && notes.length < 5) {
       return json({ error: 'Enter a short acknowledgement note for this cash return' }, 400)
@@ -175,10 +220,32 @@ serve(async (req) => {
       console.error('[record-manual-refund] Failed to record re-authentication attempt')
     }
 
-    // Always sign the throwaway verification session back out — it is not
-    // needed after this check, and there is no reason to leave a live
-    // session sitting in memory past the moment it was used.
-    void verifyClient.auth.signOut().catch(() => {})
+    // Clean up the throwaway verification session. Per the installed SDK
+    // (GoTrueClient._signOut → GoTrueAdminApi.signOut):
+    //   scope='local'  → POST /logout?scope=local  — the Auth server revokes
+    //                    ONLY this session's refresh token, leaving every other
+    //                    session for the same user (including the admin's real
+    //                    browser session) intact. The client then removes its
+    //                    own local storage entry (_removeSession).
+    //   scope='global' → POST /logout?scope=global — revokes ALL sessions for
+    //                    the user server-side, which is what the original
+    //                    void signOut().catch() was doing and why the admin
+    //                    was being logged out.
+    // Note: if the project ever enables single-session enforcement in the
+    // Supabase Dashboard (Auth → Advanced), the throwaway signInWithPassword
+    // above creates a new token family that would itself displace the admin's
+    // original session regardless of scope. That setting is UNKNOWN for this
+    // project — verify in the Dashboard before deploying.
+    const { error: cleanupError } = await verifyClient.auth.signOut({ scope: 'local' }).catch(
+      (thrown: unknown) => ({ error: thrown })
+    )
+    if (cleanupError) {
+      // Non-fatal: the refund has already been written (or idempotently
+      // found). Logging the failure is enough — do not surface it to the
+      // caller as a refund error, which would incorrectly suggest the
+      // operation failed and invite a duplicate submission.
+      console.error('[record-manual-refund] Non-fatal: could not clean up verification session')
+    }
 
     if (!verified) {
       const nowLocked = attemptState?.locked === true
@@ -211,6 +278,11 @@ serve(async (req) => {
         || /acknowledgement note is required/.test(recordError.message || '')
         || /transfer reference is required/.test(recordError.message || '')
         || /Only a paid or partially paid/.test(recordError.message || '')
+        || /email address/.test(recordError.message || '')
+        || /phone number/.test(recordError.message || '')
+        || /internal payment system ID/.test(recordError.message || '')
+        || /own reference/.test(recordError.message || '')
+        || /completed GCash transfer receipt/.test(recordError.message || '')
         ? recordError.message
         : 'This manual refund could not be recorded. Refresh the order and try again.'
       return json({ error: safeMessage }, 409)

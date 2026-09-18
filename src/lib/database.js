@@ -510,7 +510,12 @@ export const cancelOrderAsAdmin = async (orderId, reason) => {
     .select('status')
     .eq('id', orderId)
     .single();
-  if (fetchError) throw fetchError;
+  if (fetchError) {
+    if (fetchError.code === 'PGRST116') {
+      throw new Error('Booking not found, or your session has expired. Please refresh and try again.');
+    }
+    throw fetchError;
+  }
 
   if (!canAdminCancelOrder(current)) {
     throw new Error(

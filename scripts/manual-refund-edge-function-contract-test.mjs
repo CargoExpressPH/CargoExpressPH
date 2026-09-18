@@ -141,7 +141,7 @@ assert.match(
 );
 assert.match(
   source,
-  /verifyClient\.auth\.signOut\(\)/,
+  /verifyClient\.auth\.signOut\(\{ scope: 'local' \}\)/,
   'the throwaway verification session should be signed out again after use, since nothing needs it to persist',
 );
 assert.doesNotMatch(
@@ -152,7 +152,10 @@ assert.doesNotMatch(
 
 // Confirmation and evidence requirements from the corrected spec.
 assert.match(source, /confirmedReturned/, 'must require an explicit confirmation that the money was already returned');
-assert.match(source, /returnMethod === 'gcash' && returnReference\.length < 4/, 'must require a transfer reference for a GCash return');
+assert.match(source, /gcashReferenceError\(returnReference, null\)/, 'must run the shared GCash reference format validation for a GCash return');
+assert.match(source, /EMAIL_PATTERN\.test\(value\)/, 'reference validation must reject email-shaped values');
+assert.match(source, /PH_MOBILE_DIGITS_PATTERN\.test\(digitsOnly\)/, 'reference validation must reject phone-number-shaped values');
+assert.match(source, /PAYMONGO_ID_PATTERN\.test\(value\)/, 'reference validation must reject PayMongo-id-shaped values');
 assert.match(source, /returnMethod === 'cash' && notes\.length < 5/, 'must require an acknowledgement note for a Cash return');
 
 // Method allow-list guards against an arbitrary string reaching the RPC.

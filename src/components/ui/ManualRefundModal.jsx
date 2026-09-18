@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { AlertTriangle, Lock, Loader, RotateCcw, X } from 'lucide-react';
 import { recordManualRefund } from '../../lib/manualRefund';
 import { formatMoney } from '../../utils/currencyInput';
+import { validateGcashReference } from '../../utils/gcashReference';
 import AmountInput from './AmountInput';
 import CustomSelect from './CustomSelect';
 import FocusTrap from './FocusTrap';
@@ -32,6 +33,36 @@ const formatLockCountdown = (lockedUntil) => {
  * CargoExpress's own records so reports stop overstating collected revenue.
  * See supabase/functions/record-manual-refund for the password
  * verification this performs server-side.
+ *
+ * AUTOFILL — root cause and fix (see MANUAL_REFUND_REFERENCE_VALIDATION_FIX_REPORT.md
+ * for the full writeup):
+ *
+ * This modal used to render as a native <form> containing a plain, bare
+ * text input (the GCash reference) with no name/autocomplete attributes,
+ * followed later by a password-type input. Chrome's saved-credential
+ * heuristic scans a <form> for a password field, then looks BACKWARD for the
+ * nearest preceding text-shaped input to treat as that login's "username" —
+ * it found the reference field (the only other bare text input between the
+ * amount field and the password field; the reason/return-method controls are
+ * CustomSelect, which renders as a <button>, not a text input) and
+ * autofilled the admin's saved site credentials into both. This matches the
+ * reported symptom exactly: the reference field filled with the admin's
+ * email, and the password field filled alongside it, only once a password
+ * field existed later in the same <form>.
+ *
+ * The fix has two layers, since neither alone is reliable (Chrome is known
+ * to override a declared `autocomplete="off"` on fields it believes are
+ * login-related, which is exactly why the task's own brief says not to rely
+ * on it alone):
+ *   1. This is no longer a <form>. Removing the <form> element removes
+ *      Chrome's primary structural signal for "this is a login/credential
+ *      form" — its autofill-pairing and save-password-prompt heuristics are
+ *      bound to <form> elements. Submission is wired manually (the button's
+ *      onClick, plus an Enter-key handler on the three relevant inputs) so
+ *      keyboard submission still works.
+ *   2. Every field still gets a distinct, non-credential-shaped `name` and
+ *      an appropriate `autocomplete` value as a second, independent layer —
+ *      not the sole defense, but still correct to have.
  */
 const ManualRefundModal = ({ transaction, order, onClose, onSuccess }) => {
   useScrollLock(true);
@@ -47,7 +78,29 @@ const ManualRefundModal = ({ transaction, order, onClose, onSuccess }) => {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [lockedUntil, setLockedUntil] = useState(null);
-  const [idempotencyKey] = useState(newIdempotencyKey);
+  const [idempotencyKey, setIdempotencyKey] = useState(newIdempotencyKey);
+
+  // Every sensitive / method-specific field starts empty for a fresh
+  // transaction. The modal is normally a full unmount+remount per open (see
+  // OrderDetailPage.jsx: it only exists in the tree while its `transaction`
+  // prop is set, and closing clears that before a new one can open), so
+  // useState's initializers already cover that case — this effect is a
+  // second, explicit guarantee against exactly the kind of leak this task
+  // is about, in case that assumption ever stops holding (e.g. a future
+  // caller keeps the component mounted and swaps `transaction` directly).
+  useEffect(() => {
+    setAmount(Number(transaction?.refundable_amount || 0).toFixed(2));
+    setReason('requested_by_customer');
+    setReturnMethod(transaction?.payment_method === 'gcash' ? 'gcash' : 'cash');
+    setReturnReference('');
+    setNotes('');
+    setConfirmedReturned(false);
+    setPassword('');
+    setError('');
+    setLockedUntil(null);
+    setIdempotencyKey(newIdempotencyKey());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [transaction?.id]);
 
   useEffect(() => {
     const onEscape = event => { if (event.key === 'Escape' && !saving) onClose(); };
@@ -55,22 +108,50 @@ const ManualRefundModal = ({ transaction, order, onClose, onSuccess }) => {
     return () => document.removeEventListener('keydown', onEscape);
   }, [onClose, saving]);
 
-  const handleClose = () => { if (!saving) onClose(); };
+  const handleClose = () => {
+    if (saving) return;
+    setPassword('');
+    onClose();
+  };
+
+  // Switching between Cash and GCash changes what counts as "evidence" —
+  // the GCash reference and the Cash acknowledgement note are each specific
+  // to one method, so the other method's leftover value must not silently
+  // ride along into a submission it was never actually entered for. The
+  // password and confirmation are reset too: they attest to a specific
+  // return the admin just described, and that description just changed.
+  // The refund amount is untouched — it is not method-specific.
+  const handleReturnMethodChange = (event) => {
+    setReturnMethod(event.target.value);
+    setReturnReference('');
+    setNotes('');
+    setPassword('');
+    setConfirmedReturned(false);
+    setError('');
+  };
+
+  const locked = Boolean(lockedUntil) && new Date(lockedUntil).getTime() > Date.now();
+  const referenceCheck = returnMethod === 'gcash'
+    ? validateGcashReference(returnReference, { originalReference: transaction?.payment_method === 'gcash' ? transaction?.transaction_reference : null })
+    : { valid: true, value: '', error: null };
+  const amountValue = Number(amount);
+  const amountValid = Number.isFinite(amountValue) && amountValue > 0 && amountValue <= maxRefund + 0.005;
+  const evidenceValid = returnMethod === 'gcash' ? referenceCheck.valid : notes.trim().length >= 5;
+  const canSubmit = !saving && !locked && amountValid && evidenceValid && confirmedReturned && password.length > 0 && maxRefund > 0;
 
   const handleSubmit = async event => {
-    event.preventDefault();
+    event?.preventDefault?.();
     setError('');
-    const parsedAmount = Number(amount);
-    if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
+    if (!Number.isFinite(amountValue) || amountValue <= 0) {
       setError('Enter a refund amount greater than zero.');
       return;
     }
-    if (parsedAmount > maxRefund + 0.005) {
+    if (amountValue > maxRefund + 0.005) {
       setError(`The most that can still be recorded as refunded is ${formatMoney(maxRefund)}.`);
       return;
     }
-    if (returnMethod === 'gcash' && returnReference.trim().length < 4) {
-      setError('Enter the GCash transfer reference for this return.');
+    if (returnMethod === 'gcash' && !referenceCheck.valid) {
+      setError(referenceCheck.error || 'Enter a valid GCash transfer reference.');
       return;
     }
     if (returnMethod === 'cash' && notes.trim().length < 5) {
@@ -90,17 +171,17 @@ const ManualRefundModal = ({ transaction, order, onClose, onSuccess }) => {
     try {
       const result = await recordManualRefund({
         paymentTransactionId: transaction.id,
-        amount: parsedAmount,
+        amount: amountValue,
         reason,
         notes,
         returnMethod,
-        returnReference,
+        returnReference: returnMethod === 'gcash' ? referenceCheck.value : '',
         confirmedReturned,
         password,
         idempotencyKey,
       });
       setPassword('');
-      await onSuccess(result, parsedAmount);
+      await onSuccess(result, amountValue);
     } catch (err) {
       setPassword('');
       if (err?.isLocked) {
@@ -119,7 +200,16 @@ const ManualRefundModal = ({ transaction, order, onClose, onSuccess }) => {
     }
   };
 
-  const locked = Boolean(lockedUntil) && new Date(lockedUntil).getTime() > Date.now();
+  // Enter submits from the single-line fields, matching the convenience a
+  // native <form> gave for free — scoped to just these inputs (not the
+  // textarea, where Enter must keep inserting a newline, and not attached
+  // globally, which would fight CustomSelect's own Enter handling for
+  // opening/choosing an option).
+  const handleEnterSubmit = (event) => {
+    if (event.key !== 'Enter') return;
+    event.preventDefault();
+    handleSubmit(event);
+  };
 
   return createPortal(
     <FocusTrap active>
@@ -130,7 +220,7 @@ const ManualRefundModal = ({ transaction, order, onClose, onSuccess }) => {
         aria-modal="true"
         aria-labelledby="manual-refund-title"
       >
-        <form className="modal" style={{ maxWidth: 520 }} onSubmit={handleSubmit} onClick={event => event.stopPropagation()}>
+        <div className="modal" style={{ maxWidth: 520 }} onClick={event => event.stopPropagation()}>
           <div className="modal-header">
             <h3 id="manual-refund-title" className="flex items-center gap-8">
               <RotateCcw size={19} aria-hidden="true" /> Record Manual Refund
@@ -159,8 +249,10 @@ const ManualRefundModal = ({ transaction, order, onClose, onSuccess }) => {
               <label className="form-label" htmlFor="manual-refund-amount">Refund amount *</label>
               <AmountInput
                 id="manual-refund-amount"
+                name="manual-refund-amount"
                 value={amount}
                 onValueChange={value => { setAmount(value); setError(''); }}
+                onKeyDown={handleEnterSubmit}
                 disabled={saving}
                 aria-describedby="manual-refund-amount-help"
                 autoFocus
@@ -184,7 +276,7 @@ const ManualRefundModal = ({ transaction, order, onClose, onSuccess }) => {
                 id="manual-refund-return-method"
                 className="form-select"
                 value={returnMethod}
-                onChange={event => { setReturnMethod(event.target.value); setError(''); }}
+                onChange={handleReturnMethodChange}
                 disabled={saving}
               >
                 <option value="cash">Cash — handed back in person</option>
@@ -198,14 +290,32 @@ const ManualRefundModal = ({ transaction, order, onClose, onSuccess }) => {
                 <label className="form-label" htmlFor="manual-refund-reference">GCash transfer reference *</label>
                 <input
                   id="manual-refund-reference"
+                  name="cargoexpress-gcash-refund-transfer-reference"
                   type="text"
+                  inputMode="text"
+                  autoComplete="off"
+                  autoCorrect="off"
+                  autoCapitalize="off"
+                  spellCheck="false"
                   className="form-input"
                   maxLength={255}
                   value={returnReference}
                   onChange={event => { setReturnReference(event.target.value); setError(''); }}
-                  placeholder="Reference number from the GCash transfer you sent"
+                  onKeyDown={handleEnterSubmit}
+                  placeholder="e.g. 1001 543 610110"
+                  aria-describedby="manual-refund-reference-help"
                   disabled={saving}
                 />
+                <p id="manual-refund-reference-help" className="form-hint">
+                  Enter the reference number from the completed GCash transfer receipt — the
+                  reference of the refund transfer you just sent, not the customer's original
+                  payment, an email/phone number, or an internal payment ID. This confirms the
+                  reference is formatted like a real one; it does not by itself prove the transfer
+                  happened — that's what the confirmation checkbox below is for.
+                </p>
+                {returnReference && !referenceCheck.valid && (
+                  <p className="form-hint" style={{ color: 'var(--error-text)' }}>{referenceCheck.error}</p>
+                )}
               </div>
             )}
 
@@ -215,6 +325,7 @@ const ManualRefundModal = ({ transaction, order, onClose, onSuccess }) => {
               </label>
               <textarea
                 id="manual-refund-notes"
+                name="manual-refund-notes"
                 className="form-textarea"
                 rows={3}
                 maxLength={255}
@@ -231,6 +342,7 @@ const ManualRefundModal = ({ transaction, order, onClose, onSuccess }) => {
             <label className="flex items-start gap-10 text-sm cursor-pointer mb-16">
               <input
                 type="checkbox"
+                name="manual-refund-confirmed-returned"
                 checked={confirmedReturned}
                 onChange={event => { setConfirmedReturned(event.target.checked); setError(''); }}
                 disabled={saving}
@@ -242,11 +354,13 @@ const ManualRefundModal = ({ transaction, order, onClose, onSuccess }) => {
               <label className="form-label" htmlFor="manual-refund-password">Admin password *</label>
               <input
                 id="manual-refund-password"
+                name="cargoexpress-manual-refund-admin-password"
                 type="password"
                 className="form-input"
                 autoComplete="current-password"
                 value={password}
                 onChange={event => { setPassword(event.target.value); setError(''); }}
+                onKeyDown={handleEnterSubmit}
                 placeholder="Confirm it's you"
                 disabled={saving || locked}
               />
@@ -258,12 +372,12 @@ const ManualRefundModal = ({ transaction, order, onClose, onSuccess }) => {
 
           <div className="modal-footer">
             <button type="button" className="btn btn-outline" onClick={handleClose} disabled={saving}>Cancel</button>
-            <button type="submit" className="btn btn-primary" disabled={saving || locked || !confirmedReturned || maxRefund <= 0}>
+            <button type="button" className="btn btn-primary" onClick={handleSubmit} disabled={!canSubmit}>
               {saving ? <Loader size={16} className="animate-spin" /> : <RotateCcw size={16} />}
-              {saving ? 'Recording…' : locked ? 'Locked — try later' : `Record ${formatMoney(Number(amount) || 0)} refund`}
+              {saving ? 'Recording…' : locked ? 'Locked — try later' : `Record ${formatMoney(amountValue || 0)} refund`}
             </button>
           </div>
-        </form>
+        </div>
       </div>
     </FocusTrap>,
     document.body,
