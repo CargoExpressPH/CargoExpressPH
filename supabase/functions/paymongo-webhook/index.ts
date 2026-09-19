@@ -63,6 +63,13 @@ const verifySignature = async (rawBody: string, signatureHeader: string | null) 
   const parts = parseSignature(signatureHeader)
   if (!parts.t) return false
 
+  // Prevent replay attacks (5-minute tolerance)
+  const currentTimestamp = Math.floor(Date.now() / 1000)
+  if (currentTimestamp - Number(parts.t) > 300) {
+    console.error('[paymongo-webhook] Signature timestamp is too old')
+    return false
+  }
+
   const signedPayload = `${parts.t}.${rawBody}`
   const key = await crypto.subtle.importKey(
     'raw',
