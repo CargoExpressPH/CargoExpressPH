@@ -175,7 +175,7 @@ const AnnouncementsPage = () => {
   const load = async () => {
     setLoading(true); setError(null);
     try {
-      const data = await withTimeout(getAnnouncements());
+      const data = await withTimeout(getAnnouncements({ includeEmailOnly: true }));
       setItems(data || []);
     } catch(e) {
       setError(e.message || 'Failed to load announcements.');
@@ -363,6 +363,9 @@ const AnnouncementsPage = () => {
                       <CatIcon size={12} />
                       {cat.label}
                     </span>
+                    {a.audience === 'email_only' && (
+                      <span className="badge badge-info text-xs">Email only</span>
+                    )}
                     <h3 className="admin-announcement-title fw-700">{a.title}</h3>
                   </div>
                   <button type="button" className="btn btn-ghost btn-icon admin-card-action" onClick={()=>setDeleteTarget(a)} aria-label={`Delete ${a.title}`}><Trash2 size={16}/></button>

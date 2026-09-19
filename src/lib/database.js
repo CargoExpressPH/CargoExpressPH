@@ -823,9 +823,10 @@ export const createTrip = async (tripData) => {
     }
   }
 
-  // Trip-schedule email blast. Reuses createAnnouncement exactly as the
-  // admin's own Announcements page does — same insert, same in-app +
-  // push fan-out, same non-blocking broadcast-announcement invocation.
+  // Optional trip-schedule email blast. The trip INSERT already created the
+  // customer in-app notifications and push jobs atomically in the database.
+  // This email-only announcement reuses the durable subscriber-email worker
+  // without producing a second customer notification.
   // The consent check (profiles.wants_announcements / contact_inquiries.
   // wants_announcements) lives entirely inside that Edge Function; nothing
   // here bypasses or duplicates it.
@@ -835,6 +836,7 @@ export const createTrip = async (tripData) => {
         title: `Bagong Biyahe: ${data.origin} → ${data.destination}`,
         content: `Bagong Biyahe! Mayroon kaming bagong scheduled trip papuntang ${data.destination} sa ${formatPhDate(data.departure_date)}. I-secure na ang slot ng inyong cargo habang may space pa!`,
         send_email: true,
+        audience: 'email_only',
       });
     } catch (announceErr) {
       // Non-critical — the trip itself is already created and usable.
@@ -1135,23 +1137,28 @@ export const ANNOUNCEMENT_MAX_AGE_DAYS = 60;
  * The live announcements: active, and posted within the last 60 days.
  *
  * The cutoff is applied here rather than at each call site because both
- * surfaces that read announcements — the customer HomePage feed and the admin
- * Announcements page — want the same answer. It does mean an admin stops
- * seeing announcements older than the window, which is intended: they are
- * already invisible to every customer, so there is nothing left to manage.
- * Nothing is deleted; the rows stay, they are just no longer served.
+ * Customer surfaces request only `public` rows. The admin Announcements page
+ * also requests `email_only` rows so a trip-email broadcast remains observable
+ * and retryable without showing it in the customer feed or notifying twice.
+ * Both surfaces share the same age window. Nothing is deleted; old rows simply
+ * stop being served.
  */
-export const getAnnouncements = async () => {
+export const getAnnouncements = async ({ includeEmailOnly = false } = {}) => {
   const cutoff = new Date(Date.now() - ANNOUNCEMENT_MAX_AGE_DAYS * 24 * 60 * 60 * 1000).toISOString();
-  const { data, error } = await supabase
+  let query = supabase
     .from('announcements')
     .select(`*, profiles:author_id (name), email_broadcast:announcement_email_broadcasts (
       status, total_recipients, accepted_count, skipped_count,
       retryable_count, failed_count, needs_review_count, completed_at
     )`)
     .eq('is_active', true)
-    .gte('created_at', cutoff)
-    .order('created_at', { ascending: false });
+    .gte('created_at', cutoff);
+
+  // Customer surfaces only request public announcements. The admin page opts
+  // into email-only records so delivery status and retry controls stay usable.
+  if (!includeEmailOnly) query = query.eq('audience', 'public');
+
+  const { data, error } = await query.order('created_at', { ascending: false });
   if (error) throw error;
   return data;
 };

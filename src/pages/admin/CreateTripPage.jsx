@@ -258,11 +258,11 @@ const CreateTripPage = () => {
               />
               <span className="fw-700 flex items-center gap-8">
                 <Megaphone size={16} color="var(--primary)" aria-hidden="true" />
-                Announce this trip via Email to all subscribers
+                Also email subscribed customers
               </span>
             </label>
             <p className="text-xs text-secondary mt-8">
-              Publishes an announcement and emails everyone subscribed to Email Updates — from the public form, their Profile, or an admin-confirmed agreement on a contact inquiry. Does not email anyone who hasn't opted in.
+              All customers receive an in-app notification automatically, and eligible devices receive push notifications. Select this only to also email people subscribed to Email Updates.
             </p>
           </div>
         </div>
