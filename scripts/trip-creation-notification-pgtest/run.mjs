@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { PGlite } from '@electric-sql/pglite';
 
-const migrationPath = 'supabase/migrations/20260919230116_notify_customers_on_trip_creation.sql';
+const migrationPath = 'supabase/migrations/20260919231046_notify_customers_on_trip_creation.sql';
 const migration = readFileSync(migrationPath, 'utf8');
 const databaseSource = readFileSync('src/lib/database.js', 'utf8');
 const createTripPage = readFileSync('src/pages/admin/CreateTripPage.jsx', 'utf8');
