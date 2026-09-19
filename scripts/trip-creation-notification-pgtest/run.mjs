@@ -4,6 +4,8 @@ import { PGlite } from '@electric-sql/pglite';
 
 const migrationPath = 'supabase/migrations/20260919231046_notify_customers_on_trip_creation.sql';
 const migration = readFileSync(migrationPath, 'utf8');
+const audiencePolicyMigrationPath = 'supabase/migrations/20260919232534_restrict_email_only_announcements.sql';
+const audiencePolicyMigration = readFileSync(audiencePolicyMigrationPath, 'utf8');
 const databaseSource = readFileSync('src/lib/database.js', 'utf8');
 const createTripPage = readFileSync('src/pages/admin/CreateTripPage.jsx', 'utf8');
 const announcementsPage = readFileSync('src/pages/admin/AnnouncementsPage.jsx', 'utf8');
@@ -45,6 +47,16 @@ await db.exec(`
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
   );
 
+  ALTER TABLE public.announcements ENABLE ROW LEVEL SECURITY;
+  GRANT USAGE ON SCHEMA public TO authenticated;
+  GRANT SELECT ON public.announcements TO authenticated;
+
+  CREATE POLICY "Authenticated users can view announcements"
+    ON public.announcements
+    FOR SELECT
+    TO authenticated
+    USING (true);
+
   CREATE OR REPLACE FUNCTION private.notify_announcement_customers()
   RETURNS TRIGGER
   LANGUAGE plpgsql
@@ -69,6 +81,7 @@ await db.exec(`
 `);
 
 await db.exec(migration);
+await db.exec(audiencePolicyMigration);
 
 const CUSTOMER_ONE = '10000000-0000-4000-8000-000000000001';
 const CUSTOMER_TWO = '10000000-0000-4000-8000-000000000002';
@@ -119,6 +132,17 @@ announcementCount = await db.query(`
   SELECT count(*)::int AS count FROM public.notifications WHERE type = 'announcement'
 `);
 assert.equal(announcementCount.rows[0].count, 2, 'email-only records must not create duplicate notifications');
+
+await db.exec('SET ROLE authenticated');
+const customerVisibleAnnouncements = await db.query(`
+  SELECT title FROM public.announcements ORDER BY title
+`);
+await db.exec('RESET ROLE');
+assert.deepEqual(
+  customerVisibleAnnouncements.rows.map(row => row.title),
+  ['Public notice'],
+  'authenticated customer reads must exclude email-only announcement records',
+);
 
 await assert.rejects(
   db.query(`INSERT INTO public.announcements (title, content, audience) VALUES ('Bad', 'Bad', 'unknown')`),
