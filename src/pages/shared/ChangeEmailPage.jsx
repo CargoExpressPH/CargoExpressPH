@@ -48,7 +48,7 @@ const NO_MANAGER = {
 
 const ChangeEmailPage = () => {
   usePageTitle('Change Email');
-  const { user, userProfile, changeEmail, resendEmailChange } = useAuth();
+  const { user, userProfile, changeEmail } = useAuth();
   const navigate = useNavigate();
   const toast = useToast();
 
@@ -56,8 +56,7 @@ const ChangeEmailPage = () => {
   const [currentPassword, setCurrentPassword] = useState('');
   const [showPassword,    setShowPassword]    = useState(false);
   const [loading,         setLoading]         = useState(false);
-  const [submitted,       setSubmitted]       = useState(Boolean(user?.new_email));
-  const [resending,       setResending]       = useState(false);
+  const [submitted,       setSubmitted]       = useState(false);
 
   const currentEmail = user?.email || userProfile?.email || '';
   const role = userProfile?.role;
@@ -77,7 +76,6 @@ const ChangeEmailPage = () => {
   const newEmailTrimmed = newEmail.trim();
   const validEmail = EMAIL_RE.test(newEmailTrimmed);
   const isDifferent = newEmailTrimmed.toLowerCase() !== currentEmail.toLowerCase();
-  const pendingEmail = user?.new_email || (submitted ? newEmailTrimmed : '');
 
   /**
    * Problems visible while typing — only ever on a field the user has already
@@ -139,17 +137,6 @@ const ChangeEmailPage = () => {
     }
   };
 
-  const handleResend = async () => {
-    setResending(true);
-    const result = await resendEmailChange();
-    setResending(false);
-    if (result.success) {
-      toast.success('Confirmation messages sent again. Check both inboxes.');
-    } else {
-      toast.error(result.error);
-    }
-  };
-
   return (
     <>
       {/* Unsaved changes guard modal */}
@@ -180,10 +167,11 @@ const ChangeEmailPage = () => {
                     <Inbox size={34} aria-hidden="true" />
                   </div>
                 </div>
-                <h2 className="ce-success-title">Confirm both email addresses</h2>
+                <h2 className="ce-success-title">Check your new inbox</h2>
                 <p className="ce-success-subtitle">
-                  For your security, confirmation messages were sent to your current and new
-                  email addresses. Your sign-in email changes only after both links are approved.
+                  We sent a confirmation link to{' '}
+                  <strong className="ce-email-highlight">{newEmailTrimmed}</strong>.
+                  Your email will be updated once you click it.
                 </p>
               </div>
 
@@ -192,37 +180,23 @@ const ChangeEmailPage = () => {
                 <ol className="ce-steps-list">
                   <li className="ce-step-item">
                     <span className="ce-step-dot" aria-hidden="true">1</span>
-                    <span>Approve the message sent to your current address: <strong className="ce-email-highlight">{currentEmail}</strong></span>
+                    <span>Open the confirmation email sent to <strong className="ce-email-highlight">{newEmailTrimmed}</strong></span>
                   </li>
                   <li className="ce-step-item">
                     <span className="ce-step-dot" aria-hidden="true">2</span>
-                    <span>Approve the message sent to your new address: <strong className="ce-email-highlight">{pendingEmail}</strong></span>
+                    <span>Click the <strong>Confirm change</strong> button inside</span>
                   </li>
                   <li className="ce-step-item">
                     <span className="ce-step-dot" aria-hidden="true">3</span>
-                    <span>After both approvals, your account and profile update automatically</span>
+                    <span>You'll be signed in with your new email automatically</span>
                   </li>
                 </ol>
               </div>
 
               <div className="ce-note-box">
                 <Info size={14} className="ce-note-icon" aria-hidden="true" />
-                <span>Until both links are approved, continue signing in with your current email. Check both spam folders if a message is missing.</span>
+                <span>Until then, you can still sign in with your current email. Check your spam folder if the email doesn't arrive.</span>
               </div>
-
-              {user?.new_email && (
-                <button
-                  type="button"
-                  className="btn btn-secondary w-full justify-center mb-12"
-                  onClick={handleResend}
-                  disabled={resending}
-                >
-                  {resending
-                    ? <><Loader size={18} className="animate-spin" /> Resending...</>
-                    : <><Mail size={18} /> Resend confirmation messages</>
-                  }
-                </button>
-              )}
 
               <button
                 type="button"
@@ -235,7 +209,7 @@ const ChangeEmailPage = () => {
           </div>
         ) : (
           <div className="card">
-            <form className="card-body" onSubmit={handleSubmit} noValidate>
+            <div className="card-body">
 
               {/*
                 ── Autofill sink ──────────────────────────────────────────
@@ -363,8 +337,9 @@ const ChangeEmailPage = () => {
               {/* Submit — enabled even when incomplete, so pressing it reports
                   what is missing instead of doing nothing. */}
               <button
-                type="submit"
+                type="button"
                 className="btn btn-primary btn-lg w-full justify-center mt-8"
+                onClick={handleSubmit}
                 disabled={loading}
               >
                 {loading
@@ -373,10 +348,10 @@ const ChangeEmailPage = () => {
                 }
               </button>
               <p className="form-helper mt-12 text-center">
-                Confirmation messages will be sent to both your current and new email addresses.
+                A confirmation link will be sent to your new email address.
               </p>
 
-            </form>
+            </div>
           </div>
         )}
       </div>

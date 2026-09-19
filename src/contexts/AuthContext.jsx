@@ -13,7 +13,6 @@ import {
   hasPendingPasswordRecovery,
   markPasswordRecoveryPending,
 } from '../lib/passwordRecovery';
-import { getEmailChangeRedirectUrl, normalizeEmailChangeError } from '../lib/emailChange';
 
 const AuthContext = createContext({});
 
@@ -564,44 +563,21 @@ export const AuthProvider = ({ children }) => {
       }
 
       // 2) Request the email change
-      const { data, error } = await supabase.auth.updateUser(
-        { email: newEmail },
-        { emailRedirectTo: getEmailChangeRedirectUrl() }
-      );
+      const { error } = await supabase.auth.updateUser({ email: newEmail });
       if (error) throw error;
-      void logAuth('Email change requested', {
-        recordId: user.id,
-        recordRef: 'email-change',
-        details: 'Secure email change requested; confirmation is required from both email addresses.',
-      });
-      return { success: true, pendingEmail: data?.user?.new_email || newEmail };
-    } catch (error) {
-      return { success: false, error: normalizeEmailChangeError(error) };
-    }
-  }, [user?.email]);
-
-  const resendEmailChange = useCallback(async () => {
-    try {
-      const pendingEmail = user?.new_email;
-      if (!pendingEmail) throw new Error('There is no pending email change to resend.');
-
-      const { error } = await supabase.auth.resend({
-        type: 'email_change',
-        email: pendingEmail,
-        options: { emailRedirectTo: getEmailChangeRedirectUrl() },
-      });
-      if (error) throw error;
-
-      void logAuth('Email change confirmation resent', {
-        recordId: user.id,
-        recordRef: 'email-change',
-        details: 'Secure email-change confirmation messages were requested again.',
-      });
       return { success: true };
     } catch (error) {
-      return { success: false, error: normalizeEmailChangeError(error) };
+      let msg = error.message || 'Failed to update email. Please try again.';
+      if (msg.toLowerCase().includes('email already registered') ||
+          msg.toLowerCase().includes('already been registered')) {
+        msg = 'This email is already registered to another account.';
+      } else if (msg.toLowerCase().includes('rate limit') ||
+                 msg.toLowerCase().includes('too many')) {
+        msg = 'Too many attempts. Please wait a few minutes and try again.';
+      }
+      return { success: false, error: msg };
     }
-  }, [user?.id, user?.new_email]);
+  }, [user?.email]);
 
   /**
    * refreshProfile — re-fetches the profiles row from Supabase and updates context state.
@@ -635,9 +611,8 @@ export const AuthProvider = ({ children }) => {
     resetPassword,
     changePassword,
     changeEmail,
-    resendEmailChange,
     refreshProfile,
-  }), [user, userProfile, loading, authTransition, logout, discardPasswordRecovery, resetPassword, changePassword, changeEmail, resendEmailChange, refreshProfile, completeRegistrationTransition]);
+  }), [user, userProfile, loading, authTransition, logout, discardPasswordRecovery, resetPassword, changePassword, changeEmail, refreshProfile, completeRegistrationTransition]);
 
   return (
     <AuthContext.Provider value={value}>
