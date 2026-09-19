@@ -43,6 +43,7 @@ const CustProfilePage = lazyWithRetry(() => import('./pages/customer/ProfilePage
 const CustPersonalInfoPage = lazyWithRetry(() => import('./pages/customer/PersonalInfoPage'));
 const ChangePasswordPage = lazyWithRetry(() => import('./pages/shared/ChangePasswordPage'));
 const ChangeEmailPage = lazyWithRetry(() => import('./pages/shared/ChangeEmailPage'));
+const EmailChangeConfirmationPage = lazyWithRetry(() => import('./pages/auth/EmailChangeConfirmationPage'));
 const SupportChatPage = lazyWithRetry(() => import('./pages/customer/SupportChatPage'));
 const PaymentHistoryPage = lazyWithRetry(() => import('./pages/customer/PaymentHistoryPage'));
 const HelpGuidelinesPage = lazyWithRetry(() => import('./pages/customer/HelpGuidelinesPage'));
@@ -218,6 +219,7 @@ const router = createBrowserRouter([
       { path: '/register', element: <AuthRoute><RegisterPage /></AuthRoute> },
       { path: '/forgot-password', element: <AuthRoute><ForgotPasswordPage /></AuthRoute> },
       { path: '/reset-password', element: <ResetPasswordPage /> },
+      { path: '/email-change-confirmation', element: <Suspense fallback={<PageLoader />}><EmailChangeConfirmationPage /></Suspense> },
 
       // Payment return — PayMongo lands here after GCash checkout. Kept
       // outside the auth guards so it renders immediately; it only needs the
