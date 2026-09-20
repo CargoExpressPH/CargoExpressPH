@@ -232,6 +232,40 @@ const ReportsPage = () => {
                 </div>
                 
                 <div className="card stagger-item mb-20" style={{ animationDelay: '240ms' }}>
+                   <div className="card-header">
+                      <h3 className="flex items-center gap-8">
+                        <TrendingUp size={18} className="text-primary" />
+                        Transactions
+                      </h3>
+                   </div>
+                   <div className="card-body">
+                      <div className="report-table-wrap" style={{ maxHeight: '250px', overflowY: 'auto' }}>
+                         <table className="report-table">
+                            <thead>
+                               <tr>
+                                  <th scope="col">Type</th>
+                                  <th scope="col">Date</th>
+                                  <th scope="col">Amount</th>
+                               </tr>
+                            </thead>
+                            <tbody>
+                               {data.paymentRefundDetail?.slice(0, 50).map((dt, idx) => (
+                                  <tr key={idx}>
+                                     <td data-label="Type"><span className={`badge ${dt.type === 'refund' ? 'badge-warning' : 'badge-success'}`}>{dt.type}</span></td>
+                                     <td data-label="Date">{formatDate(dt.event_date)}</td>
+                                     <td data-label="Amount" className="fw-600">{formatCurrency(dt.amount)}</td>
+                                  </tr>
+                               ))}
+                               {(!data.paymentRefundDetail || data.paymentRefundDetail.length === 0) && (
+                                  <tr><td colSpan="3" className="text-center text-secondary">No transactions</td></tr>
+                               )}
+                            </tbody>
+                         </table>
+                      </div>
+                   </div>
+                </div>
+
+                <div className="card stagger-item" style={{ animationDelay: '260ms' }}>
                   <div className="card-header">
                     <h3 className="flex items-center gap-8">
                       <CreditCard size={18} className="text-primary" />
@@ -268,40 +302,6 @@ const ReportsPage = () => {
                       Refunds are grouped by the original payment method. The actual return method may differ and is shown in transaction history.
                     </p>
                   </div>
-                </div>
-                
-                <div className="card stagger-item" style={{ animationDelay: '260ms' }}>
-                   <div className="card-header">
-                      <h3 className="flex items-center gap-8">
-                        <TrendingUp size={18} className="text-primary" />
-                        Transactions
-                      </h3>
-                   </div>
-                   <div className="card-body">
-                      <div className="report-table-wrap" style={{ maxHeight: '250px', overflowY: 'auto' }}>
-                         <table className="report-table">
-                            <thead>
-                               <tr>
-                                  <th scope="col">Type</th>
-                                  <th scope="col">Date</th>
-                                  <th scope="col">Amount</th>
-                               </tr>
-                            </thead>
-                            <tbody>
-                               {data.paymentRefundDetail?.slice(0, 50).map((dt, idx) => (
-                                  <tr key={idx}>
-                                     <td data-label="Type"><span className={`badge ${dt.type === 'refund' ? 'badge-warning' : 'badge-success'}`}>{dt.type}</span></td>
-                                     <td data-label="Date">{formatDate(dt.event_date)}</td>
-                                     <td data-label="Amount" className="fw-600">{formatCurrency(dt.amount)}</td>
-                                  </tr>
-                               ))}
-                               {(!data.paymentRefundDetail || data.paymentRefundDetail.length === 0) && (
-                                  <tr><td colSpan="3" className="text-center text-secondary">No transactions</td></tr>
-                               )}
-                            </tbody>
-                         </table>
-                      </div>
-                   </div>
                 </div>
               </div>
 
