@@ -86,7 +86,7 @@ const CancellationSettlementSummary = ({ summary, historicalPromiseDate = null, 
           Historical payment promise: {formatPhDate(historicalPromiseDate)} — retained for history and no longer actionable after cancellation.
         </div>
       )}
-      {actions && grossCollected > 0 && <div className="mt-12">{actions}</div>}
+      {actions && grossCollected > 0 && status !== 'refund_settled' && <div className="mt-12">{actions}</div>}
     </div>
   );
 };
