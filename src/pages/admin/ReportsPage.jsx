@@ -52,11 +52,11 @@ const ReportsPage = () => {
 
   const loadReport = async () => {
     if (!customStart || !customEnd) {
-      setError('Please select both start and end dates to generate a report.');
+      setError('Choose a start date and an end date to create a report.');
       return;
     }
     if (customDateRangeInvalid) {
-      setError('End date must be the same as or later than the start date.');
+      setError('The end date must be the same as or after the start date.');
       return;
     }
     setLoading(true);
@@ -67,7 +67,7 @@ const ReportsPage = () => {
       setReportedStart(customStart);
       setReportedEnd(customEnd);
     } catch (e) {
-      setError(e.message || 'Failed to load report data.');
+      setError('We couldn’t load this report. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -114,7 +114,7 @@ const ReportsPage = () => {
             Reports & Analytics
           </h1>
           <p className="admin-page-subtitle">
-            Generate, view, and print detailed financial event reports
+            Payments and refunds recorded within your selected dates.
           </p>
         </div>
         <div className="flex gap-8">
@@ -155,7 +155,7 @@ const ReportsPage = () => {
           </div>
         </div>
         {customDateRangeInvalid && (
-          <p className="form-error">End date must be the same as or later than the start date.</p>
+          <p className="form-error">The end date must be the same as or after the start date.</p>
         )}
         <button
           type="button"
@@ -164,7 +164,7 @@ const ReportsPage = () => {
           disabled={!customStart || !customEnd || customDateRangeInvalid || loading}
         >
           {loading ? <Loader size={16} className="animate-spin" /> : <BarChart3 size={16} />}
-          Generate Report
+          Create Report
         </button>
       </div>
 
@@ -183,8 +183,8 @@ const ReportsPage = () => {
           {!hasData && (
             <EmptyState
               icon={FileText}
-              title="No Data Found"
-              description={`No financial events or deliveries occurred between ${reportedStart} and ${reportedEnd}`}
+              title="No activity found"
+              description={`No payments, refunds, or shipments delivered between ${reportedStart} and ${reportedEnd}.`}
             />
           )}
 
@@ -193,28 +193,31 @@ const ReportsPage = () => {
               <div className="grid grid-4 report-summary-cards mb-20 mt-16">
                 <div className="stat-card stat-card-info stagger-item" style={{ animationDelay: '0ms' }}>
                   <div className="stat-value"><AnimatedCounter value={data.grossCollected} prefix="₱" decimals={2} duration={1000} /></div>
-                  <div className="stat-label">Gross Collected in Period</div>
+                  <div className="stat-label">Payments Received</div>
                 </div>
                 <div className="stat-card stat-card-warning stagger-item" style={{ animationDelay: '60ms' }}>
                   <div className="stat-value"><AnimatedCounter value={data.successfulRefunds} prefix="₱" decimals={2} duration={1000} /></div>
-                  <div className="stat-label">Successful Refunds in Period</div>
+                  <div className="stat-label">Money Returned</div>
                 </div>
                 <div className="stat-card stat-card-success stagger-item" style={{ animationDelay: '120ms' }}>
                   <div className="stat-value"><AnimatedCounter value={data.netCollected} prefix="₱" decimals={2} duration={1000} /></div>
-                  <div className="stat-label">Net Collected in Period</div>
+                  <div className="stat-label">Payments After Refunds</div>
                 </div>
                 <div className="stat-card stat-card-primary stagger-item" style={{ animationDelay: '180ms' }}>
                   <div className="stat-value"><AnimatedCounter value={data.deliveredShipmentValue} prefix="₱" decimals={2} duration={1000} /></div>
-                  <div className="stat-label">Delivered Value (Current Snapshot)</div>
+                  <div className="stat-label">Shipping Fees for Delivered Shipments</div>
                 </div>
               </div>
+              <p className="text-secondary fs-12 mb-20">
+                Payments received, money returned, and payments after refunds use events recorded within your selected dates. Money returned includes successful refunds only. Shipping fees are the current fees for shipments delivered during those dates, not payments received.
+              </p>
 
               <div className="grid grid-2 mb-20 no-print">
                 <div className="card stagger-item mb-20" style={{ animationDelay: '200ms' }}>
                   <div className="card-header">
                     <h3 className="flex items-center gap-8">
                       <BarChart3 size={18} className="text-primary" />
-                      Daily Net Collections
+                      Payments After Refunds by Day
                     </h3>
                   </div>
                   <div className="card-body p-24">
@@ -226,7 +229,7 @@ const ReportsPage = () => {
                         color="var(--primary)"
                       />
                     ) : (
-                      <div className="text-center text-secondary py-32">No daily data available</div>
+                      <div className="text-center text-secondary py-32">No daily payment or refund data for these dates.</div>
                     )}
                   </div>
                 </div>
@@ -235,7 +238,7 @@ const ReportsPage = () => {
                    <div className="card-header">
                       <h3 className="flex items-center gap-8">
                         <TrendingUp size={18} className="text-primary" />
-                        Transactions
+                        Payment and Refund Entries
                       </h3>
                    </div>
                    <div className="card-body">
@@ -251,13 +254,13 @@ const ReportsPage = () => {
                             <tbody>
                                {data.paymentRefundDetail?.slice(0, 50).map((dt, idx) => (
                                   <tr key={idx}>
-                                     <td data-label="Type"><span className={`badge ${dt.type === 'refund' ? 'badge-warning' : 'badge-success'}`}>{dt.type}</span></td>
+                                  <td data-label="Type"><span className={`badge ${dt.type === 'refund' ? 'badge-warning' : 'badge-success'}`}>{dt.type === 'refund' ? 'Refund' : 'Payment'}</span></td>
                                      <td data-label="Date">{formatDate(dt.event_date)}</td>
                                      <td data-label="Amount" className="fw-600">{formatCurrency(dt.amount)}</td>
                                   </tr>
                                ))}
                                {(!data.paymentRefundDetail || data.paymentRefundDetail.length === 0) && (
-                                  <tr><td colSpan="3" className="text-center text-secondary">No transactions</td></tr>
+                                  <tr><td colSpan="3" className="text-center text-secondary">No payment or refund entries.</td></tr>
                                )}
                             </tbody>
                          </table>
@@ -269,7 +272,7 @@ const ReportsPage = () => {
                   <div className="card-header">
                     <h3 className="flex items-center gap-8">
                       <CreditCard size={18} className="text-primary" />
-                      Payment and Refund Events in Selected Period
+                      Payments and Refunds in Selected Dates
                     </h3>
                   </div>
                   <div className="card-body">
@@ -277,29 +280,29 @@ const ReportsPage = () => {
                       <table className="report-table">
                         <thead>
                           <tr>
-                            <th scope="col">Original Payment Method</th>
-                            <th scope="col" className="text-right">Gross Received</th>
-                            <th scope="col" className="text-right">Refunds of These Payments</th>
-                            <th scope="col" className="text-right">Net Retained</th>
+                            <th scope="col">How Customers Paid</th>
+                            <th scope="col" className="text-right">Payments Received</th>
+                            <th scope="col" className="text-right">Money Returned</th>
+                            <th scope="col" className="text-right">Payments After Refunds</th>
                           </tr>
                         </thead>
                         <tbody>
                           {data.methodTotals?.map((mt, idx) => (
                             <tr key={idx}>
-                              <td data-label="Original Payment Method" className="text-capitalize">{mt.method} <span className="text-secondary fs-12">({mt.payment_count} tx)</span></td>
-                              <td data-label="Gross Received" className="text-right fw-500 text-info">{formatCurrency(mt.gross)}</td>
-                              <td data-label="Refunds of These Payments" className="text-right fw-500 text-warning">{formatCurrency(mt.refunds)}</td>
-                              <td data-label="Net Retained" className="text-right fw-600 text-success">{formatCurrency(mt.net)}</td>
+                              <td data-label="How Customers Paid" className="text-capitalize">{mt.method} <span className="text-secondary fs-12">({mt.payment_count} payment{mt.payment_count === 1 ? '' : 's'})</span></td>
+                              <td data-label="Payments Received" className="text-right fw-500 text-info">{formatCurrency(mt.gross)}</td>
+                              <td data-label="Money Returned" className="text-right fw-500 text-warning">{formatCurrency(mt.refunds)}</td>
+                              <td data-label="Payments After Refunds" className="text-right fw-600 text-success">{formatCurrency(mt.net)}</td>
                             </tr>
                           ))}
                           {(!data.methodTotals || data.methodTotals.length === 0) && (
-                            <tr><td colSpan="4" className="text-center text-secondary">No collections</td></tr>
+                            <tr><td colSpan="4" className="text-center text-secondary">No payments received.</td></tr>
                           )}
                         </tbody>
                       </table>
                     </div>
                     <p className="text-xs text-secondary mt-8 mb-0">
-                      Refunds are grouped by the original payment method. The actual return method may differ and is shown in transaction history.
+                      Returns are listed under the original payment method, even if the money was returned another way. Money returned includes successful refunds only.
                     </p>
                   </div>
                 </div>
@@ -309,26 +312,26 @@ const ReportsPage = () => {
                 <div className="card-header flex justify-between items-center">
                   <h3 className="flex items-center gap-8">
                     <Package size={18} className="text-primary" />
-                    Deliveries Completed in Period — Current Financial Snapshot
+                    Shipments Delivered During Selected Dates
                   </h3>
-                  <span className="badge badge-primary">{data.completedDeliveries?.length || 0} deliveries</span>
+                  <span className="badge badge-primary">{data.completedDeliveries?.length || 0} shipments</span>
                 </div>
                 <div className="card-body p-0">
                   <p className="text-secondary fs-12" style={{ padding: '0 16px 12px' }}>
-                    Payments and refunds above are events within the selected period. The values below are each booking's current charge, paid amount, and balance as of {formatDateTime(data.generatedAt)}; they are not expected to total to the period collections.
+                    Payments and refunds above were recorded within the selected dates. Below are each delivered shipment's current shipping fee, amount paid, and amount still unpaid as of {formatDateTime(data.generatedAt)}. These amounts are not payments received and do not need to add up to the payment totals above.
                   </p>
                   <div className="table-responsive">
-                    <table className="admin-table">
+                    <table className="data-table">
                       <thead>
                         <tr>
                           <th scope="col">Tracking #</th>
                           <th scope="col">Customer</th>
                           <th scope="col">Route</th>
                           <th scope="col">Delivered On</th>
-                          <th scope="col" className="text-right">Final Charge</th>
-                          <th scope="col" className="text-right">Paid (Current)</th>
-                          <th scope="col" className="text-right">Balance (Current)</th>
-                          <th scope="col" className="text-center">Status</th>
+                          <th scope="col" className="text-right">Shipping Fee After Discount</th>
+                          <th scope="col" className="text-right">Amount Paid</th>
+                          <th scope="col" className="text-right">Amount Still Unpaid</th>
+                          <th scope="col" className="text-center">Payment Status</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -352,7 +355,7 @@ const ReportsPage = () => {
                           </tr>
                         ))}
                         {(!data.completedDeliveries || data.completedDeliveries.length === 0) && (
-                          <tr><td colSpan="8" className="text-center text-secondary py-32">No deliveries completed in this period</td></tr>
+                          <tr><td colSpan="8" className="text-center text-secondary py-32">No shipments were delivered during these dates.</td></tr>
                         )}
                       </tbody>
                     </table>
@@ -361,47 +364,47 @@ const ReportsPage = () => {
               </div>
               
               <PrintDocument 
-                title="Financial Analytics Report" 
-                subtitle={`Report Period: ${reportedStart} to ${reportedEnd}`}
+                title="Payments and Delivery Report"
+                subtitle={`Selected dates: ${reportedStart} to ${reportedEnd}`}
                 generatedAt={formatDateTime(data.generatedAt)}
                 preparedBy={userProfile?.name}
               >
                 <div className="pd-section">
                   <div className="pd-summary-grid" style={{ display: 'flex', gap: '16px', marginBottom: '24px' }}>
                     <div style={{ flex: 1, border: '1px solid #ddd', padding: '12px', borderRadius: '4px' }}>
-                      <div style={{ fontSize: '12px', color: '#666' }}>Gross Collected in Period</div>
+                      <div style={{ fontSize: '12px', color: '#666' }}>Payments Received</div>
                       <div style={{ fontSize: '20px', fontWeight: 'bold' }}>{formatCurrency(data.grossCollected)}</div>
                     </div>
                     <div style={{ flex: 1, border: '1px solid #ddd', padding: '12px', borderRadius: '4px' }}>
-                      <div style={{ fontSize: '12px', color: '#666' }}>Successful Refunds in Period</div>
+                      <div style={{ fontSize: '12px', color: '#666' }}>Money Returned</div>
                       <div style={{ fontSize: '20px', fontWeight: 'bold' }}>{formatCurrency(data.successfulRefunds)}</div>
                     </div>
                     <div style={{ flex: 1, border: '1px solid #ddd', padding: '12px', borderRadius: '4px' }}>
-                      <div style={{ fontSize: '12px', color: '#666' }}>Net Collected in Period</div>
+                      <div style={{ fontSize: '12px', color: '#666' }}>Payments After Refunds</div>
                       <div style={{ fontSize: '20px', fontWeight: 'bold' }}>{formatCurrency(data.netCollected)}</div>
                     </div>
                     <div style={{ flex: 1, border: '1px solid #ddd', padding: '12px', borderRadius: '4px' }}>
-                      <div style={{ fontSize: '12px', color: '#666' }}>Delivered Value (Current Snapshot)</div>
+                      <div style={{ fontSize: '12px', color: '#666' }}>Shipping Fees for Delivered Shipments</div>
                       <div style={{ fontSize: '20px', fontWeight: 'bold' }}>{formatCurrency(data.deliveredShipmentValue)}</div>
                     </div>
                   </div>
                 </div>
 
                 <div className="pd-section">
-                  <h4 className="pd-section-title">Payment and Refund Events in Selected Period</h4>
+                  <h4 className="pd-section-title">Payments and Refunds in Selected Dates</h4>
                   <table className="pd-table">
                     <thead>
                       <tr>
-                        <th scope="col">Original Payment Method</th>
-                        <th scope="col" style={{ textAlign: 'right' }}>Gross Received</th>
-                        <th scope="col" style={{ textAlign: 'right' }}>Refunds of These Payments</th>
-                        <th scope="col" style={{ textAlign: 'right' }}>Net Retained</th>
+                        <th scope="col">How Customers Paid</th>
+                        <th scope="col" style={{ textAlign: 'right' }}>Payments Received</th>
+                        <th scope="col" style={{ textAlign: 'right' }}>Money Returned</th>
+                        <th scope="col" style={{ textAlign: 'right' }}>Payments After Refunds</th>
                       </tr>
                     </thead>
                     <tbody>
                       {data.methodTotals?.map((mt, idx) => (
                         <tr key={idx}>
-                          <td style={{ textTransform: 'capitalize' }}>{mt.method} ({mt.payment_count} tx)</td>
+                          <td style={{ textTransform: 'capitalize' }}>{mt.method} ({mt.payment_count} payment{mt.payment_count === 1 ? '' : 's'})</td>
                           <td style={{ textAlign: 'right' }}>{formatCurrency(mt.gross)}</td>
                           <td style={{ textAlign: 'right' }}>{formatCurrency(mt.refunds)}</td>
                           <td style={{ textAlign: 'right', fontWeight: 'bold' }}>{formatCurrency(mt.net)}</td>
@@ -410,14 +413,14 @@ const ReportsPage = () => {
                     </tbody>
                   </table>
                   <p style={{ fontSize: '10px', color: '#666', margin: '8px 0 0' }}>
-                    Refunds are grouped by the original payment method. The actual return method may differ and is shown in transaction history.
+                    Returns are listed under the original payment method, even if the money was returned another way. Money returned includes successful refunds only.
                   </p>
                 </div>
 
                 <div className="pd-section">
-                  <h4 className="pd-section-title">Deliveries Completed in Period — Current Financial Snapshot</h4>
+                  <h4 className="pd-section-title">Shipments Delivered During Selected Dates</h4>
                   <p style={{ fontSize: '10px', color: '#666', margin: '0 0 8px' }}>
-                    Current booking values as of {formatDateTime(data.generatedAt)}. These rows are a current snapshot and do not need to total to the period event collections.
+                    Current shipping fee, amount paid, and amount still unpaid as of {formatDateTime(data.generatedAt)}. These amounts are not payments received and do not need to add up to the payment totals above.
                   </p>
                   <table className="pd-table" style={{ fontSize: '11px' }}>
                     <thead>
@@ -426,9 +429,9 @@ const ReportsPage = () => {
                         <th scope="col">Customer</th>
                         <th scope="col">Route</th>
                         <th scope="col">Delivered On</th>
-                        <th scope="col" style={{ textAlign: 'right' }}>Final Charge</th>
-                        <th scope="col" style={{ textAlign: 'right' }}>Paid (Current)</th>
-                        <th scope="col" style={{ textAlign: 'right' }}>Balance (Current)</th>
+                        <th scope="col" style={{ textAlign: 'right' }}>Shipping Fee After Discount</th>
+                        <th scope="col" style={{ textAlign: 'right' }}>Amount Paid</th>
+                        <th scope="col" style={{ textAlign: 'right' }}>Amount Still Unpaid</th>
                       </tr>
                     </thead>
                     <tbody>
