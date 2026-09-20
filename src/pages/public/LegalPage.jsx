@@ -26,10 +26,13 @@ const TERMS_SECTIONS = [
     ],
   },
   {
-    heading: '4. Fees, payments and changes',
+    heading: '4. Fees, Payments, and Changes',
     body: [
-      'Displayed rates, surcharges, and payment options may depend on route, weight, dimensions, shipment characteristics, and other verified operational details. You are responsible for authorized charges associated with your booking. If a shipment’s declared details differ from verified details, we may explain the adjusted charge and request payment before continuing service where permitted.',
-      'Cancellation, refund, and service-change handling depends on the shipment status and the applicable booking terms presented at the time of your request. Statutory consumer rights are not limited by these Terms.',
+      'Basic Fees: We offer free door-to-door pickup and drop-off. You only pay for the cargo itself, which is priced per kilogram (kg).',
+      'Bulky Items (like Appliances): If your item is light but takes up a lot of space, we will add a few extra kilograms to your total to make up for the space it uses in our truck.',
+      'Motorcycles: If you are shipping a motorcycle, we do not charge by the kilo. The total price will depend on the brand and model of your motorcycle.',
+      'Extra Charges: Even though our door-to-door service is free, we may add a small extra fee if the delivery truck needs to pass through toll gates or expressways, or if you are sending a very small or light item to a very far or deep area inside Bohol.',
+      'Finalizing the Price: If the actual weight, size, or location of your item is different from what you first told us, your final fee might change. We will explain any price changes to you before we continue with the delivery. Cancellations and refunds will depend on the status of your booking at the time you ask for them.'
     ],
   },
   {
