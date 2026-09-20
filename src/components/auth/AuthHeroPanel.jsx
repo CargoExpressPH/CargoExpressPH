@@ -3,7 +3,7 @@ import { BrandLogo, BrandWordmark } from '../ui/BrandLogo';
 
 const FEATURES = [
   { icon: Package,    text: 'Door-to-door delivery' },
-  { icon: Search,     text: 'Real-time tracking' },
+  { icon: Search,     text: 'Delivery status updates' },
   { icon: PhilippinePeso, text: 'Affordable per-kilo rates' },
   { icon: Zap,        text: 'Fast and reliable service' },
 ];
