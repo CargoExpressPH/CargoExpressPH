@@ -645,6 +645,13 @@ const INTENTS = [
       const state = getSettlementState(order);
       const header = `💰 Payment details for ${order.tracking_number}:`;
 
+      if (state === SETTLEMENT_STATE.CANCELLED) {
+        return {
+          text: `${header}\n\n🚫 This booking is cancelled, so its old shipping-charge difference is not an active balance to collect. Open the booking's Payment & Refund Summary to see collections, confirmed refunds, and its cancellation settlement status.`,
+          askResolved: true,
+        };
+      }
+
       // Unpriced is its own answer. The old version printed ₱0.00 / ₱0.00 /
       // ₱0.00 and then "Payment is unpaid" for a parcel that has no price yet —
       // three zeros that look like a settled order and a badge that contradicts
@@ -1041,6 +1048,9 @@ const describeOrder = (order) => {
  */
 const describeSettlement = (order) => {
   const state = getSettlementState(order);
+  if (state === SETTLEMENT_STATE.CANCELLED) {
+    return 'Booking cancelled — no active shipment balance. See Payment & Refund Summary for its refund settlement.';
+  }
   if (state === SETTLEMENT_STATE.UNPRICED) {
     return 'Not priced yet — your parcel is weighed at pickup, and the shipping fee is computed from that weight.';
   }

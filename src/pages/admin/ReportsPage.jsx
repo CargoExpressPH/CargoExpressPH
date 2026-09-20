@@ -243,19 +243,19 @@ const ReportsPage = () => {
                       <table className="report-table">
                         <thead>
                           <tr>
-                            <th scope="col">Method</th>
-                            <th scope="col" className="text-right">Gross</th>
-                            <th scope="col" className="text-right">Refunds</th>
-                            <th scope="col" className="text-right">Net</th>
+                            <th scope="col">Original Payment Method</th>
+                            <th scope="col" className="text-right">Gross Received</th>
+                            <th scope="col" className="text-right">Refunds of These Payments</th>
+                            <th scope="col" className="text-right">Net Retained</th>
                           </tr>
                         </thead>
                         <tbody>
                           {data.methodTotals?.map((mt, idx) => (
                             <tr key={idx}>
-                              <td data-label="Method" className="text-capitalize">{mt.method} <span className="text-secondary fs-12">({mt.payment_count} tx)</span></td>
-                              <td data-label="Gross" className="text-right fw-500 text-info">{formatCurrency(mt.gross)}</td>
-                              <td data-label="Refunds" className="text-right fw-500 text-warning">{formatCurrency(mt.refunds)}</td>
-                              <td data-label="Net" className="text-right fw-600 text-success">{formatCurrency(mt.net)}</td>
+                              <td data-label="Original Payment Method" className="text-capitalize">{mt.method} <span className="text-secondary fs-12">({mt.payment_count} tx)</span></td>
+                              <td data-label="Gross Received" className="text-right fw-500 text-info">{formatCurrency(mt.gross)}</td>
+                              <td data-label="Refunds of These Payments" className="text-right fw-500 text-warning">{formatCurrency(mt.refunds)}</td>
+                              <td data-label="Net Retained" className="text-right fw-600 text-success">{formatCurrency(mt.net)}</td>
                             </tr>
                           ))}
                           {(!data.methodTotals || data.methodTotals.length === 0) && (
@@ -264,6 +264,9 @@ const ReportsPage = () => {
                         </tbody>
                       </table>
                     </div>
+                    <p className="text-xs text-secondary mt-8 mb-0">
+                      Refunds are grouped by the original payment method. The actual return method may differ and is shown in transaction history.
+                    </p>
                   </div>
                 </div>
                 
@@ -389,10 +392,10 @@ const ReportsPage = () => {
                   <table className="pd-table">
                     <thead>
                       <tr>
-                        <th scope="col">Method</th>
-                        <th scope="col" style={{ textAlign: 'right' }}>Gross</th>
-                        <th scope="col" style={{ textAlign: 'right' }}>Refunds</th>
-                        <th scope="col" style={{ textAlign: 'right' }}>Net</th>
+                        <th scope="col">Original Payment Method</th>
+                        <th scope="col" style={{ textAlign: 'right' }}>Gross Received</th>
+                        <th scope="col" style={{ textAlign: 'right' }}>Refunds of These Payments</th>
+                        <th scope="col" style={{ textAlign: 'right' }}>Net Retained</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -406,6 +409,9 @@ const ReportsPage = () => {
                       ))}
                     </tbody>
                   </table>
+                  <p style={{ fontSize: '10px', color: '#666', margin: '8px 0 0' }}>
+                    Refunds are grouped by the original payment method. The actual return method may differ and is shown in transaction history.
+                  </p>
                 </div>
 
                 <div className="pd-section">

@@ -359,13 +359,16 @@ const PickupModal = ({ order, onClose, onSave, pricePerKilo = 70 }) => {
             </label>
             <input
               id="pickup-actual-weight"
-              type="number"
+              type="text"
+              inputMode="decimal"
               className={`form-input ${invalidClass('actual_weight', errors)}`}
               placeholder="Enter actual weight after weighing"
-              value={form.actual_weight}
+              value={formatCommaNumber(form.actual_weight)}
               onChange={e => {
+                const val = parseCommaNumber(e.target.value);
+                if (isNaN(val) && val !== '.' && val !== '') return;
                 setPayment(p => ({ ...p, shortfallBlocked: false }));
-                setForm(p => ({ ...p, actual_weight: e.target.value }));
+                setForm(p => ({ ...p, actual_weight: val }));
                 clearError('actual_weight');
               }}
               step="0.1" min="0.1"
@@ -401,12 +404,17 @@ const PickupModal = ({ order, onClose, onSave, pricePerKilo = 70 }) => {
                   <label className="form-label" htmlFor="pickup-discount-amount">Discount Amount (₱) *</label>
                   <input
                     id="pickup-discount-amount"
-                    type="number"
+                    type="text"
+                    inputMode="decimal"
                     className={`form-input ${invalidClass('discount_amount', errors)}`}
                     placeholder="0.00"
-                    value={discount.amount}
-                    min="0" step="0.01"
-                    onChange={e => { setDiscount(p => ({ ...p, amount: e.target.value })); clearError('discount_amount'); }}
+                    value={formatCommaNumber(discount.amount)}
+                    onChange={e => { 
+                      const val = parseCommaNumber(e.target.value);
+                      if (isNaN(val) && val !== '.' && val !== '') return;
+                      setDiscount(p => ({ ...p, amount: val })); 
+                      clearError('discount_amount'); 
+                    }}
                     {...fieldAttrs('discount_amount', errors)}
                   />
                   <FieldError name="discount_amount" errors={errors} />

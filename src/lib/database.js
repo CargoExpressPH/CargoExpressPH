@@ -635,6 +635,47 @@ export const reviewOrderCancellation = async (orderId, approve, notes = null) =>
   return data;
 };
 
+export const getCancellationSettlementSummary = async (orderId) => {
+  const { data, error } = await supabase.rpc('get_cancellation_settlement_summary', {
+    p_order_id: orderId,
+  });
+  if (error) throw error;
+  return data;
+};
+
+export const recordCancellationSettlementDecision = async ({
+  orderId,
+  decisionType,
+  agreedRetainedAmount,
+  customerAgreementConfirmed,
+  internalNotes,
+  idempotencyKey,
+}) => {
+  const { data, error } = await supabase.rpc('record_cancellation_settlement_decision', {
+    p_order_id: orderId,
+    p_decision_type: decisionType,
+    p_agreed_retained_amount: agreedRetainedAmount,
+    p_customer_agreement_confirmed: customerAgreementConfirmed,
+    p_internal_notes: internalNotes || null,
+    p_idempotency_key: idempotencyKey,
+  });
+  if (error) throw error;
+  return data;
+};
+
+export const amendCancellationSettlementDecision = async (payload) => {
+  const { data, error } = await supabase.rpc('amend_cancellation_settlement_decision', {
+    p_order_id: payload.orderId,
+    p_decision_type: payload.decisionType,
+    p_agreed_retained_amount: payload.agreedRetainedAmount,
+    p_customer_agreement_confirmed: payload.customerAgreementConfirmed,
+    p_internal_notes: payload.internalNotes || null,
+    p_idempotency_key: payload.idempotencyKey,
+  });
+  if (error) throw error;
+  return data;
+};
+
 /** Orders whose cancellation request is still waiting on an admin. */
 export const getPendingCancellations = async () => {
   const { data, error } = await supabase
@@ -1674,8 +1715,9 @@ export const SETTLEMENT_TRACKED_STATUSES = [
  * `today` is passed in so a whole list is classified against one instant.
  */
 const classifySettlement = (order, today) => {
-  const promised = order.promised_payment_date ? new Date(`${order.promised_payment_date}T00:00:00`) : null;
-  const isOverdue = promised && promised < today;
+  const promisedKey = order.promised_payment_date ? phDateKey(order.promised_payment_date) : '';
+  const todayKey = phDateKey(today);
+  const isOverdue = Boolean(promisedKey && todayKey && promisedKey < todayKey);
   const isCollect = (order.payer_type || 'sender') === 'receiver';
 
   if (isOverdue) return SETTLEMENT_BUCKETS.OVERDUE;
@@ -1748,7 +1790,7 @@ export const getUnsettledOrders = async () => {
  *            settlement_bucket: string, days_overdue: number}}
  */
 export const deriveSettlement = (order, today = null) => {
-  const ref = today || (() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; })();
+  const ref = today || new Date();
 
   // Shared with the dispatch gate, the admin badges and get_sales_summary() —
   // one implementation of "what is owed", so no two views can disagree.
@@ -1757,8 +1799,13 @@ export const deriveSettlement = (order, today = null) => {
 
   let daysOverdue = 0;
   if (order.promised_payment_date) {
-    const promised = new Date(`${order.promised_payment_date}T00:00:00`);
-    daysOverdue = Math.max(0, Math.floor((ref - promised) / 86400000));
+    const promisedKey = phDateKey(order.promised_payment_date);
+    const todayKey = phDateKey(ref);
+    if (promisedKey && todayKey && promisedKey < todayKey) {
+      const promisedUtc = Date.parse(`${promisedKey}T00:00:00Z`);
+      const todayUtc = Date.parse(`${todayKey}T00:00:00Z`);
+      daysOverdue = Math.floor((todayUtc - promisedUtc) / 86400000);
+    }
   }
 
   return {

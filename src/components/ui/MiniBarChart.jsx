@@ -64,7 +64,8 @@ const MiniBarChart = ({
         {/* Bars */}
         <div className="bar-chart-bars" style={{ gap }} role="img" aria-label={chartSummary}>
           {actualBars.map((bar, i) => {
-            const pct = (bar.value / maxVal) * 100;
+            const numericValue = Number(bar.value || 0);
+            const pct = (numericValue / maxVal) * 100;
             const isHovered = hoveredIdx === i;
             return (
               <div
@@ -86,7 +87,7 @@ const MiniBarChart = ({
                 {/* Value above bar */}
                 {showValues && !isHovered && (
                   <div className="bar-chart-value-label">
-                    {valuePrefix}{bar.value >= 1000
+                    {valuePrefix}{numericValue >= 1000
                       ? `${(bar.value / 1000).toFixed(bar.value >= 10000 ? 0 : 1)}k`
                       : bar.value.toLocaleString()}
                   </div>
@@ -97,7 +98,9 @@ const MiniBarChart = ({
                   className="bar-chart-bar"
                   style={{
                     width: barWidth,
-                    height: mounted ? `${Math.max(2, pct)}%` : '0%',
+                    // Small positive values keep a visible minimum, but a
+                    // true zero must remain on the baseline.
+                    height: mounted && numericValue > 0 ? `${Math.max(2, pct)}%` : '0%',
                     background: bar.color || color,
                     transitionDelay: mounted ? `${i * 0.05}s` : '0s',
                   }}

@@ -503,24 +503,26 @@ export const outstandingBalance = (order) => {
 };
 
 /**
- * Settlement state of one order, as three mutually exclusive answers rather
+ * Settlement state of one order, as mutually exclusive answers rather
  * than a boolean. The boolean was the bug: it had no way to say "there is no
  * money question yet because there is no price yet", so it answered "settled"
  * and the UI rendered `Unpaid` and `Settled` side by side on the same ₱0 row.
  *
  *   'unpriced' — not weighed; no cost exists. Not settled, not owing.
- *   'settled'  — priced and fully collected (or cancelled).
+ *   'settled'  — priced and fully collected.
  *   'owing'    — priced with a balance outstanding.
+ *   'cancelled' — shipment collection has stopped; says nothing about refunds.
  */
 export const SETTLEMENT_STATE = {
   UNPRICED: 'unpriced',
   SETTLED: 'settled',
   OWING: 'owing',
+  CANCELLED: 'cancelled',
 };
 
 export const getSettlementState = (order) => {
   if (!order) return SETTLEMENT_STATE.UNPRICED;
-  if (order.status === ORDER_STATUS.CANCELLED) return SETTLEMENT_STATE.SETTLED;
+  if (order.status === ORDER_STATUS.CANCELLED) return SETTLEMENT_STATE.CANCELLED;
   if (!isOrderPriced(order)) return SETTLEMENT_STATE.UNPRICED;
   return outstandingBalance(order) <= 0 ? SETTLEMENT_STATE.SETTLED : SETTLEMENT_STATE.OWING;
 };

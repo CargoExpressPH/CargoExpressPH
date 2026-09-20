@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { getOrderById, updateOrder, updateOrderContactDetails, getTripReassignments, reassignTrip, getActivityLogsByRecord, getPaymentTransactions, recordAdditionalPayment, recordPickupPayment, recordDeliveryPayment, getOrderStatusEvents, reviewOrderCancellation, cancelOrderAsAdmin, assignOrderToCustomer, getLatestPaymentAttemptByOrder, clearPaymentReceiptUrls } from '../../lib/database';
+import { getOrderById, updateOrder, updateOrderContactDetails, getTripReassignments, reassignTrip, getActivityLogsByRecord, getPaymentTransactions, recordAdditionalPayment, recordPickupPayment, recordDeliveryPayment, getOrderStatusEvents, reviewOrderCancellation, cancelOrderAsAdmin, assignOrderToCustomer, getLatestPaymentAttemptByOrder, clearPaymentReceiptUrls, getCancellationSettlementSummary } from '../../lib/database';
 import { pollPaymentStatus } from '../../lib/paymongo';
 import { clearPendingPayment, getPendingPayment } from '../../lib/pendingPayment';
 import { isPaymentPollReconciled } from '../../utils/paymentReconciliation';
@@ -30,6 +30,8 @@ import { CenteredSpinner } from '../../components/ui/Loader';
 import ErrorBoundarySection from '../../components/ui/ErrorBoundarySection';
 import MessageCustomerButton from '../../components/ui/MessageCustomerButton';
 import FeatureShipmentModal from '../../components/ui/FeatureShipmentModal';
+import CancellationSettlementSummary from '../../components/ui/CancellationSettlementSummary';
+import CancellationSettlementModal from '../../components/ui/CancellationSettlementModal';
 import {
   STATUS_FLOW, STATUS_TIMELINE, validateStatusTransition,
   getSettlementState, SETTLEMENT_STATE, outstandingBalance,
@@ -144,6 +146,8 @@ const AdminOrderDetailPage = () => {
   const [activityHistory, setActivityHistory] = useState([]);
   const [statusEvents, setStatusEvents] = useState([]);
   const [paymentTransactions, setPaymentTransactions] = useState([]);
+  const [cancellationSettlement, setCancellationSettlement] = useState(null);
+  const [settlementModalMode, setSettlementModalMode] = useState(null);
   const [lightboxIndex, setLightboxIndex] = useState(-1);
   const [lightboxImages, setLightboxImages] = useState([]);
   const [resolvedPickupPhotos, setResolvedPickupPhotos] = useState([]);
@@ -350,6 +354,10 @@ const AdminOrderDetailPage = () => {
       if (isMounted) setStatusEvents(events);
       const pmts = await getPaymentTransactions(id);
       if (isMounted) setPaymentTransactions(pmts);
+      const settlement = data.status === ORDER_STATUS.CANCELLED
+        ? await getCancellationSettlementSummary(id)
+        : null;
+      if (isMounted) setCancellationSettlement(settlement);
     } catch (e) {
       if (!isMounted) return;
       if (silent) toast.error(e.message || 'Failed to refresh order.');
@@ -558,7 +566,18 @@ const AdminOrderDetailPage = () => {
     try {
       const fresh = await getPaymentTransactions(id);
       setPaymentTransactions(fresh);
-      const freshTx = fresh.find(t => t.id === txId) || null;
+      const freshSummary = order.status === ORDER_STATUS.CANCELLED
+        ? await getCancellationSettlementSummary(id)
+        : null;
+      if (freshSummary) setCancellationSettlement(freshSummary);
+      const rawTx = fresh.find(t => t.id === txId) || null;
+      const orderAvailable = freshSummary?.has_confirmed_decision
+        ? Number(freshSummary.refund_not_initiated || 0)
+        : Number.POSITIVE_INFINITY;
+      const freshTx = rawTx ? {
+        ...rawTx,
+        refundable_amount: Math.min(Number(rawTx.refundable_amount || 0), orderAvailable),
+      } : null;
       const stillEligible = freshTx
         && !freshTx.is_refund
         && freshTx.payment_method === 'gcash'
@@ -581,7 +600,18 @@ const AdminOrderDetailPage = () => {
     try {
       const fresh = await getPaymentTransactions(id);
       setPaymentTransactions(fresh);
-      const freshTx = fresh.find(t => t.id === txId) || null;
+      const freshSummary = order.status === ORDER_STATUS.CANCELLED
+        ? await getCancellationSettlementSummary(id)
+        : null;
+      if (freshSummary) setCancellationSettlement(freshSummary);
+      const rawTx = fresh.find(t => t.id === txId) || null;
+      const orderAvailable = freshSummary?.has_confirmed_decision
+        ? Number(freshSummary.refund_not_initiated || 0)
+        : Number.POSITIVE_INFINITY;
+      const freshTx = rawTx ? {
+        ...rawTx,
+        refundable_amount: Math.min(Number(rawTx.refundable_amount || 0), orderAvailable),
+      } : null;
       const stillEligible = freshTx
         && !freshTx.is_refund
         && ['paid', 'partial'].includes(freshTx.payment_status)
@@ -790,6 +820,9 @@ const AdminOrderDetailPage = () => {
   const refundFailed = refundRows
     .filter(tx => tx.refund_status === 'failed')
     .reduce((sum, tx) => sum + Math.abs(Number(tx.amount || 0)), 0);
+  const settlementAllowsAnotherRefund = !cancellationSettlement?.has_confirmed_decision
+    || (cancellationSettlement.settlement_status !== 'needs_reconciliation'
+      && Number(cancellationSettlement.refund_not_initiated || 0) > 0.005);
   // Same gate the per-row "Refund" button already uses (payment_method
   // 'gcash' + gcash_channel 'paymongo' is what prepare_paymongo_refund()
   // actually requires) — kept in one place so the summary and the row action
@@ -799,11 +832,13 @@ const AdminOrderDetailPage = () => {
     && tx.payment_method === 'gcash'
     && tx.gcash_channel === 'paymongo'
     && ['paid', 'partial'].includes(tx.payment_status)
+    && settlementAllowsAnotherRefund
     && Number(tx.refundable_amount || 0) > 0.005
   );
   const unrefundablePaidTx = paymentTransactions.filter(tx =>
     !tx.is_refund
     && ['paid', 'partial'].includes(tx.payment_status)
+    && settlementAllowsAnotherRefund
     && !(tx.payment_method === 'gcash' && tx.gcash_channel === 'paymongo')
   );
 
@@ -932,6 +967,9 @@ const AdminOrderDetailPage = () => {
               unrefundablePaidTx={unrefundablePaidTx}
               onSelectRefund={(tx) => openRefundModal(tx.id)}
               onSelectManualRefund={(tx) => openManualRefundModal(tx.id)}
+              settlementSummary={cancellationSettlement}
+              historicalPromiseDate={order.promised_payment_date}
+              onManageDecision={() => setSettlementModalMode(cancellationSettlement?.has_confirmed_decision ? 'amend' : 'record')}
             />
           </div>
         </div>
@@ -1308,7 +1346,11 @@ const AdminOrderDetailPage = () => {
       <div className="card admin-section-card stagger-item" style={{ animationDelay: '420ms' }}>
         <div className="card-header"><h3><CreditCard size={16} className="inline mr-8" />Payment & Details</h3></div>
         <div className="card-body">
-          <div className="admin-payment-summary">
+          {order.status === ORDER_STATUS.CANCELLED ? (
+            <div className="alert-banner alert-banner-info mb-16">
+              This booking is cancelled. Its historical pricing and transaction history are preserved here; the Payment &amp; Refund Summary above is the authoritative cancellation settlement view.
+            </div>
+          ) : <div className="admin-payment-summary">
             <div className="text-center">
               <div className="text-xs text-tertiary" style={{ marginBottom: 2 }}>{computedDiscountAmount > 0 ? 'Original Fee' : 'Shipping Cost'}</div>
               <div className="text-lg fw-800 text-primary">{settlementState === SETTLEMENT_STATE.UNPRICED ? '—' : formatMoney(computedShippingCost)}</div>
@@ -1335,7 +1377,7 @@ const AdminOrderDetailPage = () => {
                 {settlementState === SETTLEMENT_STATE.UNPRICED ? '—' : isOverpaid ? `+${formatMoney(Math.abs(computedRemainingBalance))}` : formatMoney(computedRemainingBalance)}
               </div>
             </div>
-          </div>
+          </div>}
 
           {/* Discount detail — admin-internal reason/notes/who-applied stay
               here (never sent to the customer view). Amounts alone are what
@@ -1383,7 +1425,7 @@ const AdminOrderDetailPage = () => {
                 not `Unpaid` next to `Settled`, which is what a ₱0 balance on an
                 unpriced parcel used to render. Nothing is owed and nothing is
                 collected because nothing has been billed. */}
-            {settlementState === SETTLEMENT_STATE.UNPRICED ? (
+            {order.status !== ORDER_STATUS.CANCELLED && (settlementState === SETTLEMENT_STATE.UNPRICED ? (
               <span className="badge badge-warning">Not yet weighed — no price</span>
             ) : computedDiscountAmount > 0 && computedFinalFee <= 0 ? (
               // 100% discount: nothing was ever paid (payment_status stays
@@ -1398,8 +1440,8 @@ const AdminOrderDetailPage = () => {
                   ? <span className="badge badge-success">Settled</span>
                   : <span className="badge badge-error">{formatMoney(outstandingBalance(order))} Remaining Balance</span>}
               </>
-            )}
-            {order.promised_payment_date && <span className="badge badge-warning">Promised: {safeFormatDate(order.promised_payment_date)}</span>}
+            ))}
+            {order.status !== ORDER_STATUS.CANCELLED && order.promised_payment_date && <span className="badge badge-warning">Promised: {safeFormatDate(order.promised_payment_date)}</span>}
           </div>
 
 
@@ -1678,6 +1720,22 @@ const AdminOrderDetailPage = () => {
           }}
         />
       )}
+      {settlementModalMode && cancellationSettlement && (
+        <CancellationSettlementModal
+          order={order}
+          summary={cancellationSettlement}
+          amendment={settlementModalMode === 'amend'}
+          onClose={() => setSettlementModalMode(null)}
+          onSuccess={async result => {
+            setSettlementModalMode(null);
+            setCancellationSettlement(result);
+            await loadOrder(true, { silent: true });
+            toast.success(settlementModalMode === 'amend'
+              ? 'Settlement decision amended and preserved in durable history.'
+              : 'Settlement decision recorded. No money was sent by this action.');
+          }}
+        />
+      )}
       {showDeliveryModal && (
         <DeliveryModal order={order} onClose={() => setShowDeliveryModal(false)} onSave={handleDeliverySave} />
       )}
@@ -1869,6 +1927,9 @@ const CancellationPaymentSummary = ({
   unrefundablePaidTx,
   onSelectRefund,
   onSelectManualRefund,
+  settlementSummary = null,
+  historicalPromiseDate = null,
+  onManageDecision = null,
 }) => {
   const netCollected = grossCollected - refundSucceeded;
   return (
@@ -1876,8 +1937,21 @@ const CancellationPaymentSummary = ({
       className="admin-refund-summary br-8"
       style={{ background: 'var(--bg-secondary)', padding: '12px 14px', overflowWrap: 'anywhere' }}
     >
-      <div className="text-xs fw-700 text-uppercase text-tertiary mb-8">Payment &amp; Refund Summary</div>
-      <div className="grid grid-2 gap-8" style={{ fontSize: '0.8125rem' }}>
+      {settlementSummary ? (
+        <CancellationSettlementSummary
+          summary={settlementSummary}
+          historicalPromiseDate={historicalPromiseDate}
+          admin
+          actions={onManageDecision ? (
+            <button type="button" className="btn btn-outline btn-sm" onClick={onManageDecision}>
+              {settlementSummary.has_confirmed_decision ? 'Amend Settlement Decision' : 'Record Settlement Decision'}
+            </button>
+          ) : null}
+        />
+      ) : (
+        <>
+          <div className="text-xs fw-700 text-uppercase text-tertiary mb-8">Payment &amp; Refund Summary</div>
+          <div className="grid grid-2 gap-8" style={{ fontSize: '0.8125rem' }}>
         <div>
           <div className="text-tertiary">Original / final charge</div>
           <div className="fw-700">{formatMoney(finalCharge)}</div>
@@ -1906,7 +1980,9 @@ const CancellationPaymentSummary = ({
             <div className="fw-700" style={{ color: 'var(--error-text)' }}>{formatMoney(refundFailed)}</div>
           </div>
         )}
-      </div>
+          </div>
+        </>
+      )}
 
       {eligibleRefundTx.length > 0 && (
         <div className="mt-12">

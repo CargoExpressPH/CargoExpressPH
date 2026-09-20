@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { getOrderById, updateOrderContactDetails, requestOrderCancellation, getPaymentTransactions, submitFeedback, checkIfFeedbackExists, getOrderStatusEvents, getLatestPaymentAttemptByOrder } from '../../lib/database';
+import { getOrderById, updateOrderContactDetails, requestOrderCancellation, getPaymentTransactions, submitFeedback, checkIfFeedbackExists, getOrderStatusEvents, getLatestPaymentAttemptByOrder, getCancellationSettlementSummary } from '../../lib/database';
 import { buildStatusTimestamps } from '../../utils/statusTimestamps';
 import { resolvePhotoUrls } from '../../lib/storage';
 import { supabase } from '../../lib/supabase';
@@ -20,6 +20,7 @@ import ImageLightbox from '../../components/ui/ImageLightbox';
 import ResolvedPhotoLink from '../../components/ui/ResolvedPhotoLink';
 import { CenteredSpinner } from '../../components/ui/Loader';
 import AmountInput from '../../components/ui/AmountInput';
+import CancellationSettlementSummary from '../../components/ui/CancellationSettlementSummary';
 import { ArrowLeft, MapPin, User, Phone, Package, CreditCard, Truck, Camera, Image, XCircle, Loader, AlertTriangle, Check } from 'lucide-react';
 import { useToast } from '../../hooks/useToast';
 import usePageTitle from '../../hooks/usePageTitle';
@@ -71,6 +72,7 @@ const OrderDetailPage = () => {
   const [resolvedDeliveryPhotos, setResolvedDeliveryPhotos] = useState([]);
   const [deliveryPhotoLoadState, setDeliveryPhotoLoadState] = useState({});
   const [paymentTransactions, setPaymentTransactions] = useState([]);
+  const [cancellationSettlement, setCancellationSettlement] = useState(null);
   const [statusEvents, setStatusEvents] = useState([]);
 
   const stepTimestamps = useMemo(
@@ -153,11 +155,12 @@ const OrderDetailPage = () => {
   // the realtime-triggered silent refresh, so a live status change into
   // 'Delivered' offers the feedback prompt exactly like a fresh page load
   // would, instead of only checking once at mount.
-  const applyOrderData = useCallback((data, pmts, events) => {
+  const applyOrderData = useCallback((data, pmts, events, settlement = null) => {
     if (!isMountedRef.current) return;
     setOrder(data);
     setPaymentTransactions(pmts);
     setStatusEvents(events || []);
+    setCancellationSettlement(settlement);
 
     // A payment can settle while the payment-return banner is still telling
     // the customer "still being confirmed" — a late webhook, or an admin
@@ -202,6 +205,7 @@ const OrderDetailPage = () => {
     const data = await getOrderById(id);
     let pmts = [];
     let events = [];
+    let settlement = null;
     try {
       pmts = await getPaymentTransactions(id);
     } catch (err) {
@@ -212,7 +216,14 @@ const OrderDetailPage = () => {
     } catch (err) {
       if (import.meta.env.DEV) console.warn('Failed to fetch status events', err);
     }
-    return { data, pmts, events };
+    if (data.status === ORDER_STATUS.CANCELLED) {
+      try {
+        settlement = await getCancellationSettlementSummary(id);
+      } catch (err) {
+        if (import.meta.env.DEV) console.warn('Failed to fetch cancellation settlement', err);
+      }
+    }
+    return { data, pmts, events, settlement };
   }, [id]);
 
   const loadOrder = useCallback(async () => {
@@ -227,10 +238,10 @@ const OrderDetailPage = () => {
     startLoadTimeout();
 
     try {
-      const { data, pmts, events } = await fetchOrderData();
+      const { data, pmts, events, settlement } = await fetchOrderData();
       clearLoadTimeout();
       if (isMountedRef.current) {
-        applyOrderData(data, pmts, events);
+        applyOrderData(data, pmts, events, settlement);
         setLoading(false);
       }
     } catch (err) {
@@ -250,8 +261,8 @@ const OrderDetailPage = () => {
   const refreshOrderSilently = useCallback(async () => {
     if (!id || !isMountedRef.current) return;
     try {
-      const { data, pmts, events } = await fetchOrderData();
-      if (isMountedRef.current) applyOrderData(data, pmts, events);
+      const { data, pmts, events, settlement } = await fetchOrderData();
+      if (isMountedRef.current) applyOrderData(data, pmts, events, settlement);
     } catch {
       // Silent: a failed background refresh shouldn't disturb data already
       // on screen. The next realtime event, or a manual action, retries.
@@ -715,23 +726,6 @@ const OrderDetailPage = () => {
   const hasPhotos = resolvedPickupPhotos.length > 0;
   const balance = outstandingBalance(order);
   const settlementState = getSettlementState(order);
-  // Refund status shown on a cancelled booking must reflect actual
-  // `payment_refunds` rows, not the order's status. A refund row's amount is
-  // stored positive; `refund_status` is `outcome_uncertain ? 'uncertain' :
-  // status` (see database.js mergePaymentActivity) — never invent a
-  // "Refund completed" state just because the order is Cancelled or a
-  // request was merely submitted.
-  const refundRows = paymentTransactions.filter(tx => tx.is_refund);
-  const refundSucceeded = refundRows
-    .filter(tx => tx.refund_status === 'succeeded')
-    .reduce((sum, tx) => sum + Math.abs(Number(tx.amount || 0)), 0);
-  const refundPending = refundRows
-    .filter(tx => ['creating', 'pending', 'processing', 'uncertain'].includes(tx.refund_status))
-    .reduce((sum, tx) => sum + Math.abs(Number(tx.amount || 0)), 0);
-  const refundFailed = refundRows
-    .filter(tx => tx.refund_status === 'failed')
-    .reduce((sum, tx) => sum + Math.abs(Number(tx.amount || 0)), 0);
-  const hasAnyRefundRecord = refundRows.length > 0;
   // Discount reason/notes/who-applied are admin-internal and never rendered
   // here — only the peso amounts, which the customer needs to understand
   // their bill.
@@ -883,36 +877,9 @@ const OrderDetailPage = () => {
               </div>
             )}
 
-            {/* Cancelling a booking never refunds money by itself — that is a
-                separate admin action. Say plainly when nothing has happened
-                yet, instead of leaving the customer to guess from silence
-                whether "Cancelled" also means "refunded". */}
-            <div className="text-sm" style={{ borderTop: '1px solid rgba(0,0,0,0.08)', paddingTop: 10, marginTop: 4 }}>
-              <div className="fw-700 mb-4">Refund status</div>
-              {!hasAnyRefundRecord ? (
-                <p className="m-0" style={{ opacity: 0.9 }}>
-                  No refund recorded yet for this booking. Cancelling a booking does not automatically refund any amount collected — message us if you're expecting one.
-                </p>
-              ) : (
-                <div className="flex flex-col gap-4">
-                  {refundSucceeded > 0 && (
-                    <p className="m-0" style={{ opacity: 0.9 }}>
-                      <strong>{formatMoney(refundSucceeded)}</strong> refunded and confirmed.
-                    </p>
-                  )}
-                  {refundPending > 0 && (
-                    <p className="m-0" style={{ opacity: 0.9 }}>
-                      <strong>{formatMoney(refundPending)}</strong> refund in progress / awaiting confirmation — not completed yet.
-                    </p>
-                  )}
-                  {refundFailed > 0 && (
-                    <p className="m-0" style={{ opacity: 0.9 }}>
-                      <strong>{formatMoney(refundFailed)}</strong> refund attempt failed — no amount was deducted from your collected total.
-                    </p>
-                  )}
-                </div>
-              )}
-            </div>
+            <p className="text-sm m-0" style={{ opacity: 0.9, borderTop: '1px solid rgba(0,0,0,0.08)', paddingTop: 10, marginTop: 4 }}>
+              Cancellation does not automatically send a refund. See the Payment &amp; Refund Summary below for the recorded financial decision and refund progress.
+            </p>
           </div>
         </div>
       )}
@@ -977,7 +944,12 @@ const OrderDetailPage = () => {
           <div className="grid grid-2 gap-12">
             <div><span className="text-xs text-tertiary">Description</span><div className="text-sm">{order.package_description || '—'}</div></div>
 
-            {order.actual_weight && <div><span className="text-xs text-tertiary">Actual Weight</span><div className="text-sm font-bold text-success">{order.actual_weight} kg</div></div>}
+            <div>
+              <span className="text-xs text-tertiary">Actual Weight</span>
+              <div className={`text-sm fw-600 ${order.actual_weight ? 'text-success' : 'text-secondary'}`}>
+                {order.actual_weight ? `${order.actual_weight} kg` : 'To be weighed'}
+              </div>
+            </div>
           </div>
           {order.notes && (
             <div className="mt-12 pt-12" style={{ borderTop: '1px dashed var(--customer-line, #E2E8F0)' }}>
@@ -1049,6 +1021,29 @@ const OrderDetailPage = () => {
       <div className="customer-detail-card customer-payment-card card stagger-item" style={{ animationDelay: '300ms' }}>
         <div className="card-body p-16">
           <h4 className="fw-700 mb-12 flex items-center gap-8"><CreditCard size={16} aria-hidden="true" />Payment Details</h4>
+          {isCancelled ? (
+            <>
+              <div className="customer-payment-summary mb-16">
+                <div className="text-center">
+                  <div className="text-xs text-tertiary">Original Fee</div>
+                  <div className="text-sm font-bold text-primary">{formatMoney(parseFloat(order.shipping_cost || 0))}</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-xs text-tertiary">Discount</div>
+                  <div className="text-sm font-bold text-error">− {formatMoney(parseFloat(order.discount_amount || 0))}</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-xs text-tertiary">Historical Final Charge</div>
+                  <div className="text-sm font-bold text-primary">{formatMoney(finalShippingFee(order))}</div>
+                </div>
+              </div>
+              <CancellationSettlementSummary
+                summary={cancellationSettlement}
+                historicalPromiseDate={order.promised_payment_date}
+              />
+            </>
+          ) : (
+            <>
           <div className="customer-payment-summary mb-20">
             <div className="text-center">
               <div className="text-xs text-tertiary">{hasOrderDiscount ? 'Original Fee' : 'Shipping Cost'}</div>
@@ -1122,6 +1117,8 @@ const OrderDetailPage = () => {
             <div className="alert-banner alert-banner-warning mt-12 py-8 px-12" style={{ fontSize: '0.8125rem' }}>
               <AlertTriangle size={14} /> Payment due: {formatPhDate(order.promised_payment_date)}
             </div>
+          )}
+            </>
           )}
 
           {/* Payment Button — Business Logic Enforcement */}

@@ -1,35 +1,99 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { getSalesOverviewData } from '../../lib/database';
 import { useAuth } from '../../contexts/AuthContext';
 import { CenteredSpinner } from '../../components/ui/Loader';
 import AnimatedCounter from '../../components/ui/AnimatedCounter';
-import EmptyState from '../../components/ui/EmptyState';
-import { Wallet, CheckCircle, Package, TrendingUp, AlertTriangle } from 'lucide-react';
+import { TrendingUp, AlertTriangle, RefreshCw } from 'lucide-react';
 import usePageTitle from '../../hooks/usePageTitle';
+import useRealtimeOrders from '../../hooks/useRealtimeOrders';
 import MiniBarChart from '../../components/ui/MiniBarChart';
+import { formatPhDateTime, phDateKey } from '../../utils/datetime';
 
-const formatCurrency = (val) => `₱${(val || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 const SalesPage = () => {
   usePageTitle('Sales Overview');
+  const { user } = useAuth();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
+  const [lastUpdated, setLastUpdated] = useState(null);
+  const dataRef = useRef(null);
+  const mountedRef = useRef(true);
+  const requestSequenceRef = useRef(0);
 
-  useEffect(() => { loadData(); }, []);
-
-  const loadData = async () => {
-    setLoading(true);
+  const loadData = useCallback(async ({ background = false } = {}) => {
+    const sequence = ++requestSequenceRef.current;
+    const keepVisible = background && Boolean(dataRef.current);
+    if (keepVisible) setRefreshing(true);
+    else setLoading(true);
     setError(null);
+
     try {
       const result = await getSalesOverviewData();
+      if (!mountedRef.current || sequence !== requestSequenceRef.current) return;
+      dataRef.current = result;
       setData(result);
+      setLastUpdated(new Date());
     } catch (e) {
-      setError(e.message || 'Failed to load sales overview.');
+      if (!mountedRef.current || sequence !== requestSequenceRef.current) return;
+      setError(e.message || 'Sales figures could not be refreshed. The last successful figures remain on screen.');
     } finally {
-      setLoading(false);
+      if (mountedRef.current && sequence === requestSequenceRef.current) {
+        setLoading(false);
+        setRefreshing(false);
+      }
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    void loadData();
+    return () => {
+      mountedRef.current = false;
+      requestSequenceRef.current += 1;
+    };
+  }, [loadData]);
+
+  useEffect(() => {
+    const refreshOnFocus = () => { void loadData({ background: true }); };
+    window.addEventListener('focus', refreshOnFocus);
+    window.addEventListener('pageshow', refreshOnFocus);
+    return () => {
+      window.removeEventListener('focus', refreshOnFocus);
+      window.removeEventListener('pageshow', refreshOnFocus);
+    };
+  }, [loadData]);
+
+  // “Today” is a Manila business day. This timer is based on +08:00 rather
+  // than the browser's timezone and is recreated after every boundary.
+  useEffect(() => {
+    let timerId;
+    const scheduleNextManilaMidnight = () => {
+      const now = Date.now();
+      const today = phDateKey(new Date(now));
+      const nextMidnight = new Date(today + 'T00:00:00+08:00').getTime() + 86400000;
+      timerId = window.setTimeout(() => {
+        void loadData({ background: true });
+        scheduleNextManilaMidnight();
+      }, Math.max(1000, nextMidnight - now + 250));
+    };
+    scheduleNextManilaMidnight();
+    return () => window.clearTimeout(timerId);
+  }, [loadData]);
+
+  const handleOrderChanges = useCallback(() => {
+    void loadData({ background: true });
+  }, [loadData]);
+
+  useRealtimeOrders({
+    enabled: Boolean(user?.id) && !loading,
+    channelName: 'sales_overview',
+    userId: user?.id,
+    debounceMs: 1200,
+    onBatch: handleOrderChanges,
+  });
 
   return (
     <div className="page-transition">
@@ -39,26 +103,39 @@ const SalesPage = () => {
             <TrendingUp size={24} color="var(--primary)" aria-hidden="true" />
             Sales Overview
           </h1>
-          <p className="admin-page-subtitle">Real-time collections and outstanding balances</p>
+          <p className="admin-page-subtitle">
+            Live collections and active shipment balances
+            {lastUpdated && <> · Last updated {formatPhDateTime(lastUpdated)}</>}
+          </p>
         </div>
+        <button
+          type="button"
+          className="btn btn-ghost btn-sm"
+          onClick={() => loadData({ background: true })}
+          disabled={loading || refreshing}
+        >
+          <RefreshCw size={16} className={refreshing ? 'animate-spin' : ''} />
+          {refreshing ? 'Refreshing…' : 'Refresh'}
+        </button>
       </div>
 
       {error && (
-        <div className="card p-24 text-center text-error mt-16">
-          <AlertTriangle size={32} className="mb-8" />
-          <p>{error}</p>
-          <button type="button" className="btn btn-primary btn-sm mt-12" onClick={loadData}>Retry</button>
+        <div className="alert-banner alert-banner-error mt-16" role="alert">
+          <AlertTriangle size={18} />
+          <span>{error}</span>
+          {data && <button type="button" className="btn btn-ghost btn-sm" onClick={() => loadData({ background: true })}>Try again</button>}
         </div>
       )}
 
-      {loading && <CenteredSpinner />}
+      {loading && !data && <CenteredSpinner />}
 
-      {!loading && data && (
+      {data && (
         <>
           <div className="grid grid-4 report-summary-cards mb-24 mt-16">
             <div className="stat-card stat-card-info stagger-item" style={{ animationDelay: '0ms' }}>
               <div className="stat-value"><AnimatedCounter value={data.collectedToday} prefix="₱" decimals={2} duration={1000} /></div>
-              <div className="stat-label">Collected Today</div>
+              <div className="stat-label">Net Collected Today</div>
+              <div className="text-xs text-tertiary mt-4">Successful collections minus successful refunds, using Asia/Manila dates.</div>
             </div>
             <div className="stat-card stat-card-success stagger-item" style={{ animationDelay: '60ms' }}>
               <div className="stat-value"><AnimatedCounter value={data.netCollectedThisMonth} prefix="₱" decimals={2} duration={1000} /></div>
@@ -78,14 +155,17 @@ const SalesPage = () => {
             <div className="card-header">
               <h3 className="flex items-center gap-8">
                 <TrendingUp size={18} className="text-primary" />
-                Current Year Monthly Collections
+                Current Year Monthly Net Collections
               </h3>
             </div>
             <div className="card-body p-24">
-              <MiniBarChart 
-                data={data.monthlyChart.map(m => ({ label: new Date(2026, m.mth - 1, 1).toLocaleString('default', { month: 'short' }), value: m.net }))} 
+              <MiniBarChart
+                data={(data.monthlyChart || []).map(month => ({
+                  label: MONTH_LABELS[Number(month.mth) - 1] || String(month.mth),
+                  value: Number(month.net || 0),
+                }))}
                 height={250}
-                formatValue={formatCurrency}
+                valuePrefix="₱"
                 color="var(--success)"
               />
             </div>
@@ -97,3 +177,4 @@ const SalesPage = () => {
 };
 
 export default SalesPage;
+
