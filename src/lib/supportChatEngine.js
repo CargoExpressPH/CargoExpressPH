@@ -34,6 +34,8 @@ export const createConversationContext = (userId, conversationId = null) => ({
   selectedBookingId: null,
   selectedTrackingNumber: null,
   selectedChoices: {},
+  lastActionId: null,
+  backActionId: null,
   consecutiveUnrecognizedReplies: 0,
   preferredLanguage: 'en',
 });
@@ -45,6 +47,85 @@ export const resetConversationContext = (context, userId = null, conversationId 
 };
 
 export const getSupportKnowledgeCatalog = () => SUPPORT_KNOWLEDGE_CATALOG.map(entry => ({ ...entry, examples: [...entry.examples] }));
+
+// Menu actions are deliberately separate from the visible labels. The page
+// sends these stable IDs back to the engine, so a translated label or an old
+// button in chat history can never be mistaken for a free-text command.
+export const SUPPORT_ACTIONS = Object.freeze({
+  MAIN_MENU: 'main_menu',
+  MY_BOOKINGS: 'my_bookings',
+  SHOW_MORE_BOOKINGS: 'show_more_bookings',
+  SELECT_BOOKING: 'select_booking',
+  CHOOSE_ANOTHER_BOOKING: 'choose_another_booking',
+  BOOKING_STATUS: 'booking_status',
+  PAYMENT_DETAILS: 'payment_details',
+  TRIP_DETAILS: 'trip_details',
+  OPEN_BOOKING: 'open_booking',
+  PAYMENT_REFUND: 'payment_refund',
+  PAYMENT_METHODS: 'payment_methods',
+  PAYMENT_BOOKING: 'payment_booking',
+  REFUND_GUIDANCE: 'refund_guidance',
+  HOW_TO_BOOK: 'how_to_book',
+  BOOK_NEW: 'book_new',
+  SHIPPING_INFO: 'shipping_info',
+  SHIPPING_RATES: 'shipping_rates',
+  SERVICE_AREAS: 'service_areas',
+  PACKAGING: 'packaging',
+  RESTRICTED_ITEMS: 'restricted_items',
+  PICKUP_DELIVERY: 'pickup_delivery',
+  CONTACT: 'contact',
+  TALK_TO_ADMIN: 'talk_to_admin',
+  RETRY: 'retry',
+  BACK: 'back',
+});
+
+const menuAction = (id, label, extra = {}) => ({ id, label, ...extra });
+
+export const getMainMenuActions = () => [
+  menuAction(SUPPORT_ACTIONS.MY_BOOKINGS, 'My bookings'),
+  menuAction(SUPPORT_ACTIONS.PAYMENT_REFUND, 'Payment and refunds'),
+  menuAction(SUPPORT_ACTIONS.HOW_TO_BOOK, 'How to book'),
+  menuAction(SUPPORT_ACTIONS.SHIPPING_INFO, 'Shipping information'),
+  menuAction(SUPPORT_ACTIONS.TALK_TO_ADMIN, 'Talk to an admin'),
+];
+
+const menuActions = {
+  main: getMainMenuActions,
+  payment: () => [
+    menuAction(SUPPORT_ACTIONS.PAYMENT_METHODS, 'Ways to pay'),
+    menuAction(SUPPORT_ACTIONS.PAYMENT_BOOKING, 'Payment details for a booking'),
+    menuAction(SUPPORT_ACTIONS.REFUND_GUIDANCE, 'Cancellation and refund guidance'),
+    menuAction(SUPPORT_ACTIONS.BACK, 'Back'),
+    menuAction(SUPPORT_ACTIONS.MAIN_MENU, 'Main menu'),
+    menuAction(SUPPORT_ACTIONS.TALK_TO_ADMIN, 'Talk to an admin'),
+  ],
+  shipping: () => [
+    menuAction(SUPPORT_ACTIONS.SHIPPING_RATES, 'Shipping rates'),
+    menuAction(SUPPORT_ACTIONS.SERVICE_AREAS, 'Service areas'),
+    menuAction(SUPPORT_ACTIONS.PACKAGING, 'Packaging'),
+    menuAction(SUPPORT_ACTIONS.RESTRICTED_ITEMS, 'Restricted items'),
+    menuAction(SUPPORT_ACTIONS.PICKUP_DELIVERY, 'Pickup and delivery process'),
+    menuAction(SUPPORT_ACTIONS.CONTACT, 'Contact information'),
+    menuAction(SUPPORT_ACTIONS.BACK, 'Back'),
+    menuAction(SUPPORT_ACTIONS.MAIN_MENU, 'Main menu'),
+    menuAction(SUPPORT_ACTIONS.TALK_TO_ADMIN, 'Talk to an admin'),
+  ],
+  booking: () => [
+    menuAction(SUPPORT_ACTIONS.BOOKING_STATUS, 'Booking status'),
+    menuAction(SUPPORT_ACTIONS.PAYMENT_DETAILS, 'Payment and refund details'),
+    menuAction(SUPPORT_ACTIONS.TRIP_DETAILS, 'Trip details'),
+    menuAction(SUPPORT_ACTIONS.OPEN_BOOKING, 'Open booking'),
+    menuAction(SUPPORT_ACTIONS.CHOOSE_ANOTHER_BOOKING, 'Choose another booking'),
+    menuAction(SUPPORT_ACTIONS.BACK, 'Back'),
+    menuAction(SUPPORT_ACTIONS.MAIN_MENU, 'Main menu'),
+    menuAction(SUPPORT_ACTIONS.TALK_TO_ADMIN, 'Talk to an admin'),
+  ],
+};
+
+const withMenuActions = (reply, actions) => ({
+  ...reply,
+  actions: typeof actions === 'function' ? actions() : actions,
+});
 
 // ── Escalation keywords (bypass chatbot entirely → go straight to admin) ──────
 //
@@ -1293,6 +1374,26 @@ const fetchCustomerOrderCount = async (userId) => {
   return count || 0;
 };
 
+const BOOKING_PICKER_PAGE_SIZE = 5;
+
+const fetchBookingPickerPage = async (userId, offset = 0) => {
+  if (!userId) return { orders: [], total: 0 };
+  let query = supabase
+    .from('orders')
+    .select(ORDER_FIELDS, { count: 'exact' })
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false });
+
+  // Keep the page bounded. The fallback is useful for the small provider-free
+  // contract mock and does not change the production query path.
+  query = typeof query.range === 'function'
+    ? query.range(offset, offset + BOOKING_PICKER_PAGE_SIZE - 1)
+    : query.limit(BOOKING_PICKER_PAGE_SIZE);
+  const { data, count, error } = await query;
+  if (error) throw error;
+  return { orders: data || [], total: count || 0 };
+};
+
 /**
  * One specific order by tracking number.
  *
@@ -1345,6 +1446,37 @@ const bookingSelectionReply = context => ({
   askResolved: false,
   quickReplies: (context?.pendingClarification?.options || []).map(order => order.tracking_number),
 });
+
+const bookingPickerReply = (context, orders, total, offset = 0) => {
+  const options = (orders || []).map(order =>
+    menuAction(`${SUPPORT_ACTIONS.SELECT_BOOKING}:${order.id}`, `${order.tracking_number} · ${order.status}`, {
+      description: `${order.origin} → ${order.destination}`,
+    })
+  );
+  const actions = [...options];
+  if (offset + options.length < total) {
+    actions.push(menuAction(SUPPORT_ACTIONS.SHOW_MORE_BOOKINGS, 'Show more bookings'));
+  }
+  actions.push(
+    menuAction(SUPPORT_ACTIONS.BACK, 'Back'),
+    menuAction(SUPPORT_ACTIONS.MAIN_MENU, 'Main menu'),
+    menuAction(SUPPORT_ACTIONS.TALK_TO_ADMIN, 'Talk to an admin'),
+  );
+
+  return {
+    text: total
+      ? `Choose a booking to continue. I found ${total} booking${total === 1 ? '' : 's'} under your account.${offset ? ` Showing bookings ${offset + 1}–${offset + options.length}.` : ''}`
+      : "You don't have any bookings yet. You can book a shipment from the Book Shipment page.",
+    askResolved: false,
+    actions: total ? actions : [
+      menuAction(SUPPORT_ACTIONS.BOOK_NEW, 'Book a shipment'),
+      menuAction(SUPPORT_ACTIONS.MAIN_MENU, 'Main menu'),
+      menuAction(SUPPORT_ACTIONS.TALK_TO_ADMIN, 'Talk to an admin'),
+    ],
+    quickReplies: options.map(option => option.label),
+    picker: total ? { offset, total } : null,
+  };
+};
 
 const setBookingSelection = (context, orders) => {
   if (!context || !Array.isArray(orders) || orders.length < 2) return;
@@ -1585,6 +1717,282 @@ const handlePendingChoice = async (message, userId, context) => {
   return null;
 };
 
+const actionErrorReply = (retryActionId, actions) => ({
+  text: "We couldn’t load this information. Please try again.",
+  escalate: false,
+  askResolved: false,
+  unavailable: true,
+  actions: [
+    menuAction(SUPPORT_ACTIONS.RETRY, 'Retry', { actionId: retryActionId }),
+    ...(actions || menuActions.main()),
+  ],
+});
+
+const runIntentHandler = async (intentId, userId, context, message = '') => {
+  const intent = INTENTS.find(candidate => candidate.id === intentId);
+  if (!intent) throw new Error(`Unknown support intent: ${intentId}`);
+  return intent.handler(userId, message, context);
+};
+
+const selectedBookingOrPicker = async (userId, context, parentActions = menuActions.main()) => {
+  if (context?.selectedBookingId) {
+    const order = await fetchOrderById(userId, context.selectedBookingId);
+    if (order) {
+      rememberOrder(context, order);
+      return { order, picker: null };
+    }
+    context.selectedBookingId = null;
+    context.selectedTrackingNumber = null;
+  }
+  const page = await fetchBookingPickerPage(userId, 0);
+  if (!page.total) return { order: null, picker: bookingPickerReply(context, [], 0, 0) };
+  context.pendingClarification = {
+    type: 'booking_picker',
+    offset: 0,
+    total: page.total,
+    parentActions,
+  };
+  return { order: null, picker: bookingPickerReply(context, page.orders, page.total, 0) };
+};
+
+const bookingDetailsReply = async (actionId, userId, context) => {
+  const selected = await selectedBookingOrPicker(userId, context, menuActions.booking());
+  if (selected.picker) return selected.picker;
+
+  const order = selected.order;
+  if (actionId === SUPPORT_ACTIONS.OPEN_BOOKING) {
+    return {
+      text: `Opening ${order.tracking_number}.`,
+      actions: menuActions.booking(),
+      navigateTo: `/customer/orders/${order.id}`,
+      askResolved: false,
+    };
+  }
+
+  if (actionId === SUPPORT_ACTIONS.BOOKING_STATUS) {
+    return {
+      text: describeOrder(order),
+      escalate: false,
+      askResolved: false,
+      actions: menuActions.booking(),
+    };
+  }
+
+  const intentId = {
+    [SUPPORT_ACTIONS.PAYMENT_DETAILS]: 'payment_info',
+    [SUPPORT_ACTIONS.TRIP_DETAILS]: 'trip_info',
+  }[actionId];
+  const result = await runIntentHandler(intentId, userId, context, 'selected booking');
+  return { escalate: false, ...result, actions: menuActions.booking() };
+};
+
+const paymentBookingReply = async (userId, context) => {
+  const page = await fetchBookingPickerPage(userId, 0);
+  if (!page.total) return bookingPickerReply(context, [], 0, 0);
+  context.currentTopic = 'payment';
+  context.pendingClarification = {
+    type: 'booking_picker',
+    offset: 0,
+    total: page.total,
+    parentActions: menuActions.payment(),
+  };
+  return bookingPickerReply(context, page.orders, page.total, 0);
+};
+
+const shippingProcessReply = () => ({
+  text: `Here is the usual process:
+
+1. Book the shipment and enter the sender, receiver, route, and cargo details.
+2. Pack the cargo securely and bring it for pickup or drop-off.
+3. The parcel is weighed at pickup and the final shipping fee is computed from that weight.
+4. The shipment is assigned to a trip, transported, and updated as it moves.
+
+The booking page and your selected booking show the recorded status. I cannot promise an exact delivery time from a general question.`,
+  askResolved: true,
+  actions: menuActions.shipping(),
+});
+
+const executeSupportAction = async (actionId, userId, context) => {
+  if (actionId === SUPPORT_ACTIONS.BACK) {
+    const target = context.backActionId || SUPPORT_ACTIONS.MAIN_MENU;
+    context.backActionId = null;
+    return executeSupportAction(target, userId, context);
+  }
+
+  if (actionId === SUPPORT_ACTIONS.MAIN_MENU) {
+    context.currentTopic = null;
+    context.pendingClarification = { type: 'main_menu' };
+    context.backActionId = null;
+    context.selectedBookingId = null;
+    context.selectedTrackingNumber = null;
+    return {
+      text: 'Choose a topic below, or talk to an admin.',
+      escalate: false,
+      askResolved: false,
+      actions: menuActions.main(),
+    };
+  }
+
+  if (actionId === SUPPORT_ACTIONS.TALK_TO_ADMIN) {
+    context.pendingClarification = null;
+    return { text: null, escalate: true, askResolved: false };
+  }
+
+  if (actionId === SUPPORT_ACTIONS.MY_BOOKINGS || actionId === SUPPORT_ACTIONS.SHOW_MORE_BOOKINGS) {
+    const pending = context.pendingClarification?.type === 'booking_picker'
+      ? context.pendingClarification
+      : { offset: 0 };
+    const offset = actionId === SUPPORT_ACTIONS.SHOW_MORE_BOOKINGS
+      ? Number(pending.offset || 0) + BOOKING_PICKER_PAGE_SIZE
+      : 0;
+    const page = await fetchBookingPickerPage(userId, offset);
+    context.currentTopic = 'booking';
+    context.backActionId = SUPPORT_ACTIONS.MAIN_MENU;
+    context.pendingClarification = {
+      type: 'booking_picker',
+      offset,
+      total: page.total,
+      parentActions: menuActions.booking(),
+    };
+    return bookingPickerReply(context, page.orders, page.total, offset);
+  }
+
+  if (actionId.startsWith(`${SUPPORT_ACTIONS.SELECT_BOOKING}:`)) {
+    const orderId = actionId.slice(`${SUPPORT_ACTIONS.SELECT_BOOKING}:`.length);
+    const order = await fetchOrderById(userId, orderId);
+    if (!order) {
+      context.selectedBookingId = null;
+      context.selectedTrackingNumber = null;
+      return {
+        text: 'I could not confirm that booking under your account. Please choose a booking again.',
+        escalate: false,
+        askResolved: false,
+        actions: [
+          menuAction(SUPPORT_ACTIONS.MY_BOOKINGS, 'Choose a booking'),
+          menuAction(SUPPORT_ACTIONS.MAIN_MENU, 'Main menu'),
+          menuAction(SUPPORT_ACTIONS.TALK_TO_ADMIN, 'Talk to an admin'),
+        ],
+      };
+    }
+    rememberOrder(context, order);
+    context.currentTopic = 'booking';
+    context.pendingClarification = { type: 'booking_actions' };
+    return {
+      text: `You selected ${order.tracking_number} (${order.origin} → ${order.destination}). What would you like to see?`,
+      escalate: false,
+      askResolved: false,
+      actions: menuActions.booking(),
+    };
+  }
+
+  if (actionId === SUPPORT_ACTIONS.CHOOSE_ANOTHER_BOOKING) {
+    context.selectedBookingId = null;
+    context.selectedTrackingNumber = null;
+    context.currentTopic = 'booking';
+    return executeSupportAction(SUPPORT_ACTIONS.MY_BOOKINGS, userId, context);
+  }
+
+  if (actionId === SUPPORT_ACTIONS.PAYMENT_REFUND) {
+    context.currentTopic = 'payment';
+    context.backActionId = SUPPORT_ACTIONS.MAIN_MENU;
+    context.pendingClarification = { type: 'payment_menu' };
+    return {
+      text: 'What would you like to know about payments or refunds?',
+      escalate: false,
+      askResolved: false,
+      actions: menuActions.payment(),
+    };
+  }
+
+  if (actionId === SUPPORT_ACTIONS.SHIPPING_INFO) {
+    context.currentTopic = 'shipping';
+    context.backActionId = SUPPORT_ACTIONS.MAIN_MENU;
+    context.pendingClarification = { type: 'shipping_menu' };
+    return {
+      text: 'What shipping information do you need?',
+      escalate: false,
+      askResolved: false,
+      actions: menuActions.shipping(),
+    };
+  }
+
+  if (actionId === SUPPORT_ACTIONS.HOW_TO_BOOK) {
+    context.currentTopic = 'booking';
+    const result = await runIntentHandler('how_to_book', userId, context);
+    return {
+      escalate: false,
+      ...result,
+      actions: [
+        menuAction(SUPPORT_ACTIONS.BOOK_NEW, 'Open Book Shipment'),
+        menuAction(SUPPORT_ACTIONS.MAIN_MENU, 'Main menu'),
+        menuAction(SUPPORT_ACTIONS.TALK_TO_ADMIN, 'Talk to an admin'),
+      ],
+    };
+  }
+
+  if (actionId === SUPPORT_ACTIONS.BOOK_NEW) {
+    return { text: null, escalate: false, askResolved: false, navigateTo: '/customer/book' };
+  }
+
+  if (actionId === SUPPORT_ACTIONS.PAYMENT_BOOKING) {
+    context.backActionId = SUPPORT_ACTIONS.PAYMENT_REFUND;
+    return paymentBookingReply(userId, context);
+  }
+
+  const intentActionMap = {
+    [SUPPORT_ACTIONS.PAYMENT_METHODS]: ['mode_of_payment', menuActions.payment()],
+    [SUPPORT_ACTIONS.REFUND_GUIDANCE]: ['refund_policy', menuActions.payment()],
+    [SUPPORT_ACTIONS.SHIPPING_RATES]: ['pricing', menuActions.shipping()],
+    [SUPPORT_ACTIONS.SERVICE_AREAS]: ['service_areas', menuActions.shipping()],
+    [SUPPORT_ACTIONS.PACKAGING]: ['packaging_guidelines', menuActions.shipping()],
+    [SUPPORT_ACTIONS.RESTRICTED_ITEMS]: ['prohibited_items', menuActions.shipping()],
+    [SUPPORT_ACTIONS.CONTACT]: ['contact_info', menuActions.shipping()],
+  };
+  if (intentActionMap[actionId]) {
+    const [intentId, actions] = intentActionMap[actionId];
+    context.currentTopic = ['shipping_rates', 'service_areas', 'packaging', 'restricted_items', 'contact'].includes(actionId)
+      ? 'shipping'
+      : 'payment';
+    const result = await runIntentHandler(intentId, userId, context);
+    return { escalate: false, ...result, actions };
+  }
+
+  if (actionId === SUPPORT_ACTIONS.PICKUP_DELIVERY) return shippingProcessReply();
+
+  if ([SUPPORT_ACTIONS.BOOKING_STATUS, SUPPORT_ACTIONS.PAYMENT_DETAILS, SUPPORT_ACTIONS.TRIP_DETAILS, SUPPORT_ACTIONS.OPEN_BOOKING].includes(actionId)) {
+    context.currentTopic = 'booking';
+    return bookingDetailsReply(actionId, userId, context);
+  }
+
+  return {
+    text: 'Choose a topic below, or talk to an admin.',
+    escalate: false,
+    askResolved: false,
+    actions: menuActions.main(),
+  };
+};
+
+/** Process a stable menu action ID; visible labels never enter the matcher. */
+export const getBotReplyForAction = async (actionId, userId, suppliedContext = null) => {
+  const context = suppliedContext && typeof suppliedContext === 'object'
+    ? suppliedContext
+    : createConversationContext(userId);
+  if (context.userId !== userId || context.version !== CONTEXT_VERSION) {
+    resetConversationContext(context, userId, context.conversationId || null);
+  }
+  const requestedAction = String(actionId || '').trim();
+  const retryActionId = requestedAction === SUPPORT_ACTIONS.RETRY ? context.lastActionId : requestedAction;
+  if (!retryActionId) return { text: 'Choose a topic below, or talk to an admin.', escalate: false, askResolved: false, actions: menuActions.main() };
+  context.lastActionId = retryActionId;
+  try {
+    const reply = await executeSupportAction(retryActionId, userId, context);
+    return reply.actions ? reply : { ...reply, actions: menuActions.main() };
+  } catch (error) {
+    console.warn('[Bot] Menu action failed:', error?.message || error);
+    return actionErrorReply(retryActionId, menuActions.main());
+  }
+};
+
 const isTopicMenuRequest = message =>
   /^(help|tabang|options?|menu|what\s*(can|do)\s*you\s*(help|do)|what\s*can\s*i\s*ask|ano\s*ang\s*pwede|unsa\s*imong\s*matabang)\s*[?!.,]*$/i.test(message);
 
@@ -1715,18 +2123,6 @@ export const getBotReply = async (text, userId, suppliedContext = null) => {
 export const BOT_GREETING = `Hello! 👋 Kumusta! Maayong adlaw!
 Welcome to CargoExpress PH Support.
 
-I'm CargoMate PH, your virtual assistant. 🤖 Pwede kang mag-message sa English, Tagalog, o Bisaya — kung unsa'y sayon nimo.
+I'm CargoMate PH, your support assistant.
 
-I can help you with:
-
-• Shipment status & location
-• Booking information
-• Payment details & balance
-• Modes of payment — GCash, Cash, Freight Collect
-• Tracking numbers
-• Delivery process & timeline
-• Service areas & coverage
-• Prohibited items & packaging guidelines
-• Weight limits & office / drop-off locations
-
-How can I help you today?`;
+Choose a topic below, or talk to an admin. You do not need to type a question.`;

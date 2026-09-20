@@ -13,7 +13,14 @@ import {
   getConversationState,
   isWithinReopenGrace,
 } from '../../lib/database';
-import { getBotReply, BOT_GREETING } from '../../lib/supportChatEngine';
+import {
+  createConversationContext,
+  getBotReplyForAction,
+  getMainMenuActions,
+  resetConversationContext,
+  SUPPORT_ACTIONS,
+  BOT_GREETING,
+} from '../../lib/supportChatEngine';
 import {
   Send, Headset, Bot, Loader, MessageSquare, AlertTriangle,
   RefreshCw, Clock, User, AlertCircle, CheckCircle2, X,
@@ -37,16 +44,9 @@ const prefersReducedMotion = () =>
 // Welcome-back greeting (shown when customer returns to a CLOSED conversation)
 const BOT_WELCOME_BACK = `Welcome back! 👋
 
-I'm CargoMate PH.
+I'm CargoMate PH, your support assistant.
 
-Ask me about:
-• Shipment status, tracking & delivery timeline
-• Payment details & modes of payment (GCash, Cash, Freight Collect)
-• Pricing, weight limits & service areas
-• Prohibited items & packaging guidelines
-• Booking process & office / drop-off locations
-
-How can I help you today?`;
+Choose a topic below, or talk to an admin. You do not need to type a question.`;
 
 const normalizeError = (err) => {
   const msg = err?.message || String(err || '');
@@ -139,6 +139,30 @@ const MessageBubble = ({ m, showResolutionPrompt, onResolve, onEscalate, onRetry
   );
 };
 
+const MenuActionButtons = ({ actions, onAction, disabled }) => {
+  if (!actions?.length) return null;
+  return (
+    <div className="support-chat-menu-actions" role="group" aria-label="CargoMate support options">
+      <p className="support-chat-menu-hint">Choose a topic below, or talk to an admin.</p>
+      <div className="support-chat-menu-grid">
+        {actions.map((action) => (
+          <button
+            key={`${action.id}:${action.actionId || ''}`}
+            type="button"
+            className="support-chat-menu-action"
+            onClick={() => onAction(action)}
+            disabled={disabled}
+            aria-label={action.description ? `${action.label}. ${action.description}` : action.label}
+          >
+            <span>{action.label}</span>
+            {action.description && <small>{action.description}</small>}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 // ── Main component ─────────────────────────────────────────────────────────────
 /**
  * The chat window's title bar: compact, sticky, and inside the chat shell
@@ -202,6 +226,7 @@ const SupportChatPage = () => {
   const [textareaHeight, setTextareaHeight] = useState(48);
   const [hasMoreMessages, setHasMoreMessages] = useState(false);
   const [loadingOlder, setLoadingOlder] = useState(false);
+  const [menuActions, setMenuActions] = useState(() => getMainMenuActions());
 
   // true = chatbot is responding; false = admin live chat mode
   const [isBotMode, setIsBotMode] = useState(false);
@@ -219,6 +244,8 @@ const SupportChatPage = () => {
   const forceScrollRef = useRef(false);
   const initialScrollPendingRef = useRef(false);
   const failedSeqRef   = useRef(0);
+  const botContextRef = useRef(null);
+  const botRequestSeqRef = useRef(0);
 
   useLayoutEffect(() => {
     const el = textareaRef.current;
@@ -276,6 +303,9 @@ const SupportChatPage = () => {
   const initChat = useCallback(async () => {
     if (!user?.id) return;
 
+    // Invalidate any menu response from a previous account/conversation before
+    // clearing the visible state. A slow response must not repaint this chat.
+    botRequestSeqRef.current += 1;
     setError(null);
     setLoading(true);
     setConversationId(null);
@@ -283,6 +313,8 @@ const SupportChatPage = () => {
     setPendingResolutionId(null);
     setIsBotMode(false);
     setHasMoreMessages(false);
+    setMenuActions([]);
+    botContextRef.current = null;
     initialScrollPendingRef.current = true;
 
     clearLoadTimeout();
@@ -308,6 +340,7 @@ const SupportChatPage = () => {
         status === CONVERSATION_STATUS.RESOLVED && !isWithinReopenGrace(conv);
 
       setConversationId(conv.id);
+      botContextRef.current = createConversationContext(user.id, conv.id);
       setConvStatus(status);
       setResolvedAt(conv.resolved_at || null);
       setHasMoreMessages(hasMore);
@@ -316,6 +349,7 @@ const SupportChatPage = () => {
       if (status === CONVERSATION_STATUS.BOT_ACTIVE || isStaleResolved) {
         // BOT MODE: chatbot is the first responder
         setIsBotMode(true);
+        setMenuActions(getMainMenuActions());
 
         const hasHistory = history && history.length > 0;
         const lastMessage = hasHistory ? history[history.length - 1] : null;
@@ -342,6 +376,7 @@ const SupportChatPage = () => {
         // injected; for a resolved thread the banner and the composer
         // placeholder say that replying reopens it.
         setIsBotMode(false);
+        setMenuActions([]);
         setMessages(history || []);
       }
 
@@ -411,8 +446,10 @@ const SupportChatPage = () => {
         // and the next reply would be answered by a bot that cannot see the
         // conversation it is continuing.
         if (newStatus !== CONVERSATION_STATUS.BOT_ACTIVE) {
+          botRequestSeqRef.current += 1;
           setIsBotMode(false);
           setPendingResolutionId(null);
+          resetConversationContext(botContextRef.current, user?.id, conversationId);
         }
       })
       .subscribe();
@@ -432,7 +469,7 @@ const SupportChatPage = () => {
       channelRef.current = null;
       document.removeEventListener('visibilitychange', handleVisibility);
     };
-  }, [conversationId]);
+  }, [conversationId, user?.id]);
 
   const scrollToEnd = (smooth) => {
     messagesEndRef.current?.scrollIntoView({ behavior: smooth && !prefersReducedMotion() ? 'smooth' : 'auto' });
@@ -519,8 +556,9 @@ const SupportChatPage = () => {
     failed: true,
   });
 
-  const sendCustomerText = async (text) => {
+  const sendCustomerText = async (text, actionId = null) => {
     if (!text || !conversationId || !user) return;
+    const requestSeq = ++botRequestSeqRef.current;
     setSending(true);
     setPendingResolutionId(null);
 
@@ -575,6 +613,7 @@ const SupportChatPage = () => {
         // state up so the banner appears without waiting for the realtime
         // UPDATE.
         setIsBotMode(false);
+        setMenuActions([]);
         setSending(false);
         return;
       }
@@ -586,6 +625,7 @@ const SupportChatPage = () => {
 
     // 3. If NOT in bot mode → admin is handling, nothing more to do
     if (!botHandlesThisMessage) {
+      setMenuActions([]);
       setSending(false);
       return;
     }
@@ -595,9 +635,14 @@ const SupportChatPage = () => {
     setSending(false);
 
     try {
-      const reply = await getBotReply(text, user.id);
+      const botContext = botContextRef.current || createConversationContext(user.id, conversationId);
+      botContextRef.current = botContext;
+      // The UI never sends free text while the bot owns the conversation. The
+      // main-menu fallback only covers a stale resolved-thread race; it still
+      // enters the action-ID path rather than the legacy sentence matcher.
+      const reply = await getBotReplyForAction(actionId || SUPPORT_ACTIONS.MAIN_MENU, user.id, botContext);
       await new Promise(r => setTimeout(r, 700 + Math.random() * 400));
-      if (!isMountedRef.current) return;
+      if (!isMountedRef.current || requestSeq !== botRequestSeqRef.current) return;
       setBotTyping(false);
 
       if (reply.escalate) {
@@ -608,12 +653,22 @@ const SupportChatPage = () => {
         await escalateConversation(conversationId);
         setConvStatus(CONVERSATION_STATUS.WAITING);
         setIsBotMode(false);
+        setMenuActions([]);
+        resetConversationContext(botContextRef.current, user.id, conversationId);
       } else {
         // Normal bot reply
-        const botMsg = await insertBotMessage(reply.text, conversationId);
+        if (reply.actions) setMenuActions(reply.actions);
+        else if (isBotMode) setMenuActions(getMainMenuActions());
+
+        if (reply.navigateTo && /^\/customer\/(orders\/[^/]+|book)$/.test(reply.navigateTo)) {
+          navigate(reply.navigateTo);
+          return;
+        }
+
+        const botMsg = reply.text ? await insertBotMessage(reply.text, conversationId) : null;
         if (botMsg && isMountedRef.current) {
           setMessages(prev => prev.some(m => m.id === botMsg.id) ? prev : [...prev, botMsg]);
-          if (reply.askResolved) setPendingResolutionId(botMsg.id);
+          if (reply.askResolved && !reply.actions) setPendingResolutionId(botMsg.id);
         }
       }
     } catch (err) {
@@ -641,6 +696,18 @@ const SupportChatPage = () => {
     sendCustomerText(failedMsg.message);
   };
 
+  const handleMenuAction = (action) => {
+    const actionId = action?.actionId || action?.id;
+    if (!actionId || sending || botTyping || !isBotMode) return;
+    // This is an internal, fixed route. Navigation actions that need a
+    // booking ID are only returned after the engine re-checks ownership.
+    if (actionId === SUPPORT_ACTIONS.BOOK_NEW) {
+      navigate('/customer/book');
+      return;
+    }
+    sendCustomerText(action.label, actionId);
+  };
+
   const handleDiscardMessage = (failedMsg) => {
     setMessages(prev => prev.filter(m => m.id !== failedMsg.id));
   };
@@ -649,6 +716,7 @@ const SupportChatPage = () => {
   // Conversation stays bot-handled — the bot answered successfully.
   const handleResolvedYes = async () => {
     setPendingResolutionId(null);
+    resetConversationContext(botContextRef.current, user?.id, conversationId);
     // The deflection signal. Without it a bot-answered thread and an
     // abandoned one look identical in the data. Non-blocking: a failed
     // write must never cost the customer their reply.
@@ -665,6 +733,7 @@ const SupportChatPage = () => {
   // Escalate to admin: flip status to 'waiting' and raise the escalated flag
   const handleResolvedNo = async () => {
     setPendingResolutionId(null);
+    resetConversationContext(botContextRef.current, user?.id, conversationId);
     void recordBotOutcome(conversationId, false).catch(() => {});
     const escMsg = await insertBotMessage(
       `Thank you. I wasn't able to fully resolve your concern. 🙏\n\nPlease wait while one of our administrators assists you.`,
@@ -735,7 +804,7 @@ const SupportChatPage = () => {
           subtitle={
             isResolved ? 'Marked resolved by our support team.'
               : isWaiting ? 'Connecting you to an admin…'
-              : isBotMode ? 'CargoMate PH is ready to help 24/7.'
+              : isBotMode ? 'Choose a topic below, or talk to an admin.'
               : 'Our support team is on this thread.'
           }
           onClose={handleClose}
@@ -838,48 +907,56 @@ const SupportChatPage = () => {
           </div>
         </ErrorBoundarySection>
 
-        {/* Input */}
-        <div className="support-chat-input-area flex gap-8 items-end">
-          <textarea
-            ref={textareaRef}
-            className="form-input support-chat-textarea"
-            placeholder={
-              isWaiting  ? 'Leave more details for the admin...' :
-              isResolved ? 'Reply to reopen this conversation…' :
-              botTyping  ? 'Assistant is typing…' :
-              isBotMode  ? 'Ask about your shipment…' :
-                           'Type your message…'
-            }
-            aria-label="Type your support message"
-            maxLength={MAX_MESSAGE_LENGTH}
-            value={input}
-            onChange={e => setInput(e.target.value)}
-            onKeyDown={e => {
-              if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
-            }}
-            onFocus={() => {
-              setTimeout(() => {
-                scrollToEnd(true);
-              }, 150);
-            }}
-            style={{
-              opacity: inputDisabled ? 0.6 : 1,
-            }}
-            rows={1}
-            disabled={inputDisabled}
+        {/* CargoMate is menu-driven. The free-text composer remains available
+            only after the conversation is owned by a human administrator. */}
+        {isBotMode ? (
+          <MenuActionButtons
+            actions={menuActions}
+            onAction={handleMenuAction}
+            disabled={sending || botTyping}
           />
-          <button
-            className="chat-send-btn"
-            type="button"
-            onClick={handleSend}
-            disabled={!input.trim() || inputDisabled}
-            aria-label={sending || botTyping ? 'Sending…' : 'Send message'}
-          >
-            {sending || botTyping
-              ? <Loader size={18} className="animate-spin" />
-              : <Send size={18} />}
-          </button>
-        </div>
+        ) : (
+          <div className="support-chat-input-area flex gap-8 items-end">
+            <textarea
+              ref={textareaRef}
+              className="form-input support-chat-textarea"
+              placeholder={
+                isWaiting  ? 'Leave more details for the admin...' :
+                isResolved ? 'Reply to reopen this conversation…' :
+                botTyping  ? 'Assistant is typing…' :
+                             'Type your message…'
+              }
+              aria-label="Type your support message"
+              maxLength={MAX_MESSAGE_LENGTH}
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
+              }}
+              onFocus={() => {
+                setTimeout(() => {
+                  scrollToEnd(true);
+                }, 150);
+              }}
+              style={{
+                opacity: inputDisabled ? 0.6 : 1,
+              }}
+              rows={1}
+              disabled={inputDisabled}
+            />
+            <button
+              className="chat-send-btn"
+              type="button"
+              onClick={handleSend}
+              disabled={!input.trim() || inputDisabled}
+              aria-label={sending || botTyping ? 'Sending…' : 'Send message'}
+            >
+              {sending || botTyping
+                ? <Loader size={18} className="animate-spin" />
+                : <Send size={18} />}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

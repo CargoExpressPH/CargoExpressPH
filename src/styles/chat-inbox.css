@@ -212,6 +212,71 @@
   margin-bottom: 2px;
 }
 
+/* CargoMate bot mode uses explicit action buttons instead of a text composer.
+   The controls live in the same bottom band so they remain reachable on a
+   phone and keyboard focus does not disappear into the message timeline. */
+.support-chat-menu-actions {
+  flex: 0 0 auto;
+  padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px));
+  background: color-mix(in srgb, var(--customer-panel-solid) 92%, transparent);
+  border-top: 1px solid var(--customer-line);
+  position: relative;
+  z-index: 4;
+}
+.support-chat-menu-hint {
+  margin: 0 0 8px;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  line-height: 1.35;
+}
+.support-chat-menu-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  max-height: min(31vh, 280px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.support-chat-menu-action {
+  min-height: 44px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 2px;
+  padding: 8px 11px;
+  border: 1px solid var(--customer-line, var(--border-light));
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--customer-ink, var(--text));
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.support-chat-menu-action small {
+  color: var(--text-secondary);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  line-height: 1.25;
+}
+.support-chat-menu-action:hover:not(:disabled) {
+  background: var(--primary-bg);
+  border-color: var(--primary);
+}
+.support-chat-menu-action:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+.support-chat-menu-action:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 .support-message-row {
   width: 100%;
   display: flex;
@@ -1489,4 +1554,3 @@
     margin-inline: auto;
   }
 }
-
