@@ -6,6 +6,7 @@ import CustomSelect from './CustomSelect';
 import useScrollLock from '../../hooks/useScrollLock';
 import useFieldErrors from '../../hooks/useFieldErrors';
 import FieldError, { errorId, fieldAttrs, invalidClass } from './FieldError';
+import { formatCommaNumber, parseCommaNumber } from "../../utils/numberFormatters";
 import { sanitizeAmount, parseAmount, formatAmount } from '../../utils/currencyInput';
 import { uploadMultiplePhotos, uploadPhoto, deletePhoto } from '../../lib/storage';
 import { serializePhotoReference } from '../../lib/photoReference';

@@ -398,6 +398,23 @@ serve(async (req) => {
             orderReconciled: true,
           })
         }
+
+        // Retrying database reconciliation if capture succeeded but DB failed
+        if (latest?.payment_id && latest.status !== 'reconciled') {
+          console.log('[paymongo-create-payment] Poll retrying database reconciliation')
+          try {
+            const result = await reconcile(adminSupabase, sourceId, latest.payment_id, Number(latest.amount), 'paid')
+            return json({
+              paymentId: latest.payment_id,
+              status: 'paid',
+              amount: Number(latest.amount),
+              orderReconciled: !!result?.order_reconciled,
+            })
+          } catch (err) {
+            console.error('[paymongo-create-payment] Poll database reconciliation retry failed', err)
+          }
+        }
+
         return json({
           status: 'paid',
           orderReconciled: false,
