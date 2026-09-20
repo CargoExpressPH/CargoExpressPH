@@ -55,7 +55,7 @@ const ActiveBookingsTable = ({ rows }) => (
           <th scope="col">Tracking number</th>
           <th scope="col">Customer</th>
           <th scope="col">Status</th>
-          <th scope="col" className="num">Final shipping fee</th>
+          <th scope="col" className="num">Final cargo fee</th>
           <th scope="col" className="num">Payments received</th>
           <th scope="col" className="num">Money returned</th>
           <th scope="col" className="num">Amount still to pay</th>
@@ -69,7 +69,7 @@ const ActiveBookingsTable = ({ rows }) => (
             <td data-label="Tracking number"><span className="report-mono">{row.trackingNumber || '—'}</span></td>
             <td data-label="Customer">{row.customerName}</td>
             <td data-label="Status"><StatusBadge status={row.status} size="sm" /></td>
-            <td data-label="Final shipping fee" className="num">
+            <td data-label="Final cargo fee" className="num">
               {row.shippingFee === null ? <span className="text-secondary">Not priced yet</span> : money(row.shippingFee)}
             </td>
             <td data-label="Payments received" className="num">{money(row.paymentsReceived)}</td>
@@ -339,7 +339,7 @@ const PerTripSalesPage = () => {
           </div>
 
           <div className="grid grid-4 report-summary-cards per-trip-summary-grid mt-16">
-            <SummaryCard label="Shipping fees" value={summary.shippingFees} tone="info" />
+            <SummaryCard label="Cargo fees" value={summary.shippingFees} tone="info" />
             <SummaryCard label="Payments received" value={summary.paymentsReceived} tone="success" />
             <SummaryCard label="Money returned" value={summary.moneyReturned} tone="warning" />
             <SummaryCard label="Payments after refunds" value={summary.paymentsAfterRefunds} tone="primary" />
@@ -354,7 +354,7 @@ const PerTripSalesPage = () => {
           </div>
 
           <div className="per-trip-explanation mt-16">
-            Payments after refunds includes cancelled-booking money. Shipping fees and amount still to collect exclude cancelled bookings. Cancelled money awaiting a decision: <strong>{money(summary.cancelledMoneyAwaitingDecision)}</strong> ({summary.cancelledReviewCount} booking{summary.cancelledReviewCount === 1 ? '' : 's'}).
+            Payments after refunds includes cancelled-booking money. Cargo fees and amount still to collect exclude cancelled bookings. Cancelled money awaiting a decision: <strong>{money(summary.cancelledMoneyAwaitingDecision)}</strong> ({summary.cancelledReviewCount} booking{summary.cancelledReviewCount === 1 ? '' : 's'}).
           </div>
 
           {(summary.pendingRefundAmount > 0 || summary.uncertainRefundAmount > 0 || summary.failedRefundAmount > 0 || summary.dataInconsistent) && (
@@ -373,7 +373,7 @@ const PerTripSalesPage = () => {
             <div className="card-header">
               <div>
                 <h3>Active & completed bookings ({summary.activeBookingCount})</h3>
-                <p className="text-secondary fs-12 mb-0">Final shipping fees and active balances exclude cancelled bookings.</p>
+                <p className="text-secondary fs-12 mb-0">Final cargo fees and active balances exclude cancelled bookings.</p>
               </div>
             </div>
             {report.activeRows.length > 0 ? <ActiveBookingsTable rows={report.activeRows} /> : <EmptyState title="No active or completed bookings" description="This trip has no non-cancelled bookings." />}
@@ -402,20 +402,20 @@ const PerTripSalesPage = () => {
             <div className="pd-section">
               <div className="pd-summary-grid" style={{ display: 'flex', gap: '16px', marginBottom: '24px' }}>
                 <div style={{ flex: 1, border: '1px solid #ddd', padding: '12px', borderRadius: '4px' }}>
-                  <div style={{ fontSize: '12px', color: '#666' }}>Shipping Fees</div>
-                  <div style={{ fontSize: '20px', fontWeight: 'bold' }}>{formatMoney(summary.shippingFees)}</div>
+                  <div style={{ fontSize: '12px', color: '#000' }}>Cargo Fees</div>
+                  <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#000' }}>{formatMoney(summary.shippingFees)}</div>
                 </div>
                 <div style={{ flex: 1, border: '1px solid #ddd', padding: '12px', borderRadius: '4px' }}>
-                  <div style={{ fontSize: '12px', color: '#666' }}>Payments Received</div>
-                  <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#008b4b' }}>{formatMoney(summary.paymentsReceived)}</div>
+                  <div style={{ fontSize: '12px', color: '#000' }}>Payments Received</div>
+                  <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#000' }}>{formatMoney(summary.paymentsReceived)}</div>
                 </div>
                 <div style={{ flex: 1, border: '1px solid #ddd', padding: '12px', borderRadius: '4px' }}>
-                  <div style={{ fontSize: '12px', color: '#666' }}>Money Returned</div>
-                  <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#d97706' }}>{formatMoney(summary.moneyReturned)}</div>
+                  <div style={{ fontSize: '12px', color: '#000' }}>Money Returned</div>
+                  <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#000' }}>{formatMoney(summary.moneyReturned)}</div>
                 </div>
                 <div style={{ flex: 1, border: '1px solid #ddd', padding: '12px', borderRadius: '4px' }}>
-                  <div style={{ fontSize: '12px', color: '#666' }}>Amount Still to Collect</div>
-                  <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#dc2626' }}>{formatMoney(summary.amountStillToCollect)}</div>
+                  <div style={{ fontSize: '12px', color: '#000' }}>Amount Still to Collect</div>
+                  <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#000' }}>{formatMoney(summary.amountStillToCollect)}</div>
                 </div>
               </div>
             </div>
@@ -428,7 +428,7 @@ const PerTripSalesPage = () => {
                     <tr>
                       <th scope="col">Tracking #</th>
                       <th scope="col">Customer</th>
-                      <th scope="col" style={{ textAlign: 'right' }}>Final Fee</th>
+                      <th scope="col" style={{ textAlign: 'right' }}>Final Cargo Fee</th>
                       <th scope="col" style={{ textAlign: 'right' }}>Payments</th>
                       <th scope="col" style={{ textAlign: 'right' }}>Returned</th>
                       <th scope="col" style={{ textAlign: 'right' }}>Balance</th>
