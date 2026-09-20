@@ -4,7 +4,6 @@ import { supabase } from '../../lib/supabase';
 import { pollPaymentStatus } from '../../lib/paymongo';
 import { clearPendingPayment, getPendingPayment } from '../../lib/pendingPayment';
 import { useAuth } from '../../contexts/AuthContext';
-import PaymentResultModal from '../../components/ui/PaymentResultModal';
 import { BrandLogo } from '../../components/ui/BrandLogo';
 import usePageTitle from '../../hooks/usePageTitle';
 
@@ -259,15 +258,40 @@ const PaymentReturnPage = () => {
   }
 
   return (
-    <PaymentResultModal
-      isOpen
-      variant={phase === 'failed' ? 'error' : phase === 'stuck' ? 'processing' : 'success'}
-      amount={paidAmount ?? undefined}
-      trackingNumber={trackingNumber ?? undefined}
-      paymentMethod="GCash"
-      onClose={goToOrder}
-      onRetry={verify}
-    />
+    <div className="loading-screen" style={{ padding: 24, textAlign: 'center' }}>
+      <div className="loading-brand animate-scale-in" style={{ margin: '0 auto' }}>
+        <BrandLogo size={44} decorative />
+      </div>
+      
+      <h2 style={{ margin: '24px 0 8px' }}>
+        {phase === 'failed' ? 'Payment Failed' : phase === 'stuck' ? 'Payment Processing' : 'Payment Successful!'}
+      </h2>
+      
+      <p className="text-secondary" style={{ maxWidth: 320, margin: '0 auto 24px' }}>
+        {phase === 'failed' 
+          ? 'Your GCash payment could not be completed.'
+          : phase === 'stuck' 
+            ? 'We are still confirming your GCash payment with PayMongo. This usually takes a few seconds.'
+            : 'Thank you for your payment! Your transaction has been recorded.'}
+      </p>
+
+      {phase === 'stuck' && (
+        <button 
+          onClick={verify}
+          style={{ padding: '10px 24px', background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: 8, fontSize: 16, cursor: 'pointer', marginBottom: 12 }}
+        >
+          Refresh Status
+        </button>
+      )}
+      
+      <br/>
+      <button 
+        onClick={goToOrder}
+        style={{ padding: '10px 24px', background: 'transparent', color: 'var(--primary)', border: '1px solid var(--primary)', borderRadius: 8, fontSize: 16, cursor: 'pointer' }}
+      >
+        Close
+      </button>
+    </div>
   );
 };
 
