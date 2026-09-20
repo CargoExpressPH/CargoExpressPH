@@ -322,6 +322,11 @@ const PaymentCollectionPanel = ({
         patch({ paymentStep: 'setup' });
         return;
       }
+      // Pickup discounts and the measured weight must be committed before a
+      // PayMongo source can be paid. The webhook may reconcile the payment
+      // before the admin clicks Confirm, so waiting until the final pickup RPC
+      // would make a valid discount look like a post-payment edit.
+      await config.preparePayment?.({ amount });
       const source = await createGCashSource(
         amount,
         `CargoExpress PH - ${order.tracking_number} ${config.purpose}`,
@@ -332,6 +337,7 @@ const PaymentCollectionPanel = ({
       await registerSource(source.sourceId, amount, {
         orderId: order.id,
         ...(config.sourceMetadata || {}),
+        returnToken: source.returnToken,
       });
       savePendingPayment({
         orderId: order.id,

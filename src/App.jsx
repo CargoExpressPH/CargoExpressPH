@@ -157,10 +157,10 @@ const ScrollToTop = () => {
   return null;
 };
 
-/** Keep PWA-install overlays off the public, time-sensitive tracking task. */
+/** Keep PWA-install overlays off public, time-sensitive tracking tasks. */
 const InstallPrompts = () => {
   const { pathname } = useLocation();
-  if (pathname === '/track') return null;
+  if (pathname === '/track' || pathname === '/payment/return') return null;
   return <>
     <InstallAppBanner />
     <IosInstallBanner />
@@ -168,16 +168,21 @@ const InstallPrompts = () => {
 };
 
 // ─── Root Layout (provides Suspense boundary for the entire route tree) ─────
-const RootLayout = () => (
-  <Suspense fallback={<LoadingScreen />}>
-    <ScrollToTop />
-    <InstallPrompts />
-    {/* Every route, logged in or not — an admin mid-shift and a customer on
-        the public tracking page both need the same notice. */}
-    <UpdateAvailableBanner />
-    <Outlet />
-  </Suspense>
-);
+const RootLayout = () => {
+  const { pathname } = useLocation();
+  const isPaymentReturn = pathname === '/payment/return';
+
+  return (
+    <Suspense fallback={<LoadingScreen />}>
+      <ScrollToTop />
+      <InstallPrompts />
+      {/* The public payment confirmation must stay visually isolated: no PWA
+          install or service-worker update overlay may cover its message. */}
+      {!isPaymentReturn && <UpdateAvailableBanner />}
+      <Outlet />
+    </Suspense>
+  );
+};
 
 // ─── Data Router (required for useBlocker support) ──────────────────────────
 const router = createBrowserRouter([
@@ -219,9 +224,8 @@ const router = createBrowserRouter([
       { path: '/forgot-password', element: <AuthRoute><ForgotPasswordPage /></AuthRoute> },
       { path: '/reset-password', element: <ResetPasswordPage /> },
 
-      // Payment return — PayMongo lands here after GCash checkout. Kept
-      // outside the auth guards so it renders immediately; it only needs the
-      // restored session for the verification call, not the full app boot.
+      // Payment return — a public Device B route. It must not be behind an
+      // auth guard and its page must not depend on the current session.
       { path: '/payment/return', element: <PaymentReturnPage /> },
 
       // Customer — each child page loads on demand

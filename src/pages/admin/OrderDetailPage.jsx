@@ -443,6 +443,14 @@ const AdminOrderDetailPage = () => {
     } catch (e) { throw e; }
   };
 
+  // PayMongo can reconcile through its webhook before the admin confirms the
+  // pickup modal. Stage the measured weight and discount first so the webhook
+  // calculates the same discounted balance and the final pickup RPC only
+  // completes the already-priced pickup.
+  const handlePreparePickupPayment = async (pickupData) => {
+    await updateOrder(id, pickupData);
+  };
+
   const handleDeliverySave = async (deliveryData) => {
     try {
       await recordDeliveryPayment(id, deliveryData);
@@ -1647,7 +1655,7 @@ const AdminOrderDetailPage = () => {
 
       {/* Modals */}
       {showPickupModal && (
-        <PickupModal order={order} onClose={() => setShowPickupModal(false)} onSave={handlePickupSave} pricePerKilo={pickupPricePerKilo} />
+        <PickupModal order={order} onClose={() => setShowPickupModal(false)} onSave={handlePickupSave} onPreparePayment={handlePreparePickupPayment} pricePerKilo={pickupPricePerKilo} />
       )}
       {showTripModal && (
         <TripAssignModal order={order} onClose={() => setShowTripModal(false)} onAssign={handleTripAssign} />

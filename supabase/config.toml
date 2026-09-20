@@ -12,6 +12,11 @@ verify_jwt = true
 [functions.paymongo-webhook]
 verify_jwt = false
 
+[functions.verify-payment-return]
+# Device B is deliberately unauthenticated. The function authenticates the
+# request with a short-lived, hashed return capability and returns status only.
+verify_jwt = false
+
 [functions.send-push]
 # Durable delivery jobs are the only supported caller path.
 verify_jwt = true

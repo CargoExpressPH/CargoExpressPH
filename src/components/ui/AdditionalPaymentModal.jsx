@@ -116,7 +116,10 @@ const AdditionalPaymentModal = ({ order, remainingBalance, onClose, onSave, onPa
       };
       
       const source = await createGCashSource(amount, `CargoExpress PH - ${order.tracking_number} Additional Payment`, billing, true, order.id);
-      await registerSource(source.sourceId, amount, { orderId: order.id });
+      await registerSource(source.sourceId, amount, {
+        orderId: order.id,
+        returnToken: source.returnToken,
+      });
       savePendingPayment({
         orderId: order.id,
         sourceId: source.sourceId,

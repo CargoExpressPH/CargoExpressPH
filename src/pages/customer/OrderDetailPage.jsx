@@ -650,9 +650,12 @@ const OrderDetailPage = () => {
         phone: userProfile?.phone || order.sender_phone,
       };
 
-      const { sourceId, checkoutUrl } = await initiateGCashPayment(amount, order.tracking_number, customer, false, order.id);
+      const { sourceId, checkoutUrl, returnToken } = await initiateGCashPayment(amount, order.tracking_number, customer, false, order.id);
 
-      await registerSource(sourceId, amount, { orderId: order.id });
+      await registerSource(sourceId, amount, {
+        orderId: order.id,
+        returnToken,
+      });
 
       // Save the exact source with its role/account so another account using
       // this phone can never inherit it after logout.

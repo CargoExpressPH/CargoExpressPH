@@ -108,11 +108,25 @@ const customerPage = readFileSync('src/pages/customer/OrderDetailPage.jsx', 'utf
 const returnPage = readFileSync('src/pages/shared/PaymentReturnPage.jsx', 'utf8');
 const collectionPanel = readFileSync('src/components/ui/PaymentCollectionPanel.jsx', 'utf8');
 const additionalModal = readFileSync('src/components/ui/AdditionalPaymentModal.jsx', 'utf8');
+const verifyEdge = readFileSync('supabase/functions/verify-payment-return/index.ts', 'utf8');
+const capabilityMigration = readFileSync('supabase/migrations/20260920150000_public_payment_return_capability.sql', 'utf8');
 
 assert.match(customerPage, /addEventListener\('pageshow',\s*handlePageShow\)/);
 assert.match(customerPage, /setProcessingPayment\(false\)/);
-assert.match(returnPage, /getPendingPayment\(\{ orderId, role, userId: user\?\.id \}\)/);
-assert.match(collectionPanel, /await registerSource\([\s\S]*?savePendingPayment\(\{[\s\S]*?role: 'admin',[\s\S]*?userId: user\?\.id/);
-assert.match(additionalModal, /await registerSource\([\s\S]*?savePendingPayment\(\{[\s\S]*?role: 'admin',[\s\S]*?userId: user\?\.id/);
+assert.match(returnPage, /verify-payment-return/);
+assert.match(returnPage, /body:\s*\{ returnToken \}/);
+assert.match(returnPage, /AUTO_CHECK_DELAYS/);
+assert.match(returnPage, /clearTimeout\(timerRef\.current\)/);
+assert.doesNotMatch(returnPage, /useAuth|from\(['"]orders['"]\)|from\(['"]payment_attempts['"]\)|pollPaymentStatus/);
+assert.match(collectionPanel, /await registerSource\([\s\S]*?returnToken: source\.returnToken/);
+assert.match(additionalModal, /await registerSource\([\s\S]*?returnToken: source\.returnToken/);
+assert.match(customerPage, /await registerSource\([\s\S]*?returnToken/);
+assert.match(verifyEdge, /verify_jwt|return_token_hash/);
+assert.match(verifyEdge, /return 'confirmed'/);
+assert.match(verifyEdge, /return 'invalid'/);
+assert.match(verifyEdge, /return 'processing'/);
+assert.doesNotMatch(verifyEdge, /order_id|tracking_number|amount/);
+assert.match(capabilityMigration, /return_token_hash TEXT/);
+assert.match(capabilityMigration, /CREATE UNIQUE INDEX/);
 
 console.log('Payment return state contract tests passed.');

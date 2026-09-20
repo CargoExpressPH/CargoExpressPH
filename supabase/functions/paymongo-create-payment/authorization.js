@@ -1,4 +1,5 @@
 const OPERATIONAL_ORDER_FIELDS = ['actualWeight', 'payerType', 'pickupPhotos'];
+const RETURN_TOKEN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 const hasOwn = (value, key) => Object.prototype.hasOwnProperty.call(value, key);
 
@@ -46,6 +47,12 @@ export const authorizeOrderUpdate = (orderUpdate, isAdmin) => {
   }
 
   const authorized = { orderId };
+  if (hasOwn(orderUpdate, 'returnToken')) {
+    if (typeof orderUpdate.returnToken !== 'string' || !RETURN_TOKEN.test(orderUpdate.returnToken.trim())) {
+      return { error: 'returnToken must be a valid payment return capability.', status: 400 };
+    }
+    authorized.returnToken = orderUpdate.returnToken.trim();
+  }
   if (!isAdmin) return { value: authorized };
 
   if (hasOwn(orderUpdate, 'actualWeight')) {

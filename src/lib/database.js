@@ -2854,11 +2854,11 @@ export const recordPaymentTransaction = async (orderId, amount, method, ref, sta
  * @param {boolean} [payload.admin_verified_receipt=false] — required true
  *                  when a manual GCash reference is being recorded; attests
  *                  the admin confirmed the transfer landed before saving it.
- * @param {number} [payload.discount_amount=0] — fixed peso amount off the
- *                  ORIGINAL fee. 0 (the default) means no discount; the RPC
- *                  clears discount_reason/notes server-side whenever this is
- *                  0, regardless of what those two fields carry. Only settable
- *                  here, before pickup is confirmed — see
+ * @param {number} [payload.discount_amount] — fixed peso amount off the
+ *                  ORIGINAL fee. 0 means no discount when explicitly supplied.
+ *                  Omit all discount fields when finishing a PayMongo pickup;
+ *                  the RPC then preserves the value staged before checkout.
+ *                  Only settable here before pickup is confirmed — see
  *                  guard_order_update() in the shipping-discount migrations.
  * @param {?string} [payload.discount_reason] — 'Regular customer' |
  *                  'Negotiated price' | 'Other'. Required server-side when
@@ -2868,7 +2868,7 @@ export const recordPaymentTransaction = async (orderId, amount, method, ref, sta
  * @returns {Object} the fresh order row, totals already recomputed
  */
 export const recordPickupPayment = async (orderId, payload) => {
-  const { data, error } = await supabase.rpc('record_pickup_payment', {
+  const rpcPayload = {
     p_order_id: orderId,
     p_actual_weight: payload.actual_weight,
     p_payment_method: payload.payment_method,
@@ -2881,10 +2881,20 @@ export const recordPickupPayment = async (orderId, payload) => {
     p_receipt_url: payload.payment?.receipt_url || null,
     p_idempotency_key: payload.idempotency_key || null,
     p_admin_verified_receipt: payload.admin_verified_receipt || false,
-    p_discount_amount: payload.discount_amount || 0,
-    p_discount_reason: payload.discount_reason || null,
-    p_discount_notes: payload.discount_notes || null,
-  });
+  };
+
+  // These are optional RPC parameters on purpose. Omitting them is how a
+  // post-PayMongo pickup confirmation says "preserve the discount already
+  // staged on the order". Sending 0 here would look like an explicit request
+  // to clear the discount and the database guard must reject that after money
+  // has been recorded.
+  if (Object.prototype.hasOwnProperty.call(payload, 'discount_amount')) {
+    rpcPayload.p_discount_amount = payload.discount_amount;
+    rpcPayload.p_discount_reason = payload.discount_reason || null;
+    rpcPayload.p_discount_notes = payload.discount_notes || null;
+  }
+
+  const { data, error } = await supabase.rpc('record_pickup_payment', rpcPayload);
   if (error) throw error;
   return data;
 };

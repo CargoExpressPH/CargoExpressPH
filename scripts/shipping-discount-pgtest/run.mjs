@@ -155,6 +155,7 @@ const migrations = [
   '20260911010000_shipping_discount_schema.sql',
   '20260911020000_shipping_discount_guards.sql',
   '20260911030000_record_pickup_payment_discount.sql',
+  '20260920120000_fix_pickup_payment_discount_race.sql',
   '20260911040000_sales_summary_discount_aware.sql',
   '20260911060218_secure_paymongo_order_metadata.sql',
   '20260912010000_discount_aware_manual_settlement.sql',
@@ -717,6 +718,44 @@ console.log('\n== Scenario: confirmed pickup makes the discount read-only, even 
     }));
   } catch (e) { secondPickupRejected = /already been picked up/i.test(e.message); }
   ok('calling record_pickup_payment a second time on an already-picked-up order is rejected', secondPickupRejected);
+}
+
+console.log('\n== Scenario: late PayMongo confirmation preserves a discount staged before payment ==');
+{
+  const orderId = await newOrder('TRK-PAYMONGO-LATE-CONFIRM');
+  // This is the state created by the new pre-checkout staging step: priced,
+  // discounted, but not yet picked up. The webhook then records money while
+  // the admin modal is still open.
+  await asUser(ADMIN_ID, 'authenticated', tx => tx.query(
+    `UPDATE orders
+        SET actual_weight = 10,
+            shipping_cost = 700,
+            discount_amount = 100,
+            discount_reason = 'Regular customer'
+      WHERE id = $1`,
+    [orderId]
+  ));
+  await db.query(
+    `INSERT INTO payment_transactions (order_id, amount, payment_method, payment_status, admin_name)
+     VALUES ($1, 200, 'gcash', 'partial', 'System Webhook')`,
+    [orderId]
+  );
+
+  // The final confirmation intentionally uses the legacy-looking 0/null/null
+  // discount payload. The fix must preserve the staged discount rather than
+  // resetting it or throwing a false post-payment edit error.
+  const res = await asUser(ADMIN_ID, 'authenticated', tx => pickup(tx, {
+    p_order_id: orderId,
+    p_actual_weight: 10,
+    p_amount: null,
+    p_discount_amount: 0,
+    p_discount_reason: null,
+    p_discount_notes: null,
+  }));
+  const o = res.rows[0];
+  ok('late PayMongo confirmation completes pickup', o.status === 'Picked Up', o);
+  ok('late PayMongo confirmation preserves the staged discount', Number(o.discount_amount) === 100 && o.discount_reason === 'Regular customer', o);
+  ok('late PayMongo confirmation recomputes the discounted balance', Number(o.remaining_balance) === 400 && o.payment_status === 'partial', o);
 }
 
 console.log('\n== Scenario: an existing payment blocks a discount edit even at a pre-pickup status (defense in depth) ==');

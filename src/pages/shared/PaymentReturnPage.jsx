@@ -1,297 +1,160 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
-import { pollPaymentStatus } from '../../lib/paymongo';
-import { clearPendingPayment, getPendingPayment } from '../../lib/pendingPayment';
-import { useAuth } from '../../contexts/AuthContext';
-import { BrandLogo } from '../../components/ui/BrandLogo';
 import usePageTitle from '../../hooks/usePageTitle';
 
+const TERMINAL_PHASES = new Set(['confirmed', 'failed', 'invalid']);
+const AUTO_CHECK_DELAYS = [0, 1500, 3000, 5000, 8000, 12000];
+
 /**
- * Lightweight landing for the payer coming back from the PayMongo GCash
- * checkout (redirect URLs are built in lib/paymongo.js). Landing here instead
- * of inside the authenticated app skips the full boot — auth profile fetch,
- * order fetch, page chunk — that used to sit between the customer and their
- * result. This page paints "Verifying your payment…" immediately, verifies
- * with the same poll/realtime pattern as the order pages, shows the shared
- * PaymentResultModal, then hands off to the order page.
+ * Public Device B landing page for a PayMongo redirect.
  *
- * The order pages keep their own `?payment=` handlers for checkout links
- * created before this route existed.
+ * It deliberately does not read auth state, localStorage, orders, or
+ * payment_attempts. The only input is the high-entropy return capability in
+ * the URL; the public Edge Function validates its hash server-side and returns
+ * a status enum. This keeps the same experience for logged-out users, users
+ * with another account, installed PWAs, and in-app browsers.
  */
-
-const orderPagePath = (role, orderId) =>
-  orderId ? `/${role}/orders/${orderId}` : `/${role}`;
-
-// Same settled test the admin return path uses inline: an unpriced order with
-// a zero balance must not read as paid just because remaining_balance <= 0.
-const isOrderSettled = (row) =>
-  row?.payment_status === 'paid'
-  || (Number(row?.amount_paid) > 0 && Number(row?.remaining_balance) <= 0);
-
-// Inlined from lib/database.js (getLatestPaymentAttemptByOrder): this page is
-// part of the initial JS bundle, and importing database.js wholesale would
-// drag every other query into the first load.
-const getLatestPaymentAttempt = async (orderId) => {
-  const { data, error } = await supabase
-    .from('payment_attempts')
-    .select('id, source_id, status, amount')
-    .eq('order_id', orderId)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  if (error) throw error;
-  return data;
-};
-
 const PaymentReturnPage = () => {
   usePageTitle('Payment Status');
   const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
-  const { user, loading: authLoading } = useAuth();
+  const returnToken = searchParams.get('return_token')?.trim() || '';
+  const timerRef = useRef(null);
+  const [phase, setPhase] = useState(returnToken ? 'verifying' : 'invalid');
+  const [checking, setChecking] = useState(false);
 
-  const paymentResult = searchParams.get('payment');
-  const orderId = searchParams.get('order');
-  const role = searchParams.get('role') === 'admin' ? 'admin' : 'customer';
-
-  const [phase, setPhase] = useState(paymentResult === 'failed' ? 'failed' : 'verifying');
-  const [paidAmount, setPaidAmount] = useState(null);
-  const [trackingNumber, setTrackingNumber] = useState(null);
-  const channelRef = useRef(null);
-  const mountedRef = useRef(true);
-  const confirmedRef = useRef(false);
-
-  const goToOrder = useCallback(() => {
-    navigate(orderPagePath(role, orderId), { replace: true });
-  }, [navigate, orderId, role]);
-
-  const confirmPaid = useCallback((amount) => {
-    if (confirmedRef.current) return;
-    confirmedRef.current = true;
-    if (channelRef.current) void supabase.removeChannel(channelRef.current);
-    // Same cleanup the order page does on confirmation — a stale source id
-    // left behind would otherwise be picked up by the NEXT payment return.
-    clearPendingPayment(orderId);
-    setPaidAmount(Number.isFinite(amount) && amount > 0 ? amount : null);
-    setPhase('success');
-  }, [orderId]);
-
-  const verify = useCallback(async () => {
-    if (!orderId) {
-      setPhase('stuck');
-      return;
+  const verifyOnce = useCallback(async () => {
+    if (!returnToken) {
+      setPhase('invalid');
+      return 'invalid';
     }
 
-    // The payment return is intentionally a lightweight route, so it cannot
-    // rely on the order-detail page having loaded the order already. Fetch the
-    // tracking number here so the success receipt is complete for both roles.
-    const readOrderRow = async () => {
-      const { data, error } = await supabase
-        .from('orders')
-        .select('tracking_number, payment_status, amount_paid, remaining_balance')
-        .eq('id', orderId)
-        .maybeSingle();
-      if (error) throw error;
-      if (data?.tracking_number && mountedRef.current) setTrackingNumber(data.tracking_number);
-      return data;
-    };
-
+    setChecking(true);
     try {
-      await readOrderRow();
+      const { data, error } = await supabase.functions.invoke('verify-payment-return', {
+        body: { returnToken },
+      });
+
+      if (error || !data?.status) {
+        setPhase('unavailable');
+        return 'unavailable';
+      }
+
+      const status = ['confirmed', 'processing', 'failed', 'invalid', 'unavailable'].includes(data.status)
+        ? data.status
+        : 'unavailable';
+      setPhase(status);
+      if (TERMINAL_PHASES.has(status) && timerRef.current !== null) {
+        window.clearTimeout(timerRef.current);
+        timerRef.current = null;
+      }
+      return status;
     } catch {
-      // The attempt and payment-status checks below can still confirm the
-      // payment if this first order read is transiently unavailable.
+      setPhase('unavailable');
+      return 'unavailable';
+    } finally {
+      setChecking(false);
     }
-
-    // Prefer the exact source this role/account opened on this device. The
-    // scoped lookup is critical on shared phones: localStorage survives
-    // logout, so an admin must never poll a customer's abandoned source.
-    const pendingPayment = getPendingPayment({ orderId, role, userId: user?.id });
-    let sourceId = pendingPayment?.sourceId || null;
-    let knownAmount = pendingPayment?.amount || null;
-
-    if (!sourceId) {
-      try {
-        const attempt = await getLatestPaymentAttempt(orderId);
-        if (!mountedRef.current || confirmedRef.current) return;
-        if (attempt?.status === 'reconciled') {
-          confirmPaid(Number(attempt.amount || 0));
-          return;
-        }
-        if (attempt?.source_id) {
-          sourceId = attempt.source_id;
-          knownAmount = knownAmount ?? (Number(attempt.amount || 0) || null);
-        }
-        // Customers simply get null here (RLS-hidden table), not an error.
-      } catch {
-        // Transient lookup failure — the order-row checks below still
-        // confirm a payment the webhook has already reconciled.
-      }
-    }
-    if (!mountedRef.current || confirmedRef.current) return;
-
-    // Live order updates cover the webhook landing between polls.
-    channelRef.current = supabase
-      .channel(`payment_return_${orderId}`)
-      .on('postgres_changes', {
-        event: 'UPDATE', schema: 'public', table: 'orders', filter: `id=eq.${orderId}`,
-      }, (payload) => {
-        if (isOrderSettled(payload.new)) {
-          confirmPaid(knownAmount ?? (Number(payload.new.amount_paid || 0) || null));
-        }
-      })
-      .subscribe();
-
-    // The order row is readable by its owner under RLS and is exactly what
-    // the webhook reconciliation updates — one signal every role can see.
-    const checkOrderRow = async () => {
-      const data = await readOrderRow();
-      if (isOrderSettled(data)) {
-        confirmPaid(knownAmount ?? (Number(data.amount_paid || 0) || null));
-        return true;
-      }
-      return false;
-    };
-
-    if (!sourceId) {
-      // Cannot query PayMongo directly — watch the order row instead.
-      for (const delay of [0, 2000, 4000, 6000, 8000, 12000, 15000, 20000]) {
-        if (delay) await new Promise((resolve) => setTimeout(resolve, delay));
-        if (!mountedRef.current || confirmedRef.current) return;
-        try {
-          if (await checkOrderRow()) return;
-        } catch {
-          // A transient read error should not end verification.
-        }
-      }
-      if (mountedRef.current && !confirmedRef.current) setPhase('stuck');
-      return;
-    }
-
-    for (const delay of [0, 2000, 4000, 6000, 8000, 12000, 15000, 20000]) {
-      if (delay) await new Promise((resolve) => setTimeout(resolve, delay));
-      if (!mountedRef.current || confirmedRef.current) return;
-      try {
-        const result = await pollPaymentStatus(sourceId, orderId);
-        // `orderReconciled` is the only trustworthy signal — a bare
-        // status:'paid' can now mean "GCash confirmed it, but a concurrent
-        // request is still finalizing the ledger" (see paymongo-create-payment's
-        // poll action). Trusting the bare status here would show "payment
-        // confirmed" before the ledger genuinely reflects it.
-        if (result.orderReconciled) {
-          confirmPaid(knownAmount ?? (Number(result.amount || 0) || null));
-          return;
-        }
-      } catch {
-        // A transient verification error should not end reconciliation.
-      }
-      try {
-        if (await checkOrderRow()) return;
-      } catch {
-        // Same — the next retry or the realtime channel still confirms.
-      }
-    }
-    if (mountedRef.current && !confirmedRef.current) setPhase('stuck');
-  }, [confirmPaid, orderId, role, user?.id]);
+  }, [returnToken]);
 
   useEffect(() => {
-    mountedRef.current = true;
+    let cancelled = false;
+    let sawUnavailable = false;
 
-    const handleVisibility = () => {
-      if (document.visibilityState === 'visible' && !confirmedRef.current) {
-        verify();
+    const wait = (delay) => new Promise((resolve) => {
+      if (cancelled) {
+        resolve();
+        return;
       }
+      timerRef.current = window.setTimeout(resolve, delay);
+    });
+
+    const verifyWithBoundedPolling = async () => {
+      for (const delay of AUTO_CHECK_DELAYS) {
+        if (delay) await wait(delay);
+        if (cancelled) return;
+
+        const status = await verifyOnce();
+        if (status === 'unavailable') sawUnavailable = true;
+        if (TERMINAL_PHASES.has(status)) return;
+      }
+
+      if (!cancelled) setPhase(sawUnavailable ? 'unavailable' : 'processing');
     };
-    document.addEventListener('visibilitychange', handleVisibility);
+
+    void verifyWithBoundedPolling();
 
     return () => {
-      mountedRef.current = false;
-      document.removeEventListener('visibilitychange', handleVisibility);
-      if (channelRef.current) void supabase.removeChannel(channelRef.current);
+      cancelled = true;
+      if (timerRef.current !== null) {
+        window.clearTimeout(timerRef.current);
+        timerRef.current = null;
+      }
     };
-  }, [verify]);
+  }, [verifyOnce]);
 
-  useEffect(() => {
-    // A failed return is already a final answer from PayMongo — verifying it
-    // anyway would eventually swap "Payment Failed" for "Payment Processing".
-    if (paymentResult === 'failed') {
-      clearPendingPayment(orderId);
-      return;
-    }
-    if (authLoading || !user) return;
-    void verify();
-    // Runs once for this payment return; "still processing" users are sent to
-    // the order page, whose own realtime subscription picks up a late webhook.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authLoading, user]);
+  const checkAgain = async () => {
+    if (checking) return;
+    await verifyOnce();
+  };
 
-  // Direct visit without PayMongo's parameters — nothing to show here.
-  if (!paymentResult) return <Navigate to="/" replace />;
-
-  // No session on this device (e.g. a customer scanned the admin's QR code):
-  // the webhook still reconciles the payment server-side, so reassure and let
-  // them leave instead of asking them to log in.
-  if (phase === 'verifying' && !authLoading && !user) {
+  if (phase === 'confirmed') {
     return (
-      <div className="loading-screen">
-        <div className="loading-brand animate-scale-in">
-          <BrandLogo size={44} decorative />
-        </div>
-        <h2 style={{ margin: '16px 0 4px' }}>Thanks for your payment!</h2>
-        <p className="text-secondary" style={{ maxWidth: 320, textAlign: 'center' }}>
-          We&apos;re confirming it now. You can safely close this page.
+      <main className="loading-screen" aria-live="polite" style={{ padding: 24, textAlign: 'center' }}>
+        <h1 style={{ margin: 0, fontSize: '1.5rem' }}>Thank you for your payment!</h1>
+        <p className="text-secondary" style={{ maxWidth: 360, margin: '12px auto 0' }}>
+          Your payment has been successfully confirmed. You may now close this page.
         </p>
-      </div>
+      </main>
     );
   }
 
   if (phase === 'verifying') {
     return (
-      <div className="loading-screen">
-        <div className="loading-brand animate-scale-in">
-          <BrandLogo size={44} decorative />
-        </div>
-        <div className="spinner" style={{ margin: '16px 0 8px' }} />
+      <main className="loading-screen" aria-live="polite">
+        <div className="spinner" aria-hidden="true" />
         <p>Verifying your payment…</p>
-      </div>
+      </main>
     );
   }
 
-  return (
-    <div className="loading-screen" style={{ padding: 24, textAlign: 'center' }}>
-      <div className="loading-brand animate-scale-in" style={{ margin: '0 auto' }}>
-        <BrandLogo size={44} decorative />
-      </div>
-      
-      <h2 style={{ margin: '24px 0 8px' }}>
-        {phase === 'failed' ? 'Payment Failed' : phase === 'stuck' ? 'Payment Processing' : 'Payment Successful!'}
-      </h2>
-      
-      <p className="text-secondary" style={{ maxWidth: 320, margin: '0 auto 24px' }}>
-        {phase === 'failed' 
-          ? 'Your GCash payment could not be completed.'
-          : phase === 'stuck' 
-            ? 'We are still confirming your GCash payment with PayMongo. This usually takes a few seconds.'
-            : 'Thank you for your payment! Your transaction has been recorded.'}
-      </p>
+  const copy = {
+    processing: 'We are still confirming your payment. Please check again in a few seconds.',
+    failed: 'Your payment could not be confirmed. You may close this page.',
+    invalid: 'This payment confirmation link is invalid or expired.',
+    unavailable: 'Payment verification is temporarily unavailable. Please try again.',
+  };
+  const canRetry = phase === 'processing' || phase === 'unavailable';
 
-      {phase === 'stuck' && (
-        <button 
-          onClick={verify}
-          style={{ padding: '10px 24px', background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: 8, fontSize: 16, cursor: 'pointer', marginBottom: 12 }}
+  return (
+    <main className="loading-screen" aria-live="polite" style={{ padding: 24, textAlign: 'center' }}>
+      <h1 style={{ margin: 0, fontSize: '1.5rem' }}>
+        {phase === 'failed' ? 'Payment not confirmed' : phase === 'invalid' ? 'Payment link unavailable' : 'Payment verification'}
+      </h1>
+      <p className="text-secondary" style={{ maxWidth: 360, margin: '12px auto 0' }}>
+        {copy[phase] || copy.unavailable}
+      </p>
+      {canRetry && (
+        <button
+          type="button"
+          onClick={checkAgain}
+          disabled={checking}
+          style={{
+            marginTop: 20,
+            padding: '10px 22px',
+            background: 'var(--primary)',
+            color: '#fff',
+            border: 'none',
+            borderRadius: 8,
+            fontSize: 16,
+            cursor: checking ? 'wait' : 'pointer',
+            opacity: checking ? 0.7 : 1,
+          }}
         >
-          Refresh Status
+          {checking ? 'Checking…' : 'Check again'}
         </button>
       )}
-      
-      <br/>
-      <button 
-        onClick={goToOrder}
-        style={{ padding: '10px 24px', background: 'transparent', color: 'var(--primary)', border: '1px solid var(--primary)', borderRadius: 8, fontSize: 16, cursor: 'pointer' }}
-      >
-        Close
-      </button>
-    </div>
+    </main>
   );
 };
 

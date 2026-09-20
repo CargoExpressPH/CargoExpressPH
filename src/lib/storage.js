@@ -63,7 +63,11 @@ export const compressImage = async (file) => {
   const options = {
     maxSizeMB: 0.5,
     maxWidthOrHeight: 1024,
-    useWebWorker: true,
+    // browser-image-compression's worker defaults to loading its library from
+    // jsDelivr. The production CSP intentionally blocks third-party scripts;
+    // keeping compression in the bundled main thread avoids that hidden CDN
+    // dependency while retaining the validated-original fallback below.
+    useWebWorker: false,
     fileType: 'image/jpeg',
   };
   try {

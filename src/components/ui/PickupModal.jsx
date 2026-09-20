@@ -42,7 +42,7 @@ const DISCOUNT_REASONS = ['Regular customer', 'Negotiated price', 'Other'];
  * only to give a fast, clear message before that round trip, exactly like the
  * rest of this form's client-side validation.
  */
-const PickupModal = ({ order, onClose, onSave, pricePerKilo = 70 }) => {
+const PickupModal = ({ order, onClose, onSave, onPreparePayment, pricePerKilo = 70 }) => {
   useScrollLock(true); // mounted only while open
 
   const [form, setForm] = useState({
@@ -69,14 +69,15 @@ const PickupModal = ({ order, onClose, onSave, pricePerKilo = 70 }) => {
   // ── Shipping discount — OFF by default, admin-only, fixed peso amount ─────
   // Nothing here is sent to the server unless `enabled` is true at submit —
   // see handleSubmit, which sends discount_amount: 0 and null reason/notes
-  // whenever the toggle is off, exactly matching "toggle OFF clears the
-  // effective discount before submission."
-  const [discount, setDiscount] = useState({
-    enabled: false,
-    amount: '',
-    reason: '',
-    otherReason: '',
-  });
+  // whenever the toggle is off on a new pickup. A post-payment confirmation
+  // omits these optional fields so the server preserves the staged discount.
+  const existingDiscountAmount = parseAmount(order?.discount_amount ?? '') || 0;
+  const [discount, setDiscount] = useState(() => ({
+    enabled: existingDiscountAmount > 0,
+    amount: existingDiscountAmount > 0 ? String(existingDiscountAmount) : '',
+    reason: order?.discount_reason || '',
+    otherReason: order?.discount_reason === 'Other' ? (order?.discount_notes || '') : '',
+  }));
 
   // ── Trip capacity — client-side pre-check ──────────────────────────────────
   // record_pickup_payment() always writes actual_weight to the order in its
@@ -117,7 +118,7 @@ const PickupModal = ({ order, onClose, onSave, pricePerKilo = 70 }) => {
   // driver must never be asked to. That is why the whole payment panel is
   // conditional on this — not merely disabled, absent.
   const isPrepaid = form.payer_type === 'sender';
-  const hasRecordedPayment = (order?.amount_paid || 0) > 0;
+  const hasRecordedPayment = Number(order?.amount_paid || 0) > 0 || Boolean(payment.confirmed);
   const estimatedCost = parseFloat(form.actual_weight || 0) * pricePerKilo;
 
   // tripLoad === null means the current load hasn't loaded yet (or failed to)
@@ -168,6 +169,18 @@ const PickupModal = ({ order, onClose, onSave, pricePerKilo = 70 }) => {
     sourceMetadata: {
       actualWeight: parseFloat(form.actual_weight) || 0,
       payerType: form.payer_type,
+    },
+    preparePayment: async () => {
+      if (hasRecordedPayment || !onPreparePayment) return;
+      await onPreparePayment({
+        actual_weight: parseFloat(form.actual_weight),
+        payer_type: form.payer_type,
+        discount_amount: discount.enabled ? discountAmountValue : 0,
+        discount_reason: discount.enabled ? discount.reason : null,
+        discount_notes: (discount.enabled && discount.reason === 'Other')
+          ? discount.otherReason.trim()
+          : null,
+      });
     },
     onError: setError,
   };
@@ -317,16 +330,17 @@ const PickupModal = ({ order, onClose, onSave, pricePerKilo = 70 }) => {
         ...(isPrepaid
           ? buildPaymentSubmission(payment, paymentConfig, receiptUrl)
           : { payment_method: null, payment_reference: null, promised_payment_date: null, payment: null }),
-        // Discount — 0/null/null whenever the toggle is off, so "OFF clears
-        // the effective discount before submission" holds even if the admin
-        // had typed something into the amount field before switching it off.
-        discount_amount: discount.enabled ? discountAmountValue : 0,
-        discount_reason: discount.enabled
-          ? discount.reason
-          : null,
-        discount_notes: (discount.enabled && discount.reason === 'Other')
-          ? discount.otherReason.trim()
-          : null,
+        // Discount — never send discount fields at all when a payment is
+        // already recorded; guard_order_update will throw P0001 if we try to
+        // change discount_amount on a paid order, even to the same value.
+        // When no payment exists, 0/null/null when the toggle is off.
+        ...(!hasRecordedPayment && {
+          discount_amount: discount.enabled ? discountAmountValue : 0,
+          discount_reason: discount.enabled ? discount.reason : null,
+          discount_notes: (discount.enabled && discount.reason === 'Other')
+            ? discount.otherReason.trim()
+            : null,
+        }),
       };
 
       await onSave(payload);
@@ -433,14 +447,15 @@ const PickupModal = ({ order, onClose, onSave, pricePerKilo = 70 }) => {
               <input
                 type="checkbox"
                 checked={discount.enabled}
+                disabled={hasRecordedPayment}
                 onChange={e => {
                   const enabled = e.target.checked;
                   setDiscount(p => ({ ...p, enabled }));
                   clearError('discount_amount'); clearError('discount_reason'); clearError('discount_notes');
                 }}
-                style={{ width: 18, height: 18 }}
+                style={{ width: 18, height: 18, cursor: hasRecordedPayment ? 'not-allowed' : 'pointer', opacity: hasRecordedPayment ? 0.5 : 1 }}
               />
-              <span className="form-label m-0"><Tag size={14} className="inline mr-6" />Apply Discount</span>
+              <span className="form-label m-0" style={{ opacity: hasRecordedPayment ? 0.5 : 1 }}><Tag size={14} className="inline mr-6" />Apply Discount</span>
             </label>
             {hasRecordedPayment && (
               <div className="text-12 text-secondary mt-4 mb-8">

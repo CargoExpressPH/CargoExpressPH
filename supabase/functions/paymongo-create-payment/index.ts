@@ -23,6 +23,15 @@ const PROVIDER_TIMEOUT_MS = 15_000
 const PAYMONGO_SOURCE_ID = /^src_[A-Za-z0-9_-]{4,128}$/
 const PAYMENT_ACTIONS = new Set(['capture', 'poll', 'register'])
 
+const hex = (bytes: ArrayBuffer) => Array.from(new Uint8Array(bytes))
+  .map(byte => byte.toString(16).padStart(2, '0'))
+  .join('')
+
+const hashReturnToken = async (returnToken: string) => hex(await crypto.subtle.digest(
+  'SHA-256',
+  new TextEncoder().encode(returnToken),
+))
+
 const providerFetch = (input: string | URL, init: RequestInit = {}) => fetch(input, {
   ...init,
   redirect: 'error',
@@ -59,7 +68,7 @@ const getAttempt = async (adminSupabase: ReturnType<typeof createClient>, source
     .from('payment_attempts')
     // order_id is selected for the ownership binding in ensureAttempt / poll —
     // without it, an attempt could be silently re-pointed at another order.
-    .select('source_id, order_id, amount, status, payment_id, payment_status, payment_type, estimated_cost, promised_payment_date, actual_weight, payer_type, pickup_photos, created_by')
+    .select('source_id, order_id, amount, status, payment_id, payment_status, payment_type, estimated_cost, promised_payment_date, actual_weight, payer_type, pickup_photos, created_by, return_token_hash, return_token_expires_at')
     .eq('source_id', sourceId)
     .maybeSingle()
   return data
@@ -75,6 +84,9 @@ const ensureAttempt = async (
 ) => {
   const existing = await getAttempt(adminSupabase, sourceId)
   if (!orderUpdate?.orderId) return existing
+  const returnTokenHash = typeof orderUpdate.returnToken === 'string'
+    ? await hashReturnToken(orderUpdate.returnToken)
+    : null
 
   // ───────────────────────────────────────────────────────────────────────────
   // SECURITY: a source is bound to the order it was first registered against.
@@ -112,6 +124,10 @@ const ensureAttempt = async (
     estimated_cost: (existing?.estimated_cost ?? null) as number | null,
     promised_payment_date: (existing?.promised_payment_date ?? null) as string | null,
     created_by: createdBy,
+    return_token_hash: returnTokenHash,
+    return_token_expires_at: returnTokenHash
+      ? new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+      : null,
   }
 
   if (existing) {
@@ -119,6 +135,17 @@ const ensureAttempt = async (
     // Its creator and staged admin metadata are immutable after the first
     // registration. Otherwise an order owner who learns an admin checkout
     // source could re-register it and replace/erase the trusted pickup data.
+    // A retry can complete registration for an attempt created just before the
+    // public return capability was added. Never replace an existing capability.
+    if (!existing.return_token_hash && returnTokenHash) {
+      await adminSupabase
+        .from('payment_attempts')
+        .update({
+          return_token_hash: returnTokenHash,
+          return_token_expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+        })
+        .eq('source_id', sourceId)
+    }
     console.log('[paymongo-create-payment] Existing payment attempt reused')
     return existing
   }

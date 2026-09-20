@@ -15,13 +15,20 @@ const PAYMONGO_API = 'https://api.paymongo.com/v1';
  * @param {string} description - Payment description
  * @param {object} billing - Billing details { name, phone, email }
  * @param {boolean} isAdmin - Whether the admin is initiating the payment
- * @param {string} orderId - Optional order UUID to redirect back to the specific order page
- * @returns {object} - { sourceId, checkoutUrl }
+ * @param {string} orderId - Optional order UUID used only for backend registration
+ * @returns {object} - { sourceId, checkoutUrl, returnToken }
  */
 export const createGCashSource = async (amount, description, billing = {}, isAdmin = false, orderId = null) => {
   if (!PAYMONGO_PUBLIC_KEY) {
     throw new Error('PayMongo public key is not configured. Add VITE_PAYMONGO_PUBLIC_KEY to your .env file.');
   }
+
+  // This bearer capability is generated before the source exists so it can be
+  // embedded in PayMongo's redirect URL, then registered (hashed) against the
+  // exact source on the backend.
+  const returnToken = crypto.randomUUID();
+  const returnQuery = `payment=success&return_token=${encodeURIComponent(returnToken)}`;
+  const failedReturnQuery = `payment=failed&return_token=${encodeURIComponent(returnToken)}`;
 
   const response = await fetch(`${PAYMONGO_API}/sources`, {
     method: 'POST',
@@ -33,13 +40,12 @@ export const createGCashSource = async (amount, description, billing = {}, isAdm
       data: {
         attributes: {
           amount: Math.round(amount * 100), // Convert to centavos
-          // The payer lands on the lightweight /payment/return screen, which
-          // verifies and shows the result without rebooting the whole app.
-          // The order pages keep their own ?payment= handlers so checkout
-          // links created before that route existed still resolve.
+          // The payer lands on the lightweight public /payment/return screen.
+          // The URL carries only the one-payment return capability; no order,
+          // role, or customer identifier is exposed to Device B.
           redirect: {
-            success: `${window.location.origin}/payment/return?payment=success&role=${isAdmin ? 'admin' : 'customer'}${orderId ? `&order=${orderId}` : ''}`,
-            failed: `${window.location.origin}/payment/return?payment=failed&role=${isAdmin ? 'admin' : 'customer'}${orderId ? `&order=${orderId}` : ''}`,
+            success: `${window.location.origin}/payment/return?${returnQuery}`,
+            failed: `${window.location.origin}/payment/return?${failedReturnQuery}`,
           },
           type: 'gcash',
           currency: 'PHP',
@@ -64,6 +70,7 @@ export const createGCashSource = async (amount, description, billing = {}, isAdm
     sourceId: data.data.id,
     checkoutUrl: data.data.attributes.redirect.checkout_url,
     status: data.data.attributes.status,
+    returnToken,
   };
 };
 
@@ -144,7 +151,7 @@ export const createPayment = async (sourceId, amount, description, orderUpdate =
  * This links the source to the order so webhooks can process it.
  * @param {string} sourceId - Created source ID
  * @param {number} amount - Amount in PHP
- * @param {object} orderUpdate - orderId plus optional admin-only pickup metadata
+ * @param {object} orderUpdate - orderId plus optional admin-only pickup metadata and returnToken
  */
 export const registerSource = async (sourceId, amount, orderUpdate) => {
   if (!sourceId || !orderUpdate?.orderId) {
@@ -180,13 +187,13 @@ export const registerSource = async (sourceId, amount, orderUpdate) => {
  * @param {object} customer - { name, phone, email }
  * @param {boolean} isAdmin - Whether the admin is initiating the payment
  * @param {string} orderId - Optional order UUID for redirect
- * @returns {string} sourceId - To poll for payment status
+ * @returns {object} sourceId, checkoutUrl, returnToken - Payment flow handles
  */
 export const initiateGCashPayment = async (amount, trackingNumber, customer = {}, isAdmin = false, orderId = null) => {
   const description = `CargoExpress PH - Order ${trackingNumber}`;
-  const { sourceId, checkoutUrl } = await createGCashSource(amount, description, customer, isAdmin, orderId);
+  const { sourceId, checkoutUrl, returnToken } = await createGCashSource(amount, description, customer, isAdmin, orderId);
 
-  return { sourceId, checkoutUrl };
+  return { sourceId, checkoutUrl, returnToken };
 };
 
 const inFlightPolls = new Map();

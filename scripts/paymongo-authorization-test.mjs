@@ -6,6 +6,16 @@ const ORDER_ID = '00000000-0000-0000-0000-000000000123';
 const customerOrderOnly = authorizeOrderUpdate({ orderId: ORDER_ID }, false);
 assert.deepEqual(customerOrderOnly, { value: { orderId: ORDER_ID } });
 
+const RETURN_TOKEN = '123e4567-e89b-42d3-a456-426614174000';
+assert.deepEqual(
+  authorizeOrderUpdate({ orderId: ORDER_ID, returnToken: RETURN_TOKEN }, false),
+  { value: { orderId: ORDER_ID, returnToken: RETURN_TOKEN } },
+);
+assert.equal(
+  authorizeOrderUpdate({ orderId: ORDER_ID, returnToken: 'guessable-token' }, false).status,
+  400,
+);
+
 for (const maliciousUpdate of [
   { orderId: ORDER_ID, actualWeight: 1 },
   { orderId: ORDER_ID, payerType: 'receiver' },
