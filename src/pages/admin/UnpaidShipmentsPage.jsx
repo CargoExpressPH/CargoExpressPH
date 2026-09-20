@@ -329,11 +329,10 @@ const UnpaidShipmentsPage = () => {
       {loading ? (
         <CenteredSpinner />
       ) : (
-        <div className="grid grid-4 mb-24">
+        <div className="grid grid-3 mb-24">
           {[
             { l: 'Total Outstanding', v: formatCurrency(t.outstanding), tone: 'danger' },
             { l: 'Unpaid Shipments', v: t.count || 0, tone: 'primary' },
-            { l: 'Held at Hub', v: t.held || 0, tone: 'warning' },
             { l: 'Overdue Promises', v: t.overdue || 0, tone: 'danger' },
           ].map((c, i) => (
             <div key={i} className={`stat-card stat-card-${c.tone} stagger-item`} style={{ animationDelay: `${i * 60}ms` }}>
@@ -523,7 +522,6 @@ const UnpaidShipmentsPage = () => {
               <tbody>
                 <tr><td>Total Outstanding (all shipments)</td><td className="num">{formatCurrency(t.outstanding)}</td></tr>
                 <tr><td>Unpaid Shipments</td><td className="num">{t.count || 0}</td></tr>
-                <tr><td>Held at Hub (dispatch blocked)</td><td className="num">{t.held || 0}</td></tr>
                 <tr><td>Overdue Promises</td><td className="num">{t.overdue || 0}</td></tr>
                 <tr><td>Overdue Amount</td><td className="num">{formatCurrency(t.overdueAmount)}</td></tr>
                 <tr><td>Delivered with Balance Owing</td><td className="num">{t.delivered || 0}</td></tr>
