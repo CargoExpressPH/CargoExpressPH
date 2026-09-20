@@ -2,7 +2,7 @@
 
 Date: 2026-09-16. Implements the admin-side "Email Updates" toggle described in this task, on top
 of the previously-canceled/rolled-back subscription attempt (see
-`CONTACT_INQUIRIES_EMAIL_FLOW_AUDIT.md` and `EMAIL_SUBSCRIPTION_TOGGLE_ROLLBACK.md`).
+`CONTACT_INQUIRIES_EMAIL_FLOW_AUDIT.md` and `../archive/EMAIL_SUBSCRIPTION_TOGGLE_ROLLBACK.md`).
 
 ## 1. Current state, re-verified (not assumed from the old audit)
 

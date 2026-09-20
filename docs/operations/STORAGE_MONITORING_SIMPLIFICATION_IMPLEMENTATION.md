@@ -1,7 +1,7 @@
 # Storage Monitoring Simplification — Implementation Report
 
 **Status:** Implemented and locally verified. **Not yet deployed.** The new migration has not been applied to the live Supabase project and the new Edge Function has not been deployed — see §7 for the exact commands still awaiting your approval.
-**Companion document:** `STORAGE_MONITORING_SIMPLIFICATION_REVIEW.md` (the prior audit this implements). Findings there were re-verified against current code and the live database before implementing, not assumed — corrections found along the way are called out in §1 and §8.
+**Companion document:** `../audits/STORAGE_MONITORING_SIMPLIFICATION_REVIEW.md` (the prior audit this implements). Findings there were re-verified against current code and the live database before implementing, not assumed — corrections found along the way are called out in §1 and §8.
 
 ---
 
@@ -33,7 +33,7 @@ Everything that was purely technical is gone from the ordinary view: the manual 
 | `scripts/photo-gallery-pgtest/run.mjs` | **New.** Focused local regression suite (real embedded Postgres, not a mock) for `classify_evidence_photo_ref` / `list_evidence_photos` / `delete_evidence_photos`. See §5. |
 | `package.json` | Added `"test:photo-gallery": "node scripts/photo-gallery-pgtest/run.mjs"`, matching the existing `test:payment-ledger` / `test:shipping-discount` convention. |
 
-Nothing outside this list was touched. `STORAGE_MONITORING_SIMPLIFICATION_REVIEW.md` (the prior audit) and the other pre-existing root-level reports were left exactly as they were.
+Nothing outside this list was touched. `../audits/STORAGE_MONITORING_SIMPLIFICATION_REVIEW.md` (the prior audit) and the other pre-existing root-level reports were left exactly as they were.
 
 ---
 

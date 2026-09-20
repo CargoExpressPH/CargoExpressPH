@@ -1,5 +1,5 @@
 // Payment-confirmation notification regression tests (BUG-02 fix).
-// See PAYMENT_NOTIFICATION_FIX_REPORT.md for the full analysis.
+// See docs/audits/PAYMENT_NOTIFICATION_FIX_REPORT.md for the full analysis.
 //
 // Runs the ACTUAL migration files in supabase/migrations verbatim (the same
 // three BUG-01 migrations the payment-ledger suite uses, plus the new

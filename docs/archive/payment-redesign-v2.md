@@ -2,7 +2,7 @@
 
 **Complete redesign proposal · v2**
 **Status:** Design only. **No code has been modified.**
-**Supersedes:** `docs/payment-architecture-redesign.md`
+**Supersedes:** `payment-architecture-redesign.md`
 **Date:** 2 August 2026
 
 ---
@@ -1025,7 +1025,7 @@ src/pages/admin/SalesReportsPage.jsx         VERIFY   confirm against corrected 
 ```
 scripts/smoke-check.mjs   MODIFY  update assertion list (R-7)
 CLAUDE.md                 MODIFY  payment section rewrite
-docs/payment-redesign-v2.md       this document
+payment-redesign-v2.md       this document
 ```
 
 **Totals: 7 new migrations · 6 Edge Function files (5 new, 1 rewrite, 1 delete) · 4 client lib

@@ -269,6 +269,7 @@ const OrderDetailPage = () => {
       const { data, pmts, events, settlement } = await fetchOrderData();
       if (isMountedRef.current && requestSequence === orderLoadSequenceRef.current) {
         applyOrderData(data, pmts, events, settlement);
+        setLoading(false);
       }
     } catch {
       // Silent: a failed background refresh shouldn't disturb data already

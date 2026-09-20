@@ -5,7 +5,7 @@ report. All line numbers are current as of the working tree at the time of writi
 
 > **Superseded note (later same day):** the partial `email_subscriptions` feature described in
 > Section G below was subsequently canceled and rolled back — see `git log` /
-> `EMAIL_SUBSCRIPTION_TOGGLE_ROLLBACK.md`. This file is kept as a historical record of what was
+> `../archive/EMAIL_SUBSCRIPTION_TOGGLE_ROLLBACK.md`. This file is kept as a historical record of what was
 > found at the time; it no longer describes the current code.
 
 **Important context this audit must be read against:** this is not a clean, unmodified codebase.

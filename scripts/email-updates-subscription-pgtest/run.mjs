@@ -6,7 +6,7 @@
 // REAL migration file is applied verbatim on top, so what's tested is
 // byte-for-byte the SQL that ships.
 //
-// What this does NOT cover (see EMAIL_UPDATES_SUBSCRIPTION_FEATURE.md for
+// What this does NOT cover (see docs/audits/EMAIL_UPDATES_SUBSCRIPTION_FEATURE.md for
 // the explicit list of verification gaps): the admin React UI, the public
 // contact form, the Edge Function HTTP layer (submit-inquiry,
 // unsubscribe-announcements, broadcast-announcement), and a live/staging

@@ -13,7 +13,7 @@ CargoExpress PH is a Progressive Web App (PWA) facilitating sea cargo shipping l
 *   **Database Philosophy:** The system leans heavily on PostgreSQL's advanced features—utilizing database triggers for synchronization, strict Foreign Key constraints for integrity, `pg_cron` for health monitoring, and atomic RPCs to safely coordinate edge function workloads.
 
 ## Evidence Sources and Inspection Limits
-*   **Sources Analyzed:** `supabase/schema.sql`, `supabase/migrations/`, `src/pages/`, `supabase/functions/`, and prior audit history (`CARGOEXPRESS_DATABASE_CLEANUP_AUDIT.md`).
+*   **Sources Analyzed:** `supabase/schema.sql`, `supabase/migrations/`, `src/pages/`, `supabase/functions/`, and prior audit history (`../audits/CARGOEXPRESS_DATABASE_CLEANUP_AUDIT.md`).
 *   **Inspection Limits:** This is a static architectural review based on the repository's configuration. Live Supabase introspection queries (`information_schema`) were bypassed in favor of analyzing the explicit source-of-truth SQL migrations to strictly prevent unintended destructive commands. No row counts or performance profiling were extracted from live production.
 
 ## Current Table Inventory

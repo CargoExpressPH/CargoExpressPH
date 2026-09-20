@@ -76,7 +76,7 @@ Layunin ng file na ito: patunayan na walang page/module na na-skip sa scan, at i
 
 ## Explicitly searched and confirmed NOT implemented
 
-- **Manual/cash refund or "charge-correction" workflow** — 🔵 zero matches in application/migration code; exists only as a proposal in `audit_reports/DISCOUNT_OVERPAYMENT_REFUND_AUDIT.md` and `audit_reports/F-006-refund-reconciliation-gap.md`.
+- **Manual/cash refund or "charge-correction" workflow** — 🔵 zero matches in application/migration code; exists only as a proposal in `../audits/DISCOUNT_OVERPAYMENT_REFUND_AUDIT.md` and `../audits/F-006-refund-reconciliation-gap.md`.
 - **Resolution-notes field on contact inquiries** — 🔵 no such column/UI field exists; only claim/release/resolve-ownership gating is real.
 - **Separate `cleanup-orphaned-photos` Edge Function** — 🔵 removed; its job was absorbed into `delete-storage-photos`.
 

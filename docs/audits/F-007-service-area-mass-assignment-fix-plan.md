@@ -178,7 +178,7 @@ plus one small frontend fix, plus one new test file.
    known service-area provinces still recognized, and admin-created bookings
    derived the same way (not exempted).
 3. Wired into `package.json` as `npm run test:service-area-mass-assignment`.
-4. `audit_reports/F-003-customer-service-area-mass-assignment.md` updated to
+4. `F-003-customer-service-area-mass-assignment.md` updated to
    point at this fix.
 
 **Scope reduction from the original plan — item 3 (fixing `createOrder()`'s

@@ -1,4 +1,4 @@
-// Guards against N-1 (POST_DEPLOYMENT_TARGETED_FIX_REPORT.md): `path.dirname(new
+// Guards against N-1 (docs/audits/POST_DEPLOYMENT_TARGETED_FIX_REPORT.md): `path.dirname(new
 // URL(import.meta.url).pathname)` leaves a literal leading slash and un-decoded
 // percent-escapes on Windows, and mis-resolves as soon as the checkout path
 // contains a space (this project's own folder does). `fileURLToPath` is the

@@ -756,7 +756,7 @@ Halimbawa ng combination: `payer_type = 'receiver'` (Freight Collect) na may `pa
 
 ✅ **Implemented:** PayMongo-provider refunds — request (admin) → reserve amount (`prepare_paymongo_refund`, may row-lock) → provider call → webhook/recovery reconciliation → ledger (`payment_refunds`, `status='succeeded'` lang ang binabawas sa `amount_paid`).
 
-🔵 **Proposed/on-hold, HINDI implemented:** Cash refunds, refund ng manually-recorded (non-PayMongo) GCash transfers, at isang hiwalay na "charge-correction" / "manual-refund" concept. Confirmed namin ito sa pamamagitan ng pag-grep sa buong repository — ang mga terminong ito ay lumalabas lang sa **audit/planning documents** (`audit_reports/DISCOUNT_OVERPAYMENT_REFUND_AUDIT.md`, `audit_reports/F-006-refund-reconciliation-gap.md`), na explicit na sinasabing "Not Supported" ng kasalukuyang system, at hindi sa aktwal na application/migration code. **Kung tatanungin ka tungkol dito sa defense, sabihin nang deretso na proposed lang ito, hindi pa implemented.**
+🔵 **Proposed/on-hold, HINDI implemented:** Cash refunds, refund ng manually-recorded (non-PayMongo) GCash transfers, at isang hiwalay na "charge-correction" / "manual-refund" concept. Confirmed namin ito sa pamamagitan ng pag-grep sa buong repository — ang mga terminong ito ay lumalabas lang sa **audit/planning documents** (`../audits/DISCOUNT_OVERPAYMENT_REFUND_AUDIT.md`, `../audits/F-006-refund-reconciliation-gap.md`), na explicit na sinasabing "Not Supported" ng kasalukuyang system, at hindi sa aktwal na application/migration code. **Kung tatanungin ka tungkol dito sa defense, sabihin nang deretso na proposed lang ito, hindi pa implemented.**
 
 ### Dapat mong tandaan
 - Ang mga halagang ginamit dito ay **hypothetical** — para lang ituro ang formula, hindi totoong data.
@@ -1096,7 +1096,7 @@ Ipinaliwanag na nang detalyado sa Seksyon 5.3 — per-user na sessionStorage key
 **23. Q: May manual/cash refund ba ang system?**
 - Spoken: "Wala pa — PayMongo-provider refund lang ang gumagana ngayon. Proposed pa lang ang manual refund sa mga audit documents."
 - Deeper: Hard-rejected ang non-PayMongo na refund sa `prepare_paymongo_refund()`.
-- File: `audit_reports/DISCOUNT_OVERPAYMENT_REFUND_AUDIT.md`.
+- File: `../audits/DISCOUNT_OVERPAYMENT_REFUND_AUDIT.md`.
 - Limitasyon: Ito mismo ang limitasyon — dapat sabihin nang deretso sa defense.
 
 **24. Q: Ano ang pagkakaiba ng "collections" at "profit"?**
@@ -1197,7 +1197,7 @@ Ipinaliwanag na nang detalyado sa Seksyon 5.3 — per-user na sessionStorage key
 - Ang GPS tracking ay **wala** — status-based lang ang tracking, hindi live na lokasyon.
 
 **Mismatch sa pagitan ng implementation at dating dokumentasyon:**
-- `docs/database_design.md` ay may pre-joined `address` column na **wala na** sa aktwal na `profiles` table (naging structured fields ito).
+- `../architecture/database_design.md` ay may pre-joined `address` column na **wala na** sa aktwal na `profiles` table (naging structured fields ito).
 - `supabase/schema.sql` ay historical snapshot lang — maraming feature (`payment_refunds`, `email_subscriptions`, `get_financial_report_data`) ang **wala** dito pero **umiiral** sa aktwal na migrations.
 - Ang mga audit documents sa `audit_reports/` ay nagpo-propose ng manual-refund feature na hindi tuluyang na-implement.
 

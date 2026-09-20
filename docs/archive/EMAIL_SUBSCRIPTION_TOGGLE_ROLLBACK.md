@@ -1,7 +1,7 @@
 # Admin Email-Subscription Toggle — Rollback
 
 Date: 2026-09-16. Targeted rollback of the unfinished "corrected email subscription" feature
-described in `CONTACT_INQUIRIES_EMAIL_FLOW_AUDIT.md` (Section G). No replacement system was
+described in `../audits/CONTACT_INQUIRIES_EMAIL_FLOW_AUDIT.md` (Section G). No replacement system was
 introduced — this restores the behavior that existed before that feature was requested.
 
 ## Live deployment check (done before touching anything)
@@ -50,9 +50,9 @@ No other files were touched.
   `getReadyServiceWorkerRegistration()` fix and the `[push-debug]` diagnostic logging.
 - `src/pages/public/AboutPage.jsx` — the public Contact Us form and its opt-in checkbox were never
   modified by the canceled feature in the first place; confirmed untouched.
-- `PASSWORD_RESET_FLOW_FIX.md`, `PUSH_NOTIFICATION_ENABLEMENT_FIX.md` — unrelated reports from
+- `../audits/PASSWORD_RESET_FLOW_FIX.md`, `../audits/PUSH_NOTIFICATION_ENABLEMENT_FIX.md` — unrelated reports from
   earlier tasks, left in place.
-- `CONTACT_INQUIRIES_EMAIL_FLOW_AUDIT.md` — kept as a historical record, with a note added at the
+- `../audits/CONTACT_INQUIRIES_EMAIL_FLOW_AUDIT.md` — kept as a historical record, with a note added at the
   top pointing to this rollback so it isn't mistaken for a description of the current code.
 - Commit `bc11420` itself was **not reverted or reset** — its `firebase-messaging.js` change stays
   committed; the parts of it that introduced this feature (`submit-inquiry`,

@@ -351,12 +351,12 @@ Deeper technical documentation lives in [`docs/`](./docs):
 
 | Document | Contents |
 |---|---|
-| [`TECHNICAL-OVERVIEW.md`](./docs/TECHNICAL-OVERVIEW.md) | Full system walkthrough |
-| [`database_design.md`](./docs/database_design.md) | ERD and per-column documentation |
-| [`SECURITY_AUDIT_2026-08-17.md`](./docs/SECURITY_AUDIT_2026-08-17.md) | Security audit findings and verification |
-| [`GOLIVE_GUIDE.md`](./docs/GOLIVE_GUIDE.md) | Production deployment checklist |
-| [`ui-ux-audit.md`](./docs/ui-ux-audit.md) | Interface and accessibility review |
-| [`WHY_FIX_TECHNICAL_DEBT.md`](./docs/WHY_FIX_TECHNICAL_DEBT.md) | Rationale for the refactoring programme |
+| [`docs/architecture/TECHNICAL-OVERVIEW.md`](./docs/architecture/TECHNICAL-OVERVIEW.md) | Full system walkthrough |
+| [`docs/architecture/database_design.md`](./docs/architecture/database_design.md) | ERD and per-column documentation |
+| [`docs/audits/SECURITY_AUDIT_2026-08-17.md`](./docs/audits/SECURITY_AUDIT_2026-08-17.md) | Security audit findings and verification |
+| [`docs/operations/GOLIVE_GUIDE.md`](./docs/operations/GOLIVE_GUIDE.md) | Production deployment checklist |
+| [`docs/audits/ui-ux-audit.md`](./docs/audits/ui-ux-audit.md) | Interface and accessibility review |
+| [`docs/archive/WHY_FIX_TECHNICAL_DEBT.md`](./docs/archive/WHY_FIX_TECHNICAL_DEBT.md) | Rationale for the refactoring programme |
 
 `CLAUDE.md` in the repository root is the working engineering brief — the
 authoritative description of architecture, invariants and conventions.

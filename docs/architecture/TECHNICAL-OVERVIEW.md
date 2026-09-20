@@ -850,9 +850,9 @@ CargoExpressPH-main/
 ├── package.json                Dependencies and scripts
 ├── vite.config.js              Build config + 2 custom plugins
 ├── vercel.json                 SPA rewrite, security headers, SW cache policy
-├── docs/database_design.md     ERD + per-column documentation
+├── database_design.md     ERD + per-column documentation
 ├── CLAUDE.md                   Engineering operating rules
-├── docs/TECHNICAL-OVERVIEW.md  This document
+├── TECHNICAL-OVERVIEW.md  This document
 │
 ├── public/
 │   ├── manifest.json           Web App Manifest

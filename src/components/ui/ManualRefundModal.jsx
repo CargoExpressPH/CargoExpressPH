@@ -34,7 +34,7 @@ const formatLockCountdown = (lockedUntil) => {
  * See supabase/functions/record-manual-refund for the password
  * verification this performs server-side.
  *
- * AUTOFILL — root cause and fix (see MANUAL_REFUND_REFERENCE_VALIDATION_FIX_REPORT.md
+ * AUTOFILL — root cause and fix (see docs/audits/MANUAL_REFUND_REFERENCE_VALIDATION_FIX_REPORT.md
  * for the full writeup):
  *
  * This modal used to render as a native <form> containing a plain, bare

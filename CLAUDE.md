@@ -12,13 +12,13 @@ Pricing, status transitions, payment totals, settlement gating and row-level acc
 computed and enforced in PostgreSQL (RLS policies + triggers + `SECURITY DEFINER` RPCs), not in
 React. When changing any customer- or admin-facing write path, the client-side change is not the
 security boundary — the matching migration/trigger/RLS policy is. See `README.md` §"For
-Evaluators & Panelists" and `docs/TECHNICAL-OVERVIEW.md` for the full rationale; this file only
+Evaluators & Panelists" and `docs/architecture/TECHNICAL-OVERVIEW.md` for the full rationale; this file only
 covers what's needed to work in the code day-to-day.
 
 Deeper reference docs (read before large changes in these areas):
-- `docs/TECHNICAL-OVERVIEW.md` — full architecture walkthrough, section-numbered
-- `docs/database_design.md` — ERD and per-column documentation
-- `docs/GOLIVE_GUIDE.md` — production deployment checklist
+- `docs/architecture/TECHNICAL-OVERVIEW.md` — full architecture walkthrough, section-numbered
+- `docs/architecture/database_design.md` — ERD and per-column documentation
+- `docs/operations/GOLIVE_GUIDE.md` — production deployment checklist
 
 ## Commands
 

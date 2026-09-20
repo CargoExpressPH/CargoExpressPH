@@ -31,7 +31,7 @@ for (const path of [
 }
 assert.ok(
   !existsSync('supabase/functions/cleanup-orphaned-photos'),
-  'cleanup-orphaned-photos was superseded by delete-storage-photos + the unified gallery and should stay removed locally — see STORAGE_FOLDER_BROWSER_IMPLEMENTATION.md for its live-undeploy status.',
+  'cleanup-orphaned-photos was superseded by delete-storage-photos + the unified gallery and should stay removed locally — see docs/operations/STORAGE_FOLDER_BROWSER_IMPLEMENTATION.md for its live-undeploy status.',
 );
 
 // ── Original module DDL (unchanged by the folder-browser redesign) ────────

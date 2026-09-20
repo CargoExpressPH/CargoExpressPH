@@ -10,7 +10,7 @@
 // 20260915110000 (the folder browser + corrected manual-deletion rule under
 // test) — so what's tested is byte-for-byte the SQL that ships.
 //
-// What this file does NOT cover (see STORAGE_FOLDER_BROWSER_IMPLEMENTATION.md
+// What this file does NOT cover (see docs/operations/STORAGE_FOLDER_BROWSER_IMPLEMENTATION.md
 // for the explicit list of verification gaps): the delete-storage-photos Edge
 // Function's actual Supabase Storage / Firestore calls, the Storage SDK
 // list()/remove() calls the Company Images tab makes directly, and the

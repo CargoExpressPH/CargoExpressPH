@@ -3,7 +3,7 @@
 Implements (not just proposes) the three-column booking-folder browser and the corrected
 manual-deletion rule, replacing the flat "All Photos / Can Be Deleted / Still Needed" gallery from
 `STORAGE_MONITORING_SIMPLIFICATION_IMPLEMENTATION.md`, informed by the follow-up
-`STORAGE_MONITORING_POST_CHANGE_AUDIT.md` (which flagged the anon-grant gap and the undeployed
+`../audits/STORAGE_MONITORING_POST_CHANGE_AUDIT.md` (which flagged the anon-grant gap and the undeployed
 `cleanup-orphaned-photos` leftover this task also addresses).
 
 ---

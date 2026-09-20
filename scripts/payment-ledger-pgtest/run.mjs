@@ -1,5 +1,5 @@
 // Payment ledger integrity regression tests — BUG-01 fix + manual payment
-// hardening (see PAYMENT_DUPLICATE_PREVENTION_FIX.md).
+// hardening (see docs/audits/PAYMENT_DUPLICATE_PREVENTION_FIX.md).
 //
 // Runs the ACTUAL migration files in supabase/migrations verbatim against a
 // real embedded Postgres (PGlite — a full Postgres compiled to WASM, not a
@@ -12,7 +12,7 @@
 // calls prove the FUNCTION's logic is correct once Postgres's row lock has
 // serialized two callers (which is what SELECT ... FOR UPDATE guarantees in
 // real Postgres) — they do not exercise true multi-backend lock contention.
-// See PAYMENT_DUPLICATE_PREVENTION_FIX.md for what remains unverified.
+// See docs/audits/PAYMENT_DUPLICATE_PREVENTION_FIX.md for what remains unverified.
 import { PGlite } from '@electric-sql/pglite';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';

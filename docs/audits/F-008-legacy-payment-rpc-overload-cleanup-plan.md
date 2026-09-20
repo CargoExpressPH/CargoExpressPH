@@ -157,7 +157,7 @@ exact signatures, plus one new hygiene test.
    `scripts/shipping-discount-pgtest/harness-schema.sql` as its base) — a new
    regression suite. **8/8 passing.**
 3. Wired into `package.json` as `npm run test:legacy-rpc-overload-cleanup`.
-4. `audit_reports/F-005-legacy-payment-rpc-overloads.md` updated to point at
+4. `F-005-legacy-payment-rpc-overloads.md` updated to point at
    this fix.
 
 **A finding made during test-writing, worth recording:** my original plan

@@ -8,7 +8,7 @@ customer data were touched. All database evidence below came from `supabase db q
 (read-only SQL) and `supabase migration list` / `supabase functions list` (read-only CLI status
 checks).
 
-**Important correction to the record:** the prior `STORAGE_MONITORING_SIMPLIFICATION_IMPLEMENTATION.md`
+**Important correction to the record:** the prior `../operations/STORAGE_MONITORING_SIMPLIFICATION_IMPLEMENTATION.md`
 stated the new migration and edge function were written but *not* deployed, pending approval. Live
 evidence in this audit shows they **have since been deployed** — `supabase migration list` shows
 `20260915090000` applied on the remote database, and `delete-storage-photos` is `ACTIVE` in

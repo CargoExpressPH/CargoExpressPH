@@ -1,4 +1,4 @@
-// Regression coverage for POST_DEPLOYMENT_TARGETED_FIX_REPORT.md item 2/N-2:
+// Regression coverage for docs/audits/POST_DEPLOYMENT_TARGETED_FIX_REPORT.md item 2/N-2:
 // the public "email this schedule update to all subscribers" option on trip
 // reschedule. Applies the real original trigger migration (20260910020000)
 // plus the real forward-fix migration (20260917100000) against an embedded

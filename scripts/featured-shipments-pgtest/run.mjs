@@ -14,7 +14,7 @@
 // What this file does NOT cover: the admin FeatureShipmentModal /
 // OrderDetailPage UI, the About page rendering, or Supabase Storage's actual
 // object deletion — those need a live/staging Supabase project and a
-// browser. See FEATURED_SHIPMENTS_AND_FEEDBACK_SEPARATION.md for the full
+// browser. See docs/audits/FEATURED_SHIPMENTS_AND_FEEDBACK_SEPARATION.md for the full
 // list of what was and wasn't verified.
 import { PGlite } from '@electric-sql/pglite';
 import { readFileSync } from 'node:fs';

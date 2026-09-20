@@ -12,7 +12,7 @@
  * not guaranteed to share that same length or shape. Hard-coding one exact
  * length/pattern would reject legitimate references from a different rail,
  * so this checks structure and clearly-wrong values instead of one fixed
- * format — see the sources cited in MANUAL_REFUND_REFERENCE_VALIDATION_FIX_REPORT.md.
+ * format — see the sources cited in docs/audits/MANUAL_REFUND_REFERENCE_VALIDATION_FIX_REPORT.md.
  *
  * IMPORTANT: passing this check proves the TEXT is reference-shaped. It does
  * NOT prove a transfer actually happened — that is still only established by

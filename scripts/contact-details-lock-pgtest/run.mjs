@@ -6,7 +6,7 @@
 // the REAL migration file is applied verbatim on top, so what's tested is
 // byte-for-byte the SQL that ships.
 //
-// What this file does NOT cover (see BOOKING_UI_AND_WEBSITE_FEATURE_UPDATES.md
+// What this file does NOT cover (see docs/audits/BOOKING_UI_AND_WEBSITE_FEATURE_UPDATES.md
 // for the explicit list of verification gaps): the admin/customer React UI,
 // and a live/staging Supabase project.
 import { PGlite } from '@electric-sql/pglite';

@@ -367,7 +367,7 @@ const AdminOrderDetailPage = () => {
       if (silent) toast.error(e.message || 'Failed to refresh order.');
       else setError(e.message || 'Failed to load order.');
     } finally {
-      if (isCurrent() && !silent) setLoading(false);
+      if (isCurrent()) setLoading(false);
     }
   };
 

@@ -256,7 +256,7 @@ const isTransientError = (error) => {
 };
 ```
 
-**Conclusion: the bug described in `SYSTEM_MODULE_BUG_AUDIT.md` — an
+**Conclusion: the bug described in `../audits/SYSTEM_MODULE_BUG_AUDIT.md` — an
 unrecognized/default Postgres error code (`P0001`, which is exactly what a
 bare `RAISE EXCEPTION 'message'` with no explicit `USING ERRCODE=...`
 produces, and every `RAISE EXCEPTION` in `record_activity()` and
@@ -731,7 +731,7 @@ reported here for the team to correct (the one-line fix would be
 
 ### 9.2 Confirmed, previously-fixed bug (re-verified, not re-found)
 
-The activity-log retry-classifier bug from `SYSTEM_MODULE_BUG_AUDIT.md` — see
+The activity-log retry-classifier bug from `../audits/SYSTEM_MODULE_BUG_AUDIT.md` — see
 §1.7 for full evidence. **Fixed.** Do not present this as an open issue at
 defense; if asked about it, the correct answer is "it was found, and the fix
 is visible in the code with a comment naming the exact bug it closes."

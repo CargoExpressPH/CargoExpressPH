@@ -173,8 +173,8 @@ deployed. `supabase db push` has not been run.
 - **Browser verification** (listed above) is the main gap — recommend clicking through
   Feature/Cancel/Remove-from-Website on a disposable Delivered test booking, and loading `/about`
   on desktop and mobile, against a dev/staging Supabase project before this ships.
-- Historical/dated docs (`docs/SECURITY_AUDIT_2026-08-17.md`,
-  `docs/database-architecture-review.md`) still describe the pre-fix `get_public_feedback()` shape
+- Historical/dated docs (`SECURITY_AUDIT_2026-08-17.md`,
+  `../archive/database-architecture-review.md`) still describe the pre-fix `get_public_feedback()` shape
   or older audit findings — left untouched deliberately, as point-in-time records rather than
-  living references (`docs/TECHNICAL-OVERVIEW.md` and `docs/database_design.md` were checked and
+  living references (`../architecture/TECHNICAL-OVERVIEW.md` and `../architecture/database_design.md` were checked and
   remain accurate as-is).

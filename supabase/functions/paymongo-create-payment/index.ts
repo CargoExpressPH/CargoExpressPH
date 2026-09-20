@@ -317,7 +317,7 @@ serve(async (req) => {
     // Before this check, a caller could create a PayMongo source for any amount
     // (the browser holds the PUBLIC key and calls /v1/sources directly), then
     // register it here — paying ₱1 against a ₱5,000 order. See P-1 in
-    // docs/payment-redesign-v2.md.
+    // docs/archive/payment-redesign-v2.md.
     //
     // The order's outstanding balance is the authority. 'poll' is exempt: it
     // sends a placeholder amount of 1 and the server uses the stored attempt
@@ -403,7 +403,7 @@ serve(async (req) => {
         // of which caller's reconcile has (or will) run, and it is not
         // itself a payment id to credit with.
         //
-        // BUG-01 (see PAYMENT_DUPLICATE_PREVENTION_FIX.md): this branch used
+        // BUG-01 (see docs/audits/PAYMENT_DUPLICATE_PREVENTION_FIX.md): this branch used
         // to paper over that by reconciling with a made-up
         // `auto_${sourceId}` reference, which the ledger's own idempotency
         // guard could not recognize as the same money once the real

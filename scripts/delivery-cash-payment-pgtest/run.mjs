@@ -9,7 +9,7 @@
 // 20260915100000 (the actual fix under test) — so what's tested is
 // byte-for-byte the SQL that ships.
 //
-// What this file does NOT cover (see DELIVERY_PARTIAL_CASH_PAYMENT_FIX.md for
+// What this file does NOT cover (see docs/audits/DELIVERY_PARTIAL_CASH_PAYMENT_FIX.md for
 // the explicit list of verification gaps): the DeliveryModal/
 // PaymentCollectionPanel React UI, the PayMongo webhook's own reconciliation
 // path (reconcile_paymongo_payment_attempt — untouched by this fix, not

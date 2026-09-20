@@ -346,7 +346,7 @@ serve(async (req) => {
           // own POST /v1/payments response and is reconciling with it right
           // now (or already has).
           //
-          // BUG-01 (see PAYMENT_DUPLICATE_PREVENTION_FIX.md): this branch
+          // BUG-01 (see docs/audits/PAYMENT_DUPLICATE_PREVENTION_FIX.md): this branch
           // used to treat the source's own "paid" status as license to
           // reconcile anyway, using a MADE-UP reference (`auto_${sourceId}`)
           // because the source endpoint does not return a payment id. That

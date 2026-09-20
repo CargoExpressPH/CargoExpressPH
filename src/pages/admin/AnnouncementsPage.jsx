@@ -381,7 +381,7 @@ const AnnouncementsPage = () => {
                           ? (() => {
                               // "Accepted" means the email provider took it, not that it
                               // reached an inbox — see N-3 in
-                              // POST_DEPLOYMENT_TARGETED_FIX_REPORT.md. `pending` (never
+                              // docs/audits/POST_DEPLOYMENT_TARGETED_FIX_REPORT.md. `pending` (never
                               // yet attempted, e.g. beyond the 25-per-invocation cap) was
                               // previously invisible here, which could read as "basically
                               // done" on a large list that was actually mostly untouched.
