@@ -554,9 +554,13 @@ const PaymentCollectionPanel = ({
               let newAmount = v;
               let newType = value.payment_type;
               
-              if (d.expected > 0 && numVal >= d.expected) {
-                newAmount = d.expected.toString();
-                newType = 'full';
+              if (d.expected > 0) {
+                if (numVal >= d.expected) {
+                  newAmount = d.expected.toString();
+                  newType = 'full';
+                } else if (Number.isFinite(numVal) && numVal > 0 && numVal < d.expected) {
+                  newType = 'paylater';
+                }
               }
               
               patch({ amount: newAmount, payment_type: newType, shortfallBlocked: false });
