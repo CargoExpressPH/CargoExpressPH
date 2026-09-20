@@ -265,7 +265,7 @@ const ReportsPage = () => {
                    </div>
                 </div>
 
-                <div className="card stagger-item" style={{ animationDelay: '260ms' }}>
+                <div className="card stagger-item" style={{ animationDelay: '260ms', gridColumn: '1 / -1' }}>
                   <div className="card-header">
                     <h3 className="flex items-center gap-8">
                       <CreditCard size={18} className="text-primary" />
