@@ -3,6 +3,7 @@
 // Docs: https://developers.paymongo.com/
 
 import { supabase } from './supabase';
+import { sanitizeInternalReturnPath } from './paymentReturnContext';
 
 const PAYMONGO_PUBLIC_KEY = import.meta.env.VITE_PAYMONGO_PUBLIC_KEY || '';
 
@@ -16,9 +17,10 @@ const PAYMONGO_API = 'https://api.paymongo.com/v1';
  * @param {object} billing - Billing details { name, phone, email }
  * @param {boolean} isAdmin - Whether the admin is initiating the payment
  * @param {string} orderId - Optional order UUID used only for backend registration
+ * @param {string} returnTo - Optional same-device internal return path
  * @returns {object} - { sourceId, checkoutUrl, returnToken }
  */
-export const createGCashSource = async (amount, description, billing = {}, isAdmin = false, orderId = null) => {
+export const createGCashSource = async (amount, description, billing = {}, isAdmin = false, orderId = null, returnTo = null) => {
   if (!PAYMONGO_PUBLIC_KEY) {
     throw new Error('PayMongo public key is not configured. Add VITE_PAYMONGO_PUBLIC_KEY to your .env file.');
   }
@@ -27,8 +29,14 @@ export const createGCashSource = async (amount, description, billing = {}, isAdm
   // embedded in PayMongo's redirect URL, then registered (hashed) against the
   // exact source on the backend.
   const returnToken = crypto.randomUUID();
-  const returnQuery = `payment=success&return_token=${encodeURIComponent(returnToken)}`;
-  const failedReturnQuery = `payment=failed&return_token=${encodeURIComponent(returnToken)}`;
+  const safeReturnTo = sanitizeInternalReturnPath(returnTo);
+  // The originating route is stored only in the initiating browser's local
+  // context. Do not put an admin/customer route or order id in the public
+  // PayMongo return URL shown to a scanning device.
+  const makeReturnQuery = (payment) => new URLSearchParams({
+    payment,
+    return_token: returnToken,
+  }).toString();
 
   const response = await fetch(`${PAYMONGO_API}/sources`, {
     method: 'POST',
@@ -44,8 +52,8 @@ export const createGCashSource = async (amount, description, billing = {}, isAdm
           // The URL carries only the one-payment return capability; no order,
           // role, or customer identifier is exposed to Device B.
           redirect: {
-            success: `${window.location.origin}/payment/return?${returnQuery}`,
-            failed: `${window.location.origin}/payment/return?${failedReturnQuery}`,
+            success: `${window.location.origin}/payment/return?${makeReturnQuery('success')}`,
+            failed: `${window.location.origin}/payment/return?${makeReturnQuery('failed')}`,
           },
           type: 'gcash',
           currency: 'PHP',
@@ -71,6 +79,7 @@ export const createGCashSource = async (amount, description, billing = {}, isAdm
     checkoutUrl: data.data.attributes.redirect.checkout_url,
     status: data.data.attributes.status,
     returnToken,
+    returnTo: safeReturnTo,
   };
 };
 
@@ -187,13 +196,14 @@ export const registerSource = async (sourceId, amount, orderUpdate) => {
  * @param {object} customer - { name, phone, email }
  * @param {boolean} isAdmin - Whether the admin is initiating the payment
  * @param {string} orderId - Optional order UUID for redirect
+ * @param {string} returnTo - Optional same-device internal return path
  * @returns {object} sourceId, checkoutUrl, returnToken - Payment flow handles
  */
-export const initiateGCashPayment = async (amount, trackingNumber, customer = {}, isAdmin = false, orderId = null) => {
+export const initiateGCashPayment = async (amount, trackingNumber, customer = {}, isAdmin = false, orderId = null, returnTo = null) => {
   const description = `CargoExpress PH - Order ${trackingNumber}`;
-  const { sourceId, checkoutUrl, returnToken } = await createGCashSource(amount, description, customer, isAdmin, orderId);
+  const { sourceId, checkoutUrl, returnToken, returnTo: safeReturnTo } = await createGCashSource(amount, description, customer, isAdmin, orderId, returnTo);
 
-  return { sourceId, checkoutUrl, returnToken };
+  return { sourceId, checkoutUrl, returnToken, returnTo: safeReturnTo };
 };
 
 const inFlightPolls = new Map();

@@ -9,6 +9,7 @@ import FieldError, { errorId, fieldAttrs, invalidClass } from './FieldError';
 import { sanitizeAmount, parseAmount, formatAmount } from '../../utils/currencyInput';
 import { createGCashSource, registerSource, pollPaymentStatus } from '../../lib/paymongo';
 import { clearPendingPayment, savePendingPayment } from '../../lib/pendingPayment';
+import { savePaymentReturnContext } from '../../lib/paymentReturnContext';
 import { getPaymentAttemptBySource, getOrderPaymentSnapshot } from '../../lib/database';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
@@ -333,7 +334,9 @@ const PaymentCollectionPanel = ({
         config.billing,
         true,
         order.id,
+        `/admin/orders/${order.id}`,
       );
+      const returnTo = source.returnTo || `/admin/orders/${order.id}`;
       await registerSource(source.sourceId, amount, {
         orderId: order.id,
         ...(config.sourceMetadata || {}),
@@ -343,6 +346,12 @@ const PaymentCollectionPanel = ({
         orderId: order.id,
         sourceId: source.sourceId,
         amount,
+        role: 'admin',
+        userId: user?.id,
+      });
+      savePaymentReturnContext({
+        returnToken: source.returnToken,
+        returnTo,
         role: 'admin',
         userId: user?.id,
       });

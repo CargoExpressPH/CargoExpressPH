@@ -10,6 +10,7 @@ import { serializePhotoReference } from '../../lib/photoReference';
 import QRCode from 'react-qr-code';
 import { createGCashSource, registerSource, pollPaymentStatus } from '../../lib/paymongo';
 import { clearPendingPayment, savePendingPayment } from '../../lib/pendingPayment';
+import { savePaymentReturnContext } from '../../lib/paymentReturnContext';
 import { getPaymentAttemptBySource, getOrderPaymentSnapshot } from '../../lib/database';
 import { supabase } from '../../lib/supabase';
 import { useToast } from '../../hooks/useToast';
@@ -115,7 +116,9 @@ const AdditionalPaymentModal = ({ order, remainingBalance, onClose, onSave, onPa
         phone: order.sender_phone,
       };
       
-      const source = await createGCashSource(amount, `CargoExpress PH - ${order.tracking_number} Additional Payment`, billing, true, order.id);
+      const returnTo = `/admin/orders/${order.id}`;
+      const source = await createGCashSource(amount, `CargoExpress PH - ${order.tracking_number} Additional Payment`, billing, true, order.id, returnTo);
+      const safeReturnTo = source.returnTo || returnTo;
       await registerSource(source.sourceId, amount, {
         orderId: order.id,
         returnToken: source.returnToken,
@@ -124,6 +127,12 @@ const AdditionalPaymentModal = ({ order, remainingBalance, onClose, onSave, onPa
         orderId: order.id,
         sourceId: source.sourceId,
         amount,
+        role: 'admin',
+        userId: user?.id,
+      });
+      savePaymentReturnContext({
+        returnToken: source.returnToken,
+        returnTo: safeReturnTo,
         role: 'admin',
         userId: user?.id,
       });

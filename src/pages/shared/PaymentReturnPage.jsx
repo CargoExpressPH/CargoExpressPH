@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
+import {
+  clearPaymentReturnContext,
+  getPaymentReturnContext,
+} from '../../lib/paymentReturnContext';
 import usePageTitle from '../../hooks/usePageTitle';
 
 const TERMINAL_PHASES = new Set(['confirmed', 'failed', 'invalid']);
@@ -9,11 +13,11 @@ const AUTO_CHECK_DELAYS = [0, 1500, 3000, 5000, 8000, 12000];
 /**
  * Public Device B landing page for a PayMongo redirect.
  *
- * It deliberately does not read auth state, localStorage, orders, or
- * payment_attempts. The only input is the high-entropy return capability in
- * the URL; the public Edge Function validates its hash server-side and returns
- * a status enum. This keeps the same experience for logged-out users, users
- * with another account, installed PWAs, and in-app browsers.
+ * Payment verification does not depend on auth state or localStorage. The
+ * high-entropy return capability in the URL is sent to the public Edge
+ * Function, which validates its hash server-side and returns only a status
+ * enum. Local storage is consulted only after confirmation to decide whether
+ * this exact browser may navigate back to its own originating page.
  */
 const PaymentReturnPage = () => {
   usePageTitle('Payment Status');
@@ -22,6 +26,28 @@ const PaymentReturnPage = () => {
   const timerRef = useRef(null);
   const [phase, setPhase] = useState(returnToken ? 'verifying' : 'invalid');
   const [checking, setChecking] = useState(false);
+  const [originatingReturnTo, setOriginatingReturnTo] = useState(null);
+  const [closeFallbackVisible, setCloseFallbackVisible] = useState(false);
+
+  // This is intentionally only a same-browser navigation convenience. The
+  // server verification below never depends on auth or localStorage. Requiring
+  // both the local capability and the same authenticated user prevents a
+  // different logged-in account on Device B from being sent to a private page.
+  useEffect(() => {
+    let cancelled = false;
+    const context = getPaymentReturnContext(returnToken);
+    if (!context) return undefined;
+
+    supabase.auth.getSession().then(({ data }) => {
+      if (!cancelled && data?.session?.user?.id === context.userId) {
+        setOriginatingReturnTo(context.returnTo);
+      }
+    }).catch(() => {
+      // A session read failure keeps the public fallback available.
+    });
+
+    return () => { cancelled = true; };
+  }, [returnToken]);
 
   const verifyOnce = useCallback(async () => {
     if (!returnToken) {
@@ -98,13 +124,54 @@ const PaymentReturnPage = () => {
     await verifyOnce();
   };
 
+  const handleClose = () => {
+    if (originatingReturnTo) {
+      clearPaymentReturnContext(returnToken);
+      // replace() prevents Back from reopening the checkout/return flow.
+      window.location.replace(originatingReturnTo);
+      return;
+    }
+
+    // Browsers only honor window.close() for tabs/windows opened by script.
+    // Always render the fallback after attempting it so the user is never
+    // trapped waiting for a programmatic close that the browser rejects.
+    try {
+      window.close();
+    } catch {
+      // Some embedded browsers throw instead of silently ignoring close().
+    } finally {
+      setCloseFallbackVisible(true);
+    }
+  };
+
   if (phase === 'confirmed') {
     return (
       <main className="loading-screen" aria-live="polite" style={{ padding: 24, textAlign: 'center' }}>
         <h1 style={{ margin: 0, fontSize: '1.5rem' }}>Thank you for your payment!</h1>
         <p className="text-secondary" style={{ maxWidth: 360, margin: '12px auto 0' }}>
-          Your payment has been successfully confirmed. You may now close this page.
+          Your payment has been successfully confirmed.
         </p>
+        <button
+          type="button"
+          onClick={handleClose}
+          style={{
+            marginTop: 20,
+            padding: '10px 24px',
+            background: 'var(--primary)',
+            color: '#fff',
+            border: 'none',
+            borderRadius: 8,
+            fontSize: 16,
+            cursor: 'pointer',
+          }}
+        >
+          {originatingReturnTo ? 'Return to CargoExpress' : 'Close'}
+        </button>
+        {closeFallbackVisible && !originatingReturnTo && (
+          <p className="text-secondary" style={{ maxWidth: 360, margin: '12px auto 0' }}>
+            You may now close this tab and return to the device where you started your payment.
+          </p>
+        )}
       </main>
     );
   }

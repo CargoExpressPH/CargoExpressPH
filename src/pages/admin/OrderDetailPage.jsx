@@ -46,6 +46,7 @@ import {
 import { useToast } from '../../hooks/useToast';
 import { useAuth } from '../../contexts/AuthContext';
 import usePageTitle from '../../hooks/usePageTitle';
+import useOrderPaymentRealtime from '../../hooks/useOrderPaymentRealtime';
 import { formatPhDate, formatPhDateTime } from '../../utils/datetime';
 import { formatMoney } from '../../utils/currencyInput';
 import { truncateRef, isSystemGenerated, getPaymentActivityStatusDisplay, formatRecordedBy as fmtRecordedBy } from '../../utils/paymentDisplay';
@@ -154,6 +155,7 @@ const AdminOrderDetailPage = () => {
   const [photoLoadState, setPhotoLoadState] = useState({});
   const [resolvedDeliveryPhotos, setResolvedDeliveryPhotos] = useState([]);
   const [deliveryPhotoLoadState, setDeliveryPhotoLoadState] = useState({});
+  const orderLoadSequenceRef = useRef(0);
 
   // savingFeature: owned by parent so the modal button disables correctly
   // while the updateOrder() call is in-flight.
@@ -341,31 +343,35 @@ const AdminOrderDetailPage = () => {
   // whole page — any open modal included — so a refresh that runs around a
   // modal must not go through it.
   const loadOrder = async (isMounted = true, { silent = false } = {}) => {
+    const requestSequence = ++orderLoadSequenceRef.current;
+    const isCurrent = () => isMounted && requestSequence === orderLoadSequenceRef.current;
     if (!silent) { setError(null); setLoading(true); }
     try {
       const data = await getOrderById(id);
-      if (!isMounted) return;
+      if (!isCurrent()) return;
       setOrder(data);
       const history = await getTripReassignments(id);
-      if (isMounted) setTripHistory(history);
+      if (isCurrent()) setTripHistory(history);
       const actLogs = await getActivityLogsByRecord(id, data.tracking_number);
-      if (isMounted) setActivityHistory(actLogs);
+      if (isCurrent()) setActivityHistory(actLogs);
       const events = await getOrderStatusEvents(id);
-      if (isMounted) setStatusEvents(events);
+      if (isCurrent()) setStatusEvents(events);
       const pmts = await getPaymentTransactions(id);
-      if (isMounted) setPaymentTransactions(pmts);
+      if (isCurrent()) setPaymentTransactions(pmts);
       const settlement = data.status === ORDER_STATUS.CANCELLED
         ? await getCancellationSettlementSummary(id)
         : null;
-      if (isMounted) setCancellationSettlement(settlement);
+      if (isCurrent()) setCancellationSettlement(settlement);
     } catch (e) {
-      if (!isMounted) return;
+      if (!isCurrent()) return;
       if (silent) toast.error(e.message || 'Failed to refresh order.');
       else setError(e.message || 'Failed to load order.');
     } finally {
-      if (isMounted && !silent) setLoading(false);
+      if (isCurrent() && !silent) setLoading(false);
     }
   };
+
+  useOrderPaymentRealtime(id, () => loadOrder(true, { silent: true }));
 
   const handleStatusAdvance = async () => {
     const next = STATUS_FLOW[order.status];
@@ -1677,6 +1683,7 @@ const AdminOrderDetailPage = () => {
           // keeps the balance fixed while the modal is open, exactly as on
           // Unsettled Deliveries.
           onClose={() => { setShowPaymentModal(false); void loadOrder(true, { silent: true }); }}
+          onPaymentConfirmed={() => loadOrder(true, { silent: true })}
           onSave={handleAdditionalPayment}
         />
       )}

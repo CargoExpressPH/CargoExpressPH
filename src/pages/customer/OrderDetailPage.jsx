@@ -8,6 +8,7 @@ import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { initiateGCashPayment, registerSource, pollPaymentStatus } from '../../lib/paymongo';
 import { clearPendingPayment, getPendingPayment, savePendingPayment } from '../../lib/pendingPayment';
+import { savePaymentReturnContext } from '../../lib/paymentReturnContext';
 import { isPaymentPollReconciled } from '../../utils/paymentReconciliation';
 import StatusBadge from '../../components/ui/StatusBadge';
 import TrackingTimeline from '../../components/ui/TrackingTimeline';
@@ -28,6 +29,7 @@ import { formatPhDate, formatPhDateTime } from '../../utils/datetime';
 import { formatMoney, sanitizeAmount, parseAmount } from '../../utils/currencyInput';
 import { outstandingBalance, finalShippingFee, getSettlementState, isOrderPriced, SETTLEMENT_STATE, ORDER_STATUS, canCancelOrder, hasPendingCancellation, timelineStatus, canEditContactDetails } from '../../constants/status';
 import { formatPaymentType, formatRecordedBy, formatRefundRecordedBy, getPaymentActivityStatusDisplay, formatPaymentMethod as fmtMethod, getCustomerFriendlyNotes, getCustomerVisibleRef, getRefundAmountDisplay } from '../../utils/paymentDisplay';
+import useOrderPaymentRealtime from '../../hooks/useOrderPaymentRealtime';
 
 // Max time (ms) to wait for data before giving up and showing an error.
 const LOAD_TIMEOUT_MS = 15000;
@@ -112,6 +114,7 @@ const OrderDetailPage = () => {
   const paymentChannelRef = useRef(null);
   const paymentConfirmedRef = useRef(false);
   const paymentVerificationInFlightRef = useRef(false);
+  const orderLoadSequenceRef = useRef(0);
 
   // Mirror the two payment-verification booleans into refs so applyOrderData
   // (below) can read their current value without depending on them — that
@@ -233,6 +236,7 @@ const OrderDetailPage = () => {
       return;
     }
 
+    const requestSequence = ++orderLoadSequenceRef.current;
     setError(null);
     setLoading(true);
     startLoadTimeout();
@@ -240,13 +244,13 @@ const OrderDetailPage = () => {
     try {
       const { data, pmts, events, settlement } = await fetchOrderData();
       clearLoadTimeout();
-      if (isMountedRef.current) {
+      if (isMountedRef.current && requestSequence === orderLoadSequenceRef.current) {
         applyOrderData(data, pmts, events, settlement);
         setLoading(false);
       }
     } catch (err) {
       clearLoadTimeout();
-      if (isMountedRef.current) {
+      if (isMountedRef.current && requestSequence === orderLoadSequenceRef.current) {
         setError(normalizeError(err));
         setLoading(false);
       }
@@ -260,14 +264,19 @@ const OrderDetailPage = () => {
   // change, which is worse than the staleness this is fixing.
   const refreshOrderSilently = useCallback(async () => {
     if (!id || !isMountedRef.current) return;
+    const requestSequence = ++orderLoadSequenceRef.current;
     try {
       const { data, pmts, events, settlement } = await fetchOrderData();
-      if (isMountedRef.current) applyOrderData(data, pmts, events, settlement);
+      if (isMountedRef.current && requestSequence === orderLoadSequenceRef.current) {
+        applyOrderData(data, pmts, events, settlement);
+      }
     } catch {
       // Silent: a failed background refresh shouldn't disturb data already
       // on screen. The next realtime event, or a manual action, retries.
     }
   }, [id, fetchOrderData, applyOrderData]);
+
+  useOrderPaymentRealtime(id, refreshOrderSilently);
 
   // Load order on mount and when id changes
   useEffect(() => {
@@ -290,27 +299,6 @@ const OrderDetailPage = () => {
     window.addEventListener('pageshow', handlePageShow);
     return () => window.removeEventListener('pageshow', handlePageShow);
   }, []);
-
-  // ── Live tracking ─────────────────────────────────────────────────────────
-  // Without this, a status advance, weigh-in, or payment recorded by staff
-  // while this exact page is open only ever shows up after a manual refresh —
-  // the one screen whose entire purpose is showing where the shipment is
-  // right now. Scoped to this single row (not the generic useRealtimeOrders
-  // hook, which has no per-row filter) since only one order is on screen here.
-  useEffect(() => {
-    if (!id) return undefined;
-    const channel = supabase
-      .channel(`customer_order_detail_${id}`)
-      .on('postgres_changes', {
-        event: 'UPDATE',
-        schema: 'public',
-        table: 'orders',
-        filter: `id=eq.${id}`,
-      }, () => { void refreshOrderSilently(); })
-      .subscribe();
-
-    return () => { void supabase.removeChannel(channel); };
-  }, [id, refreshOrderSilently]);
 
   // ── Payment Return Handler ───────────────────────────────────────────────
   // When the customer returns from PayMongo with ?payment=success,
@@ -650,7 +638,8 @@ const OrderDetailPage = () => {
         phone: userProfile?.phone || order.sender_phone,
       };
 
-      const { sourceId, checkoutUrl, returnToken } = await initiateGCashPayment(amount, order.tracking_number, customer, false, order.id);
+      const returnTo = `/customer/orders/${order.id}`;
+      const { sourceId, checkoutUrl, returnToken, returnTo: safeReturnTo } = await initiateGCashPayment(amount, order.tracking_number, customer, false, order.id, returnTo);
 
       await registerSource(sourceId, amount, {
         orderId: order.id,
@@ -663,6 +652,12 @@ const OrderDetailPage = () => {
         orderId: order.id,
         sourceId,
         amount,
+        role: 'customer',
+        userId: user?.id,
+      });
+      savePaymentReturnContext({
+        returnToken,
+        returnTo: safeReturnTo || returnTo,
         role: 'customer',
         userId: user?.id,
       });
