@@ -147,8 +147,18 @@ const CompanyInformationPage = () => {
     try {
       setSaving(true);
       await updateCompanyInformation(companyInfo);
+      
+      const prev = JSON.parse(savedInfo || '{}');
+      const changedKeys = Object.keys(companyInfo).filter(k => companyInfo[k] !== prev[k]);
+      const diffSummary = changedKeys.length > 0 
+        ? changedKeys.map(k => k.replace(/_/g, ' ')).join(', ') 
+        : 'General settings';
+        
       setSavedInfo(JSON.stringify(companyInfo));
-      logCompany('Company Information Updated', { details: 'Admin updated global company settings.' });
+      logCompany('Company Information Updated', { 
+        recordRef: 'Company Info',
+        details: `Updated fields: ${diffSummary}` 
+      });
       toast.success('Changes saved successfully!');
     } catch (err) {
       toast.error(err.message || 'Failed to save changes');
@@ -176,7 +186,7 @@ const CompanyInformationPage = () => {
       // browsers keep serving the old cached image at that URL. A cache-busting
       // query param forces every upload to be treated as a new resource.
       handleInfoChange(fieldName, `${url}?t=${Date.now()}`);
-      logCompany('Image Uploaded', { details: `Uploaded new image for ${fieldName}` });
+      logCompany('Image Uploaded', { recordRef: 'Company Info', details: `Uploaded new image for ${fieldName}` });
       toast.success('Image uploaded successfully');
     } catch (err) {
       toast.error(err.message || 'Failed to upload image');
@@ -195,7 +205,7 @@ const CompanyInformationPage = () => {
       message: 'Are you sure you want to remove this image? Save your changes afterwards to apply.',
       onConfirm: () => {
         handleInfoChange(fieldName, '');
-        logCompany('Image Removed', { details: `Removed image for ${fieldName}` });
+        logCompany('Image Removed', { recordRef: 'Company Info', details: `Removed image for ${fieldName}` });
         setConfirmModal({ open: false });
       }
     });
