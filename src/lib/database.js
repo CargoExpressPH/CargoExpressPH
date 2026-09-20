@@ -4,6 +4,7 @@ import { logOrder, logChat } from './activityLog';
 import { validateStatusTransition, outstandingBalance, finalShippingFee, ORDER_STATUS, tripCapacityState, tripCapacityRefusal, canAdminCancelOrder } from '../constants/status';
 import { detectPickupLocation } from '../constants/phLocations';
 import { phDayRangeISO, formatPhDate, phDateKey } from '../utils/datetime';
+import { buildPerTripSalesReport } from './perTripSalesReport';
 
 // ==================== HELPER ====================
 // Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
@@ -953,6 +954,86 @@ export const getTrips = async (statusFilter) => {
 
   return trips;
 };
+
+/**
+ * All trips used by the admin Per Trip report selector. This is deliberately
+ * separate from getTrips(): the selector needs every trip and does not need
+ * the load aggregate that the trip-management page displays.
+ */
+export const getAllTripsForReport = async () => {
+  const trips = [];
+  const pageSize = 1000;
+  let from = 0;
+
+  while (true) {
+    const { data, error } = await supabase
+      .from('trips')
+      .select('id, trip_number, origin, destination, departure_date, arrival_date, status, created_at')
+      .order('departure_date', { ascending: false })
+      .range(from, from + pageSize - 1);
+    if (error) throw error;
+    const page = data || [];
+    trips.push(...page);
+    if (page.length < pageSize) break;
+    from += pageSize;
+  }
+
+  return trips;
+};
+
+/**
+ * Read-only Per Trip report data. Orders are paged so a long-running trip is
+ * never silently truncated at PostgREST's first 1,000 rows. Payment history
+ * is fetched through the existing batch RPCs and cancellation settlement is
+ * read through the existing admin-authorized RPC; no financial rows are
+ * written and no service-role client is involved.
+ */
+export const getPerTripSalesReport = async (tripId) => {
+  if (!tripId) throw new Error('Choose a trip before loading its report.');
+
+  const { data: trip, error: tripError } = await supabase
+    .from('trips')
+    .select('*')
+    .eq('id', tripId)
+    .single();
+  if (tripError) throw tripError;
+
+  const orders = [];
+  const pageSize = 1000;
+  let from = 0;
+  const orderSelect = 'id, tracking_number, sender_name, receiver_name, user_id, status, trip_id, actual_weight, sender_province, sender_city, receiver_province, receiver_city, origin, destination, created_at, shipping_cost, discount_amount, amount_paid, remaining_balance, payment_status, payment_method, payer_type, promised_payment_date, profiles:user_id (name)';
+
+  while (true) {
+    const { data, error } = await supabase
+      .from('orders')
+      .select(orderSelect)
+      .eq('trip_id', tripId)
+      .order('created_at', { ascending: true })
+      .range(from, from + pageSize - 1);
+    if (error) throw error;
+    const page = data || [];
+    orders.push(...page);
+    if (page.length < pageSize) break;
+    from += pageSize;
+  }
+
+  const orderIds = orders.map(order => order.id);
+  const activityByOrder = await getPaymentTransactionsBatch(orderIds);
+  const cancelledOrders = orders.filter(order => order.status === ORDER_STATUS.CANCELLED);
+  const settlementPairs = await Promise.all(cancelledOrders.map(async (order) => [
+    order.id,
+    await getCancellationSettlementSummary(order.id),
+  ]));
+  const settlementsByOrder = Object.fromEntries(settlementPairs);
+
+  return buildPerTripSalesReport({
+    trip,
+    orders,
+    activityByOrder,
+    settlementsByOrder,
+  });
+};
+
 export const getTripById = async (tripId) => {
   const { data: trip, error } = await supabase
     .from('trips')
