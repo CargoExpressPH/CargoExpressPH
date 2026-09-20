@@ -375,10 +375,8 @@ const ActivityLogsPage = () => {
                         }}>{log.record_ref}</span>
                       ) : '—'}
                     </td>
-                    <td data-label="Details" className="details-cell">
-                      <span style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                        {log.details || '—'}
-                      </span>
+                    <td data-label="Details" className="details-cell" style={{ maxWidth: '400px', whiteSpace: 'normal', wordBreak: 'break-word' }}>
+                      {log.details || '—'}
                     </td>
                   </tr>
                 ))}
