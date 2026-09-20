@@ -1722,7 +1722,7 @@ const classifySettlement = (order, today) => {
 
   if (isOverdue) return SETTLEMENT_BUCKETS.OVERDUE;
   if (order.status === 'Delivered') return SETTLEMENT_BUCKETS.DELIVERED;
-  if (promised) return SETTLEMENT_BUCKETS.PROMISED;
+  if (promisedKey) return SETTLEMENT_BUCKETS.PROMISED;
   if (order.status === 'Arrived at Hub' && !isCollect) return SETTLEMENT_BUCKETS.HELD;
   if (isCollect) return SETTLEMENT_BUCKETS.COLLECT;
   return SETTLEMENT_BUCKETS.IN_FLIGHT;
