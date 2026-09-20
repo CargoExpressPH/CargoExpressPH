@@ -8,11 +8,13 @@ const STATUS_LABELS = {
   refund_pending: 'Refund Pending',
   refund_settled: 'Refund Settled',
   needs_reconciliation: 'Needs Reconciliation',
+  no_settlement_required: 'No Payment Collected',
 };
 
 const statusTone = status => {
   if (status === 'refund_settled') return 'badge-success';
   if (status === 'needs_reconciliation') return 'badge-error';
+  if (status === 'no_settlement_required') return 'badge-default';
   return 'badge-warning';
 };
 
@@ -32,8 +34,9 @@ const CancellationSettlementSummary = ({ summary, historicalPromiseDate = null, 
     );
   }
 
+  const grossCollected = Number(summary.gross_collected || 0);
   const confirmed = Boolean(summary.has_confirmed_decision);
-  const status = summary.settlement_status || 'for_review';
+  const status = grossCollected === 0 ? 'no_settlement_required' : (summary.settlement_status || 'for_review');
   const inProgress = Number(summary.refund_in_progress || 0);
   const notInitiated = Number(summary.refund_not_initiated || 0);
 
@@ -83,7 +86,7 @@ const CancellationSettlementSummary = ({ summary, historicalPromiseDate = null, 
           Historical payment promise: {formatPhDate(historicalPromiseDate)} — retained for history and no longer actionable after cancellation.
         </div>
       )}
-      {actions && <div className="mt-12">{actions}</div>}
+      {actions && grossCollected > 0 && <div className="mt-12">{actions}</div>}
     </div>
   );
 };
