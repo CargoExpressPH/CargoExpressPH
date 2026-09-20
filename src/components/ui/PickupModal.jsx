@@ -117,6 +117,7 @@ const PickupModal = ({ order, onClose, onSave, pricePerKilo = 70 }) => {
   // driver must never be asked to. That is why the whole payment panel is
   // conditional on this — not merely disabled, absent.
   const isPrepaid = form.payer_type === 'sender';
+  const hasRecordedPayment = (order?.amount_paid || 0) > 0;
   const estimatedCost = parseFloat(form.actual_weight || 0) * pricePerKilo;
 
   // tripLoad === null means the current load hasn't loaded yet (or failed to)
@@ -400,7 +401,8 @@ const PickupModal = ({ order, onClose, onSave, pricePerKilo = 70 }) => {
               className={`form-input ${invalidClass('actual_weight', errors)}`}
               placeholder="Enter actual weight after weighing"
               value={formatCommaNumber(form.actual_weight)}
-              onChange={e => {
+              disabled={hasRecordedPayment}
+                onChange={e => {
                 const val = parseCommaNumber(e.target.value);
                 if (isNaN(val) && val !== '.' && val !== '') return;
                 setPayment(p => ({ ...p, shortfallBlocked: false }));
@@ -440,6 +442,11 @@ const PickupModal = ({ order, onClose, onSave, pricePerKilo = 70 }) => {
               />
               <span className="form-label m-0"><Tag size={14} className="inline mr-6" />Apply Discount</span>
             </label>
+            {hasRecordedPayment && (
+              <div className="text-12 text-secondary mt-4 mb-8">
+                Discount cannot be changed because a payment is already recorded.
+              </div>
+            )}
 
             {discount.enabled && (
               <div className="mt-12 br-8" style={{ background: 'var(--bg-secondary)', padding: 14, border: '1px solid var(--border)' }}>
