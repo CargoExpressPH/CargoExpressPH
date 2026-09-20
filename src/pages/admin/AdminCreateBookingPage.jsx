@@ -10,7 +10,7 @@ import CustomSelect from '../../components/ui/CustomSelect';
 import BarangaySelect from '../../components/ui/BarangaySelect';
 import {
   ArrowLeft, Loader, Truck, User, MapPin, Package,
-  CreditCard, FileText, Plus, Copy, Check, CheckCircle2, RotateCcw,
+  CreditCard, FileText, Plus, Copy, Check, CheckCircle2, RotateCcw, Lock
 } from 'lucide-react';
 import { useToast } from '../../hooks/useToast';
 import usePageTitle from '../../hooks/usePageTitle';
@@ -542,7 +542,15 @@ const AdminCreateBookingPage = () => {
         </div>
 
         {/* ── Sender Details ─────────────────────────────────── */}
-        <div className="card stagger-item mb-16" style={{ animationDelay: '60ms' }}>
+        {!form.origin ? (
+          <div className="card text-center p-32 mb-16 stagger-item" style={{ animationDelay: '60ms', background: 'var(--surface)', borderStyle: 'dashed' }}>
+            <Lock size={32} color="var(--tertiary)" className="mx-auto mb-16" />
+            <h3 className="fw-700 text-lg mb-8">Select a Route to Continue</h3>
+            <p className="text-secondary text-sm max-w-sm mx-auto">Please select the origin and destination above before filling out the booking details. This ensures the correct barangays and addresses are recorded.</p>
+          </div>
+        ) : (
+          <>
+            <div className="card stagger-item mb-16" style={{ animationDelay: '60ms' }}>
           <div className="card-body">
             <h3 className="fw-700 mb-16 flex items-center gap-8">
               <User size={18} color="var(--primary)" aria-hidden="true" /> Sender Details
@@ -940,6 +948,8 @@ const AdminCreateBookingPage = () => {
             }
           </button>
         </div>
+          </>
+        )}
       </form>
     </div>
   );

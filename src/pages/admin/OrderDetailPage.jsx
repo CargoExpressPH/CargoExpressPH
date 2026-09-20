@@ -642,7 +642,11 @@ const AdminOrderDetailPage = () => {
   const handleApproveReview = async () => {
     setSaving(true);
     try {
-      await updateOrder(id, { status: 'Pending', service_area_status: 'approved' });
+      const updates = { service_area_status: 'approved' };
+      if (order.status === 'Pending Review') {
+        updates.status = 'Pending';
+      }
+      await updateOrder(id, updates);
       logOrder('Out-of-Coverage Request Approved', id, order.tracking_number, { details: 'Admin approved the special pickup request.' });
       await loadOrder();
       toast.success('Pickup request approved.');
