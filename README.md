@@ -347,16 +347,9 @@ Point it at a development or staging project — never production.
 
 ## 📚 Documentation
 
-Deeper technical documentation lives in [`docs/`](./docs):
-
-| Document | Contents |
-|---|---|
-| [`docs/architecture/TECHNICAL-OVERVIEW.md`](./docs/architecture/TECHNICAL-OVERVIEW.md) | Full system walkthrough |
-| [`docs/architecture/database_design.md`](./docs/architecture/database_design.md) | ERD and per-column documentation |
-| [`docs/audits/SECURITY_AUDIT_2026-08-17.md`](./docs/audits/SECURITY_AUDIT_2026-08-17.md) | Security audit findings and verification |
-| [`docs/operations/GOLIVE_GUIDE.md`](./docs/operations/GOLIVE_GUIDE.md) | Production deployment checklist |
-| [`docs/audits/ui-ux-audit.md`](./docs/audits/ui-ux-audit.md) | Interface and accessibility review |
-| [`docs/archive/WHY_FIX_TECHNICAL_DEBT.md`](./docs/archive/WHY_FIX_TECHNICAL_DEBT.md) | Rationale for the refactoring programme |
+Deeper technical documentation, including the compiled reviewer and the organized
+architecture, guide, operations, audit, and archive sections, is indexed in
+[`docs/README.md`](./docs/README.md).
 
 `CLAUDE.md` in the repository root is the working engineering brief — the
 authoritative description of architecture, invariants and conventions.

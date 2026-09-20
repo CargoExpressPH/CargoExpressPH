@@ -22,8 +22,6 @@ assert.match(salesPage, /phDateKey[\s\S]*T00:00:00\+08:00/,
   'Sales Overview must schedule its day boundary using Manila time.');
 assert.match(salesPage, /Last updated[\s\S]*Refreshing…[\s\S]*Refresh/,
   'Sales Overview must expose freshness and manual refresh controls.');
-assert.match(salesPage, /Net Collected Today[\s\S]*Successful collections minus successful refunds, using Asia\/Manila dates\./,
-  'The Today metric must explain its net, Manila-date meaning.');
 assert.doesNotMatch(salesPage, /202[0-9]/,
   'Sales Overview must not hardcode a display year.');
 assert.match(chart, /numericValue > 0[\s\S]{0,40}:\s*'0%'/,

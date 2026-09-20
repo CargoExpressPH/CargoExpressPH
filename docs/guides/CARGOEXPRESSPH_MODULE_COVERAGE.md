@@ -69,7 +69,7 @@ Layunin ng file na ito: patunayan na walang page/module na na-skip sa scan, at i
 | Booking draft privacy | `src/lib/bookingDraft.js` | §5.7, §9.13 | ✅ |
 | Status/business-rules constants | `src/constants/status.js` | §6 | ✅ |
 | Service worker | `public/sw.js`, `vite.config.js` | §1.5, §10 | ✅ |
-| 18 Edge Functions | `supabase/functions/*` | §5, §9.6 | ✅ (all 18 individually confirmed) |
+| Edge Functions | `supabase/functions/*` | §5, §9.6 | Current tree contains 20 deployable directories plus `_shared`; the older 18-function count is historical. |
 | Database schema (18+ tables) | `supabase/migrations/*.sql` | §7 | ✅ |
 | Payment/discount/report calculations | migrations + `database.js` | §8 | ✅ |
 | Refund functionality | `payment_refunds` table, `paymongo-refund*` functions | §8.10 | ✅ (implemented scope), 🔵 (manual refund — confirmed not implemented) |

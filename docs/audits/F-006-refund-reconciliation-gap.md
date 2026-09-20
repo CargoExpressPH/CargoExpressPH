@@ -16,7 +16,7 @@ The live Supabase database has no public function whose name or definition conta
 
 The repository webhook handler contains handling for payment creation/chargeability and `payment.paid`, but no `payment.refunded` branch. The deployed Edge Function source was previously compared byte-for-byte with the repository and matched.
 
-The UI recognizes the status in [`src/utils/paymentDisplay.js`](../src/utils/paymentDisplay.js#L114), and the legal text mentions refunds, but these do not create a ledger reconciliation path.
+The UI recognizes the status in [`src/utils/paymentDisplay.js`](../../src/utils/paymentDisplay.js#L114), and the legal text mentions refunds, but these do not create a ledger reconciliation path.
 
 PayMongo documents refund processing and refund webhook behavior in its [refund documentation](https://developers.paymongo.com/v1/docs/refunding-transactions).
 

@@ -32,7 +32,7 @@ v_remaining_projected := GREATEST(
 );
 ```
 
-The customer-facing call is in [`src/lib/database.js`](../src/lib/database.js#L2625), and the deployed function definition is created by [`20260909030000_manual_payment_hardening.sql`](../supabase/migrations/20260909030000_manual_payment_hardening.sql#L246).
+The customer-facing call is in [`src/lib/database.js`](../../src/lib/database.js#L2625), and the deployed function definition is created by [`20260909030000_manual_payment_hardening.sql`](../../supabase/migrations/20260909030000_manual_payment_hardening.sql#L246).
 
 ## Safe reproduction
 

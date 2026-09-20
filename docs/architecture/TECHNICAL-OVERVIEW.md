@@ -850,9 +850,14 @@ CargoExpressPH-main/
 ├── package.json                Dependencies and scripts
 ├── vite.config.js              Build config + 2 custom plugins
 ├── vercel.json                 SPA rewrite, security headers, SW cache policy
-├── database_design.md     ERD + per-column documentation
-├── CLAUDE.md                   Engineering operating rules
-├── TECHNICAL-OVERVIEW.md  This document
+├── docs/                      Organized documentation index
+│   ├── README.md              Navigation and reading rules
+│   ├── architecture/          Architecture and datastore references
+│   ├── guides/                Current guides and compiled reviewer
+│   ├── operations/            Release and operational references
+│   ├── audits/                Findings and verification reports
+│   └── archive/               Historical proposals and superseded designs
+├── CLAUDE.md                  Engineering operating rules
 │
 ├── public/
 │   ├── manifest.json           Web App Manifest

@@ -34,7 +34,7 @@ The live definitions of `guard_customer_order_insert()` and `prepare_order_inser
 - `last_reminder_sent_at`
 - `reassignment_history`
 
-The workflow columns and allowed values are defined in [`20260625010000_out_of_coverage_workflow.sql`](../supabase/migrations/20260625010000_out_of_coverage_workflow.sql#L1).
+The workflow columns and allowed values are defined in [`20260625010000_out_of_coverage_workflow.sql`](../../supabase/migrations/20260625010000_out_of_coverage_workflow.sql#L1).
 
 ## Safe reproduction
 

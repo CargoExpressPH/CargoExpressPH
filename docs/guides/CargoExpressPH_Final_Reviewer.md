@@ -1199,7 +1199,7 @@ Ipinaliwanag na nang detalyado sa Seksyon 5.3 — per-user na sessionStorage key
 **Mismatch sa pagitan ng implementation at dating dokumentasyon:**
 - `../architecture/database_design.md` ay may pre-joined `address` column na **wala na** sa aktwal na `profiles` table (naging structured fields ito).
 - `supabase/schema.sql` ay historical snapshot lang — maraming feature (`payment_refunds`, `email_subscriptions`, `get_financial_report_data`) ang **wala** dito pero **umiiral** sa aktwal na migrations.
-- Ang mga audit documents sa `audit_reports/` ay nagpo-propose ng manual-refund feature na hindi tuluyang na-implement.
+- Ang mga audit documents sa `docs/audits/` ay nagpo-propose ng manual-refund feature na hindi tuluyang na-implement.
 
 **Ano ang hindi namin na-verify (honesty section):**
 - Kung ang lahat ng bagong migration/feature (trip reschedule public broadcast, N-1 path fix) ay **totoong naka-deploy na sa live production** — ang research na ito ay nakabase sa local na code, hindi live na Supabase access.

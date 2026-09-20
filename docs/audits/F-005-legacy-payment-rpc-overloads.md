@@ -31,7 +31,7 @@ The live metadata confirms that each remains `SECURITY DEFINER` and executable b
 - discount handling
 - newer payment-method restrictions
 
-The current repository calls the newer signatures from [`src/lib/database.js`](../src/lib/database.js#L2625), while the overloads are defined and granted in [`20260909030000_manual_payment_hardening.sql`](../supabase/migrations/20260909030000_manual_payment_hardening.sql#L241).
+The current repository calls the newer signatures from [`src/lib/database.js`](../../src/lib/database.js#L2625), while the overloads are defined and granted in [`20260909030000_manual_payment_hardening.sql`](../../supabase/migrations/20260909030000_manual_payment_hardening.sql#L241).
 
 ## Safe reproduction
 

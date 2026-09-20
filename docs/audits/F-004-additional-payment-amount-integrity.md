@@ -25,7 +25,7 @@ END;
 
 It does not use `discount_amount` or `order_payable_amount()` for this label and has no server-side comparison against the current remaining balance.
 
-The current frontend invokes this function from [`src/lib/database.js`](../src/lib/database.js#L2667). The RPC is admin-protected, but it is still a trusted server-side ledger path.
+The current frontend invokes this function from [`src/lib/database.js`](../../src/lib/database.js#L2667). The RPC is admin-protected, but it is still a trusted server-side ledger path.
 
 ## Safe reproduction
 
