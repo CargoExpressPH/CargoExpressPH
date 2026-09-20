@@ -1140,3 +1140,21 @@ input[type="datetime-local"]:hover::-webkit-calendar-picker-indicator {
 @media (max-width: 480px) {
   .brand-wordmark { font-size: 0.9rem; }
 }
+
+/* Input Prefix Wrapper */
+.input-prefix-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.input-prefix {
+  position: absolute;
+  left: 14px;
+  font-size: 1rem;
+  pointer-events: none;
+}
+
+.form-input.has-prefix {
+  padding-left: 32px;
+}
