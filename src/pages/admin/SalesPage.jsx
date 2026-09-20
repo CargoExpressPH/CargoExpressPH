@@ -135,7 +135,6 @@ const SalesPage = () => {
             <div className="stat-card stat-card-info stagger-item" style={{ animationDelay: '0ms' }}>
               <div className="stat-value"><AnimatedCounter value={data.collectedToday} prefix="₱" decimals={2} duration={1000} /></div>
               <div className="stat-label">Net Collected Today</div>
-              <div className="text-xs text-tertiary mt-4">Successful collections minus successful refunds, using Asia/Manila dates.</div>
             </div>
             <div className="stat-card stat-card-success stagger-item" style={{ animationDelay: '60ms' }}>
               <div className="stat-value"><AnimatedCounter value={data.netCollectedThisMonth} prefix="₱" decimals={2} duration={1000} /></div>
