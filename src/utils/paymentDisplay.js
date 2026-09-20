@@ -39,7 +39,7 @@ export const formatRecordedBy = (adminName, audience = 'customer') => {
   if (isAutomated) {
     return audience === 'customer' ? 'Payment System (GCash verified)' : 'Auto (GCash)';
   }
-  return audience === 'customer' ? 'CargoExpress Staff' : adminName;
+  return adminName;
 };
 
 /**
