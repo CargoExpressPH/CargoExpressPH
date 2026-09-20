@@ -283,7 +283,7 @@ const PerTripSalesPage = () => {
         {loadingTrips ? <CenteredSpinner size={22} /> : trips.length === 0 ? (
           <p className="text-secondary mb-0">No trips are available.</p>
         ) : (
-          <div className="form-group mb-0" style={{ flex: 1 }}>
+          <div className="form-group mb-0 per-trip-selector" style={{ flex: 1, minWidth: 0, width: '100%' }}>
             <CustomSelect
               className="form-control"
               value={selectedTripId}
@@ -295,7 +295,7 @@ const PerTripSalesPage = () => {
             >
               {trips.map(trip => (
                 <option key={trip.id} value={trip.id}>
-                  {trip.trip_number || 'Trip'} · {trip.origin || 'Origin not set'} → {trip.destination || 'Destination not set'} · {tripDate(trip.departure_date)} · {tripStatusLabel(trip.status)}
+                  {trip.trip_number || 'Trip'} · {trip.origin || 'Origin not set'} -> {trip.destination || 'Destination not set'} · {tripDate(trip.departure_date)} · {tripStatusLabel(trip.status)}
                 </option>
               ))}
             </CustomSelect>
