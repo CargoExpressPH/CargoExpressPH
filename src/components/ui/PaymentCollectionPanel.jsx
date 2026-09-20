@@ -550,7 +550,16 @@ const PaymentCollectionPanel = ({
             value={value.amount}
             disabled={disabled}
             onValueChange={v => {
-              patch({ amount: v, shortfallBlocked: false });
+              const numVal = parseAmount(v);
+              let newAmount = v;
+              let newType = value.payment_type;
+              
+              if (d.expected > 0 && numVal >= d.expected) {
+                newAmount = d.expected.toString();
+                newType = 'full';
+              }
+              
+              patch({ amount: newAmount, payment_type: newType, shortfallBlocked: false });
               clearError(F.amount);
             }}
             aria-invalid={amountInvalid ? 'true' : undefined}
