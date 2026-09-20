@@ -22,7 +22,7 @@ const getPasswordResetRedirectUrl = () => {
   if (typeof window !== 'undefined' && window.location.origin && !window.location.hostname.includes('localhost')) {
     return `${window.location.origin}/reset-password`;
   }
-  const fallback = import.meta.env.VITE_APP_URL || 'https://cargoexpress-ph.online';
+  const fallback = import.meta.env.VITE_APP_URL || 'https://cargoexpress-ph.vercel.app';
   return `${fallback.replace(/\/+$/, '')}/reset-password`;
 };
 
