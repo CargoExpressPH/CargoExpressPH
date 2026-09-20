@@ -11,7 +11,8 @@ import { useState, useEffect, useRef } from 'react';
  * @param {boolean} showValues – Show values above bars (default false)
  */
 const MiniBarChart = ({
-  bars = [],
+  bars,
+  data = [],
   height = 160,
   valuePrefix = '',
   color = 'var(--primary)',
@@ -19,6 +20,7 @@ const MiniBarChart = ({
   showValues = false,
   title,
 }) => {
+  const actualBars = bars || data;
   const [mounted, setMounted] = useState(!animate);
   const [hoveredIdx, setHoveredIdx] = useState(null);
   const timerRef = useRef(null);
@@ -30,9 +32,9 @@ const MiniBarChart = ({
     }
   }, [animate]);
 
-  const maxVal = Math.max(...bars.map(b => b.value || 0), 1);
+  const maxVal = Math.max(...actualBars.map(b => b.value || 0), 1);
 
-  if (bars.length === 0) {
+  if (actualBars.length === 0) {
     return (
       <div className="bar-chart-empty" style={{ height }}>
         <span>No data</span>
@@ -40,10 +42,10 @@ const MiniBarChart = ({
     );
   }
 
-  const barWidth = Math.min(40, Math.max(14, Math.floor(280 / bars.length)));
-  const gap = Math.min(12, Math.max(4, Math.floor(120 / bars.length)));
+  const barWidth = Math.min(40, Math.max(14, Math.floor(280 / actualBars.length)));
+  const gap = Math.min(12, Math.max(4, Math.floor(120 / actualBars.length)));
 
-  const chartSummary = title || `Bar chart displaying ${bars.length} data bars`;
+  const chartSummary = title || `Bar chart displaying ${actualBars.length} data bars`;
 
   return (
     <div className="bar-chart-wrap">
@@ -61,7 +63,7 @@ const MiniBarChart = ({
 
         {/* Bars */}
         <div className="bar-chart-bars" style={{ gap }} role="img" aria-label={chartSummary}>
-          {bars.map((bar, i) => {
+          {actualBars.map((bar, i) => {
             const pct = (bar.value / maxVal) * 100;
             const isHovered = hoveredIdx === i;
             return (
@@ -122,7 +124,7 @@ const MiniBarChart = ({
           </tr>
         </thead>
         <tbody>
-          {bars.map((bar, i) => (
+          {actualBars.map((bar, i) => (
             <tr key={i}>
               <td>{bar.label}</td>
               <td>{valuePrefix}{(bar.value || 0).toLocaleString()}</td>
