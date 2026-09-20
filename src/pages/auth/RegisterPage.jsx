@@ -273,7 +273,9 @@ const RegisterPage = () => {
   const update = (k, v) => {
     setForm(prev => {
       const nextForm = { ...prev, [k]: v };
-      if (touchedFields[k] || fieldErrors[k]) {
+      // Confirm-password feedback must update with every keystroke so users
+      // can see immediately when the two values match or diverge.
+      if (k === 'confirmPassword' || touchedFields[k] || fieldErrors[k]) {
         const err = validateSingleField(k, v, nextForm);
         setFieldErrors(pe => ({ ...pe, [k]: err }));
       }
@@ -584,7 +586,7 @@ const RegisterPage = () => {
                   <MessageSquare size={15} className="form-input-icon" aria-hidden="true" />
                   <input
                     id="reg-facebook"
-                    className={`form-input form-input-icon-left ${fieldErrors.facebook_name ? 'field-invalid' : ''}`}
+                    className={`form-input form-input-icon-left ${fieldErrors.facebook_name ? 'field-invalid' : form.facebook_name.trim() ? 'success' : ''}`}
                     placeholder="Your Facebook display name"
                     value={form.facebook_name}
                     onChange={handleTitleCase('facebook_name')}
@@ -597,6 +599,9 @@ const RegisterPage = () => {
                     aria-invalid={!!fieldErrors.facebook_name}
                     aria-describedby={fieldErrors.facebook_name ? 'reg-facebook-error' : undefined}
                   />
+                  {form.facebook_name.trim() && !fieldErrors.facebook_name && (
+                    <Check size={14} className="form-input-icon-right-check" aria-hidden="true" />
+                  )}
                 </div>
                 {fieldErrors.facebook_name && (
                   <FieldError id="reg-facebook-error" message={fieldErrors.facebook_name} />

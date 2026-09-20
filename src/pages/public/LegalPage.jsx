@@ -8,7 +8,7 @@ const TERMS_SECTIONS = [
     heading: '1. Agreement and scope',
     body: [
       'These Terms of Service govern your access to and use of CargoExpress PH’s website, account portal, booking, tracking, payment and customer-support services (collectively, the “Services”). By creating an account, placing a booking, or otherwise using the Services, you agree to these Terms and our Privacy Policy.',
-      'If you use the Services for an organisation, you confirm that you are authorised to accept these Terms on that organisation’s behalf.',
+      'If you use the Services for an organisation, you confirm that you are authorized to accept these Terms on that organisation’s behalf.',
     ],
   },
   {
@@ -28,14 +28,14 @@ const TERMS_SECTIONS = [
   {
     heading: '4. Fees, payments and changes',
     body: [
-      'Displayed rates, surcharges, and payment options may depend on route, weight, dimensions, shipment characteristics, and other verified operational details. You are responsible for authorised charges associated with your booking. If a shipment’s declared details differ from verified details, we may explain the adjusted charge and request payment before continuing service where permitted.',
+      'Displayed rates, surcharges, and payment options may depend on route, weight, dimensions, shipment characteristics, and other verified operational details. You are responsible for authorized charges associated with your booking. If a shipment’s declared details differ from verified details, we may explain the adjusted charge and request payment before continuing service where permitted.',
       'Cancellation, refund, and service-change handling depends on the shipment status and the applicable booking terms presented at the time of your request. Statutory consumer rights are not limited by these Terms.',
     ],
   },
   {
     heading: '5. Acceptable use',
     body: [
-      'Do not interfere with the Services, attempt unauthorised access, circumvent security controls, scrape data, introduce harmful code, impersonate another person, or use the Services for fraud or unlawful activity. You may use the Services only for their intended personal or authorised business purposes.',
+      'Do not interfere with the Services, attempt unauthorized access, circumvent security controls, scrape data, introduce harmful code, impersonate another person, or use the Services for fraud or unlawful activity. You may use the Services only for their intended personal or authorized business purposes.',
     ],
   },
   {
@@ -88,22 +88,22 @@ const PRIVACY_SECTIONS = [
   {
     heading: '3. Why we use information',
     body: [
-      'We use personal information to create and secure accounts; process, coordinate, track, and support shipments; communicate service updates; process authorised payments; prevent fraud and protect the security of our Services; comply with legal obligations; improve service quality; and respond to enquiries or disputes.',
+      'We use personal information to create and secure accounts; process, coordinate, track, and support shipments; communicate service updates; process authorized payments; prevent fraud and protect the security of our Services; comply with legal obligations; improve service quality; and respond to enquiries or disputes.',
       'We process information only where we have an appropriate legal basis, such as performing our agreement with you, complying with law, protecting legitimate interests such as service security, or obtaining consent where consent is required.',
     ],
   },
   {
     heading: '4. When information is shared',
     body: [
-      'We share information only as needed to operate the Services: with authorised personnel and delivery partners involved in your shipment; payment providers for authorised transactions; service providers that securely support our technology, communications, storage, or operations; and public authorities or other parties when required by law or needed to protect rights, safety, or security.',
-      'We require service providers to handle information for authorised purposes and with appropriate safeguards. We do not permit them to use it for their own unrelated marketing.',
+      'We share information only as needed to operate the Services: with authorized personnel and delivery partners involved in your shipment; payment providers for authorized transactions; service providers that securely support our technology, communications, storage, or operations; and public authorities or other parties when required by law or needed to protect rights, safety, or security.',
+      'We require service providers to handle information for authorized purposes and with appropriate safeguards. We do not permit them to use it for their own unrelated marketing.',
     ],
   },
   {
     heading: '5. Retention and security',
     body: [
       'We retain information for as long as reasonably necessary for the purposes described above, including to provide the Services, maintain records, resolve disputes, meet legal obligations, and enforce agreements. For your privacy and security, specific media records such as pickup and delivery photos (proof of delivery) are securely removed from our active systems 6 months after the transaction is completed.',
-      'We use organisational and technical measures designed to protect information against unauthorised access, loss, misuse, alteration, or disclosure. No online service can guarantee absolute security, so please protect your credentials and notify us promptly if you suspect unauthorised access.',
+      'We use organisational and technical measures designed to protect information against unauthorized access, loss, misuse, alteration, or disclosure. No online service can guarantee absolute security, so please protect your credentials and notify us promptly if you suspect unauthorized access.',
     ],
   },
   {
