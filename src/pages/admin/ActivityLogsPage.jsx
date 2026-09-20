@@ -288,6 +288,7 @@ const ActivityLogsPage = () => {
               value={module}
               onChange={e => setModule(e.target.value)}
               aria-label="Filter by module"
+              placement="bottom"
             >
               {MODULES.map(m => <option key={m} value={m === 'All' ? '' : m}>{m}</option>)}
             </CustomSelect>

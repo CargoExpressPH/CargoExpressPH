@@ -15,6 +15,7 @@ const CustomSelect = ({
   children,
   disabled = false,
   searchable = false,
+  placement = 'auto',
   'aria-label': ariaLabel,
   ...rest
 }) => {
@@ -69,8 +70,8 @@ const CustomSelect = ({
     const estimatedMenuHeight = Math.min(320, viewportHeight * 0.52, (options.length * optionHeight) + 12);
     const spaceBelow = viewportHeight - rect.bottom - gutter;
     const spaceAbove = rect.top - gutter;
-    const shouldOpenUp = spaceBelow < estimatedMenuHeight && spaceAbove > spaceBelow;
-    const availableSpace = shouldOpenUp ? spaceAbove : spaceBelow;
+    const shouldOpenUp = placement === 'top' || (placement === 'auto' && spaceBelow < estimatedMenuHeight && spaceAbove > spaceBelow);
+    const availableSpace = placement === 'bottom' ? Math.max(spaceBelow, 320) : (shouldOpenUp ? spaceAbove : spaceBelow);
 
     setMenuPlacement(shouldOpenUp ? 'top' : 'bottom');
     setMenuMaxHeight(Math.max(96, Math.min(320, availableSpace - gutter)));
