@@ -205,11 +205,11 @@ const ReportsPage = () => {
                 </div>
                 <div className="stat-card stat-card-primary stagger-item" style={{ animationDelay: '180ms' }}>
                   <div className="stat-value"><AnimatedCounter value={data.deliveredShipmentValue} prefix="₱" decimals={2} duration={1000} /></div>
-                  <div className="stat-label">Shipping Fees for Delivered Shipments</div>
+                  <div className="stat-label">Cargo Fees for Delivered Shipments</div>
                 </div>
               </div>
               <p className="text-secondary fs-12 mb-20">
-                Payments received, money returned, and payments after refunds use events recorded within your selected dates. Money returned includes successful refunds only. Shipping fees are the current fees for shipments delivered during those dates, not payments received.
+                Payments received, money returned, and payments after refunds use events recorded within your selected dates. Money returned includes successful refunds only. Cargo fees are the current fees for shipments delivered during those dates, not payments received.
               </p>
 
               <div className="grid grid-2 mb-20 no-print">
@@ -318,7 +318,7 @@ const ReportsPage = () => {
                 </div>
                 <div className="card-body p-0">
                   <p className="text-secondary fs-12" style={{ padding: '0 16px 12px' }}>
-                    Payments and refunds above were recorded within the selected dates. Below are each delivered shipment's current shipping fee, amount paid, and amount still unpaid as of {formatDateTime(data.generatedAt)}. These amounts are not payments received and do not need to add up to the payment totals above.
+                    Payments and refunds above were recorded within the selected dates. Below are each delivered shipment's current cargo fee, amount paid, and amount still unpaid as of {formatDateTime(data.generatedAt)}. These amounts are not payments received and do not need to add up to the payment totals above.
                   </p>
                   <div className="table-responsive">
                     <table className="data-table">
@@ -328,7 +328,7 @@ const ReportsPage = () => {
                           <th scope="col">Customer</th>
                           <th scope="col">Route</th>
                           <th scope="col">Delivered On</th>
-                          <th scope="col" className="text-right">Shipping Fee After Discount</th>
+                          <th scope="col" className="text-right">Final Cargo Fee</th>
                           <th scope="col" className="text-right">Amount Paid</th>
                           <th scope="col" className="text-right">Amount Still Unpaid</th>
                           <th scope="col" className="text-center">Payment Status</th>
@@ -384,7 +384,7 @@ const ReportsPage = () => {
                       <div style={{ fontSize: '20px', fontWeight: 'bold' }}>{formatCurrency(data.netCollected)}</div>
                     </div>
                     <div style={{ flex: 1, border: '1px solid #ddd', padding: '12px', borderRadius: '4px' }}>
-                      <div style={{ fontSize: '12px', color: '#666' }}>Shipping Fees for Delivered Shipments</div>
+                      <div style={{ fontSize: '12px', color: '#666' }}>Cargo Fees for Delivered Shipments</div>
                       <div style={{ fontSize: '20px', fontWeight: 'bold' }}>{formatCurrency(data.deliveredShipmentValue)}</div>
                     </div>
                   </div>
@@ -420,7 +420,7 @@ const ReportsPage = () => {
                 <div className="pd-section">
                   <h4 className="pd-section-title">Shipments Delivered During Selected Dates</h4>
                   <p style={{ fontSize: '10px', color: '#666', margin: '0 0 8px' }}>
-                    Current shipping fee, amount paid, and amount still unpaid as of {formatDateTime(data.generatedAt)}. These amounts are not payments received and do not need to add up to the payment totals above.
+                    Current cargo fee, amount paid, and amount still unpaid as of {formatDateTime(data.generatedAt)}. These amounts are not payments received and do not need to add up to the payment totals above.
                   </p>
                   <table className="pd-table" style={{ fontSize: '11px' }}>
                     <thead>
@@ -429,7 +429,7 @@ const ReportsPage = () => {
                         <th scope="col">Customer</th>
                         <th scope="col">Route</th>
                         <th scope="col">Delivered On</th>
-                        <th scope="col" style={{ textAlign: 'right' }}>Shipping Fee After Discount</th>
+                        <th scope="col" style={{ textAlign: 'right' }}>Final Cargo Fee</th>
                         <th scope="col" style={{ textAlign: 'right' }}>Amount Paid</th>
                         <th scope="col" style={{ textAlign: 'right' }}>Amount Still Unpaid</th>
                       </tr>

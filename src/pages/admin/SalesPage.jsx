@@ -38,7 +38,7 @@ const SalesPage = () => {
       setLastUpdated(new Date());
     } catch (e) {
       if (!mountedRef.current || sequence !== requestSequenceRef.current) return;
-      setError(e.message || 'Sales figures could not be refreshed. The last successful figures remain on screen.');
+      setError('We couldn’t refresh the sales totals. The last successful totals remain on screen.');
     } finally {
       if (mountedRef.current && sequence === requestSequenceRef.current) {
         setLoading(false);
@@ -104,7 +104,7 @@ const SalesPage = () => {
             Sales Overview
           </h1>
           <p className="admin-page-subtitle">
-            Live collections and active shipment balances
+            Payments received and unpaid shipment amounts. Totals update automatically.
             {lastUpdated && <> · Last updated {formatPhDateTime(lastUpdated)}</>}
           </p>
         </div>
@@ -134,30 +134,36 @@ const SalesPage = () => {
           <div className="grid grid-4 report-summary-cards mb-24 mt-16">
             <div className="stat-card stat-card-info stagger-item" style={{ animationDelay: '0ms' }}>
               <div className="stat-value"><AnimatedCounter value={data.collectedToday} prefix="₱" decimals={2} duration={1000} /></div>
-              <div className="stat-label">Net Collected Today</div>
+              <div className="stat-label">Payments After Refunds Today</div>
             </div>
             <div className="stat-card stat-card-success stagger-item" style={{ animationDelay: '60ms' }}>
               <div className="stat-value"><AnimatedCounter value={data.netCollectedThisMonth} prefix="₱" decimals={2} duration={1000} /></div>
-              <div className="stat-label">Net Collected This Month</div>
+              <div className="stat-label">Payments After Refunds This Month</div>
             </div>
             <div className="stat-card stat-card-warning stagger-item" style={{ animationDelay: '120ms' }}>
               <div className="stat-value"><AnimatedCounter value={data.currentUnpaidBalance} prefix="₱" decimals={2} duration={1000} /></div>
-              <div className="stat-label">Current Unpaid Balance</div>
+              <div className="stat-label">Total Amount Still Unpaid</div>
             </div>
             <div className="stat-card stat-card-error stagger-item" style={{ animationDelay: '180ms' }}>
               <div className="stat-value"><AnimatedCounter value={data.deliveredButUnpaid} prefix="₱" decimals={2} duration={1000} /></div>
-              <div className="stat-label">Delivered but Unpaid</div>
+              <div className="stat-label">Unpaid Amount for Delivered Shipments</div>
             </div>
           </div>
+          <p className="text-secondary fs-12 mb-20">
+            Payments after refunds are payments received minus successful refunds. Unpaid totals are the amounts still due on current shipments.
+          </p>
 
           <div className="card stagger-item mb-20" style={{ animationDelay: '240ms' }}>
             <div className="card-header">
               <h3 className="flex items-center gap-8">
                 <TrendingUp size={18} className="text-primary" />
-                Current Year Monthly Net Collections
+                Payments After Refunds by Month This Year
               </h3>
             </div>
             <div className="card-body p-24">
+              <p className="text-secondary fs-12 mb-16">
+                Each bar shows payments received minus successful refunds for one month this year.
+              </p>
               <MiniBarChart
                 data={(data.monthlyChart || []).map(month => ({
                   label: MONTH_LABELS[Number(month.mth) - 1] || String(month.mth),
@@ -176,4 +182,3 @@ const SalesPage = () => {
 };
 
 export default SalesPage;
-

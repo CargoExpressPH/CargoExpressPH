@@ -37,28 +37,28 @@ const formatDate = (value) => {
  */
 const BUCKET_META = {
   [SETTLEMENT_BUCKETS.OVERDUE]: {
-    label: 'Overdue promise', tone: 'error',
-    hint: 'The promised payment date has passed and the balance is still owing.',
+    label: 'Past due', tone: 'error',
+    hint: 'The promised payment date has passed and money is still unpaid.',
   },
   [SETTLEMENT_BUCKETS.HELD]: {
     label: 'Held at hub', tone: 'warning',
-    hint: 'At the destination warehouse and blocked from dispatch until the balance is settled or a promise date is recorded.',
+    hint: 'At the destination warehouse. It cannot be sent out until payment is settled or a promise date is recorded.',
   },
   [SETTLEMENT_BUCKETS.DELIVERED]: {
-    label: 'Delivered, unpaid', tone: 'error',
-    hint: 'Cargo was handed over with a balance still owing.',
+    label: 'Delivered, still unpaid', tone: 'error',
+    hint: 'The shipment was delivered, but money is still unpaid.',
   },
   [SETTLEMENT_BUCKETS.PROMISED]: {
-    label: 'Promised', tone: 'info',
-    hint: 'Dispatched against a promise date that has not yet come due.',
+    label: 'Payment promised', tone: 'info',
+    hint: 'The shipment was sent out with a promised payment date that has not arrived.',
   },
   [SETTLEMENT_BUCKETS.COLLECT]: {
     label: 'Freight collect', tone: 'info',
-    hint: 'Receiver pays at the door — due on delivery, not late.',
+    hint: 'The receiver pays on delivery. This payment is not late.',
   },
   [SETTLEMENT_BUCKETS.IN_FLIGHT]: {
     label: 'In transit', tone: 'info',
-    hint: 'Still moving; the balance has not reached the dispatch gate yet.',
+    hint: 'Still moving. Payment is tracked as part of the delivery.',
   },
 };
 
@@ -122,7 +122,7 @@ const UnpaidShipmentsPage = () => {
     } catch (e) {
       // A failed background refresh must not blank out good data the admin is
       // reading — surface the error only when this was an explicit load.
-      if (!silent) setError(e.message || 'Failed to load Unpaid Shipments.');
+      if (!silent) setError('We couldn’t load unpaid shipments. Please try again.');
     } finally {
       if (silent) setRefreshing(false); else setLoading(false);
     }
@@ -205,8 +205,8 @@ const UnpaidShipmentsPage = () => {
     return [
       { value: 'all', label: 'All', count: orders.length },
       { value: 'Delivered', label: 'Delivered', count: orders.filter(isDelivered).length },
-      { value: 'Ongoing', label: 'Ongoing', count: orders.filter(isOngoing).length },
-      { value: 'Overdue', label: 'Overdue', count: orders.filter(isOverdue).length },
+      { value: 'Ongoing', label: 'In progress', count: orders.filter(isOngoing).length },
+      { value: 'Overdue', label: 'Past due', count: orders.filter(isOverdue).length },
     ];
   }, [orders]);
 
@@ -277,7 +277,7 @@ const UnpaidShipmentsPage = () => {
 
   if (error) return (
     <div className="card text-center admin-error-card p-40">
-      <h3>Error</h3>
+      <h3>Could not load unpaid shipments</h3>
       <p>{error}</p>
       <button type="button" className="btn btn-primary mt-md" onClick={() => loadUnsettled()}>Retry</button>
     </div>
@@ -291,7 +291,7 @@ const UnpaidShipmentsPage = () => {
         <div>
           <h1 className="admin-page-title"><Wallet size={24} color="var(--primary)" aria-hidden="true" />Unpaid Shipments</h1>
           <p className="admin-page-subtitle">
-            Shipments in the pipeline that still owe money — who owes it, how much, and how overdue.
+            Shipments with money still to be paid — who owes it, how much, and whether payment is late.
           </p>
           {!loading && loadedAt && (
             <div className="text-xs text-tertiary mt-4 no-print" role="status" aria-live="polite">
@@ -306,7 +306,7 @@ const UnpaidShipmentsPage = () => {
                       background: 'var(--success)', marginRight: 6, verticalAlign: 'middle',
                     }}
                   />
-                  Live · updated {formatFreshness(loadedAt, now)}
+                  Updated {formatFreshness(loadedAt, now)}
                   {liveCount > 0 && <> · {liveCount} change{liveCount === 1 ? '' : 's'} received</>}
                 </>
               )}
@@ -331,9 +331,9 @@ const UnpaidShipmentsPage = () => {
       ) : (
         <div className="grid grid-3 mb-24">
           {[
-            { l: 'Total Outstanding', v: formatCurrency(t.outstanding), tone: 'danger' },
-            { l: 'Unpaid Shipments', v: t.count || 0, tone: 'primary' },
-            { l: 'Overdue Promises', v: t.overdue || 0, tone: 'danger' },
+            { l: 'Total Amount Still Unpaid', v: formatCurrency(t.outstanding), tone: 'danger' },
+            { l: 'Shipments With Money Due', v: t.count || 0, tone: 'primary' },
+            { l: 'Shipments Past Due', v: t.overdue || 0, tone: 'danger' },
           ].map((c, i) => (
             <div key={i} className={`stat-card stat-card-${c.tone} stagger-item`} style={{ animationDelay: `${i * 60}ms` }}>
               <div className="stat-value">{c.v}</div>
@@ -352,8 +352,8 @@ const UnpaidShipmentsPage = () => {
           }}
           role="status"
         >
-          {t.overdue} shipment{t.overdue === 1 ? '' : 's'} worth {formatCurrency(t.overdueAmount)} passed
-          {t.overdue === 1 ? ' its' : ' their'} promised payment date. Follow up before the balance ages further.
+          {t.overdue} shipment{t.overdue === 1 ? '' : 's'} {t.overdue === 1 ? 'has' : 'have'} passed
+          {t.overdue === 1 ? ' its' : ' their'} promised payment date. Amount still unpaid: {formatCurrency(t.overdueAmount)}. Follow up soon.
         </div>
       )}
 
@@ -366,8 +366,8 @@ const UnpaidShipmentsPage = () => {
           }}
           role="status"
         >
-          {t.mismatched} shipment{t.mismatched === 1 ? ' has a' : 's have'} stored balance that disagrees with
-          billed minus paid. The figures shown are derived from billed minus paid; the stored total needs reconciling.
+          {t.mismatched} shipment{t.mismatched === 1 ? ' has an' : 's have'} amount that does not match the figure shown here.
+          The amount shown is calculated from the shipping fee after discount minus payments. Please check this record.
         </div>
       )}
 
@@ -376,8 +376,8 @@ const UnpaidShipmentsPage = () => {
           options={filterOptions}
           value={filter}
           onChange={setFilter}
-          ariaLabel="Filter Unpaid Shipments by settlement state"
-          label="Settlement state"
+          ariaLabel="Filter unpaid shipments by payment situation"
+          label="Payment situation"
           desktopClassName="tabs admin-mobile-tabs"
         />
         <div className="search-box unpaid-search-box" role="search">
@@ -387,7 +387,7 @@ const UnpaidShipmentsPage = () => {
             name="qunsettled"
             type="search"
             aria-label="Search Unpaid Shipments"
-            placeholder="Search tracking or customer..."
+            placeholder="Search tracking or customer name..."
             value={search}
             onChange={e => setSearch(e.target.value)}
           />
@@ -400,26 +400,26 @@ const UnpaidShipmentsPage = () => {
         <div className="card animate-fade-in no-print">
           <EmptyState
             icon={CheckCircle}
-            title={orders.length === 0 ? 'Everything is settled' : 'No matching shipments'}
+            title={orders.length === 0 ? 'No unpaid shipments' : 'No shipments match'}
             description={orders.length === 0
-              ? 'No shipment in the pipeline has an outstanding balance.'
-              : 'Try a different settlement state or search term.'}
+              ? 'No shipment in the pipeline has money still to be paid.'
+              : 'Try another payment situation or search term.'}
           />
         </div>
       ) : (
         <div className="card admin-section-card admin-table-card unpaid-table-card animate-fade-in no-print">
           <div className="table-container">
             <table className="data-table data-table--wide unpaid-table">
-              <caption className="sr-only">Deliveries with an outstanding balance</caption>
+              <caption className="sr-only">Shipments with money still to be paid</caption>
               <thead>
                 <tr>
                   <th scope="col">Tracking</th>
                   <th scope="col">Customer</th>
-                  <th scope="col">Status</th>
-                  <th scope="col">Settlement</th>
-                  <th scope="col" className="num">Billed</th>
-                  <th scope="col" className="num">Paid</th>
-                  <th scope="col" className="num">Balance</th>
+                  <th scope="col">Shipment Status</th>
+                  <th scope="col">Payment Situation</th>
+                  <th scope="col" className="num">Shipping Fee After Discount</th>
+                  <th scope="col" className="num">Amount Paid</th>
+                  <th scope="col" className="num">Amount Still Unpaid</th>
                   <th scope="col">Action</th>
                 </tr>
               </thead>
@@ -448,31 +448,31 @@ const UnpaidShipmentsPage = () => {
                           {(o.payer_type || 'sender') === 'receiver' ? `Receiver pays · ${o.receiver_name}` : 'Sender pays'}
                         </div>
                       </td>
-                      <td data-label="Status" className="unpaid-status-cell"><StatusBadge status={o.status} size="sm" /></td>
-                      <td data-label="Settlement" className="unpaid-settlement-cell">
+                      <td data-label="Shipment Status" className="unpaid-status-cell"><StatusBadge status={o.status} size="sm" /></td>
+                      <td data-label="Payment Situation" className="unpaid-settlement-cell">
                         <span className={`badge badge-${meta.tone}`} title={meta.hint}>{meta.label}</span>
                         <div className="text-xs text-tertiary mt-4">
                           {o.promised_payment_date
                             ? (o.days_overdue > 0
                                 ? `${o.days_overdue} day${o.days_overdue === 1 ? '' : 's'} overdue · promised ${formatDate(o.promised_payment_date)}`
-                                : `Promised ${formatDate(o.promised_payment_date)}`)
+                                : `Due ${formatDate(o.promised_payment_date)}`)
                             : `Booked ${formatDate(o.created_at)}`}
                         </div>
                       </td>
-                      <td data-label="Billed" className="num unpaid-money-cell unpaid-billed-cell">
+                      <td data-label="Shipping Fee After Discount" className="num unpaid-money-cell unpaid-billed-cell">
                         {formatCurrency(Math.max(0, (parseFloat(o.shipping_cost) || 0) - (parseFloat(o.discount_amount) || 0)))}
                         {(parseFloat(o.discount_amount) || 0) > 0 && (
                           <div className="text-xs text-tertiary fw-400">
-                            {formatCurrency(o.shipping_cost)} - {formatCurrency(o.discount_amount)} discount
+                            Before discount: {formatCurrency(o.shipping_cost)} · Discount: {formatCurrency(o.discount_amount)}
                           </div>
                         )}
                       </td>
-                      <td data-label="Paid" className="num unpaid-money-cell unpaid-paid-cell">{formatCurrency(o.amount_paid)}</td>
-                      <td data-label="Balance" className="num fw-700 text-error unpaid-money-cell unpaid-balance-cell">
+                      <td data-label="Amount Paid" className="num unpaid-money-cell unpaid-paid-cell">{formatCurrency(o.amount_paid)}</td>
+                      <td data-label="Amount Still Unpaid" className="num fw-700 text-error unpaid-money-cell unpaid-balance-cell">
                         {formatCurrency(o.outstanding)}
                         {o.balance_mismatch && (
-                          <div className="text-xs text-tertiary fw-400" title={`Stored remaining_balance is ${formatCurrency(o.remaining_balance)} — the ledger total is stale and should be reconciled.`}>
-                            ledger says {formatCurrency(o.remaining_balance)}
+                          <div className="text-xs text-tertiary fw-400" title={`Stored unpaid amount: ${formatCurrency(o.remaining_balance)}. This record needs checking.`}>
+                            Stored amount: {formatCurrency(o.remaining_balance)}
                           </div>
                         )}
                       </td>
@@ -491,7 +491,7 @@ const UnpaidShipmentsPage = () => {
               </tbody>
               <tfoot>
                 <tr>
-                  <td colSpan={6} className="fw-700">Outstanding ({filtered.length} shipment{filtered.length === 1 ? '' : 's'})</td>
+                  <td colSpan={6} className="fw-700">Amount still unpaid for {filtered.length} shipment{filtered.length === 1 ? '' : 's'}</td>
                   <td className="num fw-700 text-error">{formatCurrency(filteredOutstanding)}</td>
                   <td />
                 </tr>
@@ -512,27 +512,27 @@ const UnpaidShipmentsPage = () => {
       {!loading && filtered.length > 0 && (
         <PrintDocument
           title="Unpaid Shipments Report"
-          subtitle="Shipments with an Outstanding Balance"
+          subtitle="Shipments with Money Still to Be Paid"
           generatedAt={loadedAt ? loadedAt.toLocaleString('en-PH', { month: 'long', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true }) : ''}
           preparedBy={userProfile?.name}
         >
           <div className="pd-section">
-            <div className="pd-section-title">I. Settlement Summary</div>
+            <div className="pd-section-title">I. Payment Summary</div>
             <table className="pd-table">
               <tbody>
-                <tr><td>Total Outstanding (all shipments)</td><td className="num">{formatCurrency(t.outstanding)}</td></tr>
-                <tr><td>Unpaid Shipments</td><td className="num">{t.count || 0}</td></tr>
-                <tr><td>Overdue Promises</td><td className="num">{t.overdue || 0}</td></tr>
-                <tr><td>Overdue Amount</td><td className="num">{formatCurrency(t.overdueAmount)}</td></tr>
-                <tr><td>Delivered with Balance Owing</td><td className="num">{t.delivered || 0}</td></tr>
-                <tr><td>Stored Balance Needing Reconciliation</td><td className="num">{t.mismatched || 0}</td></tr>
+                <tr><td>Total Amount Still Unpaid</td><td className="num">{formatCurrency(t.outstanding)}</td></tr>
+                <tr><td>Shipments With Money Due</td><td className="num">{t.count || 0}</td></tr>
+                <tr><td>Shipments Past Due</td><td className="num">{t.overdue || 0}</td></tr>
+                <tr><td>Amount Past Due</td><td className="num">{formatCurrency(t.overdueAmount)}</td></tr>
+                <tr><td>Delivered Shipments Still Unpaid</td><td className="num">{t.delivered || 0}</td></tr>
+                <tr><td>Shipments With Amounts to Check</td><td className="num">{t.mismatched || 0}</td></tr>
               </tbody>
             </table>
           </div>
 
           <div className="pd-section pd-flow">
             <div className="pd-section-title">
-              II. Outstanding Shipments ({filtered.length}
+              II. Shipments With Money Due ({filtered.length}
               {filter !== 'all' ? ` — ${filterOptions.find(f => f.value === filter)?.label} only` : ''})
             </div>
             <table className="pd-table">
@@ -540,12 +540,12 @@ const UnpaidShipmentsPage = () => {
                 <tr>
                   <th scope="col">Tracking No.</th>
                   <th scope="col">Customer</th>
-                  <th scope="col">Status</th>
-                  <th scope="col">Settlement</th>
+                  <th scope="col">Shipment Status</th>
+                  <th scope="col">Payment Situation</th>
                   <th scope="col">Promised</th>
-                  <th scope="col" className="num">Billed</th>
-                  <th scope="col" className="num">Paid</th>
-                  <th scope="col" className="num">Balance</th>
+                  <th scope="col" className="num">Shipping Fee After Discount</th>
+                  <th scope="col" className="num">Amount Paid</th>
+                  <th scope="col" className="num">Amount Still Unpaid</th>
                 </tr>
               </thead>
               <tbody>
@@ -564,7 +564,7 @@ const UnpaidShipmentsPage = () => {
               </tbody>
               <tfoot>
                 <tr>
-                  <td colSpan={7}>Total Outstanding</td>
+                  <td colSpan={7}>Total Amount Still Unpaid</td>
                   <td className="num">{formatCurrency(filteredOutstanding)}</td>
                 </tr>
               </tfoot>

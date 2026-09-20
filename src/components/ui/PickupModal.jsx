@@ -527,7 +527,7 @@ const PickupModal = ({ order, onClose, onSave, onPreparePayment, pricePerKilo = 
           {form.actual_weight && (
             <div className="mb-16 br-8" style={{ padding: 14, border: '1px solid var(--border)' }}>
               <div className="flex justify-between text-sm" style={{ padding: '2px 0' }}>
-                <span className="text-secondary">Original Shipping Fee</span>
+                <span className="text-secondary">Original Cargo Fee</span>
                 <span>₱{formatAmount(estimatedCost.toFixed(2))}</span>
               </div>
               {discount.enabled && discountAmountValue > 0 && (
@@ -537,7 +537,7 @@ const PickupModal = ({ order, onClose, onSave, onPreparePayment, pricePerKilo = 
                 </div>
               )}
               <div className="flex justify-between text-sm fw-700" style={{ padding: '2px 0', borderTop: '1px dashed var(--border)', marginTop: 4 }}>
-                <span>Final Shipping Fee</span>
+                <span>Final Cargo Fee</span>
                 <span>₱{formatAmount(finalFee.toFixed(2))}</span>
               </div>
               {isPrepaid && (

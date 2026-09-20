@@ -102,7 +102,9 @@
   letter-spacing: 0.05em;
   border-bottom: 1px solid var(--border);
   background: var(--bg);
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.25;
   position: sticky;
   top: 0;
   z-index: 1;
@@ -358,4 +360,3 @@
    WORLD-CLASS MICRO-INTERACTIONS
    Premium hover effects, ripples, and animated feedback
    ----------------------------------------------------------------------- */
-

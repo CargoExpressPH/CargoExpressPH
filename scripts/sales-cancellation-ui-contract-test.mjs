@@ -28,16 +28,16 @@ assert.match(chart, /numericValue > 0[\s\S]{0,40}:\s*'0%'/,
   'A zero-value month must render as a zero-height bar, not a misleading minimum-height one.');
 
 for (const label of [
-  'Original Payment Method',
-  'Gross Received',
-  'Refunds of These Payments',
-  'Net Retained',
+  'How Customers Paid',
+  'Payments Received',
+  'Money Returned',
+  'Payments After Refunds',
 ]) {
   assert.ok(reportsPage.includes(label), `Reports must include “${label}” on screen and in print.`);
 }
 assert.ok(
-  reportsPage.includes('Refunds are grouped by the original payment method. The actual return method may differ and is shown in transaction history.'),
-  'Reports must explain original-method grouping without hiding refund destinations.',
+  reportsPage.includes('Returns are listed under the original payment method, even if the money was returned another way.'),
+  'Reports must explain how returns are grouped without hiding the return-method distinction.',
 );
 
 for (const source of [adminOrder, customerOrder]) {

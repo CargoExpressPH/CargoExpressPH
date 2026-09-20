@@ -60,17 +60,17 @@ const SalesReportsPage = ({ initialSection = 'sales' }) => {
         ))}
       </div>
       {section === 'sales' && (
-        <ErrorBoundarySection key="sales" message="Sales overview failed to load.">
+        <ErrorBoundarySection key="sales" message="Sales totals could not be loaded.">
           <SalesPage />
         </ErrorBoundarySection>
       )}
       {section === 'unsettled' && (
-        <ErrorBoundarySection key="unsettled" message="Unpaid Shipments report failed to load.">
+        <ErrorBoundarySection key="unsettled" message="Unpaid shipments could not be loaded.">
           <UnpaidShipmentsPage />
         </ErrorBoundarySection>
       )}
       {section === 'reports' && (
-        <ErrorBoundarySection key="reports" message="Analytics report failed to load.">
+        <ErrorBoundarySection key="reports" message="The report could not be loaded.">
           <ReportsPage />
         </ErrorBoundarySection>
       )}
