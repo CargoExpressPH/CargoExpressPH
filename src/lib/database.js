@@ -61,7 +61,7 @@ const getGlobalPricePerKilo = async () => {
  * still compares the NEW weight against the trip without that order's OLD
  * weight, exactly as before.
  */
-const getTripCurrentWeight = async (tripId, excludeOrderId = null) => {
+export const getTripCurrentWeight = async (tripId, excludeOrderId = null) => {
   if (!tripId) return 0;
 
   const { data, error } = await supabase.rpc('get_trips_load', { trip_ids: [tripId] });

@@ -11,6 +11,8 @@ import { sanitizeAmount, parseAmount, formatAmount } from '../../utils/currencyI
 import { formatPaymentMethod } from '../../utils/paymentDisplay';
 import { uploadMultiplePhotos, uploadPhoto, deletePhoto } from '../../lib/storage';
 import { serializePhotoReference } from '../../lib/photoReference';
+import { getTripCurrentWeight } from '../../lib/database';
+import { tripCapacityState, tripCapacityRefusal } from '../../constants/status';
 import PaymentCollectionPanel, {
   createPaymentCollectionState,
   derivePaymentCollection,
@@ -76,6 +78,28 @@ const PickupModal = ({ order, onClose, onSave, pricePerKilo = 70 }) => {
     otherReason: '',
   });
 
+  // ── Trip capacity — client-side pre-check ──────────────────────────────────
+  // record_pickup_payment() always writes actual_weight to the order in its
+  // very first step, whether the collection method is cash or GCash. For
+  // GCash that write only happens later, inside reconcile_paymongo_payment_
+  // attempt() when the webhook lands — by which point PayMongo has already
+  // captured real money. If guard_order_update() then refuses the write for
+  // exceeding the trip's capacity, that money has no order to land on and the
+  // customer is left staring at "Payment Processing" forever. Checking here,
+  // before either path is taken, is what stops that: the database trigger
+  // stays the actual authority, this only keeps the admin from starting a
+  // GCash checkout (or a cash pickup) that the trigger would refuse anyway.
+  const [tripLoad, setTripLoad] = useState(null);
+  useEffect(() => {
+    let cancelled = false;
+    if (!order?.trip_id) { setTripLoad(0); return undefined; }
+    setTripLoad(null);
+    getTripCurrentWeight(order.trip_id, order.id)
+      .then(weight => { if (!cancelled) setTripLoad(weight); })
+      .catch(() => { if (!cancelled) setTripLoad(null); });
+    return () => { cancelled = true; };
+  }, [order?.trip_id, order?.id]);
+
   // Field-level validation. The banner above still carries errors that belong
   // to no single field (an upload that failed, a PayMongo refusal); anything
   // attributable to a control is reported at that control instead.
@@ -94,6 +118,14 @@ const PickupModal = ({ order, onClose, onSave, pricePerKilo = 70 }) => {
   // conditional on this — not merely disabled, absent.
   const isPrepaid = form.payer_type === 'sender';
   const estimatedCost = parseFloat(form.actual_weight || 0) * pricePerKilo;
+
+  // tripLoad === null means the current load hasn't loaded yet (or failed to)
+  // — treated as "unknown", not zero, so a slow/failed fetch never falsely
+  // waves an overweight booking through.
+  const incomingWeight = parseFloat(form.actual_weight) || 0;
+  const capacityKnown = tripLoad !== null && Boolean(order?.trips);
+  const capacityCheck = capacityKnown ? tripCapacityState(order.trips, tripLoad, incomingWeight) : null;
+  const capacityExceeded = Boolean(capacityCheck?.hasLimit && incomingWeight > 0 && capacityCheck.wouldExceed);
 
   // ── Discount math — client-side preview only; the server (guard_order_update)
   // is the actual authority and re-validates all of this against the fee it
@@ -203,7 +235,9 @@ const PickupModal = ({ order, onClose, onSave, pricePerKilo = 70 }) => {
     const rules = {
       actual_weight: (!form.actual_weight || parseFloat(form.actual_weight) <= 0)
         ? 'Enter the weight from the scale. The price is computed from it, so the parcel cannot be priced without it.'
-        : null,
+        : capacityExceeded
+          ? tripCapacityRefusal(order.trips, tripLoad, incomingWeight)
+          : null,
       pickup_photos: photos.length === 0
         ? 'Attach at least 1 photo of the parcel as pickup proof.'
         : null,
@@ -382,6 +416,13 @@ const PickupModal = ({ order, onClose, onSave, pricePerKilo = 70 }) => {
                 Estimated cost: ₱{formatAmount(estimatedCost.toFixed(2))}
               </div>
             )}
+            {!errors.actual_weight && capacityExceeded && (
+              <div className="field-error-inline" role="alert">
+                <AlertTriangle size={13} aria-hidden="true" /> This trip is already full. Please adjust the
+                weight or assign the booking to a different trip schedule.
+                {' '}({tripCapacityRefusal(order.trips, tripLoad, incomingWeight)})
+              </div>
+            )}
           </div>
 
           {/* ── Shipping discount — OFF by default; admin-only, fixed peso ── */}
@@ -555,7 +596,7 @@ const PickupModal = ({ order, onClose, onSave, pricePerKilo = 70 }) => {
               value={payment}
               setValue={setPayment}
               config={paymentConfig}
-              disabled={saving}
+              disabled={saving || capacityExceeded}
               errors={errors}
               clearError={clearError}
             />
@@ -606,10 +647,12 @@ const PickupModal = ({ order, onClose, onSave, pricePerKilo = 70 }) => {
           <button
             className="btn btn-primary"
             onClick={handleSubmit}
-            disabled={saving || submitLocked}
-            title={submitLocked && payment.paymentStep === 'waiting'
-              ? 'Waiting for the GCash payment to be confirmed or cancelled'
-              : undefined}
+            disabled={saving || submitLocked || capacityExceeded}
+            title={capacityExceeded
+              ? 'This trip is full — adjust the weight or assign a different trip.'
+              : (submitLocked && payment.paymentStep === 'waiting'
+                ? 'Waiting for the GCash payment to be confirmed or cancelled'
+                : undefined)}
           >
             {saving ? <><Loader size={16} className="animate-spin" /> {uploadProgress || 'Processing...'}</> : <><CheckCircle size={16} /> Confirm Pickup</>}
           </button>
