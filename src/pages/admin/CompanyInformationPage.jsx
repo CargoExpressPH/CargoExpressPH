@@ -40,7 +40,7 @@ const FIELD_TAB = {
   
   email: 'contact',
   facebook: 'contact',
-  messenger: 'contact',
+  
   default_price_per_kg: 'pricing',
 };
 
@@ -48,7 +48,7 @@ const getEmptyCompanyInfo = () => ({
   name: '', short_description: '', long_description: '', story: '',
   core_values: '',
   banner_image_url: '', banner_title: '', banner_description: '', banner_button_text: '', banner_button_link: '',
-  email: '', facebook: '', messenger: '', smart_phone: '', globe_phone: '',
+  email: '', facebook: '', smart_phone: '', globe_phone: '',
   manila_address: '', bohol_address: '',
   default_price_per_kg: 0,
 });
@@ -128,7 +128,6 @@ const CompanyInformationPage = () => {
         : null,
       
       facebook: optionalUrl('facebook', 'Facebook link'),
-      messenger: optionalUrl('messenger', 'Messenger link'),
     };
   };
 
@@ -479,11 +478,6 @@ const CompanyInformationPage = () => {
                     <label className="form-label" htmlFor="company-facebook">Facebook Page URL</label>
                     <input id="company-facebook" className={`form-input ${invalidClass('facebook', errors)}`} type="url" value={companyInfo.facebook || ''} onChange={e => handleInfoChange('facebook', e.target.value)} placeholder="https://facebook.com/..." {...fieldAttrs('facebook', errors)} />
                     <FieldError name="facebook" errors={errors} />
-                  </div>
-                  <div className="form-group mb-0">
-                    <label className="form-label" htmlFor="company-messenger">Messenger Link</label>
-                    <input id="company-messenger" className={`form-input ${invalidClass('messenger', errors)}`} type="url" value={companyInfo.messenger || ''} onChange={e => handleInfoChange('messenger', e.target.value)} placeholder="https://m.me/..." {...fieldAttrs('messenger', errors)} />
-                    <FieldError name="messenger" errors={errors} />
                   </div>
 
                 </div>

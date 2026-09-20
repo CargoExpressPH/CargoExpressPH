@@ -50,13 +50,7 @@ const Footer = ({ companyName, info, systemStatus, systemStatusLabel }) => {
                 </svg>
               </a>
             )}
-            {info?.messenger && (
-              <a href={info.messenger} target="_blank" rel="noreferrer" className="about-social-btn" title="Messenger">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M12 2C6.477 2 2 6.145 2 11.243c0 2.91 1.448 5.503 3.7 7.208V22l3.355-1.84c.88.243 1.81.378 2.775.378 5.523 0 10-4.146 10-9.243S17.523 2 12 2zm1.13 12.374L10.91 12.05l-4.24 2.32 4.655-4.945 2.22 2.324 4.24-2.32-4.655 4.945z"/>
-                </svg>
-              </a>
-            )}
+
             {info?.email && (
               <a href={`mailto:${info.email}`} className="about-social-btn" title="Email">
                 <Mail size={18} />
