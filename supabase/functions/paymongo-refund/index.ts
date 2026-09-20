@@ -117,7 +117,7 @@ serve(async (req) => {
 
     if (!reservation?.created && !canRetryUnresolvedRequest) {
       const duplicateMessage = reservationStatus === 'succeeded'
-        ? 'Refund completed. PayMongo already confirmed it as succeeded, and the order ledger is reconciled.'
+        ? 'Refund confirmed. PayMongo already confirmed it as succeeded, and the order ledger is reconciled.'
         : reservationStatus === 'failed'
           ? 'This refund request failed. No refund amount was deducted from the order’s collected total.'
           : reservationStatus === 'pending'
@@ -239,7 +239,7 @@ serve(async (req) => {
       ledgerReconciled: true,
       amount: refundAmount || reservedAmount,
       message: status === 'succeeded'
-        ? 'Refund completed. PayMongo confirmed it as succeeded, and the order’s financial totals were updated. Posting to the original GCash account may take additional time.'
+        ? 'Refund confirmed. PayMongo confirmed it as succeeded, and the order’s financial totals were updated. Posting to the original GCash account may take additional time.'
         : status === 'failed'
           ? 'PayMongo could not complete the refund. No refund amount was deducted from the order’s collected total.'
         : status === 'processing'

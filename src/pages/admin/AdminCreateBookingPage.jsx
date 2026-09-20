@@ -544,7 +544,7 @@ const AdminCreateBookingPage = () => {
         {/* ── Sender Details ─────────────────────────────────── */}
         {!form.origin ? (
           <div className="card text-center p-32 mb-16 stagger-item" style={{ animationDelay: '60ms', background: 'var(--surface)', borderStyle: 'dashed' }}>
-            <Lock size={32} color="var(--tertiary)" className="mx-auto mb-16" />
+            <Lock size={32} color="var(--text-tertiary)" className="mx-auto mb-16" />
             <h3 className="fw-700 text-lg mb-8">Select a Route to Continue</h3>
             <p className="text-secondary text-sm max-w-sm mx-auto">Please select the origin and destination above before filling out the booking details. This ensures the correct barangays and addresses are recorded.</p>
           </div>

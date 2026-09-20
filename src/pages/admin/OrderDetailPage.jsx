@@ -1683,7 +1683,7 @@ const AdminOrderDetailPage = () => {
             const isCompleted = result?.status === 'succeeded' && result?.ledgerReconciled === true;
             const isFailed = result?.status === 'failed';
             const activity = isCompleted
-              ? 'Refund Completed'
+              ? 'Refund Confirmed'
               : isFailed
                 ? 'Refund Failed'
               : result?.status === 'succeeded'
@@ -1693,7 +1693,7 @@ const AdminOrderDetailPage = () => {
               details: `${formatMoney(amount)} PayMongo refund ${result?.refundId || 'submitted'} (${result?.status || 'processing'}; ledger ${result?.ledgerReconciled === true ? 'reconciled' : 'pending'})`,
             });
             if (isCompleted) {
-              toast.success('Refund completed. PayMongo confirmed success and the order’s financial totals were updated.');
+              toast.success('Refund confirmed. PayMongo confirmed success and the order’s financial totals were updated.');
             } else if (isFailed) {
               toast.error(result?.message || 'Refund failed. PayMongo did not return the money, and no refund was deducted from the order’s collected total.');
             } else {

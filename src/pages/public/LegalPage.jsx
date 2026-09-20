@@ -8,7 +8,7 @@ const TERMS_SECTIONS = [
     heading: '1. Agreement and scope',
     body: [
       'These Terms of Service govern your access to and use of CargoExpress PH’s website, account portal, booking, tracking, payment and customer-support services (collectively, the “Services”). By creating an account, placing a booking, or otherwise using the Services, you agree to these Terms and our Privacy Policy.',
-      'If you use the Services for an organisation, you confirm that you are authorized to accept these Terms on that organisation’s behalf.',
+      'If you use the Services for an organization, you confirm that you are authorized to accept these Terms on that organization’s behalf.',
     ],
   },
   {
@@ -88,7 +88,7 @@ const PRIVACY_SECTIONS = [
   {
     heading: '3. Why we use information',
     body: [
-      'We use personal information to create and secure accounts; process, coordinate, track, and support shipments; communicate service updates; process authorized payments; prevent fraud and protect the security of our Services; comply with legal obligations; improve service quality; and respond to enquiries or disputes.',
+      'We use personal information to create and secure accounts; process, coordinate, track, and support shipments; communicate service updates; process authorized payments; prevent fraud and protect the security of our Services; comply with legal obligations; improve service quality; and respond to inquiries or disputes.',
       'We process information only where we have an appropriate legal basis, such as performing our agreement with you, complying with law, protecting legitimate interests such as service security, or obtaining consent where consent is required.',
     ],
   },
@@ -103,7 +103,7 @@ const PRIVACY_SECTIONS = [
     heading: '5. Retention and security',
     body: [
       'We retain information for as long as reasonably necessary for the purposes described above, including to provide the Services, maintain records, resolve disputes, meet legal obligations, and enforce agreements. For your privacy and security, specific media records such as pickup and delivery photos (proof of delivery) are securely removed from our active systems 6 months after the transaction is completed.',
-      'We use organisational and technical measures designed to protect information against unauthorized access, loss, misuse, alteration, or disclosure. No online service can guarantee absolute security, so please protect your credentials and notify us promptly if you suspect unauthorized access.',
+      'We use organizational and technical measures designed to protect information against unauthorized access, loss, misuse, alteration, or disclosure. No online service can guarantee absolute security, so please protect your credentials and notify us promptly if you suspect unauthorized access.',
     ],
   },
   {

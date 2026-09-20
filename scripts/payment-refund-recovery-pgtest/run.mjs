@@ -90,6 +90,17 @@ console.log(`  applied ${refundInitiatorMigration}`);
 const customerCopyMigration = '20260913113126_customer_refund_notification_copy.sql';
 await db.exec(readFileSync(path.join(REPO, 'supabase/migrations', customerCopyMigration), 'utf8'));
 console.log(`  applied ${customerCopyMigration}`);
+// The production schema receives these columns from the later manual-refund
+// migration. This focused harness adds the same shape before applying the
+// notification-title migration under test.
+await db.exec(`
+  ALTER TABLE public.payment_refunds
+    ADD COLUMN refund_channel TEXT NOT NULL DEFAULT 'paymongo',
+    ADD COLUMN return_method TEXT;
+`);
+const refundConfirmedMigration = '20260920064652_rename_refund_completed_to_confirmed.sql';
+await db.exec(readFileSync(path.join(REPO, 'supabase/migrations', refundConfirmedMigration), 'utf8'));
+console.log(`  applied ${refundConfirmedMigration}`);
 
 const ADMIN = '10000000-0000-4000-8000-000000000001';
 const CUSTOMER = '10000000-0000-4000-8000-000000000002';
@@ -246,7 +257,7 @@ const notice = await value(`
 `);
 ok(
   'customer refund notification uses clear customer-facing wording',
-  notice.title === 'Refund Completed'
+  notice.title === 'Refund Confirmed'
     && /Your ₱100\.00 refund for order RECOVERY-TEST-001 was successfully processed\./.test(notice.message)
     && /remaining balance for this order is now/i.test(notice.message)
     && /It may take additional time for the refund to appear in your original GCash account\./.test(notice.message)

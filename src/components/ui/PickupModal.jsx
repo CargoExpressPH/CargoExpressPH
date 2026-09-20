@@ -8,6 +8,7 @@ import useFieldErrors from '../../hooks/useFieldErrors';
 import FieldError, { errorId, fieldAttrs, invalidClass } from './FieldError';
 import { formatCommaNumber, parseCommaNumber } from "../../utils/numberFormatters";
 import { sanitizeAmount, parseAmount, formatAmount } from '../../utils/currencyInput';
+import { formatPaymentMethod } from '../../utils/paymentDisplay';
 import { uploadMultiplePhotos, uploadPhoto, deletePhoto } from '../../lib/storage';
 import { serializePhotoReference } from '../../lib/photoReference';
 import PaymentCollectionPanel, {
@@ -508,13 +509,12 @@ const PickupModal = ({ order, onClose, onSave, pricePerKilo = 70 }) => {
                 </button>
               ))}
             </div>
-            {/* What the customer declared at booking. Previously collected and
-                never shown to anyone. */}
+            {/* What the customer selected when placing the booking. */}
             {(order?.payer_type || order?.payment_preference) && (
               <div className="text-xs text-secondary mt-4">
-                Booking says: <strong className="text-capitalize">{order.payer_type || 'sender'}</strong> pays
+                Customer selected: <strong>{(order.payer_type || 'sender') === 'receiver' ? 'Receiver pays' : 'Sender pays'}</strong>
                 {order.payment_preference && order.payment_preference !== 'unspecified' && (
-                  <> · prefers <strong className="text-capitalize">{order.payment_preference}</strong></>
+                  <> · Preferred method: <strong>{formatPaymentMethod(order.payment_preference)}</strong></>
                 )}
               </div>
             )}

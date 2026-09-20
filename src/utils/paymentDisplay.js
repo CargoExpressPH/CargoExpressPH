@@ -25,8 +25,8 @@ export const formatPaymentType = (type, audience = 'customer') => {
 };
 
 /**
- * Humanise the admin_name / recorded-by field without exposing a staff
- * member's personal name in customer-facing payment history.
+ * Humanise the admin_name / recorded-by field. Staff-recorded payments show
+ * the responsible admin's name; automated entries keep a system label.
  * @param {string} adminName
  * @param {'customer'|'admin'} [audience='customer']
  * @returns {string}
@@ -187,7 +187,7 @@ export const getRefundStatusDisplay = (status, audience = 'customer') => {
   }
   if (s === 'succeeded' || s === 'refunded') {
     return {
-      label: 'Refund Completed',
+      label: 'Refund Confirmed',
       tone: 'success',
       description: isAdmin
         ? 'PayMongo confirmed the refund as succeeded. The amount was deducted from this order’s collected total; posting to the original GCash account may take additional time.'
