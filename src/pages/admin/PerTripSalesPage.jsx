@@ -138,7 +138,7 @@ const CancelledBookingsTable = ({ rows }) => (
 );
 
 const PerTripSalesPage = () => {
-  usePageTitle('Reports & Analytics');
+  usePageTitle('Sales & Reports');
   const { user, userProfile } = useAuth();
   const [exporting, setExporting] = useState(false);
   const [trips, setTrips] = useState([]);
@@ -254,7 +254,7 @@ const PerTripSalesPage = () => {
     <div className="page-transition per-trip-report">
       <div className="admin-page-header no-print">
         <div>
-          <h1 className="admin-page-title"><FileText size={24} color="var(--primary)" aria-hidden="true" /> Reports & Analytics</h1>
+          <h1 className="admin-page-title"><FileText size={24} color="var(--primary)" aria-hidden="true" /> Sales & Reports</h1>
           <p className="admin-page-subtitle">Review shipping fees, payments, refunds, and balances per trip.</p>
         </div>
         <div className="flex gap-8">
@@ -339,11 +339,11 @@ const PerTripSalesPage = () => {
           </div>
 
           <div className="grid grid-4 report-summary-cards per-trip-summary-grid mt-16">
-            <SummaryCard label="Shipping fees — active & completed bookings" value={summary.shippingFees} detail="Final fee after discount, as recorded for priced bookings." tone="info" />
-            <SummaryCard label="Payments received — all listed bookings" value={summary.paymentsReceived} detail="Successful collections, including cancelled bookings." tone="success" />
-            <SummaryCard label="Money returned — all listed bookings" value={summary.moneyReturned} detail="Successful refunds only." tone="warning" />
-            <SummaryCard label="Payments after refunds" value={summary.paymentsAfterRefunds} detail="Payments received minus successful refunds; not profit." tone="primary" />
-            <SummaryCard label="Amount still to collect" value={summary.amountStillToCollect} detail="Active and completed priced bookings only." tone="error" />
+            <SummaryCard label="Shipping fees" value={summary.shippingFees} tone="info" />
+            <SummaryCard label="Payments received" value={summary.paymentsReceived} tone="success" />
+            <SummaryCard label="Money returned" value={summary.moneyReturned} tone="warning" />
+            <SummaryCard label="Payments after refunds" value={summary.paymentsAfterRefunds} tone="primary" />
+            <SummaryCard label="Amount still to collect" value={summary.amountStillToCollect} tone="error" />
           </div>
 
           <div className="per-trip-counts-card mt-16">
