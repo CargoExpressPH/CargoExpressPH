@@ -61,23 +61,6 @@ const PaymentReturnPage = () => {
   const mountedRef = useRef(true);
   const confirmedRef = useRef(false);
 
-  useEffect(() => {
-    mountedRef.current = true;
-    
-    const handleVisibility = () => {
-      if (document.visibilityState === 'visible' && !confirmedRef.current) {
-        verify();
-      }
-    };
-    document.addEventListener('visibilitychange', handleVisibility);
-
-    return () => {
-      mountedRef.current = false;
-      document.removeEventListener('visibilitychange', handleVisibility);
-      if (channelRef.current) void supabase.removeChannel(channelRef.current);
-    };
-  }, [verify]);
-
   const goToOrder = useCallback(() => {
     navigate(orderPagePath(role, orderId), { replace: true });
   }, [navigate, orderId, role]);
@@ -210,6 +193,23 @@ const PaymentReturnPage = () => {
     }
     if (mountedRef.current && !confirmedRef.current) setPhase('stuck');
   }, [confirmPaid, orderId, role, user?.id]);
+
+  useEffect(() => {
+    mountedRef.current = true;
+
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible' && !confirmedRef.current) {
+        verify();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    return () => {
+      mountedRef.current = false;
+      document.removeEventListener('visibilitychange', handleVisibility);
+      if (channelRef.current) void supabase.removeChannel(channelRef.current);
+    };
+  }, [verify]);
 
   useEffect(() => {
     // A failed return is already a final answer from PayMongo — verifying it
