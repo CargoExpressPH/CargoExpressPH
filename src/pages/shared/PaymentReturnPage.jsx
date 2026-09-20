@@ -64,11 +64,20 @@ const PaymentReturnPage = () => {
 
   useEffect(() => {
     mountedRef.current = true;
+    
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible' && !confirmedRef.current) {
+        verify();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+
     return () => {
       mountedRef.current = false;
+      document.removeEventListener('visibilitychange', handleVisibility);
       if (channelRef.current) void supabase.removeChannel(channelRef.current);
     };
-  }, []);
+  }, [verify]);
 
   const goToOrder = useCallback(() => {
     navigate(orderPagePath(role, orderId), { replace: true });
@@ -164,7 +173,7 @@ const PaymentReturnPage = () => {
 
     if (!sourceId) {
       // Cannot query PayMongo directly — watch the order row instead.
-      for (const delay of [0, 2000, 4000, 6000, 8000]) {
+      for (const delay of [0, 2000, 4000, 6000, 8000, 12000, 15000, 20000]) {
         if (delay) await new Promise((resolve) => setTimeout(resolve, delay));
         if (!mountedRef.current || confirmedRef.current) return;
         try {
@@ -177,7 +186,7 @@ const PaymentReturnPage = () => {
       return;
     }
 
-    for (const delay of [0, 2000, 4000, 6000, 8000]) {
+    for (const delay of [0, 2000, 4000, 6000, 8000, 12000, 15000, 20000]) {
       if (delay) await new Promise((resolve) => setTimeout(resolve, delay));
       if (!mountedRef.current || confirmedRef.current) return;
       try {
@@ -257,6 +266,7 @@ const PaymentReturnPage = () => {
       trackingNumber={trackingNumber ?? undefined}
       paymentMethod="GCash"
       onClose={goToOrder}
+      onRetry={verify}
     />
   );
 };
