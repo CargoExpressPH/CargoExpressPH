@@ -26,8 +26,8 @@ assert.match(salesPage, /Net Collected Today[\s\S]*Successful collections minus 
   'The Today metric must explain its net, Manila-date meaning.');
 assert.doesNotMatch(salesPage, /202[0-9]/,
   'Sales Overview must not hardcode a display year.');
-assert.match(chart, /numericValue <= 0 \? 0/,
-  'A zero-value month must render as a zero-height bar.');
+assert.match(chart, /numericValue > 0[\s\S]{0,40}:\s*'0%'/,
+  'A zero-value month must render as a zero-height bar, not a misleading minimum-height one.');
 
 for (const label of [
   'Original Payment Method',
@@ -38,7 +38,7 @@ for (const label of [
   assert.ok(reportsPage.includes(label), `Reports must include “${label}” on screen and in print.`);
 }
 assert.ok(
-  reportsPage.includes('Refunds are grouped by the original payment method; refund destination details remain in the transaction history.'),
+  reportsPage.includes('Refunds are grouped by the original payment method. The actual return method may differ and is shown in transaction history.'),
   'Reports must explain original-method grouping without hiding refund destinations.',
 );
 
@@ -47,7 +47,7 @@ for (const source of [adminOrder, customerOrder]) {
     'Both order-detail experiences must use the canonical cancelled summary.');
 }
 for (const label of [
-  'Payment & Refund Summary',
+  'Payment &amp; Refund Summary',
   'Historical final charge',
   'Gross collected',
   'Successfully refunded',
@@ -59,9 +59,9 @@ for (const label of [
 }
 assert.match(settlementSummary, /Historical payment promise:[\s\S]*no longer actionable after cancellation/,
   'A cancelled booking may show the promise only as historical context.');
-assert.match(settlementModal, /does not move money/i,
+assert.match(settlementModal, /does not send money, create a payment, or create a refund/i,
   'The decision UI must make clear that confirmation does not issue a refund.');
-assert.match(settlementModal, /Amend recorded decision/,
+assert.match(settlementModal, /Amend Settlement Decision/,
   'Changing a confirmed decision must be an explicit amendment.');
 assert.match(statuses, /CANCELLED:\s*'cancelled'/,
   'Cancelled must be a canonical settlement state, not Settled.');
