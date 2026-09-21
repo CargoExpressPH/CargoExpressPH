@@ -85,7 +85,7 @@ const ActiveBookingsTable = ({ rows }) => (
             <td data-label="Payment status">
               <span className={`per-trip-pill ${statusClass(row.paymentStatus)}`}>{row.paymentStatus}</span>
             </td>
-            <td data-label="Booking"><Link className="btn btn-ghost btn-sm" to={`/admin/orders/${row.id}`}>Open</Link></td>
+            <td data-label="Booking"><Link className="btn btn-outline btn-sm" to={`/admin/orders/${row.id}`}>Open</Link></td>
           </tr>
         ))}
       </tbody>
@@ -128,7 +128,7 @@ const CancelledBookingsTable = ({ rows }) => (
               <td data-label="Settlement status">
                 <span className={`per-trip-pill ${statusClass(decision.settlementStatus)}`}>{decision.settlementStatus}</span>
               </td>
-              <td data-label="Booking"><Link className="btn btn-ghost btn-sm" to={`/admin/orders/${row.id}`}>Open</Link></td>
+              <td data-label="Booking"><Link className="btn btn-outline btn-sm" to={`/admin/orders/${row.id}`}>Open</Link></td>
             </tr>
           );
         })}

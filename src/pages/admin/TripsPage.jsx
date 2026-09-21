@@ -63,7 +63,7 @@ const AdminTripsPage = () => {
   const filtered = activeTab === 'All' ? trips : trips.filter(t => t.status === activeTab);
   const filterOptions = tabs.map(t => ({
     value: t,
-    label: t === 'All' ? 'All' : t.replace(/_/g, ' '),
+    label: t === 'All' ? 'All' : t.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' '),
     count: t === 'All' ? trips.length : trips.filter(trip => trip.status === t).length,
   }));
 
