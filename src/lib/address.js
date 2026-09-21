@@ -8,12 +8,11 @@ export const cleanAddressPart = (value) => {
     .trim();
 };
 
-export const joinAddressParts = (parts = []) =>
-  parts
-    .flat()
-    .map(cleanAddressPart)
-    .filter(Boolean)
-    .join(', ');
+export const joinAddressParts = (parts = []) => {
+  const cleaned = parts.flat().map(cleanAddressPart).filter(Boolean);
+  const deduplicated = cleaned.filter((part, index) => index === 0 || part.toLowerCase() !== cleaned[index - 1].toLowerCase());
+  return deduplicated.join(', ');
+};
 
 export const buildFullAddress = ({ lotBlock, street, barangay, city, province, landmark } = {}) => {
   const address = joinAddressParts([lotBlock, street, barangay, city, province]);
@@ -32,11 +31,11 @@ export const normalizeProfileAddressFields = (profile = {}) => ({
   address_landmark: cleanAddressPart(profile.address_landmark),
 });
 
-export const buildProfileAddress = (profile = {}) => joinAddressParts([
-  profile.address_lot_block,
-  profile.address_street,
-  profile.address_barangay,
-  profile.address_city,
-  profile.address_province,
-  profile.address_landmark,
-]);
+export const buildProfileAddress = (profile = {}) => buildFullAddress({
+  lotBlock: profile.address_lot_block,
+  street: profile.address_street,
+  barangay: profile.address_barangay,
+  city: profile.address_city,
+  province: profile.address_province,
+  landmark: profile.address_landmark,
+});
