@@ -161,7 +161,7 @@ const PerTripSalesPage = () => {
       setTrips(result);
       setSelectedTripId(current => current && result.some(trip => trip.id === current)
         ? current
-        : (result[0]?.id || ''));
+        : '');
     } catch (loadError) {
       if (mountedRef.current) setError('Trips could not be loaded. Please try again.');
     } finally {
@@ -293,6 +293,7 @@ const PerTripSalesPage = () => {
                 setSelectedTripId(event.target.value);
               }}
             >
+              <option value="" disabled>Select a trip...</option>
               {trips.map(trip => (
                 <option key={trip.id} value={trip.id}>
                   {trip.trip_number || 'Trip'} · {trip.origin || 'Origin not set'} -> {trip.destination || 'Destination not set'} · {tripDate(trip.departure_date)} · {tripStatusLabel(trip.status)}
