@@ -1581,8 +1581,10 @@ export const getDashboardStats = async () => {
 export const getVanCapacity = async () => {
   const { data: activeTrips } = await supabase
     .from('trips')
-    .select('id, trip_number, origin, destination, capacity')
-    .eq('status', 'in_progress')
+    .select('id, trip_number, origin, destination, capacity, status, departure_date')
+    .in('status', ['in_progress', 'scheduled'])
+    .order('status', { ascending: true }) // in_progress comes before scheduled alphabetically
+    .order('departure_date', { ascending: true })
     .limit(1);
 
   const activeTrip = activeTrips?.[0] || null;

@@ -172,7 +172,7 @@ const DashboardPage = () => {
               <EmptyState
                 icon={Truck}
                 title="No active trip"
-                description="There are currently no active trips in transit."
+                description="There are currently no active or scheduled trips."
               />
             )}
           </div>
