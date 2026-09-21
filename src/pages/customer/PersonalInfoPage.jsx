@@ -16,6 +16,7 @@ import usePageTitle from '../../hooks/usePageTitle';
 import { toTitleCase, toAddressCase, normalizeName } from '../../utils/string';
 import FieldError from '../../components/ui/FieldError';
 import { validatePhone as validatePhoneShared } from '../../utils/phone';
+import { validateName, validateAddressLine, validateFacebookName } from '../../utils/validation';
 
 const validatePhone = (phone) => validatePhoneShared(phone, { showDigitCount: true });
 
@@ -113,12 +114,28 @@ const PersonalInfoPage = () => {
 
   const validate = () => {
     const errors = {};
-    if (!form.name.trim()) errors.name = 'Full name is required.';
-    if (!form.facebook_name?.trim()) errors.facebook_name = 'Facebook name is required.';
+    const nameErr = validateName(form.name);
+    if (nameErr) errors.name = nameErr;
+
+    const fbErr = validateFacebookName(form.facebook_name);
+    if (fbErr) errors.facebook_name = fbErr;
+
     const phoneErr = validatePhone(form.phone);
     if (phoneErr) errors.phone = phoneErr;
-    if (!form.address_lot_block?.trim()) errors.address_lot_block = 'Lot / Block / Purok is required.';
-    if (!form.address_landmark?.trim()) errors.address_landmark = 'Landmark is required.';
+
+    const streetErr = validateAddressLine(form.address_street);
+    if (streetErr) errors.address_street = streetErr;
+
+    const lotErr = validateAddressLine(form.address_lot_block);
+    if (lotErr) errors.address_lot_block = lotErr;
+
+    const landmarkErr = validateAddressLine(form.address_landmark);
+    if (landmarkErr) errors.address_landmark = landmarkErr;
+
+    if (!form.address_province) errors.address_province = 'Province is required.';
+    if (!form.address_city) errors.address_city = 'City/Municipality is required.';
+    if (!form.address_barangay) errors.address_barangay = 'Barangay is required.';
+
     setFieldErrors(errors);
     return Object.keys(errors).length === 0;
   };

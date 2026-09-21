@@ -171,13 +171,9 @@ const AdminCreateBookingPage = () => {
       ? 'Please select a route.'
       : null,
     // Sender
-    sender_name: !form.sender_name.trim()
-      ? 'Sender name is required.'
-      : null,
+    sender_name: validateName(form.sender_name),
     sender_phone: validatePhone(form.sender_phone),
-    sender_facebook: !form.sender_facebook.trim()
-      ? 'Sender Facebook name is required.'
-      : null,
+    sender_facebook: validateFacebookName(form.sender_facebook),
     sender_province: !form.sender_province
       ? 'Province is required.'
       : null,
@@ -187,23 +183,13 @@ const AdminCreateBookingPage = () => {
     sender_barangay: !form.sender_barangay.trim()
       ? 'Barangay is required.'
       : null,
-    sender_street: !form.sender_street.trim()
-      ? 'Street is required.'
-      : null,
-    sender_lot_block: !form.sender_lot_block.trim()
-      ? 'Lot / Block / Purok is required.'
-      : null,
-    sender_landmark: !form.sender_landmark.trim()
-      ? 'Landmark is required.'
-      : null,
+    sender_street: validateAddressLine(form.sender_street),
+    sender_lot_block: validateAddressLine(form.sender_lot_block),
+    sender_landmark: validateAddressLine(form.sender_landmark),
     // Receiver
-    receiver_name: !form.receiver_name.trim()
-      ? 'Receiver name is required.'
-      : null,
+    receiver_name: validateName(form.receiver_name),
     receiver_phone: validatePhone(form.receiver_phone),
-    receiver_facebook: !form.receiver_facebook.trim()
-      ? 'Receiver Facebook name is required.'
-      : null,
+    receiver_facebook: validateFacebookName(form.receiver_facebook),
     receiver_province: !form.receiver_province
       ? 'Province is required.'
       : null,
@@ -213,15 +199,9 @@ const AdminCreateBookingPage = () => {
     receiver_barangay: !form.receiver_barangay.trim()
       ? 'Barangay is required.'
       : null,
-    receiver_street: !form.receiver_street.trim()
-      ? 'Street is required.'
-      : null,
-    receiver_lot_block: !form.receiver_lot_block.trim()
-      ? 'Lot / Block / Purok is required.'
-      : null,
-    receiver_landmark: !form.receiver_landmark.trim()
-      ? 'Landmark is required.'
-      : null,
+    receiver_street: validateAddressLine(form.receiver_street),
+    receiver_lot_block: validateAddressLine(form.receiver_lot_block),
+    receiver_landmark: validateAddressLine(form.receiver_landmark),
     // Package
     package_description: !form.package_description.trim()
       ? 'Package description is required.'

@@ -17,6 +17,7 @@ import { formatMoney } from '../../utils/currencyInput';
 import { toTitleCase, toAddressCase, normalizeName } from '../../utils/string';
 import { formatPhDate } from '../../utils/datetime';
 import { validatePhone } from '../../utils/phone';
+import { validateName, validateAddressLine, validateFacebookName } from '../../utils/validation';
 import {
   clearBookingDraftStorage,
   hasMeaningfulBookingData,
@@ -317,8 +318,12 @@ const BookShipmentPage = () => {
 
   const validateSender = () => {
     const errs = {};
-    if (!form.sender_name) errs.sender_name = 'Full Name is required.';
-    if (!form.sender_facebook) errs.sender_facebook = 'Facebook Name is required.';
+    const nameErr = validateName(form.sender_name);
+    if (nameErr) errs.sender_name = nameErr;
+    
+    const fbErr = validateFacebookName(form.sender_facebook);
+    if (fbErr) errs.sender_facebook = fbErr;
+    
     if (!form.sender_province) errs.sender_province = 'Province is required.';
     else if (form.sender_province === 'Other Area' && selectedRoute?.destination !== 'Bohol') {
       errs.sender_province = 'Out-of-coverage pickup is only available when delivering to Bohol. Please select a listed province.';
@@ -326,26 +331,46 @@ const BookShipmentPage = () => {
     if (form.sender_province === 'Other Area' && !form.sender_other_province) errs.sender_other_province = 'Exact province is required.';
     if (!form.sender_city) errs.sender_city = 'City is required.';
     if (!form.sender_barangay) errs.sender_barangay = 'Barangay is required.';
-    if (!form.sender_street) errs.sender_street = 'Street is required.';
-    if (!form.sender_lot_block) errs.sender_lot_block = 'Lot / Block / Purok is required.';
-    if (!form.sender_landmark) errs.sender_landmark = 'Landmark is required.';
+    
+    const streetErr = validateAddressLine(form.sender_street);
+    if (streetErr) errs.sender_street = streetErr;
+    
+    const lotErr = validateAddressLine(form.sender_lot_block);
+    if (lotErr) errs.sender_lot_block = lotErr;
+    
+    const landmarkErr = validateAddressLine(form.sender_landmark);
+    if (landmarkErr) errs.sender_landmark = landmarkErr;
+    
     const phoneErr = validatePhone(form.sender_phone);
     if (phoneErr) errs.sender_phone = phoneErr;
+    
     return errs;
   };
 
   const validateReceiver = () => {
     const errs = {};
-    if (!form.receiver_name) errs.receiver_name = 'Full Name is required.';
-    if (!form.receiver_facebook) errs.receiver_facebook = 'Facebook Name is required.';
+    const nameErr = validateName(form.receiver_name);
+    if (nameErr) errs.receiver_name = nameErr;
+    
+    const fbErr = validateFacebookName(form.receiver_facebook);
+    if (fbErr) errs.receiver_facebook = fbErr;
+    
     if (!form.receiver_province) errs.receiver_province = 'Province is required.';
     if (!form.receiver_city) errs.receiver_city = 'City is required.';
     if (!form.receiver_barangay) errs.receiver_barangay = 'Barangay is required.';
-    if (!form.receiver_street) errs.receiver_street = 'Street is required.';
-    if (!form.receiver_lot_block) errs.receiver_lot_block = 'Lot / Block / Purok is required.';
-    if (!form.receiver_landmark) errs.receiver_landmark = 'Landmark is required.';
+    
+    const streetErr = validateAddressLine(form.receiver_street);
+    if (streetErr) errs.receiver_street = streetErr;
+    
+    const lotErr = validateAddressLine(form.receiver_lot_block);
+    if (lotErr) errs.receiver_lot_block = lotErr;
+    
+    const landmarkErr = validateAddressLine(form.receiver_landmark);
+    if (landmarkErr) errs.receiver_landmark = landmarkErr;
+    
     const phoneErr = validatePhone(form.receiver_phone);
     if (phoneErr) errs.receiver_phone = phoneErr;
+    
     return errs;
   };
 
