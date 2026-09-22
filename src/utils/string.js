@@ -42,6 +42,25 @@ export const normalizeName = (value) =>
   toTitleCase(String(value ?? '').replace(/\s+/g, ' ').trim());
 
 /**
+ * Splits a single "full name" value (e.g. `profiles.name`, which is not
+ * itself split into first/last) into { firstName, lastName } for a form that
+ * has separate First/Last Name fields but only a combined name to seed them
+ * from — the "use my registered address" autofill in BookShipmentPage, for
+ * one. Splits on the FIRST space: "Juan Dela Cruz" -> "Juan" / "Dela Cruz".
+ * A single word (no space) becomes firstName only, lastName '' — mirrors the
+ * exact same rule the sender_name/receiver_name -> first/last DB backfill
+ * uses (20260922100000_split_sender_receiver_names.sql), so a value that
+ * round-trips through both paths splits identically either way.
+ */
+export const splitFullName = (value) => {
+  const trimmed = String(value ?? '').replace(/\s+/g, ' ').trim();
+  if (!trimmed) return { firstName: '', lastName: '' };
+  const spaceIndex = trimmed.indexOf(' ');
+  if (spaceIndex === -1) return { firstName: trimmed, lastName: '' };
+  return { firstName: trimmed.slice(0, spaceIndex), lastName: trimmed.slice(spaceIndex + 1) };
+};
+
+/**
  * Title-case an address line as it is being TYPED — Street/Subdivision,
  * Lot/Block/Purok, Landmark.
  *

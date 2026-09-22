@@ -36,7 +36,8 @@ const SIDES = [
   { prefix: 'receiver', label: 'Receiver' },
 ];
 
-const FIELD_KEYS = ['name', 'phone', 'province', 'city', 'barangay', 'street', 'lot_block', 'landmark'];
+const FIELD_KEYS = ['first_name', 'last_name', 'phone', 'province', 'city', 'barangay', 'street', 'lot_block', 'landmark'];
+const NAME_KEYS = ['first_name', 'last_name'];
 
 const buildInitialForm = (order) => {
   const form = {};
@@ -79,7 +80,8 @@ const EditContactDetailsModal = ({ isOpen, onClose, order, onSave, saving = fals
   const validate = () => {
     const errs = {};
     for (const { prefix, label } of SIDES) {
-      if (!form[`${prefix}_name`]?.trim()) errs[`${prefix}_name`] = `${label} name is required.`;
+      if (!form[`${prefix}_first_name`]?.trim()) errs[`${prefix}_first_name`] = `${label} first name is required.`;
+      if (!form[`${prefix}_last_name`]?.trim()) errs[`${prefix}_last_name`] = `${label} last name is required.`;
       const phoneErr = validatePhone(form[`${prefix}_phone`], { label: `${label} mobile number` });
       if (phoneErr) errs[`${prefix}_phone`] = phoneErr;
       if (!form[`${prefix}_province`]) errs[`${prefix}_province`] = `${label} province is required.`;
@@ -102,7 +104,7 @@ const EditContactDetailsModal = ({ isOpen, onClose, order, onSave, saving = fals
     for (const { prefix } of SIDES) {
       for (const key of FIELD_KEYS) {
         const column = `${prefix}_${key}`;
-        const nextVal = key === 'name' ? normalizeName(form[column]) : (form[column] || '').trim();
+        const nextVal = NAME_KEYS.includes(key) ? normalizeName(form[column]) : (form[column] || '').trim();
         payload[column] = nextVal;
         if (nextVal !== (order[column] || '')) changed = true;
       }
@@ -151,16 +153,27 @@ const EditContactDetailsModal = ({ isOpen, onClose, order, onSave, saving = fals
           <User size={12} /> {label}
         </div>
         <div className="grid grid-2 gap-12">
-          <div className="form-group col-full">
-            <label className="form-label" htmlFor={id('name')}>Full Name <span className="required">*</span></label>
+          <div className="form-group">
+            <label className="form-label" htmlFor={id('first_name')}>First Name <span className="required">*</span></label>
             <input
-              id={id('name')}
-              className={`form-input ${fe('name') ? 'field-invalid' : ''}`}
-              value={form[`${prefix}_name`]}
-              onChange={(e) => u(`${prefix}_name`, e.target.value)}
+              id={id('first_name')}
+              className={`form-input ${fe('first_name') ? 'field-invalid' : ''}`}
+              value={form[`${prefix}_first_name`]}
+              onChange={(e) => u(`${prefix}_first_name`, e.target.value)}
               autoCapitalize="words"
             />
-            {errEl('name')}
+            {errEl('first_name')}
+          </div>
+          <div className="form-group">
+            <label className="form-label" htmlFor={id('last_name')}>Last Name <span className="required">*</span></label>
+            <input
+              id={id('last_name')}
+              className={`form-input ${fe('last_name') ? 'field-invalid' : ''}`}
+              value={form[`${prefix}_last_name`]}
+              onChange={(e) => u(`${prefix}_last_name`, e.target.value)}
+              autoCapitalize="words"
+            />
+            {errEl('last_name')}
           </div>
           <div className="form-group">
             <label className="form-label" htmlFor={id('phone')}>Mobile Number <span className="required">*</span></label>

@@ -10,6 +10,7 @@ const coverage = [{ id: 'bohol', municipalities: [{ id: 'tagbilaran' }] }];
 const previous = {
   name: 'CargoExpress PH',
   default_price_per_kg: 80,
+  default_capacity: 1000,
   features,
   coverage,
 };
@@ -21,6 +22,13 @@ const priceDetails = buildCompanyInfoAuditDetails(previous, currentPriceOnly);
 assert.equal(priceDetails, 'Default price per kg changed from ₱80.00/kg to ₱75.00/kg.');
 assert.doesNotMatch(priceDetails, /\[object Object\]/);
 assert.doesNotMatch(priceDetails, /features|coverage/i);
+
+const currentCapacityOnly = JSON.parse(JSON.stringify(previous));
+currentCapacityOnly.default_capacity = 1200;
+
+const capacityDetails = buildCompanyInfoAuditDetails(previous, currentCapacityOnly);
+assert.equal(capacityDetails, 'Default capacity changed from 1,000 kg to 1,200 kg.');
+assert.doesNotMatch(capacityDetails, /\[object Object\]/);
 
 const featureChange = buildCompanyInfoAuditDetails(previous, {
   ...previous,

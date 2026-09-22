@@ -1,15 +1,16 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { createTrip, findDuplicateTrip, duplicateTripMessage } from '../../lib/database';
+import { useEffect, useState } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import { createTrip, findDuplicateTrip, duplicateTripMessage, getCompanyInformation } from '../../lib/database';
 import { ROUTES } from '../../constants/phLocations';
-import { ArrowLeft, Calendar, Loader, Truck, Package, FileText, Lightbulb, Plus, Megaphone } from 'lucide-react';
-import { formatCommaNumber, parseCommaNumber } from "../../utils/numberFormatters";
+import { ArrowLeft, Calendar, Loader, Truck, Package, FileText, Lightbulb, Plus, Megaphone, AlertTriangle } from 'lucide-react';
+import { formatCommaNumber } from "../../utils/numberFormatters";
 import { useToast } from '../../hooks/useToast';
 import usePageTitle from '../../hooks/usePageTitle';
 import { logTrip } from '../../lib/activityLog';
 import { phLocalInputToISO, phDateKey } from '../../utils/datetime';
 import useFieldErrors from '../../hooks/useFieldErrors';
-import FieldError, { errorId, fieldAttrs, invalidClass } from '../../components/ui/FieldError';
+import FieldError, { errorId } from '../../components/ui/FieldError';
+import { CenteredSpinner } from '../../components/ui/Loader';
 
 const CreateTripPage = () => {
   usePageTitle('Create Trip');
@@ -20,11 +21,39 @@ const CreateTripPage = () => {
   const [form, setForm] = useState({
     origin: '', destination: '',
     departure_date: '', arrival_date: '',
-    capacity:     1000,
-    price_per_kg: 70,
     notes: '',
     announce_via_email: false,
   });
+
+  // Capacity & pricing are no longer typed per trip — every new trip is
+  // created with the global defaults from Company Information → Capacity &
+  // Pricing (company_information.default_capacity / default_price_per_kg),
+  // the same row global_price_per_kilo() already reads for unpriced orders.
+  // Fetched once on mount rather than re-derived per submit so a slow
+  // network doesn't add latency to the actual "Create Trip" click.
+  const [defaults, setDefaults] = useState(null); // { capacity, price_per_kg } | null while loading/failed
+  const [loadingDefaults, setLoadingDefaults] = useState(true);
+
+  useEffect(() => {
+    let mounted = true;
+    getCompanyInformation()
+      .then(info => {
+        if (!mounted) return;
+        setDefaults({
+          capacity: Number(info?.default_capacity) || 0,
+          price_per_kg: Number(info?.default_price_per_kg) || 0,
+        });
+      })
+      .catch(() => { if (mounted) setDefaults(null); })
+      .finally(() => { if (mounted) setLoadingDefaults(false); });
+    return () => { mounted = false; };
+  }, []);
+
+  // Both must be a real, positive value — a 0 capacity would silently skip
+  // the trip's own van-capacity enforcement trigger (guard_order_update()
+  // only checks the limit when "trip_row.capacity > 0"), and a 0 price
+  // would cost every booking on the trip at ₱0/kg.
+  const defaultsReady = Boolean(defaults) && defaults.capacity > 0 && defaults.price_per_kg > 0;
 
   const u = (k, v) => {
     setForm(p => ({ ...p, [k]: v }));
@@ -60,16 +89,9 @@ const CreateTripPage = () => {
       && new Date(phLocalInputToISO(form.arrival_date)) <= new Date(phLocalInputToISO(form.departure_date)))
       ? 'Arrival date must be at least one day after departure.'
       : null,
-    capacity: !form.capacity
-      ? 'Capacity is required.'
-      : (isNaN(Number(form.capacity)) || Number(form.capacity) <= 0)
-        ? 'Capacity must be a positive number.'
-        : null,
-    price_per_kg: !form.price_per_kg
-      ? 'Amount per kilo is required.'
-      : (isNaN(Number(form.price_per_kg)) || Number(form.price_per_kg) <= 0)
-        ? 'Amount per kilo must be a positive number.'
-        : null,
+    // capacity/price_per_kg are no longer form fields — they come from
+    // Company Information's defaults (see defaultsReady below), injected
+    // right before the createTrip() call rather than validated here.
   });
 
   const handleSubmit = async (e) => {
@@ -77,6 +99,15 @@ const CreateTripPage = () => {
     // No toast: every one of these rules names a field, and the field says so
     // itself. A toast on top would be the same news delivered twice.
     if (!validate(buildRules())) return;
+
+    // Unlike the rules above, this doesn't name an on-page field — there is
+    // no capacity/price input here to red-outline — so a toast is the right
+    // way to say it, matching how findDuplicateTrip's non-field failures
+    // are reported below.
+    if (!defaultsReady) {
+      toast.error('Set a default capacity and price per kilogram in Company Information → Capacity & Pricing before creating a trip.');
+      return;
+    }
 
     setLoading(true);
     try {
@@ -108,15 +139,15 @@ const CreateTripPage = () => {
         // phLocalInputToISO in src/utils/datetime.js.
         departure_date: phLocalInputToISO(form.departure_date),
         arrival_date: form.arrival_date ? phLocalInputToISO(form.arrival_date) : null,
-        capacity:     Number(form.capacity),
-        price_per_kg: Number(form.price_per_kg),
+        capacity:     defaults.capacity,
+        price_per_kg: defaults.price_per_kg,
       });
       if (result.autoAssignmentWarning) {
         toast.warning(result.autoAssignmentWarning, 7000);
       } else {
         toast.success('Trip created successfully!');
       }
-      logTrip('Trip Created', result.id, result.trip_number || result.id, { newValue: { origin: form.origin, destination: form.destination, departure_date: form.departure_date, capacity: form.capacity, price_per_kg: form.price_per_kg }, details: `New trip created: ${form.origin} → ${form.destination}` });
+      logTrip('Trip Created', result.id, result.trip_number || result.id, { newValue: { origin: form.origin, destination: form.destination, departure_date: form.departure_date, capacity: defaults.capacity, price_per_kg: defaults.price_per_kg }, details: `New trip created: ${form.origin} → ${form.destination} (capacity ${defaults.capacity} kg, ₱${defaults.price_per_kg}/kg from Company Info defaults)` });
       navigate(`/admin/trips/${result.id}`);
       // Not clearing `loading` here: navigate() doesn't unmount this page
       // synchronously, so clearing it would risk a frame of the un-loading
@@ -137,7 +168,7 @@ const CreateTripPage = () => {
       <div className="admin-page-header">
         <div>
           <h1 className="admin-page-title"><Plus size={24} color="var(--primary)" aria-hidden="true" />Create New Trip</h1>
-          <p className="admin-page-subtitle">Define route, schedule, capacity, and pricing for a cargo run.</p>
+          <p className="admin-page-subtitle">Define the route and schedule for a cargo run. Capacity and pricing come from your Company Information defaults.</p>
         </div>
       </div>
 
@@ -203,42 +234,48 @@ const CreateTripPage = () => {
         </div>
 
         {/* ── Capacity & Pricing ────────────────────────── */}
+        {/* No inputs here anymore — capacity and price per kilo are no
+            longer asked per trip. Every new trip is created with the global
+            defaults set in Company Information → Capacity & Pricing; this
+            card only shows what those currently resolve to. */}
         <div className="card stagger-item mb-16" style={{ animationDelay: '120ms' }}>
           <div className="card-body">
             <h3 className="fw-700 mb-16 flex items-center gap-8">
               <Package size={18} color="var(--primary)" aria-hidden="true" /> Capacity & Pricing
             </h3>
-            <div className="grid grid-2 gap-16">
-              <div className="form-group">
-                <label className="form-label" htmlFor="trip-capacity">Capacity (kg)</label>
-                <input id="trip-capacity" type="text" inputMode="numeric" className={`form-input ${fieldErrors.capacity ? 'field-invalid' : ''}`} value={formatCommaNumber(form.capacity)} onChange={e => {
-                  const val = parseCommaNumber(e.target.value);
-                  if (isNaN(val) && val !== '') return;
-                  u('capacity', val);
-                }} placeholder="e.g. 1,000" required aria-invalid={fieldErrors.capacity ? 'true' : undefined} aria-describedby={fieldErrors.capacity ? 'trip-capacity-error trip-capacity-helper' : 'trip-capacity-helper'} />
-                <FieldError name="capacity" errors={fieldErrors} id="trip-capacity-error" />
-                <p id="trip-capacity-helper" className="text-xs text-tertiary mt-4">Maximum total cargo weight for this trip.</p>
-              </div>
-              <div className="form-group">
-                <label className="form-label" htmlFor="trip-price-per-kg">Amount per Kilo (₱)</label>
-                <div className="input-prefix-wrapper">
-                  <span className="input-prefix text-secondary">₱</span>
-                  <input id="trip-price-per-kg" type="text" inputMode="decimal" className={`form-input has-prefix ${fieldErrors.price_per_kg ? 'field-invalid' : ''}`} value={formatCommaNumber(form.price_per_kg)} onChange={e => {
-                    const val = parseCommaNumber(e.target.value);
-                    if (isNaN(val) && val !== '.' && val !== '') return;
-                    u('price_per_kg', val);
-                  }} placeholder="0.00" required aria-invalid={fieldErrors.price_per_kg ? 'true' : undefined} aria-describedby={fieldErrors.price_per_kg ? 'trip-price-error trip-price-helper' : 'trip-price-helper'} />
-                </div>
-                <FieldError name="price_per_kg" errors={fieldErrors} id="trip-price-error" />
-                <p id="trip-price-helper" className="text-xs text-tertiary mt-4">Cost per kilogram for bookings on this trip.</p>
-              </div>
-            </div>
 
-            {/* Live preview — informational display, not a feedback notification */}
-            {form.capacity && form.price_per_kg && (
-              <div className="alert-banner mt-8" style={{ background: 'var(--primary-bg)', border: '1.5px solid var(--primary-light)', color: 'var(--text)' }}>
-                <Lightbulb size={16} /> At ₱{parseFloat(form.price_per_kg).toFixed(2)}/kg, a full trip of {Number(form.capacity).toLocaleString()} kg
-                = <strong>₱{(Number(form.capacity) * Number(form.price_per_kg)).toLocaleString()} max revenue</strong>
+            {loadingDefaults ? (
+              <CenteredSpinner size={22} />
+            ) : defaultsReady ? (
+              <>
+                <div className="grid grid-2 gap-16">
+                  <div>
+                    <div className="text-xs text-tertiary mb-4">Capacity</div>
+                    <div className="text-sm fw-700">{formatCommaNumber(defaults.capacity)} kg</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-tertiary mb-4">Amount per Kilo</div>
+                    <div className="text-sm fw-700">₱{formatCommaNumber(defaults.price_per_kg)}</div>
+                  </div>
+                </div>
+
+                {/* Informational preview — not a feedback notification */}
+                <div className="alert-banner mt-16" style={{ background: 'var(--primary-bg)', border: '1.5px solid var(--primary-light)', color: 'var(--text)' }}>
+                  <Lightbulb size={16} /> At ₱{defaults.price_per_kg.toFixed(2)}/kg, a full trip of {defaults.capacity.toLocaleString()} kg
+                  = <strong>₱{(defaults.capacity * defaults.price_per_kg).toLocaleString()} max revenue</strong>
+                </div>
+
+                <p className="text-xs text-tertiary mt-12 mb-0">
+                  Applied automatically from Company Information defaults. <Link to="/admin/company-info">Manage defaults</Link>
+                </p>
+              </>
+            ) : (
+              <div className="alert-banner alert-banner-error" role="alert">
+                <AlertTriangle size={18} />
+                <span>
+                  No default capacity/price is set yet, so a trip cannot be created.{' '}
+                  <Link to="/admin/company-info">Set them in Company Information → Capacity & Pricing</Link>.
+                </span>
               </div>
             )}
           </div>
@@ -277,7 +314,7 @@ const CreateTripPage = () => {
         </div>
 
         <div className="admin-form-actions">
-          <button type="submit" className="btn btn-primary btn-lg admin-form-submit" disabled={loading} style={{ minWidth: 180 }}>
+          <button type="submit" className="btn btn-primary btn-lg admin-form-submit" disabled={loading || loadingDefaults || !defaultsReady} style={{ minWidth: 180 }}>
             {loading ? <><Loader size={18} className="animate-spin" /> Creating...</> : <><Truck size={18} /> Create Trip</>}
           </button>
         </div>

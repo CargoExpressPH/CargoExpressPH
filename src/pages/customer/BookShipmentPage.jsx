@@ -14,7 +14,7 @@ import ConfirmModal from '../../components/ui/ConfirmModal';
 import { motion, useReducedMotion } from 'framer-motion';
 import usePageTitle from '../../hooks/usePageTitle';
 import { formatMoney } from '../../utils/currencyInput';
-import { toTitleCase, toAddressCase, normalizeName } from '../../utils/string';
+import { toTitleCase, toAddressCase, normalizeName, splitFullName } from '../../utils/string';
 import { formatPhDate } from '../../utils/datetime';
 import { validatePhone } from '../../utils/phone';
 import { validateName, validateAddressLine, validateFacebookName } from '../../utils/validation';
@@ -66,10 +66,10 @@ const formatKg = (value) => {
 
 const emptyBookingForm = ({ route = '', tripId = '' } = {}) => ({
   route, trip_id: tripId,
-  sender_name: '', sender_phone: '', sender_facebook: '',
+  sender_first_name: '', sender_last_name: '', sender_phone: '', sender_facebook: '',
   sender_lot_block: '', sender_street: '', sender_barangay: '',
   sender_city: '', sender_province: '', sender_landmark: '',
-  receiver_name: '', receiver_phone: '', receiver_facebook: '',
+  receiver_first_name: '', receiver_last_name: '', receiver_phone: '', receiver_facebook: '',
   receiver_lot_block: '', receiver_street: '', receiver_barangay: '',
   receiver_city: '', receiver_province: '', receiver_landmark: '',
   package_description: '', payer_type: 'sender',
@@ -323,9 +323,13 @@ const BookShipmentPage = () => {
     // and inline messages don't stick after autofill from registered address.
     clearPrefixFieldErrors('sender');
     if (checked && userProfile) {
+      // profiles.name is still a single combined field (out of scope for this
+      // task) — split it the same way the DB backfill does so a registered
+      // account name and a Recent Contact split identically either way.
+      const { firstName, lastName } = splitFullName(userProfile.name);
       setForm(p => ({
         ...p,
-        sender_name: userProfile.name || '', sender_phone: userProfile.phone || '', sender_facebook: userProfile.facebook_name || '',
+        sender_first_name: firstName, sender_last_name: lastName, sender_phone: userProfile.phone || '', sender_facebook: userProfile.facebook_name || '',
         sender_lot_block: userProfile.address_lot_block || '', sender_street: userProfile.address_street || '',
         sender_barangay: userProfile.address_barangay || '', sender_city: userProfile.address_city || '',
         sender_province: userProfile.address_province || '', sender_landmark: userProfile.address_landmark || '',
@@ -333,7 +337,7 @@ const BookShipmentPage = () => {
     } else {
       setForm(p => ({
         ...p,
-        sender_name: '', sender_phone: '', sender_facebook: '',
+        sender_first_name: '', sender_last_name: '', sender_phone: '', sender_facebook: '',
         sender_lot_block: '', sender_street: '', sender_barangay: '',
         sender_city: '', sender_province: '', sender_landmark: '',
       }));
@@ -345,9 +349,10 @@ const BookShipmentPage = () => {
     // Same as sender: registered-address autofill must clear leftover validation UI.
     clearPrefixFieldErrors('receiver');
     if (checked && userProfile) {
+      const { firstName, lastName } = splitFullName(userProfile.name);
       setForm(p => ({
         ...p,
-        receiver_name: userProfile.name || '', receiver_phone: userProfile.phone || '', receiver_facebook: userProfile.facebook_name || '',
+        receiver_first_name: firstName, receiver_last_name: lastName, receiver_phone: userProfile.phone || '', receiver_facebook: userProfile.facebook_name || '',
         receiver_lot_block: userProfile.address_lot_block || '', receiver_street: userProfile.address_street || '',
         receiver_barangay: userProfile.address_barangay || '', receiver_city: userProfile.address_city || '',
         receiver_province: userProfile.address_province || '', receiver_landmark: userProfile.address_landmark || '',
@@ -355,7 +360,7 @@ const BookShipmentPage = () => {
     } else {
       setForm(p => ({
         ...p,
-        receiver_name: '', receiver_phone: '', receiver_facebook: '',
+        receiver_first_name: '', receiver_last_name: '', receiver_phone: '', receiver_facebook: '',
         receiver_lot_block: '', receiver_street: '', receiver_barangay: '',
         receiver_city: '', receiver_province: '', receiver_landmark: '',
       }));
@@ -371,7 +376,8 @@ const BookShipmentPage = () => {
   const handleSelectRecentContact = (prefix, contact) => {
     setForm(p => ({
       ...p,
-      [`${prefix}_name`]: contact.name,
+      [`${prefix}_first_name`]: contact.first_name,
+      [`${prefix}_last_name`]: contact.last_name,
       [`${prefix}_phone`]: contact.phone,
       [`${prefix}_facebook`]: contact.facebook,
       [`${prefix}_province`]: contact.province,
@@ -389,9 +395,11 @@ const BookShipmentPage = () => {
 
   const validateSender = () => {
     const errs = {};
-    const nameErr = validateName(form.sender_name);
-    if (nameErr) errs.sender_name = nameErr;
-    
+    const firstNameErr = validateName(form.sender_first_name);
+    if (firstNameErr) errs.sender_first_name = firstNameErr;
+    const lastNameErr = validateName(form.sender_last_name);
+    if (lastNameErr) errs.sender_last_name = lastNameErr;
+
     const fbErr = validateFacebookName(form.sender_facebook);
     if (fbErr) errs.sender_facebook = fbErr;
     
@@ -420,9 +428,11 @@ const BookShipmentPage = () => {
 
   const validateReceiver = () => {
     const errs = {};
-    const nameErr = validateName(form.receiver_name);
-    if (nameErr) errs.receiver_name = nameErr;
-    
+    const firstNameErr = validateName(form.receiver_first_name);
+    if (firstNameErr) errs.receiver_first_name = firstNameErr;
+    const lastNameErr = validateName(form.receiver_last_name);
+    if (lastNameErr) errs.receiver_last_name = lastNameErr;
+
     const fbErr = validateFacebookName(form.receiver_facebook);
     if (fbErr) errs.receiver_facebook = fbErr;
     
@@ -488,10 +498,10 @@ const BookShipmentPage = () => {
       const payload = {
         user_id: user.id,
         origin: selectedRoute.origin, destination: selectedRoute.destination, trip_id: selectedTrip ? form.trip_id : null,
-        sender_name: normalizeName(form.sender_name), sender_phone: form.sender_phone, sender_address: fullSenderAddress,
+        sender_first_name: normalizeName(form.sender_first_name), sender_last_name: normalizeName(form.sender_last_name), sender_phone: form.sender_phone, sender_address: fullSenderAddress,
         sender_facebook: normalizeName(form.sender_facebook), sender_city: form.sender_city, sender_province: form.sender_province === 'Other Area' ? form.sender_other_province : form.sender_province,
         sender_barangay: form.sender_barangay, sender_street: form.sender_street, sender_lot_block: form.sender_lot_block, sender_landmark: form.sender_landmark,
-        receiver_name: normalizeName(form.receiver_name), receiver_phone: form.receiver_phone, receiver_address: fullReceiverAddress,
+        receiver_first_name: normalizeName(form.receiver_first_name), receiver_last_name: normalizeName(form.receiver_last_name), receiver_phone: form.receiver_phone, receiver_address: fullReceiverAddress,
         receiver_facebook: normalizeName(form.receiver_facebook), receiver_city: form.receiver_city, receiver_province: form.receiver_province,
         receiver_barangay: form.receiver_barangay, receiver_street: form.receiver_street, receiver_lot_block: form.receiver_lot_block, receiver_landmark: form.receiver_landmark,
         package_description: form.package_description,
@@ -562,7 +572,7 @@ const BookShipmentPage = () => {
       <div className="grid grid-2 gap-16">
         <div className="form-group col-full">
           <div className="flex items-center justify-between">
-            <label className="form-label" htmlFor={id('name')}>Full Name <span className="required">*</span></label>
+            <span className="form-label mb-0">Full Name <span className="required">*</span></span>
             {contacts.length > 0 && (
               <button
                 type="button"
@@ -576,23 +586,45 @@ const BookShipmentPage = () => {
             )}
           </div>
           <div className="recent-contacts-wrap" ref={el => { contactWrapRefs.current[prefix] = el; }}>
-            <input
-              id={id('name')}
-              className={`form-input ${fc('name')}`}
-              value={form[`${prefix}_name`]}
-              onChange={handleTextChange(`${prefix}_name`)}
-              onFocus={() => { if (contacts.length > 0) setOpenContactDropdown(prefix); }}
-              autoComplete={isSender ? 'name' : 'shipping name'}
-              autoCapitalize="words"
-              required
-              {...a11y('name')}
-            />
+            <div className="grid grid-2 gap-12 mt-4">
+              <div>
+                <label className="form-label sr-only" htmlFor={id('first_name')}>First Name</label>
+                <input
+                  id={id('first_name')}
+                  className={`form-input ${fc('first_name')}`}
+                  value={form[`${prefix}_first_name`]}
+                  onChange={handleTextChange(`${prefix}_first_name`)}
+                  onFocus={() => { if (contacts.length > 0) setOpenContactDropdown(prefix); }}
+                  placeholder="First Name"
+                  autoComplete={isSender ? 'given-name' : 'shipping given-name'}
+                  autoCapitalize="words"
+                  required
+                  {...a11y('first_name')}
+                />
+                {errEl('first_name')}
+              </div>
+              <div>
+                <label className="form-label sr-only" htmlFor={id('last_name')}>Last Name</label>
+                <input
+                  id={id('last_name')}
+                  className={`form-input ${fc('last_name')}`}
+                  value={form[`${prefix}_last_name`]}
+                  onChange={handleTextChange(`${prefix}_last_name`)}
+                  placeholder="Last Name"
+                  autoComplete={isSender ? 'family-name' : 'shipping family-name'}
+                  autoCapitalize="words"
+                  required
+                  {...a11y('last_name')}
+                />
+                {errEl('last_name')}
+              </div>
+            </div>
             {dropdownOpen && contacts.length > 0 && (
               <div className="custom-select-menu recent-contacts-menu" role="listbox" aria-label={`Recent ${prefix} contacts`}>
                 {contacts.map((contact, i) => (
                   <button
                     type="button"
-                    key={`${contact.name}-${contact.phone}-${i}`}
+                    key={`${contact.first_name}-${contact.last_name}-${contact.phone}-${i}`}
                     role="option"
                     aria-selected="false"
                     className="custom-select-option recent-contact-option"
@@ -601,13 +633,12 @@ const BookShipmentPage = () => {
                     <span className="recent-contact-address">
                       {buildFullAddress({ lotBlock: contact.lot_block, street: contact.street, barangay: contact.barangay, city: contact.city, province: contact.province, landmark: contact.landmark })}
                     </span>
-                    <span className="recent-contact-meta">{contact.name} | {contact.phone}</span>
+                    <span className="recent-contact-meta">{contact.first_name} {contact.last_name} | {contact.phone}</span>
                   </button>
                 ))}
               </div>
             )}
           </div>
-          {errEl('name')}
         </div>
         <div className="form-group"><label className="form-label" htmlFor={id('phone')}>Mobile Number <span className="required">*</span></label><input id={id('phone')} className={`form-input ${fc('phone')}`} value={form[`${prefix}_phone`]} onChange={handlePhoneChange(`${prefix}_phone`)} inputMode="numeric" maxLength={11} placeholder="09xxxxxxxxx" autoComplete="tel" required {...a11y('phone')} />{errEl('phone')}</div>
         <div className="form-group"><label className="form-label" htmlFor={id('facebook')}>Facebook Name <span className="required">*</span></label><input id={id('facebook')} className={`form-input ${fc('facebook')}`} value={form[`${prefix}_facebook`]} onChange={handleTextChange(`${prefix}_facebook`)} placeholder="Your name on Facebook" autoCapitalize="words" required {...a11y('facebook')} />{errEl('facebook')}</div>
@@ -859,10 +890,10 @@ const BookShipmentPage = () => {
                 setForm(prev => ({
                   ...prev,
                   route: '', trip_id: '',
-                  sender_name: '', sender_phone: '', sender_facebook: '',
+                  sender_first_name: '', sender_last_name: '', sender_phone: '', sender_facebook: '',
                   sender_lot_block: '', sender_street: '', sender_barangay: '',
                   sender_city: '', sender_province: '', sender_landmark: '',
-                  receiver_name: '', receiver_phone: '', receiver_facebook: '',
+                  receiver_first_name: '', receiver_last_name: '', receiver_phone: '', receiver_facebook: '',
                   receiver_lot_block: '', receiver_street: '', receiver_barangay: '',
                   receiver_city: '', receiver_province: '', receiver_landmark: '',
                   package_description: '',
@@ -1131,13 +1162,13 @@ const BookShipmentPage = () => {
           <div className="grid grid-2 gap-12 mb-16">
             <div className="booking-summary-card">
               <div className="booking-summary-label">Sender</div>
-              <div className="text-sm font-bold">{form.sender_name}</div>
+              <div className="text-sm font-bold">{form.sender_first_name} {form.sender_last_name}</div>
               <div className="text-xs text-secondary">{form.sender_phone}</div>
               <div className="text-xs text-secondary mt-4">{form.sender_street}, {form.sender_barangay}, {form.sender_city}, {form.sender_province}</div>
             </div>
             <div className="booking-summary-card">
               <div className="booking-summary-label">Receiver</div>
-              <div className="text-sm font-bold">{form.receiver_name}</div>
+              <div className="text-sm font-bold">{form.receiver_first_name} {form.receiver_last_name}</div>
               <div className="text-xs text-secondary">{form.receiver_phone}</div>
               <div className="text-xs text-secondary mt-4">{form.receiver_street}, {form.receiver_barangay}, {form.receiver_city}, {form.receiver_province}</div>
             </div>

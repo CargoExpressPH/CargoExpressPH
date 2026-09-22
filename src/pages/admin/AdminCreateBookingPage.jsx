@@ -6,6 +6,10 @@ import { ROUTES, PH_LOCATIONS, VALID_PROVINCES, detectPickupLocation, validateRo
 import { buildFullAddress } from '../../lib/address';
 import { normalizeName, toTitleCase, toAddressCase } from '../../utils/string';
 import { validatePhone } from '../../utils/phone';
+// Pre-existing bug fixed incidentally: buildRules() below already called
+// validateName/validateFacebookName/validateAddressLine without importing
+// any of the three — every submit attempt threw a ReferenceError before this.
+import { validateName, validateFacebookName, validateAddressLine } from '../../utils/validation';
 import CustomSelect from '../../components/ui/CustomSelect';
 import BarangaySelect from '../../components/ui/BarangaySelect';
 import {
@@ -41,7 +45,8 @@ const INITIAL_FORM = {
   origin: '',
   destination: '',
   // Sender
-  sender_name: '',
+  sender_first_name: '',
+  sender_last_name: '',
   sender_phone: '',
   sender_facebook: '',
   sender_province: '',
@@ -51,7 +56,8 @@ const INITIAL_FORM = {
   sender_lot_block: '',
   sender_landmark: '',
   // Receiver
-  receiver_name: '',
+  receiver_first_name: '',
+  receiver_last_name: '',
   receiver_phone: '',
   receiver_facebook: '',
   receiver_province: '',
@@ -171,7 +177,8 @@ const AdminCreateBookingPage = () => {
       ? 'Please select a route.'
       : null,
     // Sender
-    sender_name: validateName(form.sender_name),
+    sender_first_name: validateName(form.sender_first_name),
+    sender_last_name: validateName(form.sender_last_name),
     sender_phone: validatePhone(form.sender_phone),
     sender_facebook: validateFacebookName(form.sender_facebook),
     sender_province: !form.sender_province
@@ -187,7 +194,8 @@ const AdminCreateBookingPage = () => {
     sender_lot_block: validateAddressLine(form.sender_lot_block),
     sender_landmark: validateAddressLine(form.sender_landmark),
     // Receiver
-    receiver_name: validateName(form.receiver_name),
+    receiver_first_name: validateName(form.receiver_first_name),
+    receiver_last_name: validateName(form.receiver_last_name),
     receiver_phone: validatePhone(form.receiver_phone),
     receiver_facebook: validateFacebookName(form.receiver_facebook),
     receiver_province: !form.receiver_province
@@ -253,7 +261,8 @@ const AdminCreateBookingPage = () => {
         origin: form.origin,
         destination: form.destination,
         // Sender
-        sender_name: normalizeName(form.sender_name),
+        sender_first_name: normalizeName(form.sender_first_name),
+        sender_last_name: normalizeName(form.sender_last_name),
         sender_phone: form.sender_phone.trim(),
         sender_address: fullSenderAddress,
         sender_facebook: normalizeName(form.sender_facebook),
@@ -264,7 +273,8 @@ const AdminCreateBookingPage = () => {
         sender_lot_block: form.sender_lot_block,
         sender_landmark: form.sender_landmark,
         // Receiver
-        receiver_name: normalizeName(form.receiver_name),
+        receiver_first_name: normalizeName(form.receiver_first_name),
+        receiver_last_name: normalizeName(form.receiver_last_name),
         receiver_phone: form.receiver_phone.trim(),
         receiver_address: fullReceiverAddress,
         receiver_facebook: normalizeName(form.receiver_facebook),
@@ -284,21 +294,24 @@ const AdminCreateBookingPage = () => {
 
       const result = await createOrder(payload);
 
+      const senderFullName = `${payload.sender_first_name} ${payload.sender_last_name}`.trim();
+      const receiverFullName = `${payload.receiver_first_name} ${payload.receiver_last_name}`.trim();
+
       logOrder('Admin Booking Created', result.id, result.tracking_number, {
         newValue: {
-          sender_name: payload.sender_name,
-          receiver_name: payload.receiver_name,
+          sender_first_name: payload.sender_first_name, sender_last_name: payload.sender_last_name,
+          receiver_first_name: payload.receiver_first_name, receiver_last_name: payload.receiver_last_name,
           origin: payload.origin,
           destination: payload.destination,
         },
-        details: `Admin created booking on behalf of customer: ${payload.sender_name} → ${payload.receiver_name}`,
+        details: `Admin created booking on behalf of customer: ${senderFullName} → ${receiverFullName}`,
       });
 
       setSuccess({
         tracking_number: result.tracking_number,
         id: result.id,
-        sender_name: payload.sender_name,
-        receiver_name: payload.receiver_name,
+        sender_name: senderFullName,
+        receiver_name: receiverFullName,
         origin: payload.origin,
         destination: payload.destination,
       });
@@ -536,21 +549,36 @@ const AdminCreateBookingPage = () => {
               <User size={18} color="var(--primary)" aria-hidden="true" /> Sender Details
             </h3>
             <div className="grid grid-2 gap-16">
-              {/* Full Name — full width */}
-              <div className="form-group col-full">
-                <label className="form-label" htmlFor="ab-sender-name">Full Name</label>
+              {/* First / Last Name */}
+              <div className="form-group">
+                <label className="form-label" htmlFor="ab-sender-first-name">First Name</label>
                 <input
-                  id="ab-sender-name"
+                  id="ab-sender-first-name"
                   type="text"
-                  className={`form-input ${invalidClass('sender_name', fieldErrors)}`}
-                  value={form.sender_name}
-                  onChange={handleTextChange('sender_name')}
-                  placeholder="e.g. Juan Dela Cruz"
+                  className={`form-input ${invalidClass('sender_first_name', fieldErrors)}`}
+                  value={form.sender_first_name}
+                  onChange={handleTextChange('sender_first_name')}
+                  placeholder="e.g. Juan"
                   autoCapitalize="words"
                   required
-                  {...fieldAttrs('sender_name', fieldErrors)}
+                  {...fieldAttrs('sender_first_name', fieldErrors)}
                 />
-                <FieldError name="sender_name" errors={fieldErrors} />
+                <FieldError name="sender_first_name" errors={fieldErrors} />
+              </div>
+              <div className="form-group">
+                <label className="form-label" htmlFor="ab-sender-last-name">Last Name</label>
+                <input
+                  id="ab-sender-last-name"
+                  type="text"
+                  className={`form-input ${invalidClass('sender_last_name', fieldErrors)}`}
+                  value={form.sender_last_name}
+                  onChange={handleTextChange('sender_last_name')}
+                  placeholder="e.g. Dela Cruz"
+                  autoCapitalize="words"
+                  required
+                  {...fieldAttrs('sender_last_name', fieldErrors)}
+                />
+                <FieldError name="sender_last_name" errors={fieldErrors} />
               </div>
 
               {/* Phone */}
@@ -698,21 +726,36 @@ const AdminCreateBookingPage = () => {
               <MapPin size={18} color="var(--primary)" aria-hidden="true" /> Receiver Details
             </h3>
             <div className="grid grid-2 gap-16">
-              {/* Full Name — full width */}
-              <div className="form-group col-full">
-                <label className="form-label" htmlFor="ab-receiver-name">Full Name</label>
+              {/* First / Last Name */}
+              <div className="form-group">
+                <label className="form-label" htmlFor="ab-receiver-first-name">First Name</label>
                 <input
-                  id="ab-receiver-name"
+                  id="ab-receiver-first-name"
                   type="text"
-                  className={`form-input ${invalidClass('receiver_name', fieldErrors)}`}
-                  value={form.receiver_name}
-                  onChange={handleTextChange('receiver_name')}
-                  placeholder="e.g. Maria Santos"
+                  className={`form-input ${invalidClass('receiver_first_name', fieldErrors)}`}
+                  value={form.receiver_first_name}
+                  onChange={handleTextChange('receiver_first_name')}
+                  placeholder="e.g. Maria"
                   autoCapitalize="words"
                   required
-                  {...fieldAttrs('receiver_name', fieldErrors)}
+                  {...fieldAttrs('receiver_first_name', fieldErrors)}
                 />
-                <FieldError name="receiver_name" errors={fieldErrors} />
+                <FieldError name="receiver_first_name" errors={fieldErrors} />
+              </div>
+              <div className="form-group">
+                <label className="form-label" htmlFor="ab-receiver-last-name">Last Name</label>
+                <input
+                  id="ab-receiver-last-name"
+                  type="text"
+                  className={`form-input ${invalidClass('receiver_last_name', fieldErrors)}`}
+                  value={form.receiver_last_name}
+                  onChange={handleTextChange('receiver_last_name')}
+                  placeholder="e.g. Santos"
+                  autoCapitalize="words"
+                  required
+                  {...fieldAttrs('receiver_last_name', fieldErrors)}
+                />
+                <FieldError name="receiver_last_name" errors={fieldErrors} />
               </div>
 
               {/* Phone */}

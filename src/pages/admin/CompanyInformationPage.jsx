@@ -8,7 +8,7 @@ import { logCompany } from '../../lib/activityLog';
 import {
   Building2, LayoutTemplate, Phone, Star, Image as ImageIcon,
   Map, Loader, Save, ExternalLink, AlertTriangle, Zap,
-  Upload, X, Trash2, Plus, Edit2, MapPin, PhilippinePeso, Building
+  Upload, X, Trash2, Plus, Edit2, MapPin, PhilippinePeso, Building, Package
 } from 'lucide-react';
 import { useToast } from '../../hooks/useToast';
 import ConfirmModal from '../../components/ui/ConfirmModal';
@@ -25,7 +25,7 @@ const TABS = [
   { id: 'contact',  label: 'Contact Info',    icon: Phone },
   { id: 'features', label: 'Why Choose Us',   icon: Star },
   { id: 'coverage', label: 'Coverage Areas',  icon: Map },
-  { id: 'pricing',  label: 'Pricing',         icon: PhilippinePeso },
+  { id: 'pricing',  label: 'Capacity & Pricing', icon: PhilippinePeso },
 ];
 
 const SIMPLE_TABS = ['basic', 'contact', 'pricing'];
@@ -43,6 +43,7 @@ const FIELD_TAB = {
   facebook: 'contact',
   
   default_price_per_kg: 'pricing',
+  default_capacity: 'pricing',
 };
 
 const getEmptyCompanyInfo = () => ({
@@ -52,6 +53,7 @@ const getEmptyCompanyInfo = () => ({
   email: '', facebook: '', smart_phone: '', globe_phone: '',
   manila_address: '', bohol_address: '',
   default_price_per_kg: 0,
+  default_capacity: 0,
 });
 
 const CompanyInformationPage = () => {
@@ -111,6 +113,7 @@ const CompanyInformationPage = () => {
     const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     const urlish = (v) => /^https?:\/\/.+/i.test(v.trim());
     const price = Number(companyInfo?.default_price_per_kg);
+    const capacity = Number(companyInfo?.default_capacity);
 
     const optionalUrl = (field, label) => {
       const v = companyInfo?.[field];
@@ -127,7 +130,16 @@ const CompanyInformationPage = () => {
       default_price_per_kg: !(price > 0)
         ? 'Enter a price per kilogram greater than ₱0. Every unpriced order is costed from it.'
         : null,
-      
+      // Create Trip now pulls capacity from here rather than asking the admin
+      // per trip (see CreateTripPage.jsx) — and a trip's own van-capacity
+      // enforcement trigger skips its check entirely when capacity is 0
+      // (guard_order_update(), "trip_row.capacity > 0"). Leaving this unset
+      // would silently create unlimited-capacity trips, so it is required
+      // just like the price is.
+      default_capacity: !(capacity > 0)
+        ? 'Enter a default capacity greater than 0 kg. Every new trip is created with this capacity.'
+        : null,
+
       facebook: optionalUrl('facebook', 'Facebook link'),
     };
   };
@@ -512,33 +524,57 @@ const CompanyInformationPage = () => {
           </div>
         )}
 
-        {/* ─── PRICING ────────────────────────────────────────────── */}
+        {/* ─── CAPACITY & PRICING ─────────────────────────────────── */}
         {activeTab === 'pricing' && (
           <div className="card">
             <div className="card-header">
-              <h3><PhilippinePeso size={16} className="inline mr-8" />Pricing Settings</h3>
+              <h3><PhilippinePeso size={16} className="inline mr-8" />Capacity & Pricing Settings</h3>
             </div>
             <div className="card-body">
-              <div className="form-group">
-                <label className="form-label" htmlFor="settings-price-per-kilo">Default Price per Kilogram (₱)</label>
-                <div className="form-input-wrapper" style={{ maxWidth: 220 }}>
-                  <PhilippinePeso size={15} className="form-input-icon" />
-                  <input
-                    id="settings-price-per-kilo"
-                    type="number"
-                    className={`form-input form-input-icon-left ${invalidClass('default_price_per_kg', errors)}`}
-                    value={companyInfo.default_price_per_kg || ''}
-                    onChange={e => handleInfoChange('default_price_per_kg', parseFloat(e.target.value) || 0)}
-                    min="0"
-                    step="0.01"
-                    placeholder="70.00"
-                    {...fieldAttrs('default_price_per_kg', errors, 'settings-price-helper')}
-                  />
+              <div className="grid grid-2 gap-16">
+                <div className="form-group mb-0">
+                  <label className="form-label" htmlFor="settings-default-capacity">Default Capacity (kg)</label>
+                  <div className="form-input-wrapper" style={{ maxWidth: 220 }}>
+                    <Package size={15} className="form-input-icon" />
+                    <input
+                      id="settings-default-capacity"
+                      type="number"
+                      className={`form-input form-input-icon-left ${invalidClass('default_capacity', errors)}`}
+                      value={companyInfo.default_capacity || ''}
+                      onChange={e => handleInfoChange('default_capacity', parseInt(e.target.value, 10) || 0)}
+                      min="0"
+                      step="1"
+                      placeholder="1000"
+                      {...fieldAttrs('default_capacity', errors, 'settings-capacity-helper')}
+                    />
+                  </div>
+                  <FieldError name="default_capacity" errors={errors} />
+                  <p className="form-helper mt-6" id="settings-capacity-helper">
+                    Applied automatically to every new trip — Create Trip no longer asks for this.
+                  </p>
                 </div>
-                <FieldError name="default_price_per_kg" errors={errors} />
-                <p className="form-helper mt-6" id="settings-price-helper">
-                  Used to calculate shipping costs for all orders by default.
-                </p>
+
+                <div className="form-group mb-0">
+                  <label className="form-label" htmlFor="settings-price-per-kilo">Default Price per Kilogram (₱)</label>
+                  <div className="form-input-wrapper" style={{ maxWidth: 220 }}>
+                    <PhilippinePeso size={15} className="form-input-icon" />
+                    <input
+                      id="settings-price-per-kilo"
+                      type="number"
+                      className={`form-input form-input-icon-left ${invalidClass('default_price_per_kg', errors)}`}
+                      value={companyInfo.default_price_per_kg || ''}
+                      onChange={e => handleInfoChange('default_price_per_kg', parseFloat(e.target.value) || 0)}
+                      min="0"
+                      step="0.01"
+                      placeholder="70.00"
+                      {...fieldAttrs('default_price_per_kg', errors, 'settings-price-helper')}
+                    />
+                  </div>
+                  <FieldError name="default_price_per_kg" errors={errors} />
+                  <p className="form-helper mt-6" id="settings-price-helper">
+                    Used to calculate shipping costs for all orders by default.
+                  </p>
+                </div>
               </div>
             </div>
           </div>

@@ -330,9 +330,9 @@ export const getRecentContacts = async (userId, limit = 8) => {
     supabase
       .from('orders')
       .select(`
-        sender_name, sender_phone, sender_facebook,
+        sender_first_name, sender_last_name, sender_phone, sender_facebook,
         sender_province, sender_city, sender_barangay, sender_street, sender_lot_block, sender_landmark,
-        receiver_name, receiver_phone, receiver_facebook,
+        receiver_first_name, receiver_last_name, receiver_phone, receiver_facebook,
         receiver_province, receiver_city, receiver_barangay, receiver_street, receiver_lot_block, receiver_landmark,
         created_at
       `)
@@ -347,7 +347,8 @@ export const getRecentContacts = async (userId, limit = 8) => {
     const out = [];
     for (const row of rows || []) {
       const contact = {
-        name: row[`${prefix}_name`] || '',
+        first_name: row[`${prefix}_first_name`] || '',
+        last_name: row[`${prefix}_last_name`] || '',
         phone: row[`${prefix}_phone`] || '',
         facebook: row[`${prefix}_facebook`] || '',
         province: row[`${prefix}_province`] || '',
@@ -357,8 +358,8 @@ export const getRecentContacts = async (userId, limit = 8) => {
         lot_block: row[`${prefix}_lot_block`] || '',
         landmark: row[`${prefix}_landmark`] || '',
       };
-      if (!contact.name || !contact.phone) continue;
-      const key = [contact.name, contact.phone, contact.province, contact.city, contact.barangay, contact.street]
+      if (!contact.first_name || !contact.phone) continue;
+      const key = [contact.first_name, contact.last_name, contact.phone, contact.province, contact.city, contact.barangay, contact.street]
         .join('|').toLowerCase();
       if (seen.has(key)) continue;
       seen.add(key);
@@ -513,7 +514,8 @@ export const updateOrder = async (orderId, updates) => {
 export const updateOrderContactDetails = async (orderId, fields) => {
   const { data, error } = await supabase.rpc('update_order_contact_details', {
     p_order_id: orderId,
-    p_sender_name: fields.sender_name,
+    p_sender_first_name: fields.sender_first_name,
+    p_sender_last_name: fields.sender_last_name,
     p_sender_phone: fields.sender_phone,
     p_sender_province: fields.sender_province,
     p_sender_city: fields.sender_city,
@@ -521,7 +523,8 @@ export const updateOrderContactDetails = async (orderId, fields) => {
     p_sender_street: fields.sender_street,
     p_sender_landmark: fields.sender_landmark,
     p_sender_address: fields.sender_address,
-    p_receiver_name: fields.receiver_name,
+    p_receiver_first_name: fields.receiver_first_name,
+    p_receiver_last_name: fields.receiver_last_name,
     p_receiver_phone: fields.receiver_phone,
     p_receiver_province: fields.receiver_province,
     p_receiver_city: fields.receiver_city,

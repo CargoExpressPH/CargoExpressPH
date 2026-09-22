@@ -16,6 +16,7 @@ const FIELD_LABELS = {
   manila_address: 'Manila address',
   bohol_address: 'Bohol address',
   default_price_per_kg: 'Default price per kg',
+  default_capacity: 'Default capacity',
   features: 'Company features',
   coverage: 'Coverage areas',
 };
@@ -43,9 +44,17 @@ const formatPrice = (value) => {
   })}/kg`;
 };
 
+const formatCapacity = (value) => {
+  const amount = Number(value);
+  if (!Number.isFinite(amount)) return 'not set';
+
+  return `${amount.toLocaleString('en-PH')} kg`;
+};
+
 const summarizeValue = (field, value) => {
   if (isEmpty(value)) return 'not set';
   if (field === 'default_price_per_kg') return formatPrice(value);
+  if (field === 'default_capacity') return formatCapacity(value);
 
   if (Array.isArray(value)) {
     return `${value.length} ${value.length === 1 ? 'item' : 'items'}`;

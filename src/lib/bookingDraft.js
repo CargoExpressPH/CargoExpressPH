@@ -6,9 +6,9 @@ const LEGACY_FORM_KEY = 'booking_form';
 const LEGACY_STEP_KEY = 'booking_step';
 
 export const BOOKING_DATA_FIELDS = [
-  'sender_name', 'sender_phone', 'sender_facebook', 'sender_lot_block',
+  'sender_first_name', 'sender_last_name', 'sender_phone', 'sender_facebook', 'sender_lot_block',
   'sender_street', 'sender_barangay', 'sender_city', 'sender_province',
-  'sender_landmark', 'sender_other_province', 'receiver_name',
+  'sender_landmark', 'sender_other_province', 'receiver_first_name', 'receiver_last_name',
   'receiver_phone', 'receiver_facebook', 'receiver_lot_block',
   'receiver_street', 'receiver_barangay', 'receiver_city',
   'receiver_province', 'receiver_landmark', 'package_description', 'notes',
