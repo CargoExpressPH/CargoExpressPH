@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { createServer } from 'vite';
 
 const vite = await createServer({ logLevel: 'silent', server: { middlewareMode: true } });
-const { buildPerTripSalesReport } = await vite.ssrLoadModule('/src/lib/perTripSalesReport.js');
+const { buildPerTripSalesReport, aggregateMonthlySalesReports } = await vite.ssrLoadModule('/src/lib/perTripSalesReport.js');
 
 const trip = { id: 'trip-a', trip_number: 'TRIP-TEST-A', origin: 'Manila', destination: 'Cebu' };
 const order = (id, status, shippingCost, amountPaid, actualWeight = 1) => ({
@@ -125,6 +125,44 @@ const reassigned = buildPerTripSalesReport({
 });
 assert.equal(reassigned.summary.paymentsReceived, 20000, 'multiple payments must be summed once each');
 assert.equal(reassigned.rows.length, 1, 'a booking supplied by its current assignment appears once');
+
+// aggregateMonthlySalesReports: Grand Total must equal the sum of the two
+// trips' own summaries (Sales & Reports "View by Month").
+const tripB = { id: 'trip-b', trip_number: 'TRIP-TEST-B', origin: 'Manila', destination: 'Bohol' };
+const reportA = buildPerTripSalesReport({
+  trip,
+  orders: [activePartial, cancelledReview],
+  activityByOrder: { A: baseActivity.A, C: baseActivity.C },
+  settlementsByOrder: { C: baseSettlements.C },
+});
+const reportB = buildPerTripSalesReport({
+  trip: tripB,
+  orders: [activePaid],
+  activityByOrder: { B: baseActivity.B },
+});
+const monthly = aggregateMonthlySalesReports([reportA, reportB]);
+assert.equal(monthly.grandTotal.tripCount, 2);
+assert.equal(monthly.tripBreakdown.length, 2);
+assert.equal(
+  monthly.grandTotal.shippingFees,
+  reportA.summary.shippingFees + reportB.summary.shippingFees,
+  'grand total cargo fees must equal the sum of the per-trip cards below it',
+);
+assert.equal(
+  monthly.grandTotal.paymentsReceived,
+  reportA.summary.paymentsReceived + reportB.summary.paymentsReceived,
+);
+assert.equal(
+  monthly.grandTotal.amountStillToCollect,
+  reportA.summary.amountStillToCollect + reportB.summary.amountStillToCollect,
+);
+assert.equal(monthly.grandTotal.cancelledBookingCount, reportA.summary.cancelledBookingCount + reportB.summary.cancelledBookingCount);
+assert.deepEqual(monthly.tripBreakdown.map(r => r.trip.id), ['trip-a', 'trip-b'], 'per-trip breakdown keeps each trip report unmodified, in order');
+
+const empty = aggregateMonthlySalesReports([]);
+assert.equal(empty.grandTotal.tripCount, 0);
+assert.equal(empty.grandTotal.shippingFees, 0);
+assert.equal(empty.tripBreakdown.length, 0);
 
 await vite.close();
 console.log('Per Trip sales report contract tests passed.');

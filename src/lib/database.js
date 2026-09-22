@@ -4,7 +4,7 @@ import { logOrder, logChat } from './activityLog';
 import { validateStatusTransition, outstandingBalance, finalShippingFee, ORDER_STATUS, tripCapacityState, tripCapacityRefusal, canAdminCancelOrder } from '../constants/status';
 import { detectPickupLocation } from '../constants/phLocations';
 import { phDayRangeISO, formatPhDate, phDateKey } from '../utils/datetime';
-import { buildPerTripSalesReport } from './perTripSalesReport';
+import { buildPerTripSalesReport, aggregateMonthlySalesReports } from './perTripSalesReport';
 
 // ==================== HELPER ====================
 // Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
@@ -1093,6 +1093,20 @@ export const getPerTripSalesReport = async (tripId) => {
     activityByOrder,
     settlementsByOrder,
   });
+};
+
+/**
+ * "View by Month" for Sales & Reports: builds one full per-trip report per
+ * trip in `tripIds` (reusing getPerTripSalesReport above — no separate query
+ * or calculation path) and rolls them up with aggregateMonthlySalesReports.
+ * `tripIds` is computed by the caller from the trips it already has loaded
+ * (departure_date within the selected month); this function does no date
+ * filtering of its own.
+ */
+export const getMonthlySalesReport = async (tripIds = []) => {
+  if (!tripIds.length) throw new Error('No trips were found for that month.');
+  const tripReports = await Promise.all(tripIds.map(tripId => getPerTripSalesReport(tripId)));
+  return aggregateMonthlySalesReports(tripReports);
 };
 
 export const getTripById = async (tripId) => {

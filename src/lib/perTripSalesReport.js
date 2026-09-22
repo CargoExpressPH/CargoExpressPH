@@ -224,4 +224,40 @@ export const buildPerTripSalesReport = ({
   };
 };
 
+/**
+ * Rolls up several already-built per-trip reports (see buildPerTripSalesReport)
+ * into one Grand Total plus the unmodified per-trip breakdown. Pure and cents-
+ * safe like buildPerTripSalesReport, so the grand total is guaranteed to equal
+ * the sum of the per-trip cards below it — there is no separate summation path
+ * to drift out of sync.
+ */
+export const aggregateMonthlySalesReports = (tripReports = []) => {
+  const sum = (field) => fromCents(
+    tripReports.reduce((total, report) => addCents(total, toCents(report.summary?.[field])), 0)
+  );
+  const sumCount = (field) => tripReports.reduce((total, report) => total + Number(report.summary?.[field] || 0), 0);
+
+  return {
+    grandTotal: {
+      shippingFees: sum('shippingFees'),
+      paymentsReceived: sum('paymentsReceived'),
+      moneyReturned: sum('moneyReturned'),
+      paymentsAfterRefunds: sum('paymentsAfterRefunds'),
+      amountStillToCollect: sum('amountStillToCollect'),
+      activeBookingCount: sumCount('activeBookingCount'),
+      completedBookingCount: sumCount('completedBookingCount'),
+      cancelledBookingCount: sumCount('cancelledBookingCount'),
+      unpricedActiveCount: sumCount('unpricedActiveCount'),
+      cancelledMoneyAwaitingDecision: sum('cancelledMoneyAwaitingDecision'),
+      cancelledReviewCount: sumCount('cancelledReviewCount'),
+      pendingRefundAmount: sum('pendingRefundAmount'),
+      failedRefundAmount: sum('failedRefundAmount'),
+      uncertainRefundAmount: sum('uncertainRefundAmount'),
+      dataInconsistent: tripReports.some(report => report.summary?.dataInconsistent),
+      tripCount: tripReports.length,
+    },
+    tripBreakdown: tripReports,
+  };
+};
+
 export default buildPerTripSalesReport;
