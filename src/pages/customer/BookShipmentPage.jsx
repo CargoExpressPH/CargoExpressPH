@@ -201,10 +201,22 @@ const BookShipmentPage = () => {
 
   // Recent Addresses: best-effort, never blocks the booking flow — a failed
   // fetch just means the dropdown has nothing to show.
-  useEffect(() => {
+  //
+  // Pulled out as its own function (not just inline in the mount effect)
+  // because this page never unmounts between bookings — "Book Another"
+  // resets `form`/`step` in place, it doesn't remount the component — so a
+  // mount-only fetch would keep showing the pre-edit version of a contact
+  // the user just tweaked and submitted. Call this again wherever the
+  // history could have just changed: right after a successful submit, and
+  // again when "Book Another" is clicked.
+  const refreshRecentContacts = useCallback(() => {
     if (!user?.id) return;
     getRecentContacts(user.id).then(setRecentContacts).catch(() => {});
   }, [user?.id]);
+
+  useEffect(() => {
+    refreshRecentContacts();
+  }, [refreshRecentContacts]);
 
   // Close the open Recent Addresses dropdown on an outside click/tap or Escape.
   // Mirrors the capture-phase mousedown+touchstart pattern InfoTooltip.jsx uses.
@@ -505,6 +517,10 @@ const BookShipmentPage = () => {
       // clearing it would risk a frame of the un-loading form before that
       // switch.
       clearBookingDraftStorage(user.id);
+      // This booking (possibly with a just-edited sender/receiver contact) is
+      // now in `orders` — refresh Recent Addresses so a subsequent "Book
+      // Another" dropdown reflects it instead of the stale pre-edit version.
+      refreshRecentContacts();
     } catch (err) {
       toast.error(err.message || 'An unexpected error occurred while saving the booking.');
       if (!focusingInvalidField) window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -836,6 +852,10 @@ const BookShipmentPage = () => {
                 setSuccess(null);
                 setStep(1);
                 setFieldErrors({});
+                // Belt-and-suspenders alongside the post-submit refresh above:
+                // guarantees the dropdown is current even if that earlier
+                // fetch failed or the order changed again since then.
+                refreshRecentContacts();
                 setForm(prev => ({
                   ...prev,
                   route: '', trip_id: '',
