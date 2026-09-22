@@ -14,47 +14,6 @@
    PER TRIP SALES PREVIEW
    --------------------------------------------------------------------------- */
 
-/* Trip/Month view toggle — a segmented control, not a dropdown, since it's a
-   binary mode switch (per PerTripSalesPage's Generate-report UX). */
-.per-trip-view-toggle {
-  display: inline-flex;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  padding: 2px;
-  background: var(--bg-secondary);
-}
-
-.per-trip-view-toggle-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  border: 0;
-  background: transparent;
-  color: var(--text-secondary);
-  font-size: 0.8125rem;
-  font-weight: 600;
-  padding: 6px 12px;
-  border-radius: var(--radius-xs);
-  cursor: pointer;
-}
-
-.per-trip-view-toggle-btn.active {
-  background: var(--surface-raised);
-  color: var(--primary);
-  box-shadow: var(--shadow-sm);
-}
-
-.per-trip-month-breakdown-grid {
-  margin-top: 12px;
-}
-
-.per-trip-month-breakdown-card .card-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-}
-
 .per-trip-selector-card {
   padding: 16px;
   display: flex;
@@ -79,28 +38,6 @@
   max-width: 100%;
 }
 
-.per-trip-details-card {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 20px;
-  padding: 20px 24px;
-}
-
-.per-trip-details-card h2 {
-  margin: 4px 0 6px;
-  font-size: 1.15rem;
-}
-
-.per-trip-kicker {
-  color: var(--text-secondary);
-  font-size: 0.72rem;
-  font-weight: 800;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
-}
-
-.per-trip-route,
 .per-trip-detail-list span {
   display: inline-flex;
   align-items: center;
@@ -236,13 +173,6 @@
 }
 
 @media (max-width: 700px) {
-  .per-trip-details-card {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 12px;
-    padding: 18px;
-  }
-
   .per-trip-detail-list { justify-content: flex-start; }
   .per-trip-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .per-trip-summary-card { min-height: 132px; padding: 16px; }
