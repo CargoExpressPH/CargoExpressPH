@@ -41,7 +41,7 @@ const DashboardPage = () => {
 
   useRealtimeTripCapacity(refreshCapacity);
 
-  const loadData = async () => {
+  async function loadData() {
     const request = ++statsRequestSequence.current;
     setStatsWarning(null);
     setLoading(true);
@@ -58,9 +58,9 @@ const DashboardPage = () => {
     } finally { 
       if (isMountedRef.current && request === statsRequestSequence.current) setLoading(false);
     }
-  };
+  }
 
-  const refreshCapacity = async () => {
+  async function refreshCapacity() {
     const request = ++capacityRequestSequence.current;
     try {
       const nextCapacity = await withTimeout(getVanCapacity());
