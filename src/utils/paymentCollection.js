@@ -16,6 +16,25 @@ import { parseAmount, formatAmount } from './currencyInput.js';
 const today = () => new Date().toISOString().split('T')[0];
 
 /**
+ * Create the idempotency UUID before a collection flow opens. Older embedded
+ * browsers may expose Web Crypto but not randomUUID(); use getRandomValues to
+ * keep the key cryptographically random there too. Never substitute
+ * Math.random for a payment idempotency key.
+ */
+export const createPaymentIdempotencyKey = (cryptoApi = globalThis.crypto) => {
+  if (typeof cryptoApi?.randomUUID === 'function') return cryptoApi.randomUUID();
+  if (typeof cryptoApi?.getRandomValues !== 'function') {
+    throw new Error('Secure payment IDs are not supported by this browser. Update the browser and try again.');
+  }
+
+  const bytes = cryptoApi.getRandomValues(new Uint8Array(16));
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex = Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+};
+
+/**
  * Initial panel state. `amount` is a stored numeric string (no separators) —
  * see utils/currencyInput.
  */
@@ -37,7 +56,7 @@ export const createPaymentCollectionState = (overrides = {}) => ({
   // every retry of the SAME collection attempt (double-click, a dropped
   // response after the database already committed). A genuinely new
   // collection gets a new one because it comes from a freshly mounted modal.
-  idempotency_key: crypto.randomUUID(),
+  idempotency_key: createPaymentIdempotencyKey(),
   // PayMongo runtime — owned here, read by the parent at submit
   paymentStep: 'setup',          // 'setup' | 'generating' | 'waiting'
   sourceId: null,
