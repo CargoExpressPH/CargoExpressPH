@@ -425,7 +425,7 @@ const PerTripSalesPage = () => {
             onClick={handleGenerate}
             disabled={!canGenerate || loadingReport}
           >
-            {loadingReport ? <CenteredSpinner size={16} /> : <FileText size={16} />}
+            {loadingReport ? <RefreshCw size={16} className="animate-spin" /> : <FileText size={16} />}
             Generate Report
           </button>
           {hasGenerated && (
