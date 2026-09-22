@@ -319,32 +319,17 @@
    were pinned to three columns by a `!important` in viewport-hardening.css
    at every width down to 320px; see the note left at that rule.
 
-   Approach A (wrap), not horizontal scroll. Three items is too few to earn a
-   swipe: a scroller hides a third of the content behind a gesture with no
-   affordance saying it is there, and "Delivered orders" — the one most likely
-   to be off-screen — is the count people check least often but should still
-   see. Two columns with the odd one spanning the full row keeps all three
-   visible, gives each pill ~170px instead of ~115px, and costs one extra row
-   of height.
-
-   The breakpoint is 520px rather than 480px because that is where three
-   across actually stops fitting: at 520px each pill is ~156px, at 480px it is
-   ~143px, and by 430px — a large phone — it is ~128px for a value, an icon
-   and a two-word label. 520px is also already a breakpoint in
-   customer-mobile-refresh.css, so this does not add a new one to the file. */
+   Keep the three visible counts in one row, as in the customer dashboard.
+   The icon already stacks over each value at phone widths; allow its label
+   to wrap when the available width is smaller than the label. */
 @media (max-width: 520px) {
-  /* Three pills, three columns. The previous 2-column grid spanned the odd
-     last pill across the full row, which rendered as two cards plus one wide
-     orphan and read as a layout bug rather than a choice. */
   .customer-layout-v2 .customer-home-snapshot {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
-  /* The pills were squeezed to 68px tall and 10px of side padding to survive
-     three-across. With the room back, they can breathe. */
   .customer-layout-v2 .customer-snapshot-pill {
     min-height: 72px;
-    padding: 13px 16px;
+    padding: 10px;
   }
 
   .customer-layout-v2 .customer-snapshot-value {
@@ -353,6 +338,8 @@
 
   .customer-layout-v2 .customer-snapshot-label {
     font-size: 0.72rem;
+    white-space: normal;
+    overflow-wrap: anywhere;
   }
 }
 
@@ -388,6 +375,46 @@
    becomes an accessibility regression. Type shrinks; tap targets do not. */
 
 @media (max-width: 768px) {
+  /* Auto minimums in nested grid items allowed trip details to size the whole
+     dashboard wider than a phone, including the hero and overview above it. */
+  .customer-layout-v2 .customer-home-page {
+    width: 100%;
+    min-width: 0;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .customer-layout-v2 .customer-home-page > *,
+  .customer-layout-v2 .home-hero-trip-card,
+  .customer-layout-v2 .home-trip-route-title {
+    min-width: 0;
+  }
+
+  .customer-layout-v2 .customer-home-page .customer-announcement-card,
+  .customer-layout-v2 .customer-home-page .customer-announcement-card .card-body,
+  .customer-layout-v2 .customer-home-page .announcement-comments {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .customer-layout-v2 .customer-home-page .customer-announcement-card .card-body > .flex:first-child {
+    flex-wrap: wrap;
+  }
+
+  .customer-layout-v2 .customer-home-page .customer-announcement-card .card-body > .text-base,
+  .customer-layout-v2 .customer-home-page .customer-announcement-card .card-body > .text-sm {
+    overflow-wrap: anywhere;
+  }
+
+  .customer-layout-v2 .home-hero-trip-card > .flex:first-child {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .customer-layout-v2 .home-trip-badge-num,
+  .customer-layout-v2 .home-trip-route-title {
+    overflow-wrap: anywhere;
+  }
+
   /* Hero. 314px of a 780px viewport was ~40% of the first screen spent on a
      greeting, before a single shipment was visible. */
   .customer-layout-v2 .customer-home-hero {
@@ -466,6 +493,20 @@
   .customer-layout-v2 .home-trip-cta {
     min-height: 44px;
     font-size: 0.875rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .customer-layout-v2 .home-trip-metrics-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .customer-layout-v2 .home-trip-metric-box {
+    min-width: 0;
+  }
+
+  .customer-layout-v2 .home-trip-metric-box:last-child {
+    grid-column: 1 / -1;
   }
 }
 
