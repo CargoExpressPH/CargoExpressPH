@@ -5,6 +5,7 @@ import FocusTrap from './FocusTrap';
 import AmountInput from './AmountInput';
 import useScrollLock from '../../hooks/useScrollLock';
 import { sanitizeAmount, parseAmount, formatAmount, formatMoney } from '../../utils/currencyInput';
+import { overpaymentMessage } from '../../utils/paymentCollection';
 import { uploadPhoto } from '../../lib/storage';
 import { serializePhotoReference } from '../../lib/photoReference';
 import QRCode from 'react-qr-code';
@@ -92,7 +93,11 @@ const AdditionalPaymentModal = ({ order, remainingBalance, onClose, onSave, onPa
     } else if (amountValue <= 0) {
       amountError = 'Amount must be greater than ₱0';
     } else if (amountValue > remainingBalance) {
-      amountError = `Amount cannot exceed balance (${formatMoney(remainingBalance)})`;
+      // remainingBalance here IS the database's figure (the order was
+      // weighed and discounted long before this modal can open), so the
+      // same wording the pickup/delivery panel uses applies unchanged, and
+      // record_additional_payment() enforces it again server-side.
+      amountError = overpaymentMessage(amountValue - remainingBalance);
     }
   }
   const amountValid = amountEntered && !amountError && amountValue > 0 && amountValue <= remainingBalance;

@@ -14,6 +14,7 @@ import usePageTitle from '../../hooks/usePageTitle';
 import { toTitleCase, toAddressCase, normalizeName } from '../../utils/string';
 import { getPasswordStrength } from '../../utils/password';
 import { isPhoneValid, validatePhone } from '../../utils/phone';
+import { validateName } from '../../utils/validation';
 import FieldError from '../../components/ui/FieldError';
 import { BrandLogo, BrandWordmark } from '../../components/ui/BrandLogo';
 import AuthHeroPanel from '../../components/auth/AuthHeroPanel';
@@ -140,9 +141,13 @@ const RegisterPage = () => {
   const validateSingleField = (name, value, currentForm = form) => {
     switch (name) {
       case 'name':
+        // Registration used to accept any non-blank string of 2+ characters
+        // while the booking and profile forms ran the shared character
+        // policy — the same field asking two different questions. It now
+        // shares validateName() with them; only the "required" wording is
+        // kept, because this control is labelled Full Name.
         if (!value.trim()) return 'Full name is required.';
-        if (value.trim().length < 2) return 'Full name must be at least 2 characters.';
-        return '';
+        return validateName(value) || '';
       // Required here to match the booking wizard, which rejects an empty
       // Facebook Name on both the sender and receiver steps. Labelling it
       // "(optional)" at registration and mandatory at booking was the same
