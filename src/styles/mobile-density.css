@@ -70,11 +70,59 @@
     font-size: 1.3rem;
     gap: 8px;
   }
+
+  .app-layout .admin-order-heading {
+    align-items: flex-start;
+  }
+
+  .app-layout .admin-order-heading h1 {
+    flex-basis: 100%;
+    width: 100%;
+    font-size: clamp(1.35rem, 7vw, 1.75rem);
+    line-height: 1.15;
+  }
+
+  .app-layout .admin-order-heading-status {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .app-layout .admin-order-heading-status .badge,
+  .app-layout .admin-order-payment-badges .badge {
+    min-height: 28px;
+    height: auto;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    line-height: 1.25;
+  }
 }
 
 @media (max-width: 400px) {
   .app-layout .admin-page-title {
     font-size: 1.175rem;
+  }
+}
+
+/* Activity details are prose, not a compact scalar. Give them the full card
+   width on phones so the label/value grid does not turn sentences into a tall,
+   narrow column like the old [object Object] entry in the reported screen. */
+@media (max-width: 900px) {
+  .app-layout .activity-logs-table-card .details-cell {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
+    max-width: none;
+    margin-top: 6px;
+    padding: 10px;
+    border-radius: var(--radius-sm);
+    background: var(--bg-secondary);
+    text-align: left;
+  }
+
+  .app-layout .activity-logs-table-card .details-cell::before,
+  .app-layout .activity-logs-table-card .details-cell > * {
+    grid-column: 1;
+    justify-self: stretch;
+    text-align: left;
   }
 }
 

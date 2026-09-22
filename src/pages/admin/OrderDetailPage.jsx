@@ -866,12 +866,12 @@ const AdminOrderDetailPage = () => {
 
       <ErrorBoundarySection message="Order info failed to load.">
       {/* Header */}
-      <div className="flex items-center justify-between mb-8">
+      <div className="admin-order-heading mb-8">
         <h1 className="fw-800 text-2xl">{order.tracking_number}</h1>
-        <div className="flex items-center">
+        <div className="admin-order-heading-status">
             <StatusBadge status={order.status} />
             {order.status === 'Delivered' && computedRemainingBalance > 0 && (
-              <span className="badge badge-error ml-8 flex items-center gap-4" style={{ height: 28 }}>
+              <span className="badge badge-error flex items-center gap-4">
                 <AlertTriangle size={14} /> Outstanding Balance: {formatMoney(computedRemainingBalance)}
               </span>
             )}
@@ -1415,7 +1415,7 @@ const AdminOrderDetailPage = () => {
             </div>
           )}
 
-          <div className="flex gap-8 flex-wrap mb-16">
+          <div className="admin-order-payment-badges flex gap-8 flex-wrap mb-16">
             {/* Ledger first, order column only as a fallback for pre-ledger
                 orders that have no transaction rows to read. */}
             {paidMethods.length > 1 ? (

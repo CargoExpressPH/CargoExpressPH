@@ -130,6 +130,39 @@
   overflow-wrap: anywhere;
 }
 
+/* Order identity and financial state are separate pieces of information. The
+   row may wrap at any width instead of letting a long tracking number squeeze
+   (or push out) the balance badge. */
+.admin-order-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.admin-order-heading h1 {
+  flex: 1 1 280px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.admin-order-heading-status {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  min-width: 0;
+  max-width: 100%;
+  flex-wrap: wrap;
+}
+
+.admin-order-heading-status .badge,
+.admin-order-payment-badges .badge {
+  max-width: 100%;
+}
+
 /* ── Admin page tabs (Company Information, Storage Monitoring, …) ───────── */
 .admin-tab-bar {
   display: flex;

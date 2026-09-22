@@ -365,17 +365,10 @@ const ActivityLogsPage = () => {
                     </td>
                     <td data-label="Reference">
                       {log.record_ref ? (
-                        <span style={{
-                          fontFamily: 'monospace',
-                          background: 'var(--bg-secondary)',
-                          padding: '2px 7px',
-                          borderRadius: 'var(--radius-xs)',
-                          fontSize: '0.78rem',
-                          border: '1px solid var(--border)',
-                        }}>{log.record_ref}</span>
+                        <span className="activity-log-reference">{log.record_ref}</span>
                       ) : '—'}
                     </td>
-                    <td data-label="Details" className="details-cell" style={{ maxWidth: '400px', whiteSpace: 'normal', wordBreak: 'break-word' }}>
+                    <td data-label="Details" className="details-cell">
                       {log.details || '—'}
                     </td>
                   </tr>

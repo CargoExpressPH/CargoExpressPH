@@ -18,6 +18,7 @@ import CompanyInfoCoverageTab from './CompanyInfoCoverageTab';
 import usePageTitle from '../../hooks/usePageTitle';
 import useFieldErrors from '../../hooks/useFieldErrors';
 import FieldError, { fieldAttrs, invalidClass } from '../../components/ui/FieldError';
+import { buildCompanyInfoAuditDetails } from '../../utils/companyInfoAudit';
 
 const TABS = [
   { id: 'basic',    label: 'Basic Info',      icon: Building2 },
@@ -149,19 +150,12 @@ const CompanyInformationPage = () => {
       await updateCompanyInformation(companyInfo);
       
       const prev = JSON.parse(savedInfo || '{}');
-      const changedKeys = Object.keys(companyInfo).filter(k => companyInfo[k] !== prev[k] && !(prev[k] == null && companyInfo[k] === ''));
-      const diffSummary = changedKeys.length > 0 
-        ? changedKeys.map(k => {
-            const oldVal = prev[k] || '(empty)';
-            const newVal = companyInfo[k] || '(empty)';
-            return `${k.replace(/_/g, ' ')} changed from "${oldVal}" to "${newVal}"`;
-          }).join(', ') 
-        : 'General settings';
+      const auditDetails = buildCompanyInfoAuditDetails(prev, companyInfo);
         
       setSavedInfo(JSON.stringify(companyInfo));
       logCompany('Company Information Updated', { 
         recordRef: 'Company Info',
-        details: changedKeys.length > 0 ? diffSummary : 'Saved without changes'
+        details: auditDetails
       });
       toast.success('Changes saved successfully!');
     } catch (err) {

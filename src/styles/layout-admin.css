@@ -620,3 +620,22 @@
   overflow: hidden;
 }
 
+.activity-log-reference {
+  display: inline-block;
+  max-width: 100%;
+  padding: 2px 7px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xs);
+  background: var(--bg-secondary);
+  font-family: monospace;
+  font-size: 0.78rem;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.activity-logs-table-card .details-cell {
+  max-width: 400px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
