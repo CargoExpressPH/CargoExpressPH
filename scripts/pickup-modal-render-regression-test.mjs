@@ -13,7 +13,14 @@ const fixture = {
   package_description: null,
   trip_id: '00000000-0000-4000-8000-000000000201',
   trips: { id: '00000000-0000-4000-8000-000000000201', capacity: 1000, price_per_kg: 70 },
-  // Intentionally omit optional payment and discount fields to cover legacy rows.
+  // A booking that has not been picked up yet is ALWAYS 'unpaid' — that is the
+  // state every real Process Pickup click starts from. Leaving it undefined
+  // (as this fixture first did) put the panel into Full Payment and silently
+  // skipped the Pay Later branch, which is the branch that renders the
+  // Promise Date input. A ReferenceError in that input therefore shipped with
+  // this test passing. Keep this field set.
+  payment_status: 'unpaid',
+  // Intentionally omit optional discount fields to cover legacy rows.
 };
 
 const deterministicBytes = Uint8Array.from({ length: 16 }, (_, index) => index);
@@ -89,6 +96,25 @@ try {
   await page.getByRole('heading', { name: 'Pickup Processing' }).waitFor();
   assert.equal(await page.getByLabel('Actual Weight (kg) *').count(), 1);
   assert.equal(await page.getByRole('button', { name: 'Confirm Pickup' }).count(), 1);
+
+  // ── Both date inputs must actually RENDER ────────────────────────────────
+  // Each binds its min/max to the shared today() helper. When the panel's pure
+  // rules were extracted into utils/paymentCollection.js that helper went with
+  // them, leaving the JSX calling an identifier its module no longer had.
+  // Rollup treats a bare undefined identifier as a global, so the production
+  // build emitted no warning and every unpaid order crashed on Process Pickup
+  // with "ReferenceError: today is not defined". Rendering both inputs is what
+  // catches that class of breakage.
+  assert.equal(
+    await page.getByLabel(/Promised Payment Date/).count(), 1,
+    'Pay Later must render the Promise Date input (binds min={today()})',
+  );
+  await page.getByRole('button', { name: 'GCash' }).click();
+  assert.equal(
+    await page.getByLabel(/^Payment Date/).count(), 1,
+    'GCash must render the Payment Date input (binds max={today()})',
+  );
+  await page.getByRole('button', { name: 'Cash', exact: true }).click();
   await page.getByLabel('Actual Weight (kg) *').fill('50');
   await page.getByText('Estimated cost: ₱3,500.00').waitFor();
   await page.getByLabel('Apply Discount').check();

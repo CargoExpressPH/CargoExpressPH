@@ -12,8 +12,18 @@
  */
 import { parseAmount, formatAmount } from './currencyInput.js';
 
-/** Today, as the date inputs want it. */
-const today = () => new Date().toISOString().split('T')[0];
+/**
+ * Today, as the date inputs want it.
+ *
+ * EXPORTED, not module-private: PaymentCollectionPanel's payment-date and
+ * promise-date inputs bound their `max`/`min` to it, and when these pure
+ * rules were split out of that component the helper came with them, leaving
+ * the JSX calling an identifier that no longer existed in its module. A bare
+ * undefined identifier is not a build error — Rollup treats it as a global —
+ * so it only surfaced as a ReferenceError when one of those inputs actually
+ * rendered. One definition, imported by both.
+ */
+export const today = () => new Date().toISOString().split('T')[0];
 
 /**
  * Create the idempotency UUID before a collection flow opens. Older embedded
