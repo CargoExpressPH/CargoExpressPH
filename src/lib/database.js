@@ -314,6 +314,67 @@ export const getOrders = async (userId, isAdmin = false, options = {}) => {
 };
 
 /**
+ * Recent, deduped sender/receiver contacts pulled from the customer's own
+ * past orders — powers the "Recent Addresses" autofill dropdown in
+ * BookShipmentPage. RLS already restricts `orders` reads to `user_id = auth
+ * user`, same as getOrders above, so this is a plain read with no new access
+ * path — no migration needed.
+ *
+ * Returns { senders: [...], receivers: [...] }, each entry shaped as
+ * { name, phone, facebook, province, city, barangay, street, lot_block,
+ *   landmark }, most-recent-first, deduped by name+phone+full-address so a
+ * contact used repeatedly only shows up once.
+ */
+export const getRecentContacts = async (userId, limit = 8) => {
+  const { data, error } = await withTimeout(
+    supabase
+      .from('orders')
+      .select(`
+        sender_name, sender_phone, sender_facebook,
+        sender_province, sender_city, sender_barangay, sender_street, sender_lot_block, sender_landmark,
+        receiver_name, receiver_phone, receiver_facebook,
+        receiver_province, receiver_city, receiver_barangay, receiver_street, receiver_lot_block, receiver_landmark,
+        created_at
+      `)
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(50)
+  );
+  if (error) throw error;
+
+  const dedupe = (rows, prefix) => {
+    const seen = new Set();
+    const out = [];
+    for (const row of rows || []) {
+      const contact = {
+        name: row[`${prefix}_name`] || '',
+        phone: row[`${prefix}_phone`] || '',
+        facebook: row[`${prefix}_facebook`] || '',
+        province: row[`${prefix}_province`] || '',
+        city: row[`${prefix}_city`] || '',
+        barangay: row[`${prefix}_barangay`] || '',
+        street: row[`${prefix}_street`] || '',
+        lot_block: row[`${prefix}_lot_block`] || '',
+        landmark: row[`${prefix}_landmark`] || '',
+      };
+      if (!contact.name || !contact.phone) continue;
+      const key = [contact.name, contact.phone, contact.province, contact.city, contact.barangay, contact.street]
+        .join('|').toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(contact);
+      if (out.length >= limit) break;
+    }
+    return out;
+  };
+
+  return {
+    senders: dedupe(data, 'sender'),
+    receivers: dedupe(data, 'receiver'),
+  };
+};
+
+/**
  * { 'Pending': 12, 'In Transit': 3, Ã¢â‚¬Â¦ } across every order — admin only.
  *
  * One grouped aggregate in one round trip, not one COUNT per filter tab. The

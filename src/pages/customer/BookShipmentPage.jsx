@@ -1,12 +1,12 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useNavigate, useLocation, useBlocker } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { createOrder, getTrips, getSettings } from '../../lib/database';
+import { createOrder, getTrips, getSettings, getRecentContacts } from '../../lib/database';
 import { logOrder } from '../../lib/activityLog';
 import { buildFullAddress } from '../../lib/address';
 import { ROUTES, PH_LOCATIONS, VALID_PROVINCES, detectPickupLocation, validateRouteProvinces } from '../../constants/phLocations';
 import { isTripBookable } from '../../constants/status';
-import { ArrowLeft, Loader, CheckCircle, Copy, Check, Package, MapPin, User, Truck, AlertTriangle, Info } from 'lucide-react';
+import { ArrowLeft, Loader, CheckCircle, Copy, Check, Package, MapPin, User, Truck, AlertTriangle, Info, Clock } from 'lucide-react';
 import { useToast } from '../../hooks/useToast';
 import CustomSelect from '../../components/ui/CustomSelect';
 import BarangaySelect from '../../components/ui/BarangaySelect';
@@ -108,6 +108,12 @@ const BookShipmentPage = () => {
   const [useRegisteredReceiver, setUseRegisteredReceiver] = useState(false);
   const [fieldErrors, setFieldErrors] = useState({});
 
+  // Recent Addresses / Address Book — independent of the "use registered
+  // address" checkboxes above; see handleSelectRecentContact.
+  const [recentContacts, setRecentContacts] = useState({ senders: [], receivers: [] });
+  const [openContactDropdown, setOpenContactDropdown] = useState(null); // 'sender' | 'receiver' | null
+  const contactWrapRefs = useRef({});
+
   // Block navigation only after the customer has entered meaningful booking
   // data. Route/trip selection is lightweight setup and safe to repeat; treating
   // it as a dirty draft produced a discard warning before any data was entered.
@@ -192,6 +198,34 @@ const BookShipmentPage = () => {
       getSettings().then(s => { if (s.price_per_kilo) setPricePerKilo(parseFloat(s.price_per_kilo)); }).catch(() => {}),
     ]).finally(() => setInitialLoading(false));
   }, []);
+
+  // Recent Addresses: best-effort, never blocks the booking flow — a failed
+  // fetch just means the dropdown has nothing to show.
+  useEffect(() => {
+    if (!user?.id) return;
+    getRecentContacts(user.id).then(setRecentContacts).catch(() => {});
+  }, [user?.id]);
+
+  // Close the open Recent Addresses dropdown on an outside click/tap or Escape.
+  // Mirrors the capture-phase mousedown+touchstart pattern InfoTooltip.jsx uses.
+  useEffect(() => {
+    if (!openContactDropdown) return undefined;
+    const handleOutsideClick = (e) => {
+      const wrap = contactWrapRefs.current[openContactDropdown];
+      if (wrap && !wrap.contains(e.target)) setOpenContactDropdown(null);
+    };
+    const handleEscape = (e) => {
+      if (e.key === 'Escape') setOpenContactDropdown(null);
+    };
+    document.addEventListener('mousedown', handleOutsideClick, true);
+    document.addEventListener('touchstart', handleOutsideClick, true);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick, true);
+      document.removeEventListener('touchstart', handleOutsideClick, true);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [openContactDropdown]);
 
   // A route/trip-only selection is deliberately ephemeral: navigating away or
   // refreshing returns to a clean Step 1. Once real booking details exist, save
@@ -314,6 +348,31 @@ const BookShipmentPage = () => {
         receiver_city: '', receiver_province: '', receiver_landmark: '',
       }));
     }
+  };
+
+  // Fills a Sender/Receiver step from a past order's contact — independent of
+  // the "use registered address" checkboxes (handleUseRegisteredSenderChange/
+  // handleUseRegisteredReceiverChange above), which this never calls into. It
+  // only mirrors their courtesy of clearing stale field errors, and unchecks
+  // that side's checkbox state if it happened to be on, same as typing into
+  // any of these fields already does via `u()`.
+  const handleSelectRecentContact = (prefix, contact) => {
+    setForm(p => ({
+      ...p,
+      [`${prefix}_name`]: contact.name,
+      [`${prefix}_phone`]: contact.phone,
+      [`${prefix}_facebook`]: contact.facebook,
+      [`${prefix}_province`]: contact.province,
+      [`${prefix}_city`]: contact.city,
+      [`${prefix}_barangay`]: contact.barangay,
+      [`${prefix}_street`]: contact.street,
+      [`${prefix}_lot_block`]: contact.lot_block,
+      [`${prefix}_landmark`]: contact.landmark,
+    }));
+    clearPrefixFieldErrors(prefix);
+    if (prefix === 'sender') setUseRegisteredSender(false);
+    else setUseRegisteredReceiver(false);
+    setOpenContactDropdown(null);
   };
 
   const validateSender = () => {
@@ -473,9 +532,59 @@ const BookShipmentPage = () => {
     const errEl = (key) => fe(key)
       ? <div className="field-error-inline" id={errId(key)} role="alert"><AlertTriangle size={12} aria-hidden="true" />{fe(key)}</div>
       : null;
+    const contacts = recentContacts[`${prefix}s`] || [];
+    const dropdownOpen = openContactDropdown === prefix;
     return (
       <div className="grid grid-2 gap-16">
-        <div className="form-group col-full"><label className="form-label" htmlFor={id('name')}>Full Name <span className="required">*</span></label><input id={id('name')} className={`form-input ${fc('name')}`} value={form[`${prefix}_name`]} onChange={handleTextChange(`${prefix}_name`)} autoComplete={isSender ? 'name' : 'shipping name'} autoCapitalize="words" required {...a11y('name')} />{errEl('name')}</div>
+        <div className="form-group col-full">
+          <div className="flex items-center justify-between">
+            <label className="form-label" htmlFor={id('name')}>Full Name <span className="required">*</span></label>
+            {contacts.length > 0 && (
+              <button
+                type="button"
+                className="recent-contacts-trigger"
+                aria-haspopup="listbox"
+                aria-expanded={dropdownOpen}
+                onClick={() => setOpenContactDropdown(prev => (prev === prefix ? null : prefix))}
+              >
+                <Clock size={12} aria-hidden="true" /> Recent Contacts
+              </button>
+            )}
+          </div>
+          <div className="recent-contacts-wrap" ref={el => { contactWrapRefs.current[prefix] = el; }}>
+            <input
+              id={id('name')}
+              className={`form-input ${fc('name')}`}
+              value={form[`${prefix}_name`]}
+              onChange={handleTextChange(`${prefix}_name`)}
+              onFocus={() => { if (contacts.length > 0) setOpenContactDropdown(prefix); }}
+              autoComplete={isSender ? 'name' : 'shipping name'}
+              autoCapitalize="words"
+              required
+              {...a11y('name')}
+            />
+            {dropdownOpen && contacts.length > 0 && (
+              <div className="custom-select-menu recent-contacts-menu" role="listbox" aria-label={`Recent ${prefix} contacts`}>
+                {contacts.map((contact, i) => (
+                  <button
+                    type="button"
+                    key={`${contact.name}-${contact.phone}-${i}`}
+                    role="option"
+                    aria-selected="false"
+                    className="custom-select-option recent-contact-option"
+                    onClick={() => handleSelectRecentContact(prefix, contact)}
+                  >
+                    <span className="recent-contact-address">
+                      {buildFullAddress({ lotBlock: contact.lot_block, street: contact.street, barangay: contact.barangay, city: contact.city, province: contact.province, landmark: contact.landmark })}
+                    </span>
+                    <span className="recent-contact-meta">{contact.name} | {contact.phone}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          {errEl('name')}
+        </div>
         <div className="form-group"><label className="form-label" htmlFor={id('phone')}>Mobile Number <span className="required">*</span></label><input id={id('phone')} className={`form-input ${fc('phone')}`} value={form[`${prefix}_phone`]} onChange={handlePhoneChange(`${prefix}_phone`)} inputMode="numeric" maxLength={11} placeholder="09xxxxxxxxx" autoComplete="tel" required {...a11y('phone')} />{errEl('phone')}</div>
         <div className="form-group"><label className="form-label" htmlFor={id('facebook')}>Facebook Name <span className="required">*</span></label><input id={id('facebook')} className={`form-input ${fc('facebook')}`} value={form[`${prefix}_facebook`]} onChange={handleTextChange(`${prefix}_facebook`)} placeholder="Your name on Facebook" autoCapitalize="words" required {...a11y('facebook')} />{errEl('facebook')}</div>
         <div className="form-group"><label className="form-label" htmlFor={id('province')}>Province <span className="required">*</span></label>
