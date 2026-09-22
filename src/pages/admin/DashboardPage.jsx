@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { getDashboardStats, getVanCapacity, withTimeout } from '../../lib/database';
 import StatusBadge from '../../components/ui/StatusBadge';
@@ -11,6 +11,9 @@ import ErrorBoundarySection from '../../components/ui/ErrorBoundarySection';
 import { Package, PackageCheck, Truck, Map, Clock, ArrowRight, Gauge, PieChart, AlertTriangle, LayoutDashboard } from 'lucide-react';
 import usePageTitle from '../../hooks/usePageTitle';
 import EmptyState from '../../components/ui/EmptyState';
+import { formatPhDate } from '../../utils/datetime';
+import { isScheduledTripOverdue } from '../../lib/tripCapacitySelection';
+import useRealtimeTripCapacity from '../../hooks/useRealtimeTripCapacity';
 
 const DashboardPage = () => {
   usePageTitle('Dashboard');
@@ -18,63 +21,62 @@ const DashboardPage = () => {
   const [capacity, setCapacity] = useState(null);
   const [recent, setRecent] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [statsWarning, setStatsWarning] = useState(null);
+  const [capacityLoading, setCapacityLoading] = useState(true);
+  const [capacityError, setCapacityError] = useState(null);
+  const statsRequestSequence = useRef(0);
+  const capacityRequestSequence = useRef(0);
+  const isMountedRef = useRef(false);
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => {
+    isMountedRef.current = true;
+    void loadData();
+    void refreshCapacity();
+    return () => {
+      isMountedRef.current = false;
+      statsRequestSequence.current += 1;
+      capacityRequestSequence.current += 1;
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useRealtimeTripCapacity(refreshCapacity);
+
   const loadData = async () => {
-    setError(null);
+    const request = ++statsRequestSequence.current;
     setStatsWarning(null);
     setLoading(true);
     try {
-      const results = await Promise.allSettled([
-        withTimeout(getDashboardStats()), 
-        withTimeout(getVanCapacity())
-      ]);
-      
-      const dashResult = results[0];
-      const capResult = results[1];
-      
-      if (dashResult.status === 'fulfilled' && dashResult.value) {
-        setStats(dashResult.value.stats);
-        setRecent(dashResult.value.recentOrders || []);
-      } else if (dashResult.status === 'rejected') {
-        if (import.meta.env.DEV) console.error('Failed to load dashboard stats:', dashResult.reason);
-      }
-      
-      if (capResult.status === 'fulfilled' && capResult.value) {
-        setCapacity(capResult.value);
-      } else if (capResult.status === 'rejected') {
-        if (import.meta.env.DEV) console.error('Failed to load van capacity:', capResult.reason);
-      }
-      
-      if (dashResult.status === 'rejected' && capResult.status === 'rejected') {
-        throw new Error('All dashboard data queries failed to load.');
-      }
-
-      // Surface partial failures so admin knows data may be incomplete
-      const partialFailures = [];
-      if (dashResult.status === 'rejected') partialFailures.push('order statistics');
-      if (capResult.status === 'rejected') partialFailures.push('van capacity');
-      if (partialFailures.length > 0) {
-        setStatsWarning(`Failed to load ${partialFailures.join(' and ')}. Some data may be incomplete.`);
-      }
+      const dashboardData = await withTimeout(getDashboardStats());
+      if (!isMountedRef.current || request !== statsRequestSequence.current) return;
+      setStats(dashboardData?.stats || null);
+      setRecent(dashboardData?.recentOrders || []);
     } catch (e) { 
-      setError(e.message || 'Failed to load dashboard data.');
+      if (isMountedRef.current && request === statsRequestSequence.current) {
+        if (import.meta.env.DEV) console.error('Failed to load dashboard stats:', e);
+        setStatsWarning('Failed to load order statistics. Some dashboard figures may be incomplete.');
+      }
     } finally { 
-      setLoading(false); 
+      if (isMountedRef.current && request === statsRequestSequence.current) setLoading(false);
     }
   };
 
-  if (error) return (
-    <PageTransition>
-      <div className="card text-center" role="alert" style={{ padding: 40, color: 'var(--error-text)' }}>
-        <h3>Error</h3>
-        <p>{error}</p>
-        <button type="button" className="btn btn-primary mt-md" onClick={loadData}>Retry</button>
-      </div>
-    </PageTransition>
-  );
+  const refreshCapacity = async () => {
+    const request = ++capacityRequestSequence.current;
+    try {
+      const nextCapacity = await withTimeout(getVanCapacity());
+      if (!isMountedRef.current || request !== capacityRequestSequence.current) return null;
+      setCapacity(nextCapacity);
+      setCapacityError(null);
+      return true;
+    } catch (e) {
+      if (!isMountedRef.current || request !== capacityRequestSequence.current) return null;
+      setCapacity(null);
+      setCapacityError(e.message || 'Trip capacity could not be loaded.');
+      return false;
+    } finally {
+      if (isMountedRef.current && request === capacityRequestSequence.current) setCapacityLoading(false);
+    }
+  };
 
   /**
    * Four numbers an admin can act on, in the order cargo moves through the
@@ -126,9 +128,10 @@ const DashboardPage = () => {
         <div className="alert-banner alert-banner-warning mb-16" role="alert">
           <AlertTriangle size={18} />
           <span className="flex-1 text-sm">{statsWarning}</span>
-          <button type="button" className="btn btn-outline btn-sm" onClick={() => setStatsWarning(null)}>Dismiss</button>
+          <button type="button" className="btn btn-outline btn-sm" onClick={loadData}>Retry</button>
         </div>
       )}
+
       {/* Stat Cards */}
       <ErrorBoundarySection message="Stats failed to load.">
         {loading ? (
@@ -154,13 +157,37 @@ const DashboardPage = () => {
           <StaggerItem className="card admin-section-card" delay={240}>
           <div className="card-header"><h3><Gauge size={16} className="inline mr-8" />Trip Capacity</h3></div>
           <div className="card-body">
-            {loading ? (
+            {capacityError ? (
+              <div role="alert" className="text-center" style={{ padding: '20px 8px' }}>
+                <p className="text-sm text-secondary mb-12">Trip capacity could not be loaded: {capacityError}</p>
+                <button type="button" className="btn btn-outline btn-sm" onClick={refreshCapacity}>Retry</button>
+              </div>
+            ) : loading || (capacityLoading && !capacity) ? (
               <CenteredSpinner />
             ) : capacity?.activeTrip ? (
               <>
-                <div className="text-sm text-secondary mb-12">
-                  {capacity.activeTrip.trip_number} • {capacity.activeTrip.origin} → {capacity.activeTrip.destination}
+                <div className="flex items-center justify-between gap-8 mb-8">
+                  <div className="text-sm text-secondary" style={{ overflowWrap: 'anywhere' }}>
+                    {capacity.activeTrip.trip_number} • {capacity.activeTrip.origin} → {capacity.activeTrip.destination}
+                  </div>
+                  <StatusBadge status={capacity.activeTrip.status} size="sm" />
                 </div>
+                <p className="text-sm text-secondary mb-12">
+                  Scheduled departure: {formatPhDate(capacity.activeTrip.departure_date)}
+                </p>
+                {isScheduledTripOverdue(capacity.activeTrip) ? (
+                  <div className="alert-banner alert-banner-warning mb-12" role="status">
+                    Overdue — Reschedule Required. This trip cannot be started until it is rescheduled.
+                  </div>
+                ) : capacity.activeTrip.status === 'in_progress' ? (
+                  <p className="text-xs text-secondary mb-12" role="status">
+                    Capacity shown is for the ongoing trip. Remaining space does not mean new bookings are accepted.
+                  </p>
+                ) : capacity.activeTrip.status === 'arrived' ? (
+                  <p className="text-xs text-secondary mb-12" role="status">
+                    This trip has arrived at the destination hub. New bookings are closed.
+                  </p>
+                ) : null}
                 <CapacityTracker
                   currentWeight={capacity.totalWeight}
                   maxCapacity={capacity.maxCapacity}
@@ -171,8 +198,8 @@ const DashboardPage = () => {
             ) : (
               <EmptyState
                 icon={Truck}
-                title="No active trip"
-                description="There are currently no active or scheduled trips."
+                title="No scheduled or ongoing trip available."
+                description="A trip capacity summary will appear when an eligible trip is available."
               />
             )}
           </div>

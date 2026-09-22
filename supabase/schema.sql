@@ -4180,5 +4180,6 @@ ALTER PUBLICATION supabase_realtime ADD TABLE IF NOT EXISTS public.contact_inqui
 ALTER PUBLICATION supabase_realtime ADD TABLE IF NOT EXISTS public.conversations;
 ALTER PUBLICATION supabase_realtime ADD TABLE IF NOT EXISTS public.notifications;
 ALTER PUBLICATION supabase_realtime ADD TABLE IF NOT EXISTS public.orders;
+ALTER PUBLICATION supabase_realtime ADD TABLE IF NOT EXISTS public.trips;
 ALTER PUBLICATION supabase_realtime ADD TABLE IF NOT EXISTS public.photo_storage_events;
 ALTER PUBLICATION supabase_realtime ADD TABLE IF NOT EXISTS public.activity_logs;

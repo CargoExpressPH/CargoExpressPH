@@ -36,7 +36,8 @@
     "test:announcement-broadcast": "node scripts/broadcast-announcement-worker-test.mjs && node scripts/announcement-broadcast-pgtest/run.mjs",
     "test:trip-reschedule-broadcast": "node scripts/trip-reschedule-broadcast-pgtest/run.mjs",
     "test:trip-start-dates": "node scripts/trip-start-dates-pgtest/run.mjs",
-    "test:trip-created-notifications": "node scripts/trip-creation-notification-pgtest/run.mjs"
+    "test:trip-created-notifications": "node scripts/trip-creation-notification-pgtest/run.mjs",
+    "test:trip-capacity-selection": "node scripts/trip-capacity-selection-test.mjs"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.8",

@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../hooks/useToast';
-import { getOrders, getAnnouncements, getTrips } from '../../lib/database';
+import { getOrders, getAnnouncements, getTripCapacitySummary } from '../../lib/database';
 import { isTripBookable } from '../../constants/status';
 import StatusBadge from '../../components/ui/StatusBadge';
 import { CenteredSpinner } from '../../components/ui/Loader';
@@ -21,6 +21,8 @@ import { getAnnouncementCategoryInfo } from '../../lib/announcements';
 import AnnouncementComments from '../../components/ui/AnnouncementComments';
 import { formatPhDate } from '../../utils/datetime';
 import { isOrderPriced } from '../../constants/status';
+import { isScheduledTripOverdue } from '../../lib/tripCapacitySelection';
+import useRealtimeTripCapacity from '../../hooks/useRealtimeTripCapacity';
 
 const HomePage = () => {
   usePageTitle('Home');
@@ -29,33 +31,63 @@ const HomePage = () => {
   const navigate = useNavigate();
   const [orders, setOrders]           = useState([]);
   const [announcements, setAnnouncements] = useState([]);
-  const [activeTrip, setActiveTrip]   = useState(null);  // nearest upcoming trip
+  const [activeTrip, setActiveTrip]   = useState(null);
+  const [capacityLoading, setCapacityLoading] = useState(true);
+  const [capacityError, setCapacityError] = useState(null);
   const [trackingSearch, setTrackingSearch] = useState('');
   const [loading, setLoading]         = useState(true);
+  const homeLoadSequence = useRef(0);
+  const capacityRequestSequence = useRef(0);
+  const isMountedRef = useRef(false);
 
-  useEffect(() => { if (user) loadData(); }, [user]);
+  useEffect(() => {
+    isMountedRef.current = true;
+    if (user) loadData();
+    return () => {
+      isMountedRef.current = false;
+      homeLoadSequence.current += 1;
+      capacityRequestSequence.current += 1;
+    };
+  }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const refreshCapacity = async () => {
+    const request = ++capacityRequestSequence.current;
+    try {
+      const selectedTrip = await getTripCapacitySummary();
+      if (!isMountedRef.current || request !== capacityRequestSequence.current) return null;
+      setActiveTrip(selectedTrip);
+      setCapacityError(null);
+      return true;
+    } catch (error) {
+      if (!isMountedRef.current || request !== capacityRequestSequence.current) return null;
+      setActiveTrip(null);
+      setCapacityError(error?.message || 'Trip capacity could not be loaded.');
+      return false;
+    } finally {
+      if (isMountedRef.current && request === capacityRequestSequence.current) setCapacityLoading(false);
+    }
+  };
+
+  useRealtimeTripCapacity(refreshCapacity, Boolean(user?.id));
 
   const loadData = async () => {
+    const request = ++homeLoadSequence.current;
+    void refreshCapacity();
     try {
-      const [ordersData, annData, tripsData] = await Promise.all([
+      const [ordersData, annData] = await Promise.all([
         getOrders(user.id, false, { limit: 50 }),
         getAnnouncements(),
-        // Already 'scheduled' + PH-calendar-day-not-passed + sorted earliest
-        // first — see getTrips('active') in lib/database.js. isTripBookable
-        // is applied again anyway (same rule BookShipmentPage uses) rather
-        // than trusting the query result blindly, so this card never offers
-        // a trip the booking flow would then hide.
-        getTrips('active'),
       ]);
-      setOrders(ordersData || []);
-      setAnnouncements(annData || []);
-
-      const upcoming = (tripsData || []).filter(isTripBookable);
-      setActiveTrip(upcoming[0] || null);
+      if (isMountedRef.current && request === homeLoadSequence.current) {
+        setOrders(ordersData || []);
+        setAnnouncements(annData || []);
+      }
     } catch (err) {
-      toast.error('Failed to load data. Please refresh the page or try again later.');
+      if (isMountedRef.current && request === homeLoadSequence.current) {
+        toast.error('Failed to load data. Please refresh the page or try again later.');
+      }
     } finally {
-      setLoading(false);
+      if (isMountedRef.current && request === homeLoadSequence.current) setLoading(false);
     }
   };
 
@@ -93,6 +125,8 @@ const HomePage = () => {
   const currentWeight = Number(activeTrip?.current_weight) || 0;
   const availableSlots = activeTrip ? Math.max(0, totalCapacity - currentWeight) : 0;
   const bookedPct = totalCapacity > 0 ? Math.min(100, Math.max(0, Math.round((currentWeight / totalCapacity) * 100))) : 0;
+  const activeTripOverdue = isScheduledTripOverdue(activeTrip);
+  const activeTripCanBook = isTripBookable(activeTrip);
 
   const greetingInfo = getGreetingData();
   const GreetingIcon = greetingInfo.icon;
@@ -178,11 +212,22 @@ const HomePage = () => {
       {/* ── Loading State ─────────────────────────────────────── */}
       {loading && <CenteredSpinner />}
 
-      {/* ── Nearest Active / Scheduled Trip Card ────────────────── */}
-      {!loading && activeTrip && (
+      {/* ── Earliest scheduled / ongoing trip capacity summary ───── */}
+      {!loading && (capacityError ? (
+        <StaggerItem delay={0}>
+          <div className="card admin-section-card" role="alert" style={{ padding: 20 }}>
+            <h3 className="fw-700 mb-8">Trip capacity unavailable</h3>
+            <p className="text-sm text-secondary mb-12">{capacityError}</p>
+            <button type="button" className="btn btn-outline btn-sm" onClick={refreshCapacity}>Retry</button>
+          </div>
+        </StaggerItem>
+      ) : capacityLoading && !activeTrip ? (
+        <CenteredSpinner />
+      ) : activeTrip ? (
         <StaggerItem delay={0}>
           <h3 className="customer-section-title fw-700 mb-12 flex items-center gap-8">
-            <Truck size={18} color="var(--primary)" /> Next Available Trip
+            <Truck size={18} color="var(--primary)" />
+            {activeTripOverdue ? 'Overdue Trip Capacity' : activeTrip.status === 'in_progress' ? 'Ongoing Trip Capacity' : activeTrip.status === 'arrived' ? 'Trip at Destination Hub' : 'Next Scheduled Trip Capacity'}
           </h3>
           {/* Same surface language as shipment / snapshot cards (theme-aware panel). */}
           <div className="home-hero-trip-card">
@@ -212,7 +257,7 @@ const HomePage = () => {
               <div className="home-trip-metric-box">
                 <div className="flex items-center gap-6 mb-4">
                   <Calendar size={13} opacity={0.7} />
-                  <span className="home-trip-metric-lbl">Departure</span>
+                  <span className="home-trip-metric-lbl">Scheduled departure</span>
                 </div>
                 <div className="home-trip-metric-val">{fmtDate(activeTrip.departure_date)}</div>
               </div>
@@ -226,13 +271,29 @@ const HomePage = () => {
               <div className="home-trip-metric-box">
                 <div className="flex items-center gap-6 mb-4">
                   <Weight size={13} opacity={0.7} />
-                  <span className="home-trip-metric-lbl">Avail. Space</span>
+                  <span className="home-trip-metric-lbl">{activeTripCanBook ? 'Available space' : 'Remaining physical space'}</span>
                 </div>
                 <div className="home-trip-metric-val font-bold text-success">
                   {availableSlots > 0 ? `${Math.round(availableSlots).toLocaleString()} kg` : 'Full'}
                 </div>
               </div>
             </div>
+
+            {activeTripOverdue && (
+              <div className="alert-banner alert-banner-warning mb-12" role="status">
+                Overdue — Reschedule Required. This trip can’t accept new bookings until it is rescheduled.
+              </div>
+            )}
+            {activeTrip.status === 'in_progress' && (
+              <div className="text-xs text-secondary mb-12" role="status">
+                This is the ongoing trip. Remaining space does not mean new bookings are open.
+              </div>
+            )}
+            {activeTrip.status === 'arrived' && (
+              <div className="text-xs text-secondary mb-12" role="status">
+                This trip has arrived at the destination hub and is awaiting completion. New bookings are closed.
+              </div>
+            )}
 
             {/* Live Capacity Progress Strip */}
             {totalCapacity > 0 && (
@@ -242,7 +303,9 @@ const HomePage = () => {
                     Trip Load ({bookedPct}% booked)
                   </span>
                   <span className="home-trip-capacity-pct font-bold" style={{ color: availableSlots > 0 ? '#10b981' : '#ef4444' }}>
-                    {availableSlots > 0 ? `${Math.round(availableSlots).toLocaleString()} kg Available` : 'Fully Booked'}
+                    {availableSlots > 0
+                      ? `${Math.round(availableSlots).toLocaleString()} kg ${activeTripCanBook ? 'Available' : 'Remaining'}`
+                      : 'Fully Booked'}
                   </span>
                 </div>
                 <div className="home-trip-progress-track">
@@ -255,24 +318,34 @@ const HomePage = () => {
             )}
 
             {/* Price per kilo badge */}
-            {activeTrip.price_per_kg && (
+            {activeTripCanBook && activeTrip.price_per_kg && (
               <div className="home-trip-price">
                 {formatMoney(parseFloat(activeTrip.price_per_kg))} / kg
               </div>
             )}
 
             {/* Book Cargo CTA */}
-            <button
-              type="button"
-              onClick={() => handleBookFromTrip(activeTrip)}
-              className="home-trip-cta"
-            >
-              <Package size={18} /> Book Cargo for This Trip
-              <ChevronRight size={16} />
-            </button>
+            {activeTripCanBook && (
+              <button
+                type="button"
+                onClick={() => handleBookFromTrip(activeTrip)}
+                className="home-trip-cta"
+              >
+                <Package size={18} /> Book Cargo for This Trip
+                <ChevronRight size={16} />
+              </button>
+            )}
           </div>
         </StaggerItem>
-      )}
+      ) : (
+        <StaggerItem delay={0}>
+          <EmptyState
+            icon={Truck}
+            title="No scheduled or ongoing trip available."
+            description="A trip summary will appear here when a trip is scheduled or underway."
+          />
+        </StaggerItem>
+      ))}
 
       {/* ── Announcements ────────────────────────────────────────── */}
       {!loading && announcements.length > 0 && (

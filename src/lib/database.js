@@ -5,6 +5,7 @@ import { validateStatusTransition, outstandingBalance, finalShippingFee, ORDER_S
 import { detectPickupLocation } from '../constants/phLocations';
 import { phDayRangeISO, formatPhDate, phDateKey } from '../utils/datetime';
 import { buildPerTripSalesReport, aggregateMonthlySalesReports } from './perTripSalesReport';
+import { selectEarliestCapacityTrip } from './tripCapacitySelection';
 
 // ==================== HELPER ====================
 // Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
@@ -1668,32 +1669,42 @@ export const getDashboardStats = async () => {
   };
 };
 
+// ==================== TRIP CAPACITY SUMMARY ====================
+/**
+ * Read the single trip represented by a capacity summary, then attach its
+ * weight from the existing authoritative get_trips_load RPC. This includes
+ * overdue scheduled trips and trips at the destination hub that are not yet
+ * completed; customer booking eligibility remains a separate rule.
+ */
+export const getTripCapacitySummary = async () => {
+  const { data: candidateTrips, error: tripError } = await supabase
+    .from('trips')
+    .select('id, trip_number, origin, destination, capacity, price_per_kg, status, departure_date, arrival_date')
+    .in('status', ['scheduled', 'in_progress', 'arrived'])
+    // Keep PostgREST's capped result set deterministic too; the client then
+    // applies the Manila-calendar comparator and same-day tie-breaker.
+    .order('departure_date', { ascending: true })
+    .order('trip_number', { ascending: true })
+    .order('id', { ascending: true });
+  if (tripError) throw tripError;
+
+  const selectedTrip = selectEarliestCapacityTrip(candidateTrips || []);
+  if (!selectedTrip) return null;
+
+  const { data: loadRows, error: loadError } = await supabase.rpc('get_trips_load', {
+    trip_ids: [selectedTrip.id],
+  });
+  if (loadError) throw loadError;
+
+  const currentWeight = Number(loadRows?.find(row => row.trip_id === selectedTrip.id)?.current_weight || 0);
+  return { ...selectedTrip, current_weight: currentWeight };
+};
+
 // ==================== VAN CAPACITY ====================
 export const getVanCapacity = async () => {
-  const { data: activeTrips } = await supabase
-    .from('trips')
-    .select('id, trip_number, origin, destination, capacity, status, departure_date')
-    .in('status', ['in_progress', 'scheduled'])
-    .order('status', { ascending: true }) // in_progress comes before scheduled alphabetically
-    .order('departure_date', { ascending: true })
-    .limit(1);
-
-  const activeTrip = activeTrips?.[0] || null;
-
-  let totalWeight = 0;
-  if (activeTrip) {
-    const { data: orders } = await supabase
-      .from('orders')
-      .select('actual_weight')
-      .eq('trip_id', activeTrip.id)
-      .neq('status', 'Cancelled');
-
-    totalWeight = (orders || []).reduce((sum, o) =>
-      sum + parseFloat(o.actual_weight || 0), 0);
-  }
-
+  const activeTrip = await getTripCapacitySummary();
+  const totalWeight = Number(activeTrip?.current_weight || 0);
   const maxCapacity = activeTrip?.capacity > 0 ? activeTrip.capacity : 1000;
-
   return { totalWeight, maxCapacity, activeTrip };
 };
 
