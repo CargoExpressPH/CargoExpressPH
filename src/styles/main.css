@@ -46,6 +46,7 @@
 @import './profile-card.css' layer(pages);
 @import './forms-hardening.css' layer(pages);
 @import './sales-reports.css' layer(pages);
+@import './package-qr-labels.css' layer(pages);
 @import './micro-effects.css' layer(pages);
 @import './tables-mobile.css' layer(pages);
 @import './onboarding-lightbox.css' layer(pages);
@@ -80,3 +81,6 @@
 
 /* Formal bond-paper print documents (Reports & Sales) */
 @import './print-document.css' layer(print);
+
+/* Package QR label sheets (Order Details — cut-and-stick box stickers) */
+@import './print-labels.css' layer(print);

@@ -32,6 +32,7 @@ import MessageCustomerButton from '../../components/ui/MessageCustomerButton';
 import FeatureShipmentModal from '../../components/ui/FeatureShipmentModal';
 import CancellationSettlementSummary from '../../components/ui/CancellationSettlementSummary';
 import CancellationSettlementModal from '../../components/ui/CancellationSettlementModal';
+import PackageQrLabels from '../../components/ui/PackageQrLabels';
 import {
   STATUS_FLOW, STATUS_TIMELINE, validateStatusTransition,
   getSettlementState, SETTLEMENT_STATE, outstandingBalance,
@@ -200,6 +201,19 @@ const AdminOrderDetailPage = () => {
    * and installed PWA alike — so this is where the payment gets reconciled.
    */
   const [searchParams] = useSearchParams();
+
+  // Set when this page was reached by scanning a package QR label
+  // (?box=<n> — see PackageQrLabels.jsx). Those links point straight at this
+  // admin route specifically so an unauthorized scan hits the login wall
+  // (ProtectedRoute) instead of any public page; a signed-in admin lands
+  // here and this banner is the payoff of that redirect.
+  const scannedBox = (() => {
+    const raw = searchParams.get('box');
+    if (!raw) return null;
+    const n = parseInt(raw, 10);
+    return Number.isFinite(n) && n >= 1 ? n : null;
+  })();
+
   const checkedReturnRef = useRef(false);
   useEffect(() => {
     const paymentResult = searchParams.get('payment');
@@ -911,6 +925,16 @@ const AdminOrderDetailPage = () => {
         )}
       </div>
 
+      {/* Reached via a scanned package QR label (?box=n) — see scannedBox
+          above. Purely informational: it does not gate anything, the login
+          wall already did that before this page could render at all. */}
+      {scannedBox !== null && (
+        <div className="alert-banner alert-banner-info mb-16" role="status">
+          <Package size={18} aria-hidden="true" />
+          <span>You scanned <strong>Box {scannedBox} of {order.package_quantity || 1}</strong> for this booking.</span>
+        </div>
+      )}
+
       {/* Why this booking is cancelled — shown on the order itself, not only in
           the activity log, because "why?" is the first question anyone opening
           a cancelled order has. Covers both routes in: an approved customer
@@ -1276,6 +1300,16 @@ const AdminOrderDetailPage = () => {
           )}
         </div>
       </div>
+
+      {/* Package QR Labels — one QR per physical box, so mishandling a
+          multi-box booking can be traced to a specific box rather than just
+          the tracking number as a whole. */}
+      <ErrorBoundarySection message="Package QR labels failed to load.">
+        <PackageQrLabels
+          order={order}
+          onOrderUpdate={(partial) => setOrder(prev => (prev ? { ...prev, ...partial } : prev))}
+        />
+      </ErrorBoundarySection>
 
       {/* Shipment Evidence */}
       {(resolvedPickupPhotos.length > 0 || resolvedDeliveryPhotos.length > 0) && (

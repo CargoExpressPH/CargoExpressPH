@@ -1,0 +1,83 @@
+/* ============================================================================
+   PRINT LABELS — package QR label sheet (cut-and-stick box stickers)
+   Screen: .print-labels is completely hidden.
+   Print:  ONLY .print-labels is visible — a plain grid of bordered label
+           cells sized to be cut apart and taped to a physical box, never the
+           formal bond-paper report styling from print-document.css.
+   ============================================================================ */
+
+.print-labels {
+  display: none;
+}
+
+@media print {
+  @page {
+    size: 8.5in 11in portrait;
+    margin: 0.4in;
+  }
+
+  #root {
+    display: none !important;
+  }
+
+  .print-labels,
+  .print-labels * {
+    visibility: visible;
+  }
+
+  .print-labels {
+    display: block;
+    background: #fff;
+    color: #000;
+    font-family: Arial, Helvetica, sans-serif;
+  }
+
+  body {
+    background: #fff !important;
+  }
+
+  .print-labels * {
+    animation: none !important;
+    transition: none !important;
+    box-shadow: none !important;
+  }
+
+  .pl-sheet-title {
+    font-size: 10pt;
+    font-weight: bold;
+    margin-bottom: 10pt;
+  }
+
+  .pl-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10pt;
+  }
+
+  /* Each label is its own cut-out unit — never split across a page break,
+     and outlined with a dashed border as the literal cut line. */
+  .pl-label {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    border: 1px dashed #000;
+    border-radius: 4pt;
+    padding: 8pt;
+    text-align: center;
+  }
+
+  .pl-qr {
+    width: 100%;
+    max-width: 1.4in;
+    margin: 0 auto 6pt;
+  }
+
+  .pl-caption {
+    font-size: 10pt;
+    font-weight: bold;
+  }
+
+  .pl-tracking {
+    font-size: 8pt;
+    letter-spacing: 0.02em;
+  }
+}

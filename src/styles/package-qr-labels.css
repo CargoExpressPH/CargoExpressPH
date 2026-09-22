@@ -1,0 +1,54 @@
+/* ---------------------------------------------------------------------------
+   PACKAGE QR LABELS — Order Details "Package QR Labels" section
+   (screen only; the printable sheet is styled separately in print-labels.css)
+   --------------------------------------------------------------------------- */
+
+.qty-stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.qty-stepper-value {
+  min-width: 28px;
+  text-align: center;
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--text);
+}
+
+.qr-label-preview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 12px;
+}
+
+.qr-label-preview {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 14px;
+  text-align: center;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.qr-label-preview-caption {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.qr-label-preview-tracking {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+}
+
+@media (max-width: 480px) {
+  .qr-label-preview-grid {
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  }
+}
