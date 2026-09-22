@@ -1,0 +1,100 @@
+/* --- Sales & Reports: responsive report controls ------------------------
+   Imported into layer(sr-controls), declared AFTER layer(refresh) and
+   layer(density) in main.css.
+
+   WHY A SEPARATE FILE AND A LATE LAYER
+   These rules have to override admin-modern-refresh.css, which lives in
+   layer(refresh) and makes every mobile .admin-page-header .btn a
+   full-width, stretched item:
+
+       .app-layout .admin-page-header .flex.gap-8 { width: 100%; }
+       .app-layout .admin-page-header .btn        { flex: 1 1 auto; min-width: 0; }
+
+   sales-reports.css is in layer(pages), which is EARLIER. Cascade layers are
+   resolved before specificity, so no selector written in layer(pages) can
+   beat those — which is exactly why the earlier attempt silently lost and
+   the Refresh button stayed a full-width band. Putting the page-scoped
+   overrides in a later layer is the fix; adding !important everywhere is not.
+
+   Every selector is scoped to .per-trip-report, so no other admin page's
+   buttons change.
+   --------------------------------------------------------------------- */
+
+@media (max-width: 640px) {
+  /* ── Month field: label above a full-width selector ─────────────────── */
+  .per-trip-report .per-trip-month-field {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 7px;
+  }
+
+  .per-trip-report .per-trip-selector {
+    flex: 1 1 auto;
+    min-width: 0;
+    width: 100%;
+  }
+
+  /* ── Report actions: own row, never squeezing the month field ───────── */
+  .per-trip-report .per-trip-actions .btn {
+    flex: 0 0 auto;
+    justify-content: center;
+    min-height: 46px;
+  }
+
+  .per-trip-report .per-trip-actions .per-trip-generate-btn {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  /* Icon-only buttons. The accessible name comes from aria-label, which is
+     present at every width, so hiding the text never leaves them unnamed. */
+  .per-trip-report .per-trip-icon-btn .per-trip-btn-text,
+  .per-trip-report .per-trip-generate-btn .per-trip-btn-text-rest {
+    display: none;
+  }
+
+  /* 46px, not a bare 44: it matches the app's natural .btn height and keeps
+     the rendered box clear of the 44px floor after sub-pixel rounding. */
+  .per-trip-report .per-trip-icon-btn {
+    flex: 0 0 auto;
+    min-width: 46px;
+    min-height: 46px;
+    padding-inline: 12px;
+  }
+
+  /* ── Header: Refresh as an icon button beside the heading, instead of
+        the full-width band layer(refresh) would otherwise give it. ─────── */
+  .app-layout .per-trip-report .admin-page-header {
+    flex-direction: row;
+    align-items: flex-start;
+    flex-wrap: nowrap;
+    gap: 12px;
+  }
+
+  .app-layout .per-trip-report .admin-page-header > div:first-child {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .app-layout .per-trip-report .admin-page-header .flex.gap-8 {
+    width: auto;
+    flex: 0 0 auto;
+  }
+
+  .app-layout .per-trip-report .admin-page-header .btn {
+    flex: 0 0 auto;
+    min-width: 46px;
+    min-height: 46px;
+    padding-inline: 12px;
+    justify-content: center;
+  }
+}
+
+/* Keyboard focus stays visible without relying on hover. Not inside the
+   media query: it matters at every width. */
+.per-trip-report .per-trip-icon-btn:focus-visible,
+.per-trip-report .per-trip-generate-btn:focus-visible,
+.per-trip-report .per-trip-selector .form-input:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}

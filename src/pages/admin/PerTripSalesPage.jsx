@@ -345,49 +345,78 @@ const PerTripSalesPage = () => {
         <div className="flex gap-8">
           <button
             type="button"
-            className="btn btn-ghost btn-sm"
+            className="btn btn-ghost btn-sm per-trip-icon-btn"
             onClick={handleGenerate}
             disabled={!canGenerate || loadingReport || refreshing}
+            aria-label="Refresh report"
+            title="Refresh report"
           >
-            <RefreshCw size={16} className={refreshing ? 'animate-spin' : ''} />
-            {refreshing ? 'Refreshing…' : 'Refresh'}
+            <RefreshCw size={16} className={refreshing ? 'animate-spin' : ''} aria-hidden="true" />
+            <span className="per-trip-btn-text">{refreshing ? 'Refreshing…' : 'Refresh'}</span>
           </button>
           </div>
       </div>
 
-      <div className="card per-trip-selector-card no-print" style={{ padding: '16px 20px' }}>
-        <div className="flex items-center gap-16 flex-wrap">
-          <div className="per-trip-selector-label fw-600 flex items-center gap-8" style={{ minWidth: 'fit-content' }}>
-            <CalendarDays size={16} aria-hidden="true" /> Choose a month
-          </div>
-          <div className="form-group mb-0 per-trip-selector" style={{ flex: 1, minWidth: 0 }}>
-            <input
-              type="month"
-              className="form-input"
-              value={selectedMonth}
-              aria-label="Choose a month"
-              onChange={event => {
-                setError(null);
-                setSelectedMonth(event.target.value);
-              }}
-            />
+      <div className="card per-trip-selector-card no-print">
+        {/* Two named groups, not one undifferentiated flex row. The month
+            field and the actions can then be stacked independently on narrow
+            screens instead of the field absorbing every pixel the buttons
+            need — which is what collapsed the selected month to a bare
+            dropdown arrow once Print Report appeared. */}
+        <div className="per-trip-controls">
+          <div className="per-trip-month-field">
+            <label className="per-trip-selector-label fw-600" htmlFor="per-trip-month">
+              <CalendarDays size={16} aria-hidden="true" /> Choose a month
+            </label>
+            {/* No inline flex/min-width here: the stylesheet owns the sizing,
+                including the floor that keeps a long value like
+                "September 2026" readable. */}
+            <div className="form-group mb-0 per-trip-selector">
+              <input
+                id="per-trip-month"
+                type="month"
+                className="form-input"
+                value={selectedMonth}
+                onChange={event => {
+                  setError(null);
+                  setSelectedMonth(event.target.value);
+                }}
+              />
+            </div>
           </div>
 
-          <button
-            type="button"
-            className="btn btn-primary btn-sm"
-            onClick={handleGenerate}
-            disabled={!canGenerate || loadingReport}
-          >
-            {loadingReport ? <RefreshCw size={16} className="animate-spin" /> : <FileText size={16} />}
-            Generate Report
-          </button>
-          {hasGenerated && (
-            <button type="button" className="btn btn-primary btn-sm" onClick={handlePrint}>
-              <Printer size={16} />
-              Print Report
+          <div className="per-trip-actions">
+            <button
+              type="button"
+              className="btn btn-primary btn-sm per-trip-generate-btn"
+              onClick={handleGenerate}
+              disabled={!canGenerate || loadingReport}
+              title="Generate report"
+            >
+              {loadingReport
+                ? <RefreshCw size={16} className="animate-spin" aria-hidden="true" />
+                : <FileText size={16} aria-hidden="true" />}
+              {/* One flex item, so the label reads "Generate Report" rather
+                  than becoming two separately-gapped items. The " Report"
+                  half is dropped on narrow screens. */}
+              <span className="per-trip-generate-label">
+                Generate<span className="per-trip-btn-text-rest"> Report</span>
+              </span>
             </button>
-          )}
+            {hasGenerated && (
+              <button
+                type="button"
+                className="btn btn-primary btn-sm per-trip-icon-btn"
+                onClick={handlePrint}
+                disabled={loadingReport || refreshing}
+                aria-label="Print report"
+                title="Print report"
+              >
+                <Printer size={16} aria-hidden="true" />
+                <span className="per-trip-btn-text">Print Report</span>
+              </button>
+            )}
+          </div>
         </div>
       </div>
 

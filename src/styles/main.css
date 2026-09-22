@@ -14,7 +14,7 @@
    (phone-width density beats every earlier mobile rule), and print is last
    so formal documents can always outrank the screen. */
 
-@layer tokens, base, components, layout, pages, effects, responsive, refresh, hardening, density, print;
+@layer tokens, base, components, layout, pages, effects, responsive, refresh, hardening, density, sr-controls, print;
 
 /* ── 1. Design Tokens (no output, only CSS variables) ── */
 @import './tokens.css' layer(tokens);
@@ -80,6 +80,12 @@
 @import './mobile-density.css' layer(density);
 
 /* Formal bond-paper print documents (Reports & Sales) */
+/* Sales & Reports control bar. Must sit after `refresh`/`density` to
+   override their global mobile .admin-page-header .btn sizing for this
+   one page; see the file header for why layer order, not specificity,
+   is what decides this. */
+@import './sales-reports-controls.css' layer(sr-controls);
+
 @import './print-document.css' layer(print);
 
 /* Package QR label sheets (Order Details — cut-and-stick box stickers) */

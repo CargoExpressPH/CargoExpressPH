@@ -14,12 +14,46 @@
    PER TRIP SALES PREVIEW
    --------------------------------------------------------------------------- */
 
+/* ── Report controls ────────────────────────────────────────────────────
+   ROOT CAUSE THIS REPLACES
+   The card held one undifferentiated `flex items-center gap-16 flex-wrap`
+   row, and the month field carried inline `flex: 1; min-width: 0`. Inline
+   styles beat the stylesheet, so `flex: 1` (= `1 1 0%`) plus `min-width: 0`
+   stripped away both the 420px basis and the 280px floor below. The two
+   buttons are nowrap and hold their content width, so the field was the only
+   item that could absorb the shortfall: when Print Report appeared it shrank
+   to ~0 and "September 2026" vanished, leaving the bare dropdown arrow.
+   `flex-wrap` never rescued it, because a freely shrinkable item means the
+   row never actually overflows.
+
+   The fix: two named groups (field / actions), a real shrink floor on the
+   field, and buttons that are allowed to wrap to their own line. Everything
+   is scoped to this page — no global .btn rules are touched.
+   --------------------------------------------------------------------- */
+
 .per-trip-selector-card {
-  padding: 16px;
+  padding: 16px 20px;
+}
+
+.per-trip-controls {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+/* Desktop keeps the original arrangement: the label sits INLINE to the left
+   of the month input, with the two on one line. Only the narrow-screen rules
+   in sales-reports-controls.css stack them. */
+.per-trip-month-field {
   display: flex;
   align-items: center;
   gap: 12px;
-  flex-wrap: wrap;
+  /* Basis wide enough for the label and a long month value, and a real
+     floor so shrinking stops before the value is clipped. When the actions
+     no longer fit beside it the row wraps — it never squeezes this. */
+  flex: 1 1 420px;
+  min-width: min(300px, 100%);
 }
 
 .per-trip-selector-label {
@@ -33,9 +67,31 @@
 }
 
 .per-trip-selector {
-  flex: 1 1 420px;
-  min-width: min(280px, 100%);
+  flex: 1 1 auto;
+  min-width: 170px;
   max-width: 100%;
+}
+
+/* The month input must never be the thing that gives way. */
+.per-trip-selector .form-input {
+  width: 100%;
+  min-width: 0;
+  text-overflow: ellipsis;
+}
+
+.per-trip-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  /* Sized by content, never stretched or squeezed. */
+  flex: 0 0 auto;
+}
+
+/* Buttons keep their label intact rather than compressing the field. */
+.per-trip-actions .btn {
+  flex: 0 0 auto;
+  white-space: nowrap;
 }
 
 .per-trip-detail-list span {
@@ -178,17 +234,13 @@
   .per-trip-summary-card { min-height: 132px; padding: 16px; }
 }
 
-@media (max-width: 480px) {
-  .per-trip-selector-card { 
-    align-items: flex-start !important; 
-    flex-direction: column !important; 
-    gap: 10px !important;
-  }
-  .per-trip-selector-label {
-    width: 100%;
-    justify-content: flex-start;
-  }
-  .per-trip-selector { min-width: 0; width: 100%; }
+/* Mobile overrides for these controls live in sales-reports-controls.css,
+   which is imported into a LATER cascade layer. They have to: this file is in
+   layer(pages) and admin-modern-refresh.css is in layer(refresh), which comes
+   after it, so a page rule here loses to that file no matter how specific it
+   is. Layer order beats specificity. */
+
+@media (max-width: 640px) {
   .per-trip-summary-grid { grid-template-columns: 1fr; }
 }
 
