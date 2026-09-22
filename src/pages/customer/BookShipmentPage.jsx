@@ -532,7 +532,15 @@ const BookShipmentPage = () => {
     const errEl = (key) => fe(key)
       ? <div className="field-error-inline" id={errId(key)} role="alert"><AlertTriangle size={12} aria-hidden="true" />{fe(key)}</div>
       : null;
-    const contacts = recentContacts[`${prefix}s`] || [];
+    // Route-scoped: a sender/receiver from history is only worth surfacing if
+    // it's on the correct side of the currently selected route (matches the
+    // sender/receiver Bohol-vs-Manila origin/destination split enforced
+    // elsewhere for this route, e.g. getSenderProvinces/getReceiverProvinces).
+    const routeSide = isSender ? selectedRoute?.origin : selectedRoute?.destination;
+    const allContacts = recentContacts[`${prefix}s`] || [];
+    const contacts = routeSide
+      ? allContacts.filter(c => (routeSide === 'Bohol' ? c.province === 'Bohol' : c.province !== 'Bohol'))
+      : allContacts;
     const dropdownOpen = openContactDropdown === prefix;
     return (
       <div className="grid grid-2 gap-16">
