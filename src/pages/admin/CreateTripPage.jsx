@@ -225,7 +225,7 @@ const CreateTripPage = () => {
                 <FieldError name="departure_date" errors={fieldErrors} id="trip-departure-date-error" />
               </div>
               <div className="form-group">
-                <label className="form-label" htmlFor="trip-arrival-date">Estimated Arrival Date</label>
+                <label className="form-label" htmlFor="trip-arrival-date">Estimated Shipment Delivery Date</label>
                 <input id="trip-arrival-date" type="date" className={`form-input ${fieldErrors.arrival_date ? 'field-invalid' : ''}`} value={form.arrival_date} onChange={e => u('arrival_date', e.target.value)} aria-invalid={fieldErrors.arrival_date ? 'true' : undefined} aria-describedby={fieldErrors.arrival_date ? 'trip-arrival-date-error' : undefined} />
                 <FieldError name="arrival_date" errors={fieldErrors} id="trip-arrival-date-error" />
               </div>

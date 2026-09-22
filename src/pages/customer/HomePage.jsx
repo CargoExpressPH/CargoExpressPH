@@ -219,7 +219,7 @@ const HomePage = () => {
               <div className="home-trip-metric-box">
                 <div className="flex items-center gap-6 mb-4">
                   <Clock size={13} opacity={0.7} />
-                  <span className="home-trip-metric-lbl">ETA</span>
+                  <span className="home-trip-metric-lbl">Estimated delivery</span>
                 </div>
                 <div className="home-trip-metric-val">{fmtDate(activeTrip.arrival_date)}</div>
               </div>

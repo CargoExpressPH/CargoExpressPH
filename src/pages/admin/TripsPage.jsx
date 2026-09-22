@@ -1,22 +1,16 @@
 import { useState, useEffect } from 'react';
 import { tripCapacityState } from '../../constants/status';
 import { Link, useNavigate } from 'react-router-dom';
-import { getTrips, withTimeout } from '../../lib/database';
+import { getTrips, getTripStartDateGates, withTimeout } from '../../lib/database';
 import StatusBadge from '../../components/ui/StatusBadge';
 import { CenteredSpinner } from '../../components/ui/Loader';
 import EmptyState from '../../components/ui/EmptyState';
 import ResponsiveFilterControls from '../../components/ui/ResponsiveFilterControls';
 import { Plus, Truck, Calendar, MapPin } from 'lucide-react';
 import usePageTitle from '../../hooks/usePageTitle';
+import { formatPhDate } from '../../utils/datetime';
 
 const tabs = ['All', 'scheduled', 'in_progress', 'arrived', 'completed', 'cancelled'];
-
-const formatTripDate = (value) => {
-  if (!value) return 'Date not set';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return 'Date not set';
-  return date.toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' });
-};
 
 /**
  * The bar is measured against PLANNED capacity — that is what the admin is
@@ -41,6 +35,7 @@ const getCapacityState = (current = 0, max = 0) => {
 const AdminTripsPage = () => {
   usePageTitle('Trips');
   const [trips, setTrips] = useState([]);
+  const [startGates, setStartGates] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('All');
@@ -50,12 +45,15 @@ const AdminTripsPage = () => {
   const loadTrips = async () => {
     setError(null);
     setLoading(true);
-    try { 
+    try {
       const data = await withTimeout(getTrips());
-      setTrips(data || []); 
-    } catch (e) { 
+      const rows = data || [];
+      const gates = await getTripStartDateGates(rows.filter(t => t.status === 'scheduled').map(t => t.id));
+      setTrips(rows);
+      setStartGates(gates);
+    } catch (e) {
       setError(e.message || 'Failed to load trips.');
-    } finally { 
+    } finally {
       setLoading(false); 
     }
   };
@@ -130,8 +128,18 @@ const AdminTripsPage = () => {
               </div>
               <div className="flex items-center gap-8 text-sm"><MapPin size={14} className="text-primary" />{trip.origin} → {trip.destination}</div>
               <div className="flex items-center gap-8 text-xs text-secondary mt-4">
-                <Calendar size={14} />{formatTripDate(trip.departure_date)}
+                <Calendar size={14} />{formatPhDate(trip.departure_date)}
               </div>
+              {trip.status === 'scheduled' && startGates[trip.id]?.gate_state === 'overdue' && (
+                <div className="text-xs mt-4" style={{ color: 'var(--error-text)', fontWeight: 700 }}>
+                  Overdue — reschedule before starting
+                </div>
+              )}
+              {trip.status === 'scheduled' && startGates[trip.id]?.gate_state === 'before_date' && (
+                <div className="text-xs text-secondary mt-4">
+                  Starts on {formatPhDate(startGates[trip.id].scheduled_day)} (Manila time)
+                </div>
+              )}
               {trip.capacity > 0 && (
                 <div className="mt-8">
                   {(() => {

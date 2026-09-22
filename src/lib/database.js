@@ -394,7 +394,7 @@ export const getOrderById = async (orderId) => {
     .select(`
       *,
       profiles:user_id (name, phone, email, role),
-      trips:trip_id (origin, destination, trip_number, capacity, price_per_kg)
+      trips:trip_id (origin, destination, trip_number, capacity, price_per_kg, departure_date, departure_at, estimated_arrival_at, arrived_at, arrival_date, status)
     `)
     .eq('id', orderId)
     .single();
@@ -1120,6 +1120,11 @@ export const getTripById = async (tripId) => {
     .single();
   if (error) throw error;
 
+  const { data: gateRows, error: gateError } = await supabase.rpc('get_trip_start_date_gates', {
+    p_trip_ids: [tripId],
+  });
+  if (gateError) throw gateError;
+
   const { data: orders } = await supabase
     .from('orders')
     // shipping_cost + amount_paid are what outstandingBalance() derives from —
@@ -1144,7 +1149,14 @@ export const getTripById = async (tripId) => {
   if (loadError) throw loadError;
   const currentWeight = parseFloat(loadData?.[0]?.current_weight || 0);
 
-  return { trip, orders: orders || [], current_weight: currentWeight };
+  return { trip, orders: orders || [], current_weight: currentWeight, start_gate: gateRows?.[0] || null };
+};
+
+export const getTripStartDateGates = async (tripIds) => {
+  if (!tripIds?.length) return {};
+  const { data, error } = await supabase.rpc('get_trip_start_date_gates', { p_trip_ids: tripIds });
+  if (error) throw error;
+  return Object.fromEntries((data || []).map((row) => [row.trip_id, row]));
 };
 
 // Starting a trip (updates.status === 'in_progress') does NOT need
@@ -1204,7 +1216,7 @@ export const updateTrip = async (tripId, updates) => {
  * to retry a failed/partial send without touching the trip again.
  */
 export const rescheduleTrip = async (tripId, {
-  departure_date, arrival_date, notify_all_subscribers = false, public_reason = '',
+  departure_date, arrival_date, notify_all_subscribers = false, public_reason = '', change_reason,
 }, tripContext) => {
   const { data: rpcResult, error: rpcError } = await supabase.rpc('reschedule_trip', {
     p_trip_id: tripId,
@@ -1212,6 +1224,7 @@ export const rescheduleTrip = async (tripId, {
     p_arrival_date: arrival_date,
     p_notify_all_subscribers: notify_all_subscribers,
     p_public_reason: public_reason || null,
+    p_change_reason: change_reason,
   });
   if (rpcError) throw rpcError;
 

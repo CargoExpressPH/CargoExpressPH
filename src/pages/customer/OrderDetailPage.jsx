@@ -893,6 +893,17 @@ const OrderDetailPage = () => {
             <div>
               <div className="text-sm font-bold">Trip: {order.trips.trip_number}</div>
               <div className="text-xs text-secondary">{order.trips.origin} → {order.trips.destination}</div>
+              {(order.trips.departure_at || order.trips.estimated_arrival_at || order.trips.arrived_at) && (
+                <div className="text-xs text-tertiary mt-4">Times shown in Manila time.</div>
+              )}
+              {order.trips.departure_at && <div className="text-xs text-secondary mt-4">Departed: {formatPhDateTime(order.trips.departure_at)}</div>}
+              <div className="text-xs text-secondary mt-4">
+                {order.trips.arrived_at
+                  ? `Arrived at destination hub: ${formatPhDateTime(order.trips.arrived_at)}`
+                  : order.trips.estimated_arrival_at
+                    ? `Estimated hub arrival: ${formatPhDateTime(order.trips.estimated_arrival_at)}`
+                    : order.trips.departure_at ? 'Hub arrival: To be confirmed' : ''}
+              </div>
             </div>
           </div>
         </div>

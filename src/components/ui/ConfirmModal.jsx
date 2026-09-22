@@ -43,6 +43,7 @@ const ConfirmModal = ({
   variant = 'danger',
   loading = false,
   icon,
+  children,
 }) => {
   // Support both confirmLabel and confirmText props (callers use either)
   const confirmLabel = confirmLabelProp || confirmText || 'Confirm';
@@ -126,6 +127,8 @@ const ConfirmModal = ({
           <p id={messageId} className="confirm-modal-message">
             {message}
           </p>
+
+          {children}
 
           <div className="confirm-modal-actions">
             <button

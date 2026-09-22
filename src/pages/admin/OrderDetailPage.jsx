@@ -1296,6 +1296,16 @@ const AdminOrderDetailPage = () => {
             <div className="trip-info-box mt-12 px-12 py-8">
               <Truck size={14} className="inline mr-6" />
               Trip: <strong>{order.trips.trip_number}</strong> ({order.trips.origin} ➔ {order.trips.destination})
+              {order.trips.departure_at && <div className="text-xs mt-4">Actual departure: {formatPhDateTime(order.trips.departure_at)}</div>}
+              {(order.trips.departure_at || order.trips.arrived_at || order.trips.estimated_arrival_at) && (
+                <div className="text-xs mt-4">
+                  {order.trips.arrived_at
+                    ? `Actual hub arrival: ${formatPhDateTime(order.trips.arrived_at)}`
+                    : order.trips.estimated_arrival_at
+                      ? `Estimated hub arrival: ${formatPhDateTime(order.trips.estimated_arrival_at)}`
+                      : 'Hub arrival: To be confirmed'}
+                </div>
+              )}
             </div>
           )}
         </div>

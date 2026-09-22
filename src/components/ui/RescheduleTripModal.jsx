@@ -28,7 +28,7 @@ import FieldError from './FieldError';
  * whose scheduled day slipped into the past starts accepting bookings again
  * the moment this saves a later date.
  */
-const RescheduleTripModal = ({ trip, onClose, onReschedule }) => {
+const RescheduleTripModal = ({ trip, serverToday, onClose, onReschedule }) => {
   useScrollLock(true); // mounted only while open
 
   const [form, setForm] = useState({
@@ -37,6 +37,7 @@ const RescheduleTripModal = ({ trip, onClose, onReschedule }) => {
   });
   const [notifyAllSubscribers, setNotifyAllSubscribers] = useState(false);
   const [publicReason, setPublicReason] = useState('');
+  const [changeReason, setChangeReason] = useState('');
   const [saving, setSaving] = useState(false);
   const { errors, validate, clearError, setError, containerRef } = useFieldErrors();
 
@@ -55,7 +56,7 @@ const RescheduleTripModal = ({ trip, onClose, onReschedule }) => {
       // buildRules() for the same rule and why.
       departure_date: !form.departure_date
         ? 'Departure date is required.'
-        : phDateKey(form.departure_date) < phDateKey(new Date().toISOString())
+        : serverToday && phDateKey(form.departure_date) < serverToday
           ? 'Departure date cannot be in the past.'
           : null,
       // Arrival must be STRICTLY after departure — same-day is rejected too.
@@ -65,6 +66,9 @@ const RescheduleTripModal = ({ trip, onClose, onReschedule }) => {
         && new Date(phLocalInputToISO(form.arrival_date)) <= new Date(phLocalInputToISO(form.departure_date)))
         ? 'Arrival date must be at least one day after departure.'
         : null,
+      change_reason: !changeReason.trim() || changeReason.trim().length < 5
+        ? 'Enter a reason with at least 5 characters.'
+        : changeReason.trim().length > 500 ? 'Reason must be 500 characters or less.' : null,
     });
     if (!ok) return;
 
@@ -92,6 +96,7 @@ const RescheduleTripModal = ({ trip, onClose, onReschedule }) => {
         arrival_date: arrivalISO,
         notify_all_subscribers: notifyAllSubscribers,
         public_reason: notifyAllSubscribers ? publicReason.trim() : '',
+        change_reason: changeReason.trim(),
       });
     } catch {
       // Save error handled by parent (toast); modal stays open to retry.
@@ -140,7 +145,7 @@ const RescheduleTripModal = ({ trip, onClose, onReschedule }) => {
               <FieldError name="departure_date" errors={errors} id="reschedule-departure-date-error" />
             </div>
             <div className="form-group mb-0">
-              <label className="form-label" htmlFor="reschedule-arrival-date">Estimated Arrival Date</label>
+              <label className="form-label" htmlFor="reschedule-arrival-date">Estimated Shipment Delivery Date</label>
               <input
                 id="reschedule-arrival-date"
                 type="date"
@@ -151,6 +156,23 @@ const RescheduleTripModal = ({ trip, onClose, onReschedule }) => {
                 aria-describedby={errors.arrival_date ? 'reschedule-arrival-date-error' : undefined}
               />
               <FieldError name="arrival_date" errors={errors} id="reschedule-arrival-date-error" />
+            </div>
+
+            <div className="form-group" style={{ marginTop: 16 }}>
+              <label className="form-label" htmlFor="reschedule-change-reason">Why is the trip being rescheduled? *</label>
+              <textarea
+                id="reschedule-change-reason"
+                className={`form-input ${errors.change_reason ? 'field-invalid' : ''}`}
+                rows={3}
+                maxLength={500}
+                value={changeReason}
+                onChange={(e) => { setChangeReason(e.target.value); clearError('change_reason'); }}
+                disabled={saving}
+                aria-invalid={errors.change_reason ? 'true' : undefined}
+                aria-describedby={errors.change_reason ? 'reschedule-change-reason-error' : undefined}
+                placeholder="For example, a vehicle or weather delay"
+              />
+              <FieldError name="change_reason" errors={errors} id="reschedule-change-reason-error" />
             </div>
 
             <div className="form-group mb-0" style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--border)' }}>

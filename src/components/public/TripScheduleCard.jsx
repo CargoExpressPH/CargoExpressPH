@@ -42,7 +42,7 @@ const TripScheduleCard = ({ trip, onSelect }) => {
         {trip.arrival_date && (
           <div className="about-trip-card-detail-row">
             <Calendar size={14} aria-hidden="true" />
-            <span>Estimated arrival {formatPhDate(trip.arrival_date)}</span>
+            <span>Estimated shipment delivery {formatPhDate(trip.arrival_date)}</span>
           </div>
         )}
       </div>

@@ -35,6 +35,7 @@
     "test:cancellation-settlement": "node scripts/cancellation-settlement-pgtest/run.mjs && node scripts/sales-cancellation-ui-contract-test.mjs",
     "test:announcement-broadcast": "node scripts/broadcast-announcement-worker-test.mjs && node scripts/announcement-broadcast-pgtest/run.mjs",
     "test:trip-reschedule-broadcast": "node scripts/trip-reschedule-broadcast-pgtest/run.mjs",
+    "test:trip-start-dates": "node scripts/trip-start-dates-pgtest/run.mjs",
     "test:trip-created-notifications": "node scripts/trip-creation-notification-pgtest/run.mjs"
   },
   "devDependencies": {

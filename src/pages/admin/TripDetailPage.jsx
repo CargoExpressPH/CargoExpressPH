@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { getTripById, updateTrip, getActivityLogsByRecord, rescheduleTrip, retryTripReschedulePublicNotice } from '../../lib/database';
+import { getTripById, getTripStartDateGates, updateTrip, getActivityLogsByRecord, rescheduleTrip, retryTripReschedulePublicNotice } from '../../lib/database';
 import StatusBadge from '../../components/ui/StatusBadge';
 import ConfirmModal from '../../components/ui/ConfirmModal';
 import RescheduleTripModal from '../../components/ui/RescheduleTripModal';
@@ -12,9 +12,8 @@ import EmptyState from '../../components/ui/EmptyState';
 import MessageCustomerButton from '../../components/ui/MessageCustomerButton';
 import { useToast } from '../../hooks/useToast';
 import usePageTitle from '../../hooks/usePageTitle';
-import { logTrip } from '../../lib/activityLog';
 import { outstandingBalance } from '../../constants/status';
-import { formatPhDate, formatPhDateTime } from '../../utils/datetime';
+import { formatPhDate, formatPhDateTime, phLocalInputToISO } from '../../utils/datetime';
 
 const TripDetailPage = () => {
   usePageTitle('Trip Details');
@@ -27,6 +26,8 @@ const TripDetailPage = () => {
   const [showRescheduleModal, setShowRescheduleModal] = useState(false);
   const [pendingRescheduleNotice, setPendingRescheduleNotice] = useState(null);
   const [retryingNotice, setRetryingNotice] = useState(false);
+  const [estimatedArrivalInput, setEstimatedArrivalInput] = useState('');
+  const [checkingStartGate, setCheckingStartGate] = useState(false);
   const toast = useToast();
 
   useEffect(() => {
@@ -34,6 +35,32 @@ const TripDetailPage = () => {
     load(isMounted);
     return () => { isMounted = false; };
   }, [id]);
+
+  // Keep the displayed Manila-date gate current if an admin leaves this page
+  // open across midnight or returns after the tab was backgrounded.
+  useEffect(() => {
+    if (data?.trip?.status !== 'scheduled') return undefined;
+    let isMounted = true;
+    const refreshGate = async () => {
+      try {
+        const gates = await getTripStartDateGates([id]);
+        if (isMounted) setData((current) => current ? { ...current, start_gate: gates[id] || null } : current);
+      } catch {
+        if (isMounted) setData((current) => current ? { ...current, start_gate: null } : current);
+      }
+    };
+    const onFocus = () => { refreshGate(); };
+    const onVisibility = () => { if (document.visibilityState === 'visible') refreshGate(); };
+    const interval = setInterval(refreshGate, 60_000);
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, [id, data?.trip?.status]);
 
   const load = async (isMounted = true) => {
     setError(null); setLoading(true);
@@ -99,9 +126,21 @@ const TripDetailPage = () => {
       }
     }
 
+    let updates = { status };
+    if (status === 'in_progress' && estimatedArrivalInput) {
+      const estimateISO = phLocalInputToISO(estimatedArrivalInput);
+      if (!Number.isFinite(new Date(estimateISO).getTime())) {
+        toast.error('Enter a valid estimated arrival time.');
+        return;
+      }
+      // Do not compare against the device clock. The database validates this
+      // against its own departure timestamp in the same status transaction.
+      updates.estimated_arrival_at = estimateISO;
+    }
+
     setSaving(true);
     try {
-      await updateTrip(id, { status });
+      await updateTrip(id, updates);
 
       await load();
       toast.success(`Trip updated to "${status}"`);
@@ -114,6 +153,31 @@ const TripDetailPage = () => {
 
   const openConfirm = (status, title, message, variant = 'warning') => {
     setConfirmAction({ status, title, message, variant });
+  };
+
+  const handleStartTripClick = async () => {
+    setCheckingStartGate(true);
+    try {
+      const gates = await getTripStartDateGates([id]);
+      const gate = gates[id] || null;
+      setData((current) => current ? { ...current, start_gate: gate } : current);
+      if (gate?.gate_state !== 'today') {
+        toast.error(gate?.gate_state === 'overdue'
+          ? 'This trip is overdue. Reschedule it before starting.'
+          : gate?.gate_state === 'before_date'
+            ? `This trip can be started on ${formatPhDate(gate.scheduled_day)} (Manila time).`
+            : gate?.gate_state === 'not_scheduled'
+              ? 'This trip is no longer scheduled. Refresh the page to see its current status.'
+            : 'Could not verify a valid scheduled departure date. Refresh and try again.');
+        return;
+      }
+      setEstimatedArrivalInput('');
+      openConfirm('in_progress', 'Start Trip', `Start trip ${trip.trip_number}? This will mark it as in progress.`, 'info');
+    } catch (error) {
+      toast.error(error.message || 'Could not verify the scheduled departure date. Refresh and try again.');
+    } finally {
+      setCheckingStartGate(false);
+    }
   };
 
   const handleCompleteClick = () => {
@@ -134,20 +198,12 @@ const TripDetailPage = () => {
   // strings; this just does the write, logs it, and refreshes. Errors are
   // caught here (not swallowed in the modal) so the toast fires and the
   // modal's own catch just keeps it open for another try.
-  const handleReschedule = async ({ departure_date, arrival_date, notify_all_subscribers, public_reason }) => {
+  const handleReschedule = async ({ departure_date, arrival_date, notify_all_subscribers, public_reason, change_reason }) => {
     try {
       const result = await rescheduleTrip(id, {
-        departure_date, arrival_date, notify_all_subscribers, public_reason,
+        departure_date, arrival_date, notify_all_subscribers, public_reason, change_reason,
       }, { origin: trip.origin, destination: trip.destination });
 
-      if (result.scheduleChanged) {
-        logTrip('Trip Rescheduled', id, trip.trip_number, {
-          previousValue: { departure_date: trip.departure_date, arrival_date: trip.arrival_date },
-          newValue: { departure_date, arrival_date },
-          details: `Schedule updated to depart ${formatPhDate(departure_date)}`
-            + (notify_all_subscribers ? ' (public subscriber notice requested)' : ''),
-        });
-      }
       await load();
 
       if (!notify_all_subscribers || !result.scheduleChanged) {
@@ -209,17 +265,28 @@ const TripDetailPage = () => {
   const notYetPickedUp = orders.filter(o => o.status === 'Pending' || o.status === 'Assigned');
   const eligibleOrders = orders.filter(o => !['Cancelled', 'Pending Cancellation', 'Pending', 'Assigned'].includes(o.status));
   const eligibleWeight = eligibleOrders.reduce((sum, o) => sum + (Number(o.actual_weight) || 0), 0);
+  const startGate = data.start_gate;
 
   const startTripBlockReason =
-    pendingCancellationOrders.length > 0
-      ? `${pendingCancellationOrders.length} order${pendingCancellationOrders.length === 1 ? '' : 's'} awaiting a cancellation decision: ${pendingCancellationOrders.slice(0, 3).map(o => o.tracking_number).join(', ')}${pendingCancellationOrders.length > 3 ? '…' : ''}. Approve or decline before starting.`
-      : notYetPickedUp.length > 0
-        ? `${notYetPickedUp.length} order${notYetPickedUp.length === 1 ? '' : 's'} not yet picked up: ${notYetPickedUp.slice(0, 3).map(o => o.tracking_number).join(', ')}${notYetPickedUp.length > 3 ? '…' : ''}.`
-        : eligibleOrders.length === 0
-          ? 'Cannot start trip: no active shipments are ready for departure.'
-          : eligibleWeight <= 0
-            ? 'Cannot start trip: record pickup and actual cargo weight first.'
-            : null;
+    !startGate
+      ? 'Unable to verify the scheduled departure date. Reload this page before starting the trip.'
+      : startGate.gate_state === 'before_date'
+        ? `This trip is scheduled for ${formatPhDate(startGate.scheduled_day)}. It can be started on that Manila calendar date, or rescheduled first.`
+        : startGate.gate_state === 'overdue'
+          ? `This trip was scheduled for ${formatPhDate(startGate.scheduled_day)} and is overdue. Reschedule it to today or a future date before starting.`
+          : startGate.gate_state === 'missing_date'
+            ? 'This trip has no scheduled departure date. Add a valid date before starting.'
+            : startGate.gate_state === 'not_scheduled'
+              ? 'Trip status changed elsewhere. Refresh this page before continuing.'
+            : pendingCancellationOrders.length > 0
+              ? `${pendingCancellationOrders.length} order${pendingCancellationOrders.length === 1 ? '' : 's'} awaiting a cancellation decision: ${pendingCancellationOrders.slice(0, 3).map(o => o.tracking_number).join(', ')}${pendingCancellationOrders.length > 3 ? '…' : ''}. Approve or decline before starting.`
+              : notYetPickedUp.length > 0
+                ? `${notYetPickedUp.length} order${notYetPickedUp.length === 1 ? '' : 's'} not yet picked up: ${notYetPickedUp.slice(0, 3).map(o => o.tracking_number).join(', ')}${notYetPickedUp.length > 3 ? '…' : ''}.`
+                : eligibleOrders.length === 0
+                  ? 'Cannot start trip: no active shipments are ready for departure.'
+                  : eligibleWeight <= 0
+                    ? 'Cannot start trip: record pickup and actual cargo weight first.'
+                    : null;
   const canStartTrip = !startTripBlockReason;
 
   return (
@@ -248,11 +315,11 @@ const TripDetailPage = () => {
           <button
             type="button"
             className="btn btn-primary"
-            onClick={()=>openConfirm('in_progress', 'Start Trip', `Start trip ${trip.trip_number}? This will mark it as in progress.`, 'info')}
-            disabled={saving || !canStartTrip}
+            onClick={handleStartTripClick}
+            disabled={saving || checkingStartGate || !canStartTrip}
             title={startTripBlockReason || undefined}
           >
-            <Play size={16}/> Start Trip
+            {checkingStartGate ? <Loader size={16} className="animate-spin" /> : <Play size={16}/>} Start Trip
           </button>
         )}
         {trip.status==='in_progress' && <button type="button" className="btn btn-success" onClick={()=>openConfirm('arrived', 'Mark Arrived', `Mark trip ${trip.trip_number} as arrived at destination?`, 'success')} disabled={saving}><Flag size={16}/> Mark Arrived</button>}
@@ -288,6 +355,7 @@ const TripDetailPage = () => {
               </button>
             )}
           </div>
+          <div className="text-xs text-tertiary mb-12">Times shown below use Manila time.</div>
           {pendingRescheduleNotice && (
             <div className="alert-banner alert-banner-warning mb-12" role="alert" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
               <span>
@@ -312,14 +380,18 @@ const TripDetailPage = () => {
               <div className="fw-700">{formatPhDate(trip.departure_date)}</div>
               {/* Stamped by the database the moment Start Trip fires — see
                   guard_trip_status_transition() — never client-supplied. */}
-              {trip.departure_at && (
-                <div className="text-xs text-tertiary mt-4">Departed {formatPhDateTime(trip.departure_at)}</div>
-              )}
             </div>
             <div>
-              <div className="text-xs text-tertiary">Estimated Arrival</div>
+              <div className="text-xs text-tertiary">Planned Shipment Arrival Date</div>
               <div className="fw-700">{trip.arrival_date ? formatPhDate(trip.arrival_date) : 'Not set'}</div>
             </div>
+            {(trip.departure_at || trip.estimated_arrival_at || trip.arrived_at) && (
+              <div className="grid grid-3 gap-16" style={{ gridColumn: '1 / -1', borderTop: '1px solid var(--border)', paddingTop: 12 }}>
+                {trip.departure_at && <div><div className="text-xs text-tertiary">Actual Departure</div><div className="fw-700">{formatPhDateTime(trip.departure_at)}</div></div>}
+                <div><div className="text-xs text-tertiary">Estimated Arrival at Destination Hub</div><div className="fw-700">{trip.estimated_arrival_at ? formatPhDateTime(trip.estimated_arrival_at) : 'To be confirmed'}</div></div>
+                <div><div className="text-xs text-tertiary">Actual Arrival at Destination Hub</div><div className="fw-700">{trip.arrived_at ? formatPhDateTime(trip.arrived_at) : 'Not arrived'}</div></div>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -410,9 +482,7 @@ const TripDetailPage = () => {
                     boxShadow: '0 0 0 2px var(--primary)',
                   }} />
                   <div className="text-xs text-tertiary mb-2">
-                    {new Date(log.created_at).toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' })}
-                    {' · '}
-                    {new Date(log.created_at).toLocaleDateString('en-PH', { month: 'short', day: 'numeric' })}
+                    {formatPhDateTime(log.created_at)}
                   </div>
                   <div className="text-sm">
                     <strong>{log.admin_name}</strong>
@@ -440,12 +510,31 @@ const TripDetailPage = () => {
         cancelLabel="Cancel"
         variant={confirmAction?.variant || 'warning'}
         loading={saving}
-      />
+      >
+        {confirmAction?.status === 'in_progress' && (
+          <div className="form-group" style={{ textAlign: 'left', marginTop: -8 }}>
+            <label className="form-label" htmlFor="trip-estimated-arrival-at-hub">Estimated arrival at destination hub (optional)</label>
+            <input
+              id="trip-estimated-arrival-at-hub"
+              type="datetime-local"
+              className="form-input"
+              value={estimatedArrivalInput}
+              onChange={(event) => setEstimatedArrivalInput(event.target.value)}
+              disabled={saving}
+              aria-describedby="trip-estimated-arrival-help"
+            />
+            <small id="trip-estimated-arrival-help" className="text-xs text-tertiary">
+              Manila time. This is only an estimate; leave blank if unknown. The existing planned shipment-arrival date is unchanged.
+            </small>
+          </div>
+        )}
+      </ConfirmModal>
 
       {/* Reschedule Modal */}
       {showRescheduleModal && (
         <RescheduleTripModal
           trip={trip}
+          serverToday={startGate?.ph_today}
           onClose={() => setShowRescheduleModal(false)}
           onReschedule={handleReschedule}
         />

@@ -305,7 +305,8 @@ const TrackingPage = ({ embedded = false }) => {
     : order ? Math.max(0, Math.round(((completedSteps) / (STATUS_TIMELINE.length - 1)) * 100))
     : 0;
 
-  // ETA: only meaningful before delivery. trip.arrival_date from the RPC.
+  // Shipment delivery estimate remains the pre-existing arrival_date metric;
+  // trip hub-arrival timestamps are separate fields from the same narrow RPC.
   const estimatedDelivery = order?.estimated_delivery || null;
   const showEta = estimatedDelivery
     && order?.status !== ORDER_STATUS.DELIVERED
@@ -488,10 +489,25 @@ const TrackingPage = ({ embedded = false }) => {
                 <Calendar size={16} />
               </div>
               <div className="trk-eta-text">
-                <span className="trk-eta-label">Estimated Delivery</span>
+                <span className="trk-eta-label">Estimated Shipment Delivery</span>
                 <span className="trk-eta-value">{formatDate(estimatedDelivery)}</span>
               </div>
               <span className="trk-eta-caveat">Estimated</span>
+            </div>
+          )}
+
+          {(order.trip_departure_at || order.trip_estimated_arrival_at || order.trip_arrived_at) && (
+            <div className="trk-eta-banner" role="status" style={{ alignItems: 'flex-start' }}>
+              <div className="trk-eta-icon" aria-hidden="true"><Truck size={16} /></div>
+              <div className="trk-eta-text">
+                <span className="trk-eta-label">Trip Timing</span>
+                <span className="trk-eta-caveat">Times shown in Manila time</span>
+                {order.trip_departure_date && <span className="trk-eta-value">Scheduled departure: {formatDate(order.trip_departure_date)}</span>}
+                {order.trip_departure_at && <span className="trk-eta-value">Actual departure: {formatDate(order.trip_departure_at, true)}</span>}
+                {order.trip_arrived_at
+                  ? <span className="trk-eta-value">Actual arrival at destination hub: {formatDate(order.trip_arrived_at, true)}</span>
+                  : order.trip_departure_at && <span className="trk-eta-value">Estimated arrival at destination hub: {order.trip_estimated_arrival_at ? formatDate(order.trip_estimated_arrival_at, true) : 'To be confirmed'}</span>}
+              </div>
             </div>
           )}
 
