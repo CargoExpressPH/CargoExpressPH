@@ -28,6 +28,7 @@ const buildLabel = (order, box, total) => ({
   box,
   total,
   trackingNumber: order.tracking_number,
+  receiverName: order.receiver_name,
   url: `${getAppUrl()}/admin/orders/${order.id}?box=${box}`,
 });
 
@@ -144,7 +145,7 @@ const PackageQrLabels = ({ order, onOrderUpdate }) => {
             <div className="qr-label-preview" key={label.box}>
               <QRCode value={label.url} size={112} style={{ height: 'auto', maxWidth: '100%', width: '100%' }} viewBox="0 0 112 112" />
               <div className="qr-label-preview-caption">Box {label.box} of {label.total}</div>
-              <div className="qr-label-preview-tracking">{label.trackingNumber}</div>
+              <div className="qr-label-preview-tracking" style={{ fontSize: '11px', textTransform: 'uppercase', marginTop: '4px' }}>{label.receiverName}</div>
             </div>
           ))}
         </div>

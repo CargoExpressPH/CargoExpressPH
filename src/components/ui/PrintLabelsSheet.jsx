@@ -25,7 +25,7 @@ const PrintLabelsSheet = ({ trackingNumber, labels = [] }) => {
               <QRCode value={label.url} size={128} style={{ height: 'auto', maxWidth: '100%', width: '100%' }} viewBox="0 0 128 128" />
             </div>
             <div className="pl-caption">Box {label.box} of {label.total}</div>
-            <div className="pl-tracking">{label.trackingNumber}</div>
+            <div className="pl-tracking" style={{ fontSize: '11px', textTransform: 'uppercase' }}>{label.receiverName}</div>
           </div>
         ))}
       </div>
