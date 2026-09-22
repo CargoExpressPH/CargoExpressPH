@@ -345,11 +345,7 @@ const PerTripSalesPage = () => {
             <RefreshCw size={16} className={refreshing ? 'animate-spin' : ''} />
             {refreshing ? 'Refreshing…' : 'Refresh'}
           </button>
-          <button type="button" className="btn btn-primary btn-sm" onClick={handlePrint} disabled={!hasGenerated}>
-            <Printer size={16} />
-            Print Report
-          </button>
-        </div>
+          </div>
       </div>
 
       <div className="card per-trip-selector-card no-print" style={{ padding: '16px 20px' }}>
@@ -432,6 +428,12 @@ const PerTripSalesPage = () => {
             {loadingReport ? <CenteredSpinner size={16} /> : <FileText size={16} />}
             Generate Report
           </button>
+          {hasGenerated && (
+            <button type="button" className="btn btn-primary btn-sm" onClick={handlePrint}>
+              <Printer size={16} />
+              Print Report
+            </button>
+          )}
         </div>
       </div>
 
