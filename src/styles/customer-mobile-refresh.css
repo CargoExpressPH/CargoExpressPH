@@ -1535,6 +1535,22 @@ input:checked + .toggle-slider:before {
   }
 }
 
+/* Keep all three navbar controls visible at 320px without shrinking their tap areas. */
+@media (max-width: 344px) {
+  .customer-navbar-logo .brand-logo {
+    width: 32px;
+    height: 32px;
+  }
+
+  .customer-navbar-logo .brand-lockup {
+    gap: 6px;
+  }
+
+  .customer-navbar-logo .brand-wordmark {
+    font-size: 0.8rem;
+  }
+}
+
 /* ── Per-order payment table (customer OrderDetailPage) ─────────────────
    Named for the Payment History page, which is where it started. That page
    no longer uses it — its ledger is now the compact .payment-list below —
