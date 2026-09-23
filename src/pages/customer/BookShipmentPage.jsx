@@ -1,12 +1,12 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { useNavigate, useLocation, useBlocker } from 'react-router-dom';
+import { Link, useNavigate, useLocation, useBlocker } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { createOrder, getTrips, getSettings, getRecentContacts } from '../../lib/database';
 import { logOrder } from '../../lib/activityLog';
 import { buildFullAddress } from '../../lib/address';
 import { ROUTES, PH_LOCATIONS, VALID_PROVINCES, detectPickupLocation, validateRouteProvinces } from '../../constants/phLocations';
 import { isTripBookable } from '../../constants/status';
-import { ArrowLeft, Loader, CheckCircle, Copy, Check, Package, MapPin, User, Truck, AlertTriangle, Info, Clock } from 'lucide-react';
+import { ArrowLeft, Loader, CheckCircle, Copy, Check, Package, MapPin, User, Truck, AlertTriangle, Info, Clock, Headset } from 'lucide-react';
 import { useToast } from '../../hooks/useToast';
 import CustomSelect from '../../components/ui/CustomSelect';
 import BarangaySelect from '../../components/ui/BarangaySelect';
@@ -943,9 +943,14 @@ const BookShipmentPage = () => {
         variant="danger"
       />
 
-      <button type="button" onClick={() => step > 1 ? setStep(step - 1) : navigate(-1)} className="btn btn-ghost customer-back-action mb-16">
-        <ArrowLeft size={18} /> {step > 1 ? 'Back' : 'Cancel'}
-      </button>
+      <div className="customer-top-actions">
+        <button type="button" onClick={() => step > 1 ? setStep(step - 1) : navigate(-1)} className="btn btn-ghost customer-back-action">
+          <ArrowLeft size={18} /> {step > 1 ? 'Back' : 'Cancel'}
+        </button>
+        <Link to="/customer/support" className="customer-inline-support-link">
+          <Headset size={16} aria-hidden="true" /> Chat support
+        </Link>
+      </div>
       <h1 className="sr-only">Book Shipment</h1>
       <h2 className="fw-800 mb-8">Book Shipment</h2>
 

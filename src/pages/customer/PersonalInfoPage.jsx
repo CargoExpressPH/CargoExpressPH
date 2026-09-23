@@ -1,12 +1,12 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { useNavigate, useBlocker } from 'react-router-dom';
+import { Link, useNavigate, useBlocker } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { normalizeProfileAddressFields } from '../../lib/address';
 import { updateOwnProfile } from '../../lib/database';
 import { PH_LOCATIONS, VALID_PROVINCES } from '../../constants/phLocations';
 import {
   ArrowLeft, Loader, Save,
-  User, Phone, MapPin, Home, Hash, MessageSquare, Map, Building, Navigation,
+  User, Phone, MapPin, Home, Hash, MessageSquare, Map, Building, Navigation, Headset,
 } from 'lucide-react';
 import { useToast } from '../../hooks/useToast';
 import CustomSelect from '../../components/ui/CustomSelect';
@@ -198,9 +198,14 @@ const PersonalInfoPage = () => {
         variant="danger"
       />
 
-      <button type="button" onClick={() => navigate(-1)} className="btn btn-ghost customer-back-action mb-16">
-        <ArrowLeft size={18} /> Back
-      </button>
+      <div className="customer-top-actions">
+        <button type="button" onClick={() => navigate(-1)} className="btn btn-ghost customer-back-action">
+          <ArrowLeft size={18} /> Back
+        </button>
+        <Link to="/customer/support" className="customer-inline-support-link">
+          <Headset size={16} aria-hidden="true" /> Chat support
+        </Link>
+      </div>
       <h1 className="fw-800 mb-20">Personal Information</h1>
 
       <div className="card">

@@ -30,6 +30,16 @@ const bottomNavItems = [
   { to: '/customer/profile', icon: User, label: 'Profile' },
 ];
 
+const pagesWithInFlowSupport = new Set([
+  '/customer/book',
+  '/customer/payments',
+  '/customer/profile',
+  '/customer/help-guidelines',
+  '/customer/personal-info',
+  '/customer/change-password',
+  '/customer/change-email',
+]);
+
 const getInitials = (name) => {
   if (!name || !name.trim()) return '?';
   const parts = name.trim().split(/\s+/);
@@ -388,11 +398,8 @@ const CustomerLayout = () => {
       </PageTransition>
 
       {/* ─── Floating chat support bubble (mobile only) ───
-          Not rendered on the support page itself: at bottom 85px it sits
-          exactly over the chat composer, so on the one screen where it has
-          nothing left to do it would be in the way. Everywhere else it is the
-          mobile stand-in for the "Chat Support" link in the desktop navbar,
-          which the 900px breakpoint hides.
+          Keep it off pages that provide an in-flow support link so it cannot
+          cover booking controls, forms, or other task content.
 
           Mobile-only is a media query rather than a matchMedia hook on
           purpose. A JS breakpoint re-renders this whole layout — navbar,
@@ -404,7 +411,7 @@ const CustomerLayout = () => {
           means its realtime subscription, its message list and its composer
           all live on top of whatever page the customer is on. The route
           already exists and already has its own transition. */}
-      {location.pathname !== '/customer/support' && (
+      {location.pathname !== '/customer/support' && !pagesWithInFlowSupport.has(location.pathname) && (
         // Icon-only, so the aria-label IS the accessible name — nothing on
         // screen conveys what this opens. It names the bot rather than saying
         // "chat" alone, which is what a screen-reader user hears.

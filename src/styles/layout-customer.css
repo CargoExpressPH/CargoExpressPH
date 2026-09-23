@@ -405,6 +405,39 @@
   display: none;
 }
 
+/* Support stays in the page flow on booking, payments, and account forms. */
+.customer-top-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.customer-inline-support-link {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 8px 10px;
+  border-radius: 999px;
+  color: var(--customer-green-dark);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.customer-inline-support-link:hover {
+  background: var(--customer-green-soft);
+}
+
+.customer-inline-support-link:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
 /* ── Floating chat support bubble (mobile) ────────────────────────────────
    Hidden by default and switched on at the same 900px breakpoint that hides
    the desktop "Chat Support" navbar link, so exactly one of the two is ever
@@ -538,6 +571,7 @@ body.keyboard-active .customer-chat-fab {
   .customer-navbar-links { display: none; }
   .customer-bottom-nav { display: block; }
   .customer-chat-fab { display: flex; }
+  .customer-inline-support-link { display: inline-flex; }
   .customer-navbar-inner {
     padding: 0 16px;
     height: 66px;

@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, AlertTriangle, Banknote, CalendarClock, ChevronRight,
-  ExternalLink, Loader, MessageCircle, Package, Receipt, ShieldCheck,
+  ExternalLink, Headset, Loader, MessageCircle, Package, Receipt, ShieldCheck,
   Smartphone, X,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
@@ -300,9 +300,14 @@ const PaymentHistoryPage = () => {
 
   return (
     <div className="page-transition customer-payment-history-page">
-      <button type="button" onClick={() => navigate(-1)} className="btn btn-ghost customer-back-action mb-16">
-        <ArrowLeft size={18} /> Back
-      </button>
+      <div className="customer-top-actions">
+        <button type="button" onClick={() => navigate(-1)} className="btn btn-ghost customer-back-action">
+          <ArrowLeft size={18} /> Back
+        </button>
+        <Link to="/customer/support" className="customer-inline-support-link">
+          <Headset size={16} aria-hidden="true" /> Chat support
+        </Link>
+      </div>
 
       <div className="customer-page-heading mb-20">
         <div>
