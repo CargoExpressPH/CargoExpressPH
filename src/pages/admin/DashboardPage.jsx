@@ -8,8 +8,9 @@ import { CenteredSpinner } from '../../components/ui/Loader';
 import AnimatedCounter from '../../components/ui/AnimatedCounter';
 import PageTransition, { StaggerItem } from '../../components/ui/PageTransition';
 import ErrorBoundarySection from '../../components/ui/ErrorBoundarySection';
-import { PackageCheck, Truck, Map, Clock, ArrowRight, Gauge, PieChart, AlertTriangle, LayoutDashboard } from 'lucide-react';
+import { Package, PackageCheck, Truck, Map, Clock, ArrowRight, Gauge, PieChart, AlertTriangle, LayoutDashboard } from 'lucide-react';
 import usePageTitle from '../../hooks/usePageTitle';
+import EmptyState from '../../components/ui/EmptyState';
 import { formatPhDate } from '../../utils/datetime';
 import { isScheduledTripOverdue } from '../../lib/tripCapacitySelection';
 import useRealtimeTripCapacity from '../../hooks/useRealtimeTripCapacity';
@@ -113,17 +114,14 @@ const DashboardPage = () => {
     ...knownOrderSegments,
     { label: 'Other Orders', value: Math.max(0, totalOrders - knownOrderCount), color: 'var(--chart-3)' },
   ].filter(segment => segment.value > 0);
-  const noOperationsYet = !loading && !capacityLoading && !statsWarning && !capacityError &&
-    stats && totalOrders === 0 && (stats.activeTrips || 0) === 0 && !capacity?.activeTrip;
 
   return (
     <PageTransition>
-      <div className="admin-page-header admin-work-header">
+      <div className="admin-page-header">
         <div>
           <h1 className="admin-page-title"><LayoutDashboard size={24} color="var(--primary)" aria-hidden="true" />Dashboard</h1>
           <p className="admin-page-subtitle">Live operations, trip capacity, and recent order movement.</p>
         </div>
-        {totalOrders > 0 && <Link to="/admin/orders" className="btn btn-primary">View Bookings <ArrowRight size={16} aria-hidden="true" /></Link>}
       </div>
 
       {statsWarning && (
@@ -133,19 +131,6 @@ const DashboardPage = () => {
           <button type="button" className="btn btn-outline btn-sm" onClick={loadData}>Retry</button>
         </div>
       )}
-
-      {noOperationsYet ? (
-        <section className="admin-onboarding-panel" aria-labelledby="admin-onboarding-title">
-          <div>
-            <h2 id="admin-onboarding-title">Set up your next shipment</h2>
-            <p>Schedule an upcoming trip or add a booking manually. Live counts and capacity will appear here once work begins.</p>
-          </div>
-          <div className="admin-onboarding-actions">
-            <Link to="/admin/trips/create" className="btn btn-primary">Schedule Trip</Link>
-            <Link to="/admin/create-booking" className="btn btn-outline">Add Booking</Link>
-          </div>
-        </section>
-      ) : <>
 
       {/* Stat Cards */}
       <ErrorBoundarySection message="Stats failed to load.">
@@ -211,10 +196,11 @@ const DashboardPage = () => {
                 />
               </>
             ) : (
-              <div className="admin-dashboard-empty">
-                <p>No scheduled or ongoing trip.</p>
-                <Link to="/admin/trips/create">Schedule Trip</Link>
-              </div>
+              <EmptyState
+                icon={Truck}
+                title="No scheduled or ongoing trip available."
+                description="A trip capacity summary will appear when an eligible trip is available."
+              />
             )}
           </div>
         </StaggerItem>
@@ -224,14 +210,9 @@ const DashboardPage = () => {
         <ErrorBoundarySection message="Order distribution unavailable.">
         <StaggerItem className="card admin-section-card" delay={300}>
           <div className="card-header"><h3><PieChart size={16} className="inline mr-8" />Order Distribution</h3></div>
-          <div className={`card-body admin-distribution-body ${!loading && totalOrders === 0 ? 'is-empty' : ''}`}>
+          <div className="card-body" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px 16px', minHeight: '260px' }}>
             {loading ? (
               <CenteredSpinner />
-            ) : totalOrders === 0 ? (
-              <div className="admin-dashboard-empty">
-                <p>No bookings to break down yet.</p>
-                <Link to="/admin/orders">View Bookings</Link>
-              </div>
             ) : (
               <DonutChart
                 size={170}
@@ -256,7 +237,11 @@ const DashboardPage = () => {
         {loading ? (
           <CenteredSpinner />
         ) : recent.length === 0 ? (
-          <div className="admin-dashboard-empty"><p>Incoming customer bookings will appear here.</p></div>
+          <EmptyState
+            icon={Package}
+            title="No orders yet"
+            description="Incoming customer bookings will appear here."
+          />
         ) : (
           <div className="table-container">
             <table className="data-table">
@@ -276,7 +261,6 @@ const DashboardPage = () => {
         )}
       </StaggerItem>
       </ErrorBoundarySection>
-      </>}
     </PageTransition>
   );
 };

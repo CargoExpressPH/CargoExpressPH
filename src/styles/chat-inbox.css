@@ -1554,22 +1554,3 @@
     margin-inline: auto;
   }
 }
-
-/* An empty mobile inbox should not occupy a full chat viewport. */
-@media (max-width: 768px) {
-  .admin-inbox-page.is-empty {
-    height: auto;
-    min-height: 0;
-  }
-
-  .admin-inbox-page.is-empty .inbox-layout,
-  .admin-inbox-page.is-empty .inbox-sidebar,
-  .admin-inbox-page.is-empty .inbox-conversation-list {
-    flex: 0 0 auto;
-    min-height: 0;
-  }
-
-  .admin-inbox-page.is-empty .inbox-conversation-list {
-    padding: 16px;
-  }
-}

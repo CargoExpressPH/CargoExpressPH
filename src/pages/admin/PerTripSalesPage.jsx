@@ -337,12 +337,12 @@ const PerTripSalesPage = () => {
 
   return (
     <div className="page-transition per-trip-report">
-      <div className="admin-page-header admin-work-header no-print">
+      <div className="admin-page-header no-print">
         <div>
           <h1 className="admin-page-title"><FileText size={24} color="var(--primary)" aria-hidden="true" /> Sales & Reports</h1>
           <p className="admin-page-subtitle">Review shipping fees, payments, refunds, and balances for every trip in a month.</p>
         </div>
-        {hasGenerated && <div className="flex gap-8">
+        <div className="flex gap-8">
           <button
             type="button"
             className="btn btn-ghost btn-sm per-trip-icon-btn"
@@ -354,7 +354,7 @@ const PerTripSalesPage = () => {
             <RefreshCw size={16} className={refreshing ? 'animate-spin' : ''} aria-hidden="true" />
             <span className="per-trip-btn-text">{refreshing ? 'Refreshing…' : 'Refresh'}</span>
           </button>
-        </div>}
+          </div>
       </div>
 
       <div className="card per-trip-selector-card no-print">
@@ -419,10 +419,6 @@ const PerTripSalesPage = () => {
           </div>
         </div>
       </div>
-
-      {!hasGenerated && !loadingReport && !error && (
-        <p className="per-trip-start-hint no-print">Choose a month, then generate the report to see totals and per-trip detail.</p>
-      )}
 
       {error && (
         <div className="alert-banner alert-banner-error mt-16" role="alert">

@@ -278,16 +278,16 @@ const AnnouncementsPage = () => {
 
   return (
     <div className="page-transition">
-      <div className="admin-page-header admin-work-header">
+      <div className="admin-page-header">
         <div>
           <h1 className="admin-page-title"><Megaphone size={24} color="var(--primary)" aria-hidden="true" />Announcements</h1>
           <p className="admin-page-subtitle">Publish operational updates customers can see in their dashboard.</p>
         </div>
-        <button type="button" className={`btn ${showForm ? 'btn-outline' : 'btn-primary'}`} onClick={()=>{ setShowForm(!showForm); clearAll(); }} aria-expanded={showForm}><Plus size={16} aria-hidden="true"/> {showForm ? 'Close Form' : 'New Announcement'}</button>
+        <button type="button" className="btn btn-primary" onClick={()=>{ setShowForm(!showForm); clearAll(); }}><Plus size={16}/> New</button>
       </div>
 
       {showForm && (
-        <div id="announcement-create-form" className="card animate-scale-in mb-16" style={{ overflow: 'visible' }}><div className="card-body">
+        <div className="card animate-scale-in mb-16" style={{ overflow: 'visible' }}><div className="card-body">
           <div className="form-group mb-16">
             <label className="form-label inline-flex items-center">
               Category Tag
@@ -339,7 +339,7 @@ const AnnouncementsPage = () => {
           <button type="button" className="btn btn-primary mt-md" onClick={load}>Retry</button>
         </div>
       ) : items.length === 0 ? (
-        showForm ? null : <div className="card admin-empty-panel"><EmptyState icon={Megaphone} title="No announcements yet" description="Use New Announcement above to publish the first customer update." /></div>
+        <EmptyState icon={Megaphone} title="No announcements yet" description="Create your first announcement to keep customers informed." actionLabel="Create Announcement" onAction={() => setShowForm(true)} />
       ) : (
         items.map((a, i) => {
           const cat = getAnnouncementCategoryInfo(a);

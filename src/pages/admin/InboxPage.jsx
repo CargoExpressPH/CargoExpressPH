@@ -719,18 +719,11 @@ const InboxPage = () => {
     return true;
   });
 
-  const noConversations = !loadingList && !errorList && conversations.length === 0 && !searchQuery.trim() && !activeConv;
-
   return (
-    <div className={`page-transition admin-inbox-page ${noConversations ? 'is-empty' : ''}`}>
-      <div className="admin-page-header admin-work-header">
-        <div>
-          <h1 className="admin-page-title"><MessageSquare size={24} color="var(--primary)" aria-hidden="true" />Customer Inbox</h1>
-          <p className="admin-page-subtitle">Reply to customer conversations and track the response queue.</p>
-        </div>
-      </div>
+    <div className="page-transition admin-inbox-page">
+      <h1 className="admin-page-title mb-24"><MessageSquare size={24} color="var(--primary)" aria-hidden="true" />Customer Inbox</h1>
 
-      <div className={`inbox-layout ${activeConv ? 'has-active-conv' : ''} ${noConversations ? 'is-empty' : ''}`}>
+      <div className={`inbox-layout ${activeConv ? 'has-active-conv' : ''}`}>
 
         {/* ── Left Panel: Conversations List ─────────────────────────────── */}
         <div className="inbox-sidebar">
