@@ -173,20 +173,27 @@ const AdminOrdersPage = () => {
     clearTimeout(debounceTimer.current);
     debounceTimer.current = setTimeout(() => setDebouncedSearch(val), SEARCH_DEBOUNCE_MS);
   };
+  const clearFilters = () => {
+    clearTimeout(debounceTimer.current);
+    setSearch('');
+    setDebouncedSearch('');
+    setActiveTab('All');
+    setCurrentPage(1);
+  };
 
   const paginated = orders;
   const totalFiltered = totalOrders;
+  const hasActiveFilters = Boolean(search.trim()) || activeTab !== 'All';
 
   return (
     <PageTransition>
-      <div className="admin-page-header">
+      <div className="admin-page-header admin-work-header">
         <div>
           <h1 className="admin-page-title"><Package size={24} color="var(--primary)" aria-hidden="true" />Bookings</h1>
           <p className="admin-page-subtitle">Search, review, and advance every cargo order.</p>
         </div>
         <div className="admin-page-meta">
-          <span className="badge badge-info">{loading ? 'Loading' : `${paginated.length} shown`}</span>
-          <span className="badge">{loading ? 'Checking orders' : `${totalFiltered} total`}</span>
+          <span className="admin-count-label" aria-live="polite">{loading ? 'Checking bookings…' : `${totalFiltered} ${totalFiltered === 1 ? 'booking' : 'bookings'}`}</span>
           <button type="button" className="btn btn-primary" onClick={() => navigate('/admin/create-booking')}>
             <Plus size={16} /> Add Booking
           </button>
@@ -223,13 +230,13 @@ const AdminOrdersPage = () => {
           <button type="button" className="btn btn-primary mt-md" onClick={loadOrders}>Retry</button>
         </div>
       ) : paginated.length === 0 ? (
-        <div className="card animate-fade-in">
+        <div className="card admin-empty-panel animate-fade-in">
           <EmptyState
             icon={Package}
-            title="No orders found"
-            description={search ? "Try adjusting your search or filter criteria." : "There are no bookings here yet. Create one manually or wait for customers to book."}
-            actionLabel={!search && activeTab === 'All' ? 'Add Booking' : undefined}
-            onAction={!search && activeTab === 'All' ? () => navigate('/admin/create-booking') : undefined}
+            title={hasActiveFilters ? 'No matching bookings' : 'No bookings yet'}
+            description={hasActiveFilters ? 'Try another search or clear the status filter.' : 'Customer bookings will appear here. Use Add Booking above to create one manually.'}
+            actionLabel={hasActiveFilters ? 'Clear filters' : undefined}
+            onAction={hasActiveFilters ? clearFilters : undefined}
           />
         </div>
       ) : (

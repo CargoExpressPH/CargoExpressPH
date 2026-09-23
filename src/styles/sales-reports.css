@@ -35,6 +35,13 @@
   padding: 16px 20px;
 }
 
+.per-trip-start-hint {
+  margin: 16px 2px 0;
+  color: var(--admin-muted);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
 .per-trip-controls {
   display: flex;
   align-items: center;

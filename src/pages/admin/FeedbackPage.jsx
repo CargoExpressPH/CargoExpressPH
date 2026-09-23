@@ -58,10 +58,10 @@ const FeedbackPage = () => {
 
   return (
     <div className="page-transition">
-      <div className="flex justify-between items-center mb-24 flex-wrap" style={{ gap: 12 }}>
+      <div className="admin-page-header admin-work-header">
         <div>
           <h1 className="admin-page-title"><MessageSquare size={24} color="var(--primary)" aria-hidden="true" />Customer Feedback</h1>
-          <p className="page-subtitle mt-4">Manage reviews and delivery feedback from customers</p>
+          <p className="admin-page-subtitle">Review customer ratings and delivery feedback.</p>
         </div>
       </div>
 
@@ -108,11 +108,13 @@ const FeedbackPage = () => {
       {loading ? (
         <CenteredSpinner />
       ) : filteredFeedback.length === 0 ? (
-        <EmptyState 
-          icon={MessageSquare}
-          title="No feedback found"
-          description={searchTerm || filterRating !== 'all' ? "Try adjusting your filters" : "Customers haven't submitted any feedback yet."}
-        />
+        <div className="card admin-empty-panel">
+          <EmptyState
+            icon={MessageSquare}
+            title={searchTerm || filterRating !== 'all' ? 'No matching feedback' : 'No feedback yet'}
+            description={searchTerm || filterRating !== 'all' ? 'Try another search or rating.' : "Customer reviews will appear here after they are submitted."}
+          />
+        </div>
       ) : (
         <div className="grid grid-2" style={{ gap: 24 }}>
           {filteredFeedback.map(fb => (
