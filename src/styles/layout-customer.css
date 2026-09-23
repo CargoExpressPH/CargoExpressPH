@@ -592,6 +592,11 @@ body.keyboard-active .customer-chat-fab {
     scroll-padding-bottom: calc(94px + env(safe-area-inset-bottom, 0px));
   }
 }
+/* Give the desktop links room at the 900px switch without shrinking the icon controls. */
+@media (min-width: 900px) and (max-width: 959.98px) {
+  .customer-navbar-inner { gap: 12px; }
+  .customer-nav-link { padding-inline: 10px; }
+}
 @media (min-width: 900px) {
   .customer-bottom-nav { display: none; }
   .customer-chat-fab { display: none; }
