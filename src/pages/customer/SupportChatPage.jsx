@@ -15,11 +15,11 @@ import {
 } from '../../lib/database';
 import {
   createConversationContext,
-  getBotReplyForAction,
   getMainMenuActions,
   resetConversationContext,
   SUPPORT_ACTIONS,
   BOT_GREETING,
+  BOT_WELCOME_BACK,
 } from '../../lib/supportChatEngine';
 import {
   Send, Headset, Bot, Loader, MessageSquare, AlertTriangle,
@@ -40,13 +40,6 @@ const MESSAGES_PAGE_SIZE = 50;
 
 const prefersReducedMotion = () =>
   typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-
-// Welcome-back greeting (shown when customer returns to a CLOSED conversation)
-const BOT_WELCOME_BACK = `Welcome back! 👋
-
-I'm CargoMate PH, your support assistant.
-
-Choose a topic below, or talk to an admin. You do not need to type a question.`;
 
 const normalizeError = (err) => {
   const msg = err?.message || String(err || '');
@@ -223,6 +216,7 @@ const SupportChatPage = () => {
   const [error, setError] = useState(null);
   const [sending, setSending] = useState(false);
   const [botTyping, setBotTyping] = useState(false);
+  const [handoffFailed, setHandoffFailed] = useState(false);
   const [textareaHeight, setTextareaHeight] = useState(48);
   const [hasMoreMessages, setHasMoreMessages] = useState(false);
   const [loadingOlder, setLoadingOlder] = useState(false);
@@ -265,17 +259,16 @@ const SupportChatPage = () => {
     if (timeoutRef.current) { clearTimeout(timeoutRef.current); timeoutRef.current = null; }
   }, []);
 
-  // ── Insert a bot message into the database ────────────────────────────────
-  // sender_id = customer UUID; DB guard trigger preserves sender_role = 'bot'
-  const insertBotMessage = useCallback(async (text, convId) => {
-    if (!user?.id || !convId) return null;
-    try {
-      return await sendMessage(convId, user.id, 'bot', text);
-    } catch (err) {
-      console.warn('[Bot] insertBotMessage failed:', err.message);
-      return null;
-    }
-  }, [user?.id]);
+  // Bot replies are generated and written by the authenticated Edge Function.
+  // A customer session can write only customer messages in the database.
+  const askAssistant = useCallback(async (operation, options = {}) => {
+    const { data, error: invokeError } = await supabase.functions.invoke('support-bot', {
+      body: { operation, conversationId: options.conversationId, ...options },
+    });
+    if (invokeError) throw invokeError;
+    if (data?.error && !data.escalated) throw new Error(data.error);
+    return data;
+  }, []);
 
   // ── Init chat ──────────────────────────────────────────────────────────────
   //
@@ -311,10 +304,12 @@ const SupportChatPage = () => {
     setConversationId(null);
     setMessages([]);
     setPendingResolutionId(null);
+    setHandoffFailed(false);
     setIsBotMode(false);
     setHasMoreMessages(false);
     setMenuActions([]);
     botContextRef.current = null;
+    greetingSentRef.current = false;
     initialScrollPendingRef.current = true;
 
     clearLoadTimeout();
@@ -361,9 +356,9 @@ const SupportChatPage = () => {
         // Send appropriate greeting into the DB and append to view,
         // avoiding duplicates caused by React StrictMode or concurrent runs.
         if (!isLastMessageGreeting && !greetingSentRef.current) {
+          const result = await askAssistant('greet', { conversationId: conv.id });
           greetingSentRef.current = true;
-          const greetingText = hasHistory ? BOT_WELCOME_BACK : BOT_GREETING;
-          const greetingMsg  = await insertBotMessage(greetingText, conv.id);
+          const greetingMsg = result?.message;
           if (greetingMsg && isMountedRef.current) {
             setMessages(prev =>
               prev.some(m => m.id === greetingMsg.id) ? prev : [...prev, greetingMsg]
@@ -395,7 +390,7 @@ const SupportChatPage = () => {
         toast.error(friendly);
       }
     }
-  }, [user?.id, clearLoadTimeout, toast, insertBotMessage]);
+  }, [user?.id, clearLoadTimeout, toast, askAssistant]);
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -563,8 +558,9 @@ const SupportChatPage = () => {
     setPendingResolutionId(null);
 
     // 1. Store the customer's message — on failure keep a retryable bubble
+    let customerMsg;
     try {
-      const customerMsg = await sendMessage(conversationId, user.id, 'customer', text);
+      customerMsg = await sendMessage(conversationId, user.id, 'customer', text);
       forceScrollRef.current = true;
       setMessages(prev =>
         prev.some(m => m.id === customerMsg.id) ? prev : [...prev, customerMsg]
@@ -630,7 +626,8 @@ const SupportChatPage = () => {
       return;
     }
 
-    // 4. Bot processes the message — a bot failure is non-fatal (toast only)
+    // 4. The server computes and persists the assistant reply. If this call
+    // fails after the customer message was saved, hand it to a human.
     setBotTyping(true);
     setSending(false);
 
@@ -640,23 +637,23 @@ const SupportChatPage = () => {
       // The UI never sends free text while the bot owns the conversation. The
       // main-menu fallback only covers a stale resolved-thread race; it still
       // enters the action-ID path rather than the legacy sentence matcher.
-      const reply = await getBotReplyForAction(actionId || SUPPORT_ACTIONS.MAIN_MENU, user.id, botContext);
-      await new Promise(r => setTimeout(r, 700 + Math.random() * 400));
+      const reply = await askAssistant('respond', {
+        conversationId, customerMessageId: customerMsg.id,
+        actionId: actionId || SUPPORT_ACTIONS.MAIN_MENU, context: botContext,
+      });
       if (!isMountedRef.current || requestSeq !== botRequestSeqRef.current) return;
       setBotTyping(false);
+      if (reply.context) botContextRef.current = reply.context;
 
-      if (reply.escalate) {
-        // Smart escalation keyword — skip bot reply, go straight to admin
-        const escText = `I understand you need more specific assistance.\n\nPlease wait while I connect you with one of our support administrators. 🔄`;
-        const escMsg = await insertBotMessage(escText, conversationId);
-        if (escMsg) setMessages(prev => prev.some(m => m.id === escMsg.id) ? prev : [...prev, escMsg]);
-        await escalateConversation(conversationId);
-        setConvStatus(CONVERSATION_STATUS.WAITING);
+      if (reply.escalated || reply.humanHandling) {
+        if (reply.message) setMessages(prev => prev.some(m => m.id === reply.message.id) ? prev : [...prev, reply.message]);
+        if (reply.error) toast.error(reply.error);
+        setConvStatus(reply.status || CONVERSATION_STATUS.WAITING);
         setIsBotMode(false);
         setMenuActions([]);
+        setHandoffFailed(false);
         resetConversationContext(botContextRef.current, user.id, conversationId);
       } else {
-        // Normal bot reply
         if (reply.actions) setMenuActions(reply.actions);
         else if (isBotMode) setMenuActions(getMainMenuActions());
 
@@ -665,7 +662,7 @@ const SupportChatPage = () => {
           return;
         }
 
-        const botMsg = reply.text ? await insertBotMessage(reply.text, conversationId) : null;
+        const botMsg = reply.message;
         if (botMsg && isMountedRef.current) {
           setMessages(prev => prev.some(m => m.id === botMsg.id) ? prev : [...prev, botMsg]);
           if (reply.askResolved && !reply.actions) setPendingResolutionId(botMsg.id);
@@ -675,7 +672,17 @@ const SupportChatPage = () => {
       console.error('[SupportChat] Bot reply failed:', err);
       if (isMountedRef.current) {
         setBotTyping(false);
-        toast.error('The assistant is unavailable right now. Please try again.');
+        try {
+          await escalateConversation(conversationId);
+          setConvStatus(CONVERSATION_STATUS.WAITING);
+          setIsBotMode(false);
+          setMenuActions([]);
+          setHandoffFailed(false);
+          toast.error('The assistant could not answer. An admin has been notified.');
+        } catch {
+          setHandoffFailed(true);
+          toast.error('The assistant could not answer or alert an admin. Tap Try connecting below.');
+        }
       }
     }
   };
@@ -715,17 +722,19 @@ const SupportChatPage = () => {
   // ── Resolution — Yes ───────────────────────────────────────────────────────
   // Conversation stays bot-handled — the bot answered successfully.
   const handleResolvedYes = async () => {
+    const responseId = pendingResolutionId;
     setPendingResolutionId(null);
     resetConversationContext(botContextRef.current, user?.id, conversationId);
     // The deflection signal. Without it a bot-answered thread and an
     // abandoned one look identical in the data. Non-blocking: a failed
     // write must never cost the customer their reply.
     void recordBotOutcome(conversationId, true).catch(() => {});
-    const msg = await insertBotMessage(
-      `Thank you for contacting CargoExpress PH! 😊\n\nHave a great day! If you have another concern in the future, feel free to message us anytime.`,
-      conversationId
-    );
-    if (msg) setMessages(prev => prev.some(m => m.id === msg.id) ? prev : [...prev, msg]);
+    try {
+      const { message } = await askAssistant('close', { conversationId, messageId: responseId });
+      if (message) setMessages(prev => prev.some(m => m.id === message.id) ? prev : [...prev, message]);
+    } catch {
+      toast.error('Could not finish the chat message. You can still ask another question.');
+    }
     // Conversation status remains 'bot_active' — bot stays in control
   };
 
@@ -735,17 +744,14 @@ const SupportChatPage = () => {
     setPendingResolutionId(null);
     resetConversationContext(botContextRef.current, user?.id, conversationId);
     void recordBotOutcome(conversationId, false).catch(() => {});
-    const escMsg = await insertBotMessage(
-      `Thank you. I wasn't able to fully resolve your concern. 🙏\n\nPlease wait while one of our administrators assists you.`,
-      conversationId
-    );
-    if (escMsg) setMessages(prev => prev.some(m => m.id === escMsg.id) ? prev : [...prev, escMsg]);
     try {
       await escalateConversation(conversationId);
       setConvStatus(CONVERSATION_STATUS.WAITING);
       setIsBotMode(false);
+      setHandoffFailed(false);
     } catch {
-      toast.error('Failed to connect to admin. Please try again.');
+      setHandoffFailed(true);
+      toast.error('Failed to connect to admin. Tap Try connecting below.');
     }
   };
 
@@ -815,6 +821,19 @@ const SupportChatPage = () => {
           <div className="chat-waiting-banner" role="status">
             <Clock size={16} />
             <span>Connecting you to an admin. You can keep adding details here while you wait.</span>
+          </div>
+        )}
+        {handoffFailed && (
+          <div className="chat-waiting-banner" role="alert">
+            <span>We could not notify an admin yet.</span>
+            <button type="button" onClick={async () => {
+              try {
+                await escalateConversation(conversationId);
+                setConvStatus(CONVERSATION_STATUS.WAITING);
+                setIsBotMode(false);
+                setHandoffFailed(false);
+              } catch { toast.error('Still unable to connect. Please try again.'); }
+            }}>Try connecting to an admin</button>
           </div>
         )}
 

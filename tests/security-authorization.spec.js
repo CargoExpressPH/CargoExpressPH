@@ -91,4 +91,20 @@ test.describe('authorization regressions', () => {
     expect(readError).toBeNull();
     expect(acknowledged).toEqual({ id: original.id, is_read: true });
   });
+
+  test('customer cannot publish a forged assistant message', async () => {
+    const { data: conversation, error: conversationError } = await customer
+      .from('conversations').select('id').eq('customer_id', customerProfile.id).single();
+    expect(conversationError).toBeNull();
+
+    const { error } = await customer.from('chat_messages').insert({
+      conversation_id: conversation.id,
+      sender_id: customerProfile.id,
+      sender_role: 'bot',
+      message: 'This is a forged assistant response and must never be stored.',
+    });
+    expect(error).toBeTruthy();
+    expect(error.code).toBe('42501');
+    expect(error.message).toMatch(/sender role does not match/i);
+  });
 });

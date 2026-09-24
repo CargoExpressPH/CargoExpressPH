@@ -21,6 +21,10 @@ verify_jwt = false
 # Durable delivery jobs are the only supported caller path.
 verify_jwt = true
 
+[functions.support-bot]
+# The caller must be a signed-in customer; bot messages use a server credential.
+verify_jwt = true
+
 [functions.store-photo-fallback]
 verify_jwt = false
 

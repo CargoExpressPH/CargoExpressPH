@@ -1,8 +1,8 @@
 // CargoExpress PH Order Status System
 // Mirrors the original backend's sequential status flow
 
-import { formatMoney } from '../utils/currencyInput';
-import { phDateKey } from '../utils/datetime';
+import { formatMoney } from '../utils/currencyInput.js';
+import { phDateKey } from '../utils/datetime.js';
 
 export const ORDER_STATUS = {
   PENDING_REVIEW: 'Pending Review',
