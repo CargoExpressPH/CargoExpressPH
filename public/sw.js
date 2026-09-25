@@ -28,9 +28,6 @@ const APP_SHELL = [
   // broken-image icon on the loading screen the moment the app opened
   // offline.
   '/images/logo-nav.png',
-  // The on-screen mark BrandLogo renders (navbar, sidebar, auth panels and the
-  // boot loading screen); logo-nav.png above is now the print badge only.
-  '/images/logo-mark.svg',
   '/icons/icon-32.png',
   '/icons/icon-192.png',
   '/icons/icon-72.png',

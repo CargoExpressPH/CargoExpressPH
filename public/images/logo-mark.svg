@@ -1,8 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="CargoExpress PH">
-  <circle cx="32" cy="32" r="32" fill="#15803D"/>
-  <g fill="none" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M36 16 50 23v17l-14 7-14-7V23z"/>
-    <path d="M22 23l14 7 14-7M36 30v17"/>
-    <path d="M9 28h7M11 36h6"/>
-  </g>
-</svg>

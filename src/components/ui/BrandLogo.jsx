@@ -7,14 +7,24 @@
  *   BrandWordmark  the words alone — "CARGOEXPRESS PH", always
  *   BrandLockup    mark + wordmark, the standard pairing
  *
- * The on-screen mark is `/images/logo-mark.svg`: a flat green disc with a
- * parcel glyph, drawn to stay legible down to 24 px and to sit on light and
- * dark surfaces alike (no white backing). The original illustrated badge has
- * type baked into it that is illegible below about 80 px, so it is kept for
- * print (`/images/logo-nav.png`, PrintHeader) and social previews
- * (`/images/logo.png`, the untouched master) only. The HTML wordmark carries
- * the name — crisp at any size, themeable, selectable, and readable by a
- * screen reader.
+ * The lockup exists because the supplied artwork is a circular badge with the
+ * wordmark baked into it, and baked-in type is illegible below about 80 px. The
+ * badge carries recognition, the HTML text carries the name — crisp at any
+ * size, themeable, selectable, translatable, and readable by a screen reader.
+ * Rendering the badge alone in a 40 px navbar left the product with no legible
+ * brand name at all.
+ *
+ * Two properties of the artwork drive the mark:
+ *
+ *   It is a circle on an OPAQUE WHITE background — the PNG has no alpha. Left
+ *   square it renders as a bright tile on the dark sidebar (#060E1A) and the
+ *   dark glass navbar. `border-radius: 50%` clips it back to the circle the
+ *   artwork already draws, so the white reads as the badge's own fill.
+ *
+ *   It is 2000×2000 and ~949 KB. Into a 40 px slot on every page of a PWA that
+ *   is the entire image budget spent on a favicon-sized element, so
+ *   `/images/logo-nav.png` is an optimized, downscaled derivative (256 px, ~38 KB).
+ *   `/images/logo.png` remains the untouched master.
  *
  * `tone` picks the wordmark colours: "default" on light surfaces, "on-dark" for
  * the auth hero panels and the transparent About header, which sit on dark
@@ -30,7 +40,7 @@
  */
 export const BrandLogo = ({ size = 40, decorative = false, className = '' }) => (
   <img
-    src="/images/logo-mark.svg"
+    src="/images/logo-nav.png"
     alt={decorative ? '' : 'CargoExpress PH'}
     // Intrinsic size, so the row reserves the box before the image lands and
     // does not jolt sideways on first paint.
