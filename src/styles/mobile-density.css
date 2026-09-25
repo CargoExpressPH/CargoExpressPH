@@ -338,8 +338,17 @@
 
   .customer-layout-v2 .customer-snapshot-label {
     font-size: var(--text-12);
-    white-space: normal;
-    overflow-wrap: anywhere;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .customer-layout-v2 .customer-snapshot-label-full {
+    display: none;
+  }
+
+  .customer-layout-v2 .customer-snapshot-label-short {
+    display: inline;
   }
 }
 

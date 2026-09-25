@@ -515,6 +515,8 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.customer-snapshot-label-full { display: inline; }
+.customer-snapshot-label-short { display: none; }
 
 /* Home Trip Capacity Progress Strip */
 .home-trip-capacity-strip {

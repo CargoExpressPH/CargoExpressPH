@@ -190,7 +190,10 @@ const HomePage = () => {
               </div>
               <div className="customer-snapshot-info">
                 <div className="customer-snapshot-value">{orders.length}</div>
-                <div className="customer-snapshot-label">Total Bookings</div>
+                <div className="customer-snapshot-label">
+                  <span className="customer-snapshot-label-full">Total Bookings</span>
+                  <span className="customer-snapshot-label-short">Bookings</span>
+                </div>
               </div>
             </div>
 
