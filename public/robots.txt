@@ -1,12 +1,3 @@
 User-agent: *
 Allow: /
-Disallow: /admin/
-Disallow: /customer/
-Disallow: /payment/
-Disallow: /login
-Disallow: /register
-Disallow: /forgot-password
-Disallow: /reset-password
-Disallow: /unsubscribe
-
 Sitemap: https://www.cargoexpress-ph.online/sitemap.xml
