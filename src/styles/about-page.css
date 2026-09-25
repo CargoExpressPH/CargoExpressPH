@@ -111,6 +111,19 @@
   transition: transform 0.25s ease, background-color 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease, color 0.25s ease;
   border: none;
   cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+/* Phones only have room for "Dashboard" beside the brand; "Go to" returns
+   once the row is wide enough. */
+@media (max-width: 480px) {
+  .about-login-btn-prefix { display: none; }
+}
+/* On the narrowest phones the brand leaves ~105px, so drop the arrow and
+   tighten the padding to keep the button inside the nav bar. */
+@media (max-width: 360px) {
+  .about-login-btn { padding: 10px 12px; }
+  .about-login-btn svg { display: none; }
 }
 .about-login-btn.transparent {
   background: rgba(255,255,255,0.15);

@@ -43,6 +43,9 @@
 .public-shell-link:hover {
   color: var(--primary-text);
 }
+.public-shell-dashboard {
+  white-space: nowrap;
+}
 
 .public-shell-main {
   flex: 1;
@@ -56,5 +59,9 @@
 @media (max-width: 480px) {
   .public-shell-header {
     padding: 12px 16px;
+  }
+  /* "Dashboard" alone fits beside the brand on a phone. */
+  .public-shell-dashboard-prefix {
+    display: none;
   }
 }

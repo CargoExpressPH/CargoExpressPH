@@ -9,7 +9,8 @@ import { useDashboardPath } from '../../hooks/useDashboardPath';
 /**
  * Minimal chrome for guest-accessible pages that aren't part of the About
  * page itself (currently /schedules and /faq) — a slim top bar with the
- * brand and sign-in/sign-up, the page content, and the same public Footer
+ * brand and sign-in/sign-up (or "Go to Dashboard" once signed in), the page
+ * content, and the same public Footer
  * used on About. Deliberately not CustomerLayout: that layout assumes a
  * signed-in user everywhere (avatar, notification bell, unread counts) and
  * would either break or need auth-guarding just to render for a guest.
@@ -40,7 +41,9 @@ const PublicShell = ({ children }) => {
         </Link>
         <nav className="public-shell-nav" aria-label="Account">
           {dashboardPath ? (
-            <Link to={dashboardPath} className="btn btn-primary btn-sm">Go to Dashboard</Link>
+            <Link to={dashboardPath} className="btn btn-primary btn-sm public-shell-dashboard">
+              <span><span className="public-shell-dashboard-prefix">Go to </span>Dashboard</span>
+            </Link>
           ) : (
             <>
               <Link to="/login" className="public-shell-link">Log In</Link>

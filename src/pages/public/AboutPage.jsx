@@ -835,7 +835,9 @@ const AboutPage = () => {
             to={dashboardPath || '/login'}
             className={`about-login-btn ${scrolled ? 'scrolled' : 'transparent'}`}
           >
-            {dashboardPath ? 'Go to Dashboard' : 'Sign In'} <ChevronRight size={16} />
+            {dashboardPath
+              ? <span><span className="about-login-btn-prefix">Go to </span>Dashboard</span>
+              : 'Sign In'} <ChevronRight size={16} />
           </Link>
         </div>
       </nav>
