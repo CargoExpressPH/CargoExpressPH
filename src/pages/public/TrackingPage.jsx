@@ -1,10 +1,12 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { getPublicOrderEvents, getPublicTrackingResult } from '../../lib/database';
+import { getActiveShipments, getCompanyInformation, getPublicOrderEvents, getPublicTrackingResult } from '../../lib/database';
+import { useAuth } from '../../contexts/AuthContext';
+import { useToast } from '../../hooks/useToast';
 import { buildStatusTimestamps } from '../../utils/statusTimestamps';
 import { formatPhDate, formatPhDateTime } from '../../utils/datetime';
 import {
-  Search, Loader, Package, MapPin, Check, MessageCircle,
+  Search, Loader, Package, MapPin, Check, MessageCircle, Copy, Share2, Phone, ExternalLink,
   CheckCircle2, XCircle, Clock, Weight, User,
   RefreshCw, AlertTriangle, ShieldAlert, Truck, Calendar, Info, ClipboardCheck, Building2, Bike,
 } from 'lucide-react';
@@ -123,6 +125,11 @@ const detectRateLimit = (err) => {
 const TrackingPage = ({ embedded = false }) => {
   usePageTitle('Track Shipment');
   const dashboardPath = useDashboardPath();
+  const { user, userProfile } = useAuth();
+  const toast = useToast();
+  const isCustomer = Boolean(user) && userProfile?.role === 'customer';
+  const [activeShipments, setActiveShipments] = useState([]);
+  const [company, setCompany] = useState(null);
   const [searchParams] = useSearchParams();
   const [trackingNumber, setTrackingNumber] = useState(searchParams.get('q') || '');
   const [order,   setOrder]   = useState(null);
@@ -312,6 +319,67 @@ const TrackingPage = ({ embedded = false }) => {
     };
   }, [order?.status, fetchOrder, isRateLimited]);
 
+  // A signed-in customer picks from their own shipments instead of typing.
+  // Best-effort: the page works the same without the list.
+  useEffect(() => {
+    if (!isCustomer || !user?.id) { setActiveShipments([]); return undefined; }
+    let alive = true;
+    getActiveShipments(user.id)
+      .then(rows => { if (alive) setActiveShipments(rows); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [isCustomer, user?.id]);
+
+  // Contact details for "Need help?" come from Admin > Company Information.
+  useEffect(() => {
+    let alive = true;
+    getCompanyInformation()
+      .then(info => { if (alive) setCompany(info); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, []);
+
+  const trackShipment = (tn) => {
+    if (isRateLimitedRef.current) return;
+    setTrackingNumber(tn);
+    clearError('tracking_number');
+    activeQueryRef.current = tn;
+    fetchOrder(tn);
+  };
+
+  const copyText = async (text) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  const handleCopy = async () => {
+    if (await copyText(order.tracking_number)) toast.success('Tracking number copied');
+    else toast.error('Could not copy. Press and hold the number to copy it.');
+  };
+
+  // The link reopens this page with the number filled in (?q= is read on load).
+  const handleShare = async () => {
+    const url = `${window.location.origin}/track?q=${encodeURIComponent(order.tracking_number)}`;
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'Track my CargoExpress PH shipment',
+          text: `Tracking number: ${order.tracking_number}`,
+          url,
+        });
+        return;
+      } catch (err) {
+        if (err?.name === 'AbortError') return; // the person closed the share sheet
+      }
+    }
+    if (await copyText(url)) toast.success('Tracking link copied — paste it in Messenger or Viber');
+    else toast.error('Could not share. Copy the tracking number instead.');
+  };
+
   const handleSearch = (e) => {
     e.preventDefault();
     if (isRateLimitedRef.current) return;
@@ -403,6 +471,17 @@ const TrackingPage = ({ embedded = false }) => {
   );
 
   const supportPath = dashboardPath === '/customer' ? '/customer/support' : '/about#contact';
+  // "Need help?" offers only what the admin has filled in; a guest with no
+  // listed number still gets the About page's contact form.
+  const telHref = (value) => `tel:${String(value).replace(/(?!^\+)[^\d]/g, '')}`;
+  const helpLinks = [
+    isCustomer && { key: 'chat', to: '/customer/support', Icon: MessageCircle, label: 'Chat with support' },
+    company?.smart_phone && { key: 'smart', href: telHref(company.smart_phone), Icon: Phone, label: `Smart ${company.smart_phone}` },
+    company?.globe_phone && { key: 'globe', href: telHref(company.globe_phone), Icon: Phone, label: `Globe ${company.globe_phone}` },
+    // Only a web link, never another scheme, even though admins set this.
+    /^https?:\/\//i.test(company?.facebook || '') && { key: 'facebook', href: company.facebook, external: true, Icon: ExternalLink, label: 'Facebook page' },
+  ].filter(Boolean);
+  if (!helpLinks.length) helpLinks.push({ key: 'contact', to: '/about#contact', Icon: MessageCircle, label: 'Contact us' });
   const RootTag = embedded ? 'div' : 'main';
   const errorCopy = errorKind ? TRACKING_ERROR_COPY[errorKind] : null;
   const LookupErrorIcon = errorKind === 'not_found' ? XCircle : AlertTriangle;
@@ -490,6 +569,31 @@ const TrackingPage = ({ embedded = false }) => {
         </div>
         <FieldError name="tracking_number" errors={errors} />
       </form>
+
+      {/* ══════════ YOUR ACTIVE SHIPMENTS (signed-in customers) ══════════ */}
+      {activeShipments.length > 0 && (
+        <nav className="trk-quick" aria-label="Your active shipments">
+          <p className="trk-quick-label">Your active shipments</p>
+          <div className="trk-quick-list">
+            {activeShipments.map(shipment => {
+              const selected = order?.tracking_number === shipment.tracking_number;
+              return (
+                <button
+                  key={shipment.tracking_number}
+                  type="button"
+                  className={`trk-quick-chip${selected ? ' is-selected' : ''}`}
+                  onClick={() => trackShipment(shipment.tracking_number)}
+                  aria-pressed={selected}
+                  disabled={loading || isRateLimited}
+                >
+                  <span className="trk-quick-number">{shipment.tracking_number}</span>
+                  <span className="trk-quick-status">{shipment.status}</span>
+                </button>
+              );
+            })}
+          </div>
+        </nav>
+      )}
 
       {/* ══════════ RATE LIMIT CARD ══════════
           Shown when limited and there is no result to keep on screen.
@@ -580,8 +684,18 @@ const TrackingPage = ({ embedded = false }) => {
                 </div>
               </div>
               <div className="trk-hero-number">
-                <p className="trk-eyebrow">Tracking No.</p>
-                <p className="trk-hero-number-value">{order.tracking_number}</p>
+                <div className="trk-hero-number-text">
+                  <p className="trk-eyebrow">Tracking No.</p>
+                  <p className="trk-hero-number-value">{order.tracking_number}</p>
+                </div>
+                <div className="trk-hero-actions">
+                  <button type="button" className="trk-action-btn" onClick={handleCopy} aria-label={`Copy tracking number ${order.tracking_number}`}>
+                    <Copy size={14} aria-hidden="true" /> Copy
+                  </button>
+                  <button type="button" className="trk-action-btn" onClick={handleShare} aria-label="Share tracking link">
+                    <Share2 size={14} aria-hidden="true" /> Share
+                  </button>
+                </div>
               </div>
             </div>
             {STATUS_DESCRIPTIONS[order.status] && (
@@ -688,6 +802,30 @@ const TrackingPage = ({ embedded = false }) => {
               </div>
             </section>
           </div>
+
+          {/* ── Need help? ── */}
+          <section className="trk-help" aria-labelledby="trk-help-title">
+            <div className="trk-help-text">
+              <p id="trk-help-title" className="trk-help-title">Need help with this shipment?</p>
+              <p className="trk-help-sub">Have your tracking number ready when you contact us.</p>
+            </div>
+            <div className="trk-help-actions">
+              {helpLinks.map(({ key, to, href, external, Icon, label }) => (
+                to ? (
+                  <Link key={key} to={to} className="trk-help-link"><Icon size={15} aria-hidden="true" /> {label}</Link>
+                ) : (
+                  <a
+                    key={key}
+                    href={href}
+                    className="trk-help-link"
+                    {...(external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+                  >
+                    <Icon size={15} aria-hidden="true" /> {label}
+                  </a>
+                )
+              ))}
+            </div>
+          </section>
 
           {/* ── Footer timestamps ── */}
           <div className="trk-card-footer">

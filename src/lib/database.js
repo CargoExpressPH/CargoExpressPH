@@ -3779,6 +3779,24 @@ export const getPublicTrackingResult = async (trackingNumber) => {
   return data;
 };
 
+/**
+ * A signed-in customer's shipments that are still on the way — the quick-pick
+ * list on the Track page. Only what a chip shows; RLS already limits the rows
+ * to the caller's own orders, and the user_id filter says so explicitly.
+ */
+export const getActiveShipments = async (userId, limit = 6) => {
+  if (!userId) return [];
+  const { data, error } = await supabase
+    .from('orders')
+    .select('tracking_number, status, created_at')
+    .eq('user_id', userId)
+    .not('status', 'in', '("Delivered","Cancelled")')
+    .order('created_at', { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return data || [];
+};
+
 // Ã¢â€â‚¬Ã¢â€â‚¬ Profile self-service update (moved out of PersonalInfoPage) Ã¢â€â‚¬Ã¢â€â‚¬
 export const updateOwnProfile = async (userId, fields) => {
   const { error } = await supabase

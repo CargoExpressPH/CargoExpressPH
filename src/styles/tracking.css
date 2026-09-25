@@ -145,6 +145,51 @@
 .trk-search-btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
 .trk-search-btn:focus-visible { outline: 3px solid var(--primary-light); outline-offset: 2px; }
 
+/* -- Your active shipments (signed-in customers) -- */
+.trk-quick {
+  width: 100%; max-width: 580px;
+  margin: -12px auto 28px;
+  position: relative; z-index: 1;
+}
+.trk-page--embedded .trk-quick { max-width: none; margin-top: -8px; }
+.trk-quick-label {
+  margin-bottom: 8px;
+  font-size: var(--text-12); font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.08em; color: var(--text-tertiary);
+}
+.trk-quick-list {
+  display: flex; flex-wrap: wrap; gap: 8px;
+}
+.trk-quick-chip {
+  display: inline-flex; flex-direction: column; align-items: flex-start; gap: 1px;
+  min-height: 44px; padding: 8px 14px;
+  border-radius: var(--radius-md);
+  background: var(--surface); border: 1px solid var(--border);
+  color: var(--text); text-align: left;
+  cursor: pointer; touch-action: manipulation;
+  transition: var(--transition-fast);
+}
+.trk-quick-chip:hover:not(:disabled) { border-color: var(--primary-light); }
+.trk-quick-chip.is-selected { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-glow); }
+.trk-quick-chip:disabled { opacity: 0.6; cursor: not-allowed; }
+.trk-quick-chip:focus-visible { outline: 3px solid var(--primary-light); outline-offset: 2px; }
+.trk-quick-number {
+  font-size: var(--text-13); font-weight: 700; letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.trk-quick-status { font-size: var(--text-12); color: var(--text-secondary); }
+/* Phones: one swipeable row instead of a tall stack of chips. */
+@media (max-width: 640px) {
+  .trk-quick-list {
+    flex-wrap: nowrap; overflow-x: auto;
+    scroll-snap-type: x proximity;
+    padding-bottom: 4px;
+    scrollbar-width: none;
+  }
+  .trk-quick-list::-webkit-scrollbar { display: none; }
+  .trk-quick-chip { flex-shrink: 0; scroll-snap-align: start; }
+}
+
 /* -- Error / Not Found -- */
 .trk-not-found {
   background: var(--surface);
@@ -310,7 +355,11 @@
   letter-spacing: -0.02em; color: var(--trk-tone);
   overflow-wrap: anywhere;
 }
-.trk-hero-number { text-align: right; min-width: 0; }
+.trk-hero-number {
+  display: flex; align-items: center; gap: 12px 16px; flex-wrap: wrap;
+  justify-content: flex-end; text-align: right; min-width: 0;
+}
+.trk-hero-number-text { min-width: 0; }
 .trk-hero-number-value {
   margin-top: 2px;
   font-size: var(--text-16); font-weight: 700; color: var(--text);
@@ -498,6 +547,57 @@
 
 .trk-timestamp-live { color: var(--primary-text); }
 .trk-timestamp-live svg { animation: none; }
+
+/* Copy / Share beside the tracking number */
+.trk-hero-actions {
+  display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px;
+}
+.trk-action-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  min-height: 36px; padding: 6px 14px;
+  border-radius: var(--radius-full);
+  background: var(--surface); border: 1px solid var(--border);
+  color: var(--text); font-size: var(--text-13); font-weight: 700;
+  cursor: pointer; touch-action: manipulation;
+  transition: var(--transition-fast);
+}
+.trk-action-btn:hover { border-color: var(--trk-tone-border); color: var(--trk-tone); }
+.trk-action-btn:focus-visible { outline: 3px solid var(--primary-light); outline-offset: 2px; }
+
+/* Need help? */
+.trk-help {
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 12px 20px;
+  padding: 18px 28px;
+  border-top: 1px solid var(--border-light);
+  background: var(--primary-bg);
+}
+.trk-help-title { font-size: var(--text-14); font-weight: 800; color: var(--text); }
+.trk-help-sub { margin-top: 2px; font-size: var(--text-13); color: var(--text-secondary); }
+.trk-help-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.trk-help-link {
+  display: inline-flex; align-items: center; gap: 6px;
+  min-height: 40px; padding: 8px 14px;
+  border-radius: var(--radius-full);
+  background: var(--surface); border: 1px solid var(--primary-light);
+  color: var(--primary-text-strong);
+  font-size: var(--text-13); font-weight: 700; text-decoration: none;
+  white-space: nowrap;
+  transition: var(--transition-fast);
+}
+.trk-help-link:hover { background: var(--primary-bg); }
+.trk-help-link svg { flex-shrink: 0; }
+
+@container (max-width: 520px) {
+  .trk-hero-number { flex-direction: column; align-items: flex-start; gap: 10px; }
+  .trk-hero-actions { justify-content: flex-start; }
+  .trk-help { padding: 16px 18px; }
+  .trk-help-actions { width: 100%; }
+  .trk-help-link { flex: 1 1 auto; justify-content: center; }
+}
+@container (max-width: 340px) {
+  .trk-help { padding: 16px 14px; }
+}
 
 /* Card-width breakpoints */
 @container (max-width: 520px) {
