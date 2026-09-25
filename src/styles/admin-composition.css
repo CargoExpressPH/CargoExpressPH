@@ -1073,6 +1073,39 @@
   white-space: nowrap;
 }
 
+/* On phones, keep the route readable instead of squeezing it between the
+   tracking number and the status badge. The number and route share the first
+   column; the badge stays aligned in the second column. */
+@media (max-width: 640px) {
+  .dash-other-trip-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    column-gap: 10px;
+    row-gap: 2px;
+  }
+
+  .dash-other-trip-ref {
+    grid-column: 1;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .dash-other-trip-route {
+    grid-column: 1;
+    grid-row: 2;
+    overflow: visible;
+    line-height: 1.35;
+    text-overflow: clip;
+    white-space: normal;
+  }
+
+  .dash-other-trip-row > .badge {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    justify-self: end;
+    white-space: nowrap;
+  }
+}
+
 .dash-money-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
