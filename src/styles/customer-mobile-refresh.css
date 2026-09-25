@@ -613,6 +613,29 @@
   margin-left: auto;
 }
 
+/* Order cards: status first. Every card has the same shape whatever the
+   status says — the pill and chevron share the top row, which has room for
+   the longest label ("Pending Cancellation") on a 320px phone, and the
+   tracking number and booked date sit beneath at full width. Status leads
+   because it is what a customer scans a list of shipments for. */
+.customer-list-card-top.customer-list-card-top--status {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+}
+
+.customer-list-card-top.customer-list-card-top--status > * + * {
+  margin-left: 0;
+}
+
+.customer-list-card-status-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
 /* overflow-wrap: normal — a tracking number only breaks at its hyphens, and
    only on screens too narrow to hold it whole. */
 .customer-list-card-title {

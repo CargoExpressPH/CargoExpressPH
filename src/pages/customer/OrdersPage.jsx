@@ -176,14 +176,14 @@ const OrdersPage = () => {
             <StaggerItem key={order.id} delay={(index + 2) * 60} className="mb-12">
               <Link to={`/customer/orders/${order.id}`} className="customer-order-list-card customer-shipment-card-v2 card card-interactive block text-no-underline" style={{ color: 'inherit' }}>
                 <div className="card-body p-16">
-                  <div className="customer-list-card-top">
+                  <div className="customer-list-card-top customer-list-card-top--status">
+                    <div className="customer-list-card-status-row">
+                      <StatusBadge status={order.status} size="sm" />
+                      <ChevronRight size={18} className="customer-card-chevron" aria-hidden="true" />
+                    </div>
                     <div className="flex flex-col min-width-0">
                       <span className="customer-list-card-title flex items-center gap-6"><Package size={14} className="text-tertiary" aria-hidden="true" />{order.tracking_number}</span>
                       <span className="customer-list-card-booked-date">Booked: {fmtDate(order.created_at)}</span>
-                    </div>
-                    <div className="flex items-center gap-8 flex-shrink-0">
-                      <StatusBadge status={order.status} size="sm" />
-                      <ChevronRight size={18} className="customer-card-chevron" />
                     </div>
                   </div>
                   <div className="customer-list-card-route-visual">
