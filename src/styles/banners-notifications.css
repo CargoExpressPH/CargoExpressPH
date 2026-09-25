@@ -128,7 +128,6 @@
 .notification-unread-dot {
   width: 8px; height: 8px; border-radius: 50%;
   background: var(--primary); flex-shrink: 0;
-  animation: breathe 2s ease-in-out infinite;
 }
 
 .notification-date-separator {
