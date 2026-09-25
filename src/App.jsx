@@ -12,6 +12,7 @@ import { ThemeProvider } from './contexts/ThemeContext';
 import { ToastProvider } from './hooks/useToast';
 import { resolveAuthRouteState } from './lib/authRouteState';
 import { loadCustomerHomePage } from './lib/routePreloads';
+import { isStandaloneWebApp } from './lib/apple-platform';
 
 // Layouts — eagerly loaded (always needed)
 import AdminLayout from './components/layout/AdminLayout';
@@ -138,7 +139,13 @@ const AuthRoute = ({ children }) => {
 const RootRedirect = () => {
   const { user, userProfile, loading } = useAuth();
   if (loading) return <LoadingScreen />;
-  if (!user) return <PublicShell><LandingPage /></PublicShell>;
+  // The installed app (manifest start_url "/") is opened by people who
+  // already have an account, so a guest there goes straight to Login. In a
+  // browser, "/" stays the public home page that search engines index.
+  if (!user) {
+    if (isStandaloneWebApp()) return <Navigate to="/login" replace />;
+    return <PublicShell><LandingPage /></PublicShell>;
+  }
   if (!userProfile || !userProfile.role) return <Navigate to="/login" replace />;
   return <Navigate to={userProfile.role === 'admin' ? '/admin' : '/customer'} replace />;
 };
