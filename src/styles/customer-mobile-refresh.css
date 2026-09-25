@@ -591,21 +591,37 @@
   gap: 10px;
 }
 
+/* Tracking number on the left, status badge + chevron on the right. A long
+   badge ("Pending Cancellation") no longer squeezes the tracking number into
+   a character-by-character wrap: when both do not fit on one line, the badge
+   group wraps to its own line, still right-aligned, and the tracking number
+   stays whole. */
 .customer-list-card-top {
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 12px;
+  gap: 8px 12px;
   min-width: 0;
 }
 
+.customer-list-card-top > :first-child {
+  flex: 1 1 auto;
+}
+
+.customer-list-card-top > * + * {
+  margin-left: auto;
+}
+
+/* overflow-wrap: normal — a tracking number only breaks at its hyphens, and
+   only on screens too narrow to hold it whole. */
 .customer-list-card-title {
   min-width: 0;
   color: var(--customer-ink);
   font-size: var(--text-16);
   font-weight: 700;
   line-height: 1.2;
-  overflow-wrap: anywhere;
+  overflow-wrap: normal;
 }
 
 .customer-list-card-route,
@@ -934,7 +950,11 @@
   gap: 14px;
 }
 
+/* Same rule as the list cards: the status badge wraps below the tracking
+   number instead of forcing the number onto three lines. */
 .customer-order-detail-header {
+  flex-wrap: wrap;
+  row-gap: 10px;
   margin-bottom: 6px;
   padding: 18px;
   border: 1px solid var(--customer-line);
@@ -945,6 +965,7 @@
 
 .customer-order-detail-header h1,
 .customer-order-detail-header h2 {
+  overflow-wrap: normal;
   color: var(--customer-ink);
   font-size: clamp(1.25rem, 5vw, 1.8rem);
   font-weight: 700;

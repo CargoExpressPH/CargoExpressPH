@@ -127,9 +127,13 @@
   gap: 8px;
 }
 
+/* align-content: start, not center. On phones "Total Bookings" wraps to two
+   lines while "Active now" and "Delivered" fit on one; centring pushed that
+   tile's icon and number higher than its neighbours. Anchored to the top,
+   the three icons and numbers always line up, and only the label grows. */
 .customer-layout-v2 .customer-snapshot-pill {
   display: grid;
-  align-content: center;
+  align-content: start;
   min-width: 0;
 }
 
