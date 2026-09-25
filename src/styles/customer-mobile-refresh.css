@@ -727,7 +727,6 @@
 }
 
 .customer-trip-list-card {
-  display: block;
   width: 100%;
   text-align: left;
   color: inherit;
@@ -756,13 +755,6 @@
   font-size: var(--text-24);
   font-weight: 700;
   line-height: 0.98;
-}
-
-.customer-trip-row {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  gap: 14px;
-  align-items: center;
 }
 
 .booking-page {
@@ -1560,14 +1552,6 @@ input:checked + .toggle-slider:before {
 
   .customer-snapshot-label {
     font-size: var(--text-12);
-  }
-
-  .customer-trip-row {
-    grid-template-columns: auto minmax(0, 1fr);
-  }
-
-  .customer-trip-row .customer-card-chevron {
-    display: none;
   }
 
   .customer-bottom-nav {
@@ -2391,8 +2375,7 @@ body:has(textarea:focus) .support-chat-page {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  margin-top: 12px;
-  padding: 8px 14px;
+  padding: 10px 16px;
   border-radius: var(--radius-full);
   background: var(--primary-fill);
   color: #FFFFFF;
@@ -2416,16 +2399,153 @@ body:has(textarea:focus) .support-chat-page {
   text-align: center;
 }
 
-.customer-trip-status {
+/* Trip cards: one column on phones, a grid once there is room for two.
+   Sized by the list's own width, so the public /schedules page and the
+   customer layout (with its sidebar) both get the right number of columns. */
+.customer-trip-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
+  gap: 14px;
+}
+
+.customer-trip-list-card {
   display: flex;
-  margin-bottom: 6px;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px;
+  min-width: 0;
 }
 
-.customer-trip-status .badge {
-  white-space: nowrap;
+.ctrip-top {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
 }
 
-.customer-trip-title {
+.ctrip-heading { min-width: 0; }
+
+.ctrip-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.ctrip-badges .badge { white-space: nowrap; }
+
+.ctrip-route {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 8px;
+  margin: 0;
+  font-size: var(--text-18);
+  font-weight: 800;
+  line-height: 1.25;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.ctrip-route-arrow { flex-shrink: 0; color: var(--text-tertiary); }
+
+.ctrip-when {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 6px 0 0;
+  font-size: var(--text-13);
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.ctrip-when svg { flex-shrink: 0; }
+
+.ctrip-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.ctrip-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-light);
+}
+
+.ctrip-stat-label {
+  font-size: var(--text-12);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+.ctrip-stat-value {
+  font-size: var(--text-16);
+  font-weight: 800;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.ctrip-stat-sub {
+  font-size: var(--text-12);
+  color: var(--text-secondary);
+}
+
+.ctrip-meter {
   display: block;
-  margin-bottom: 6px;
+  height: 6px;
+  margin-top: 4px;
+  border-radius: 999px;
+  background: var(--border-light);
+  overflow: hidden;
+}
+
+.ctrip-meter > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--success);
+}
+
+.ctrip-stat.is-filling .ctrip-meter > span { background: var(--warning); }
+.ctrip-stat.is-filling .ctrip-stat-value { color: var(--warning-text); }
+
+.ctrip-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: auto;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-light);
+}
+
+.ctrip-number {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: var(--text-13);
+  font-weight: 600;
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.ctrip-number svg { flex-shrink: 0; }
+
+/* Narrowest phones: the call to action spans the card so it is easy to tap. */
+@media (max-width: 380px) {
+  .customer-trip-list-card { padding: 16px 14px; }
+  .ctrip-stats { gap: 8px; }
+  .ctrip-stat { padding: 10px 12px; }
+  .ctrip-footer .customer-trip-book-cta { width: 100%; justify-content: center; }
 }

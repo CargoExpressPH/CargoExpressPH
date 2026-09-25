@@ -4,11 +4,11 @@ import { getTrips } from '../../lib/database';
 import StatusBadge from '../../components/ui/StatusBadge';
 import { CenteredSpinner } from '../../components/ui/Loader';
 import EmptyState from '../../components/ui/EmptyState';
-import { Calendar, Truck, AlertCircle, ChevronRight, RefreshCw } from 'lucide-react';
+import { Calendar, Truck, AlertCircle, ChevronRight, RefreshCw, ArrowRight } from 'lucide-react';
 import usePageTitle from '../../hooks/usePageTitle';
 import PullToRefresh from '../../components/ui/PullToRefresh';
 import { formatMoney } from '../../utils/currencyInput';
-import { formatTripScheduleDate } from '../../utils/datetime';
+import { formatPhDate, formatTripScheduleDate } from '../../utils/datetime';
 import { useTripBooking } from '../../hooks/useTripBooking';
 import { PUBLIC_PAGES } from '../../seo/publicPages';
 
@@ -126,60 +126,79 @@ const TripsPage = () => {
           />
         </div>
       ) : (
-        trips.map((trip, index) => {
-          const tripDate = formatTripScheduleDate(trip.departure_date);
-          return (
-            <button
-              key={trip.id}
-              type="button"
-              className="customer-trip-list-card card card-interactive stagger-item mb-12"
-              style={{ animationDelay: `${index * 60}ms` }}
-              onClick={() => selectTrip(trip)}
-            >
-              <div className="card-body p-16">
-                <div className="customer-trip-row">
-                  <div className="customer-trip-date-badge">
+        <div className="customer-trip-grid">
+          {trips.map((trip, index) => {
+            const tripDate = formatTripScheduleDate(trip.departure_date);
+            const capacity = Number(trip.capacity) || 0;
+            const booked = Number(trip.current_weight) || 0;
+            const spaceLeft = Math.max(0, capacity - booked);
+            // Capacity is company-wide (Company Information); with none set
+            // there is nothing meaningful to draw, so the meter is omitted.
+            const usedPct = capacity > 0 ? Math.min(100, Math.round((booked / capacity) * 100)) : null;
+            const fillingUp = usedPct !== null && usedPct >= 85;
+            return (
+              <button
+                key={trip.id}
+                type="button"
+                className="customer-trip-list-card card card-interactive stagger-item"
+                style={{ animationDelay: `${index * 60}ms` }}
+                onClick={() => selectTrip(trip)}
+                aria-label={`Book trip ${trip.trip_number}, ${trip.origin} to ${trip.destination}, departing ${tripDate.full}`}
+              >
+                <div className="ctrip-top">
+                  <div className="customer-trip-date-badge" aria-hidden="true">
                     <span>{tripDate.month}</span>
                     <strong>{tripDate.day}</strong>
                   </div>
-                  <div>
-                    {/* Status on its own line above the route, as on the order
-                        cards: beside the date tile a phone has no room for the
-                        route and "Open for booking" on one line.
-                        "Scheduled" is the admin's word; to a customer this list
+                  <div className="ctrip-heading">
+                    {/* "Scheduled" is the admin's word; to a customer this list
                         is simply trips they can still book on. */}
-                    <div className="customer-trip-status">
+                    <div className="ctrip-badges">
                       {trip.status === 'scheduled'
                         ? <span className="badge badge-success text-xs">Open for booking</span>
                         : <StatusBadge status={trip.status} size="sm" />}
+                      {fillingUp && <span className="badge badge-warning text-xs">Filling up</span>}
                     </div>
-                    <div className="customer-list-card-title customer-trip-title">{trip.origin} to {trip.destination}</div>
-                    <div className="customer-list-card-meta mb-4">
-                      <Truck size={14} aria-hidden="true" />
-                      <span>{trip.trip_number}</span>
-                    </div>
-                    <div className="customer-list-card-route mb-8">
+                    <p className="ctrip-route">
+                      <span>{trip.origin}</span>
+                      <ArrowRight size={16} aria-hidden="true" className="ctrip-route-arrow" />
+                      <span>{trip.destination}</span>
+                    </p>
+                    <p className="ctrip-when">
                       <Calendar size={14} aria-hidden="true" />
-                      <span>{tripDate.full}</span>
-                    </div>
-                    <div className="flex items-center flex-wrap gap-6">
-                      <span className="badge badge-info text-xs" style={{ padding: '3px 8px', borderRadius: '4px' }}>
-                        <strong>{Math.max(0, (trip.capacity || 0) - (trip.current_weight || 0)).toLocaleString()} kg</strong> space left
-                      </span>
-                      <span className="badge badge-success text-xs" style={{ padding: '3px 8px', borderRadius: '4px' }}>
-                        <strong>{formatMoney(parseFloat(trip.price_per_kg || 70))}/kg</strong> rate
-                      </span>
-                    </div>
-                    {/* The whole card is the button; this is its visible label. */}
-                    <span className="customer-trip-book-cta" aria-hidden="true">
-                      Book this trip <ChevronRight size={16} />
-                    </span>
+                      {formatPhDate(trip.departure_date, { weekday: 'short', month: 'short' })}
+                    </p>
                   </div>
                 </div>
-              </div>
-            </button>
-          );
-        })
+
+                <div className="ctrip-stats">
+                  <div className={`ctrip-stat${fillingUp ? ' is-filling' : ''}`}>
+                    <span className="ctrip-stat-label">Space left</span>
+                    <strong className="ctrip-stat-value">{spaceLeft.toLocaleString()} kg</strong>
+                    {usedPct !== null && (
+                      <span className="ctrip-meter" aria-hidden="true">
+                        <span style={{ width: `${usedPct}%` }} />
+                      </span>
+                    )}
+                  </div>
+                  <div className="ctrip-stat">
+                    <span className="ctrip-stat-label">Rate</span>
+                    <strong className="ctrip-stat-value">{formatMoney(parseFloat(trip.price_per_kg || 70))}/kg</strong>
+                    <span className="ctrip-stat-sub">Weighed at pickup</span>
+                  </div>
+                </div>
+
+                <div className="ctrip-footer">
+                  <span className="ctrip-number"><Truck size={14} aria-hidden="true" /> {trip.trip_number}</span>
+                  {/* The whole card is the button; this is its visible label. */}
+                  <span className="customer-trip-book-cta" aria-hidden="true">
+                    Book this trip <ChevronRight size={16} />
+                  </span>
+                </div>
+              </button>
+            );
+          })}
+        </div>
       )}
 
       {!loading && !error && trips.length > 0 && (
