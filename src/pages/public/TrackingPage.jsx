@@ -15,6 +15,7 @@ import usePageTitle from '../../hooks/usePageTitle';
 import useFieldErrors from '../../hooks/useFieldErrors';
 import FieldError, { invalidClass } from '../../components/ui/FieldError';
 import BrandLockup from '../../components/ui/BrandLogo';
+import { useDashboardPath } from '../../hooks/useDashboardPath';
 
 /* ── Status icon resolver ─────────────────────────────────────────────
    Complete coverage for every ORDER_STATUS value — previously only 4 of
@@ -118,6 +119,7 @@ const detectRateLimit = (err) => {
 ══════════════════════════════════════════════════════════════════════ */
 const TrackingPage = ({ embedded = false }) => {
   usePageTitle('Track Shipment');
+  const dashboardPath = useDashboardPath();
   const [searchParams] = useSearchParams();
   const [trackingNumber, setTrackingNumber] = useState(searchParams.get('q') || '');
   const [order,   setOrder]   = useState(null);
@@ -377,7 +379,7 @@ const TrackingPage = ({ embedded = false }) => {
       {/* ══════════ HEADER ══════════ */}
       <header className="trk-header animate-fade-in">
         {!embedded && (
-          <Link to="/login" className="trk-brand text-no-underline" aria-label="CargoExpress PH home">
+          <Link to="/" className="trk-brand text-no-underline" aria-label="CargoExpress PH home">
             <BrandLockup size={36} />
           </Link>
         )}
@@ -688,7 +690,11 @@ const TrackingPage = ({ embedded = false }) => {
       {/* ══════════ PAGE FOOTER ══════════ */}
       {!embedded && (
       <footer className="trk-footer">
-        <p>Have an account? <Link to="/login" className="trk-footer-link">Sign In</Link></p>
+        {dashboardPath ? (
+          <p><Link to={dashboardPath} className="trk-footer-link">Go to Dashboard</Link></p>
+        ) : (
+          <p>Have an account? <Link to="/login" className="trk-footer-link">Sign In</Link></p>
+        )}
         <p className="trk-footer-copy">© {new Date().getFullYear()} CargoExpress PH</p>
       </footer>
       )}

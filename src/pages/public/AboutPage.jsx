@@ -52,6 +52,7 @@ import {
   PHILIPPINES_MAP_ZOOM,
 } from '../../constants/phMapCoordinates';
 import { getGoogleMapsSearchUrl } from '../../utils/googleMaps';
+import { useDashboardPath } from '../../hooks/useDashboardPath';
 
 // A review card shows a short excerpt with "Read more" past this length,
 // breaking on the nearest earlier space so a word is never cut mid-way.
@@ -428,6 +429,7 @@ const AboutPage = () => {
   const toast = useToast();
   const location = useLocation();
   const selectTrip = useTripBooking();
+  const dashboardPath = useDashboardPath();
 
   const [scrolled, setScrolled] = useState(false);
   const [showBackToTop, setShowBackToTop] = useState(false);
@@ -829,11 +831,11 @@ const AboutPage = () => {
             ))}
           </div>
 
-          <Link 
-            to="/login" 
+          <Link
+            to={dashboardPath || '/login'}
             className={`about-login-btn ${scrolled ? 'scrolled' : 'transparent'}`}
           >
-            Sign In <ChevronRight size={16} />
+            {dashboardPath ? 'Go to Dashboard' : 'Sign In'} <ChevronRight size={16} />
           </Link>
         </div>
       </nav>
