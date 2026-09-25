@@ -311,6 +311,7 @@ const CustomersPage = () => {
         .customer-directory-filter-row .filter-chips { flex: 1 1 auto; min-width: 0; }
         .customer-filter-clear { flex: 0 0 auto; white-space: nowrap; }
         .customer-directory-card { overflow: hidden; }
+        .customer-directory-card:has(.custom-select-menu) { overflow: visible; }
         .customer-directory-table { table-layout: fixed; }
         .customer-directory-table th:nth-child(1) { width: 22%; }
         .customer-directory-table th:nth-child(2) { width: 12%; }

@@ -757,3 +757,29 @@
     grid-row: 2;
   }
 }
+
+/* ── Open dropdowns escape their card ──────────────────────────────────────
+   components.css lets a card show an open CustomSelect menu (e.g. the
+   pagination "15 / page" menu, which opens upward), but that rule sits in an
+   early layer, and the admin table-card rules in later layers set
+   overflow: hidden again, so the menu was clipped at the card's edge. This
+   is the last screen layer, so it wins; it applies only while a menu is open. */
+.card:has(.custom-select-menu),
+.admin-section-card:has(.custom-select-menu),
+.app-layout .admin-table-card:has(.custom-select-menu),
+.table-container:has(.custom-select-menu) {
+  overflow: visible;
+}
+
+/* The pagination page-size menu sizes to its options ("10 / page" on one
+   line) and lines up with the right edge of its button. */
+.pagination-size .custom-select-menu {
+  left: auto;
+  right: 0;
+  width: max-content;
+  min-width: 100%;
+}
+
+.pagination-size .custom-select-option {
+  white-space: nowrap;
+}
