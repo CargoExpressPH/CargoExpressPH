@@ -2,10 +2,13 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { PUBLIC_PAGES, SITE_ORIGIN, SOCIAL_IMAGE } from '../src/seo/publicPages.js';
+import { FAQ_ITEMS } from '../src/constants/faqContent.js';
 
 const config = JSON.parse(readFileSync(resolve('vercel.json'), 'utf8'));
 const sitemap = readFileSync(resolve('dist/sitemap.xml'), 'utf8');
 const readJsonLd = (html) => JSON.parse(html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/)[1]);
+const escapeHtml = (value) => value.replace(/&/g, '&amp;').replace(/</g, '&lt;')
+  .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 
 // Vercel matches `source` as a path-to-regexp pattern. The rewrites here only
 // use literal paths and regex groups, which read the same as a plain RegExp.
@@ -28,6 +31,15 @@ for (const [path, page] of Object.entries(PUBLIC_PAGES)) {
   assert.ok(html.includes('<meta name="twitter:card" content="summary_large_image" />'), `Not a large-image card: ${path}`);
   assert.ok(html.includes(`<h1>${page.heading}</h1>`), `No crawlable content: ${path}`);
   assert.ok(html.includes('<meta name="robots" content="index, follow" />'), `Not indexable: ${path}`);
+  if (path === '/faq' || path === '/about') {
+    // Verify the delivered body contains complete answers even without JS,
+    // rather than only metadata or a heading that waits for React to load.
+    const body = html.match(/<main class="seo-fallback">([\s\S]*?)<\/main>/)?.[1] || '';
+    for (const { title, answer } of FAQ_ITEMS) {
+      assert.ok(body.includes(`<h3>${escapeHtml(title)}</h3>`), `Missing FAQ question on ${path}: ${title}`);
+      assert.ok(body.includes(`<p>${escapeHtml(answer)}</p>`), `Missing FAQ answer on ${path}: ${title}`);
+    }
+  }
   assert.ok(sitemap.includes(`<loc>${url}</loc>`), `Missing sitemap entry: ${path}`);
   const types = readJsonLd(html)['@graph'].map((node) => node['@type']);
   assert.deepEqual(types, path === '/' ? ['Organization', 'WebSite'] : ['WebPage'], `Wrong structured data: ${path}`);

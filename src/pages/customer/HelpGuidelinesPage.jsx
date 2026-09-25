@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, BookOpen, CheckCircle2, HelpCircle, MessageCircle,
   PackageCheck, Search, ShieldAlert, Truck,
 } from 'lucide-react';
 import EmptyState from '../../components/ui/EmptyState';
 import usePageTitle from '../../hooks/usePageTitle';
+import { useAuth } from '../../contexts/AuthContext';
 import { FAQ_ITEMS as fallbackFaqs } from '../../constants/faqContent';
 
 const guidelineSections = [
@@ -14,7 +15,7 @@ const guidelineSections = [
     icon: BookOpen,
     items: [
       'Prepare sender and receiver names, mobile numbers, and full pickup or delivery addresses.',
-      'Use accurate package weight and item details so pricing and handling are correct.',
+      'Describe your items accurately. The final price is based on the weight measured at pickup.',
       'Check the route and upcoming trip schedule before confirming a shipment.',
     ],
   },
@@ -40,9 +41,9 @@ const guidelineSections = [
     title: 'Tracking and Delivery',
     icon: PackageCheck,
     items: [
-      'Order status updates appear in your Orders page and notification center.',
+      'Enter your tracking number on the Track Shipment page. No account is needed.',
       'Delivery proof photos may be attached after successful handoff.',
-      'Contact support from the order page if a status looks incorrect.',
+      'If a status looks incorrect, use Contact Us on the About page or sign in to use Live Support Chat.',
     ],
   },
 ];
@@ -50,6 +51,10 @@ const guidelineSections = [
 const HelpGuidelinesPage = () => {
   usePageTitle('Help & Guidelines');
   const navigate = useNavigate();
+  const { pathname } = useLocation();
+  const { user, userProfile } = useAuth();
+  const isPublicPage = pathname === '/faq';
+  const supportPath = user && userProfile?.role === 'customer' ? '/customer/support' : '/about#contact';
   const [search, setSearch] = useState('');
 
   const filteredFaqs = useMemo(() => {
@@ -60,13 +65,19 @@ const HelpGuidelinesPage = () => {
       faq.answer?.toLowerCase().includes(q) ||
       faq.category?.toLowerCase().includes(q)
     );
-  }, [fallbackFaqs, search]);
+  }, [search]);
 
   return (
     <div className="page-transition customer-help-guidelines-page">
-      <button type="button" onClick={() => navigate(-1)} className="btn btn-ghost customer-back-action mb-16">
-        <ArrowLeft size={18} /> Back
-      </button>
+      {isPublicPage ? (
+        <Link to="/" className="btn btn-ghost customer-back-action mb-16">
+          <ArrowLeft size={18} /> Home
+        </Link>
+      ) : (
+        <button type="button" onClick={() => navigate(-1)} className="btn btn-ghost customer-back-action mb-16">
+          <ArrowLeft size={18} /> Back
+        </button>
+      )}
 
       <div className="customer-page-heading mb-20">
         <div>
@@ -80,12 +91,12 @@ const HelpGuidelinesPage = () => {
       </div>
 
       <div className="grid grid-2 gap-12 mb-16">
-        <button type="button" className="btn btn-primary justify-center" onClick={() => navigate('/customer/book')}>
+        <Link className="btn btn-primary justify-center" to="/customer/book">
           <PackageCheck size={16} /> Book a Shipment
-        </button>
-        <button type="button" className="btn btn-outline justify-center" onClick={() => navigate('/customer/support')}>
+        </Link>
+        <Link className="btn btn-outline justify-center" to={supportPath}>
           <MessageCircle size={16} /> Contact Support
-        </button>
+        </Link>
       </div>
 
       <h3 className="profile-section-title">Shipping Guidelines</h3>
@@ -131,7 +142,7 @@ const HelpGuidelinesPage = () => {
           title="No Help Topics Found"
           description="Try a different keyword or contact support for shipment-specific help."
           actionLabel="Open Support"
-          onAction={() => navigate('/customer/support')}
+          onAction={() => navigate(supportPath)}
         />
       ) : (
         <div className="flex flex-col gap-10">

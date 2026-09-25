@@ -2,6 +2,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { loadEnv } from 'vite';
 import { PUBLIC_PAGES, SITE_ORIGIN, structuredDataFor } from '../src/seo/publicPages.js';
+import { FAQ_ITEMS } from '../src/constants/faqContent.js';
 
 // Business contact details come from Admin > Company Information at build
 // time (read-only, public anon key, the same data the About page shows), so
@@ -41,7 +42,7 @@ function replaceRequired(source, pattern, replacement) {
   return source.replace(pattern, replacement);
 }
 
-function renderFallback(page) {
+function renderFallback(page, path) {
   // Real, publicly visible navigation and a summary of the corresponding
   // screen. React replaces this when the app loads; it stays usable without JS.
   const links = [
@@ -49,9 +50,14 @@ function renderFallback(page) {
     ['/track', 'Track Shipment'], ['/faq', 'Help'],
     ['/terms', 'Terms'], ['/privacy', 'Privacy'], ['/login', 'Sign In'],
   ];
+  const faqs = path === '/faq' || path === '/about'
+    ? `<section id="faq" aria-labelledby="faq-heading"><h2 id="faq-heading">Frequently Asked Questions</h2>`
+      + FAQ_ITEMS.map(({ title, answer }) => `<article><h3>${escapeHtml(title)}</h3><p>${escapeHtml(answer)}</p></article>`).join('')
+      + '</section>'
+    : '';
   return `<main class="seo-fallback"><a href="/">CargoExpress PH</a>`
     + `<h1>${escapeHtml(page.heading)}</h1><p>${escapeHtml(page.summary)}</p>`
-    + `<nav aria-label="Site pages">${links.map(([href, label]) => `<a href="${href}">${label}</a>`).join('')}</nav></main>`;
+    + `<nav aria-label="Site pages">${links.map(([href, label]) => `<a href="${href}">${label}</a>`).join('')}</nav>${faqs}</main>`;
 }
 
 function renderPage(path, page) {
@@ -73,7 +79,7 @@ function renderPage(path, page) {
   const schema = JSON.stringify(structuredDataFor(path, page, business)).replace(/</g, '\\u003c');
   output = replaceRequired(output, /<script type="application\/ld\+json">[\s\S]*?<\/script>/,
     `<script type="application/ld+json">${schema}</script>`);
-  output = replaceRequired(output, /<div id="root"><\/div>/, `<div id="root">${renderFallback(page)}</div>`);
+  output = replaceRequired(output, /<div id="root"><\/div>/, `<div id="root">${renderFallback(page, path)}</div>`);
   return output;
 }
 
