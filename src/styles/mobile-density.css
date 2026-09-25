@@ -690,6 +690,13 @@
     white-space: nowrap;
   }
 
+  /* Trip orders: the Message shortcut takes the date's slot (no Date column). */
+  .data-table.data-table--compact td[data-label="Action"] {
+    grid-column: 3;
+    grid-row: 3;
+    justify-self: end;
+  }
+
   /* Empty-state and colspan rows are containers, not records. */
   .data-table.data-table--compact tbody tr:has(> td[colspan]) {
     display: block;
@@ -751,6 +758,12 @@
     grid-row: 3;
   }
 
+  .data-table.data-table--compact tbody tr td[data-label="Action"] {
+    grid-column: 3;
+    grid-row: 4;
+    justify-self: end;
+  }
+
   /* No Cost column (dashboard Recent Orders): the date sits beside the status. */
   .data-table.data-table--compact tbody tr:not(:has(> td[data-label="Cost"])) td[data-label="Date"] {
     grid-column: 3;
@@ -781,5 +794,11 @@
 }
 
 .pagination-size .custom-select-option {
+  white-space: nowrap;
+}
+
+/* Tracking numbers in compact list tables stay on one line at every width
+   (the desktop table included), so they never split as CE-20260924- / 4849. */
+.data-table.data-table--compact td[data-label="Tracking"] a {
   white-space: nowrap;
 }

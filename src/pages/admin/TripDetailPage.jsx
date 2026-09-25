@@ -13,7 +13,8 @@ import EmptyState from '../../components/ui/EmptyState';
 import MessageCustomerButton from '../../components/ui/MessageCustomerButton';
 import { useToast } from '../../hooks/useToast';
 import usePageTitle from '../../hooks/usePageTitle';
-import { outstandingBalance } from '../../constants/status';
+import { outstandingBalance, isOrderPriced } from '../../constants/status';
+import { formatMoney } from '../../utils/currencyInput';
 import { formatPhDate, formatPhDateTime, phLocalInputToISO } from '../../utils/datetime';
 
 const TripDetailPage = () => {
@@ -426,38 +427,40 @@ const TripDetailPage = () => {
               description="No bookings have been assigned to this trip yet."
             />
           ) : (
-            <table className="data-table">
+            <table className="data-table data-table--compact">
               <thead>
                 <tr>
-                  <th scope="col">Tracking No.</th>
-                  <th scope="col">Sender Address</th>
-                  <th scope="col">Receiver Address</th>
+                  <th scope="col">Tracking</th>
+                  <th scope="col">Customer</th>
+                  <th scope="col">Route</th>
+                  <th scope="col">Weight</th>
+                  <th scope="col">Cost</th>
                   <th scope="col">Status</th>
-                  <th scope="col">Action</th>
+                  <th scope="col"><span className="sr-only">Message</span></th>
                 </tr>
               </thead>
               <tbody>
                 {orders.map(o => (
                   <tr key={o.id} {...rowLinkProps(navigate, `/admin/orders/${o.id}`)}>
-                    <td data-label="Tracking No." className="fw-600">{o.tracking_number}</td>
-                    <td data-label="Sender Address">{[o.sender_province, o.sender_city].filter(Boolean).join(', ')}</td>
-                    <td data-label="Receiver Address">{[o.receiver_province, o.receiver_city].filter(Boolean).join(', ')}</td>
+                    {/* The whole row opens the booking; the tracking number
+                        is the keyboard / new-tab link. */}
+                    <td data-label="Tracking"><Link to={`/admin/orders/${o.id}`} className="fw-700 text-accent">{o.tracking_number}</Link></td>
+                    <td data-label="Customer">{o.profiles?.name || o.sender_name || '—'}</td>
+                    <td data-label="Route" className="text-sm">
+                      {[o.sender_city, o.sender_province].filter(Boolean).join(', ') || '—'}
+                      {' → '}
+                      {[o.receiver_city, o.receiver_province].filter(Boolean).join(', ') || '—'}
+                    </td>
+                    <td data-label="Weight">{o.actual_weight ? `${o.actual_weight} kg` : '—'}</td>
+                    <td data-label="Cost" className="fw-600">{isOrderPriced(o) ? formatMoney(parseFloat(o.shipping_cost || 0)) : '—'}</td>
                     <td data-label="Status">
                       <StatusBadge status={o.status} size="sm" />
                     </td>
                     <td data-label="Action">
-                      <div className="flex items-center gap-4">
-                        <Link to={`/admin/orders/${o.id}`} className="btn btn-primary btn-sm inline-flex items-center gap-xs">
-                          View Details
-                        </Link>
-                        {/* This table lists addresses rather than the booker,
-                            so the control carries the customer's name in its
-                            accessible label instead of beside it. */}
-                        <MessageCustomerButton
-                          customerId={o.user_id}
-                          customerName={o.profiles?.name}
-                        />
-                      </div>
+                      <MessageCustomerButton
+                        customerId={o.user_id}
+                        customerName={o.profiles?.name}
+                      />
                     </td>
                   </tr>
                 ))}
