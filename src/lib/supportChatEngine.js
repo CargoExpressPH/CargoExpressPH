@@ -11,7 +11,7 @@
  */
 
 import { supabase } from './supabase';
-import { finalShippingFee, getSettlementState, outstandingBalance, SETTLEMENT_STATE } from '../constants/status';
+import { finalShippingFee, getSettlementState, outstandingBalance, SETTLEMENT_STATE, STATUS_DESCRIPTIONS } from '../constants/status';
 import { formatMoney } from '../utils/currencyInput';
 import { SUPPORT_KNOWLEDGE_CATALOG } from './supportKnowledgeCatalog';
 
@@ -1323,20 +1323,6 @@ const INTENTS = [
     }),
   },
 ];
-
-// ── Status descriptions ────────────────────────────────────────────────────────
-const STATUS_DESCRIPTIONS = {
-  'Pending': 'Your booking has been received and is awaiting review by our administrator.',
-  'Pending Review': 'Your booking or route request is waiting for an administrator to review it.',
-  'Pending Cancellation': 'Your cancellation request is waiting for an administrator to review it. It is not cancelled yet.',
-  'Assigned': 'Your shipment has been assigned to a scheduled trip and is waiting for pickup.',
-  'Picked Up': 'Your shipment has been collected and is being prepared for transport.',
-  'In Transit': 'Your shipment is currently traveling toward the destination.',
-  'Arrived at Hub': 'Your shipment has arrived at the destination hub and is being organized for delivery.',
-  'Out for Delivery': 'Our delivery personnel is currently delivering your shipment.',
-  'Delivered': 'Your shipment has been successfully delivered.',
-  'Cancelled': 'This shipment has been cancelled.',
-};
 
 // ── Data fetchers ──────────────────────────────────────────────────────────────
 

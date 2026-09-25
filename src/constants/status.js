@@ -364,6 +364,21 @@ export const CUSTOMER_ORDER_FILTERS = [
 ];
 
 // Status color mapping using theme variables
+// One plain-language sentence per status, shown to customers and to anyone
+// with a tracking number (support chat answers, public tracking page).
+export const STATUS_DESCRIPTIONS = {
+  [ORDER_STATUS.PENDING]: 'Your booking has been received and is awaiting review by our administrator.',
+  [ORDER_STATUS.PENDING_REVIEW]: 'Your booking or route request is waiting for an administrator to review it.',
+  [ORDER_STATUS.PENDING_CANCELLATION]: 'Your cancellation request is waiting for an administrator to review it. It is not cancelled yet.',
+  [ORDER_STATUS.ASSIGNED]: 'Your shipment has been assigned to a scheduled trip and is waiting for pickup.',
+  [ORDER_STATUS.PICKED_UP]: 'Your shipment has been collected and is being prepared for transport.',
+  [ORDER_STATUS.IN_TRANSIT]: 'Your shipment is currently traveling toward the destination.',
+  [ORDER_STATUS.ARRIVED_HUB]: 'Your shipment has arrived at the destination hub and is being organized for delivery.',
+  [ORDER_STATUS.OUT_FOR_DELIVERY]: 'Our delivery personnel is currently delivering your shipment.',
+  [ORDER_STATUS.DELIVERED]: 'Your shipment has been successfully delivered.',
+  [ORDER_STATUS.CANCELLED]: 'This shipment has been cancelled.',
+};
+
 export const STATUS_COLORS = {
   [ORDER_STATUS.PENDING_REVIEW]: { bg: 'var(--warning-bg)', text: 'var(--warning-dark)', border: 'var(--warning)' },
   [ORDER_STATUS.PENDING]: { bg: 'var(--warning-bg)', text: 'var(--warning-dark)', border: 'var(--warning)' },

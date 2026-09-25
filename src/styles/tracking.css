@@ -188,6 +188,31 @@
   transition: var(--transition);
 }
 .trk-retry-btn:hover { background: var(--border-light); }
+.trk-not-found-tips {
+  list-style: none; margin: 0 auto 20px; padding: 12px 14px;
+  max-width: 380px;
+  display: grid; gap: 8px;
+  text-align: left;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md);
+  font-size: var(--text-13); line-height: 1.5; color: var(--text-secondary);
+}
+.trk-not-found-tips li { display: flex; align-items: flex-start; gap: 8px; }
+.trk-not-found-tips svg { flex-shrink: 0; margin-top: 2px; color: var(--primary-text); }
+.trk-not-found-tips strong { color: var(--text); white-space: nowrap; }
+.trk-not-found-actions {
+  display: flex; flex-wrap: wrap; justify-content: center; gap: 10px;
+}
+.trk-contact-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  min-height: 40px;
+  padding: 9px 18px; border-radius: var(--radius-full);
+  background: var(--primary-bg); border: 1px solid var(--primary-light);
+  color: var(--primary-text-strong);
+  font-size: var(--text-14); font-weight: 700; text-decoration: none;
+  transition: var(--transition);
+}
+.trk-contact-btn:hover { filter: brightness(0.97); }
 
 /* -- Rate Limit Card -- */
 .trk-rate-limit-card {
@@ -237,140 +262,272 @@
   animation: authCardIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-/* -- Status Banner -- */
-.trk-status-banner {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 22px 28px;
-  border-bottom: 2px solid;
-  gap: 16px; flex-wrap: wrap;
+/* -- Result card --------------------------------------------------------
+   Layout responds to the CARD's width (container query), not the viewport:
+   the same card renders full-page on /track and inside the customer layout
+   at /customer/track, where the sidebar takes part of the screen.
+   Narrow: hero → trip → journey → details, one column.
+   Wide (≥ 820px card): trip and details on the left, journey on the right. */
+.trk-result {
+  container-type: inline-size;
+  --trk-tone: var(--primary-text);
+  --trk-tone-bg: var(--primary-bg);
+  --trk-tone-border: var(--primary-light);
+  --trk-tone-icon-bg: var(--primary-icon-bg);
 }
-.trk-status-left {
-  display: flex; align-items: center; gap: 14px;
-}
-.trk-status-icon-wrap {
-  width: 52px; height: 52px; border-radius: 14px; flex-shrink: 0;
-  display: flex; align-items: center; justify-content: center;
-}
-.trk-status-label {
-  font-size: var(--text-12); font-weight: 700; text-transform: uppercase;
-  letter-spacing: 0.08em; color: var(--text-tertiary); margin-bottom: 3px;
-}
-.trk-status-value {
-  font-size: var(--text-20); font-weight: 700; letter-spacing: -0.02em;
-}
-.trk-tracking-num { text-align: right; }
-.trk-tracking-num-label {
-  font-size: var(--text-12); font-weight: 700; text-transform: uppercase;
-  letter-spacing: 0.08em; color: var(--text-tertiary); margin-bottom: 3px;
-}
-.trk-tracking-num-value {
-  font-size: var(--text-16); font-weight: 700; color: var(--text);
-  letter-spacing: 0.04em; font-variant-numeric: tabular-nums;
+@media (min-width: 1024px) {
+  .trk-page:not(.trk-page--embedded) .trk-result { max-width: 960px; }
 }
 
-/* -- ETA banner -- */
-.trk-eta-banner {
-  display: flex; align-items: center; gap: 12px;
-  padding: 14px 24px;
-  background: linear-gradient(90deg, var(--primary-bg), transparent);
-  border-bottom: 1px solid var(--border-light);
-}
-.trk-eta-icon {
-  width: 34px; height: 34px; border-radius: var(--radius-sm); flex-shrink: 0;
-  background: var(--primary-icon-bg);
-  color: var(--primary);
-  display: flex; align-items: center; justify-content: center;
-}
-.trk-eta-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
-.trk-eta-label {
+.trk-eyebrow,
+.trk-section-label {
   font-size: var(--text-12); font-weight: 700; text-transform: uppercase;
   letter-spacing: 0.08em; color: var(--text-tertiary);
 }
-.trk-eta-value {
+.trk-section-label { margin-bottom: 14px; }
+
+/* Hero */
+.trk-hero {
+  padding: 24px 28px;
+  background: var(--trk-tone-bg);
+  border-bottom: 1px solid var(--border-light);
+  display: flex; flex-direction: column; gap: 14px;
+}
+.trk-hero-top {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: 12px 20px; flex-wrap: wrap;
+}
+.trk-hero-status { display: flex; align-items: center; gap: 14px; min-width: 0; }
+.trk-hero-icon {
+  width: 52px; height: 52px; border-radius: 16px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--trk-tone-icon-bg); color: var(--trk-tone);
+}
+.trk-hero-status-text { min-width: 0; }
+.trk-hero-status-value {
+  margin-top: 2px;
+  font-size: var(--text-24); font-weight: 800; line-height: 1.15;
+  letter-spacing: -0.02em; color: var(--trk-tone);
+  overflow-wrap: anywhere;
+}
+.trk-hero-number { text-align: right; min-width: 0; }
+.trk-hero-number-value {
+  margin-top: 2px;
   font-size: var(--text-16); font-weight: 700; color: var(--text);
+  letter-spacing: 0.03em; font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.trk-hero-message {
+  margin: 0; max-width: 60ch;
+  font-size: var(--text-16); line-height: 1.55; color: var(--text-secondary);
+}
+.trk-hero-date {
+  display: flex; align-self: flex-start; max-width: 100%; align-items: center; flex-wrap: wrap; gap: 4px 10px;
+  padding: 12px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  color: var(--trk-tone);
+}
+.trk-hero-date svg { flex-shrink: 0; }
+.trk-hero-date-label {
+  font-size: var(--text-13); font-weight: 600; color: var(--text-secondary);
+}
+.trk-hero-date-value {
+  font-size: var(--text-18); font-weight: 800; color: var(--text);
   font-variant-numeric: tabular-nums;
 }
-.trk-eta-caveat {
-  margin-left: auto; flex-shrink: 0;
-  font-size: var(--text-12); font-weight: 700; text-transform: uppercase;
-  letter-spacing: 0.06em; color: var(--text-tertiary);
-  background: var(--bg-secondary);
-  padding: 3px 8px; border-radius: var(--radius-full);
-}
-.trk-timestamp-live { color: var(--primary-text); }
-.trk-timestamp-live svg { animation: none; }
 
-/* -- Progress Bar -- */
-.trk-progress-wrap {
-  display: flex; align-items: center; gap: 12px;
-  padding: 14px 28px;
+/* Body grid */
+.trk-result-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: "route" "journey" "details";
+}
+.trk-section {
+  padding: 22px 28px;
   border-bottom: 1px solid var(--border-light);
-  background: var(--bg);
+  min-width: 0;
 }
-.trk-progress-bar {
-  flex: 1; height: 6px; background: var(--border-light);
-  border-radius: 999px; overflow: hidden;
+.trk-route   { grid-area: route; }
+.trk-journey { grid-area: journey; }
+.trk-details { grid-area: details; border-bottom: 0; }
+
+/* Trip route */
+.trk-route-rail {
+  display: flex; align-items: center; gap: 0;
+  margin: 4px 0 12px;
 }
-.trk-progress-fill {
-  height: 100%;
-  background: linear-gradient(90deg, var(--primary), var(--primary-light));
+.trk-route-dot {
+  flex-shrink: 0;
+  width: 16px; height: 16px; border-radius: 50%;
+  border: 3px solid var(--border);
+  background: var(--surface);
+}
+.trk-route-dot.is-reached {
+  border-color: var(--success);
+  background: var(--success-fill);
+}
+.trk-route-line {
+  position: relative; flex: 1; min-width: 0;
+  height: 4px; margin: 0 4px;
   border-radius: 999px;
-  transition: width 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+  background: var(--border-light);
 }
-.trk-progress-pct {
-  font-size: var(--text-12); font-weight: 700; color: var(--primary-text);
-  white-space: nowrap; min-width: 76px; text-align: right;
+.trk-route-line-fill {
+  position: absolute; inset: 0 auto 0 0;
+  width: 0; border-radius: inherit;
+  background: var(--success);
+  transition: width 0.6s ease;
+}
+.trk-route-truck {
+  position: absolute; top: 50%; left: 0;
+  width: 34px; height: 34px; border-radius: 50%;
+  transform: translate(-50%, -50%);
+  display: flex; align-items: center; justify-content: center;
+  background: var(--trk-tone-icon-bg); color: var(--trk-tone);
+  border: 2px solid var(--surface);
+  box-shadow: var(--shadow-sm);
+  transition: left 0.6s ease;
+}
+.trk-route-rail--waiting .trk-route-truck { left: 17px; }
+.trk-route-rail--moving .trk-route-line-fill { width: 50%; }
+.trk-route-rail--moving .trk-route-truck { left: 50%; }
+.trk-route-rail--arrived .trk-route-line-fill { width: 100%; }
+.trk-route-rail--arrived .trk-route-truck { left: calc(100% - 17px); }
+.trk-route-stops {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px;
+}
+.trk-route-stop { min-width: 0; }
+.trk-route-stop--end { text-align: right; }
+.trk-route-city {
+  font-size: var(--text-16); font-weight: 800; color: var(--text);
+  overflow-wrap: anywhere;
+}
+.trk-route-when {
+  margin-top: 2px;
+  font-size: var(--text-12); font-weight: 600; color: var(--text-tertiary);
+}
+.trk-route-time {
+  font-size: var(--text-13); font-weight: 600; color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+.trk-route-note {
+  margin-top: 14px;
+  font-size: var(--text-12); color: var(--text-tertiary);
 }
 
-/* -- Timeline wrap -- */
-.trk-timeline-wrap {
-  padding: 20px 24px 8px;
-  border-bottom: 1px solid var(--border-light);
+/* Journey */
+.trk-journey-list { list-style: none; margin: 0; padding: 0; }
+.trk-journey-step {
+  position: relative;
+  display: grid; grid-template-columns: 28px minmax(0, 1fr); column-gap: 12px;
+  padding-bottom: 12px;
+}
+.trk-journey-step:last-child { padding-bottom: 0; }
+.trk-journey-step::before {
+  content: "";
+  position: absolute; left: 13px; top: 28px; bottom: 0;
+  width: 2px; background: var(--border);
+}
+.trk-journey-step:last-child::before { display: none; }
+.trk-journey-step.is-done::before { background: var(--success); }
+.trk-journey-node {
+  position: relative; z-index: 1;
+  width: 28px; height: 28px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--surface); border: 2px solid var(--border);
+  color: var(--text-tertiary);
+}
+.trk-journey-step.is-done .trk-journey-node {
+  background: var(--success-fill); border-color: var(--success-fill); color: #fff;
+}
+.trk-journey-step.is-current .trk-journey-node,
+.trk-journey-step.is-cancelled .trk-journey-node {
+  background: var(--trk-tone-icon-bg); border-color: var(--trk-tone-border); color: var(--trk-tone);
+  box-shadow: 0 0 0 4px var(--trk-tone-bg);
+}
+.trk-journey-text {
+  display: flex; flex-direction: column; justify-content: center;
+  min-height: 28px; min-width: 0;
+}
+.trk-journey-label {
+  font-size: var(--text-14); font-weight: 600; line-height: 1.3; color: var(--text);
+}
+.trk-journey-step.is-upcoming .trk-journey-label { font-weight: 500; color: var(--text-tertiary); }
+.trk-journey-step.is-current .trk-journey-label,
+.trk-journey-step.is-cancelled .trk-journey-label { font-weight: 800; color: var(--trk-tone); }
+.trk-journey-time {
+  margin-top: 1px;
+  font-size: var(--text-12); color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
 }
 
-/* -- Section label -- */
-.trk-section-label {
-  font-size: var(--text-12); font-weight: 700; text-transform: uppercase;
-  letter-spacing: 0.08em; color: var(--text-tertiary); margin-bottom: 14px;
+/* Details */
+.trk-details-grid {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px;
 }
-
-/* -- Info section -- */
-.trk-info-section {
-  padding: 20px 24px;
-}
-.trk-info-grid {
-  display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
-}
-.trk-info-tile {
-  display: flex; align-items: flex-start; gap: 12px;
+.trk-detail {
+  display: flex; align-items: flex-start; gap: 12px; min-width: 0;
+  padding: 14px;
   background: var(--bg-secondary);
   border: 1px solid var(--border-light);
   border-radius: var(--radius-md);
-  padding: 14px 16px;
-  transition: var(--transition);
 }
-.trk-info-tile:hover {
-  border-color: var(--border); box-shadow: var(--shadow-sm);
-}
-.trk-info-tile-icon {
+.trk-detail--wide { grid-column: 1 / -1; }
+.trk-detail-icon {
   width: 30px; height: 30px; border-radius: var(--radius-sm); flex-shrink: 0;
-  background: var(--primary-bg);
-  color: var(--primary-text);
   display: flex; align-items: center; justify-content: center;
+  background: var(--primary-bg); color: var(--primary-text);
 }
-.trk-info-tile-label {
+.trk-detail-text { min-width: 0; }
+.trk-detail-label {
   font-size: var(--text-12); font-weight: 700; text-transform: uppercase;
-  letter-spacing: 0.07em; color: var(--text-tertiary); margin-bottom: 4px;
+  letter-spacing: 0.07em; color: var(--text-tertiary); margin-bottom: 3px;
 }
-.trk-info-tile-value {
+.trk-detail-value {
   font-size: var(--text-14); font-weight: 700; color: var(--text);
-  display: flex; align-items: center; gap: 5px; flex-wrap: wrap;
+  overflow-wrap: anywhere;
 }
-.trk-info-tile-meta {
+.trk-detail-meta {
   display: flex; align-items: center; gap: 4px;
-  font-size: var(--text-12); color: var(--text-secondary); margin-top: 3px;
+  margin-top: 3px;
+  font-size: var(--text-12); color: var(--text-secondary);
 }
-.trk-route-arrow { color: var(--text-tertiary); flex-shrink: 0; }
+.trk-detail-meta svg { flex-shrink: 0; }
+
+.trk-timestamp-live { color: var(--primary-text); }
+.trk-timestamp-live svg { animation: none; }
+
+/* Card-width breakpoints */
+@container (max-width: 520px) {
+  .trk-hero { padding: 20px 18px; }
+  .trk-hero-number { text-align: left; width: 100%; }
+  .trk-hero-date { align-self: stretch; }
+  .trk-hero-status-value { font-size: var(--text-20); }
+  .trk-hero-icon { width: 46px; height: 46px; border-radius: 14px; }
+  .trk-section { padding: 20px 18px; }
+}
+@container (max-width: 340px) {
+  .trk-hero { padding: 18px 14px; }
+  .trk-section { padding: 18px 14px; }
+  .trk-details-grid { grid-template-columns: minmax(0, 1fr); }
+  .trk-route-stops { gap: 10px; }
+  .trk-route-city { font-size: var(--text-14); }
+  .trk-route-when { font-size: var(--text-12); }
+}
+@container (min-width: 820px) {
+  .trk-result-body {
+    grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+    grid-template-rows: auto 1fr;
+    grid-template-areas: "route journey" "details journey";
+  }
+  .trk-journey { border-left: 1px solid var(--border-light); border-bottom: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .trk-route-line-fill, .trk-route-truck { transition: none; }
+}
 
 /* -- Card Footer -- */
 .trk-card-footer {
@@ -436,16 +593,10 @@
   .trk-headline { font-size: var(--text-24); }
   .trk-search-box { padding: 5px 5px 5px 14px; border-radius: var(--radius-xl); }
   .trk-search-btn { padding: 11px 18px; font-size: var(--text-14); }
-  .trk-status-banner { flex-direction: column; align-items: flex-start; }
-  .trk-tracking-num { text-align: left; }
-  .trk-info-grid { grid-template-columns: 1fr; }
   .trk-card-footer { flex-direction: column; align-items: flex-start; }
-  .trk-progress-wrap { padding: 12px 20px; }
-  .trk-timeline-wrap, .trk-info-section { padding-left: 16px; padding-right: 16px; }
 }
 @media (max-width: 380px) {
   .trk-headline { font-size: var(--text-24); }
-  .trk-status-banner { padding: 18px 20px; }
 }
 
 /* Public About / Contact Page */

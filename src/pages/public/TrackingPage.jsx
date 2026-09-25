@@ -4,12 +4,13 @@ import { getPublicOrderEvents, getPublicTrackingResult } from '../../lib/databas
 import { buildStatusTimestamps } from '../../utils/statusTimestamps';
 import { formatPhDate, formatPhDateTime } from '../../utils/datetime';
 import {
-  Search, Loader, Package, MapPin, ArrowRight,
+  Search, Loader, Package, MapPin, Check, MessageCircle,
   CheckCircle2, XCircle, Clock, Weight, User,
   RefreshCw, AlertTriangle, ShieldAlert, Truck, Calendar, Info, ClipboardCheck, Building2, Bike,
 } from 'lucide-react';
-import { STATUS_TIMELINE, TRACKING_STATUS_TONES, STATUS_ICONS, ORDER_STATUS, timelineStatus } from '../../constants/status';
-import TrackingTimeline from '../../components/ui/TrackingTimeline';
+import {
+  STATUS_TIMELINE, TRACKING_STATUS_TONES, STATUS_ICONS, STATUS_DESCRIPTIONS, ORDER_STATUS, timelineStatus,
+} from '../../constants/status';
 import { CenteredSpinner } from '../../components/ui/Loader';
 import usePageTitle from '../../hooks/usePageTitle';
 import useFieldErrors from '../../hooks/useFieldErrors';
@@ -40,6 +41,8 @@ const getStatusIcon = (status) =>
 // back (or forward) a calendar day. See src/utils/datetime.js.
 const formatDate = (iso, withTime = false) =>
   withTime ? formatPhDateTime(iso) : formatPhDate(iso);
+// "Sep 25, 10:58 AM" — journey steps and trip times, where the year is noise.
+const formatStepTime = (iso) => (iso ? formatPhDateTime(iso, { year: undefined, hour: 'numeric' }) : null);
 
 /* Auto-refresh cadence while the result is visible and the tab is focused.
    45s — frequent enough to feel "live", gentle on the anon RPC. */
@@ -144,9 +147,13 @@ const TrackingPage = ({ embedded = false }) => {
     setErrorKind(kind);
   }, []);
 
+  // timelineStatus, not order.status: 'Pending Cancellation' is a hold, not a
+  // place on the route, so the journey keeps the step the cargo actually
+  // reached while a cancellation request is under review.
+  const journeyStatus = order ? timelineStatus(order) : undefined;
   const stepTimestamps = useMemo(
-    () => buildStatusTimestamps(statusEvents, order?.created_at, order?.status),
-    [statusEvents, order?.created_at, order?.status]
+    () => buildStatusTimestamps(statusEvents, order?.created_at, journeyStatus),
+    [statusEvents, order?.created_at, journeyStatus]
   );
 
   const applyRateLimit = useCallback((seconds = DEFAULT_RETRY_AFTER_SEC) => {
@@ -340,21 +347,62 @@ const TrackingPage = ({ embedded = false }) => {
 
   const StatusIcon = getStatusIcon(order?.status);
   const statusColor = order ? TRACKING_STATUS_TONES[order.status] : null;
-  // timelineStatus, not order.status: 'Pending Cancellation' is a hold, not a
-  // place on the route, so indexOf returns -1 and the bar renders a NEGATIVE
-  // width. The cargo has not moved backwards because a request is under review.
-  const completedSteps = order ? STATUS_TIMELINE.indexOf(timelineStatus(order)) : -1;
-  const progressPct = order?.status === 'Cancelled' ? 0
-    : order ? Math.max(0, Math.round(((completedSteps) / (STATUS_TIMELINE.length - 1)) * 100))
-    : 0;
+  // One tone per status, used by the hero, the route truck and the current
+  // journey step, so the whole card tells the same story in the same colour.
+  const toneStyle = statusColor ? {
+    '--trk-tone': statusColor.text,
+    '--trk-tone-bg': statusColor.bg,
+    '--trk-tone-border': statusColor.border,
+    '--trk-tone-icon-bg': statusColor.iconBg,
+  } : undefined;
+  const isCancelled = order?.status === ORDER_STATUS.CANCELLED;
+  const isDelivered = order?.status === ORDER_STATUS.DELIVERED;
+  const currentStep = STATUS_TIMELINE.indexOf(journeyStatus);
 
-  // Shipment delivery estimate remains the pre-existing arrival_date metric;
-  // trip hub-arrival timestamps are separate fields from the same narrow RPC.
-  const estimatedDelivery = order?.estimated_delivery || null;
-  const showEta = estimatedDelivery
-    && order?.status !== ORDER_STATUS.DELIVERED
-    && order?.status !== ORDER_STATUS.CANCELLED;
+  // The one date the visitor came for, shown in the hero.
+  const keyDate = !order || isCancelled ? null
+    : isDelivered
+      ? { label: 'Delivered', value: formatDate(stepTimestamps[ORDER_STATUS.DELIVERED] || order.updated_at, true) }
+      : order.estimated_delivery
+        ? { label: 'Estimated delivery', value: formatDate(order.estimated_delivery) }
+        : null;
 
+  // Route: where the trip is between the two hubs. Status is the fallback for
+  // trips that predate the departure/arrival timestamps.
+  const departed = Boolean(order?.trip_departure_at)
+    || currentStep >= STATUS_TIMELINE.indexOf(ORDER_STATUS.IN_TRANSIT);
+  const arrived = Boolean(order?.trip_arrived_at)
+    || currentStep >= STATUS_TIMELINE.indexOf(ORDER_STATUS.ARRIVED_HUB);
+  const routeStage = arrived ? 'arrived' : departed ? 'moving' : 'waiting';
+  // { label, time } — shown on two lines so a date never breaks mid-way.
+  const originWhen = order?.trip_departure_at ? { label: 'Departed', time: formatStepTime(order.trip_departure_at) }
+    : departed ? { label: 'Departed', time: null }
+    : order?.trip_departure_date ? { label: 'Departs', time: formatDate(order.trip_departure_date) }
+    : { label: 'Departure date to be set', time: null };
+  const destinationWhen = order?.trip_arrived_at ? { label: 'Arrived', time: formatStepTime(order.trip_arrived_at) }
+    : arrived ? { label: 'Arrived', time: null }
+    : order?.trip_estimated_arrival_at ? { label: 'Expected', time: formatStepTime(order.trip_estimated_arrival_at) }
+    : { label: 'Arrival to be confirmed', time: null };
+
+  // A cancelled order lists only the steps it really reached, then the
+  // cancellation itself; every other order shows the full route ahead.
+  const journeySteps = !order ? []
+    : isCancelled
+      ? [
+        ...STATUS_TIMELINE.filter(status => stepTimestamps[status]).map(status => ({ status, state: 'done' })),
+        { status: ORDER_STATUS.CANCELLED, state: 'cancelled' },
+      ]
+      : STATUS_TIMELINE.map((status, index) => ({
+        status,
+        state: index < currentStep ? 'done' : index === currentStep ? 'current' : 'upcoming',
+      }));
+  const journeyTime = (status) => (
+    status === ORDER_STATUS.CANCELLED
+      ? formatStepTime(stepTimestamps[ORDER_STATUS.CANCELLED] || order?.updated_at)
+      : formatStepTime(stepTimestamps[status])
+  );
+
+  const supportPath = dashboardPath === '/customer' ? '/customer/support' : '/about#contact';
   const RootTag = embedded ? 'div' : 'main';
   const errorCopy = errorKind ? TRACKING_ERROR_COPY[errorKind] : null;
   const LookupErrorIcon = errorKind === 'not_found' ? XCircle : AlertTriangle;
@@ -395,7 +443,7 @@ const TrackingPage = ({ embedded = false }) => {
             id="tracking-input"
             type="text"
             className={`trk-search-input ${invalidClass('tracking_number', errors)}`}
-            placeholder="Enter tracking number (e.g. CE-20270101-0001)"
+            placeholder="Enter tracking number"
             value={trackingNumber}
             onChange={e => {
               setTrackingNumber(e.target.value.toUpperCase());
@@ -479,12 +527,24 @@ const TrackingPage = ({ embedded = false }) => {
           </div>
           <h3 className="trk-not-found-title">{errorCopy.title}</h3>
           <p className="trk-not-found-msg">{errorCopy.message}</p>
-          <button
-            className="trk-retry-btn"
-            onClick={errorKind === 'not_found' ? handleReset : handleRetry}
-          >
-            <RefreshCw size={14} /> {errorCopy.action}
-          </button>
+          {errorKind === 'not_found' && (
+            <ul className="trk-not-found-tips">
+              <li><Check size={14} aria-hidden="true" /><span>Check every character, including the dashes: <strong>CE-YYYYMMDD-XXXX</strong></span></li>
+              <li><Check size={14} aria-hidden="true" /><span>Copy the number straight from your booking confirmation</span></li>
+            </ul>
+          )}
+          <div className="trk-not-found-actions">
+            <button
+              type="button"
+              className="trk-retry-btn"
+              onClick={errorKind === 'not_found' ? handleReset : handleRetry}
+            >
+              <RefreshCw size={14} /> {errorCopy.action}
+            </button>
+            <Link to={supportPath} className="trk-contact-btn">
+              <MessageCircle size={14} aria-hidden="true" /> Contact us
+            </Link>
+          </div>
         </div>
       )}
 
@@ -505,145 +565,128 @@ const TrackingPage = ({ embedded = false }) => {
 
       {/* ══════════ RESULT CARD ══════════ */}
       {order && !loading && (
-        <div className="trk-card animate-slide-up">
+        <div className="trk-card trk-result animate-slide-up" style={toneStyle}>
 
-          {/* ── Status Banner ── */}
-          <div
-            className="trk-status-banner"
-            style={{
-              background: statusColor?.bg || 'var(--bg-secondary)',
-              borderColor: statusColor?.border || 'var(--border)',
-            }}
-          >
-            <div className="trk-status-left">
-              <div
-                className="trk-status-icon-wrap"
-                style={{ background: statusColor?.iconBg || 'var(--bg-secondary)' }}
-              >
-                <StatusIcon size={22} style={{ color: statusColor?.text }} />
+          {/* ── Hero: status, plain-language meaning, the date that matters ── */}
+          <section className="trk-hero" aria-labelledby="trk-hero-status">
+            <div className="trk-hero-top">
+              <div className="trk-hero-status">
+                <div className="trk-hero-icon" aria-hidden="true">
+                  <StatusIcon size={24} />
+                </div>
+                <div className="trk-hero-status-text">
+                  <p className="trk-eyebrow">Current status</p>
+                  <p id="trk-hero-status" className="trk-hero-status-value">{order.status}</p>
+                </div>
               </div>
-              <div>
-                <p className="trk-status-label">Current Status</p>
-                <p className="trk-status-value" style={{ color: statusColor?.text }}>
-                  {order.status}
-                </p>
+              <div className="trk-hero-number">
+                <p className="trk-eyebrow">Tracking No.</p>
+                <p className="trk-hero-number-value">{order.tracking_number}</p>
               </div>
             </div>
-            <div className="trk-tracking-num">
-              <p className="trk-tracking-num-label">Tracking No.</p>
-              <p className="trk-tracking-num-value">{order.tracking_number}</p>
-            </div>
-          </div>
-
-          {/* ── ETA banner (pre-delivery only) ── */}
-          {showEta && (
-            <div className="trk-eta-banner" role="status">
-              <div className="trk-eta-icon" aria-hidden="true">
-                <Calendar size={16} />
+            {STATUS_DESCRIPTIONS[order.status] && (
+              <p className="trk-hero-message">{STATUS_DESCRIPTIONS[order.status]}</p>
+            )}
+            {keyDate && (
+              <div className="trk-hero-date">
+                <Calendar size={18} aria-hidden="true" />
+                <span className="trk-hero-date-label">{keyDate.label}</span>
+                <span className="trk-hero-date-value">{keyDate.value}</span>
               </div>
-              <div className="trk-eta-text">
-                <span className="trk-eta-label">Estimated Shipment Delivery</span>
-                <span className="trk-eta-value">{formatDate(estimatedDelivery)}</span>
-              </div>
-              <span className="trk-eta-caveat">Estimated</span>
-            </div>
-          )}
+            )}
+          </section>
 
-          {(order.trip_departure_at || order.trip_estimated_arrival_at || order.trip_arrived_at) && (
-            <div className="trk-eta-banner" role="status" style={{ alignItems: 'flex-start' }}>
-              <div className="trk-eta-icon" aria-hidden="true"><Truck size={16} /></div>
-              <div className="trk-eta-text">
-                <span className="trk-eta-label">Trip Timing</span>
-                <span className="trk-eta-caveat">Times shown in Manila time</span>
-                {order.trip_departure_date && <span className="trk-eta-value">Scheduled departure: {formatDate(order.trip_departure_date)}</span>}
-                {order.trip_departure_at && <span className="trk-eta-value">Actual departure: {formatDate(order.trip_departure_at, true)}</span>}
-                {order.trip_arrived_at
-                  ? <span className="trk-eta-value">Actual arrival at destination hub: {formatDate(order.trip_arrived_at, true)}</span>
-                  : order.trip_departure_at && <span className="trk-eta-value">Estimated arrival at destination hub: {order.trip_estimated_arrival_at ? formatDate(order.trip_estimated_arrival_at, true) : 'To be confirmed'}</span>}
-              </div>
-            </div>
-          )}
-
-          {/* ── Progress bar ── */}
-          {order.status !== 'Cancelled' && (
-            <div className="trk-progress-wrap">
-              <div className="trk-progress-bar">
-                <div
-                  className="trk-progress-fill"
-                  style={{ width: `${progressPct}%` }}
-                />
-              </div>
-              <span className="trk-progress-pct">{progressPct}% Complete</span>
-            </div>
-          )}
-
-          {/* ── Timeline ── */}
-          <div className="trk-timeline-wrap">
-            <p className="trk-section-label">Shipment Journey</p>
-            <TrackingTimeline currentStatus={timelineStatus(order)} />
-          </div>
-
-          {/* ── Info grid ── */}
-          <div className="trk-info-section">
-            <p className="trk-section-label">Shipment Details</p>
-            <div className="trk-info-grid">
-
-              {/* Route */}
-              <div className="trk-info-tile">
-                <div className="trk-info-tile-icon">
-                  <MapPin size={14} />
+          <div className="trk-result-body">
+            {/* ── Route: origin hub → destination hub ── */}
+            {!isCancelled && (
+              <section className="trk-section trk-route" aria-labelledby="trk-route-title">
+                <p id="trk-route-title" className="trk-section-label">Trip</p>
+                {/* One continuous rail from hub to hub, the truck riding on it. */}
+                <div className={`trk-route-rail trk-route-rail--${routeStage}`} aria-hidden="true">
+                  <span className={`trk-route-dot${departed ? ' is-reached' : ''}`} />
+                  <span className="trk-route-line">
+                    <span className="trk-route-line-fill" />
+                    <span className="trk-route-truck"><Truck size={16} /></span>
+                  </span>
+                  <span className={`trk-route-dot${arrived ? ' is-reached' : ''}`} />
                 </div>
-                <div>
-                  <p className="trk-info-tile-label">Route</p>
-                  <p className="trk-info-tile-value">
-                    {order.origin || '—'}
-                    <ArrowRight size={13} className="trk-route-arrow" />
-                    {order.destination || '—'}
-                  </p>
+                <div className="trk-route-stops">
+                  {[
+                    [order.origin || 'Origin', originWhen, ''],
+                    [order.destination || 'Destination', destinationWhen, ' trk-route-stop--end'],
+                  ].map(([city, when, modifier]) => (
+                    <div key={modifier || 'start'} className={`trk-route-stop${modifier}`}>
+                      <p className="trk-route-city">{city}</p>
+                      <p className="trk-route-when">{when.label}</p>
+                      {when.time && <p className="trk-route-time">{when.time}</p>}
+                    </div>
+                  ))}
                 </div>
-              </div>
+                <p className="trk-route-note">Times are Philippine time (Manila).</p>
+              </section>
+            )}
 
-              {/* Package */}
-              <div className="trk-info-tile">
-                <div className="trk-info-tile-icon">
-                  <Package size={14} />
-                </div>
-                <div>
-                  <p className="trk-info-tile-label">Package</p>
-                  <p className="trk-info-tile-value">{order.package_description || 'No description'}</p>
-                  <p className="trk-info-tile-meta">
-                    <Weight size={11} /> {order.actual_weight || '—'} kg
-                  </p>
-                </div>
-              </div>
+            {/* ── Journey: every step, with the date it was reached ── */}
+            <section className="trk-section trk-journey" aria-labelledby="trk-journey-title">
+              <p id="trk-journey-title" className="trk-section-label">Shipment journey</p>
+              <ol className="trk-journey-list">
+                {journeySteps.map(({ status, state }) => {
+                  const StepIcon = state === 'cancelled' ? XCircle : getStatusIcon(status);
+                  const time = state === 'upcoming' ? null : journeyTime(status);
+                  return (
+                    <li
+                      key={status}
+                      className={`trk-journey-step is-${state}`}
+                      aria-current={state === 'current' ? 'step' : undefined}
+                    >
+                      <span className="trk-journey-node" aria-hidden="true">
+                        {state === 'done' ? <Check size={14} strokeWidth={3} /> : <StepIcon size={14} />}
+                      </span>
+                      <div className="trk-journey-text">
+                        <span className="trk-journey-label">{status}</span>
+                        {time && <span className="trk-journey-time">{time}</span>}
+                      </div>
+                    </li>
+                  );
+                })}
+              </ol>
+            </section>
 
-              {/* Sender */}
-              <div className="trk-info-tile">
-                <div className="trk-info-tile-icon">
-                  <User size={14} />
+            {/* ── Details ── */}
+            <section className="trk-section trk-details" aria-labelledby="trk-details-title">
+              <p id="trk-details-title" className="trk-section-label">Shipment details</p>
+              <div className="trk-details-grid">
+                <div className="trk-detail">
+                  <div className="trk-detail-icon" aria-hidden="true"><User size={15} /></div>
+                  <div className="trk-detail-text">
+                    <p className="trk-detail-label">From</p>
+                    <p className="trk-detail-value">{order.sender_name || '—'}</p>
+                    <p className="trk-detail-meta"><MapPin size={12} aria-hidden="true" /> {order.origin || '—'}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="trk-info-tile-label">Sender</p>
-                  <p className="trk-info-tile-value">{order.sender_name || '—'}</p>
+                <div className="trk-detail">
+                  <div className="trk-detail-icon" aria-hidden="true"><User size={15} /></div>
+                  <div className="trk-detail-text">
+                    <p className="trk-detail-label">To</p>
+                    <p className="trk-detail-value">{order.receiver_name || '—'}</p>
+                    <p className="trk-detail-meta"><MapPin size={12} aria-hidden="true" /> {order.destination || '—'}</p>
+                  </div>
                 </div>
-              </div>
-
-              {/* Receiver */}
-              <div className="trk-info-tile">
-                <div className="trk-info-tile-icon">
-                  <User size={14} />
-                </div>
-                <div>
-                  <p className="trk-info-tile-label">Receiver</p>
-                  <p className="trk-info-tile-value">{order.receiver_name || '—'}</p>
+                <div className="trk-detail trk-detail--wide">
+                  <div className="trk-detail-icon" aria-hidden="true"><Package size={15} /></div>
+                  <div className="trk-detail-text">
+                    <p className="trk-detail-label">Package</p>
+                    <p className="trk-detail-value">{order.package_description || 'No description'}</p>
+                    {/* A booking has no weight until it is put on the scale at
+                        pickup — say so instead of showing "— kg". */}
+                    <p className="trk-detail-meta">
+                      <Weight size={12} aria-hidden="true" />
+                      {order.actual_weight ? `${order.actual_weight} kg` : isCancelled ? 'Not weighed' : 'Weighed at pickup'}
+                    </p>
+                  </div>
                 </div>
               </div>
-
-
-
-
-
-            </div>
+            </section>
           </div>
 
           {/* ── Footer timestamps ── */}
@@ -654,7 +697,7 @@ const TrackingPage = ({ embedded = false }) => {
             </span>
             <span className="trk-timestamp trk-timestamp-live" title={lastRefreshed ? `Auto-refreshed ${formatDate(lastRefreshed.toISOString(), true)}` : undefined}>
               <RefreshCw size={11} />
-              {order.status === ORDER_STATUS.DELIVERED || order.status === ORDER_STATUS.CANCELLED
+              {isDelivered || isCancelled
                 ? `Last updated ${formatDate(order.updated_at, true)}`
                 : lastRefreshed
                   ? `Updated ${formatDate(lastRefreshed.toISOString(), true)} · auto-refresh on`
