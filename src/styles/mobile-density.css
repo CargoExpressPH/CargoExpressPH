@@ -758,6 +758,71 @@
   }
 }
 
+/* Trip Details keeps its pickup and delivery locations and both actions,
+   while using the same compact card shape as the other booking lists. */
+.trip-booking-address-label { display: none; }
+
+@media (max-width: 900px) {
+  .data-table.trip-bookings-table tbody tr {
+    grid-template-columns: minmax(0, 1fr) auto;
+    row-gap: 5px;
+  }
+
+  .data-table.trip-bookings-table td[data-label="Tracking"] {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .data-table.trip-bookings-table td[data-label="Status"] {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .data-table.trip-bookings-table td[data-label="Sender Address"],
+  .data-table.trip-bookings-table td[data-label="Receiver Address"],
+  .data-table.trip-bookings-table td[data-label="Action"] {
+    grid-column: 1 / -1;
+  }
+
+  .data-table.trip-bookings-table td[data-label="Sender Address"] { grid-row: 2; }
+  .data-table.trip-bookings-table td[data-label="Receiver Address"] { grid-row: 3; }
+
+  .data-table.trip-bookings-table td[data-label="Action"] {
+    grid-row: 4;
+    margin-top: 4px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border-light);
+  }
+
+  .data-table.trip-bookings-table td[data-label="Action"] > div {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .data-table.trip-bookings-table .trip-booking-address-label {
+    display: inline-block;
+    min-width: 42px;
+    margin-right: 6px;
+    color: var(--text-tertiary);
+    font-size: var(--text-12);
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+}
+
+@media (max-width: 420px) {
+  .data-table.trip-bookings-table td[data-label="Tracking"],
+  .data-table.trip-bookings-table td[data-label="Status"] {
+    grid-column: 1 / -1;
+    justify-self: start;
+  }
+
+  .data-table.trip-bookings-table td[data-label="Status"] { grid-row: 2; }
+  .data-table.trip-bookings-table td[data-label="Sender Address"] { grid-row: 3; }
+  .data-table.trip-bookings-table td[data-label="Receiver Address"] { grid-row: 4; }
+  .data-table.trip-bookings-table td[data-label="Action"] { grid-row: 5; }
+}
+
 /* ── Open dropdowns escape their card ──────────────────────────────────────
    components.css lets a card show an open CustomSelect menu (e.g. the
    pagination "15 / page" menu, which opens upward), but that rule sits in an

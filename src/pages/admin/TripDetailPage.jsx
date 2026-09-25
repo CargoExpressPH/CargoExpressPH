@@ -426,7 +426,7 @@ const TripDetailPage = () => {
               description="No bookings have been assigned to this trip yet."
             />
           ) : (
-            <table className="data-table">
+            <table className="data-table data-table--compact trip-bookings-table">
               <thead>
                 <tr>
                   <th scope="col">Tracking No.</th>
@@ -439,9 +439,11 @@ const TripDetailPage = () => {
               <tbody>
                 {orders.map(o => (
                   <tr key={o.id} {...rowLinkProps(navigate, `/admin/orders/${o.id}`)}>
-                    <td data-label="Tracking No." className="fw-600">{o.tracking_number}</td>
-                    <td data-label="Sender Address">{[o.sender_province, o.sender_city].filter(Boolean).join(', ')}</td>
-                    <td data-label="Receiver Address">{[o.receiver_province, o.receiver_city].filter(Boolean).join(', ')}</td>
+                    <td data-label="Tracking" className="fw-600">
+                      <Link to={`/admin/orders/${o.id}`} className="text-accent">{o.tracking_number}</Link>
+                    </td>
+                    <td data-label="Sender Address"><span className="trip-booking-address-label">From</span>{[o.sender_province, o.sender_city].filter(Boolean).join(', ')}</td>
+                    <td data-label="Receiver Address"><span className="trip-booking-address-label">To</span>{[o.receiver_province, o.receiver_city].filter(Boolean).join(', ')}</td>
                     <td data-label="Status">
                       <StatusBadge status={o.status} size="sm" />
                     </td>
