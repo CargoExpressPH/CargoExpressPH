@@ -136,14 +136,17 @@ const TripsPage = () => {
                     <strong>{tripDate.day}</strong>
                   </div>
                   <div>
-                    <div className="customer-list-card-top mb-6">
-                      <span className="customer-list-card-title">{trip.origin} to {trip.destination}</span>
-                      {/* "Scheduled" is the admin's word; to a customer this
-                          list is simply trips they can still book on. */}
+                    {/* Status on its own line above the route, as on the order
+                        cards: beside the date tile a phone has no room for the
+                        route and "Open for booking" on one line.
+                        "Scheduled" is the admin's word; to a customer this list
+                        is simply trips they can still book on. */}
+                    <div className="customer-trip-status">
                       {trip.status === 'scheduled'
                         ? <span className="badge badge-success text-xs">Open for booking</span>
                         : <StatusBadge status={trip.status} size="sm" />}
                     </div>
+                    <div className="customer-list-card-title customer-trip-title">{trip.origin} to {trip.destination}</div>
                     <div className="customer-list-card-meta mb-4">
                       <Truck size={14} aria-hidden="true" />
                       <span>{trip.trip_number}</span>

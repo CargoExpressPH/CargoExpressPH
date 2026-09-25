@@ -2415,3 +2415,17 @@ body:has(textarea:focus) .support-chat-page {
   line-height: 1.5;
   text-align: center;
 }
+
+.customer-trip-status {
+  display: flex;
+  margin-bottom: 6px;
+}
+
+.customer-trip-status .badge {
+  white-space: nowrap;
+}
+
+.customer-trip-title {
+  display: block;
+  margin-bottom: 6px;
+}
