@@ -44,8 +44,37 @@ const formatDate = (iso, withTime = false) =>
    45s — frequent enough to feel "live", gentle on the anon RPC. */
 const REFRESH_INTERVAL_MS = 45000;
 const DEFAULT_RETRY_AFTER_SEC = 30;
-const RATE_LIMIT_USER_MSG =
-  'Too many tracking requests. Please wait a moment before trying again.';
+const TRACKING_ERROR_COPY = {
+  not_found: {
+    title: 'Shipment Not Found',
+    message: 'No shipment found with this tracking number. Please double-check and try again.',
+    action: 'Try Another',
+  },
+  network: {
+    title: 'Unable to Check Tracking',
+    message: 'We could not connect to the tracking service. Check your internet connection and try again.',
+    action: 'Try Again',
+  },
+  unavailable: {
+    title: 'Tracking Temporarily Unavailable',
+    message: 'The tracking service is temporarily unavailable. Please try again in a moment.',
+    action: 'Try Again',
+  },
+};
+
+const getTrackingErrorType = (err) => {
+  if (!err) return 'unavailable';
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) return 'network';
+
+  const message = [err.message, err.details, err.hint, err.code, err.name]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+
+  return /network offline|failed to fetch|fetch failed|networkerror|load failed|connection (?:failed|reset|refused)|econn|enotfound|eai_again|etimedout|socket|timeout|timed out|aborted/.test(message)
+    ? 'network'
+    : 'unavailable';
+};
 
 /**
  * Detect rate-limit / 429 style failures from Supabase client errors,
@@ -93,7 +122,7 @@ const TrackingPage = ({ embedded = false }) => {
   const [trackingNumber, setTrackingNumber] = useState(searchParams.get('q') || '');
   const [order,   setOrder]   = useState(null);
   const [loading, setLoading] = useState(false);
-  const [error,   setError]   = useState('');
+  const [errorKind, setErrorKind] = useState(null);
   const [searched, setSearched] = useState(false);
   const { errors, validate, clearError } = useFieldErrors();
   const [statusEvents, setStatusEvents] = useState([]);
@@ -109,6 +138,10 @@ const TrackingPage = ({ embedded = false }) => {
   // Mirror rate-limit flag for poll/fetch guards (avoids stale closures).
   const isRateLimitedRef = useRef(false);
 
+  const setTrackingError = useCallback((kind) => {
+    setErrorKind(kind);
+  }, []);
+
   const stepTimestamps = useMemo(
     () => buildStatusTimestamps(statusEvents, order?.created_at, order?.status),
     [statusEvents, order?.created_at, order?.status]
@@ -118,14 +151,14 @@ const TrackingPage = ({ embedded = false }) => {
     isRateLimitedRef.current = true;
     setIsRateLimited(true);
     setRetryAfterSeconds(seconds);
-    setError(RATE_LIMIT_USER_MSG);
+    setErrorKind('rate_limit');
   }, []);
 
   const clearRateLimit = useCallback(() => {
     isRateLimitedRef.current = false;
     setIsRateLimited(false);
     setRetryAfterSeconds(0);
-    setError(prev => (prev === RATE_LIMIT_USER_MSG ? '' : prev));
+    setErrorKind(prev => (prev === 'rate_limit' ? null : prev));
   }, []);
 
   // Countdown: tick once per second while limited; at 0 lift the cooldown.
@@ -152,14 +185,14 @@ const TrackingPage = ({ embedded = false }) => {
     if (isRateLimitedRef.current) {
       if (!silent) {
         setIsRateLimited(true);
-        setError(RATE_LIMIT_USER_MSG);
+        setErrorKind('rate_limit');
       }
       return;
     }
 
     if (!silent) {
       setLoading(true);
-      setError('');
+      setTrackingError(null);
       setOrder(null);
       setSearched(true);
       setStatusEvents([]);
@@ -180,18 +213,19 @@ const TrackingPage = ({ embedded = false }) => {
           return;
         }
         if (!silent) {
-          setError('No shipment found with this tracking number. Please double-check and try again.');
+          setTrackingError(getTrackingErrorType(fetchError));
         }
         return;
       }
       if (!data) {
         if (!silent) {
-          setError('No shipment found with this tracking number. Please double-check and try again.');
+          setTrackingError('not_found');
         }
         return;
       }
       // Successful lookup ends any prior cooldown.
       if (isRateLimitedRef.current) clearRateLimit();
+      setTrackingError(null);
       setOrder(data);
       setLastRefreshed(new Date());
       // Status history via a public RPC keyed on the tracking number.
@@ -216,12 +250,12 @@ const TrackingPage = ({ embedded = false }) => {
           setStatusEvents([]);
         }
       } else if (!silent) {
-        setError('Something went wrong. Please try again later.');
+        setTrackingError(getTrackingErrorType(err));
       }
     } finally {
       if (!silent) setLoading(false);
     }
-  }, [applyRateLimit, clearRateLimit]);
+  }, [applyRateLimit, clearRateLimit, setTrackingError]);
 
   // Initial load from ?q= querystring
   useEffect(() => {
@@ -281,6 +315,13 @@ const TrackingPage = ({ embedded = false }) => {
     fetchOrder(tn);
   };
 
+  const handleRetry = () => {
+    const tn = activeQueryRef.current || trackingNumber.trim().toUpperCase();
+    if (!tn || isRateLimitedRef.current) return;
+    activeQueryRef.current = tn;
+    fetchOrder(tn);
+  };
+
   const handleReset = () => {
     activeQueryRef.current = null;
     setTrackingNumber('');
@@ -291,7 +332,7 @@ const TrackingPage = ({ embedded = false }) => {
     // Rate-limit cooldown is request-volume based: clearing the form does NOT
     // lift it. Only the countdown (or a successful request after expiry) does.
     if (!isRateLimitedRef.current) {
-      setError('');
+      setTrackingError(null);
     }
   };
 
@@ -313,6 +354,8 @@ const TrackingPage = ({ embedded = false }) => {
     && order?.status !== ORDER_STATUS.CANCELLED;
 
   const RootTag = embedded ? 'div' : 'main';
+  const errorCopy = errorKind ? TRACKING_ERROR_COPY[errorKind] : null;
+  const LookupErrorIcon = errorKind === 'not_found' ? XCircle : AlertTriangle;
 
   return (
     <RootTag id="main-content" tabIndex={-1} className={`trk-page${embedded ? ' trk-page--embedded' : ''}`}>
@@ -355,19 +398,20 @@ const TrackingPage = ({ embedded = false }) => {
             onChange={e => {
               setTrackingNumber(e.target.value.toUpperCase());
               clearError('tracking_number');
-              // Typing may clear a normal "not found" error, but never lifts
+              // Typing may clear a normal lookup error, but never lifts
               // an active rate-limit cooldown (that would defeat the purpose).
-              if (!isRateLimitedRef.current && error && error !== RATE_LIMIT_USER_MSG) {
-                setError('');
+              if (!isRateLimitedRef.current && errorKind) {
+                setTrackingError(null);
               }
             }}
             aria-label="Tracking number"
             autoComplete="off"
             spellCheck="false"
-            aria-invalid={Boolean(errors.tracking_number) || Boolean(error && !isRateLimited)}
+            aria-invalid={Boolean(errors.tracking_number) || errorKind === 'not_found'}
             aria-describedby={
               errors.tracking_number ? 'tracking_number-error'
               : isRateLimited ? 'trk-rate-limit-status'
+              : errorKind === 'not_found' ? 'trk-lookup-error'
               : undefined
             }
           />
@@ -422,15 +466,22 @@ const TrackingPage = ({ embedded = false }) => {
       )}
 
       {/* ══════════ ERROR STATE ══════════ */}
-      {error && !isRateLimited && !loading && (
-        <div className="trk-not-found animate-slide-up" role="alert">
-          <div className="trk-not-found-icon">
-            <AlertTriangle size={28} />
+      {errorCopy && !isRateLimited && !loading && (
+        <div
+          id="trk-lookup-error"
+          className={`trk-not-found trk-lookup-error--${errorKind} animate-slide-up`}
+          role="alert"
+        >
+          <div className="trk-not-found-icon" aria-hidden="true">
+            <LookupErrorIcon size={28} />
           </div>
-          <h3 className="trk-not-found-title">Shipment Not Found</h3>
-          <p className="trk-not-found-msg">{error}</p>
-          <button className="trk-retry-btn" onClick={handleReset}>
-            <RefreshCw size={14} /> Try Another
+          <h3 className="trk-not-found-title">{errorCopy.title}</h3>
+          <p className="trk-not-found-msg">{errorCopy.message}</p>
+          <button
+            className="trk-retry-btn"
+            onClick={errorKind === 'not_found' ? handleReset : handleRetry}
+          >
+            <RefreshCw size={14} /> {errorCopy.action}
           </button>
         </div>
       )}

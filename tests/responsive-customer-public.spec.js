@@ -57,3 +57,35 @@ for (const vp of VIEWPORTS) {
     }
   });
 }
+
+test.describe('public tracking lookup errors', () => {
+  test('distinguishes a network failure from a missing shipment', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    let responseMode = 'network';
+
+    await page.route('**/rest/v1/rpc/track_order_public*', async (route) => {
+      if (responseMode === 'network') {
+        await route.abort('failed');
+        return;
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: '[]',
+      });
+    });
+
+    await page.goto('/track', { waitUntil: 'domcontentloaded' });
+    await page.getByLabel('Tracking number').fill('CE-20260925-1234');
+    await page.getByRole('button', { name: 'Track shipment' }).click();
+
+    await expect(page.getByRole('heading', { name: 'Unable to Check Tracking' })).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText('We could not connect to the tracking service. Check your internet connection and try again.')).toBeVisible();
+
+    responseMode = 'not_found';
+    await page.getByRole('button', { name: 'Try Again' }).click();
+
+    await expect(page.getByRole('heading', { name: 'Shipment Not Found' })).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText('No shipment found with this tracking number. Please double-check and try again.')).toBeVisible();
+  });
+});

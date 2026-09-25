@@ -14,7 +14,7 @@ import BarangaySelect from '../../components/ui/BarangaySelect';
 import ConfirmModal from '../../components/ui/ConfirmModal';
 import usePageTitle from '../../hooks/usePageTitle';
 import { toTitleCase, toAddressCase, normalizeName } from '../../utils/string';
-import FieldError from '../../components/ui/FieldError';
+import FieldError, { invalidClass } from '../../components/ui/FieldError';
 import { validatePhone as validatePhoneShared } from '../../utils/phone';
 import { validateName, validateAddressLine, validateFacebookName } from '../../utils/validation';
 
@@ -92,6 +92,15 @@ const PersonalInfoPage = () => {
   const setField = (key, value) => {
     hasEditedRef.current = true;
     setForm(prev => ({ ...prev, [key]: value }));
+  };
+
+  const clearFieldErrors = (...keys) => {
+    setFieldErrors((prev) => {
+      if (!keys.some((key) => prev[key])) return prev;
+      const next = { ...prev };
+      keys.forEach((key) => { delete next[key]; });
+      return next;
+    });
   };
 
   const handleTitleCase = (key) => (e) => {
@@ -279,13 +288,13 @@ const PersonalInfoPage = () => {
 
           {/* Province */}
           <div className="form-group">
-            <label className="form-label" htmlFor="profile-province">Province</label>
+            <label className="form-label" htmlFor="profile-province">Province <span className="required">*</span></label>
             <div className="form-input-wrapper">
               <Map size={15} className="form-input-icon" />
               <CustomSelect
                 searchable
                 id="profile-province"
-                className="form-select form-input-icon-left"
+                className={`form-select form-input-icon-left ${invalidClass('address_province', fieldErrors)}`}
                 value={form.address_province}
                 onChange={e => {
                   // Barangay belongs to a city and city belongs to a province,
@@ -294,66 +303,106 @@ const PersonalInfoPage = () => {
                   setField('address_province', e.target.value);
                   setField('address_city', '');
                   setField('address_barangay', '');
+                  clearFieldErrors('address_province', 'address_city', 'address_barangay');
                 }}
+                autoComplete="address-level1"
+                aria-required="true"
+                aria-invalid={Boolean(fieldErrors.address_province)}
+                aria-describedby={fieldErrors.address_province ? 'profile-province-error' : undefined}
               >
                 <option value="">Select Province</option>
                 {VALID_PROVINCES.map(p => <option key={p} value={p}>{p}</option>)}
               </CustomSelect>
             </div>
+            {fieldErrors.address_province && (
+              <FieldError id="profile-province-error" message={fieldErrors.address_province} />
+            )}
           </div>
 
           {/* City / Municipality */}
           <div className="form-group">
-            <label className="form-label" htmlFor="profile-city">City / Municipality</label>
+            <label className="form-label" htmlFor="profile-city">City / Municipality <span className="required">*</span></label>
             <div className="form-input-wrapper">
               <Building size={15} className="form-input-icon" />
               <CustomSelect
                 searchable
                 id="profile-city"
-                className="form-select form-input-icon-left"
+                className={`form-select form-input-icon-left ${invalidClass('address_city', fieldErrors)}`}
                 value={form.address_city}
-                onChange={e => { setField('address_city', e.target.value); setField('address_barangay', ''); }}
+                onChange={e => {
+                  setField('address_city', e.target.value);
+                  setField('address_barangay', '');
+                  clearFieldErrors('address_city', 'address_barangay');
+                }}
+                autoComplete="address-level2"
+                disabled={!form.address_province}
+                aria-required="true"
+                aria-invalid={Boolean(fieldErrors.address_city)}
+                aria-describedby={fieldErrors.address_city ? 'profile-city-error' : undefined}
               >
                 <option value="">Select City</option>
                 {cities.map(c => <option key={c} value={c}>{c}</option>)}
               </CustomSelect>
             </div>
+            {fieldErrors.address_city && (
+              <FieldError id="profile-city-error" message={fieldErrors.address_city} />
+            )}
           </div>
 
           {/* Barangay */}
           <div className="form-group">
-            <label className="form-label" htmlFor="profile-barangay">Barangay</label>
+            <label className="form-label" htmlFor="profile-barangay">Barangay <span className="required">*</span></label>
             <div className="form-input-wrapper">
               <MapPin size={15} className="form-input-icon" />
               <BarangaySelect
                 id="profile-barangay"
-                className="form-input-icon-left"
+                className={`form-input-icon-left ${invalidClass('address_barangay', fieldErrors)}`}
                 province={form.address_province}
                 city={form.address_city}
                 value={form.address_barangay}
-                onChange={e => setField('address_barangay', e.target.value)}
+                onChange={e => {
+                  setField('address_barangay', e.target.value);
+                  clearFieldErrors('address_barangay');
+                }}
+                autoComplete="address-level3"
+                aria-required="true"
+                aria-invalid={Boolean(fieldErrors.address_barangay)}
+                aria-describedby={fieldErrors.address_barangay ? 'profile-barangay-error' : undefined}
               />
             </div>
+            {fieldErrors.address_barangay && (
+              <FieldError id="profile-barangay-error" message={fieldErrors.address_barangay} />
+            )}
           </div>
 
           {/* Street */}
           <div className="form-group">
-            <label className="form-label" htmlFor="profile-street">Street and Subdivision (put NA if not applicable)</label>
+            <label className="form-label" htmlFor="profile-street">Street and Subdivision (put NA if not applicable) <span className="required">*</span></label>
             <div className="form-input-wrapper">
               <Home size={15} className="form-input-icon" />
               <input
                 id="profile-street"
-                className="form-input form-input-icon-left"
+                className={`form-input form-input-icon-left ${invalidClass('address_street', fieldErrors)}`}
                 placeholder="Street and Subdivision (put NA if not applicable)"
                 value={form.address_street}
                 onChange={handleAddressCase('address_street')}
+                required
+                autoComplete="street-address"
+                autoCapitalize="words"
+                spellCheck="false"
+                aria-required="true"
+                aria-invalid={Boolean(fieldErrors.address_street)}
+                aria-describedby={fieldErrors.address_street ? 'profile-street-error' : undefined}
               />
             </div>
+            {fieldErrors.address_street && (
+              <FieldError id="profile-street-error" message={fieldErrors.address_street} />
+            )}
           </div>
 
           {/* Lot / Block / Purok */}
           <div className="form-group">
-            <label className="form-label" htmlFor="profile-lot-block">Lot / Block / Purok</label>
+            <label className="form-label" htmlFor="profile-lot-block">Lot / Block / Purok <span className="required">*</span></label>
             <div className="form-input-wrapper">
               <Hash size={15} className="form-input-icon" />
               <input
@@ -362,6 +411,9 @@ const PersonalInfoPage = () => {
                 placeholder="e.g. Lot 12, Block 5"
                 value={form.address_lot_block}
                 onChange={handleAddressCase('address_lot_block')}
+                required
+                autoComplete="address-line2"
+                aria-required="true"
                 aria-invalid={fieldErrors.address_lot_block ? 'true' : undefined}
                 aria-describedby={fieldErrors.address_lot_block ? 'profile-lot-block-error' : undefined}
               />
@@ -371,7 +423,7 @@ const PersonalInfoPage = () => {
 
           {/* Landmark */}
           <div className="form-group">
-            <label className="form-label" htmlFor="profile-landmark">Landmark</label>
+            <label className="form-label" htmlFor="profile-landmark">Landmark <span className="required">*</span></label>
             <div className="form-input-wrapper">
               <Navigation size={15} className="form-input-icon" />
               <input
@@ -380,6 +432,8 @@ const PersonalInfoPage = () => {
                 placeholder="e.g. Near Sari-sari Store"
                 value={form.address_landmark}
                 onChange={handleAddressCase('address_landmark')}
+                required
+                aria-required="true"
                 aria-invalid={fieldErrors.address_landmark ? 'true' : undefined}
                 aria-describedby={fieldErrors.address_landmark ? 'profile-landmark-error' : undefined}
               />

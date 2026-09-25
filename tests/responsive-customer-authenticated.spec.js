@@ -175,4 +175,34 @@ test.describe('authenticated customer responsive — every screen', () => {
     await page.goto('/customer/payment-methods');
     await expect(page).toHaveURL(/\/customer\/payments$/);
   });
+
+  test('personal information exposes required address validation errors', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await suppressOnboarding(page);
+    await login(
+      page,
+      fixture.email,
+      process.env.E2E_CUSTOMER_PASSWORD || CUSTOMER.password,
+      { expectPath: '/customer' },
+    );
+    await dismissOverlays(page);
+
+    await page.goto('/customer/personal-info', { waitUntil: 'domcontentloaded' });
+    await dismissOverlays(page);
+    await selectCustom(page, 'profile-province', 'Select Province');
+    await page.locator('#profile-street').fill('');
+    await page.getByRole('button', { name: 'Save Changes' }).click();
+
+    const fields = [
+      ['profile-province', 'profile-province-error'],
+      ['profile-city', 'profile-city-error'],
+      ['profile-barangay', 'profile-barangay-error'],
+      ['profile-street', 'profile-street-error'],
+    ];
+    for (const [fieldId, errorId] of fields) {
+      await expect(page.locator(`#${fieldId}`)).toHaveAttribute('aria-invalid', 'true');
+      await expect(page.locator(`#${fieldId}`)).toHaveAttribute('aria-describedby', errorId);
+      await expect(page.locator(`#${errorId}`)).toBeVisible();
+    }
+  });
 });

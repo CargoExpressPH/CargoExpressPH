@@ -163,6 +163,16 @@
   display: flex; align-items: center; justify-content: center;
   margin: 0 auto 16px;
 }
+.trk-lookup-error--network .trk-not-found-icon {
+  background: var(--info-bg);
+  border-color: var(--info-glow);
+  color: var(--info-text);
+}
+.trk-lookup-error--unavailable .trk-not-found-icon {
+  background: var(--warning-bg);
+  border-color: rgba(var(--warning-rgb), 0.3);
+  color: var(--warning-text);
+}
 .trk-not-found-title {
   font-size: var(--text-20); font-weight: 700; color: var(--text); margin-bottom: 8px;
 }
