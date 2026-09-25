@@ -59,22 +59,6 @@ const formatBookingTripOption = (trip) => {
   return `${trip.trip_number} - ${dateLabel}`;
 };
 
-// Next departure, rate and space left under each route choice in step 1.
-// Space left is planned capacity minus booked weight, the same figure the
-// customer Trips page shows.
-const RouteNextTrip = ({ trip, fallbackRate }) => {
-  if (!trip) return <div className="customer-route-option-meta">No trip scheduled yet</div>;
-  const rate = parseFloat(trip.price_per_kg || 0) > 0 ? parseFloat(trip.price_per_kg) : parseFloat(fallbackRate || 0);
-  const spaceLeft = Math.max(0, (Number(trip.capacity) || 0) - (Number(trip.current_weight) || 0));
-  return (
-    <div className="customer-route-option-meta">
-      <span>Next trip {formatPhDate(trip.departure_date, { month: 'short', day: 'numeric', year: undefined })}</span>
-      {rate > 0 && <span>{formatMoney(rate)}/kg</span>}
-      <span>{spaceLeft.toLocaleString()} kg left</span>
-    </div>
-  );
-};
-
 const formatKg = (value) => {
   const n = Number(value || 0);
   return `${Number.isInteger(n) ? n.toFixed(0) : n.toFixed(1)} kg`;
@@ -281,13 +265,6 @@ const BookShipmentPage = () => {
     isTripBookable(t)
   );
   const selectedTrip = filteredTrips.find(t => t.id === form.trip_id);
-  // Next bookable departure per route, so each route card shows when the next
-  // trip leaves, its rate and the space left before the customer picks one.
-  // trips arrive earliest-first from getTrips('active').
-  const nextTripByRoute = useMemo(() => Object.fromEntries(ROUTES.map(r => [
-    r.label,
-    trips.find(t => t.origin === r.origin && t.destination === r.destination && isTripBookable(t)) || null,
-  ])), [trips]);
   const effectivePricePerKilo = parseFloat(selectedTrip?.price_per_kg || 0) > 0 ? parseFloat(selectedTrip.price_per_kg) : pricePerKilo;
   const shippingRateLabel = selectedTrip ? 'Shipping Rate' : 'Estimated Shipping Rate';
   // No cost preview: weight is the only price input and the customer no
@@ -1037,7 +1014,6 @@ const BookShipmentPage = () => {
                 style={{ border: form.route === r.label ? '2px solid var(--primary)' : '1.5px solid var(--border)', background: form.route === r.label ? 'var(--primary-bg)' : 'var(--surface)' }}>
                 <Truck size={24} color={form.route === r.label ? 'var(--primary)' : 'var(--text-tertiary)'} style={{ margin: '0 auto 8px' }} />
                 <div className="customer-route-option-label">{r.label}</div>
-                <RouteNextTrip trip={nextTripByRoute[r.label]} fallbackRate={pricePerKilo} />
               </button>
             ))}
           </div>

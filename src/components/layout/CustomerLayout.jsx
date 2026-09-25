@@ -30,6 +30,15 @@ const bottomNavItems = [
   { to: '/customer/profile', icon: User, label: 'Profile' },
 ];
 
+const pagesWithInFlowSupport = new Set([
+  '/customer/book',
+  '/customer/payments',
+  '/customer/profile',
+  '/customer/help-guidelines',
+  '/customer/personal-info',
+  '/customer/change-password',
+  '/customer/change-email',
+]);
 
 const getInitials = (name) => {
   if (!name || !name.trim()) return '?';
@@ -277,22 +286,7 @@ const CustomerLayout = () => {
 
           {/* Right: Icons + Avatar */}
           <div className="customer-navbar-right">
-            {/* Hidden on small phones only (customer-mobile-refresh.css), where
-                the Profile tab's Dark Mode switch covers it and the slot goes
-                to the chat shortcut instead. */}
-            <ThemeToggle className="customer-navbar-theme" />
-            {/* Phones/portrait tablets: the desktop "Chat Support" link is
-                hidden below 900px, so support lives here instead of in a
-                floating bubble that covered page content. Icon-only, so the
-                aria-label is the accessible name. */}
-            <NavLink
-              to="/customer/support"
-              className="customer-nav-icon-btn customer-nav-chat-btn"
-              title="Chat support"
-              aria-label="Ask CargoMate — chat support"
-            >
-              <Headset size={20} aria-hidden="true" />
-            </NavLink>
+            <ThemeToggle />
             <Link
               to="/customer/notifications"
               className="customer-nav-icon-btn"
@@ -402,6 +396,36 @@ const CustomerLayout = () => {
           <Outlet />
         </ErrorBoundary>
       </PageTransition>
+
+      {/* ─── Floating chat support bubble (mobile only) ───
+          Keep it off pages that provide an in-flow support link so it cannot
+          cover booking controls, forms, or other task content.
+
+          Mobile-only is a media query rather than a matchMedia hook on
+          purpose. A JS breakpoint re-renders this whole layout — navbar,
+          bottom nav and the entire routed page beneath it — on every rotation
+          and every resize tick, to decide something the compositor already
+          knows. The FAB is one <a>; hiding it in CSS costs nothing at all.
+
+          A plain Link, not a modal: mounting SupportChatPage over the DOM
+          means its realtime subscription, its message list and its composer
+          all live on top of whatever page the customer is on. The route
+          already exists and already has its own transition. */}
+      {location.pathname !== '/customer/support' && !pagesWithInFlowSupport.has(location.pathname) && (
+        // Icon-only, so the aria-label IS the accessible name — nothing on
+        // screen conveys what this opens. It names the bot rather than saying
+        // "chat" alone, which is what a screen-reader user hears.
+        <Link
+          to="/customer/support"
+          className="customer-chat-fab"
+          aria-label="Ask CargoMate — chat support"
+          title="Ask CargoMate — chat support"
+        >
+          <span className="customer-chat-fab-inner">
+            <Headset size={24} aria-hidden="true" />
+          </span>
+        </Link>
+      )}
 
       {/* ─── Bottom Tab Bar (Mobile Only) ─── */}
       <nav className="customer-bottom-nav" aria-label="Customer navigation">

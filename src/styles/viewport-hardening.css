@@ -429,8 +429,9 @@ body.keyboard-open .confirm-modal {
 
 /* Bottom-anchored fixed furniture would otherwise sit on top of the keyboard.
    The customer tab bar already hides on `keyboard-active`; this covers the
-   measured case. */
-body.keyboard-open .customer-bottom-nav {
+   measured case and the chat bubble, which is fixed to the same edge. */
+body.keyboard-open .customer-bottom-nav,
+body.keyboard-open .customer-chat-fab {
   opacity: 0;
   pointer-events: none;
 }

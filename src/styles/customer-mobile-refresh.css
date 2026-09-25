@@ -1498,13 +1498,6 @@ input:checked + .toggle-slider:before {
     gap: 2px;
   }
 
-  /* Three controls fit beside the brand at 320px; four do not. On small
-     phones the chat shortcut takes this slot, and Dark Mode stays one tap
-     away on the Profile tab. */
-  .customer-navbar-right .customer-navbar-theme {
-    display: none;
-  }
-
   .theme-toggle-btn,
   .customer-nav-icon-btn {
     width: 38px;
