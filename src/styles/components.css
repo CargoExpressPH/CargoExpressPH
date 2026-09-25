@@ -37,6 +37,68 @@
 .btn-danger { background: #B91C1C; color: white; box-shadow: 0 2px 8px rgba(185,28,28,0.25); }
 .btn-danger:hover { background: #991B1B; box-shadow: 0 4px 16px rgba(153,27,27,0.35); transform: translateY(-1px); }
 
+/* Copy-to-clipboard icon button (CopyButton.jsx), e.g. beside a tracking
+   number. Quiet outline at rest; green with a check for two seconds after a
+   successful copy (the toast says it in words). A fixed square, so the
+   feedback never reflows the heading beside it. */
+.copy-btn {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: var(--text-12);
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+.copy-btn:hover {
+  border-color: var(--border-hover);
+  background: var(--bg-secondary);
+  color: var(--text);
+}
+.copy-btn:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+.copy-btn.is-copied {
+  border-color: color-mix(in srgb, var(--primary) 45%, transparent);
+  background: var(--primary-bg);
+  color: var(--primary-text-strong);
+}
+@media (pointer: coarse) {
+  .copy-btn {
+    width: 40px;
+    height: 40px;
+  }
+}
+
+/* Tracking number heading + its copy button on one line. The heading keeps
+   its own wrapping rules; the button never shrinks. */
+.order-tracking-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.order-tracking-title > h1 {
+  min-width: 0;
+  margin: 0;
+}
+
+/* Table rows that open a page when clicked anywhere (utils/rowLink.js). The
+   row's own link stays the keyboard/screen-reader path. */
+tr.row-link {
+  cursor: pointer;
+}
+
 /* Secondary destructive action (cancel a booking/trip). Deliberately quieter
    than .btn-danger so it never outranks the page's primary action; the
    confirmation modal carries the solid red. --error-text-strong keeps AA on

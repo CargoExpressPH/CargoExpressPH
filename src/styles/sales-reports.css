@@ -243,8 +243,11 @@
 
 @media (max-width: 700px) {
   .per-trip-detail-list { justify-content: flex-start; }
+  /* Two columns; the fifth total ("Amount still to collect") takes the full
+     last row instead of sitting alone beside an empty cell. */
   .per-trip-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .per-trip-summary-card { min-height: 132px; padding: 16px; }
+  .per-trip-summary-card { min-height: 0; padding: 14px; }
+  .per-trip-summary-card:last-child:nth-child(odd) { grid-column: 1 / -1; }
 }
 
 /* Mobile overrides for these controls live in sales-reports-controls.css,
@@ -253,58 +256,29 @@
    after it, so a page rule here loses to that file no matter how specific it
    is. Layer order beats specificity. */
 
-@media (max-width: 640px) {
-  .per-trip-summary-grid { grid-template-columns: 1fr; }
+
+/* Wide screens: per-trip tables scroll sideways inside their card instead of
+   being clipped at its edge, and a tracking number never wraps. Phones and
+   tablets get a one-block-per-booking layout (sales-reports-controls.css). */
+.table-container:has(.per-trip-table) {
+  overflow-x: auto;
 }
 
-/* Force per-trip tables to remain as horizontally scrollable tables on mobile */
-@media (max-width: 900px) {
-  .table-container:has(.per-trip-table) {
-    overflow-x: auto !important;
-    border: 1px solid var(--border-light) !important;
-    border-radius: var(--radius-md) !important;
-    background: var(--surface) !important;
-    padding: 0 !important;
-    box-shadow: var(--shadow-sm);
-  }
-  
-  .per-trip-table {
-    display: table !important;
-    width: 100% !important;
-    min-width: 800px !important;
-  }
-  
-  .per-trip-table thead {
-    display: table-header-group !important;
-  }
-  
-  .per-trip-table tbody {
-    display: table-row-group !important;
-  }
-  
-  .per-trip-table tbody tr {
-    display: table-row !important;
-    background: transparent !important;
-    border: none !important;
-    border-bottom: 1px solid var(--border-light) !important;
-    box-shadow: none !important;
-    padding: 0 !important;
-    margin: 0 !important;
-  }
-  
-  .per-trip-table tbody tr:last-child {
-    border-bottom: none !important;
-  }
-  
-  .per-trip-table th,
-  .per-trip-table td {
-    display: table-cell !important;
-    padding: 12px 16px !important;
-  }
-  
-  .per-trip-table td::before {
-    display: none !important;
-  }
+.per-trip-table .report-mono {
+  white-space: nowrap;
+  text-decoration: none;
+}
+
+.per-trip-table a.report-mono:hover {
+  text-decoration: underline;
+}
+
+.per-trip-empty-note {
+  padding: 10px 14px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  font-size: var(--text-13);
 }
 
 /* ---------------------------------------------------------------------------

@@ -15,6 +15,7 @@ import usePageTitle from '../../hooks/usePageTitle';
 import { formatMoney } from '../../utils/currencyInput';
 import { isOrderPriced, ORDER_STATUS } from '../../constants/status';
 import { formatPhDate } from '../../utils/datetime';
+import { rowLinkProps } from '../../utils/rowLink';
 
 // Eleven chips — one per status — put the whole state machine in the toolbar and
 // made the two that need a human ('Pending Review', 'Pending Cancellation') look
@@ -254,7 +255,7 @@ const AdminOrdersPage = () => {
               <thead><tr><th scope="col">Tracking</th><th scope="col">Customer</th><th scope="col">Route</th><th scope="col">Weight</th><th scope="col">Cost</th><th scope="col">Status</th><th scope="col">Date</th></tr></thead>
               <tbody>
                 {paginated.map((o) => (
-                  <tr key={o.id}>
+                  <tr key={o.id} {...rowLinkProps(navigate, `/admin/orders/${o.id}`)}>
                     <td data-label="Tracking">
                       <div className="flex flex-col" style={{gap: '4px'}}>
                         <Link to={`/admin/orders/${o.id}`} className="fw-700 text-accent">{o.tracking_number}</Link>

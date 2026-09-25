@@ -672,9 +672,88 @@
     grid-row: 2;
   }
 
+  /* A customer's own order history has no Customer column: the route takes
+     that line and the date drops beneath it. */
+  .data-table.data-table--compact tbody tr:not(:has(> td[data-label="Customer"])) td[data-label="Route"] {
+    grid-column: 1 / 3;
+    grid-row: 2;
+  }
+
+  .data-table.data-table--compact tbody tr:not(:has(> td[data-label="Customer"])) td[data-label="Date"] {
+    grid-column: 1 / 3;
+    grid-row: 3;
+    justify-self: start;
+  }
+
+  /* The tracking number is never broken mid-number. */
+  .data-table.data-table--compact td[data-label="Tracking"] a {
+    white-space: nowrap;
+  }
+
   /* Empty-state and colspan rows are containers, not records. */
   .data-table.data-table--compact tbody tr:has(> td[colspan]) {
     display: block;
     padding: 0;
+  }
+}
+
+/* Narrow phones (<=420px, which includes most 360px Androids): a tracking
+   number and a long status such as "Pending Cancellation" cannot share a
+   line, so every row stacks the same way instead of some wrapping:
+
+     CE-20260914-5108
+     [Pending Cancellation] ··················· ₱2,090.00
+     Customer name ································ 55 kg
+     Manila → Bohol ······················· Sep 14, 2026          */
+@media (max-width: 420px) {
+  .data-table.data-table--compact tbody tr td[data-label="Tracking"] {
+    grid-column: 1 / -1;
+    grid-row: 1;
+  }
+
+  .data-table.data-table--compact tbody tr td[data-label="Status"] {
+    grid-column: 1 / 3;
+    grid-row: 2;
+    justify-self: start;
+  }
+
+  .data-table.data-table--compact tbody tr td[data-label="Cost"] {
+    grid-column: 3;
+    grid-row: 2;
+  }
+
+  .data-table.data-table--compact tbody tr td[data-label="Customer"] {
+    grid-column: 1 / 3;
+    grid-row: 3;
+  }
+
+  .data-table.data-table--compact tbody tr td[data-label="Weight"] {
+    grid-column: 3;
+    grid-row: 3;
+  }
+
+  .data-table.data-table--compact tbody tr td[data-label="Route"],
+  .data-table.data-table--compact tbody tr:not(:has(> td[data-label="Customer"])) td[data-label="Route"] {
+    grid-column: 1 / 3;
+    grid-row: 4;
+  }
+
+  .data-table.data-table--compact tbody tr td[data-label="Date"],
+  .data-table.data-table--compact tbody tr:not(:has(> td[data-label="Customer"])) td[data-label="Date"] {
+    grid-column: 3;
+    grid-row: 4;
+    justify-self: end;
+  }
+
+  /* No Customer column (a customer's own history): route and date move up. */
+  .data-table.data-table--compact tbody tr:not(:has(> td[data-label="Customer"])) td[data-label="Route"],
+  .data-table.data-table--compact tbody tr:not(:has(> td[data-label="Customer"])) td[data-label="Date"] {
+    grid-row: 3;
+  }
+
+  /* No Cost column (dashboard Recent Orders): the date sits beside the status. */
+  .data-table.data-table--compact tbody tr:not(:has(> td[data-label="Cost"])) td[data-label="Date"] {
+    grid-column: 3;
+    grid-row: 2;
   }
 }

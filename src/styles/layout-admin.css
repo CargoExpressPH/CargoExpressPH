@@ -481,51 +481,114 @@
   font-weight: 700;
 }
 
-.customer-detail-list {
-  margin: 0;
-}
-
-/* Label left, value right. `align-items: baseline` keeps the label sitting on
-   the value's first line when a long address wraps to two or three. */
-.customer-detail-row {
+/* Identity: initials avatar, name, and a one-line "customer since" summary. */
+.customer-profile-identity {
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 20px;
-  padding: 13px 0;
-  border-bottom: 1px solid var(--border-light);
-}
-
-.customer-detail-row:last-child {
-  border-bottom: none;
-  padding-bottom: 0;
-}
-
-.customer-detail-row dt {
-  flex-shrink: 0;
-  font-size: var(--text-13);
-  color: var(--text-secondary);
-}
-
-.customer-detail-row dd {
-  margin: 0;
+  flex: 1 1 260px;
+  align-items: center;
+  gap: 14px;
   min-width: 0;
-  font-size: var(--text-14);
-  font-weight: 600;
-  color: var(--text);
-  text-align: right;
-  /* An email or a full door-to-door address is one long unbroken string; without
-     this it pushes the card wider than the viewport on a phone. */
+}
+
+.customer-profile-avatar {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  border: 1px solid color-mix(in srgb, var(--primary) 25%, transparent);
+  border-radius: 50%;
+  background: var(--primary-bg);
+  color: var(--primary-text-strong);
+  font-size: var(--text-18);
+  font-weight: 700;
+}
+
+.customer-profile-name-block {
+  min-width: 0;
+}
+
+.customer-profile-name-block .customer-detail-name {
   overflow-wrap: anywhere;
 }
 
-.customer-detail-row dd a {
+.customer-profile-since {
+  margin: 2px 0 0;
+  color: var(--text-secondary);
+  font-size: var(--text-13);
+}
+
+/* Contact details as a two-column grid of icon + label + value; one column
+   on phones. Values wrap (a long email or a full address never widens the
+   card past the screen). */
+.customer-profile-facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px 24px;
+  margin: 16px 0 0;
+}
+
+.customer-profile-fact {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-width: 0;
+}
+
+.customer-profile-fact-icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+}
+
+.customer-profile-fact-text {
+  min-width: 0;
+}
+
+.customer-profile-fact dt {
+  margin: 0 0 2px;
+  color: var(--text-secondary);
+  font-size: var(--text-12);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.customer-profile-fact dd {
+  margin: 0;
+  color: var(--text);
+  font-size: var(--text-14);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.customer-profile-fact dd a {
   color: var(--accent-light);
   text-decoration: none;
 }
 
-.customer-detail-row dd a:hover {
+.customer-profile-fact dd a:hover {
   text-decoration: underline;
+}
+
+@media (max-width: 640px) {
+  .customer-profile-facts {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 14px;
+  }
+
+  .customer-profile-avatar {
+    width: 44px;
+    height: 44px;
+    font-size: var(--text-16);
+  }
 }
 
 /* ── Activity Logs Page ───────────────────────────────────────────────── */

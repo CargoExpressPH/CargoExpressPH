@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AlertTriangle, CalendarDays, MapPin, RefreshCw, WalletCards, FileText, Printer } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { rowLinkProps } from '../../utils/rowLink';
 import { getAllTripsForReport, getMonthlySalesReport } from '../../lib/database';
 import { aggregateMonthlySalesReports, tripMonthKey } from '../../lib/perTripSalesReport';
 import { logActivity } from '../../lib/activityLog';
@@ -51,9 +52,11 @@ const SummaryCard = ({ label, value, detail, tone = 'info' }) => (
   </div>
 );
 
-const ActiveBookingsTable = ({ rows }) => (
+const ActiveBookingsTable = ({ rows }) => {
+  const navigate = useNavigate();
+  return (
   <div className="table-container">
-    <table className="data-table data-table--wide per-trip-table">
+    <table className="data-table data-table--wide per-trip-table per-trip-table--active">
       <thead>
         <tr>
           <th scope="col">Tracking number</th>
@@ -64,13 +67,12 @@ const ActiveBookingsTable = ({ rows }) => (
           <th scope="col" className="num">Money returned</th>
           <th scope="col" className="num">Amount still to pay</th>
           <th scope="col">Payment status</th>
-          <th scope="col">Booking</th>
         </tr>
       </thead>
       <tbody>
         {rows.map(row => (
-          <tr key={row.id}>
-            <td data-label="Tracking number"><span className="report-mono">{row.trackingNumber || '—'}</span></td>
+          <tr key={row.id} {...rowLinkProps(navigate, `/admin/orders/${row.id}`)}>
+            <td data-label="Tracking number"><Link to={`/admin/orders/${row.id}`} className="report-mono">{row.trackingNumber || '—'}</Link></td>
             <td data-label="Customer">{row.customerName}</td>
             <td data-label="Status"><StatusBadge status={row.status} size="sm" /></td>
             <td data-label="Final cargo fee" className="num">
@@ -89,17 +91,19 @@ const ActiveBookingsTable = ({ rows }) => (
             <td data-label="Payment status">
               <span className={`per-trip-pill ${statusClass(row.paymentStatus)}`}>{row.paymentStatus}</span>
             </td>
-            <td data-label="Booking"><Link className="btn btn-outline btn-sm" to={`/admin/orders/${row.id}`}>Open</Link></td>
           </tr>
         ))}
       </tbody>
     </table>
   </div>
-);
+  );
+};
 
-const CancelledBookingsTable = ({ rows }) => (
+const CancelledBookingsTable = ({ rows }) => {
+  const navigate = useNavigate();
+  return (
   <div className="table-container">
-    <table className="data-table data-table--wide per-trip-table">
+    <table className="data-table data-table--wide per-trip-table per-trip-table--cancelled">
       <thead>
         <tr>
           <th scope="col">Tracking number</th>
@@ -110,15 +114,14 @@ const CancelledBookingsTable = ({ rows }) => (
           <th scope="col" className="num">Confirmed retained fee</th>
           <th scope="col" className="num">Amount still to refund</th>
           <th scope="col">Settlement status</th>
-          <th scope="col">Booking</th>
         </tr>
       </thead>
       <tbody>
         {rows.map(row => {
           const decision = row.cancellation;
           return (
-            <tr key={row.id}>
-              <td data-label="Tracking number"><span className="report-mono">{row.trackingNumber || '—'}</span></td>
+            <tr key={row.id} {...rowLinkProps(navigate, `/admin/orders/${row.id}`)}>
+              <td data-label="Tracking number"><Link to={`/admin/orders/${row.id}`} className="report-mono">{row.trackingNumber || '—'}</Link></td>
               <td data-label="Customer">{row.customerName}</td>
               <td data-label="Payments received" className="num">{money(row.paymentsReceived)}</td>
               <td data-label="Money returned" className="num">
@@ -132,14 +135,14 @@ const CancelledBookingsTable = ({ rows }) => (
               <td data-label="Settlement status">
                 <span className={`per-trip-pill ${statusClass(decision.settlementStatus)}`}>{decision.settlementStatus}</span>
               </td>
-              <td data-label="Booking"><Link className="btn btn-outline btn-sm" to={`/admin/orders/${row.id}`}>Open</Link></td>
             </tr>
           );
         })}
       </tbody>
     </table>
   </div>
-);
+  );
+};
 
 // Print-only variants of the two tables above — plain pd-table markup
 // instead of the data-table component, matching the rest of PrintDocument's
@@ -497,7 +500,7 @@ const PerTripSalesPage = () => {
                 <div key={trip.id} className="mt-24">
                   <div className="flex items-center justify-between gap-16 flex-wrap">
                     <h3 className="mb-0">
-                      {trip.trip_number || 'Trip'} ({trip.origin || 'Origin not set'} -&gt; {trip.destination || 'Destination not set'})
+                      {trip.trip_number || 'Trip'} ({trip.origin || 'Origin not set'} → {trip.destination || 'Destination not set'})
                     </h3>
                     <div className="per-trip-detail-list">
                       <span><CalendarDays size={15} aria-hidden="true" /> {tripDate(trip.departure_date)}</span>
@@ -513,18 +516,24 @@ const PerTripSalesPage = () => {
                         <p className="text-secondary fs-12 mb-0">Final cargo fees and active balances exclude cancelled bookings.</p>
                       </div>
                     </div>
-                    {activeRows.length > 0 ? <ActiveBookingsTable rows={activeRows} /> : <EmptyState title="No active or completed bookings" description="This trip has no non-cancelled bookings." />}
+                    {activeRows.length > 0 ? <ActiveBookingsTable rows={activeRows} /> : <EmptyState title="No active or completed bookings" description="This trip has no non-cancelled bookings." className="empty-state-compact" />}
                   </div>
 
-                  <div className="card admin-section-card admin-table-card mt-20">
-                    <div className="card-header">
-                      <div>
-                        <h4>Cancelled bookings ({tripSummary.cancelledBookingCount})</h4>
-                        <p className="text-secondary fs-12 mb-0">Cancelled bookings stay separate. No fee or refund is assumed without a recorded decision.</p>
+                  {/* A trip with no cancellations gets one quiet line, not a
+                      full card with an empty-state illustration. */}
+                  {cancelledRows.length > 0 ? (
+                    <div className="card admin-section-card admin-table-card mt-20">
+                      <div className="card-header">
+                        <div>
+                          <h4>Cancelled bookings ({tripSummary.cancelledBookingCount})</h4>
+                          <p className="text-secondary fs-12 mb-0">Cancelled bookings stay separate. No fee or refund is assumed without a recorded decision.</p>
+                        </div>
                       </div>
+                      <CancelledBookingsTable rows={cancelledRows} />
                     </div>
-                    {cancelledRows.length > 0 ? <CancelledBookingsTable rows={cancelledRows} /> : <EmptyState title="No cancelled bookings" description="No cancelled booking is currently assigned to this trip." />}
-                  </div>
+                  ) : (
+                    <p className="per-trip-empty-note mt-12">No cancelled bookings on this trip.</p>
+                  )}
                 </div>
               );
             })
@@ -566,7 +575,7 @@ const PerTripSalesPage = () => {
               return (
                 <div className="pd-section" key={trip.id}>
                   <h4 className="pd-section-title">
-                    {trip.trip_number || 'Trip'} ({trip.origin || 'Origin not set'} -&gt; {trip.destination || 'Destination not set'})
+                    {trip.trip_number || 'Trip'} ({trip.origin || 'Origin not set'} → {trip.destination || 'Destination not set'})
                   </h4>
                   <p style={{ fontSize: '11px', color: '#000', margin: '0 0 8px' }}>
                     Scheduled {tripDate(trip.departure_date)} · {money(tripSummary.shippingFees)} cargo fees · {money(tripSummary.amountStillToCollect)} still to collect

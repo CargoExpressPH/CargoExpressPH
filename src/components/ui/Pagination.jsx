@@ -10,7 +10,14 @@ const getCompactPagination = () => (
 );
 
 /**
- * Pagination — Reusable pagination controls
+ * Pagination — the one list footer used across the app.
+ *
+ *   Showing 1–15 of 42            [15 / page ▾]  ‹  1  2  3  ›
+ *
+ * Three siblings (summary, rows-per-page, page buttons) so the stylesheet can
+ * lay them out as one row on wide screens and as two on phones (summary and
+ * rows-per-page on top, page buttons centred beneath). Page buttons only
+ * appear when there is more than one page.
  *
  * @param {number} totalItems     – Total items count
  * @param {number} currentPage    – Current 1-indexed page
@@ -71,32 +78,38 @@ const Pagination = ({
     return pages;
   };
 
+  // Per-page choices always include the current size, so a caller using a
+  // size outside the defaults still shows its real value.
+  const sizeOptions = perPageOptions.includes(itemsPerPage)
+    ? perPageOptions
+    : [...perPageOptions, itemsPerPage].sort((a, b) => a - b);
+
   return (
-    <div className="pagination-wrap" role="navigation" aria-label="Pagination">
-      {/* Info */}
-      <div className="pagination-info">
-        <span>
-          Showing <strong>{startItem}–{endItem}</strong> of <strong>{totalItems}</strong>
-        </span>
-        {onPerPageChange && (
+    <nav className="pagination-wrap" aria-label="Pagination">
+      <p className="pagination-info" aria-live="polite">
+        Showing <strong>{startItem}–{endItem}</strong> of <strong>{totalItems}</strong>
+      </p>
+
+      {onPerPageChange && (
+        <div className="pagination-size">
           <CustomSelect
             className="pagination-per-page"
             value={itemsPerPage}
             onChange={(e) => onPerPageChange(Number(e.target.value))}
             aria-label="Items per page"
           >
-            {perPageOptions.map(n => (
+            {sizeOptions.map(n => (
               <option key={n} value={n}>{n} / page</option>
             ))}
           </CustomSelect>
-        )}
-      </div>
+        </div>
+      )}
 
-      {/* Controls */}
       {totalPages > 1 && (
         <div className="pagination-controls">
           <button
-            className="pagination-btn"
+            type="button"
+            className="pagination-btn pagination-step"
             onClick={() => onPageChange(currentPage - 1)}
             disabled={currentPage <= 1}
             aria-label="Previous page"
@@ -106,9 +119,10 @@ const Pagination = ({
 
           {getPageNumbers().map((page, i) =>
             page === '...' ? (
-              <span key={`e${i}`} className="pagination-ellipsis">…</span>
+              <span key={`e${i}`} className="pagination-ellipsis" aria-hidden="true">…</span>
             ) : (
               <button
+                type="button"
                 key={page}
                 className={`pagination-btn pagination-num ${currentPage === page ? 'active' : ''}`}
                 onClick={() => onPageChange(page)}
@@ -121,7 +135,8 @@ const Pagination = ({
           )}
 
           <button
-            className="pagination-btn"
+            type="button"
+            className="pagination-btn pagination-step"
             onClick={() => onPageChange(currentPage + 1)}
             disabled={currentPage >= totalPages}
             aria-label="Next page"
@@ -130,7 +145,7 @@ const Pagination = ({
           </button>
         </div>
       )}
-    </div>
+    </nav>
   );
 };
 

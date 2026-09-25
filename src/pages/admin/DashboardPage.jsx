@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { getDashboardStats, getVanCapacity, getDashboardAttention, getMonthSalesSummary, withTimeout } from '../../lib/database';
 import StatusBadge from '../../components/ui/StatusBadge';
 import CapacityTracker from '../../components/ui/CapacityTracker';
@@ -19,6 +19,7 @@ import { formatMoney } from '../../utils/currencyInput';
 import { ORDER_STATUS } from '../../constants/status';
 import { isScheduledTripOverdue } from '../../lib/tripCapacitySelection';
 import useRealtimeTripCapacity from '../../hooks/useRealtimeTripCapacity';
+import { rowLinkProps } from '../../utils/rowLink';
 
 // Every order status in the order cargo moves, each drawn in its badge colour
 // so a bar here reads the same as the badge on the order row.
@@ -45,6 +46,7 @@ const monthLabel = (monthKey) =>
 
 const DashboardPage = () => {
   usePageTitle('Dashboard');
+  const navigate = useNavigate();
   const [stats, setStats] = useState(null);
   const [capacity, setCapacity] = useState(null);
   const [recent, setRecent] = useState([]);
@@ -526,7 +528,7 @@ const DashboardPage = () => {
               <thead><tr><th scope="col">Tracking</th><th scope="col">Customer</th><th scope="col">Status</th><th scope="col">Date</th></tr></thead>
               <tbody>
                 {recent.map(o => (
-                  <tr key={o.id}>
+                  <tr key={o.id} {...rowLinkProps(navigate, `/admin/orders/${o.id}`)}>
                     <td data-label="Tracking"><Link to={`/admin/orders/${o.id}`} className="fw-600 text-accent">{o.tracking_number}</Link></td>
                     <td data-label="Customer">{o.profiles?.name || '—'}</td>
                     <td data-label="Status"><StatusBadge status={o.status} size="sm" /></td>

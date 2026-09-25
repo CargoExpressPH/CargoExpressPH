@@ -11,6 +11,7 @@ import { clearPendingPayment, getPendingPayment, savePendingPayment } from '../.
 import { savePaymentReturnContext } from '../../lib/paymentReturnContext';
 import { isPaymentPollReconciled } from '../../utils/paymentReconciliation';
 import StatusBadge from '../../components/ui/StatusBadge';
+import CopyButton from '../../components/ui/CopyButton';
 import TrackingTimeline from '../../components/ui/TrackingTimeline';
 import ConfirmModal from '../../components/ui/ConfirmModal';
 import PaymentResultModal from '../../components/ui/PaymentResultModal';
@@ -739,7 +740,10 @@ const OrderDetailPage = () => {
       {/* Header */}
       <div className="customer-order-detail-header flex items-center justify-between animate-slide-up mb-20">
         <div>
-          <h1 className="fw-700">{order.tracking_number}</h1>
+          <div className="order-tracking-title">
+            <h1 className="fw-700">{order.tracking_number}</h1>
+            <CopyButton value={order.tracking_number} label="Copy tracking number" copiedMessage="Tracking number copied" />
+          </div>
           <div className="flex items-center gap-8 mt-4 text-sm">
             <span className="fw-700" style={{ color: 'var(--text)' }}>{order.origin}</span>
             <span className="fw-700" style={{ color: 'var(--primary-text)' }}>➔</span>

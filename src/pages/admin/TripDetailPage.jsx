@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
+import { rowLinkProps } from '../../utils/rowLink';
 import { getTripById, getTripStartDateGates, updateTrip, getActivityLogsByRecord, rescheduleTrip, retryTripReschedulePublicNotice } from '../../lib/database';
 import StatusBadge from '../../components/ui/StatusBadge';
 import ConfirmModal from '../../components/ui/ConfirmModal';
@@ -437,7 +438,7 @@ const TripDetailPage = () => {
               </thead>
               <tbody>
                 {orders.map(o => (
-                  <tr key={o.id}>
+                  <tr key={o.id} {...rowLinkProps(navigate, `/admin/orders/${o.id}`)}>
                     <td data-label="Tracking No." className="fw-600">{o.tracking_number}</td>
                     <td data-label="Sender Address">{[o.sender_province, o.sender_city].filter(Boolean).join(', ')}</td>
                     <td data-label="Receiver Address">{[o.receiver_province, o.receiver_city].filter(Boolean).join(', ')}</td>

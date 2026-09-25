@@ -10,6 +10,7 @@ import { resolvePhotoUrls, deletePhoto } from '../../lib/storage';
 import { supabase } from '../../lib/supabase';
 import { motion, AnimatePresence } from 'framer-motion';
 import StatusBadge from '../../components/ui/StatusBadge';
+import CopyButton from '../../components/ui/CopyButton';
 import TrackingTimeline from '../../components/ui/TrackingTimeline';
 import PickupModal from '../../components/ui/PickupModal';
 import TripAssignModal from '../../components/ui/TripAssignModal';
@@ -881,7 +882,10 @@ const AdminOrderDetailPage = () => {
       <ErrorBoundarySection message="Order info failed to load.">
       {/* Header */}
       <div className="admin-order-heading mb-8">
-        <h1 className="fw-700 text-2xl">{order.tracking_number}</h1>
+        <div className="order-tracking-title">
+          <h1 className="fw-700 text-2xl">{order.tracking_number}</h1>
+          <CopyButton value={order.tracking_number} label="Copy tracking number" copiedMessage="Tracking number copied" />
+        </div>
         <div className="admin-order-heading-status">
             <StatusBadge status={order.status} />
             {order.status === 'Delivered' && computedRemainingBalance > 0 && (

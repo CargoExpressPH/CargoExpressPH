@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { getCustomers } from '../../lib/database';
 import EmptyState from '../../components/ui/EmptyState';
 import Pagination from '../../components/ui/Pagination';
@@ -8,6 +8,7 @@ import { ChevronRight, Eye, Search, Users, X } from 'lucide-react';
 import usePageTitle from '../../hooks/usePageTitle';
 import { formatMoney } from '../../utils/currencyInput';
 import { formatPhDate } from '../../utils/datetime';
+import { rowLinkProps } from '../../utils/rowLink';
 
 const SEARCH_DEBOUNCE_MS = 350;
 
@@ -68,6 +69,7 @@ const CustomerListSkeleton = () => (
 
 const CustomersPage = () => {
   usePageTitle('Customers');
+  const navigate = useNavigate();
   const [customers, setCustomers] = useState([]);
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -216,7 +218,7 @@ const CustomersPage = () => {
                   const location = customerLocation(customer);
                   const balance = Number(customer.outstanding_balance || 0);
                   return (
-                    <tr key={customer.id}>
+                    <tr key={customer.id} {...rowLinkProps(navigate, `/admin/customers/${customer.id}`)}>
                       <td>
                         <div className="customer-directory-identity">
                           <span className="customer-directory-avatar" aria-hidden="true">{customerInitials(name)}</span>
@@ -452,8 +454,6 @@ const CustomersPage = () => {
         }
 
         @media (max-width: 680px) {
-          .customer-directory-pagination .pagination-per-page { display: none; }
-          .customer-directory-pagination .pagination-info { justify-content: center; }
         }
 
         @media (max-width: 420px) {
