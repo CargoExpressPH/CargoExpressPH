@@ -611,8 +611,9 @@ const AboutPage = () => {
     return () => { isMounted = false; };
   }, []);
 
-  // ─── Jump to a section when the URL already carries a hash, e.g. Footer's
-  // "FAQs" (/about#faq) link, or a direct/bookmarked link. Waits for the loading spinner to
+  // ─── Jump to a section when the URL already carries a hash, e.g. the
+  // "View Trip Schedules" (/about#trip-schedules) links on the home page and
+  // Footer, Footer's "FAQs" (/about#faq), or a direct/bookmarked link. Waits for the loading spinner to
   // clear first, since section elements don't exist in the DOM until then. ───
   useEffect(() => {
     if (fetching) return;
@@ -1160,7 +1161,10 @@ const AboutPage = () => {
                 whileInView="visible"
                 viewport={{ once: true, margin: "-80px" }}
               >
-                {tripsState.trips.slice(0, 6).map((trip) => (
+                {/* Every trip is listed here: this section is where all
+                    "View Trip Schedules" links land, so there is no
+                    separate "view all" page to send visitors to. */}
+                {tripsState.trips.map((trip) => (
                   <motion.div key={trip.id} variants={itemVariants}>
                     <TripScheduleCard
                       trip={trip}
@@ -1170,11 +1174,6 @@ const AboutPage = () => {
                 ))}
               </motion.div>
               <div className="about-trip-section-actions">
-                {tripsState.trips.length > 6 && (
-                  <Link to="/schedules" className="btn btn-outline">
-                    View All Trip Schedules
-                  </Link>
-                )}
                 <Link to="/customer/book" className="btn btn-primary">
                   Book Cargo
                 </Link>

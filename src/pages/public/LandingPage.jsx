@@ -24,7 +24,7 @@ const LandingPage = () => {
         <h1 id="public-landing-title">{heading}</h1>
         <p>{summary}</p>
         <div className="public-landing-actions">
-          <Link className="btn btn-primary" to="/schedules">View Trip Schedules</Link>
+          <Link className="btn btn-primary" to="/about#trip-schedules">View Trip Schedules</Link>
           <Link className="btn btn-outline" to="/track">Track a Shipment</Link>
         </div>
       </section>

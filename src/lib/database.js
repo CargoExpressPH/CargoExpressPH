@@ -1288,7 +1288,7 @@ export const rescheduleTrip = async (tripId, {
             + `${reasonLine}`,
           send_email: true,
           cta_label: bookable ? 'Book This Trip' : 'View Updated Schedule',
-          cta_url: 'https://cargoexpress-ph.online/schedules',
+          cta_url: 'https://cargoexpress-ph.online/about#trip-schedules',
           author_id: user?.user?.id,
         })
         .select()
