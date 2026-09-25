@@ -61,6 +61,16 @@ export const PUBLIC_PAGES = {
 // from the admin Company Information screen belong here — phone numbers and
 // addresses are editable in the database, so a copy baked in at build time
 // would go stale the first time an admin changes them.
+const BUSINESS_CONTACT = {
+  email: 'ship2doorofficial@gmail.com',
+  phones: ['+63-921-252-8208', '+63-927-505-0460'],
+  facebook: 'https://www.facebook.com/mscargodeliveryservice',
+  hubs: [
+    { name: 'Manila hub', locality: 'Dasmariñas', region: 'Cavite' },
+    { name: 'Bohol hub', locality: 'Batuan', region: 'Bohol' },
+  ],
+};
+
 export function structuredDataFor(path, page) {
   const url = `${SITE_ORIGIN}${path === '/' ? '/' : path}`;
   const organization = {
@@ -75,6 +85,24 @@ export function structuredDataFor(path, page) {
       { '@type': 'Place', name: 'Metro Manila, Philippines' },
       { '@type': 'Place', name: 'Bohol, Philippines' },
     ],
+    // Contact details as stored in company_information (Admin → Company
+    // Information). Keep in step with that screen if the business details
+    // change; index.html carries the same block for the dev server.
+    email: BUSINESS_CONTACT.email,
+    telephone: BUSINESS_CONTACT.phones[0],
+    contactPoint: BUSINESS_CONTACT.phones.map(telephone => ({
+      '@type': 'ContactPoint',
+      contactType: 'customer service',
+      telephone,
+      areaServed: 'PH',
+      availableLanguage: ['en', 'fil'],
+    })),
+    location: BUSINESS_CONTACT.hubs.map(hub => ({
+      '@type': 'Place',
+      name: `CargoExpress PH ${hub.name}`,
+      address: { '@type': 'PostalAddress', addressLocality: hub.locality, addressRegion: hub.region, addressCountry: 'PH' },
+    })),
+    sameAs: [BUSINESS_CONTACT.facebook],
   };
   const website = {
     '@type': 'WebSite',
