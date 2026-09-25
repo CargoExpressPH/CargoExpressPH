@@ -161,7 +161,7 @@ const ScrollToTop = () => {
 /** Keep PWA-install overlays off public, time-sensitive tracking tasks. */
 const InstallPrompts = () => {
   const { pathname } = useLocation();
-  if (pathname === '/track' || pathname === '/payment/return') return null;
+  if (pathname === '/' || pathname === '/track' || pathname === '/payment/return') return null;
   return <>
     <InstallAppBanner />
     <IosInstallBanner />
