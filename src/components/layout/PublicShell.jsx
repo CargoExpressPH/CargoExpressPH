@@ -4,6 +4,7 @@ import BrandLockup from '../ui/BrandLogo';
 import Footer from './Footer';
 import { getCompanyInformation } from '../../lib/database';
 import BusinessStructuredData from '../public/BusinessStructuredData';
+import { useAuth } from '../../contexts/AuthContext';
 
 /**
  * Minimal chrome for guest-accessible pages that aren't part of the About
@@ -18,7 +19,13 @@ import BusinessStructuredData from '../public/BusinessStructuredData';
  * two lightweight pages.
  */
 const PublicShell = ({ children }) => {
+  const { user, userProfile } = useAuth();
   const [company, setCompany] = useState(null);
+  // A signed-in visitor (e.g. following the footer's schedules link) is
+  // offered their dashboard instead of being asked to log in again.
+  const dashboardPath = user && userProfile?.role
+    ? (userProfile.role === 'admin' ? '/admin' : '/customer')
+    : null;
 
   useEffect(() => {
     let mounted = true;
@@ -35,8 +42,14 @@ const PublicShell = ({ children }) => {
           <BrandLockup size={32} />
         </Link>
         <nav className="public-shell-nav" aria-label="Account">
-          <Link to="/login" className="public-shell-link">Log In</Link>
-          <Link to="/register" className="btn btn-primary btn-sm">Sign Up</Link>
+          {dashboardPath ? (
+            <Link to={dashboardPath} className="btn btn-primary btn-sm">Go to Dashboard</Link>
+          ) : (
+            <>
+              <Link to="/login" className="public-shell-link">Log In</Link>
+              <Link to="/register" className="btn btn-primary btn-sm">Sign Up</Link>
+            </>
+          )}
         </nav>
       </header>
 

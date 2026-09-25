@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { Mail } from 'lucide-react';
 import { BrandLogo } from '../ui/BrandLogo';
+import { getGoogleMapsSearchUrl } from '../../utils/googleMaps';
 
 /**
  * The site's one public footer — used on the About page and on the public
@@ -35,10 +36,26 @@ const Footer = ({ companyName, info, systemStatus, systemStatusLabel }) => {
           {(info?.manila_address || info?.bohol_address) && (
             <div className="about-footer-hubs">
               {info?.manila_address && (
-                <p className="about-footer-hub"><strong>Manila Hub:</strong> {info.manila_address}</p>
+                <a
+                  href={getGoogleMapsSearchUrl(info.manila_address)}
+                  className="about-footer-hub"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={`Open Manila Hub in Google Maps: ${info.manila_address}`}
+                >
+                  <strong>Manila Hub:</strong> {info.manila_address}
+                </a>
               )}
               {info?.bohol_address && (
-                <p className="about-footer-hub"><strong>Bohol Hub:</strong> {info.bohol_address}</p>
+                <a
+                  href={getGoogleMapsSearchUrl(info.bohol_address)}
+                  className="about-footer-hub"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={`Open Bohol Hub in Google Maps: ${info.bohol_address}`}
+                >
+                  <strong>Bohol Hub:</strong> {info.bohol_address}
+                </a>
               )}
             </div>
           )}
@@ -64,7 +81,7 @@ const Footer = ({ companyName, info, systemStatus, systemStatusLabel }) => {
           <h4 className="about-footer-heading">Quick Links</h4>
           <div className="about-footer-links">
             <Link to="/track" className="about-footer-link">Track Your Cargo</Link>
-            <Link to="/about#trip-schedules" className="about-footer-link">View Trip Schedules</Link>
+            <Link to="/schedules" className="about-footer-link">View Trip Schedules</Link>
             <Link to="/customer/book" className="about-footer-link">Book a Cargo</Link>
             <Link to="/about#faq" className="about-footer-link">FAQs</Link>
           </div>

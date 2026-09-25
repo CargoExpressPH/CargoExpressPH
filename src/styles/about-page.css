@@ -1482,7 +1482,8 @@
   color: rgba(255,255,255,0.55); line-height: 1.7; font-size: var(--text-16); margin-bottom: 24px;
 }
 .about-footer-hubs { display: flex; flex-direction: column; gap: 4px; margin: 0 0 20px; }
-.about-footer-hub { margin: 0; color: rgba(255,255,255,0.55); font-size: var(--text-13); line-height: 1.6; }
+.about-footer-hub { margin: 0; color: rgba(255,255,255,0.55); font-size: var(--text-13); line-height: 1.6; text-decoration: none; transition: color 0.2s; }
+.about-footer-hub:hover { color: #fff; text-decoration: underline; }
 .about-footer-hub strong { color: rgba(255,255,255,0.85); font-weight: 700; }
 .about-footer-social { display: flex; gap: 12px; }
 .about-footer-links { display: flex; flex-direction: column; gap: 10px; }

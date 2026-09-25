@@ -51,10 +51,7 @@ import {
   PHILIPPINES_MAP_REGIONS,
   PHILIPPINES_MAP_ZOOM,
 } from '../../constants/phMapCoordinates';
-
-const getGoogleMapsSearchUrl = (address) => (
-  `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address?.trim() || '')}`
-);
+import { getGoogleMapsSearchUrl } from '../../utils/googleMaps';
 
 // A review card shows a short excerpt with "Read more" past this length,
 // breaking on the nearest earlier space so a word is never cut mid-way.
@@ -615,8 +612,7 @@ const AboutPage = () => {
   }, []);
 
   // ─── Jump to a section when the URL already carries a hash, e.g. Footer's
-  // "View Trip Schedules" (/about#trip-schedules) and "FAQs" (/about#faq")
-  // links, or a direct/bookmarked link. Waits for the loading spinner to
+  // "FAQs" (/about#faq) link, or a direct/bookmarked link. Waits for the loading spinner to
   // clear first, since section elements don't exist in the DOM until then. ───
   useEffect(() => {
     if (fetching) return;

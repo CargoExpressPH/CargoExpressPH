@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useLocation } from 'react-router-dom';
 import { getTrips } from '../../lib/database';
 import StatusBadge from '../../components/ui/StatusBadge';
 import { CenteredSpinner } from '../../components/ui/Loader';
@@ -9,6 +10,7 @@ import PullToRefresh from '../../components/ui/PullToRefresh';
 import { formatMoney } from '../../utils/currencyInput';
 import { formatTripScheduleDate } from '../../utils/datetime';
 import { useTripBooking } from '../../hooks/useTripBooking';
+import { PUBLIC_PAGES } from '../../seo/publicPages';
 
 // Max ms to wait before showing an error instead of an infinite spinner.
 const LOAD_TIMEOUT_MS = 15000;
@@ -25,6 +27,11 @@ const normalizeError = (err) => {
 const TripsPage = () => {
   usePageTitle('Trips');
   const selectTrip = useTripBooking();
+  // Guests see this page at /schedules. There it uses the heading and summary
+  // the build writes into the crawlable HTML, so the page a search engine
+  // reads is the page a visitor sees.
+  const { pathname } = useLocation();
+  const publicPage = pathname === '/schedules' ? PUBLIC_PAGES['/schedules'] : null;
   const [trips, setTrips] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -84,12 +91,12 @@ const TripsPage = () => {
         <div>
           {/* The count sits beside the title it counts, not alone at the far edge. */}
           <div className="customer-trips-title-row">
-            <h1 className="fw-700 mb-4">Available Trips</h1>
+            <h1 className="fw-700 mb-4">{publicPage?.heading || 'Available Trips'}</h1>
             {!loading && !error && trips.length > 0 && (
               <span className="badge badge-success">{trips.length} open</span>
             )}
           </div>
-          <p className="text-sm text-secondary">Choose a route and reserve cargo space fast.</p>
+          <p className="text-sm text-secondary">{publicPage?.summary || 'Choose a route and reserve cargo space fast.'}</p>
         </div>
       </div>
 
