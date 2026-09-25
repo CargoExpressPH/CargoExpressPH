@@ -29,6 +29,22 @@ const iconMap = {
   chat_message: MessageSquare,
   system_alert: AlertTriangle,
   payment_update: ReceiptText,
+  // Short aliases, so an older or hand-written row still gets its icon.
+  order: Package,
+  trip: Truck,
+  payment: ReceiptText,
+};
+
+// Colour per kind of notification, so the list can be scanned at a glance:
+// bookings green, trips blue, money amber, announcements purple, problems red.
+const toneMap = {
+  order_update: 'order', order: 'order',
+  trip_update: 'trip', trip: 'trip',
+  payment_update: 'payment', payment: 'payment',
+  announcement: 'announcement',
+  chat_message: 'message', inquiry: 'message',
+  feedback: 'feedback',
+  system_alert: 'alert',
 };
 
 const PAGE_SIZE = 10;
@@ -55,6 +71,7 @@ const groupByDate = (notifications) => {
 // ── Swipe-to-delete notification card ──────────────────────────────────────
 const SwipeableNotificationCard = ({ notification, onRead, onDelete, onClick, index, actionable }) => {
   const Icon = iconMap[notification.type] || Bell;
+  const tone = toneMap[notification.type] || 'general';
   const isUnread = !notification.is_read;
   const cardRef = useRef(null);
   const startX = useRef(0);
@@ -139,7 +156,7 @@ const SwipeableNotificationCard = ({ notification, onRead, onDelete, onClick, in
         }}
         aria-label={actionable ? `Open notification: ${notification.title}. ${notification.message}` : undefined}
       >
-        <div className="notification-icon-wrap">
+        <div className={`notification-icon-wrap notif-tone-${tone}`}>
           <Icon size={18} aria-hidden="true" />
         </div>
         <div className="notification-content flex-1">

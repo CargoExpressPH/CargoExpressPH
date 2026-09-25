@@ -2360,3 +2360,58 @@ body:has(textarea:focus) .support-chat-page {
   font-weight: 600;
   color: var(--customer-muted);
 }
+
+/* ── Notification icons coloured by kind (NotificationsPage toneMap) ──────
+   Theme tokens, so both themes stay readable. Same colour read or unread:
+   the card background and the dot already say "unread"; the colour says
+   what it is about. */
+.notification-card .notification-icon-wrap.notif-tone-order { background: var(--primary-icon-bg); color: var(--primary-text); }
+.notification-card .notification-icon-wrap.notif-tone-trip { background: var(--info-icon-bg); color: var(--info-text); }
+.notification-card .notification-icon-wrap.notif-tone-message { background: var(--info-icon-bg); color: var(--info-text); }
+.notification-card .notification-icon-wrap.notif-tone-payment { background: var(--warning-icon-bg); color: var(--warning-text); }
+.notification-card .notification-icon-wrap.notif-tone-feedback { background: var(--warning-icon-bg); color: var(--warning-text); }
+.notification-card .notification-icon-wrap.notif-tone-announcement { background: color-mix(in srgb, var(--chart-purple) 14%, transparent); color: var(--chart-purple-text); }
+.notification-card .notification-icon-wrap.notif-tone-alert { background: var(--error-icon-bg); color: var(--error-text); }
+.notification-card .notification-icon-wrap.notif-tone-general { background: var(--bg-secondary); color: var(--text-secondary); }
+
+/* ── Customer Trips page ─────────────────────────────────────────────────── */
+.customer-trips-title-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+}
+
+.customer-trips-title-row .badge {
+  margin-bottom: 4px;
+}
+
+/* Visible "Book this trip" label inside the card (the card is the button). */
+.customer-trip-book-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 12px;
+  padding: 8px 14px;
+  border-radius: var(--radius-full);
+  background: var(--primary-fill);
+  color: #FFFFFF;
+  font-size: var(--text-13);
+  font-weight: 700;
+  line-height: 1;
+}
+
+.customer-trip-list-card:hover .customer-trip-book-cta {
+  background: var(--primary-text-strong);
+}
+
+.customer-trips-note {
+  margin: 4px 0 0;
+  padding: 12px 14px;
+  border: 1px dashed var(--customer-line);
+  border-radius: 14px;
+  color: var(--customer-muted);
+  font-size: var(--text-13);
+  line-height: 1.5;
+  text-align: center;
+}

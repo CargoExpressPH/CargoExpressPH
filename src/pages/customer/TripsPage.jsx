@@ -82,10 +82,15 @@ const TripsPage = () => {
       <div className="page-transition customer-trips-page">
       <div className="customer-page-heading">
         <div>
-          <h1 className="fw-700 mb-4">Available Trips</h1>
+          {/* The count sits beside the title it counts, not alone at the far edge. */}
+          <div className="customer-trips-title-row">
+            <h1 className="fw-700 mb-4">Available Trips</h1>
+            {!loading && !error && trips.length > 0 && (
+              <span className="badge badge-success">{trips.length} open</span>
+            )}
+          </div>
           <p className="text-sm text-secondary">Choose a route and reserve cargo space fast.</p>
         </div>
-        {!loading && !error && <span className="badge badge-success">{trips.length} active</span>}
       </div>
 
       {loading ? (
@@ -133,7 +138,11 @@ const TripsPage = () => {
                   <div>
                     <div className="customer-list-card-top mb-6">
                       <span className="customer-list-card-title">{trip.origin} to {trip.destination}</span>
-                      <StatusBadge status={trip.status} size="sm" />
+                      {/* "Scheduled" is the admin's word; to a customer this
+                          list is simply trips they can still book on. */}
+                      {trip.status === 'scheduled'
+                        ? <span className="badge badge-success text-xs">Open for booking</span>
+                        : <StatusBadge status={trip.status} size="sm" />}
                     </div>
                     <div className="customer-list-card-meta mb-4">
                       <Truck size={14} aria-hidden="true" />
@@ -151,13 +160,22 @@ const TripsPage = () => {
                         <strong>{formatMoney(parseFloat(trip.price_per_kg || 70))}/kg</strong> rate
                       </span>
                     </div>
+                    {/* The whole card is the button; this is its visible label. */}
+                    <span className="customer-trip-book-cta" aria-hidden="true">
+                      Book this trip <ChevronRight size={16} />
+                    </span>
                   </div>
-                  <ChevronRight size={18} className="customer-card-chevron" />
                 </div>
               </div>
             </button>
           );
         })
+      )}
+
+      {!loading && !error && trips.length > 0 && (
+        <p className="customer-trips-note">
+          New trips are added regularly. You can also book without choosing a trip, and we&apos;ll assign your shipment to the next available one.
+        </p>
       )}
     </div>
     </PullToRefresh>
