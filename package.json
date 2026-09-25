@@ -23,7 +23,7 @@
     "test:email-updates-subscription": "node scripts/email-updates-subscription-pgtest/run.mjs",
     "test:pwa-offline": "node scripts/pwa-offline-contract-test.mjs",
     "check": "npm run test && npm run test:edge-functions && node scripts/photo-fallback-browser-test.mjs && npm run build && npm run test:pwa-offline",
-    "build": "vite build",
+    "build": "vite build && node scripts/generate-seo-pages.mjs && node scripts/seo-contract-test.mjs",
     "preview": "vite preview",
     "test:e2e": "playwright test",
     "test:e2e:headed": "playwright test --headed",

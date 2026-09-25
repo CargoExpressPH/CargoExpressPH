@@ -17,6 +17,7 @@ import { loadCustomerHomePage } from './lib/routePreloads';
 import AdminLayout from './components/layout/AdminLayout';
 import CustomerLayout from './components/layout/CustomerLayout';
 import PublicShell from './components/layout/PublicShell';
+import LandingPage from './pages/public/LandingPage';
 
 // Auth Pages — eagerly loaded (first thing users see)
 import LoginPage from './pages/auth/LoginPage';
@@ -137,7 +138,7 @@ const AuthRoute = ({ children }) => {
 const RootRedirect = () => {
   const { user, userProfile, loading } = useAuth();
   if (loading) return <LoadingScreen />;
-  if (!user) return <Navigate to="/login" replace />;
+  if (!user) return <PublicShell><LandingPage /></PublicShell>;
   if (!userProfile || !userProfile.role) return <Navigate to="/login" replace />;
   return <Navigate to={userProfile.role === 'admin' ? '/admin' : '/customer'} replace />;
 };

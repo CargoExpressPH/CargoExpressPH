@@ -1,8 +1,22 @@
 {
   "rewrites": [
+    { "source": "/about", "destination": "/_seo/about.html" },
+    { "source": "/track", "destination": "/_seo/track.html" },
+    { "source": "/schedules", "destination": "/_seo/schedules.html" },
+    { "source": "/faq", "destination": "/_seo/faq.html" },
+    { "source": "/terms", "destination": "/_seo/terms.html" },
+    { "source": "/privacy", "destination": "/_seo/privacy.html" },
     { "source": "/(.*)", "destination": "/index.html" }
   ],
   "headers": [
+    {
+      "source": "/(admin|customer|payment)(/.*)?",
+      "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow" }]
+    },
+    {
+      "source": "/(login|register|forgot-password|reset-password|unsubscribe)",
+      "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow" }]
+    },
     {
       "source": "/(.*)",
       "headers": [
@@ -35,4 +49,3 @@
     }
   ]
 }
-

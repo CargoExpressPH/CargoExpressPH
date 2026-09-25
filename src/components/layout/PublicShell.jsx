@@ -16,7 +16,7 @@ import { getCompanyInformation } from '../../lib/database';
  * from About page's own data-loading effect and isn't worth duplicating for
  * two lightweight pages.
  */
-const PublicShell = () => {
+const PublicShell = ({ children }) => {
   const [company, setCompany] = useState(null);
 
   useEffect(() => {
@@ -30,7 +30,7 @@ const PublicShell = () => {
   return (
     <div className="public-shell">
       <header className="public-shell-header">
-        <Link to="/about" className="public-shell-brand" aria-label="CargoExpress PH home">
+        <Link to="/" className="public-shell-brand" aria-label="CargoExpress PH home">
           <BrandLockup size={32} />
         </Link>
         <nav className="public-shell-nav" aria-label="Account">
@@ -40,7 +40,7 @@ const PublicShell = () => {
       </header>
 
       <main className="public-shell-main">
-        <Outlet />
+        {children || <Outlet />}
       </main>
 
       <Footer companyName={company?.name} info={company} />
