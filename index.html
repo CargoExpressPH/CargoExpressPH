@@ -5,9 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover, interactive-widget=resizes-visual" />
 
     <!-- ====== SEO & App Meta ====== -->
-    <title>CargoExpress PH — Cargo Delivery Booking &amp; Tracking</title>
-    <meta name="description" content="Book cargo deliveries, check trip schedules, and track shipments with CargoExpress PH." />
-    <meta name="keywords" content="cargo, delivery, booking, tracking, logistics, Philippines, shipping, freight, CargoExpress" />
+    <!-- Per-page title/description/canonical/og:url/JSON-LD come from
+         src/seo/publicPages.js — scripts/generate-seo-pages.mjs rewrites them
+         into each public page at build time. These are the homepage's. -->
+    <title>CargoExpress PH — Manila to Bohol Cargo Booking &amp; Tracking</title>
+    <meta name="description" content="Book door-to-door cargo between Manila and Bohol, check trip schedules, and track your shipment online with CargoExpress PH." />
+    <meta name="keywords" content="Manila to Bohol cargo, Bohol to Manila cargo, cargo forwarder Bohol, door-to-door cargo Philippines, cargo booking, shipment tracking, CargoExpress PH" />
     <meta name="author" content="CargoExpress PH" />
     <meta name="google-site-verification" content="OfzT4l9itmaWZhKxET8E-kmmd1XlHkjcGYp1HKSBllE" />
     <meta name="application-name" content="CargoExpress PH" />
@@ -66,18 +69,23 @@
 
     <!-- ====== Open Graph Meta ====== -->
     <meta property="og:type" content="website" />
-    <meta property="og:title" content="CargoExpress PH — Cargo Delivery Booking & Tracking" />
-    <meta property="og:description" content="Book cargo deliveries, check trip schedules, and track shipments with CargoExpress PH." />
+    <meta property="og:title" content="CargoExpress PH — Manila to Bohol Cargo Booking & Tracking" />
+    <meta property="og:description" content="Book door-to-door cargo between Manila and Bohol, check trip schedules, and track your shipment online with CargoExpress PH." />
     <meta property="og:site_name" content="CargoExpress PH" />
     <meta property="og:url" content="https://www.cargoexpress-ph.online/" />
     <meta property="og:locale" content="en_PH" />
-    <meta property="og:image" content="https://www.cargoexpress-ph.online/images/logo.png" />
+    <meta property="og:image" content="https://www.cargoexpress-ph.online/images/og-image.jpg" />
+    <meta property="og:image:type" content="image/jpeg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="CargoExpress PH — Manila ⇄ Bohol door-to-door cargo delivery" />
 
     <!-- ====== Twitter Card Meta ====== -->
-    <meta name="twitter:card" content="summary" />
-    <meta name="twitter:title" content="CargoExpress PH — Cargo Delivery Booking & Tracking" />
-    <meta name="twitter:description" content="Book cargo deliveries, check trip schedules, and track shipments with CargoExpress PH." />
-    <meta name="twitter:image" content="https://www.cargoexpress-ph.online/images/logo.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="CargoExpress PH — Manila to Bohol Cargo Booking & Tracking" />
+    <meta name="twitter:description" content="Book door-to-door cargo between Manila and Bohol, check trip schedules, and track your shipment online with CargoExpress PH." />
+    <meta name="twitter:image" content="https://www.cargoexpress-ph.online/images/og-image.jpg" />
+    <meta name="twitter:image:alt" content="CargoExpress PH — Manila ⇄ Bohol door-to-door cargo delivery" />
 
     <!-- ====== Search Engine Directives ====== -->
     <meta name="robots" content="index, follow" />
@@ -85,12 +93,31 @@
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
-        "@type": "WebSite",
-        "name": "CargoExpress PH",
-        "alternateName": "Cargo Express PH",
-        "url": "https://www.cargoexpress-ph.online/",
-        "description": "Book cargo deliveries, check trip schedules, and track shipments with CargoExpress PH.",
-        "inLanguage": "en-PH"
+        "@graph": [
+          {
+            "@type": "Organization",
+            "@id": "https://www.cargoexpress-ph.online/#organization",
+            "name": "CargoExpress PH",
+            "alternateName": "Cargo Express PH",
+            "url": "https://www.cargoexpress-ph.online/",
+            "logo": { "@type": "ImageObject", "url": "https://www.cargoexpress-ph.online/images/logo.png", "width": 2000, "height": 2000 },
+            "description": "Book door-to-door cargo between Manila and Bohol, check trip schedules, and track your shipment online with CargoExpress PH.",
+            "areaServed": [
+              { "@type": "Place", "name": "Metro Manila, Philippines" },
+              { "@type": "Place", "name": "Bohol, Philippines" }
+            ]
+          },
+          {
+            "@type": "WebSite",
+            "@id": "https://www.cargoexpress-ph.online/#website",
+            "name": "CargoExpress PH",
+            "alternateName": "Cargo Express PH",
+            "url": "https://www.cargoexpress-ph.online/",
+            "description": "Book door-to-door cargo between Manila and Bohol, check trip schedules, and track your shipment online with CargoExpress PH.",
+            "inLanguage": "en-PH",
+            "publisher": { "@id": "https://www.cargoexpress-ph.online/#organization" }
+          }
+        ]
       }
     </script>
 

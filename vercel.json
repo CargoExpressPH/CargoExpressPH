@@ -1,4 +1,5 @@
 {
+  "trailingSlash": false,
   "rewrites": [
     { "source": "/about", "destination": "/_seo/about.html" },
     { "source": "/track", "destination": "/_seo/track.html" },
@@ -6,7 +7,8 @@
     { "source": "/faq", "destination": "/_seo/faq.html" },
     { "source": "/terms", "destination": "/_seo/terms.html" },
     { "source": "/privacy", "destination": "/_seo/privacy.html" },
-    { "source": "/(.*)", "destination": "/index.html" }
+    { "source": "/(login|register|forgot-password|reset-password|unsubscribe|payment/return)", "destination": "/index.html" },
+    { "source": "/(admin|customer)(/.*)?", "destination": "/index.html" }
   ],
   "headers": [
     {

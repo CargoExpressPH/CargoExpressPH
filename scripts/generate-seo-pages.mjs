@@ -1,6 +1,6 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { PUBLIC_PAGES, SITE_ORIGIN } from '../src/seo/publicPages.js';
+import { PUBLIC_PAGES, SITE_ORIGIN, structuredDataFor } from '../src/seo/publicPages.js';
 
 const dist = resolve('dist');
 const html = readFileSync(resolve(dist, 'index.html'), 'utf8');
@@ -40,12 +40,32 @@ function renderPage(path, page) {
   ]) {
     output = replaceRequired(output, new RegExp(`<meta ${kind}="${name}" content="[^"]*"\\s*\\/>`), `<meta ${kind}="${name}" content="${value}" />`);
   }
-  const schema = path === '/'
-    ? { '@context': 'https://schema.org', '@type': 'WebSite', name: 'CargoExpress PH', alternateName: 'Cargo Express PH', url, description: page.description, inLanguage: 'en-PH' }
-    : { '@context': 'https://schema.org', '@type': 'WebPage', name: page.title, url, description: page.description, inLanguage: 'en-PH' };
+  // < keeps a "<" in any string from closing the script element early.
+  const schema = JSON.stringify(structuredDataFor(path, page)).replace(/</g, '\\u003c');
   output = replaceRequired(output, /<script type="application\/ld\+json">[\s\S]*?<\/script>/,
-    `<script type="application/ld+json">${JSON.stringify(schema)}</script>`);
+    `<script type="application/ld+json">${schema}</script>`);
   output = replaceRequired(output, /<div id="root"><\/div>/, `<div id="root">${renderFallback(page)}</div>`);
+  return output;
+}
+
+function renderNotFound() {
+  // Vercel serves this with a real 404 status for any URL no rewrite claims,
+  // instead of the homepage with a 200 (a "soft 404" search engines would
+  // index as a duplicate homepage). It still boots the app, so React Router
+  // renders NotFoundPage — or the right page, if a route is ever added to
+  // App.jsx without a matching rewrite in vercel.json.
+  let output = html;
+  output = replaceRequired(output, /<title>[^<]*<\/title>/, '<title>Page Not Found — CargoExpress PH</title>');
+  output = replaceRequired(output, /<meta name="description" content="[^"]*"\s*\/>/,
+    '<meta name="description" content="The page you were looking for could not be found on CargoExpress PH." />');
+  output = replaceRequired(output, /<meta name="robots" content="[^"]*"\s*\/>/, '<meta name="robots" content="noindex, nofollow" />');
+  output = replaceRequired(output, /\s*<link rel="canonical" href="[^"]*"\s*\/>/, '');
+  output = replaceRequired(output, /\s*<meta property="og:url" content="[^"]*"\s*\/>/, '');
+  output = replaceRequired(output, /\s*<script type="application\/ld\+json">[\s\S]*?<\/script>/, '');
+  output = replaceRequired(output, /<div id="root"><\/div>/, `<div id="root">${renderFallback({
+    heading: 'Page not found',
+    summary: 'The page you were looking for does not exist or has moved.',
+  })}</div>`);
   return output;
 }
 
@@ -55,3 +75,5 @@ for (const [path, page] of Object.entries(PUBLIC_PAGES)) {
   writeFileSync(resolve(dist, destination), renderPage(path, page));
   console.log(`[seo] Generated ${destination} for ${path}`);
 }
+writeFileSync(resolve(dist, '404.html'), renderNotFound());
+console.log('[seo] Generated 404.html');
