@@ -147,7 +147,7 @@ const PaymentReturnPage = () => {
   if (phase === 'confirmed') {
     return (
       <main className="loading-screen" aria-live="polite" style={{ padding: 24, textAlign: 'center' }}>
-        <h1 style={{ margin: 0, fontSize: '1.5rem' }}>Thank you for your payment!</h1>
+        <h1 style={{ margin: 0, fontSize: 'var(--text-24)' }}>Thank you for your payment!</h1>
         <p className="text-secondary" style={{ maxWidth: 360, margin: '12px auto 0' }}>
           Your payment has been successfully confirmed.
         </p>
@@ -195,7 +195,7 @@ const PaymentReturnPage = () => {
 
   return (
     <main className="loading-screen" aria-live="polite" style={{ padding: 24, textAlign: 'center' }}>
-      <h1 style={{ margin: 0, fontSize: '1.5rem' }}>
+      <h1 style={{ margin: 0, fontSize: 'var(--text-24)' }}>
         {phase === 'failed' ? 'Payment not confirmed' : phase === 'invalid' ? 'Payment link unavailable' : 'Payment verification'}
       </h1>
       <p className="text-secondary" style={{ maxWidth: 360, margin: '12px auto 0' }}>

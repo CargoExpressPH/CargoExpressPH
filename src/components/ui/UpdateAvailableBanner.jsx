@@ -80,7 +80,7 @@ const UpdateAvailableBanner = () => {
           color: var(--info-dark, #1E3A8A);
           border: 1px solid rgba(var(--info-rgb, 59, 130, 246), 0.35);
           box-shadow: var(--shadow-lg, 0 16px 36px rgba(15, 23, 42, 0.18));
-          font-size: 0.8125rem;
+          font-size: var(--text-13);
           font-weight: 500;
         }
         .sw-update-banner-text {
@@ -104,7 +104,7 @@ const UpdateAvailableBanner = () => {
           border-radius: var(--radius-sm, 8px);
           background: var(--primary-fill, #16A34A);
           color: #fff;
-          font-size: 0.8125rem;
+          font-size: var(--text-13);
           font-weight: 700;
           cursor: pointer;
         }

@@ -115,16 +115,16 @@ const UnsubscribePage = () => {
         {state === STATES.CONFIRM && (
           <>
             <MailX size={36} style={{ color: 'var(--success-text)', margin: '0 auto 12px' }} />
-            <h1 style={{ fontSize: '1.25rem', margin: '0 0 8px', color: 'var(--text)' }}>Unsubscribe from announcement emails?</h1>
+            <h1 style={{ fontSize: 'var(--text-20)', margin: '0 0 8px', color: 'var(--text)' }}>Unsubscribe from announcement emails?</h1>
             <p style={{ color: 'var(--text-secondary)', lineHeight: 1.5, margin: '0 0 4px' }}>
               This will stop CargoExpress PH announcement and promo emails for
             </p>
             <p style={{ color: 'var(--text)', fontWeight: 600, margin: '0 0 16px', wordBreak: 'break-word' }}>{maskEmail(email)}</p>
-            <p style={{ color: 'var(--text-tertiary)', fontSize: '.85rem', lineHeight: 1.5, margin: '0 0 20px' }}>
+            <p style={{ color: 'var(--text-tertiary)', fontSize: 'var(--text-14)', lineHeight: 1.5, margin: '0 0 20px' }}>
               Essential booking, payment, and shipment updates for any existing orders are not affected.
             </p>
             {errorMsg && (
-              <p role="alert" style={{ color: 'var(--error-text)', background: 'var(--error-bg)', borderRadius: 8, padding: '10px 12px', fontSize: '.85rem', margin: '0 0 16px' }}>
+              <p role="alert" style={{ color: 'var(--error-text)', background: 'var(--error-bg)', borderRadius: 8, padding: '10px 12px', fontSize: 'var(--text-14)', margin: '0 0 16px' }}>
                 {errorMsg}
               </p>
             )}
@@ -137,7 +137,7 @@ const UnsubscribePage = () => {
         {state === STATES.ALREADY && (
           <>
             <CheckCircle2 size={36} style={{ color: 'var(--success-text)', margin: '0 auto 12px' }} />
-            <h1 style={{ fontSize: '1.25rem', margin: '0 0 8px', color: 'var(--text)' }}>Already unsubscribed</h1>
+            <h1 style={{ fontSize: 'var(--text-20)', margin: '0 0 8px', color: 'var(--text)' }}>Already unsubscribed</h1>
             <p style={{ color: 'var(--text-secondary)', lineHeight: 1.5, margin: 0 }}>
               {maskEmail(email)} is not receiving CargoExpress PH announcement emails. No action is needed.
             </p>
@@ -147,11 +147,11 @@ const UnsubscribePage = () => {
         {state === STATES.DONE && (
           <>
             <CheckCircle2 size={36} style={{ color: 'var(--success-text)', margin: '0 auto 12px' }} />
-            <h1 style={{ fontSize: '1.25rem', margin: '0 0 8px', color: 'var(--text)' }}>You're unsubscribed</h1>
+            <h1 style={{ fontSize: 'var(--text-20)', margin: '0 0 8px', color: 'var(--text)' }}>You're unsubscribed</h1>
             <p style={{ color: 'var(--text-secondary)', lineHeight: 1.5, margin: '0 0 8px' }}>
               {maskEmail(email)} will no longer receive CargoExpress PH announcement or promo emails.
             </p>
-            <p style={{ color: 'var(--text-tertiary)', fontSize: '.85rem', lineHeight: 1.5, margin: 0 }}>
+            <p style={{ color: 'var(--text-tertiary)', fontSize: 'var(--text-14)', lineHeight: 1.5, margin: 0 }}>
               Essential booking, payment, and shipment notifications for any existing orders will still be sent.
               You can re-enable announcement emails anytime from your Profile if you have an account.
             </p>
@@ -161,7 +161,7 @@ const UnsubscribePage = () => {
         {state === STATES.INVALID && (
           <>
             <ShieldAlert size={36} style={{ color: 'var(--error-text)', margin: '0 auto 12px' }} />
-            <h1 style={{ fontSize: '1.25rem', margin: '0 0 8px', color: 'var(--text)' }}>Link not valid</h1>
+            <h1 style={{ fontSize: 'var(--text-20)', margin: '0 0 8px', color: 'var(--text)' }}>Link not valid</h1>
             <p style={{ color: 'var(--text-secondary)', lineHeight: 1.5, margin: 0 }}>{errorMsg}</p>
           </>
         )}
@@ -169,14 +169,14 @@ const UnsubscribePage = () => {
         {state === STATES.ERROR && (
           <>
             <AlertTriangle size={36} style={{ color: 'var(--warning-text)', margin: '0 auto 12px' }} />
-            <h1 style={{ fontSize: '1.25rem', margin: '0 0 8px', color: 'var(--text)' }}>Something went wrong</h1>
+            <h1 style={{ fontSize: 'var(--text-20)', margin: '0 0 8px', color: 'var(--text)' }}>Something went wrong</h1>
             <p style={{ color: 'var(--text-secondary)', lineHeight: 1.5, margin: '0 0 16px' }}>{errorMsg}</p>
             <button type="button" onClick={runCheck} className="btn btn-outline" style={{ width: '100%' }}>Try again</button>
           </>
         )}
 
         <p style={{ marginTop: 24 }}>
-          <Link to="/" style={{ color: 'var(--text-tertiary)', fontSize: '.85rem', textDecoration: 'underline' }}>Back to CargoExpress PH</Link>
+          <Link to="/" style={{ color: 'var(--text-tertiary)', fontSize: 'var(--text-14)', textDecoration: 'underline' }}>Back to CargoExpress PH</Link>
         </p>
       </div>
     </main>

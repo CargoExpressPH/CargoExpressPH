@@ -380,10 +380,10 @@ const AdminCreateBookingPage = () => {
               <CheckCircle2 size={32} color="var(--primary)" />
             </div>
 
-            <h2 className="fw-700" style={{ fontSize: '1.375rem', marginBottom: 8 }}>
+            <h2 className="fw-700" style={{ fontSize: 'var(--text-24)', marginBottom: 8 }}>
               Booking Created Successfully!
             </h2>
-            <p className="text-tertiary" style={{ fontSize: '0.875rem', marginBottom: 28 }}>
+            <p className="text-tertiary" style={{ fontSize: 'var(--text-14)', marginBottom: 28 }}>
               The tracking number below has been generated. Copy it and send it to the customer.
             </p>
 
@@ -397,10 +397,10 @@ const AdminCreateBookingPage = () => {
                 marginBottom: 16,
               }}
             >
-              <p className="text-tertiary" style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>
+              <p className="text-tertiary" style={{ fontSize: 'var(--text-12)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>
                 Tracking Number
               </p>
-              <p className="fw-700" style={{ fontSize: '1.5rem', color: 'var(--primary)', letterSpacing: '0.04em', margin: 0, wordBreak: 'break-all' }}>
+              <p className="fw-700" style={{ fontSize: 'var(--text-24)', color: 'var(--primary)', letterSpacing: '0.04em', margin: 0, wordBreak: 'break-all' }}>
                 {success.tracking_number}
               </p>
             </div>
@@ -426,10 +426,10 @@ const AdminCreateBookingPage = () => {
                 border: '1px solid var(--border)',
               }}
             >
-              <p className="fw-600 mb-8" style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
+              <p className="fw-600 mb-8" style={{ fontSize: 'var(--text-13)', color: 'var(--text-secondary)' }}>
                 Booking Summary
               </p>
-              <div style={{ display: 'grid', gap: 6, fontSize: '0.8125rem' }}>
+              <div style={{ display: 'grid', gap: 6, fontSize: 'var(--text-13)' }}>
                 <div className="flex items-center gap-8">
                   <span className="text-tertiary" style={{ minWidth: 70 }}>Route:</span>
                   <span className="fw-600">{success.origin} → {success.destination}</span>
@@ -523,7 +523,7 @@ const AdminCreateBookingPage = () => {
                   }}
                 >
                   <Truck size={22} color={form.origin === r.origin ? 'var(--primary)' : 'var(--text-tertiary)'} className="mx-auto mb-8" />
-                  <div className="fw-700" style={{ fontSize: '0.9375rem' }}>{r.label}</div>
+                  <div className="fw-700" style={{ fontSize: 'var(--text-16)' }}>{r.label}</div>
                   <div className="text-xs text-tertiary mt-4">
                     {r.origin} → {r.destination}
                   </div>
@@ -918,7 +918,7 @@ const AdminCreateBookingPage = () => {
             </div>
             <div className="form-group mt-16">
               <label className="form-label" htmlFor="ab-notes">
-                Notes <span className="fw-400 text-tertiary" style={{ fontSize: '0.8125rem' }}>(Optional)</span>
+                Notes <span className="fw-400 text-tertiary" style={{ fontSize: 'var(--text-13)' }}>(Optional)</span>
               </label>
               <textarea
                 id="ab-notes"

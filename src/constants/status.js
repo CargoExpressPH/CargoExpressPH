@@ -92,6 +92,32 @@ export const TRIP_STATUS = {
   CANCELLED: 'cancelled',
 };
 
+// Display labels for the lowercase trip enum, so trips read in the same
+// Title Case as order statuses wherever they are shown.
+export const TRIP_STATUS_LABELS = {
+  [TRIP_STATUS.SCHEDULED]: 'Scheduled',
+  [TRIP_STATUS.IN_PROGRESS]: 'In Progress',
+  [TRIP_STATUS.ARRIVED]: 'Arrived',
+  [TRIP_STATUS.COMPLETED]: 'Completed',
+  [TRIP_STATUS.CANCELLED]: 'Cancelled',
+};
+
+export const tripStatusLabel = (status) =>
+  TRIP_STATUS_LABELS[status] || (status || '').replace(/_/g, ' ');
+
+// How far along the origin → destination line a shipment is drawn on the
+// customer booking cards. Everything before pickup sits at the origin: the
+// cargo has not moved yet, whatever its paperwork status.
+const ROUTE_PROGRESS_PERCENT = {
+  [ORDER_STATUS.PICKED_UP]: 25,
+  [ORDER_STATUS.IN_TRANSIT]: 55,
+  [ORDER_STATUS.ARRIVED_HUB]: 80,
+  [ORDER_STATUS.OUT_FOR_DELIVERY]: 90,
+  [ORDER_STATUS.DELIVERED]: 100,
+};
+
+export const routeProgressPercent = (status) => ROUTE_PROGRESS_PERCENT[status] ?? 0;
+
 // Map trip status → order status for batch cascade
 export const TRIP_TO_ORDER_STATUS = {
   [TRIP_STATUS.IN_PROGRESS]: ORDER_STATUS.IN_TRANSIT,

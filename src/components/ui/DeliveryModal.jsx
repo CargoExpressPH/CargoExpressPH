@@ -236,7 +236,7 @@ const DeliveryModal = ({ order, onClose, onSave }) => {
           <div className="pickup-summary-card summary-card-secondary flex justify-between items-center mb-20">
             <div>
               <div className="fw-700 text-accent">{order.tracking_number}</div>
-              <div className="text-secondary" style={{ fontSize: '0.8125rem' }}>
+              <div className="text-secondary" style={{ fontSize: 'var(--text-13)' }}>
                 Deliver to: {order.receiver_name}
               </div>
             </div>
@@ -250,7 +250,7 @@ const DeliveryModal = ({ order, onClose, onSave }) => {
           {error && (
             <div className="br-8" style={{
               background: 'var(--error-bg)', color: 'var(--error-text-strong)', padding: '10px 14px',
-              fontSize: '0.8125rem', marginBottom: 16, border: '1px solid var(--error)',
+              fontSize: 'var(--text-13)', marginBottom: 16, border: '1px solid var(--error)',
             }} role="alert">
               {error}
             </div>
@@ -300,7 +300,7 @@ const DeliveryModal = ({ order, onClose, onSave }) => {
                   className="br-8 flex flex-col items-center justify-center cursor-pointer text-tertiary"
                   style={{
                     width: 90, height: 90, border: '2px dashed var(--border)',
-                    background: 'var(--bg-secondary)', gap: 4, fontSize: '0.6875rem'
+                    background: 'var(--bg-secondary)', gap: 4, fontSize: 'var(--text-12)'
                   }}
                 >
                   <Upload size={20} /> Add Photo

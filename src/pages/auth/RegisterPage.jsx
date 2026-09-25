@@ -683,7 +683,7 @@ const RegisterPage = () => {
                 <div className="login-pw-header">
                   <label className="form-label" htmlFor="reg-password">Password <span className="required">*</span></label>
                   {capsLockOn && (
-                    <span className="caps-warning font-semibold inline-flex items-center" style={{ fontSize: '0.72rem', color: 'var(--warning-text)', gap: 3 }}>
+                    <span className="caps-warning font-semibold inline-flex items-center" style={{ fontSize: 'var(--text-12)', color: 'var(--warning-text)', gap: 3 }}>
                       <AlertTriangle size={11} /> Caps Lock ON
                     </span>
                   )}

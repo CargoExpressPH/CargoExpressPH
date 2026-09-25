@@ -129,7 +129,7 @@ const CategoryDropdown = ({ value, onChange }) => {
                     : 'transparent',
                   color: active ? 'var(--primary)' : 'var(--text)',
                   border: 'none',
-                  fontSize: '0.875rem',
+                  fontSize: 'var(--text-14)',
                   fontWeight: active ? 700 : 500,
                   minHeight: 44,
                   padding: '10px 12px',
@@ -354,7 +354,7 @@ const AnnouncementsPage = () => {
                     <span
                       className="inline-flex items-center gap-6 px-8 py-2 rounded-full fw-700 text-uppercase"
                       style={{
-                        fontSize: '0.7rem',
+                        fontSize: 'var(--text-12)',
                         letterSpacing: '0.04em',
                         background: cat.badgeBg,
                         color: cat.badgeColor,

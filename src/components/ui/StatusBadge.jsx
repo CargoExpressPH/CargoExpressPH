@@ -1,3 +1,5 @@
+import { tripStatusLabel } from '../../constants/status';
+
 const statusToClass = (status) => {
   const map = {
     'Pending': 'badge-pending', 'Assigned': 'badge-assigned',
@@ -17,7 +19,7 @@ const isActiveStatus = (status) => {
 };
 
 const StatusBadge = ({ status, size = 'default' }) => {
-  const label = (status || '').replace(/_/g, ' ');
+  const label = tripStatusLabel(status);
   const active = isActiveStatus(status);
 
   return (

@@ -304,7 +304,7 @@ const CompanyInformationPage = () => {
             color: 'var(--text-tertiary)',
             padding: '8px 14px',
             marginBottom: 16,
-            fontSize: '0.78125rem',
+            fontSize: 'var(--text-13)',
           }}
         >
           {SIMPLE_TABS.includes(activeTab) ? (
@@ -403,7 +403,7 @@ const CompanyInformationPage = () => {
                   ) : (
                     <div className="text-center text-tertiary">
                       <ImageIcon size={32} style={{ marginBottom: 8, opacity: 0.4 }} />
-                      <div style={{ fontSize: '0.875rem' }}>No image uploaded</div>
+                      <div style={{ fontSize: 'var(--text-14)' }}>No image uploaded</div>
                     </div>
                   )}
                 </div>

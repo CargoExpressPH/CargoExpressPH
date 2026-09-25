@@ -61,7 +61,7 @@
   align-items: center;
   gap: 7px;
   color: var(--text-secondary);
-  font-size: 0.8125rem;
+  font-size: var(--text-13);
   font-weight: 700;
   white-space: nowrap;
 }
@@ -100,7 +100,7 @@
   gap: 6px;
   margin: 0;
   color: var(--text-secondary);
-  font-size: 0.875rem;
+  font-size: var(--text-14);
 }
 
 .per-trip-detail-list {
@@ -130,7 +130,7 @@
 
 .per-trip-basis-card p {
   margin: 0 0 4px;
-  font-size: 0.8125rem;
+  font-size: var(--text-13);
   line-height: 1.5;
 }
 
@@ -153,7 +153,7 @@
 .per-trip-summary-detail {
   margin-top: 8px;
   color: color-mix(in srgb, white 82%, transparent);
-  font-size: 0.7rem;
+  font-size: var(--text-12);
   line-height: 1.35;
 }
 
@@ -166,7 +166,7 @@
   background: var(--bg-secondary);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  font-size: 0.8125rem;
+  font-size: var(--text-13);
 }
 
 .per-trip-counts-card strong { color: var(--text); }
@@ -176,7 +176,7 @@
   color: var(--text-secondary);
   background: var(--surface);
   border-left: 3px solid var(--primary);
-  font-size: 0.8125rem;
+  font-size: var(--text-13);
   line-height: 1.5;
 }
 
@@ -189,7 +189,7 @@
 
 .per-trip-table .report-mono {
   font-family: var(--font-mono);
-  font-size: 0.8125rem;
+  font-size: var(--text-13);
   font-weight: 600;
   color: var(--primary-text-strong);
 }
@@ -198,7 +198,7 @@
   display: block;
   margin-top: 3px;
   color: var(--warning-text, var(--warning));
-  font-size: 0.7rem;
+  font-size: var(--text-12);
   line-height: 1.3;
   white-space: normal;
 }
@@ -211,7 +211,7 @@
   min-height: 24px;
   padding: 3px 8px;
   border-radius: 999px;
-  font-size: 0.72rem;
+  font-size: var(--text-12);
   font-weight: 700;
   line-height: 1.2;
   white-space: nowrap;
@@ -359,7 +359,7 @@
   width: 100%;
   border-collapse: separate;
   border-spacing: 0;
-  font-size: 0.875rem;
+  font-size: var(--text-14);
   font-family: var(--font-sans);
   color: var(--text);
 }
@@ -379,7 +379,7 @@
 .report-table th {
   padding: 12px 16px;
   text-align: left;
-  font-size: 0.75rem;
+  font-size: var(--text-12);
   font-weight: 700;
   color: var(--text-secondary);
   text-transform: uppercase;
@@ -397,7 +397,7 @@
 .report-table td {
   padding: 14px 16px;
   border-bottom: 1px solid var(--border-light);
-  font-size: 0.875rem;
+  font-size: var(--text-14);
   color: var(--text);
   vertical-align: middle;
   transition: var(--transition-fast);
@@ -432,7 +432,7 @@
 .app-layout .report-table th {
   background: color-mix(in srgb, var(--admin-green-soft) 72%, var(--admin-panel-solid) 28%);
   color: var(--admin-green-dark);
-  font-weight: 900;
+  font-weight: 700;
   letter-spacing: 0.07em;
   border-bottom-color: var(--admin-line);
 }
@@ -461,7 +461,7 @@
 }
 
 .report-financial-label {
-  font-size: 0.75rem;
+  font-size: var(--text-12);
   color: var(--text-secondary);
   font-weight: 500;
   text-transform: uppercase;
@@ -470,8 +470,8 @@
 
 .report-financial-value {
   font-family: var(--font-sans);
-  font-size: 1.125rem;
-  font-weight: 800;
+  font-size: var(--text-18);
+  font-weight: 700;
   color: var(--text);
   line-height: 1.1;
   letter-spacing: -0.01em;
@@ -487,14 +487,14 @@
    Scoped here rather than inline so mobile and dark theme stay in sync. */
 .report-table .report-mono {
   font-family: var(--font-mono);
-  font-size: 0.8125rem;
+  font-size: var(--text-13);
   font-weight: 600;
   letter-spacing: 0.01em;
   color: var(--primary-text-strong);
 }
 
 .report-financial-sublabel {
-  font-size: 0.75rem;
+  font-size: var(--text-12);
   font-weight: 700;
   color: var(--text-secondary);
   text-transform: uppercase;
@@ -560,7 +560,7 @@
   }
 
   .report-controls h1.admin-page-title {
-    font-size: 1.25rem;
+    font-size: var(--text-20);
   }
 }
 
@@ -570,7 +570,7 @@
   }
 
   .report-financial-value {
-    font-size: 1rem;
+    font-size: var(--text-16);
   }
 
   .report-payment-row {
@@ -578,7 +578,7 @@
   }
 
   .report-payment-row .badge {
-    font-size: 0.6875rem;
+    font-size: var(--text-12);
   }
 }
 

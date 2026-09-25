@@ -5,6 +5,7 @@ import { useToast } from '../../hooks/useToast';
 import { getOrders, getAnnouncements, getTripCapacitySummary } from '../../lib/database';
 import { isTripBookable } from '../../constants/status';
 import StatusBadge from '../../components/ui/StatusBadge';
+import RouteProgressLine from '../../components/ui/RouteProgressLine';
 import { CenteredSpinner } from '../../components/ui/Loader';
 import EmptyState from '../../components/ui/EmptyState';
 import PageTransition, { StaggerItem } from '../../components/ui/PageTransition';
@@ -39,6 +40,7 @@ const HomePage = () => {
   const homeLoadSequence = useRef(0);
   const capacityRequestSequence = useRef(0);
   const isMountedRef = useRef(false);
+  const trackingInputRef = useRef(null);
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -110,7 +112,13 @@ const HomePage = () => {
   const handleTrack = (e) => {
     e.preventDefault();
     const q = trackingSearch.trim();
-    if (q) navigate(`/customer/track?q=${encodeURIComponent(q)}`);
+    // The button stays enabled so it reads as a real action over the hero
+    // photo; an empty submit just returns focus to the field.
+    if (!q) {
+      trackingInputRef.current?.focus();
+      return;
+    }
+    navigate(`/customer/track?q=${encodeURIComponent(q)}`);
   };
 
   // Book Cargo button click — pre-selects route + trip on BookShipmentPage
@@ -150,10 +158,11 @@ const HomePage = () => {
           <div className="search-box flex-1">
             <Search size={16} className="search-icon" />
             <input
+              ref={trackingInputRef}
               id="home-tracking-search"
               name="tracking_number"
               aria-label="Tracking number"
-              placeholder="Enter tracking number (CE-XXXXXXXX)"
+              placeholder="Enter tracking number (CE-YYYYMMDD-XXXX)"
               value={trackingSearch}
               onChange={e => setTrackingSearch(e.target.value)}
               className="hero-search-input"
@@ -162,7 +171,6 @@ const HomePage = () => {
           <button
             type="submit"
             className="btn btn-primary flex-shrink-0"
-            disabled={!trackingSearch.trim()}
             style={{ borderRadius: 10 }}
           >
             Track
@@ -370,7 +378,7 @@ const HomePage = () => {
                       <span
                         className="inline-flex items-center gap-6 px-8 py-2 rounded-full fw-700 text-uppercase"
                         style={{
-                          fontSize: '0.7rem',
+                          fontSize: 'var(--text-12)',
                           letterSpacing: '0.04em',
                           background: cat.badgeBg,
                           color: cat.badgeColor,
@@ -430,11 +438,7 @@ const HomePage = () => {
                   </div>
                   <div className="customer-list-card-route-visual">
                     <span className="customer-route-node origin inline-flex items-center gap-4"><Container size={14} className="text-tertiary" aria-hidden="true" />{order.origin || 'Not set'}</span>
-                    <div className="customer-route-line-wrap" aria-hidden="true">
-                      <div className="customer-route-line">
-                        <div className="customer-route-arrow" />
-                      </div>
-                    </div>
+                    <RouteProgressLine status={order.status} />
                     <span className="customer-route-node destination inline-flex items-center gap-4"><MapPin size={14} className="text-tertiary" aria-hidden="true" />{order.destination || 'Not set'}</span>
                   </div>
                   <div className="customer-list-card-footer flex items-center justify-between gap-8 flex-wrap">

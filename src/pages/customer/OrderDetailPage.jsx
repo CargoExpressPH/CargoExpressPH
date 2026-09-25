@@ -739,11 +739,11 @@ const OrderDetailPage = () => {
       {/* Header */}
       <div className="customer-order-detail-header flex items-center justify-between animate-slide-up mb-20">
         <div>
-          <h1 className="fw-800">{order.tracking_number}</h1>
+          <h1 className="fw-700">{order.tracking_number}</h1>
           <div className="flex items-center gap-8 mt-4 text-sm">
-            <span className="fw-800" style={{ color: 'var(--text)' }}>{order.origin}</span>
+            <span className="fw-700" style={{ color: 'var(--text)' }}>{order.origin}</span>
             <span className="fw-700" style={{ color: 'var(--primary-text)' }}>➔</span>
-            <span className="fw-800 text-secondary">{order.destination}</span>
+            <span className="fw-700 text-secondary">{order.destination}</span>
           </div>
         </div>
         <StatusBadge status={order.status} />
@@ -782,13 +782,6 @@ const OrderDetailPage = () => {
             </span>
           </div>
         </div>
-      )}
-
-      {canCancel && (
-        <button className="btn btn-danger btn-sm animate-slide-up mb-16" onClick={() => setShowCancelModal(true)} disabled={cancelling}>
-          {cancelling ? <Loader size={14} className="animate-spin" /> : <XCircle size={14} />}
-          Request Cancellation
-        </button>
       )}
 
       <CancelBookingModal
@@ -1124,7 +1117,7 @@ const OrderDetailPage = () => {
             </div>
           </div>
           {order.promised_payment_date && (
-            <div className="alert-banner alert-banner-warning mt-12 py-8 px-12" style={{ fontSize: '0.8125rem' }}>
+            <div className="alert-banner alert-banner-warning mt-12 py-8 px-12" style={{ fontSize: 'var(--text-13)' }}>
               <AlertTriangle size={14} /> Payment due: {formatPhDate(order.promised_payment_date)}
             </div>
           )}
@@ -1152,7 +1145,7 @@ const OrderDetailPage = () => {
             if (paymentVerificationPending) {
               return (
                 <div className="mt-16 text-center" role="status" aria-live="polite">
-                  <div className="alert-banner alert-banner-info py-10 px-12 br-8" style={{ fontSize: '0.8125rem' }}>
+                  <div className="alert-banner alert-banner-info py-10 px-12 br-8" style={{ fontSize: 'var(--text-13)' }}>
                     <Loader size={14} className="animate-spin" aria-hidden="true" />
                     <span>Your payment is still being confirmed. Your balance will change automatically when PayMongo finishes processing.</span>
                   </div>
@@ -1224,7 +1217,7 @@ const OrderDetailPage = () => {
             if ((balance > 0 || !isOrderPriced(order)) && !isCancelled && isEarlyStatus) {
               return (
                 <div className="mt-16">
-                  <div className="alert-banner alert-banner-info py-10 px-12 br-8" style={{ fontSize: '0.8125rem' }}>
+                  <div className="alert-banner alert-banner-info py-10 px-12 br-8" style={{ fontSize: 'var(--text-13)' }}>
                     <Package size={14} style={{ flexShrink: 0, marginTop: 2 }} />
                     <span>Payment will become available once your shipment has been picked up and the final shipping weight has been confirmed.</span>
                   </div>
@@ -1261,8 +1254,8 @@ const OrderDetailPage = () => {
                         <tr key={tx.id}>
                           <td data-label="Date">
                             <div className="cell-stack">
-                              <span>{new Date(tx.created_at).toLocaleDateString('en-PH')}</span>
-                              <span className="text-tertiary" style={{ fontSize: '0.6875rem' }}>{new Date(tx.created_at).toLocaleTimeString('en-PH', {hour: '2-digit', minute:'2-digit'})}</span>
+                              <span>{formatPhDate(tx.created_at)}</span>
+                              <span className="text-tertiary" style={{ fontSize: 'var(--text-12)' }}>{new Date(tx.created_at).toLocaleTimeString('en-PH', {hour: '2-digit', minute:'2-digit'})}</span>
                             </div>
                           </td>
                           <td data-label="Type">{formatPaymentType(tx.payment_type)}</td>
@@ -1274,7 +1267,7 @@ const OrderDetailPage = () => {
                           <td data-label="Method">
                             <div className="cell-stack">
                               <span>{fmtMethod(tx.payment_method)}</span>
-                              {customerRef && <span className="text-tertiary" style={{ fontSize: '0.6875rem', wordBreak: 'break-all' }}>Ref: {customerRef}</span>}
+                              {customerRef && <span className="text-tertiary" style={{ fontSize: 'var(--text-12)', wordBreak: 'break-all' }}>Ref: {customerRef}</span>}
                               {tx.receipt_url && (
                                 <ResolvedPhotoLink photo={tx.receipt_url} className="text-xs text-primary flex items-center gap-4 mt-2">
                                   <Image size={12} /> View Receipt
@@ -1290,7 +1283,7 @@ const OrderDetailPage = () => {
                               <span>{tx.is_refund
                                 ? formatRefundRecordedBy(tx.admin_name)
                                 : formatRecordedBy(tx.admin_name, 'customer')}</span>
-                              {friendlyNotes && <span className="text-tertiary" style={{ fontSize: '0.6875rem' }}>{friendlyNotes}</span>}
+                              {friendlyNotes && <span className="text-tertiary" style={{ fontSize: 'var(--text-12)' }}>{friendlyNotes}</span>}
                             </div>
                           </td>
                         </tr>
@@ -1310,6 +1303,24 @@ const OrderDetailPage = () => {
         <span>Booked: {formatPhDate(order.created_at)}</span>
         <span>Updated: {formatPhDateTime(order.updated_at)}</span>
       </div>
+
+      {/* Cancelling is a secondary action: it sits after the shipment details
+          as an outline button so it never outranks tracking or payment. The
+          confirmation modal still carries the solid red. */}
+      {canCancel && (
+        <div className="customer-cancel-zone">
+          <div className="customer-cancel-zone-copy">
+            <span className="fw-700">Need to cancel?</span>
+            <span className="text-sm text-secondary">
+              You can request cancellation until your cargo is picked up. Our team reviews every request.
+            </span>
+          </div>
+          <button type="button" className="btn btn-danger-outline btn-sm" onClick={() => setShowCancelModal(true)} disabled={cancelling}>
+            {cancelling ? <Loader size={14} className="animate-spin" /> : <XCircle size={14} />}
+            Request Cancellation
+          </button>
+        </div>
+      )}
 
       {lightboxIndex >= 0 && lightboxImages.length > 0 && (
         <ImageLightbox images={lightboxImages} initialIndex={lightboxIndex} onClose={() => setLightboxIndex(-1)} />
@@ -1332,7 +1343,7 @@ const OrderDetailPage = () => {
               onClick={e => e.stopPropagation()}
               className="feedback-modal-card animate-scale-in"
             >
-              <h3 id="feedback-modal-title" className="fw-800 text-center mb-8">How was your delivery?</h3>
+              <h3 id="feedback-modal-title" className="fw-700 text-center mb-8">How was your delivery?</h3>
               <p className="text-secondary text-center text-sm mb-24">
                 We'd love to hear your feedback on booking {order?.tracking_number}.
               </p>

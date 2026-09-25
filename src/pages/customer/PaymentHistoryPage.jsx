@@ -311,7 +311,7 @@ const PaymentHistoryPage = () => {
 
       <div className="customer-page-heading mb-20">
         <div>
-          <h1 className="fw-800 flex items-center gap-8">
+          <h1 className="fw-700 flex items-center gap-8">
             <Receipt size={24} aria-hidden="true" /> Payment History
           </h1>
           <p className="text-sm text-secondary mt-4">
@@ -335,15 +335,15 @@ const PaymentHistoryPage = () => {
           <div className="grid grid-3 gap-12 mb-16">
             <div className="card card-body">
               <div className="text-xs text-tertiary">Outstanding Balance</div>
-              <div className="text-xl fw-800 text-error mt-4">{formatMoney(summary.outstandingTotal)}</div>
+              <div className="text-xl fw-700 text-error mt-4">{formatMoney(summary.outstandingTotal)}</div>
             </div>
             <div className="card card-body">
               <div className="text-xs text-tertiary">Total Paid</div>
-              <div className="text-xl fw-800 text-success mt-4">{formatMoney(summary.paidTotal)}</div>
+              <div className="text-xl fw-700 text-success mt-4">{formatMoney(summary.paidTotal)}</div>
             </div>
             <div className="card card-body">
               <div className="text-xs text-tertiary">Active Orders</div>
-              <div className="text-xl fw-800 text-accent mt-4">{summary.activeCount}</div>
+              <div className="text-xl fw-700 text-accent mt-4">{summary.activeCount}</div>
             </div>
           </div>
 
@@ -360,7 +360,7 @@ const PaymentHistoryPage = () => {
                 <div className="card card-body" key={order.id}>
                   <div className="flex justify-between gap-12 items-start flex-wrap">
                     <div>
-                      <div className="fw-800">{order.tracking_number}</div>
+                      <div className="fw-700">{order.tracking_number}</div>
                       <div className="text-xs text-tertiary mt-4">
                         {methodLabel(order.payment_method)} | {order.payment_status || 'unpaid'}
                         {order.promised_payment_date ? ` | Due ${formatDate(order.promised_payment_date)}` : ''}
@@ -368,7 +368,7 @@ const PaymentHistoryPage = () => {
                     </div>
                     <div className="text-right">
                       <div className="text-xs text-tertiary">Balance</div>
-                      <div className="fw-800 text-error">{formatMoney(outstandingBalance(order))}</div>
+                      <div className="fw-700 text-error">{formatMoney(outstandingBalance(order))}</div>
                     </div>
                   </div>
                   <button
@@ -431,7 +431,7 @@ const PaymentHistoryPage = () => {
               </div>
               <div className="payment-list-total">
                 <span>{monthNetDisplay.label}</span>
-                <span className="fw-800">{monthNetDisplay.amount}</span>
+                <span className="fw-700">{monthNetDisplay.amount}</span>
               </div>
             </>
           )}

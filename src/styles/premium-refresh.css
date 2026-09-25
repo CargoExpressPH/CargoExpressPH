@@ -181,14 +181,14 @@ body {
   grid-area: value;
   margin: 0;
   color: var(--admin-ink);
-  font-size: 1.55rem;
+  font-size: var(--text-24);
   line-height: 1.05;
 }
 
 .app-layout .stat-card .stat-label {
   grid-area: label;
   color: var(--admin-muted);
-  font-size: 0.78rem;
+  font-size: var(--text-12);
   text-transform: none;
   letter-spacing: 0;
 }
@@ -226,7 +226,7 @@ body {
   gap: 6px;
   margin-top: 8px;
   color: var(--error-text);
-  font-size: 0.75rem;
+  font-size: var(--text-12);
   font-weight: 700;
 }
 
@@ -234,7 +234,7 @@ body {
   display: none;
   margin: -10px 0 14px;
   color: var(--text-secondary);
-  font-size: 0.78rem;
+  font-size: var(--text-12);
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -253,15 +253,15 @@ body {
 .booking-summary-label {
   margin-bottom: 6px;
   color: var(--text-tertiary);
-  font-size: 0.7rem;
-  font-weight: 800;
+  font-size: var(--text-12);
+  font-weight: 700;
   letter-spacing: 0.05em;
   text-transform: uppercase;
 }
 
 .booking-summary-value {
   color: var(--text);
-  font-weight: 800;
+  font-weight: 700;
   overflow-wrap: anywhere;
 }
 
@@ -344,7 +344,7 @@ body {
 /* ── Text copy ── */
 .booking-success-eyebrow {
   color: var(--primary-text);
-  font-size: 0.7rem;
+  font-size: var(--text-12);
   font-weight: 700;
   letter-spacing: 0.4em;
   text-transform: uppercase;
@@ -354,7 +354,7 @@ body {
   margin: 12px 0 0;
   color: var(--text);
   font-size: clamp(2rem, 6vw, 2.75rem);
-  font-weight: 800;
+  font-weight: 700;
   line-height: 1.05;
 }
 
@@ -362,7 +362,7 @@ body {
   max-width: 280px;
   margin: 16px auto 0;
   color: var(--text-secondary);
-  font-size: 0.95rem;
+  font-size: var(--text-16);
   line-height: 1.5;
 }
 
@@ -382,8 +382,8 @@ body {
 }
 
 .booking-success-card .pr-transaction-header {
-  font-size: 0.6875rem;
-  font-weight: 800;
+  font-size: var(--text-12);
+  font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--text-tertiary);
@@ -404,14 +404,14 @@ body {
 
 .booking-success-card .pr-transaction-label {
   color: var(--text-tertiary);
-  font-size: 0.78125rem;
+  font-size: var(--text-13);
   font-weight: 600;
   flex-shrink: 0;
 }
 
 .booking-success-card .pr-transaction-value {
   color: var(--text);
-  font-size: 0.84375rem;
+  font-size: var(--text-14);
   font-weight: 700;
   text-align: right;
   overflow-wrap: anywhere;
@@ -465,7 +465,7 @@ body {
   flex-shrink: 0;
   padding: 4px 12px;
   border-radius: 999px;
-  font-size: 0.75rem;
+  font-size: var(--text-12);
   font-weight: 600;
 }
 
@@ -500,7 +500,7 @@ body {
   background: var(--primary-fill);
   color: #fff;
   padding: 12px 24px;
-  font-size: 0.88rem;
+  font-size: var(--text-14);
   font-weight: 600;
   border: none;
   cursor: pointer;
@@ -517,7 +517,7 @@ body {
   background: var(--surface);
   color: var(--text);
   padding: 12px 24px;
-  font-size: 0.88rem;
+  font-size: var(--text-14);
   font-weight: 600;
   cursor: pointer;
   transition: background 0.2s ease;
@@ -567,17 +567,17 @@ body {
   }
 
   .booking-success-eyebrow {
-    font-size: 0.6rem;
+    font-size: var(--text-12);
   }
 
   .booking-success-heading {
     margin-top: 8px;
-    font-size: 1.35rem;
+    font-size: var(--text-20);
   }
 
   .booking-success-subtitle {
     margin-top: 6px;
-    font-size: 0.82rem;
+    font-size: var(--text-13);
   }
 
   .booking-success-card {
@@ -590,15 +590,15 @@ body {
   }
 
   .booking-success-card .pr-transaction-label {
-    font-size: 0.75rem;
+    font-size: var(--text-12);
   }
 
   .booking-success-card .pr-transaction-value {
-    font-size: 0.8125rem;
+    font-size: var(--text-13);
   }
 
   .booking-success-status-pill {
-    font-size: 0.68rem;
+    font-size: var(--text-12);
     padding: 3px 10px;
   }
 
@@ -613,7 +613,7 @@ body {
   .booking-success-btn-outline {
     width: 100%;
     padding: 10px 16px;
-    font-size: 0.82rem;
+    font-size: var(--text-13);
     text-align: center;
   }
 }
@@ -1175,7 +1175,7 @@ body {
   .customer-bottom-tab {
     min-width: 52px;
     padding-inline: 6px;
-    font-size: 0.6875rem;
+    font-size: var(--text-12);
   }
 
   .customer-bottom-tab.book-tab .book-tab-icon {
@@ -1205,7 +1205,7 @@ body {
 .live-tracker-step.completed .live-tracker-label,
 .live-tracker-step.active .live-tracker-label {
   color: var(--text);
-  font-weight: 800;
+  font-weight: 700;
 }
 
 @keyframes nodePulse {

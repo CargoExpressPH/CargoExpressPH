@@ -29,6 +29,17 @@ export const selectEarliestCapacityTrip = (trips = []) => trips
     || compareStableText(a.id, b.id)
   ))[0] || null;
 
+/**
+ * The admin dashboard's "Next Departure": the earliest SCHEDULED trip — the
+ * one currently being loaded. Falls back to selectEarliestCapacityTrip when
+ * nothing is scheduled, so an ongoing or arrived trip still shows instead of
+ * an empty card. The customer-facing summary keeps selectEarliestCapacityTrip.
+ */
+export const selectNextDepartureTrip = (trips = []) => (
+  selectEarliestCapacityTrip(trips.filter((trip) => trip?.status === TRIP_STATUS.SCHEDULED))
+  || selectEarliestCapacityTrip(trips)
+);
+
 export const isScheduledTripOverdue = (trip, now = new Date()) => (
   trip?.status === TRIP_STATUS.SCHEDULED
   && Boolean(phDateKey(trip.departure_date))

@@ -142,7 +142,7 @@ const SortableRegion = ({ region, handleEditRegion, setDeleteTarget, handleAddNe
         <div style={{ overflow: 'hidden' }}>
           <div className="coverage-muni-section">
             <div className="coverage-muni-header">
-              <div className="text-secondary" style={{ fontSize: '0.8125rem', fontWeight: 600 }}>
+              <div className="text-secondary" style={{ fontSize: 'var(--text-13)', fontWeight: 600 }}>
                 Municipalities {muniCount > 0 && `(${muniCount})`}
               </div>
               <button
@@ -156,7 +156,7 @@ const SortableRegion = ({ region, handleEditRegion, setDeleteTarget, handleAddNe
             </div>
 
             {(!region.municipalities || region.municipalities.length === 0) ? (
-              <div className="text-tertiary" style={{ fontSize: '0.8125rem', padding: '12px 0' }}>
+              <div className="text-tertiary" style={{ fontSize: 'var(--text-13)', padding: '12px 0' }}>
                 No municipalities added to this region.
               </div>
             ) : (
@@ -428,7 +428,7 @@ const CompanyInfoCoverageTab = ({ coverageAreas, setCoverageAreas }) => {
         {/* Region Form */}
         {editingRegion && (
           <div style={{ borderBottom: '1px solid var(--border-light)', padding: '20px 24px', background: 'var(--bg-secondary)' }}>
-            <div style={{ fontWeight: 700, marginBottom: 16, fontSize: '0.9375rem' }}>
+            <div style={{ fontWeight: 700, marginBottom: 16, fontSize: 'var(--text-16)' }}>
               {editingRegion === 'new' ? 'New Region' : 'Edit Region'}
             </div>
             <div className="form-group mb-0">
@@ -456,7 +456,7 @@ const CompanyInfoCoverageTab = ({ coverageAreas, setCoverageAreas }) => {
         {/* Municipality Form */}
         {editingMuni && (
           <div style={{ borderBottom: '1px solid var(--border-light)', padding: '20px 24px', background: 'var(--bg-secondary)' }}>
-            <div style={{ fontWeight: 700, marginBottom: 16, fontSize: '0.9375rem' }}>
+            <div style={{ fontWeight: 700, marginBottom: 16, fontSize: 'var(--text-16)' }}>
               {editingMuni === 'new' ? 'New Municipality' : 'Edit Municipality'}
             </div>
             <div className="form-group mb-0">

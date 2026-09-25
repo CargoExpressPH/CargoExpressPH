@@ -59,6 +59,22 @@ const formatBookingTripOption = (trip) => {
   return `${trip.trip_number} - ${dateLabel}`;
 };
 
+// Next departure, rate and space left under each route choice in step 1.
+// Space left is planned capacity minus booked weight, the same figure the
+// customer Trips page shows.
+const RouteNextTrip = ({ trip, fallbackRate }) => {
+  if (!trip) return <div className="customer-route-option-meta">No trip scheduled yet</div>;
+  const rate = parseFloat(trip.price_per_kg || 0) > 0 ? parseFloat(trip.price_per_kg) : parseFloat(fallbackRate || 0);
+  const spaceLeft = Math.max(0, (Number(trip.capacity) || 0) - (Number(trip.current_weight) || 0));
+  return (
+    <div className="customer-route-option-meta">
+      <span>Next trip {formatPhDate(trip.departure_date, { month: 'short', day: 'numeric', year: undefined })}</span>
+      {rate > 0 && <span>{formatMoney(rate)}/kg</span>}
+      <span>{spaceLeft.toLocaleString()} kg left</span>
+    </div>
+  );
+};
+
 const formatKg = (value) => {
   const n = Number(value || 0);
   return `${Number.isInteger(n) ? n.toFixed(0) : n.toFixed(1)} kg`;
@@ -265,6 +281,13 @@ const BookShipmentPage = () => {
     isTripBookable(t)
   );
   const selectedTrip = filteredTrips.find(t => t.id === form.trip_id);
+  // Next bookable departure per route, so each route card shows when the next
+  // trip leaves, its rate and the space left before the customer picks one.
+  // trips arrive earliest-first from getTrips('active').
+  const nextTripByRoute = useMemo(() => Object.fromEntries(ROUTES.map(r => [
+    r.label,
+    trips.find(t => t.origin === r.origin && t.destination === r.destination && isTripBookable(t)) || null,
+  ])), [trips]);
   const effectivePricePerKilo = parseFloat(selectedTrip?.price_per_kg || 0) > 0 ? parseFloat(selectedTrip.price_per_kg) : pricePerKilo;
   const shippingRateLabel = selectedTrip ? 'Shipping Rate' : 'Estimated Shipping Rate';
   // No cost preview: weight is the only price input and the customer no
@@ -952,7 +975,7 @@ const BookShipmentPage = () => {
         </Link>
       </div>
       <h1 className="sr-only">Book Shipment</h1>
-      <h2 className="fw-800 mb-8">Book Shipment</h2>
+      <h2 className="fw-700 mb-8">Book Shipment</h2>
 
       {/* Step Progress */}
       <div className="step-progress" role="list" aria-label="Booking progress">
@@ -998,7 +1021,7 @@ const BookShipmentPage = () => {
       {step === 1 && (
         <div className="card animate-fade-in"><div className="card-body">
           <h3 className="fw-700 mb-16 flex items-center gap-8"><MapPin size={18} aria-hidden="true" />Select Route</h3>
-          <div className="alert-banner alert-banner-info mb-16" style={{ fontSize: '0.8125rem' }}>
+          <div className="alert-banner alert-banner-info mb-16" style={{ fontSize: 'var(--text-13)' }}>
             <Info size={14} aria-hidden="true" />
             <span><strong>Coverage Area:</strong> CargoExpress PH currently operates routes to and from <strong>Bohol only</strong>. Select a route below to view specific province rules.</span>
           </div>
@@ -1014,11 +1037,12 @@ const BookShipmentPage = () => {
                 style={{ border: form.route === r.label ? '2px solid var(--primary)' : '1.5px solid var(--border)', background: form.route === r.label ? 'var(--primary-bg)' : 'var(--surface)' }}>
                 <Truck size={24} color={form.route === r.label ? 'var(--primary)' : 'var(--text-tertiary)'} style={{ margin: '0 auto 8px' }} />
                 <div className="customer-route-option-label">{r.label}</div>
+                <RouteNextTrip trip={nextTripByRoute[r.label]} fallbackRate={pricePerKilo} />
               </button>
             ))}
           </div>
           {form.route && (
-            <div className="alert-banner alert-banner-warning mt-16" style={{ fontSize: '0.8125rem' }}>
+            <div className="alert-banner alert-banner-warning mt-16" style={{ fontSize: 'var(--text-13)' }}>
               <AlertTriangle size={14} />
               {selectedRoute?.origin === 'Bohol'
                 ? 'Sender must be from Bohol. Receiver must be from Metro Manila, Cavite, Batangas, Laguna, or Bulacan.'
@@ -1139,7 +1163,7 @@ const BookShipmentPage = () => {
           </div>
           <div className="booking-cost-card mb-16 text-center">
             <div className="text-sm text-secondary">{shippingRateLabel}</div>
-            <div className="text-2xl fw-800 text-primary">₱{effectivePricePerKilo}/kg</div>
+            <div className="text-2xl fw-700 text-primary">₱{effectivePricePerKilo}/kg</div>
             <div className="text-xs text-tertiary">Your total is calculated when we weigh your parcel at pickup.</div>
           </div>
 
@@ -1180,7 +1204,7 @@ const BookShipmentPage = () => {
           </div>
           <div className="booking-cost-card text-center mb-16">
             <div className="text-sm text-secondary">{shippingRateLabel}</div>
-            <div className="fw-800 text-primary" style={{ fontSize: '2rem' }}>₱{effectivePricePerKilo}/kg</div>
+            <div className="fw-700 text-primary" style={{ fontSize: 'var(--text-32)' }}>₱{effectivePricePerKilo}/kg</div>
             <div className="text-xs text-tertiary mt-4">Your total is calculated when we weigh your parcel at pickup.</div>
           </div>
           <button

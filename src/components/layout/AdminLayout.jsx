@@ -221,7 +221,7 @@ const AdminLayout = () => {
               onClick={() => setCmdPaletteOpen(true)}
               title={IS_MAC ? 'Search (Cmd+K)' : 'Search (Ctrl+K)'}
               aria-label="Open command palette"
-              style={{ fontSize: '0.8125rem' }}
+              style={{ fontSize: 'var(--text-13)' }}
             >
               <Search size={17} aria-hidden="true" />
               <kbd className="topbar-command-kbd">

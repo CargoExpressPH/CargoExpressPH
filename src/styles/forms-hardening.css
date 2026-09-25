@@ -8,7 +8,7 @@
 @media (hover: none) and (pointer: coarse) {
   .inbox-search-box input,
   .inbox-textarea {
-    font-size: 16px;
+    font-size: var(--text-16);
   }
 
   /* Global form controls sit at 0.9375rem (15px) — also under the iOS
@@ -18,7 +18,7 @@
   .form-select,
   .form-textarea,
   .form-control {
-    font-size: 16px;
+    font-size: var(--text-16);
   }
 
   /* The auth pages need their own selectors here. tabs-steps.css sets
@@ -30,7 +30,7 @@
      textarea variants, so those are already covered above. */
   .login-right-panel .form-input,
   .auth-page .form-input {
-    font-size: 16px;
+    font-size: var(--text-16);
   }
 
   /* Search inputs carry no .form-input class, so the rule above misses them.
@@ -38,7 +38,7 @@
      matching that here wins on source order. Covers admin Orders/Customers/
      Inbox, customer Home/Orders, and public Tracking. */
   .search-box input {
-    font-size: 16px;
+    font-size: var(--text-16);
   }
 
   .inbox-mobile-back-btn {

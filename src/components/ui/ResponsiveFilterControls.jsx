@@ -1,156 +1,94 @@
-import { useEffect, useId, useRef, useState } from 'react';
-import { Check, ChevronDown } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
-const defaultOptionLabel = (option) => {
-  const suffix = option.count != null ? ` (${option.count})` : '';
-  return `${option.label}${suffix}`;
-};
-
+/**
+ * The one filter control for every list (admin Bookings, Trips, Customers,
+ * Inquiries; customer Bookings): a single row of pill chips. It used to be
+ * chips on desktop and a dropdown on phones, with each page styling its chips
+ * differently. Now it is the same chips everywhere; when they do not fit, the
+ * row scrolls sideways and fades at whichever edge has more chips behind it,
+ * so off-screen options stay discoverable.
+ */
 const ResponsiveFilterControls = ({
   options,
   value,
   onChange,
   ariaLabel,
-  label = 'Filter',
   className = '',
-  desktopClassName = 'tabs',
-  buttonClassName,
-  optionLabel = defaultOptionLabel,
 }) => {
-  const [open, setOpen] = useState(false);
-  const dropdownId = useId();
-  const rootRef = useRef(null);
-  const selected = options.find(option => option.value === value);
+  const rowRef = useRef(null);
+  const [fade, setFade] = useState('none');
+
+  const updateFade = useCallback(() => {
+    const row = rowRef.current;
+    if (!row) return;
+    const maxScroll = row.scrollWidth - row.clientWidth;
+    if (maxScroll <= 1) {
+      setFade('none');
+      return;
+    }
+    const atStart = row.scrollLeft <= 1;
+    const atEnd = row.scrollLeft >= maxScroll - 1;
+    setFade(atStart ? 'end' : atEnd ? 'start' : 'both');
+  }, []);
 
   useEffect(() => {
-    if (!open) return undefined;
-
-    const handlePointerDown = (event) => {
-      if (!rootRef.current?.contains(event.target)) {
-        setOpen(false);
-      }
-    };
-
-    const handleKeyDown = (event) => {
-      if (event.key === 'Escape') {
-        setOpen(false);
-      }
-    };
-
-    document.addEventListener('pointerdown', handlePointerDown);
-    document.addEventListener('keydown', handleKeyDown);
-
+    const row = rowRef.current;
+    if (!row) return undefined;
+    row.addEventListener('scroll', updateFade, { passive: true });
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(updateFade);
+    observer?.observe(row);
     return () => {
-      document.removeEventListener('pointerdown', handlePointerDown);
-      document.removeEventListener('keydown', handleKeyDown);
+      row.removeEventListener('scroll', updateFade);
+      observer?.disconnect();
     };
-  }, [open]);
+  }, [updateFade]);
 
-  const getButtonClassName = (option, active) => {
-    if (typeof buttonClassName === 'function') return buttonClassName(option, active);
-    return `tab ${option.buttonClassName || ''} ${active ? 'active' : ''}`.trim();
-  };
+  // Counts arriving can widen the chips without resizing the row itself.
+  useEffect(() => {
+    updateFade();
+  }, [options, updateFade]);
 
-  const selectOption = (nextValue) => {
-    onChange(nextValue);
-    setOpen(false);
-  };
-
-  const moveSelection = (direction) => {
-    if (options.length === 0) return;
-    const currentIndex = Math.max(0, options.findIndex(option => option.value === value));
-    const nextIndex = (currentIndex + direction + options.length) % options.length;
-    selectOption(options[nextIndex].value);
-  };
-
-  const handleTriggerKeyDown = (event) => {
-    if (event.key === 'ArrowDown') {
-      event.preventDefault();
-      open ? moveSelection(1) : setOpen(true);
-    } else if (event.key === 'ArrowUp') {
-      event.preventDefault();
-      open ? moveSelection(-1) : setOpen(true);
-    } else if (event.key === 'Enter' || event.key === ' ') {
-      event.preventDefault();
-      setOpen(prev => !prev);
-    }
-  };
+  // Keep the selected chip in view — a list opened already filtered on a
+  // phone would otherwise hide its own selection off-screen. Scrolls the row
+  // only, never the page.
+  useEffect(() => {
+    const row = rowRef.current;
+    const active = row?.querySelector('[aria-pressed="true"]');
+    if (!row || !active) return;
+    const rowBox = row.getBoundingClientRect();
+    const chipBox = active.getBoundingClientRect();
+    if (chipBox.left < rowBox.left) row.scrollLeft -= rowBox.left - chipBox.left + 16;
+    else if (chipBox.right > rowBox.right) row.scrollLeft += chipBox.right - rowBox.right + 16;
+  }, [value]);
 
   return (
-    <div className={`responsive-filter ${className}`.trim()} ref={rootRef}>
-      <div className={`${desktopClassName} responsive-filter-tabs`.trim()} role="group" aria-label={ariaLabel}>
-        {options.map(option => {
-          const active = value === option.value;
-          const Icon = option.icon;
+    <div
+      ref={rowRef}
+      className={`filter-chips ${className}`.trim()}
+      data-fade={fade}
+      role="group"
+      aria-label={ariaLabel}
+    >
+      {options.map(option => {
+        const active = value === option.value;
+        const Icon = option.icon;
 
-          return (
-            <button
-              key={option.value}
-              type="button"
-              aria-pressed={active}
-              className={getButtonClassName(option, active)}
-              onClick={() => onChange(option.value)}
-              style={option.style}
-            >
-              {Icon && <Icon size={option.iconSize || 14} aria-hidden="true" />}
-              <span>{option.label}</span>
-              {option.count != null && (
-                <span className={`tab-count ${option.countClassName || ''}`.trim()}>{option.count}</span>
-              )}
-            </button>
-          );
-        })}
-      </div>
-
-      <div className="responsive-filter-select-wrap">
-        <span className="responsive-filter-select-label">{label}</span>
-        <button
-          type="button"
-          className="form-select responsive-filter-select responsive-filter-trigger"
-          aria-label={ariaLabel}
-          aria-haspopup="listbox"
-          aria-expanded={open}
-          aria-controls={dropdownId}
-          onClick={() => setOpen(prev => !prev)}
-          onKeyDown={handleTriggerKeyDown}
-        >
-          <span className="responsive-filter-trigger-text">
-            {selected ? optionLabel(selected) : 'Select'}
-          </span>
-          <ChevronDown size={16} aria-hidden="true" className="responsive-filter-trigger-icon" />
-        </button>
-        {open && (
-          <div className="responsive-filter-menu" id={dropdownId} role="listbox" aria-label={ariaLabel}>
-            {options.map(option => {
-              const active = value === option.value;
-              const Icon = option.icon;
-
-              return (
-                <button
-                  key={option.value}
-                  type="button"
-                  role="option"
-                  aria-selected={active}
-                  className={`responsive-filter-option ${active ? 'active' : ''}`}
-                  onClick={() => selectOption(option.value)}
-                >
-                  <span className="responsive-filter-option-main">
-                    {Icon && <Icon size={15} aria-hidden="true" />}
-                    <span>{option.label}</span>
-                  </span>
-                  <span className="responsive-filter-option-meta">
-                    {option.count != null && (
-                <span className={`tab-count ${option.countClassName || ''}`.trim()}>{option.count}</span>
-              )}
-                    {active && <Check size={15} aria-hidden="true" />}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        )}
-        {selected && <span className="responsive-filter-current">{optionLabel(selected)}</span>}
-      </div>
+        return (
+          <button
+            key={option.value}
+            type="button"
+            aria-pressed={active}
+            className={`filter-chip${active ? ' active' : ''}`}
+            onClick={() => onChange(option.value)}
+          >
+            {Icon && <Icon size={option.iconSize || 14} aria-hidden="true" />}
+            <span>{option.label}</span>
+            {option.count != null && (
+              <span className={`filter-chip-count ${option.countClassName || ''}`.trim()}>{option.count}</span>
+            )}
+          </button>
+        );
+      })}
     </div>
   );
 };

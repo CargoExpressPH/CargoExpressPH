@@ -144,7 +144,7 @@ const ChangePasswordPage = () => {
           </Link>
         )}
       </div>
-      <h1 className="fw-800 mb-20">Change Password</h1>
+      <h1 className="fw-700 mb-20">Change Password</h1>
 
       <div className="card">
         <div className="card-body">

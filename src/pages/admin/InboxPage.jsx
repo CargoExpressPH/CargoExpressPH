@@ -876,7 +876,7 @@ const InboxPage = () => {
                 <div>
                   <div
                     className="text-tertiary fw-700 text-uppercase"
-                    style={{ fontSize: '0.6875rem', letterSpacing: '0.05em', padding: '10px 14px 4px' }}
+                    style={{ fontSize: 'var(--text-12)', letterSpacing: '0.05em', padding: '10px 14px 4px' }}
                   >
                     Start a new conversation
                   </div>

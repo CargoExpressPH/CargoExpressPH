@@ -253,7 +253,7 @@
 .customer-mobile-heading h2 {
   color: var(--customer-ink);
   font-size: clamp(1.85rem, 5vw, 2.55rem);
-  font-weight: 900;
+  font-weight: 700;
   line-height: 1.02;
   letter-spacing: 0;
 }
@@ -262,7 +262,7 @@
 .customer-home-hero h2 {
   color: var(--text-on-dark);
   font-size: clamp(2.1rem, 8vw, 3rem);
-  font-weight: 900;
+  font-weight: 700;
   line-height: 1.02;
   letter-spacing: 0;
 }
@@ -275,15 +275,15 @@
 
 .customer-section-title {
   color: var(--customer-ink);
-  font-size: 0.82rem;
-  font-weight: 900;
+  font-size: var(--text-13);
+  font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
 }
 
 .customer-inline-action {
   color: var(--customer-green-dark);
-  font-weight: 800;
+  font-weight: 700;
 }
 
 .customer-home-page {
@@ -363,7 +363,7 @@
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.14);
   color: rgba(255, 255, 255, 0.82);
-  font-weight: 800;
+  font-weight: 700;
   gap: 6px;
 }
 
@@ -403,7 +403,7 @@
   border-radius: 18px;
   background: #FFFFFF;
   color: #044E32;
-  font-weight: 800;
+  font-weight: 700;
   box-shadow: 0 14px 26px rgba(0, 0, 0, 0.13);
 }
 
@@ -417,7 +417,7 @@
 [data-theme="dark"] .customer-home-hero .customer-track-form .btn {
   background: #FFFFFF;
   color: #044E32;
-  font-weight: 800;
+  font-weight: 700;
 }
 
 [data-theme="dark"] .customer-home-hero .customer-track-form .btn:disabled {
@@ -500,8 +500,8 @@
 
 .customer-snapshot-value {
   color: var(--customer-ink);
-  font-size: 1.22rem;
-  font-weight: 900;
+  font-size: var(--text-20);
+  font-weight: 700;
   line-height: 1.1;
   letter-spacing: -0.02em;
 }
@@ -509,7 +509,7 @@
 .customer-snapshot-label {
   margin-top: 3px;
   color: var(--customer-muted);
-  font-size: 0.72rem;
+  font-size: var(--text-12);
   font-weight: 700;
   white-space: nowrap;
   overflow: hidden;
@@ -527,12 +527,12 @@
 .home-trip-capacity-lbl {
   color: var(--customer-muted, var(--text-secondary));
   font-weight: 700;
-  font-size: 0.75rem;
+  font-size: var(--text-12);
 }
 
 .home-trip-capacity-pct {
   color: var(--customer-green-dark, var(--primary));
-  font-size: 0.75rem;
+  font-size: var(--text-12);
 }
 
 .home-trip-progress-track {
@@ -602,8 +602,8 @@
 .customer-list-card-title {
   min-width: 0;
   color: var(--customer-ink);
-  font-size: 1rem;
-  font-weight: 900;
+  font-size: var(--text-16);
+  font-weight: 700;
   line-height: 1.2;
   overflow-wrap: anywhere;
 }
@@ -615,7 +615,7 @@
   gap: 7px;
   min-width: 0;
   color: var(--customer-muted);
-  font-size: 0.83rem;
+  font-size: var(--text-13);
 }
 
 .customer-list-card-route span,
@@ -630,13 +630,13 @@
   justify-content: space-between;
   gap: 12px;
   color: var(--customer-muted);
-  font-size: 0.78rem;
+  font-size: var(--text-12);
 }
 
 .customer-list-card-price {
   color: var(--customer-green-dark);
-  font-size: 1rem;
-  font-weight: 900;
+  font-size: var(--text-16);
+  font-weight: 700;
 }
 
 .customer-card-chevron {
@@ -670,7 +670,7 @@
   border-radius: 999px;
   background: var(--customer-panel);
   color: var(--customer-muted);
-  font-weight: 800;
+  font-weight: 700;
   white-space: normal;
 }
 
@@ -706,14 +706,14 @@
 }
 
 .customer-trip-date-badge span {
-  font-size: 0.67rem;
-  font-weight: 800;
+  font-size: var(--text-12);
+  font-weight: 700;
   line-height: 1;
 }
 
 .customer-trip-date-badge strong {
-  font-size: 1.45rem;
-  font-weight: 900;
+  font-size: var(--text-24);
+  font-weight: 700;
   line-height: 0.98;
 }
 
@@ -768,7 +768,7 @@
 .booking-page > h2 {
   color: var(--customer-ink);
   font-size: clamp(1.8rem, 5vw, 2.35rem);
-  font-weight: 900;
+  font-weight: 700;
   letter-spacing: 0;
 }
 
@@ -808,7 +808,7 @@
   border: 0;
   background: var(--bg-secondary);
   color: var(--customer-muted);
-  font-weight: 900;
+  font-weight: 700;
 }
 
 .step-progress .step.active .step-number,
@@ -821,8 +821,8 @@
 
 .step-progress .step-label {
   color: var(--customer-muted);
-  font-size: 0.67rem;
-  font-weight: 800;
+  font-size: var(--text-12);
+  font-weight: 700;
   letter-spacing: 0;
   text-transform: none;
 }
@@ -882,15 +882,15 @@
 .booking-trip-preview span {
   margin-bottom: 2px;
   color: var(--customer-muted);
-  font-size: 0.7rem;
-  font-weight: 800;
+  font-size: var(--text-12);
+  font-weight: 700;
   text-transform: uppercase;
 }
 
 .booking-trip-preview strong {
   color: var(--customer-ink);
-  font-size: 0.78rem;
-  font-weight: 900;
+  font-size: var(--text-12);
+  font-weight: 700;
 }
 
 .booking-cost-card {
@@ -947,8 +947,37 @@
 .customer-order-detail-header h2 {
   color: var(--customer-ink);
   font-size: clamp(1.25rem, 5vw, 1.8rem);
-  font-weight: 900;
+  font-weight: 700;
   letter-spacing: 0;
+}
+
+/* "Need to cancel?" row at the foot of the order page. A quiet bordered row
+   instead of a full-width red bar, so cancelling reads as available but
+   secondary to tracking and payment. */
+.customer-cancel-zone {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 16px;
+  margin-top: 8px;
+  padding: 16px 18px;
+  border: 1px solid var(--customer-line);
+  border-radius: 18px;
+  background: var(--customer-panel-solid);
+}
+
+.customer-cancel-zone-copy {
+  display: flex;
+  flex: 1 1 220px;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  color: var(--customer-ink);
+}
+
+.customer-cancel-zone .btn {
+  flex-shrink: 0;
 }
 
 .customer-detail-card {
@@ -985,8 +1014,8 @@
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid rgba(255, 255, 255, 0.25);
   color: #fff;
-  font-size: 0.72rem;
-  font-weight: 800;
+  font-size: var(--text-12);
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   box-shadow: var(--shadow-sm);
@@ -1016,8 +1045,8 @@
   align-items: center;
   justify-content: center;
   color: #fff;
-  font-size: 1.75rem;
-  font-weight: 800;
+  font-size: var(--text-32);
+  font-weight: 700;
 }
 
 .profile-avatar-edit-badge {
@@ -1056,15 +1085,15 @@
 }
 
 .profile-user-name {
-  font-size: 1.55rem;
-  font-weight: 900;
+  font-size: var(--text-24);
+  font-weight: 700;
   color: var(--customer-ink);
   margin: 0;
   letter-spacing: -0.02em;
 }
 
 .profile-user-email {
-  font-size: 0.85rem;
+  font-size: var(--text-14);
   color: var(--customer-muted);
   margin: 4px 0 0 0;
 }
@@ -1075,8 +1104,8 @@
   gap: 4px;
   background: var(--primary-lighter);
   color: var(--primary-dark);
-  font-size: 0.65rem;
-  font-weight: 800;
+  font-size: var(--text-12);
+  font-weight: 700;
   padding: 3px 8px;
   border-radius: var(--radius-full);
   text-transform: uppercase;
@@ -1102,7 +1131,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 0.8rem;
+  font-size: var(--text-13);
   color: var(--customer-ink);
   margin-bottom: 8px;
   font-weight: 600;
@@ -1110,7 +1139,7 @@
 
 .profile-completion-header strong {
   color: var(--primary-text);
-  font-weight: 900;
+  font-weight: 700;
 }
 
 .profile-completion-bar {
@@ -1135,8 +1164,8 @@
   border: none;
   padding: 0;
   color: var(--primary-text);
-  font-size: 0.72rem;
-  font-weight: 800;
+  font-size: var(--text-12);
+  font-weight: 700;
   cursor: pointer;
   text-decoration: underline;
   text-align: left;
@@ -1148,8 +1177,8 @@
 }
 
 .profile-section-title {
-  font-size: 0.75rem;
-  font-weight: 900;
+  font-size: var(--text-12);
+  font-weight: 700;
   color: var(--customer-muted);
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -1226,7 +1255,7 @@
   border-radius: var(--radius-full);
   background: var(--primary-fill);
   color: #fff;
-  font-size: 0.75rem;
+  font-size: var(--text-12);
   font-weight: 700;
   display: inline-flex;
   align-items: center;
@@ -1285,7 +1314,7 @@ input:checked + .toggle-slider:before {
 .profile-signout {
   border-radius: 20px;
   min-height: 52px;
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: 0.02em;
   margin-top: 14px;
   box-shadow: var(--shadow-xs);
@@ -1299,7 +1328,7 @@ input:checked + .toggle-slider:before {
 .customer-personal-info-page > h2 {
   color: var(--customer-ink);
   font-size: clamp(1.8rem, 5vw, 2.35rem);
-  font-weight: 900;
+  font-weight: 700;
 }
 
 .form-input-icon {
@@ -1420,7 +1449,7 @@ input:checked + .toggle-slider:before {
   }
 
   .customer-snapshot-value {
-    font-size: 1.05rem;
+    font-size: var(--text-16);
   }
 
   .customer-order-tabs,
@@ -1469,6 +1498,13 @@ input:checked + .toggle-slider:before {
     gap: 2px;
   }
 
+  /* Three controls fit beside the brand at 320px; four do not. On small
+     phones the chat shortcut takes this slot, and Dark Mode stays one tap
+     away on the Profile tab. */
+  .customer-navbar-right .customer-navbar-theme {
+    display: none;
+  }
+
   .theme-toggle-btn,
   .customer-nav-icon-btn {
     width: 38px;
@@ -1484,7 +1520,7 @@ input:checked + .toggle-slider:before {
   }
 
   .customer-snapshot-label {
-    font-size: 0.7rem;
+    font-size: var(--text-12);
   }
 
   .customer-trip-row {
@@ -1508,7 +1544,7 @@ input:checked + .toggle-slider:before {
   .customer-bottom-tab {
     min-width: 50px;
     min-height: 54px;
-    font-size: 0.6rem;
+    font-size: var(--text-12);
   }
 
   .customer-bottom-tab.book-tab .book-tab-icon {
@@ -1547,7 +1583,7 @@ input:checked + .toggle-slider:before {
   }
 
   .customer-navbar-logo .brand-wordmark {
-    font-size: 0.8rem;
+    font-size: var(--text-13);
   }
 }
 
@@ -1579,8 +1615,8 @@ input:checked + .toggle-slider:before {
 
 .customer-payment-history-table th {
   padding: 12px 16px ;
-  font-size: 0.75rem;
-  font-weight: 800;
+  font-size: var(--text-12);
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--customer-green-dark);
@@ -1590,7 +1626,7 @@ input:checked + .toggle-slider:before {
 
 .customer-payment-history-table td {
   padding: 12px 16px ;
-  font-size: 0.8125rem;
+  font-size: var(--text-13);
   color: var(--customer-ink);
   border-bottom: 1px solid var(--customer-line) ;
   text-align: left;
@@ -1655,7 +1691,7 @@ input:checked + .toggle-slider:before {
     gap: 12px;
     padding: 0 0 6px 0;
     border-bottom: 1px solid color-mix(in srgb, var(--customer-line) 40%, transparent);
-    font-size: 0.8125rem;
+    font-size: var(--text-13);
     text-align: right;
     overflow-wrap: anywhere;
     word-break: break-word;
@@ -1690,8 +1726,8 @@ input:checked + .toggle-slider:before {
   /* Inline mobile labels using data-label attribute */
   .customer-payment-history-table td[data-label]::before {
     content: attr(data-label);
-    font-size: 0.6875rem;
-    font-weight: 800;
+    font-size: var(--text-12);
+    font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.05em;
     color: var(--customer-muted);
@@ -1741,7 +1777,7 @@ input:checked + .toggle-slider:before {
 .payment-month-select {
   width: 100%;
   height: 40px;
-  font-size: 0.8125rem;
+  font-size: var(--text-13);
   font-weight: 700;
 }
 
@@ -1789,8 +1825,8 @@ input:checked + .toggle-slider:before {
 }
 
 .payment-row-date {
-  font-size: 0.75rem;
-  font-weight: 800;
+  font-size: var(--text-12);
+  font-weight: 700;
   color: var(--customer-muted);
   text-transform: uppercase;
   letter-spacing: 0.02em;
@@ -1799,8 +1835,8 @@ input:checked + .toggle-slider:before {
 /* Tabular figures so the decimal points line up down the column — the whole
    reason the amount gets its own grid track. */
 .payment-row-amount {
-  font-size: 0.9375rem;
-  font-weight: 800;
+  font-size: var(--text-16);
+  font-weight: 700;
   color: var(--customer-ink);
   font-variant-numeric: tabular-nums;
   text-align: right;
@@ -1844,7 +1880,7 @@ input:checked + .toggle-slider:before {
   justify-content: space-between;
   gap: 12px;
   padding: 12px 16px 0;
-  font-size: 0.8125rem;
+  font-size: var(--text-13);
   color: var(--text-secondary);
   font-variant-numeric: tabular-nums;
 }
@@ -1862,14 +1898,14 @@ input:checked + .toggle-slider:before {
 }
 
 .payment-detail-amount {
-  font-size: 1.75rem;
-  font-weight: 800;
+  font-size: var(--text-32);
+  font-weight: 700;
   color: var(--customer-ink);
   font-variant-numeric: tabular-nums;
 }
 
 .payment-detail-amount-refund {
-  font-size: 1.25rem;
+  font-size: var(--text-20);
   line-height: 1.3;
 }
 
@@ -1891,14 +1927,14 @@ input:checked + .toggle-slider:before {
 }
 
 .payment-detail-row dt {
-  font-size: 0.8125rem;
+  font-size: var(--text-13);
   color: var(--text-secondary);
   flex-shrink: 0;
 }
 
 .payment-detail-row dd {
   margin: 0;
-  font-size: 0.8125rem;
+  font-size: var(--text-13);
   font-weight: 700;
   color: var(--customer-ink);
   text-align: right;
@@ -1940,7 +1976,7 @@ input:checked + .toggle-slider:before {
   align-items: flex-start;
   gap: 8px;
   margin: 20px 0 8px;
-  font-size: 0.75rem;
+  font-size: var(--text-12);
   line-height: 1.5;
   color: var(--customer-muted);
 }
@@ -2006,7 +2042,7 @@ body:has(textarea:focus) .support-chat-page {
 }
 
 .customer-list-card-booked-date {
-  font-size: 0.72rem;
+  font-size: var(--text-12);
   color: var(--customer-muted);
   font-weight: 500;
   margin-top: 2px;
@@ -2020,8 +2056,8 @@ body:has(textarea:focus) .support-chat-page {
 }
 
 .customer-route-node {
-  font-size: 0.88rem;
-  font-weight: 800;
+  font-size: var(--text-14);
+  font-weight: 700;
 }
 
 .customer-route-node.origin {
@@ -2042,19 +2078,35 @@ body:has(textarea:focus) .support-chat-page {
 .customer-route-line {
   width: 100%;
   height: 2px;
+  border-radius: 999px;
   background: color-mix(in srgb, var(--customer-line) 80%, transparent);
   position: relative;
 }
 
+/* --route-progress is set per card by RouteProgressLine (0% before pickup,
+   100% once delivered), so the line reads as a journey, not a decoration. */
+.customer-route-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: var(--route-progress, 0%);
+  border-radius: inherit;
+  background: var(--customer-green);
+}
+
 .customer-route-arrow {
   position: absolute;
-  right: -2px;
+  left: var(--route-progress, 0%);
   top: 50%;
-  transform: translateY(-50%);
-  width: 6px;
-  height: 6px;
+  transform: translate(-50%, -50%);
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   background: var(--customer-green);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--customer-green) 22%, transparent);
+}
+
+.customer-route-line.is-cancelled .customer-route-arrow {
+  display: none;
 }
 
 /* ── Push soft prompt ──────────────────────────────────────────────────────
@@ -2193,7 +2245,7 @@ body:has(textarea:focus) .support-chat-page {
   }
 
   .support-chat-header-title {
-    font-size: 0.9375rem;
+    font-size: var(--text-16);
   }
 }
 
@@ -2224,14 +2276,14 @@ body:has(textarea:focus) .support-chat-page {
 
 .about-app-tagline {
   margin: 2px 0 0;
-  font-size: 0.875rem;
+  font-size: var(--text-14);
   font-weight: 600;
   color: var(--text-secondary);
 }
 
 .about-app-version {
   margin: 0;
-  font-size: 0.8125rem;
+  font-size: var(--text-13);
   font-weight: 600;
   color: var(--customer-muted);
   font-variant-numeric: tabular-nums;
@@ -2248,7 +2300,7 @@ body:has(textarea:focus) .support-chat-page {
   flex-shrink: 0;
   white-space: nowrap;
   text-align: right;
-  font-size: 0.8125rem;
+  font-size: var(--text-13);
   font-weight: 700;
   color: var(--text-secondary);
 }
@@ -2265,7 +2317,7 @@ body:has(textarea:focus) .support-chat-page {
 .about-app-footnote {
   margin: 24px 0 8px;
   text-align: center;
-  font-size: 0.75rem;
+  font-size: var(--text-12);
   font-weight: 600;
   color: var(--customer-muted);
 }

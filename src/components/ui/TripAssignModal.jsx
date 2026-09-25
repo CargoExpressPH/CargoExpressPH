@@ -6,7 +6,7 @@ import FocusTrap from './FocusTrap';
 import useScrollLock from '../../hooks/useScrollLock';
 import useFieldErrors from '../../hooks/useFieldErrors';
 import FieldError, { errorId } from './FieldError';
-import { tripCapacityState } from '../../constants/status';
+import { tripCapacityState, tripStatusLabel } from '../../constants/status';
 
 /**
  * TripAssignModal — Assign an order to an available trip
@@ -100,7 +100,7 @@ const TripAssignModal = ({ order, onClose, onAssign }) => {
 
         <div className="modal-body" ref={containerRef}>
           <div id="trip-assign-desc" className="text-secondary mb-16 bg-surface br-8" style={{padding: 12,
-            fontSize: '0.8125rem'
+            fontSize: 'var(--text-13)'
           }}>
             <MapPin size={14} className="inline mr-6" />
             Route: <strong>{order.origin} → {order.destination}</strong>
@@ -145,7 +145,7 @@ const TripAssignModal = ({ order, onClose, onAssign }) => {
                     disabled={blocked}
                     aria-pressed={isSelected}
                     aria-label={
-                      `Select trip ${trip.trip_number}, ${trip.status}, `
+                      `Select trip ${trip.trip_number}, ${tripStatusLabel(trip.status)}, `
                       + `${(trip.current_weight || 0).toFixed(1)} of ${trip.capacity} kilograms used`
                       + (blocked ? `. Unavailable: at or over the ${cap.max} kilogram maximum.` : '')
                     }
@@ -161,7 +161,7 @@ const TripAssignModal = ({ order, onClose, onAssign }) => {
                     <div className="flex justify-between items-center mb-6">
                       <span className="fw-700 text-accent">{trip.trip_number}</span>
                       <span style={{
-                        fontSize: '0.6875rem', fontWeight: 600, padding: '2px 8px',
+                        fontSize: 'var(--text-12)', fontWeight: 600, padding: '2px 8px',
                         borderRadius: 'var(--radius-xs)',
                         background: cap.isFull ? 'var(--error-bg)' : trip.status === 'scheduled' ? 'var(--info-bg)' : 'var(--primary-bg)',
                         color: cap.isFull ? 'var(--error-text)' : trip.status === 'scheduled' ? 'var(--info)' : 'var(--primary)',
@@ -169,7 +169,7 @@ const TripAssignModal = ({ order, onClose, onAssign }) => {
                         {cap.isFull ? 'FULL' : trip.status}
                       </span>
                     </div>
-                    <div className="text-secondary mb-6" style={{ fontSize: '0.8125rem' }}>
+                    <div className="text-secondary mb-6" style={{ fontSize: 'var(--text-13)' }}>
                       {trip.origin} → {trip.destination}
                     </div>
                     <div className="capacity-bar" style={{ height: 6, borderRadius: 'var(--radius-full)' }}>
@@ -178,12 +178,12 @@ const TripAssignModal = ({ order, onClose, onAssign }) => {
                         style={{ width: `${Math.min(100, capPct)}%` }}
                       />
                     </div>
-                    <div className="text-tertiary mt-4" style={{ fontSize: '0.6875rem' }}>
+                    <div className="text-tertiary mt-4" style={{ fontSize: 'var(--text-12)' }}>
                       Booked: {(trip.current_weight || 0).toFixed(1)} / {trip.capacity} kg
                       {cap.hasLimit && <> (Max allowance: {cap.max} kg)</>}
                     </div>
                     {blocked && (
-                      <div className="flex items-center gap-4 mt-6" style={{ fontSize: '0.6875rem', color: 'var(--error-text)' }}>
+                      <div className="flex items-center gap-4 mt-6" style={{ fontSize: 'var(--text-12)', color: 'var(--error-text)' }}>
                         <AlertTriangle size={12} aria-hidden="true" />
                         {cap.isFull
                           ? `Full — at the ${cap.max} kg maximum. No further bookings.`
@@ -191,7 +191,7 @@ const TripAssignModal = ({ order, onClose, onAssign }) => {
                       </div>
                     )}
                     {usingAllowance && (
-                      <div className="flex items-center gap-4 mt-6 text-warning" style={{ fontSize: '0.6875rem' }}>
+                      <div className="flex items-center gap-4 mt-6 text-warning" style={{ fontSize: 'var(--text-12)' }}>
                         <AlertTriangle size={12} aria-hidden="true" />
                         Over planned capacity — using the {cap.allowance} kg allowance
                         ({cap.remaining.toFixed(1)} kg left).

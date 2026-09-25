@@ -67,7 +67,7 @@
    above do not reach it. */
 @media (max-width: 768px) {
   .app-layout .admin-page-title {
-    font-size: 1.3rem;
+    font-size: var(--text-20);
     gap: 8px;
   }
 
@@ -99,7 +99,7 @@
 
 @media (max-width: 400px) {
   .app-layout .admin-page-title {
-    font-size: 1.175rem;
+    font-size: var(--text-18);
   }
 }
 
@@ -142,7 +142,7 @@
 @media (max-width: 768px) {
   .app-layout .stat-card .stat-value,
   .app-layout .grid-4:has(.stat-card) .stat-card .stat-value {
-    font-size: 1.3rem;
+    font-size: var(--text-20);
     line-height: 1.1;
   }
 
@@ -162,7 +162,7 @@
 
   .app-layout .stat-card .stat-label,
   .app-layout .grid-4:has(.stat-card) .stat-card .stat-label {
-    font-size: 0.72rem;
+    font-size: var(--text-12);
     line-height: 1.25;
   }
 }
@@ -170,7 +170,7 @@
 @media (max-width: 400px) {
   .app-layout .stat-card .stat-value,
   .app-layout .grid-4:has(.stat-card) .stat-card .stat-value {
-    font-size: 1.15rem;
+    font-size: var(--text-18);
   }
 
   .app-layout .stat-card,
@@ -194,7 +194,7 @@
     /* 11.2px. Not smaller — this is the only text saying what the number
        above it means, and the tile has already given up a third of its
        height at this breakpoint. */
-    font-size: 0.7rem;
+    font-size: var(--text-12);
   }
 }
 
@@ -333,11 +333,11 @@
   }
 
   .customer-layout-v2 .customer-snapshot-value {
-    font-size: 1.15rem;
+    font-size: var(--text-18);
   }
 
   .customer-layout-v2 .customer-snapshot-label {
-    font-size: 0.72rem;
+    font-size: var(--text-12);
     white-space: normal;
     overflow-wrap: anywhere;
   }
@@ -425,13 +425,13 @@
 
   .customer-layout-v2 .customer-home-hero h1,
   .customer-layout-v2 .customer-home-hero h2 {
-    font-size: 1.375rem;   /* 22px, down from 33.6px */
+    font-size: var(--text-24);   /* 22px, down from 33.6px */
     line-height: 1.15;
     margin-bottom: 6px;
   }
 
   .customer-layout-v2 .customer-home-hero p {
-    font-size: 0.8125rem;
+    font-size: var(--text-13);
     line-height: 1.45;
   }
 
@@ -440,7 +440,7 @@
     min-height: 26px;
     margin-bottom: 8px;
     padding: 4px 9px;
-    font-size: 0.75rem;
+    font-size: var(--text-12);
   }
 
   .customer-layout-v2 .customer-home-hero .customer-track-form {
@@ -453,7 +453,7 @@
   .customer-layout-v2 .customer-home-hero .customer-track-form .btn {
     height: 44px;
     min-height: 44px;
-    font-size: 0.8125rem;
+    font-size: var(--text-13);
   }
 
   /* Section rhythm. 18px between every block on a phone is scroll, not
@@ -464,15 +464,15 @@
 
   /* Shipment / order list cards. */
   .customer-layout-v2 .customer-list-card-title {
-    font-size: 0.9375rem;
+    font-size: var(--text-16);
   }
 
   .customer-layout-v2 .customer-list-card-price {
-    font-size: 0.9375rem;
+    font-size: var(--text-16);
   }
 
   .customer-layout-v2 .customer-list-card-booked-date {
-    font-size: 0.7rem;
+    font-size: var(--text-12);
   }
 
   /* `p-16` is an inline utility on most customer cards, so the section-3
@@ -492,7 +492,7 @@
 
   .customer-layout-v2 .home-trip-cta {
     min-height: 44px;
-    font-size: 0.875rem;
+    font-size: var(--text-14);
   }
 }
 
@@ -518,7 +518,7 @@
 
   .customer-layout-v2 .customer-home-hero h1,
   .customer-layout-v2 .customer-home-hero h2 {
-    font-size: 1.25rem;    /* 20px */
+    font-size: var(--text-20);    /* 20px */
   }
 
   /* The hero subtitle is NOT reduced again at this tier. 0.8125rem (13px) is
@@ -532,10 +532,140 @@
 
   .customer-layout-v2 .customer-list-card-title,
   .customer-layout-v2 .customer-list-card-price {
-    font-size: 0.90625rem;
+    font-size: var(--text-14);
   }
 
   .customer-layout-v2 .card-body.p-16 {
     padding: 12px;
+  }
+}
+
+/* ── Compact mobile list rows (.data-table--compact) ──────────────────────
+   Admin Bookings and the dashboard's Recent Orders. The generic card engine
+   (tables-mobile.css) gives every field its own labelled line: about 280px
+   per booking, two bookings per phone screen. These lists are scanned all
+   day, so on phones each row becomes a dense three-line block instead:
+
+     CE-20260925-1234 ···················· [Status]
+     Customer name ························ ₱2,440.00
+     Manila → Bohol            64.2 kg   Sep 22, 2026
+
+   Cells are placed by data-label, so the layout follows the columns rather
+   than their order. The block is self-contained (it sets table/tbody/thead
+   display too), so it behaves the same whichever base breakpoint the table
+   would otherwise switch at. */
+@media (max-width: 900px) {
+  .data-table.data-table--compact thead {
+    display: none;
+  }
+
+  .data-table.data-table--compact,
+  .data-table.data-table--compact tbody {
+    display: block;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .data-table.data-table--compact tbody tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    align-items: center;
+    column-gap: 12px;
+    row-gap: 2px;
+    width: 100%;
+    min-width: 0;
+    padding: 8px 14px 10px;
+    margin-bottom: 8px;
+  }
+
+  .data-table.data-table--compact tbody tr:last-child {
+    margin-bottom: 0;
+  }
+
+  .data-table.data-table--compact td {
+    display: block;
+    width: auto;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    color: var(--text-secondary);
+    font-size: var(--text-13);
+    line-height: 1.4;
+    text-align: left;
+    overflow-wrap: anywhere;
+  }
+
+  .data-table.data-table--compact td::before {
+    content: none;
+    display: none;
+  }
+
+  .data-table.data-table--compact td[data-label="Tracking"] {
+    grid-column: 1 / 3;
+    grid-row: 1;
+  }
+
+  .data-table.data-table--compact td[data-label="Tracking"] a {
+    min-height: 40px;
+    font-size: var(--text-16);
+    font-weight: 700;
+  }
+
+  .data-table.data-table--compact td[data-label="Status"] {
+    grid-column: 3;
+    grid-row: 1;
+    justify-self: end;
+  }
+
+  .data-table.data-table--compact td[data-label="Customer"] {
+    grid-column: 1 / 3;
+    grid-row: 2;
+    overflow: hidden;
+    color: var(--text);
+    font-weight: 500;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .data-table.data-table--compact td[data-label="Cost"] {
+    grid-column: 3;
+    grid-row: 2;
+    justify-self: end;
+    color: var(--text);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .data-table.data-table--compact td[data-label="Route"] {
+    grid-column: 1;
+    grid-row: 3;
+  }
+
+  .data-table.data-table--compact td[data-label="Weight"] {
+    grid-column: 2;
+    grid-row: 3;
+    justify-self: end;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .data-table.data-table--compact td[data-label="Date"] {
+    grid-column: 3;
+    grid-row: 3;
+    justify-self: end;
+    font-size: var(--text-12);
+    white-space: nowrap;
+  }
+
+  /* Recent Orders has no Cost or Route column: its date sits beside the
+     customer instead of alone on a third line. */
+  .data-table.data-table--compact tbody tr:not(:has(> td[data-label="Cost"])) td[data-label="Date"] {
+    grid-row: 2;
+  }
+
+  /* Empty-state and colspan rows are containers, not records. */
+  .data-table.data-table--compact tbody tr:has(> td[colspan]) {
+    display: block;
+    padding: 0;
   }
 }

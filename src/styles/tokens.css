@@ -254,6 +254,19 @@
   --font-size-3xl: 1.875rem;  /* 30px */
   --font-size-4xl: 2.25rem;   /* 36px */
 
+  /* Type scale — the only font sizes screen styles use (var(--text-N) is N px).
+     Nine steps instead of the ~65 ad-hoc sizes they replaced; 12px is the
+     floor for anything on screen. Print stylesheets keep their own sizes. */
+  --text-12: 0.75rem;
+  --text-13: 0.8125rem;
+  --text-14: 0.875rem;
+  --text-16: 1rem;
+  --text-18: 1.125rem;
+  --text-20: 1.25rem;
+  --text-24: 1.5rem;
+  --text-32: 2rem;
+  --text-48: 3rem;
+
   /* Fluid Typography Scale */
   --font-h1-fluid: clamp(1.5rem, 2.5vw + 0.5rem, 2.25rem);
   --font-h2-fluid: clamp(1.25rem, 1.8vw + 0.4rem, 1.75rem);

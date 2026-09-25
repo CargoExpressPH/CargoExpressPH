@@ -3,8 +3,8 @@ import { Link } from 'react-router-dom';
 import { getCustomers } from '../../lib/database';
 import EmptyState from '../../components/ui/EmptyState';
 import Pagination from '../../components/ui/Pagination';
-import CustomSelect from '../../components/ui/CustomSelect';
-import { ChevronRight, Eye, Search, SlidersHorizontal, Users, X } from 'lucide-react';
+import ResponsiveFilterControls from '../../components/ui/ResponsiveFilterControls';
+import { ChevronRight, Eye, Search, Users, X } from 'lucide-react';
 import usePageTitle from '../../hooks/usePageTitle';
 import { formatMoney } from '../../utils/currencyInput';
 import { formatPhDate } from '../../utils/datetime';
@@ -75,13 +75,11 @@ const CustomersPage = () => {
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [filtersOpen, setFiltersOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [perPage, setPerPage] = useState(15);
   const debounceTimer = useRef(null);
   const requestSequence = useRef(0);
 
-  const activeFilterCount = Number(statusFilter !== 'all');
 
   const loadCustomers = useCallback(async () => {
     const requestId = ++requestSequence.current;
@@ -117,8 +115,8 @@ const CustomersPage = () => {
     debounceTimer.current = setTimeout(() => setDebouncedSearch(value), SEARCH_DEBOUNCE_MS);
   };
 
-  const setListControl = (setter) => (event) => {
-    setter(event.target.value);
+  const handleStatusFilterChange = (nextStatus) => {
+    setStatusFilter(nextStatus);
     setCurrentPage(1);
   };
 
@@ -128,7 +126,6 @@ const CustomersPage = () => {
     setDebouncedSearch('');
     setStatusFilter('all');
     setCurrentPage(1);
-    setFiltersOpen(false);
   };
 
   const hasSearchOrFilters = Boolean(debouncedSearch.trim())
@@ -160,38 +157,15 @@ const CustomersPage = () => {
           />
         </div>
 
-        <button
-          type="button"
-          className="btn btn-secondary customer-filter-toggle"
-          aria-expanded={filtersOpen}
-          aria-controls="customer-directory-filters"
-          onClick={() => setFiltersOpen(open => !open)}
-        >
-          <SlidersHorizontal size={17} aria-hidden="true" />
-          Filters
-          {activeFilterCount > 0 && <span className="customer-filter-count">{activeFilterCount}</span>}
-        </button>
-
-        <div
-          id="customer-directory-filters"
-          className={`customer-directory-filters ${filtersOpen ? 'is-open' : ''}`}
-        >
-          <div className="customer-directory-control">
-            <label htmlFor="customer-status-filter">Customer state</label>
-            <CustomSelect
-              id="customer-status-filter"
-              className="form-select"
-              value={statusFilter}
-              onChange={setListControl(setStatusFilter)}
-              aria-label="Filter customers by booking state"
-            >
-              {STATUS_FILTERS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
-            </CustomSelect>
-          </div>
-
-
-          {(activeFilterCount > 0 || search) && (
-            <button type="button" className="btn btn-ghost customer-filter-clear" onClick={clearFilters}>
+        <div className="customer-directory-filter-row">
+          <ResponsiveFilterControls
+            options={STATUS_FILTERS}
+            value={statusFilter}
+            onChange={handleStatusFilterChange}
+            ariaLabel="Filter customers by booking state"
+          />
+          {(hasSearchOrFilters || search) && (
+            <button type="button" className="btn btn-ghost btn-sm customer-filter-clear" onClick={clearFilters}>
               <X size={16} aria-hidden="true" /> Clear
             </button>
           )}
@@ -321,46 +295,19 @@ const CustomersPage = () => {
       <style>{`
         .customer-directory-toolbar {
           display: grid;
-          grid-template-columns: minmax(260px, 1.5fr) minmax(0, 2.5fr);
+          grid-template-columns: minmax(0, 1fr);
           gap: 12px;
-          align-items: end;
           margin-bottom: 16px;
         }
         .customer-directory-search { width: 100%; }
-        .customer-directory-filters {
-          display: grid;
-          grid-template-columns: minmax(180px, 1fr) auto;
-          gap: 10px;
-          align-items: end;
+        .customer-directory-filter-row {
+          display: flex;
+          align-items: center;
+          gap: 8px;
           min-width: 0;
         }
-        .customer-directory-control { min-width: 0; }
-        .customer-directory-control label {
-          display: block;
-          margin: 0 0 5px;
-          color: var(--text-secondary);
-          font-size: 0.6875rem;
-          font-weight: 700;
-          letter-spacing: 0.04em;
-          text-transform: uppercase;
-        }
-        .customer-directory-control .custom-select,
-        .customer-directory-control .form-select { width: 100%; min-width: 0; }
-        .customer-filter-toggle { display: none; }
-        .customer-filter-clear { min-height: 42px; white-space: nowrap; }
-        .customer-filter-count {
-          min-width: 20px;
-          height: 20px;
-          padding: 0 5px;
-          border-radius: var(--radius-full);
-          background: var(--primary);
-          color: white;
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 0.6875rem;
-          font-weight: 800;
-        }
+        .customer-directory-filter-row .filter-chips { flex: 1 1 auto; min-width: 0; }
+        .customer-filter-clear { flex: 0 0 auto; white-space: nowrap; }
         .customer-directory-card { overflow: hidden; }
         .customer-directory-table { table-layout: fixed; }
         .customer-directory-table th:nth-child(1) { width: 22%; }
@@ -383,8 +330,8 @@ const CustomersPage = () => {
           background: var(--primary-bg);
           border: 1px solid var(--primary-lighter);
           color: var(--primary-text);
-          font-size: 0.75rem;
-          font-weight: 800;
+          font-size: var(--text-12);
+          font-weight: 700;
           letter-spacing: 0.02em;
         }
         .customer-directory-identity-copy { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
@@ -393,7 +340,7 @@ const CustomersPage = () => {
           min-width: 0;
           overflow: hidden;
           color: var(--text);
-          font-size: 0.875rem;
+          font-size: var(--text-14);
           font-weight: 700;
           line-height: 1.35;
           text-decoration: none;
@@ -406,14 +353,14 @@ const CustomersPage = () => {
           min-width: 0;
           overflow: hidden;
           color: var(--text-tertiary);
-          font-size: 0.75rem;
+          font-size: var(--text-12);
           text-overflow: ellipsis;
           white-space: nowrap;
         }
         .customer-directory-number,
         .customer-directory-balance { font-variant-numeric: tabular-nums; white-space: nowrap; }
         .customer-directory-balance { font-weight: 700; }
-        .customer-directory-paid { color: var(--success-dark); font-size: 0.75rem; font-weight: 700; }
+        .customer-directory-paid { color: var(--success-dark); font-size: var(--text-12); font-weight: 700; }
         .customer-directory-status { max-width: 100%; white-space: nowrap; }
         .customer-directory-action-heading,
         .customer-directory-action { text-align: right !important; }
@@ -426,7 +373,7 @@ const CustomersPage = () => {
           padding: 6px 8px;
           border-radius: var(--radius-sm);
           color: var(--primary-text);
-          font-size: 0.75rem;
+          font-size: var(--text-12);
           font-weight: 700;
           text-decoration: none;
         }
@@ -463,19 +410,12 @@ const CustomersPage = () => {
         @keyframes customer-directory-shimmer { to { background-position: -200% 0; } }
 
         @media (max-width: 1180px) {
-          .customer-directory-toolbar { grid-template-columns: minmax(220px, 1fr) minmax(0, 2fr); }
-          .customer-directory-filters { grid-template-columns: minmax(160px, 1fr) auto; }
           .customer-directory-table th,
           .customer-directory-table td { padding-left: 10px; padding-right: 10px; }
           .customer-directory-avatar { width: 34px; height: 34px; flex-basis: 34px; }
         }
 
         @media (max-width: 1000px) {
-          .customer-directory-toolbar { grid-template-columns: minmax(0, 1fr); align-items: stretch; }
-          .customer-filter-toggle { display: inline-flex; width: fit-content; min-height: 44px; }
-          .customer-directory-filters { display: none; grid-template-columns: minmax(0, 1fr) auto; }
-          .customer-directory-filters.is-open { display: grid; }
-          .customer-filter-clear { grid-column: auto; justify-self: stretch; }
           .customer-directory-desktop { display: none; }
           .customer-directory-mobile { display: grid; gap: 10px; padding: 12px; }
           .customer-directory-mobile-card {
@@ -497,10 +437,10 @@ const CustomersPage = () => {
           .customer-directory-mobile-card .customer-directory-avatar { width: 42px; height: 42px; flex-basis: 42px; }
           .customer-directory-mobile-main { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
           .customer-directory-mobile-topline { display: flex; align-items: center; gap: 8px; min-width: 0; }
-          .customer-directory-mobile-topline .customer-directory-name { flex: 1; font-size: 0.9375rem; }
-          .customer-directory-mobile-topline .badge { flex: 0 0 auto; font-size: 0.625rem; }
+          .customer-directory-mobile-topline .customer-directory-name { flex: 1; font-size: var(--text-16); }
+          .customer-directory-mobile-topline .badge { flex: 0 0 auto; font-size: var(--text-12); }
           .customer-directory-mobile-contact,
-          .customer-directory-mobile-summary { display: flex; align-items: center; gap: 7px; min-width: 0; font-size: 0.75rem; color: var(--text-secondary); }
+          .customer-directory-mobile-summary { display: flex; align-items: center; gap: 7px; min-width: 0; font-size: var(--text-12); color: var(--text-secondary); }
           .customer-directory-mobile-contact span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
           .customer-directory-mobile-contact span:last-child { flex: 1; }
           .customer-directory-mobile-summary { padding-top: 2px; color: var(--text-tertiary); }
@@ -512,9 +452,6 @@ const CustomersPage = () => {
         }
 
         @media (max-width: 680px) {
-          .customer-directory-filters,
-          .customer-directory-filters.is-open { grid-template-columns: minmax(0, 1fr); padding: 12px; border: 1px solid var(--border-light); border-radius: var(--radius-md); background: var(--surface); }
-          .customer-filter-clear { width: 100%; }
           .customer-directory-pagination .pagination-per-page { display: none; }
           .customer-directory-pagination .pagination-info { justify-content: center; }
         }

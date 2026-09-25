@@ -151,7 +151,7 @@
 }
 
 .app-layout .topbar-command-kbd {
-  font-size: 0.6875rem;
+  font-size: var(--text-12);
 }
 
 @media (max-width: 640px) {
@@ -167,7 +167,7 @@
     flex: 1 1 auto;
     max-width: none;
     gap: 6px;
-    font-size: 0.92rem;
+    font-size: var(--text-14);
   }
 
   .app-layout .topbar-title > span {
@@ -233,7 +233,7 @@
 
   .app-layout .topbar-title {
     gap: 5px;
-    font-size: 0.84rem;
+    font-size: var(--text-13);
   }
 
   .app-layout .topbar-logo-icon {
@@ -266,11 +266,11 @@
   }
 
   .customer-layout-v2 .customer-snapshot-value {
-    font-size: 0.98rem;
+    font-size: var(--text-16);
   }
 
   .customer-layout-v2 .customer-snapshot-label {
-    font-size: 0.64rem;
+    font-size: var(--text-12);
   }
 }
 
@@ -429,9 +429,8 @@ body.keyboard-open .confirm-modal {
 
 /* Bottom-anchored fixed furniture would otherwise sit on top of the keyboard.
    The customer tab bar already hides on `keyboard-active`; this covers the
-   measured case and the chat bubble, which is fixed to the same edge. */
-body.keyboard-open .customer-bottom-nav,
-body.keyboard-open .customer-chat-fab {
+   measured case. */
+body.keyboard-open .customer-bottom-nav {
   opacity: 0;
   pointer-events: none;
 }

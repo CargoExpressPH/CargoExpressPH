@@ -5,6 +5,7 @@ import { getOrders } from '../../lib/database';
 import useNetworkRecovery from '../../hooks/useNetworkRecovery';
 import useRealtimeOrders from '../../hooks/useRealtimeOrders';
 import StatusBadge from '../../components/ui/StatusBadge';
+import RouteProgressLine from '../../components/ui/RouteProgressLine';
 import { CenteredSpinner } from '../../components/ui/Loader';
 import EmptyState from '../../components/ui/EmptyState';
 import PageTransition, { StaggerItem } from '../../components/ui/PageTransition';
@@ -124,7 +125,7 @@ const OrdersPage = () => {
       <PageTransition className="customer-orders-page">
       <div className="customer-page-heading">
         <div>
-          <h1 className="fw-800 mb-4">My Bookings</h1>
+          <h1 className="fw-700 mb-4">My Bookings</h1>
           <p className="text-sm text-secondary">Search, filter, and follow every shipment.</p>
         </div>
         {!loading && <span className="badge badge-info">{filtered.length} shown</span>}
@@ -146,8 +147,6 @@ const OrdersPage = () => {
           value={activeTab}
           onChange={handleTabChange}
           ariaLabel="Booking status filters"
-          label="Status"
-          desktopClassName="tabs customer-order-tabs"
         />
       </StaggerItem>
       {loading ? (
@@ -189,11 +188,7 @@ const OrdersPage = () => {
                   </div>
                   <div className="customer-list-card-route-visual">
                     <span className="customer-route-node origin inline-flex items-center gap-4"><Container size={14} className="text-tertiary" aria-hidden="true" />{order.origin || 'Not set'}</span>
-                    <div className="customer-route-line-wrap" aria-hidden="true">
-                      <div className="customer-route-line">
-                        <div className="customer-route-arrow" />
-                      </div>
-                    </div>
+                    <RouteProgressLine status={order.status} />
                     <span className="customer-route-node destination inline-flex items-center gap-4"><MapPin size={14} className="text-tertiary" aria-hidden="true" />{order.destination || 'Not set'}</span>
                   </div>
                   <div className="customer-list-card-footer flex items-center justify-between gap-8 flex-wrap">

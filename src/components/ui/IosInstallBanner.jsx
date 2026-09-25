@@ -130,10 +130,10 @@ export default function IosInstallBanner() {
                   <Smartphone size={26} color="#fff" />
                 </div>
                 <div>
-                  <h2 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700, color: 'var(--text)' }}>
+                  <h2 style={{ margin: 0, fontSize: 'var(--text-16)', fontWeight: 700, color: 'var(--text)' }}>
                     Install CargoExpress PH
                   </h2>
-                  <p className="text-secondary" style={{ margin: 0, fontSize: '0.8rem', marginTop: 2}}>
+                  <p className="text-secondary" style={{ margin: 0, fontSize: 'var(--text-13)', marginTop: 2}}>
                     Get the full app experience on iPhone
                   </p>
                 </div>
@@ -155,7 +155,7 @@ export default function IosInstallBanner() {
                     border: '1px solid rgba(var(--primary-rgb), 0.15)',
                   }}>
                     <Icon size={18} color="var(--primary-text)" aria-hidden="true" style={{ flexShrink: 0 }} />
-                    <span style={{ fontSize: '0.875rem', color: 'var(--text)', fontWeight: 500 }}>
+                    <span style={{ fontSize: 'var(--text-14)', color: 'var(--text)', fontWeight: 500 }}>
                       {label}
                     </span>
                   </div>
@@ -169,7 +169,7 @@ export default function IosInstallBanner() {
                   borderRadius: 10,
                   border: '1px solid rgba(var(--warning-rgb), 0.2)',
                   marginBottom: 20,
-                  fontSize: '0.8rem',
+                  fontSize: 'var(--text-13)',
                   color: 'var(--warning-text)',
                   lineHeight: 1.5,
                   gap: 8,
@@ -188,7 +188,7 @@ export default function IosInstallBanner() {
                   color: '#fff',
                   border: 'none',
                   borderRadius: 14,
-                  fontSize: '0.95rem',
+                  fontSize: 'var(--text-16)',
                   fontWeight: 700,
                   boxShadow: '0 4px 20px rgba(22,163,74,0.4)',
                   gap: 8,
@@ -205,7 +205,7 @@ export default function IosInstallBanner() {
                   background: 'transparent',
                   border: 'none',
                   borderRadius: 14,
-                  fontSize: '0.85rem',
+                  fontSize: 'var(--text-14)',
                 }}
               >
                 Maybe later
@@ -214,10 +214,10 @@ export default function IosInstallBanner() {
           ) : (
             // ── Step 2: How to install ───────────────────────────────────
             <>
-              <h2 style={{ margin: '0 0 6px', fontSize: '1rem', fontWeight: 700, color: 'var(--text)', paddingRight: 36 }}>
+              <h2 style={{ margin: '0 0 6px', fontSize: 'var(--text-16)', fontWeight: 700, color: 'var(--text)', paddingRight: 36 }}>
                 How to Install on iPhone
               </h2>
-              <p className="text-secondary" style={{ margin: '0 0 20px', fontSize: '0.8rem',}}>
+              <p className="text-secondary" style={{ margin: '0 0 20px', fontSize: 'var(--text-13)',}}>
                 Follow these 3 quick steps in Safari:
               </p>
 
@@ -264,10 +264,10 @@ export default function IosInstallBanner() {
                       {item.icon}
                     </div>
                     <div>
-                      <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text)', marginBottom: 2 }}>
+                      <div style={{ fontSize: 'var(--text-14)', fontWeight: 700, color: 'var(--text)', marginBottom: 2 }}>
                         Step {item.step}: {item.title}
                       </div>
-                      <div className="text-secondary" style={{ fontSize: '0.78rem', lineHeight: 1.5}}>
+                      <div className="text-secondary" style={{ fontSize: 'var(--text-12)', lineHeight: 1.5}}>
                         {item.desc}
                       </div>
                     </div>
@@ -291,7 +291,7 @@ export default function IosInstallBanner() {
                   background: 'var(--bg-secondary)',
                   border: '1px solid var(--border)',
                   borderRadius: 14,
-                  fontSize: '0.875rem',
+                  fontSize: 'var(--text-14)',
                   fontWeight: 600,
                 }}
               >

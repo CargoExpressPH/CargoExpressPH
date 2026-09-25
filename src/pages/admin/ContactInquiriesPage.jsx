@@ -337,7 +337,7 @@ const ContactInquiriesPage = () => {
   const newCount = inquiries.filter(i => i.status === 'new').length;
   const filterOptions = ['all', 'new', 'read', 'resolved'].map(f => ({
     value: f,
-    label: f === 'all' ? 'All' : f,
+    label: f.charAt(0).toUpperCase() + f.slice(1),
     count: f === 'all' ? inquiries.length : inquiries.filter(i => i.status === f).length,
   }));
   const selectedContact = selectedInquiry ? readContact(selectedInquiry) : null;
@@ -393,9 +393,6 @@ const ContactInquiriesPage = () => {
         value={filter}
         onChange={setFilter}
         ariaLabel="Inquiry status filters"
-        label="Status"
-        desktopClassName="admin-filter-row"
-        buttonClassName={(option, active) => `btn btn-sm ${active ? 'btn-primary' : 'btn-outline'} text-capitalize`}
         className="mb-16"
       />
 
@@ -651,7 +648,7 @@ const ContactInquiriesPage = () => {
                 </div>
                 <div className="p-16" style={{
                   background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)',
-                  fontSize: '0.875rem', lineHeight: 1.6, whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+                  fontSize: 'var(--text-14)', lineHeight: 1.6, whiteSpace: 'pre-wrap', wordBreak: 'break-word',
                 }}>
                   {selectedInquiry.message}
                 </div>

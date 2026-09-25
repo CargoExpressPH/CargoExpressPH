@@ -161,12 +161,12 @@
 .cmd-palette-input-wrap svg { color: var(--text-tertiary); flex-shrink: 0; }
 .cmd-palette-input {
   flex: 1; min-width: 0; border: none; background: none;
-  font-size: 1rem; font-weight: 500; color: var(--text);
+  font-size: var(--text-16); font-weight: 500; color: var(--text);
   outline: none;
 }
 .cmd-palette-input::placeholder { color: var(--text-tertiary); }
 .cmd-palette-kbd {
-  font-size: 0.6875rem; font-weight: 600;
+  font-size: var(--text-12); font-weight: 600;
   color: var(--text-tertiary);
   background: var(--bg-secondary);
   padding: 2px 6px; border-radius: 4px;
@@ -183,7 +183,7 @@
   flex: 1 1 auto;
 }
 .cmd-palette-section-label {
-  font-size: 0.6875rem; font-weight: 700;
+  font-size: var(--text-12); font-weight: 700;
   text-transform: uppercase; letter-spacing: 0.08em;
   color: var(--text-tertiary);
   padding: 8px 12px 4px;
@@ -196,7 +196,7 @@
   transition: background 0.1s ease;
   text-decoration: none; color: var(--text);
   border: none; background: none; width: 100%;
-  font-size: 0.875rem; font-weight: 500;
+  font-size: var(--text-14); font-weight: 500;
 }
 .cmd-palette-item:hover,
 .cmd-palette-item.highlighted {
@@ -210,22 +210,22 @@
 .cmd-palette-item.highlighted svg { color: var(--primary); }
 .cmd-palette-item-label { flex: 1; min-width: 0; text-align: left; overflow-wrap: anywhere; }
 .cmd-palette-item-shortcut {
-  font-size: 0.75rem; color: var(--text-tertiary);
+  font-size: var(--text-12); color: var(--text-tertiary);
 }
 
 .cmd-palette-empty {
   padding: 32px 20px; text-align: center;
-  color: var(--text-tertiary); font-size: 0.875rem;
+  color: var(--text-tertiary); font-size: var(--text-14);
 }
 
 .cmd-palette-footer {
   display: flex; align-items: center; justify-content: center; gap: 16px;
   padding: 10px 16px;
   border-top: 1px solid var(--border-light);
-  font-size: 0.75rem; color: var(--text-tertiary);
+  font-size: var(--text-12); color: var(--text-tertiary);
 }
 .cmd-palette-footer kbd {
-  font-size: 0.6875rem; font-weight: 600;
+  font-size: var(--text-12); font-weight: 600;
   background: var(--bg-secondary);
   padding: 2px 6px; border-radius: 4px;
   border: 1px solid var(--border-light);
@@ -250,12 +250,12 @@
 .font-bold { font-weight: 700; }
 .font-semibold { font-weight: 600; }
 .font-medium { font-weight: 500; }
-.text-xs { font-size: 0.75rem; }
-.text-sm { font-size: 0.875rem; }
-.text-base { font-size: 1rem; }
-.text-lg { font-size: 1.125rem; }
-.text-xl { font-size: 1.25rem; }
-.text-2xl { font-size: 1.5rem; }
+.text-xs { font-size: var(--text-12); }
+.text-sm { font-size: var(--text-14); }
+.text-base { font-size: var(--text-16); }
+.text-lg { font-size: var(--text-18); }
+.text-xl { font-size: var(--text-20); }
+.text-2xl { font-size: var(--text-24); }
 .text-primary { color: var(--primary-text, var(--primary)); }
 .text-secondary { color: var(--text-secondary); }
 .text-tertiary { color: var(--text-tertiary); }
@@ -281,8 +281,8 @@
 .fw-500 { font-weight: 500; }
 .fw-600 { font-weight: 600; }
 .fw-700 { font-weight: 700; }
-.fw-800 { font-weight: 800; }
-.fw-900 { font-weight: 900; }
+.fw-800 { font-weight: 700; }
+.fw-900 { font-weight: 700; }
 
 .gap-0 { gap: 0; }
 .gap-2 { gap: 2px; }

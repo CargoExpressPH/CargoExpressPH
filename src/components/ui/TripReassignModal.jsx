@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { getTrips } from '../../lib/database';
 import { X, Truck, Loader, MapPin, Edit3, AlertTriangle } from 'lucide-react';
 import FocusTrap from './FocusTrap';
-import { tripCapacityState } from '../../constants/status';
+import { tripCapacityState, tripStatusLabel } from '../../constants/status';
 import useScrollLock from '../../hooks/useScrollLock';
 import { formatPhDate } from '../../utils/datetime';
 
@@ -117,7 +117,7 @@ const TripReassignModal = ({ order, onClose, onReassign }) => {
 
         <div className="modal-body">
           <div className="text-secondary mb-16 bg-surface br-8" style={{padding: 12,
-            fontSize: '0.8125rem'
+            fontSize: 'var(--text-13)'
           }}>
             <MapPin size={14} className="inline mr-6" />
             Route: <strong>{order.origin} → {order.destination}</strong><br />
@@ -189,7 +189,7 @@ const TripReassignModal = ({ order, onClose, onReassign }) => {
                         color: trip.status === 'scheduled' ? 'var(--primary)' : 'var(--warning)',
                         letterSpacing: '0.05em'
                       }}>
-                        {trip.status.replace('_', ' ')}
+                        {tripStatusLabel(trip.status)}
                       </span>
                     </div>
                     

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { getOrders, getOrderStatusCounts, withTimeout } from '../../lib/database';
 import useNetworkRecovery from '../../hooks/useNetworkRecovery';
 import useRealtimeOrders from '../../hooks/useRealtimeOrders';
@@ -14,6 +14,7 @@ import { Search, Package, Plus } from 'lucide-react';
 import usePageTitle from '../../hooks/usePageTitle';
 import { formatMoney } from '../../utils/currencyInput';
 import { isOrderPriced, ORDER_STATUS } from '../../constants/status';
+import { formatPhDate } from '../../utils/datetime';
 
 // Eleven chips — one per status — put the whole state machine in the toolbar and
 // made the two that need a human ('Pending Review', 'Pending Cancellation') look
@@ -57,7 +58,13 @@ const AdminOrdersPage = () => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [activeTab, setActiveTab] = useState('All');
+  // ?tab=<group> lets other screens (the dashboard's "Needs attention" list)
+  // open this list already filtered. Unknown values fall back to All.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [activeTab, setActiveTab] = useState(() => {
+    const requested = searchParams.get('tab');
+    return FILTER_GROUPS.some(group => group.value === requested) ? requested : 'All';
+  });
   const [search, setSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [perPage, setPerPage] = useState(15);
@@ -161,11 +168,20 @@ const AdminOrdersPage = () => {
       // trains the eye to skip the row where the real number appears.
       count: count > 0 ? count : null,
       // Red only where a human is blocked waiting on a decision.
-      countClassName: g.value === 'Action Needed' ? 'tab-count-alert' : undefined,
+      countClassName: g.value === 'Action Needed' ? 'filter-chip-count-alert' : undefined,
     };
   });
 
-  const handleTabChange = (tab) => { setActiveTab(tab); setCurrentPage(1); };
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+    setCurrentPage(1);
+    // Keep the URL in step so a reload or shared link shows the same filter.
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      if (tab === 'All') next.delete('tab'); else next.set('tab', tab);
+      return next;
+    }, { replace: true });
+  };
   const handleSearchChange = (e) => {
     const val = e.target.value;
     setSearch(val);
@@ -210,8 +226,6 @@ const AdminOrdersPage = () => {
         value={activeTab}
         onChange={handleTabChange}
         ariaLabel="Order status filters"
-        label="Status"
-        desktopClassName="tabs admin-mobile-tabs"
         className="mb-16"
       />
       {loading ? (
@@ -235,7 +249,7 @@ const AdminOrdersPage = () => {
       ) : (
         <div className="card admin-section-card admin-table-card animate-fade-in">
           <div className="table-container">
-            <table className="data-table data-table--wide">
+            <table className="data-table data-table--wide data-table--compact">
               <caption className="sr-only">List of customer bookings</caption>
               <thead><tr><th scope="col">Tracking</th><th scope="col">Customer</th><th scope="col">Route</th><th scope="col">Weight</th><th scope="col">Cost</th><th scope="col">Status</th><th scope="col">Date</th></tr></thead>
               <tbody>
@@ -245,7 +259,7 @@ const AdminOrdersPage = () => {
                       <div className="flex flex-col" style={{gap: '4px'}}>
                         <Link to={`/admin/orders/${o.id}`} className="fw-700 text-accent">{o.tracking_number}</Link>
                         {o.service_area_status === 'for_review' && (
-                          <span className="badge badge-warning" style={{ alignSelf: 'flex-start', fontSize: '0.65rem' }}>Out of Coverage Review</span>
+                          <span className="badge badge-warning" style={{ alignSelf: 'flex-start', fontSize: 'var(--text-12)' }}>Out of Coverage Review</span>
                         )}
                       </div>
                     </td>
@@ -254,7 +268,7 @@ const AdminOrdersPage = () => {
                     <td data-label="Weight">{o.actual_weight ? `${o.actual_weight} kg` : '—'}</td>
                     <td data-label="Cost" className="fw-600">{isOrderPriced(o) ? formatMoney(parseFloat(o.shipping_cost || 0)) : '—'}</td>
                     <td data-label="Status"><StatusBadge status={o.status} size="sm" /></td>
-                    <td data-label="Date" className="text-xs text-secondary">{new Date(o.created_at).toLocaleDateString('en-PH')}</td>
+                    <td data-label="Date" className="text-xs text-secondary">{formatPhDate(o.created_at)}</td>
                   </tr>
                 ))}
               </tbody>

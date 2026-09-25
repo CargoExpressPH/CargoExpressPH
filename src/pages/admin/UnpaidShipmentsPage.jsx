@@ -348,7 +348,7 @@ const UnpaidShipmentsPage = () => {
           className="mb-16 no-print br-8"
           style={{
             background: 'var(--error-bg)', color: 'var(--error-text-strong)', border: '1px solid var(--error)',
-            padding: '10px 14px', fontSize: '0.8125rem',
+            padding: '10px 14px', fontSize: 'var(--text-13)',
           }}
           role="status"
         >
@@ -362,7 +362,7 @@ const UnpaidShipmentsPage = () => {
           className="mb-16 no-print br-8"
           style={{
             background: 'var(--warning-bg)', color: 'var(--badge-warning-color)', border: '1px solid var(--warning)',
-            padding: '10px 14px', fontSize: '0.8125rem',
+            padding: '10px 14px', fontSize: 'var(--text-13)',
           }}
           role="status"
         >
@@ -377,8 +377,6 @@ const UnpaidShipmentsPage = () => {
           value={filter}
           onChange={setFilter}
           ariaLabel="Filter unpaid shipments by payment situation"
-          label="Payment situation"
-          desktopClassName="tabs admin-mobile-tabs"
         />
         <div className="search-box unpaid-search-box" role="search">
           <Search size={16} className="search-icon" aria-hidden="true" />

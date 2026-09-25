@@ -108,7 +108,7 @@ const AssignCustomerModal = ({ order, onClose, onAssign }) => {
             <div
               id="assign-customer-desc"
               className="text-secondary mb-16 bg-surface br-8"
-              style={{ padding: 12, fontSize: '0.8125rem' }}
+              style={{ padding: 12, fontSize: 'var(--text-13)' }}
             >
               <AlertTriangle size={14} className="inline mr-6" aria-hidden="true" />
               <strong>{order.tracking_number}</strong> was booked as a guest. Link it to the

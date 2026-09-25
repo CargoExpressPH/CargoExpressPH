@@ -149,7 +149,7 @@ const FeatureShipmentModal = ({
         >
           {/* Header */}
           <div className="modal-header flex items-center justify-between">
-            <h2 id="feature-shipment-modal-title" className="flex items-center gap-8 m-0" style={{ fontSize: '1rem' }}>
+            <h2 id="feature-shipment-modal-title" className="flex items-center gap-8 m-0" style={{ fontSize: 'var(--text-16)' }}>
               <Star size={16} className="text-warning" />
               {isAlreadyFeatured ? 'Manage Featured Shipment' : 'Feature Delivery on Website'}
             </h2>

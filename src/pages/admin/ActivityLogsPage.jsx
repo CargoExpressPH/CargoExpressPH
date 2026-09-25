@@ -41,7 +41,7 @@ const ModuleBadge = ({ module }) => {
   const Icon = cfg.icon;
   return (
     <span className="inline-flex items-center text-uppercase" style={{gap: 4,
-      padding: '2px 8px', borderRadius: 'var(--radius-full)', fontSize: '0.7rem',
+      padding: '2px 8px', borderRadius: 'var(--radius-full)', fontSize: 'var(--text-12)',
       fontWeight: 700, letterSpacing: '0.04em', background: cfg.bg, color: cfg.color,
     }}>
       <Icon size={10} />

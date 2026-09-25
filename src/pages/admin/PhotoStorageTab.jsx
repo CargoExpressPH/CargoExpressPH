@@ -513,7 +513,7 @@ const CargoPhotoBrowser = ({ onPhotosChanged }) => {
               <Search size={14} style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)' }} className="text-secondary" aria-hidden="true" />
               <input
                 className="form-input"
-                style={{ paddingLeft: 28, padding: '7px 10px 7px 28px', fontSize: '0.8125rem' }}
+                style={{ paddingLeft: 28, padding: '7px 10px 7px 28px', fontSize: 'var(--text-13)' }}
                 placeholder="Search tracking number"
                 value={search}
                 onChange={(e) => {

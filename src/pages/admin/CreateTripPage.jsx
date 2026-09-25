@@ -201,7 +201,7 @@ const CreateTripPage = () => {
                   }}
                 >
                   <Truck size={22} color={form.origin === r.origin ? 'var(--primary)' : 'var(--text-tertiary)'} className="mx-auto mb-8" />
-                  <div className="fw-700" style={{ fontSize: '0.9375rem' }}>{r.label}</div>
+                  <div className="fw-700" style={{ fontSize: 'var(--text-16)' }}>{r.label}</div>
                   <div className="text-xs text-tertiary mt-4">
                     {r.origin} → {r.destination}
                   </div>
@@ -285,7 +285,7 @@ const CreateTripPage = () => {
         <div className="card stagger-item mb-24" style={{ animationDelay: '180ms' }}>
           <div className="card-body">
             <h3 className="fw-700 mb-12 flex items-center gap-8">
-              <FileText size={18} color="var(--text-tertiary)" /> Notes <span className="fw-400 text-tertiary" style={{ fontSize: '0.8125rem' }}>(Optional)</span>
+              <FileText size={18} color="var(--text-tertiary)" /> Notes <span className="fw-400 text-tertiary" style={{ fontSize: 'var(--text-13)' }}>(Optional)</span>
             </h3>
             <label className="sr-only" htmlFor="trip-notes">Trip notes</label>
             <textarea id="trip-notes" className="form-textarea" value={form.notes} onChange={e => u('notes', e.target.value)} placeholder="Any special instructions, remarks, or conditions for this trip..." rows={3} />

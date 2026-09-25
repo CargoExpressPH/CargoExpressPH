@@ -881,7 +881,7 @@ const AdminOrderDetailPage = () => {
       <ErrorBoundarySection message="Order info failed to load.">
       {/* Header */}
       <div className="admin-order-heading mb-8">
-        <h1 className="fw-800 text-2xl">{order.tracking_number}</h1>
+        <h1 className="fw-700 text-2xl">{order.tracking_number}</h1>
         <div className="admin-order-heading-status">
             <StatusBadge status={order.status} />
             {order.status === 'Delivered' && computedRemainingBalance > 0 && (
@@ -892,13 +892,13 @@ const AdminOrderDetailPage = () => {
         </div>
       </div>
       <div className="flex items-center gap-8 text-sm mb-20 flex-wrap">
-        <span className="fw-800 text-secondary">{order.origin}</span>
+        <span className="fw-700 text-secondary">{order.origin}</span>
         <span className="fw-700" style={{ color: 'var(--primary-text)' }}>➔</span>
-        <span className="fw-800 text-secondary">{order.destination}</span>
+        <span className="fw-700 text-secondary">{order.destination}</span>
         <span className="text-secondary opacity-50">•</span>
         {isGuestBooking ? (
           <>
-            <span className="badge badge-warning" style={{ fontSize: '0.7rem' }}>Guest Booking</span>
+            <span className="badge badge-warning" style={{ fontSize: 'var(--text-12)' }}>Guest Booking</span>
             {/* No real customer account behind this order yet, so there is
                 nobody to message — an admin/self-owned user_id is not a
                 customer inbox thread. Assigning it to one is the fix. */}
@@ -989,7 +989,7 @@ const AdminOrderDetailPage = () => {
                 neither path touches payment_refunds, so say so explicitly
                 rather than let "Cancelled" be read as "refunded". */}
             {refundSucceeded === 0 && refundPending === 0 && refundFailed === 0 ? (
-              <div className="alert-banner alert-banner-info mt-16 py-8 px-12" style={{ fontSize: '0.8125rem' }}>
+              <div className="alert-banner alert-banner-info mt-16 py-8 px-12" style={{ fontSize: 'var(--text-13)' }}>
                 Booking cancelled. No money has been refunded by this action.
                 {grossCollected > 0 && ' Use "Start Refund" below if a refund is owed.'}
               </div>
@@ -1094,7 +1094,7 @@ const AdminOrderDetailPage = () => {
                 {saving ? <Loader size={16} className="animate-spin" /> : <Check size={16} />}
                 Approve Request
               </button>
-              <button type="button" className="btn btn-danger btn-sm" onClick={() => setShowRejectModal(true)} disabled={saving}>
+              <button type="button" className="btn btn-danger-outline btn-sm" onClick={() => setShowRejectModal(true)} disabled={saving}>
                 Reject Request
               </button>
               <button type="button" className="btn btn-secondary btn-sm" onClick={async () => {
@@ -1151,7 +1151,7 @@ const AdminOrderDetailPage = () => {
               </button>
             )}
             {showCancelButton && (
-              <button type="button" className="btn btn-danger btn-sm" onClick={() => setShowCancelConfirm(true)} disabled={saving}>
+              <button type="button" className="btn btn-danger-outline btn-sm" onClick={() => setShowCancelConfirm(true)} disabled={saving}>
                 Cancel Order
               </button>
             )}
@@ -1411,27 +1411,27 @@ const AdminOrderDetailPage = () => {
           ) : <div className="admin-payment-summary">
             <div className="text-center">
               <div className="text-xs text-tertiary" style={{ marginBottom: 2 }}>{computedDiscountAmount > 0 ? 'Original Fee' : 'Shipping Cost'}</div>
-              <div className="text-lg fw-800 text-primary">{settlementState === SETTLEMENT_STATE.UNPRICED ? '—' : formatMoney(computedShippingCost)}</div>
+              <div className="text-lg fw-700 text-primary">{settlementState === SETTLEMENT_STATE.UNPRICED ? '—' : formatMoney(computedShippingCost)}</div>
             </div>
             {computedDiscountAmount > 0 && (
               <div className="text-center">
                 <div className="text-xs text-tertiary" style={{ marginBottom: 2 }}>Discount</div>
-                <div className="text-lg fw-800 text-error">− {formatMoney(computedDiscountAmount)}</div>
+                <div className="text-lg fw-700 text-error">− {formatMoney(computedDiscountAmount)}</div>
               </div>
             )}
             {computedDiscountAmount > 0 && (
               <div className="text-center">
                 <div className="text-xs text-tertiary" style={{ marginBottom: 2 }}>Final Fee</div>
-                <div className="text-lg fw-800 text-primary">{formatMoney(computedFinalFee)}</div>
+                <div className="text-lg fw-700 text-primary">{formatMoney(computedFinalFee)}</div>
               </div>
             )}
             <div className="text-center">
               <div className="text-xs text-tertiary" style={{ marginBottom: 2 }}>Amount Paid</div>
-              <div className="text-lg fw-800 text-success">{settlementState === SETTLEMENT_STATE.UNPRICED ? '—' : formatMoney(computedAmountPaid)}</div>
+              <div className="text-lg fw-700 text-success">{settlementState === SETTLEMENT_STATE.UNPRICED ? '—' : formatMoney(computedAmountPaid)}</div>
             </div>
             <div className="text-center">
               <div className="text-xs text-tertiary" style={{ marginBottom: 2 }}>{isOverpaid ? 'Overpaid' : 'Balance'}</div>
-              <div className={`text-lg fw-800 ${settlementState === SETTLEMENT_STATE.UNPRICED ? 'text-tertiary' : isOverpaid ? 'text-warning' : computedRemainingBalance > 0 ? 'text-error' : 'text-success'}`}>
+              <div className={`text-lg fw-700 ${settlementState === SETTLEMENT_STATE.UNPRICED ? 'text-tertiary' : isOverpaid ? 'text-warning' : computedRemainingBalance > 0 ? 'text-error' : 'text-success'}`}>
                 {settlementState === SETTLEMENT_STATE.UNPRICED ? '—' : isOverpaid ? `+${formatMoney(Math.abs(computedRemainingBalance))}` : formatMoney(computedRemainingBalance)}
               </div>
             </div>
@@ -1920,7 +1920,7 @@ const ReasonModal = ({
           <form onSubmit={handleSubmit}>
             <div className="modal-body">
               {error && (
-                <div className="br-8" style={{ color: 'var(--error-text)', background: 'var(--error-bg)', border: '1px solid var(--error)', padding: '8px 12px', fontSize: '0.875rem', marginBottom: 12}}>
+                <div className="br-8" style={{ color: 'var(--error-text)', background: 'var(--error-bg)', border: '1px solid var(--error)', padding: '8px 12px', fontSize: 'var(--text-14)', marginBottom: 12}}>
                   {error}
                 </div>
               )}
@@ -2010,7 +2010,7 @@ const CancellationPaymentSummary = ({
       ) : (
         <>
           <div className="text-xs fw-700 text-uppercase text-tertiary mb-8">Payment &amp; Refund Summary</div>
-          <div className="grid grid-2 gap-8" style={{ fontSize: '0.8125rem' }}>
+          <div className="grid grid-2 gap-8" style={{ fontSize: 'var(--text-13)' }}>
         <div>
           <div className="text-tertiary">Original / final charge</div>
           <div className="fw-700">{formatMoney(finalCharge)}</div>
@@ -2050,7 +2050,7 @@ const CancellationPaymentSummary = ({
           </div>
           <div className="flex flex-col gap-8">
             {eligibleRefundTx.map(tx => (
-              <div key={tx.id} className="flex items-center justify-between gap-8 flex-wrap" style={{ fontSize: '0.8125rem' }}>
+              <div key={tx.id} className="flex items-center justify-between gap-8 flex-wrap" style={{ fontSize: 'var(--text-13)' }}>
                 <span>
                   {formatPaymentMethod(tx.payment_method)} · paid {formatMoney(Number(tx.amount || 0))} · up to {formatMoney(Number(tx.refundable_amount || 0))} refundable
                 </span>
@@ -2076,7 +2076,7 @@ const CancellationPaymentSummary = ({
           </div>
           <div className="flex flex-col gap-8">
             {unrefundablePaidTx.filter(tx => Number(tx.refundable_amount || 0) > 0.005).map(tx => (
-              <div key={tx.id} className="flex items-center justify-between gap-8 flex-wrap" style={{ fontSize: '0.8125rem' }}>
+              <div key={tx.id} className="flex items-center justify-between gap-8 flex-wrap" style={{ fontSize: 'var(--text-13)' }}>
                 <span>
                   {formatPaymentMethod(tx.payment_method)} · paid {formatMoney(Number(tx.amount || 0))} · up to {formatMoney(Number(tx.refundable_amount || 0))} refundable
                 </span>

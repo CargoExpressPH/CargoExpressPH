@@ -8,7 +8,7 @@
 .alert-banner {
   display: flex; align-items: center; gap: 10px;
   padding: 12px 16px; border-radius: var(--radius-sm);
-  font-size: 0.875rem; font-weight: 500;
+  font-size: var(--text-14); font-weight: 500;
   margin-bottom: 16px;
   animation: slideDown 0.3s ease;
 }
@@ -113,16 +113,16 @@
 }
 .notification-content { flex: 1; min-width: 0; }
 .notification-title {
-  font-size: 0.875rem; font-weight: 600;
+  font-size: var(--text-14); font-weight: 600;
   color: var(--text); margin-bottom: 4px;
   display: flex; align-items: center; gap: 6px;
 }
 .notification-body {
-  font-size: 0.8125rem; color: var(--text-secondary);
+  font-size: var(--text-13); color: var(--text-secondary);
   line-height: 1.5;
 }
 .notification-time {
-  font-size: 0.75rem; color: var(--text-tertiary);
+  font-size: var(--text-12); color: var(--text-tertiary);
   margin-top: 4px;
 }
 .notification-unread-dot {
@@ -132,8 +132,8 @@
 }
 
 .notification-date-separator {
-  font-size: 0.75rem;
-  font-weight: 900;
+  font-size: var(--text-12);
+  font-weight: 700;
   color: var(--customer-muted);
   text-transform: uppercase;
   letter-spacing: 0.09em;
@@ -189,7 +189,7 @@
   gap: 6px;
   background: linear-gradient(135deg, #ef4444, #dc2626);
   color: white;
-  font-size: 0.8125rem;
+  font-size: var(--text-13);
   font-weight: 700;
   letter-spacing: 0.02em;
   border-top-left-radius: 0;
@@ -249,7 +249,7 @@
 .notification-swipe-hint {
   display: none;
   text-align: center;
-  font-size: 0.7rem;
+  font-size: var(--text-12);
   color: var(--customer-muted);
   padding: 0 0 8px;
   letter-spacing: 0.04em;
@@ -282,8 +282,8 @@
   gap: 6px;
   padding: 4px 10px;
   border-radius: var(--radius-full);
-  font-size: 0.7rem;
-  font-weight: 800;
+  font-size: var(--text-12);
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   /* Clears the absolutely-positioned close button in the top-right. */
@@ -291,8 +291,8 @@
 }
 
 .announcement-modal-title {
-  font-size: 1.125rem;
-  font-weight: 800;
+  font-size: var(--text-18);
+  font-weight: 700;
   color: var(--text);
   line-height: 1.35;
   margin: 12px 0 6px;
@@ -302,7 +302,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 0.75rem;
+  font-size: var(--text-12);
   font-weight: 600;
   color: var(--text-tertiary);
 }
@@ -320,7 +320,7 @@
    one wall of text. */
 .announcement-modal-content {
   margin: 0;
-  font-size: 0.875rem;
+  font-size: var(--text-14);
   line-height: 1.65;
   color: var(--text-secondary);
   white-space: pre-wrap;
@@ -333,7 +333,7 @@
   align-items: center;
   gap: 8px;
   margin: 0;
-  font-size: 0.8125rem;
+  font-size: var(--text-13);
   color: var(--text-tertiary);
 }
 
@@ -433,14 +433,14 @@
 }
 
 .notification-modal-title {
-  font-size: 1.1rem;
+  font-size: var(--text-18);
   font-weight: 700;
   color: var(--text);
   margin-bottom: 8px;
 }
 
 .notification-modal-message {
-  font-size: 0.875rem;
+  font-size: var(--text-14);
   color: var(--text-secondary);
   line-height: 1.6;
   margin-bottom: 24px;
@@ -491,7 +491,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 0.75rem;
+  font-size: var(--text-12);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -500,7 +500,7 @@
 
 .announcement-comments-empty {
   margin: 8px 0 0;
-  font-size: 0.8125rem;
+  font-size: var(--text-13);
   color: var(--text-tertiary);
 }
 
@@ -521,13 +521,13 @@
 }
 
 .announcement-comment-author {
-  font-size: 0.8125rem;
+  font-size: var(--text-13);
   font-weight: 700;
   color: var(--text);
 }
 
 .announcement-comment-time {
-  font-size: 0.6875rem;
+  font-size: var(--text-12);
   color: var(--text-tertiary);
 }
 
@@ -536,7 +536,7 @@
    has. */
 .announcement-comment-text {
   margin: 2px 0 0;
-  font-size: 0.8125rem;
+  font-size: var(--text-13);
   line-height: 1.55;
   color: var(--text-secondary);
   white-space: pre-wrap;

@@ -43,7 +43,7 @@
 
 .admin-list-card-title {
   color: var(--accent);
-  font-weight: 800;
+  font-weight: 700;
   overflow-wrap: anywhere;
 }
 
@@ -53,7 +53,7 @@
   gap: 8px;
   flex-wrap: wrap;
   color: var(--text-secondary);
-  font-size: 0.875rem;
+  font-size: var(--text-14);
 }
 
 .admin-list-card-footer {
@@ -62,7 +62,7 @@
   justify-content: space-between;
   gap: 12px;
   color: var(--text-tertiary);
-  font-size: 0.78rem;
+  font-size: var(--text-12);
   flex-wrap: wrap;
 }
 

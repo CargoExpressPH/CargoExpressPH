@@ -119,8 +119,8 @@ const FeedbackPage = () => {
             <div key={fb.id} className="card hover-lift flex flex-col" style={{ padding: 20 }}>
               <div className="flex justify-between items-start" style={{marginBottom: 16}}>
                 <div>
-                  <div style={{ fontWeight: 700, fontSize: '1.125rem' }}>{fb.profiles?.name || 'Unknown Customer'}</div>
-                  <div className="text-tertiary" style={{fontSize: '0.875rem'}}>
+                  <div style={{ fontWeight: 700, fontSize: 'var(--text-18)' }}>{fb.profiles?.name || 'Unknown Customer'}</div>
+                  <div className="text-tertiary" style={{fontSize: 'var(--text-14)'}}>
                     {fb.profiles?.email} • Order {fb.orders?.tracking_number}
                   </div>
                 </div>
@@ -147,7 +147,7 @@ const FeedbackPage = () => {
               </div>
               
               <div className="flex justify-between items-center" style={{marginTop: 'auto'}}>
-                <div className="text-tertiary" style={{ fontSize: '0.75rem',}}>
+                <div className="text-tertiary" style={{ fontSize: 'var(--text-12)',}}>
                   {formatPhDateTime(fb.created_at)}
                 </div>
                 

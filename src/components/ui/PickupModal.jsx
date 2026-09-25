@@ -384,7 +384,7 @@ const PickupModal = ({ order, onClose, onSave, onPreparePayment, pricePerKilo = 
           }}>
             <div>
               <div className="fw-700 text-accent">{order.tracking_number}</div>
-              <div className="text-secondary" style={{ fontSize: '0.8125rem' }}>
+              <div className="text-secondary" style={{ fontSize: 'var(--text-13)' }}>
                 {order.sender_name} → {order.receiver_name}
               </div>
             </div>
@@ -396,7 +396,7 @@ const PickupModal = ({ order, onClose, onSave, onPreparePayment, pricePerKilo = 
           {error && (
             <div className="br-8" style={{
               background: 'var(--error-bg)', color: 'var(--error-text-strong)', padding: '10px 14px',
-              fontSize: '0.8125rem', marginBottom: 16, border: '1px solid var(--error)',
+              fontSize: 'var(--text-13)', marginBottom: 16, border: '1px solid var(--error)',
             }} role="alert">
               {error}
             </div>
@@ -586,7 +586,7 @@ const PickupModal = ({ order, onClose, onSave, onPreparePayment, pricePerKilo = 
           {/* ── Freight Collect: nothing to collect here ── */}
           {!isPrepaid && (
             <div className="mb-16 br-8" style={{ background: 'var(--info-bg, var(--bg-secondary))', padding: 14, border: '1px solid var(--info, var(--border))'}}>
-              <div className="mb-4 font-semibold" style={{ fontSize: '0.8125rem' }}>
+              <div className="mb-4 font-semibold" style={{ fontSize: 'var(--text-13)' }}>
                 <Package size={14} className="inline mr-6" />
                 Freight Collect — no payment at pickup
               </div>
@@ -601,7 +601,7 @@ const PickupModal = ({ order, onClose, onSave, onPreparePayment, pricePerKilo = 
           {/* ── Prepaid, fully covered by the discount: nothing to collect ── */}
           {isPrepaid && noPaymentDue && (
             <div className="mb-16 br-8" style={{ background: 'var(--success-bg)', padding: 14, border: '1px solid var(--success)' }}>
-              <div className="flex items-center gap-8 font-semibold" style={{ fontSize: '0.8125rem', color: 'var(--success-text)' }}>
+              <div className="flex items-center gap-8 font-semibold" style={{ fontSize: 'var(--text-13)', color: 'var(--success-text)' }}>
                 <CheckCircle size={16} aria-hidden="true" /> No payment due
               </div>
               <div className="text-xs mt-4" style={{ color: 'var(--success-text)' }}>
@@ -652,7 +652,7 @@ const PickupModal = ({ order, onClose, onSave, onPreparePayment, pricePerKilo = 
                   className="br-8 flex flex-col items-center justify-center cursor-pointer text-tertiary"
                   style={{
                     width: 90, height: 90, border: '2px dashed var(--border)',
-                    background: 'var(--bg-secondary)', gap: 4, fontSize: '0.6875rem'
+                    background: 'var(--bg-secondary)', gap: 4, fontSize: 'var(--text-12)'
                   }}
                 >
                   <Upload size={20} /> Add Photo

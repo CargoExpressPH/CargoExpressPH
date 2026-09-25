@@ -73,7 +73,7 @@
   top: 50%; transform: translateY(-50%);
   background: var(--sidebar-bg); color: var(--sidebar-text-hover);
   padding: 6px 12px; border-radius: var(--radius-sm);
-  font-size: 0.8125rem; font-weight: 500;
+  font-size: var(--text-13); font-weight: 500;
   white-space: nowrap; z-index: 100;
   box-shadow: var(--shadow-lg);
   border: 1px solid var(--sidebar-border);
@@ -154,14 +154,14 @@
 }
 .sidebar-brand .sidebar-brand-wordmark {
   margin: 0;
-  font-size: 1.25rem; font-weight: 800;
+  font-size: var(--text-20); font-weight: 700;
   color: var(--primary-text); letter-spacing: -0.02em;
 }
 .sidebar-brand span { color: var(--sidebar-text); font-weight: 400; }
 
 .sidebar-section-label {
   padding: 16px 20px 8px;
-  font-size: 0.6875rem; font-weight: 700;
+  font-size: var(--text-12); font-weight: 700;
   text-transform: uppercase; letter-spacing: 0.08em;
   color: var(--sidebar-section-label); user-select: none;
 }
@@ -177,7 +177,7 @@
   padding: 10px 14px;
   border-radius: var(--radius-sm);
   color: var(--sidebar-text);
-  font-size: 0.875rem; font-weight: 500;
+  font-size: var(--text-14); font-weight: 500;
   transition: var(--transition);
   margin-bottom: 2px; cursor: pointer;
   text-decoration: none; border: none;
@@ -215,8 +215,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.625rem;
-  font-weight: 800;
+  font-size: var(--text-12);
+  font-weight: 700;
   line-height: 1;
   box-shadow: 0 4px 12px rgba(239, 68, 68, 0.28);
   margin-left: auto;
@@ -307,18 +307,18 @@
   width: 38px; height: 38px; border-radius: 50%;
   background: linear-gradient(135deg, var(--primary), var(--primary-light));
   display: flex; align-items: center; justify-content: center;
-  color: white; font-size: 0.9rem; font-weight: 700;
+  color: white; font-size: var(--text-14); font-weight: 700;
   flex-shrink: 0;
   box-shadow: 0 2px 8px rgba(var(--primary-rgb, 99, 102, 241), 0.35);
 }
 
 .sidebar-profile-dropdown-name {
-  font-size: 0.8125rem; font-weight: 600;
+  font-size: var(--text-13); font-weight: 600;
   color: var(--sidebar-text-hover);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .sidebar-profile-dropdown-role {
-  font-size: 0.6875rem; color: var(--sidebar-text);
+  font-size: var(--text-12); color: var(--sidebar-text);
   margin-top: 1px;
 }
 
@@ -333,7 +333,7 @@
   width: 100%;
   padding: 10px 14px;
   border: none; background: transparent;
-  font-size: 0.8125rem; font-weight: 500;
+  font-size: var(--text-13); font-weight: 500;
   color: var(--sidebar-text-hover);
   cursor: pointer;
   transition: background 0.15s ease, color 0.15s ease;
@@ -354,15 +354,15 @@
   width: 32px; height: 32px; border-radius: 50%;
   background: linear-gradient(135deg, var(--primary), var(--primary-light));
   display: flex; align-items: center; justify-content: center;
-  color: white; font-size: 0.8125rem; font-weight: 700;
+  color: white; font-size: var(--text-13); font-weight: 700;
   flex-shrink: 0;
 }
 .sidebar-user-name {
-  font-size: 0.8125rem; font-weight: 600; color: var(--sidebar-text-hover);
+  font-size: var(--text-13); font-weight: 600; color: var(--sidebar-text-hover);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .sidebar-user-role {
-  font-size: 0.6875rem; color: var(--sidebar-text);
+  font-size: var(--text-12); color: var(--sidebar-text);
 }
 
 /* -- Main Content Area -- */
@@ -395,7 +395,7 @@
   z-index: var(--z-sticky);
 }
 .topbar-title {
-  font-size: 1.125rem; font-weight: 700;
+  font-size: var(--text-18); font-weight: 700;
   display: flex; align-items: center; gap: 10px;
 }
 .topbar-actions { display: flex; align-items: center; gap: 12px; }
@@ -477,8 +477,8 @@
 
 .customer-detail-name {
   margin: 0;
-  font-size: 1.25rem;
-  font-weight: 800;
+  font-size: var(--text-20);
+  font-weight: 700;
 }
 
 .customer-detail-list {
@@ -503,14 +503,14 @@
 
 .customer-detail-row dt {
   flex-shrink: 0;
-  font-size: 0.8125rem;
+  font-size: var(--text-13);
   color: var(--text-secondary);
 }
 
 .customer-detail-row dd {
   margin: 0;
   min-width: 0;
-  font-size: 0.875rem;
+  font-size: var(--text-14);
   font-weight: 600;
   color: var(--text);
   text-align: right;
@@ -543,7 +543,7 @@
   border-radius: var(--radius-full);
   color: var(--warning-text);
   background: var(--warning-bg);
-  font-size: 0.75rem;
+  font-size: var(--text-12);
   font-weight: 700;
   white-space: nowrap;
 }
@@ -628,7 +628,7 @@
   border-radius: var(--radius-xs);
   background: var(--bg-secondary);
   font-family: monospace;
-  font-size: 0.78rem;
+  font-size: var(--text-12);
   overflow-wrap: anywhere;
   word-break: break-word;
 }

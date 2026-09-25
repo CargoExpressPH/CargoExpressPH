@@ -4,8 +4,8 @@ import { logOrder, logChat } from './activityLog';
 import { validateStatusTransition, outstandingBalance, finalShippingFee, ORDER_STATUS, tripCapacityState, tripCapacityRefusal, canAdminCancelOrder } from '../constants/status';
 import { detectPickupLocation } from '../constants/phLocations';
 import { phDayRangeISO, formatPhDate, phDateKey } from '../utils/datetime';
-import { buildPerTripSalesReport, aggregateMonthlySalesReports } from './perTripSalesReport';
-import { selectEarliestCapacityTrip } from './tripCapacitySelection';
+import { buildPerTripSalesReport, aggregateMonthlySalesReports, tripMonthKey } from './perTripSalesReport';
+import { selectEarliestCapacityTrip, selectNextDepartureTrip, isScheduledTripOverdue } from './tripCapacitySelection';
 
 // ==================== HELPER ====================
 // Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
@@ -1676,7 +1676,7 @@ export const getDashboardStats = async () => {
  * overdue scheduled trips and trips at the destination hub that are not yet
  * completed; customer booking eligibility remains a separate rule.
  */
-export const getTripCapacitySummary = async () => {
+const getCapacityCandidateTrips = async () => {
   const { data: candidateTrips, error: tripError } = await supabase
     .from('trips')
     .select('id, trip_number, origin, destination, capacity, price_per_kg, status, departure_date, arrival_date')
@@ -1687,10 +1687,10 @@ export const getTripCapacitySummary = async () => {
     .order('trip_number', { ascending: true })
     .order('id', { ascending: true });
   if (tripError) throw tripError;
+  return candidateTrips || [];
+};
 
-  const selectedTrip = selectEarliestCapacityTrip(candidateTrips || []);
-  if (!selectedTrip) return null;
-
+const withTripLoad = async (selectedTrip) => {
   const { data: loadRows, error: loadError } = await supabase.rpc('get_trips_load', {
     trip_ids: [selectedTrip.id],
   });
@@ -1700,12 +1700,76 @@ export const getTripCapacitySummary = async () => {
   return { ...selectedTrip, current_weight: currentWeight };
 };
 
+export const getTripCapacitySummary = async () => {
+  const selectedTrip = selectEarliestCapacityTrip(await getCapacityCandidateTrips());
+  if (!selectedTrip) return null;
+  return withTripLoad(selectedTrip);
+};
+
 // ==================== VAN CAPACITY ====================
+/**
+ * Admin dashboard capacity card. Shows the next scheduled departure (the trip
+ * being loaded) rather than the customer summary's earliest operational trip,
+ * and lists the other trips still on the road or overdue so none drop out of
+ * view.
+ */
 export const getVanCapacity = async () => {
-  const activeTrip = await getTripCapacitySummary();
+  const candidateTrips = await getCapacityCandidateTrips();
+  const selected = selectNextDepartureTrip(candidateTrips);
+  const activeTrip = selected ? await withTripLoad(selected) : null;
   const totalWeight = Number(activeTrip?.current_weight || 0);
   const maxCapacity = activeTrip?.capacity > 0 ? activeTrip.capacity : 1000;
-  return { totalWeight, maxCapacity, activeTrip };
+  const otherTrips = candidateTrips.filter(trip => trip.id !== selected?.id
+    && (trip.status !== 'scheduled' || isScheduledTripOverdue(trip)));
+  return { totalWeight, maxCapacity, activeTrip, otherTrips };
+};
+
+/**
+ * Items on the admin dashboard's "Needs attention" list. Each source settles
+ * independently, so one failed count hides one row instead of the panel.
+ * Overdue payment promises use the derived outstanding balance, never the
+ * stored remaining_balance column (see outstandingBalance).
+ */
+export const getDashboardAttention = async () => {
+  const today = phDateKey(new Date().toISOString());
+  const [countsResult, promisesResult, inboxResult, inquiriesResult] = await Promise.allSettled([
+    getOrderStatusCounts(),
+    supabase
+      .from('orders')
+      .select('id, tracking_number, promised_payment_date, shipping_cost, discount_amount, amount_paid, profiles:user_id (name)')
+      .lt('promised_payment_date', today)
+      .neq('status', ORDER_STATUS.CANCELLED)
+      .order('promised_payment_date', { ascending: true }),
+    getAdminInboxUnreadCount(),
+    getNewInquiryCount(),
+  ]);
+
+  const value = (result) => (result.status === 'fulfilled' ? result.value : null);
+  const promiseRows = promisesResult.status === 'fulfilled' && !promisesResult.value.error
+    ? promisesResult.value.data || []
+    : null;
+
+  return {
+    statusCounts: value(countsResult),
+    overduePromises: promiseRows === null
+      ? null
+      : promiseRows
+        .map(order => ({ ...order, outstanding: outstandingBalance(order) }))
+        .filter(order => order.outstanding > 0.005),
+    inboxWaiting: value(inboxResult),
+    newInquiries: value(inquiriesResult),
+  };
+};
+
+/**
+ * Totals for one Manila calendar month ('YYYY-MM'), computed exactly as the
+ * Sales & Reports page computes them: every trip departing that month, each
+ * run through getPerTripSalesReport and aggregated.
+ */
+export const getMonthSalesSummary = async (monthKey) => {
+  const trips = await getAllTripsForReport();
+  const tripIds = trips.filter(trip => tripMonthKey(trip) === monthKey).map(trip => trip.id);
+  return tripIds.length ? getMonthlySalesReport(tripIds) : aggregateMonthlySalesReports([]);
 };
 
 // ==================== SALES DATA ====================

@@ -83,8 +83,6 @@ const AdminTripsPage = () => {
         value={activeTab}
         onChange={setActiveTab}
         ariaLabel="Trip status filters"
-        label="Status"
-        desktopClassName="tabs admin-mobile-tabs"
         className="mb-16"
       />
       {loading ? (

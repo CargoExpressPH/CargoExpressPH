@@ -82,7 +82,7 @@ const TripsPage = () => {
       <div className="page-transition customer-trips-page">
       <div className="customer-page-heading">
         <div>
-          <h1 className="fw-800 mb-4">Available Trips</h1>
+          <h1 className="fw-700 mb-4">Available Trips</h1>
           <p className="text-sm text-secondary">Choose a route and reserve cargo space fast.</p>
         </div>
         {!loading && !error && <span className="badge badge-success">{trips.length} active</span>}

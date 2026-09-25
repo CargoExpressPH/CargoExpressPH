@@ -45,7 +45,7 @@ const SortableRow = ({ feat, handleEdit, setDeleteTarget }) => {
       <td data-label="Title & Description">
         <div className="feature-title-desc">
           <div style={{ fontWeight: 700, marginBottom: 2 }}>{feat.title}</div>
-          <div className="text-secondary" style={{ fontSize: '0.8125rem',}}>{feat.description}</div>
+          <div className="text-secondary" style={{ fontSize: 'var(--text-13)',}}>{feat.description}</div>
         </div>
       </td>
       <td>
@@ -214,7 +214,7 @@ const CompanyInfoFeaturesTab = ({ features, setFeatures }) => {
         {/* Edit Form */}
         {editingId && (
           <div style={{ borderBottom: '1px solid var(--border-light)', padding: '20px 24px', background: 'var(--bg-secondary)' }}>
-            <div style={{ fontWeight: 700, marginBottom: 16, fontSize: '0.9375rem' }}>
+            <div style={{ fontWeight: 700, marginBottom: 16, fontSize: 'var(--text-16)' }}>
               {editingId === 'new' ? 'New Feature' : 'Edit Feature'}
             </div>
 
@@ -239,7 +239,7 @@ const CompanyInfoFeaturesTab = ({ features, setFeatures }) => {
                       onClick={() => setShowIconPicker(p => !p)}
                     >
                       <span>{formData.icon || 'Select icon...'}</span>
-                      <span className="text-tertiary" style={{ fontSize: '0.75rem',}}>▼</span>
+                      <span className="text-tertiary" style={{ fontSize: 'var(--text-12)',}}>▼</span>
                     </button>
                     {showIconPicker && (
                       <div className="absolute rounded-md" style={{top: 'calc(100% + 4px)', left: 0, zIndex: 200,
@@ -273,12 +273,12 @@ const CompanyInfoFeaturesTab = ({ features, setFeatures }) => {
                             );
                           })}
                         </div>
-                        <div className="text-tertiary" style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--border-light)', fontSize: '0.75rem',}}>
+                        <div className="text-tertiary" style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--border-light)', fontSize: 'var(--text-12)',}}>
                           Or type a custom name:{' '}
                           <input
                             className="form-input inline"
                             aria-label="Custom icon name"
-                            style={{ width: 120, padding: '4px 8px', minHeight: 'auto', fontSize: '0.8125rem' }}
+                            style={{ width: 120, padding: '4px 8px', minHeight: 'auto', fontSize: 'var(--text-13)' }}
                             value={formData.icon}
                             onChange={e => setFormData(p => ({ ...p, icon: e.target.value }))}
                             placeholder="e.g. ShieldCheck"

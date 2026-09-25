@@ -4,6 +4,15 @@ import {
   isOrderPriced,
   outstandingBalance,
 } from '../constants/status';
+import { phDateKey } from '../utils/datetime';
+
+/**
+ * 'YYYY-MM' of the Manila calendar day a trip departs. departure_date is a
+ * bare date or a timestamptz holding Manila midnight, which the API returns
+ * in UTC ("2026-09-30T16:00:00+00:00" for an Oct 1 departure), so slicing the
+ * raw string would file trips on the 1st under the previous month.
+ */
+export const tripMonthKey = (trip) => phDateKey(trip?.departure_date).slice(0, 7);
 
 const REFUND_PENDING_STATUSES = new Set(['creating', 'pending', 'processing']);
 

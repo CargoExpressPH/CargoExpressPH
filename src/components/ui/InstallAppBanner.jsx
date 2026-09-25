@@ -212,10 +212,10 @@ export default function InstallAppBanner() {
               <Download size={26} color="#fff" />
             </div>
             <div>
-              <h2 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700, color: 'var(--text)' }}>
+              <h2 style={{ margin: 0, fontSize: 'var(--text-16)', fontWeight: 700, color: 'var(--text)' }}>
                 Install CargoExpress PH
               </h2>
-              <p style={{ margin: '2px 0 0', fontSize: '0.8rem', color: 'var(--text-secondary, #94a3b8)' }}>
+              <p style={{ margin: '2px 0 0', fontSize: 'var(--text-13)', color: 'var(--text-secondary, #94a3b8)' }}>
                 Add the app to your device — no app store needed
               </p>
             </div>
@@ -231,7 +231,7 @@ export default function InstallAppBanner() {
                 border: '1px solid rgba(22,163,74,0.15)',
               }}>
                 <Icon size={18} color="var(--primary-text)" aria-hidden="true" style={{ flexShrink: 0 }} />
-                <span style={{ fontSize: '0.85rem', color: 'var(--text)', fontWeight: 500 }}>
+                <span style={{ fontSize: 'var(--text-14)', color: 'var(--text)', fontWeight: 500 }}>
                   {label}
                 </span>
               </div>
@@ -247,7 +247,7 @@ export default function InstallAppBanner() {
               color: '#fff',
               border: 'none',
               borderRadius: 14,
-              fontSize: '0.95rem',
+              fontSize: 'var(--text-16)',
               fontWeight: 700,
               cursor: installing ? 'wait' : 'pointer',
               opacity: installing ? 0.75 : 1,
@@ -267,7 +267,7 @@ export default function InstallAppBanner() {
               color: 'var(--text-secondary, #94a3b8)',
               border: 'none',
               borderRadius: 14,
-              fontSize: '0.85rem',
+              fontSize: 'var(--text-14)',
             }}
           >
             Not now

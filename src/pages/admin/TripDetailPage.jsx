@@ -298,11 +298,11 @@ const TripDetailPage = () => {
       ]} />
       <div className="flex items-center justify-between mb-20">
         <div>
-          <h1 className="fw-800">{trip.trip_number}</h1>
+          <h1 className="fw-700">{trip.trip_number}</h1>
           <div className="flex items-center gap-8 mt-4 text-sm">
-            <span className="fw-800 text-secondary">{trip.origin}</span>
+            <span className="fw-700 text-secondary">{trip.origin}</span>
             <span className="fw-700" style={{ color: 'var(--primary-text)' }}>➔</span>
-            <span className="fw-800 text-secondary">{trip.destination}</span>
+            <span className="fw-700 text-secondary">{trip.destination}</span>
           </div>
         </div>
         <StatusBadge status={trip.status}/>
@@ -324,7 +324,7 @@ const TripDetailPage = () => {
         )}
         {trip.status==='in_progress' && <button type="button" className="btn btn-success" onClick={()=>openConfirm('arrived', 'Mark Arrived', `Mark trip ${trip.trip_number} as arrived at destination?`, 'success')} disabled={saving}><Flag size={16}/> Mark Arrived</button>}
         {trip.status==='arrived' && <button type="button" className="btn btn-primary" onClick={handleCompleteClick} disabled={saving}><CheckCircle size={16}/> Complete</button>}
-        {!['completed','cancelled'].includes(trip.status) && <button type="button" className="btn btn-danger btn-sm" onClick={()=>openConfirm('cancelled', 'Cancel Trip', `Cancel trip ${trip.trip_number}? This action cannot be undone.`, 'danger')} disabled={saving}><XCircle size={16}/> Cancel</button>}
+        {!['completed','cancelled'].includes(trip.status) && <button type="button" className="btn btn-danger-outline btn-sm" onClick={()=>openConfirm('cancelled', 'Cancel Trip', `Cancel trip ${trip.trip_number}? This action cannot be undone.`, 'danger')} disabled={saving}><XCircle size={16}/> Cancel Trip</button>}
         {saving && <Loader size={18} className="animate-spin"/>}
         </div>
         {/* A disabled button alone doesn't explain itself — especially on
@@ -408,7 +408,7 @@ const TripDetailPage = () => {
       {trip.notes && (
         <div className="card admin-section-card stagger-item mb-16" style={{ animationDelay: '160ms'}}>
           <div className="card-body">
-            <h4 className="fw-700 mb-8" style={{ fontSize: '0.8125rem', color: 'var(--text-tertiary)' }}>Internal Trip Notes</h4>
+            <h4 className="fw-700 mb-8" style={{ fontSize: 'var(--text-13)', color: 'var(--text-tertiary)' }}>Internal Trip Notes</h4>
             <p className="m-0 text-sm" style={{ whiteSpace: 'pre-wrap' }}>{trip.notes}</p>
           </div>
         </div>

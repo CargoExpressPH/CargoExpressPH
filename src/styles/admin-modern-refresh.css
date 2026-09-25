@@ -97,18 +97,18 @@
    AA text token, which stays theme-aware (#15803D light / #34D399 dark). */
 .app-layout .sidebar-brand .sidebar-brand-wordmark {
   color: var(--primary-text);
-  font-weight: 900;
+  font-weight: 700;
   letter-spacing: 0;
 }
 
 .app-layout .sidebar-brand .sidebar-brand-wordmark span {
   color: var(--primary-text);
-  font-weight: 900;
+  font-weight: 700;
 }
 
 .app-layout .sidebar-section-label {
   color: color-mix(in srgb, var(--admin-muted) 78%, transparent);
-  font-weight: 900;
+  font-weight: 700;
   letter-spacing: 0.11em;
 }
 
@@ -136,10 +136,6 @@
   height: 22px;
   border-radius: var(--radius-full);
   background: var(--admin-green);
-}
-
-.app-layout .sidebar-count-badge {
-  background: linear-gradient(135deg, #EF4444, var(--admin-green));
 }
 
 .app-layout .sidebar-footer {
@@ -228,8 +224,8 @@
      0.5625rem/800 this is body-size text needing 4.5:1. */
   background: linear-gradient(135deg, #DC2626, var(--error-fill));
   color: white;
-  font-size: 0.5625rem;
-  font-weight: 800;
+  font-size: var(--text-12);
+  font-weight: 700;
   line-height: 1;
   letter-spacing: -0.02em;
   display: flex;
@@ -288,15 +284,15 @@
   gap: 10px;
 }
 .admin-notif-header h3 {
-  font-size: 0.9375rem;
-  font-weight: 800;
+  font-size: var(--text-16);
+  font-weight: 700;
   color: var(--text);
   margin: 0;
   letter-spacing: -0.01em;
 }
 .admin-notif-unread-pill {
-  font-size: 0.625rem;
-  font-weight: 800;
+  font-size: var(--text-12);
+  font-weight: 700;
   padding: 2px 8px;
   border-radius: var(--radius-full);
   background: linear-gradient(135deg, var(--admin-green), var(--primary-light));
@@ -346,7 +342,7 @@
 
 /* ── Group Label ─────────────────────────────────────────────────────────────── */
 .admin-notif-group-label {
-  font-size: 0.6875rem;
+  font-size: var(--text-12);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -401,7 +397,7 @@
   cursor: pointer;
 }
 .admin-notif-item-title {
-  font-size: 0.8125rem;
+  font-size: var(--text-13);
   font-weight: 700;
   color: var(--text);
   line-height: 1.3;
@@ -414,7 +410,7 @@
   color: var(--admin-ink, var(--text));
 }
 .admin-notif-item-msg {
-  font-size: 0.75rem;
+  font-size: var(--text-12);
   color: var(--text-secondary);
   line-height: 1.4;
   display: -webkit-box;
@@ -426,7 +422,7 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  font-size: 0.6875rem;
+  font-size: var(--text-12);
   color: var(--text-tertiary);
   margin-top: 4px;
 }
@@ -495,7 +491,7 @@
   gap: 10px;
   padding: 48px 20px;
   color: var(--text-tertiary);
-  font-size: 0.8125rem;
+  font-size: var(--text-13);
 }
 
 /* ── Empty State ─────────────────────────────────────────────────────────────── */
@@ -515,13 +511,13 @@
   margin-bottom: 14px;
 }
 .admin-notif-empty-title {
-  font-size: 0.9375rem;
+  font-size: var(--text-16);
   font-weight: 700;
   color: var(--text);
   margin: 0 0 4px;
 }
 .admin-notif-empty-sub {
-  font-size: 0.8125rem;
+  font-size: var(--text-13);
   color: var(--text-tertiary);
   margin: 0;
 }
@@ -592,7 +588,7 @@
    body-size text, so it needs the AA token — theme-aware in both modes. */
 .app-layout .topbar-title {
   color: var(--primary-text);
-  font-weight: 900;
+  font-weight: 700;
   letter-spacing: 0;
 }
 
@@ -633,7 +629,7 @@
 .app-layout .admin-page-title {
   color: var(--admin-ink);
   font-size: clamp(1.55rem, 3vw, 2.2rem);
-  font-weight: 900;
+  font-weight: 700;
   letter-spacing: 0;
 }
 
@@ -677,7 +673,7 @@
 
 .app-layout .card-header h3 {
   color: var(--admin-ink);
-  font-weight: 900;
+  font-weight: 700;
 }
 
 .app-layout .card-body {
@@ -695,17 +691,17 @@
 }
 
 .app-layout .stat-card .stat-value {
-  font-weight: 900;
+  font-weight: 700;
 }
 
 .app-layout .stat-card .stat-label {
-  font-weight: 800;
+  font-weight: 700;
 }
 
 .app-layout .btn {
   min-height: 46px;
   border-radius: var(--radius-lg);
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: 0;
 }
 
@@ -750,7 +746,7 @@
 
 .app-layout .form-label {
   color: var(--admin-muted);
-  font-weight: 800;
+  font-weight: 700;
 }
 
 .app-layout .form-helper,
@@ -819,7 +815,7 @@
   border-radius: var(--radius-full);
   background: var(--admin-panel);
   color: var(--admin-muted);
-  font-weight: 800;
+  font-weight: 700;
   min-width: 0;
   width: 100%;
   white-space: normal;
@@ -858,7 +854,7 @@
 .app-layout .data-table th {
   background: color-mix(in srgb, var(--admin-green-soft) 72%, var(--admin-panel-solid) 28%);
   color: var(--admin-green-dark);
-  font-weight: 900;
+  font-weight: 700;
   letter-spacing: 0.07em;
   border-bottom-color: var(--admin-line);
 }
@@ -881,7 +877,7 @@
 
 .app-layout .admin-list-card-title {
   color: var(--admin-ink);
-  font-weight: 900;
+  font-weight: 700;
 }
 
 .app-layout .admin-list-card-meta,
@@ -927,7 +923,7 @@
 
 .app-layout .profile-card-name {
   color: var(--admin-ink);
-  font-weight: 900;
+  font-weight: 700;
 }
 
 .app-layout .profile-card-email,
@@ -936,16 +932,6 @@
 }
 
 .app-layout .profile-menu-item:hover {
-  background: var(--admin-green-soft);
-  color: var(--admin-green-dark);
-}
-
-.app-layout .badge-info,
-.app-layout .badge-success,
-.app-layout .badge-pending,
-.app-layout .badge-assigned,
-.app-layout .badge-in-transit {
-  border-color: color-mix(in srgb, var(--admin-green) 24%, transparent);
   background: var(--admin-green-soft);
   color: var(--admin-green-dark);
 }
@@ -1018,7 +1004,7 @@
 
   .app-layout .topbar-title {
     min-width: 0;
-    font-size: 0.98rem;
+    font-size: var(--text-16);
     gap: 8px;
   }
 
@@ -1259,7 +1245,7 @@
   }
 
   .app-layout .admin-page-title {
-    font-size: 1.45rem;
+    font-size: var(--text-24);
   }
 
   .app-layout .card-body {
@@ -1324,7 +1310,7 @@
 
 
 .topbar-command-kbd {
-  font-size: 0.6875rem;
+  font-size: var(--text-12);
   font-weight: 600;
   background: var(--bg-secondary);
   padding: 1px 5px;
@@ -1358,7 +1344,7 @@
   border-radius: var(--radius-sm);
   background: transparent;
   color: var(--text-secondary);
-  font-size: 0.85rem;
+  font-size: var(--text-14);
   font-weight: 500;
   cursor: pointer;
   transition: background-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;

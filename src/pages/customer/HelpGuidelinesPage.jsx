@@ -70,7 +70,7 @@ const HelpGuidelinesPage = () => {
 
       <div className="customer-page-heading mb-20">
         <div>
-          <h1 className="fw-800 flex items-center gap-8">
+          <h1 className="fw-700 flex items-center gap-8">
             <HelpCircle size={24} aria-hidden="true" /> Help & Guidelines
           </h1>
           <p className="text-sm text-secondary mt-4">
@@ -96,7 +96,7 @@ const HelpGuidelinesPage = () => {
               <div className="profile-menu-icon-wrap info">
                 <section.icon size={18} />
               </div>
-              <div className="fw-800">{section.title}</div>
+              <div className="fw-700">{section.title}</div>
             </div>
             <div className="flex flex-col gap-8">
               {section.items.map(item => (
@@ -138,7 +138,7 @@ const HelpGuidelinesPage = () => {
           {filteredFaqs.map(faq => (
             <div className="card card-body" key={faq.id}>
               <div className="flex justify-between gap-12 mb-8 items-start flex-wrap">
-                <div className="fw-800">{faq.title}</div>
+                <div className="fw-700">{faq.title}</div>
                 {faq.category && <span className="badge badge-info">{faq.category}</span>}
               </div>
               <p className="text-sm text-secondary m-0">{faq.answer}</p>

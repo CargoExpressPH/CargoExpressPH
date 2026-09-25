@@ -47,7 +47,7 @@ const CancellationSettlementSummary = ({ summary, historicalPromiseDate = null, 
         <span className={`badge ${statusTone(status)}`}>{STATUS_LABELS[status] || status}</span>
       </div>
 
-      <div className="grid grid-2 gap-8" style={{ fontSize: '0.8125rem' }}>
+      <div className="grid grid-2 gap-8" style={{ fontSize: 'var(--text-13)' }}>
         <div><div className="text-tertiary">Booking status</div><div className="fw-700">Cancelled</div></div>
         <MoneyFact label="Historical final charge" value={summary.historical_final_charge} />
         <MoneyFact label="Gross collected" value={summary.gross_collected} />
@@ -60,17 +60,17 @@ const CancellationSettlementSummary = ({ summary, historicalPromiseDate = null, 
       </div>
 
       {status === 'for_review' && (
-        <div className="alert-banner alert-banner-info mt-12 py-8 px-12" style={{ fontSize: '0.8125rem' }}>
+        <div className="alert-banner alert-banner-info mt-12 py-8 px-12" style={{ fontSize: 'var(--text-13)' }}>
           <Clock size={14} /> No financial settlement decision is recorded. The net retained amount is not automatically a fee.
         </div>
       )}
       {status === 'refund_settled' && (
-        <div className="alert-banner alert-banner-success mt-12 py-8 px-12" style={{ fontSize: '0.8125rem' }}>
+        <div className="alert-banner alert-banner-success mt-12 py-8 px-12" style={{ fontSize: 'var(--text-13)' }}>
           <CheckCircle size={14} /> The confirmed refund obligation is fully allocated between successful refunds and the agreed fee.
         </div>
       )}
       {status === 'needs_reconciliation' && (
-        <div className="alert-banner alert-banner-error mt-12 py-8 px-12" style={{ fontSize: '0.8125rem' }}>
+        <div className="alert-banner alert-banner-error mt-12 py-8 px-12" style={{ fontSize: 'var(--text-13)' }}>
           <AlertTriangle size={14} /> Payment, refund, and fee records are inconsistent. Do not issue another refund or amend the decision until reconciled.
         </div>
       )}

@@ -514,7 +514,7 @@ const NotificationsPage = () => {
       <div className="page-transition customer-notifications-page">
       <div className="section-header customer-mobile-heading mb-20">
         <div>
-          <h1 className="fw-800 flex items-center gap-8 flex-wrap">
+          <h1 className="fw-700 flex items-center gap-8 flex-wrap">
             <span>Notifications</span>
             {unreadCount > 0 && (
               <span className="badge badge-pending text-xs flex-shrink-0 inline-flex items-center">

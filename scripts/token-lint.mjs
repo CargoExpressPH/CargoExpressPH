@@ -42,6 +42,11 @@ const RUNTIME_DEFINED = new Set([
   // viewport. The 0px fallbacks are the no-keyboard resting state, and it is a
   // length rather than a colour, so no theme can be got wrong by it.
   '--keyboard-inset',
+  // Injected as an inline style by RouteProgressLine
+  // (src/components/ui/RouteProgressLine.jsx): how far along the booking-card
+  // route line the cargo has travelled. A percentage length, never a colour,
+  // and the 0% fallback is the pre-pickup resting state.
+  '--route-progress',
 ]);
 
 /**

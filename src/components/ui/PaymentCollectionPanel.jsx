@@ -306,7 +306,7 @@ const PaymentCollectionPanel = ({
       {value.notice && (
         <div className="br-8" style={{
           background: 'var(--info-bg)', color: 'var(--info-dark)', padding: '10px 14px',
-          fontSize: '0.8125rem', marginBottom: 16, border: '1px solid var(--info)',
+          fontSize: 'var(--text-13)', marginBottom: 16, border: '1px solid var(--info)',
         }} role="status">
           {value.notice}
         </div>
@@ -446,7 +446,7 @@ const PaymentCollectionPanel = ({
       {/* GCash */}
       {value.payment_method === 'gcash' && (
         <div className="mb-16 br-8" style={{ background: 'var(--bg-secondary)', padding: 14, border: '1px solid var(--border)'}}>
-          <div className="mb-8 font-semibold" style={{ fontSize: '0.8125rem' }}>GCash Payment</div>
+          <div className="mb-8 font-semibold" style={{ fontSize: 'var(--text-13)' }}>GCash Payment</div>
 
           {value.paymentStep === 'setup' && (
             <div className="mb-12">
@@ -493,7 +493,7 @@ const PaymentCollectionPanel = ({
                 {value.confirmed.reference && (
                   <div className="flex justify-between">
                     <span>Reference</span>
-                    <strong style={{ fontSize: '0.6875rem', wordBreak: 'break-all' }}>{value.confirmed.reference}</strong>
+                    <strong style={{ fontSize: 'var(--text-12)', wordBreak: 'break-all' }}>{value.confirmed.reference}</strong>
                   </div>
                 )}
               </div>
@@ -511,7 +511,7 @@ const PaymentCollectionPanel = ({
                   className="text-white"
                   style={{
                     background: '#007DFE', borderRadius: 'var(--radius-xs)',
-                    padding: '3px 10px', fontWeight: 700, fontSize: '0.8125rem',
+                    padding: '3px 10px', fontWeight: 700, fontSize: 'var(--text-13)',
                     letterSpacing: 0.5,
                   }}
                 >
@@ -528,7 +528,7 @@ const PaymentCollectionPanel = ({
                 </div>
               </div>
 
-              <ol className="m-0 text-secondary" style={{ paddingLeft: 18, fontSize: '0.8125rem', lineHeight: 1.9 }}>
+              <ol className="m-0 text-secondary" style={{ paddingLeft: 18, fontSize: 'var(--text-13)', lineHeight: 1.9 }}>
                 <li>Scan the QR, or tap <strong>Open GCash</strong> for the checkout page</li>
                 <li>Approve the payment in the GCash app</li>
                 <li>Done — this panel updates by itself the moment the payment lands</li>
@@ -674,7 +674,7 @@ const PaymentCollectionPanel = ({
                 className="br-8 cursor-pointer"
                 style={{
                   padding: '8px 16px', border: '1px dashed var(--border)',
-                  background: 'transparent', fontSize: '0.8125rem',
+                  background: 'transparent', fontSize: 'var(--text-13)',
                 }}
               >
                 <FileText size={14} className="inline mr-6" /> Upload Receipt
@@ -693,7 +693,7 @@ const PaymentCollectionPanel = ({
           amount is actually left owing. */}
       {d.isPayLater && (
         <div className="mb-16 br-8" style={{ background: 'var(--warning-bg)', padding: 14, border: '1px solid var(--warning)'}}>
-          <div className="mb-8 font-semibold" style={{ fontSize: '0.8125rem', color: 'var(--warning-text)' }}>
+          <div className="mb-8 font-semibold" style={{ fontSize: 'var(--text-13)', color: 'var(--warning-text)' }}>
             <AlertTriangle size={14} className="inline mr-6" /> Promise to Pay
           </div>
           <div className="form-group mb-0">
