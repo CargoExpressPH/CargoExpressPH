@@ -1123,12 +1123,29 @@
 }
 
 .dash-month-card .card-header {
-  flex-wrap: wrap;
-  gap: 8px 16px;
+  flex-wrap: nowrap;
+  gap: 8px;
 }
 
-.dash-month-card .card-header > .btn {
-  margin-left: auto;
+.dash-month-card .card-header h3 {
+  min-width: 0;
+  gap: 8px;
+}
+
+.dash-month-reports {
+  flex-shrink: 0;
+  min-width: 44px;
+  min-height: 44px;
+  gap: 6px;
+  padding: 8px;
+}
+
+/* The named container is the existing .card. Keep a full-size, labelled
+   report action beside the date even in narrow cards or with larger text. */
+@container card (max-width: 19rem) {
+  .dash-month-reports > span {
+    display: none;
+  }
 }
 
 /* Keep all three totals aligned, even when this card is half of a desktop

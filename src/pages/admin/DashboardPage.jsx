@@ -432,8 +432,10 @@ const DashboardPage = () => {
         <ErrorBoundarySection message="Monthly summary unavailable.">
           <StaggerItem className="card admin-section-card dash-month-card" delay={300}>
             <div className="card-header">
-              <h3><WalletCards size={16} className="inline mr-8" aria-hidden="true" />{monthLabel(monthKey)}</h3>
-              <Link to="/admin/sales" className="btn btn-ghost btn-sm">Sales & Reports <ArrowRight size={14} /></Link>
+              <h3><WalletCards size={16} aria-hidden="true" /><span>{monthLabel(monthKey)}</span></h3>
+              <Link to="/admin/sales" className="btn btn-ghost btn-sm dash-month-reports" aria-label="Sales & Reports" title="Sales & Reports">
+                <span>Reports</span><ArrowRight size={16} aria-hidden="true" />
+              </Link>
             </div>
             <div className="card-body">
               {monthLoading ? (
