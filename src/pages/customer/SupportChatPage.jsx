@@ -247,17 +247,21 @@ const SupportChatPage = () => {
   const botRequestSeqRef = useRef(0);
 
   const messagePlaceholder =
-    convStatus === CONVERSATION_STATUS.WAITING ? 'Leave more details for the admin...' :
+    convStatus === CONVERSATION_STATUS.WAITING ? 'Message admin…' :
     convStatus === CONVERSATION_STATUS.RESOLVED && isWithinReopenGrace({ resolved_at: resolvedAt })
-      ? 'Reply to reopen this conversation…' :
+      ? 'Reply to reopen…' :
     botTyping ? 'Assistant is typing…' :
                 'Type your message…';
 
   const resizeTextarea = useCallback(() => {
     const el = textareaRef.current;
     if (!el) return;
-    // The placeholder can wrap on narrow screens or at larger text sizes.
-    // Measure it too, even when the message is empty.
+    // Keep an empty composer at one line. The short hints fit on phones;
+    // entered messages can still grow up to the scrollable 120px limit.
+    if (!el.value) {
+      el.style.height = `${TEXTAREA_BASE_HEIGHT}px`;
+      return;
+    }
     el.style.height = 'auto';
     const h = Math.min(Math.max(el.scrollHeight, TEXTAREA_BASE_HEIGHT), 120);
     el.style.height = `${h}px`;

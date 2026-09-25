@@ -205,6 +205,11 @@
   max-height: 120px;
   font-size: var(--text-16);
 }
+.support-chat-textarea::placeholder {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .support-chat-input-area .chat-send-btn {
   width: 44px;
   height: 44px;
@@ -403,7 +408,8 @@
     padding: 12px;
   }
   .support-chat-input-area {
-    padding: 6px 2px calc(6px + env(safe-area-inset-bottom, 0px));
+    /* Keep the 4px focus glow inside the rounded shell on both sides. */
+    padding: 6px 10px calc(6px + env(safe-area-inset-bottom, 0px));
     gap: 6px;
   }
 }
