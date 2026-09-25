@@ -430,7 +430,7 @@ const DashboardPage = () => {
       <div className="grid grid-2 mb-24">
         {/* This month */}
         <ErrorBoundarySection message="Monthly summary unavailable.">
-          <StaggerItem className="card admin-section-card" delay={300}>
+          <StaggerItem className="card admin-section-card dash-month-card" delay={300}>
             <div className="card-header">
               <h3><WalletCards size={16} className="inline mr-8" aria-hidden="true" />{monthLabel(monthKey)}</h3>
               <Link to="/admin/sales" className="btn btn-ghost btn-sm">Sales & Reports <ArrowRight size={14} /></Link>
