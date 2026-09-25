@@ -44,6 +44,7 @@ import {
   ZoomControl,
 } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
+import BusinessStructuredData from '../../components/public/BusinessStructuredData';
 import {
   PHILIPPINES_MAP_BOUNDS,
   PHILIPPINES_MAP_CENTER,
@@ -1610,6 +1611,7 @@ const AboutPage = () => {
         systemStatus={resolvedSystemStatus}
         systemStatusLabel={systemStatusLabel}
       />
+      <BusinessStructuredData info={info} />
 
       {/* ═══ Lightbox ═══ */}
       {lightboxIndex >= 0 && (

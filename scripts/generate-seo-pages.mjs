@@ -1,6 +1,35 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { loadEnv } from 'vite';
 import { PUBLIC_PAGES, SITE_ORIGIN, structuredDataFor } from '../src/seo/publicPages.js';
+
+// Business contact details come from Admin > Company Information at build
+// time (read-only, public anon key, the same data the About page shows), so
+// they never need copying into code. If the database cannot be reached the
+// pages are still generated, just without those fields.
+async function loadBusinessInfo() {
+  const env = { ...loadEnv('production', process.cwd(), 'VITE_'), ...process.env };
+  const url = env.VITE_SUPABASE_URL;
+  const key = env.VITE_SUPABASE_ANON_KEY;
+  if (!url || !key) {
+    console.warn('[seo] Supabase env not set; business contact details omitted.');
+    return null;
+  }
+  try {
+    const response = await fetch(
+      `${url}/rest/v1/company_information?select=name,email,facebook,smart_phone,globe_phone,manila_address,bohol_address&limit=1`,
+      { headers: { apikey: key, Authorization: `Bearer ${key}` }, signal: AbortSignal.timeout(8000) },
+    );
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const rows = await response.json();
+    return Array.isArray(rows) ? rows[0] || null : null;
+  } catch (error) {
+    console.warn(`[seo] Company information unavailable (${error.message}); business contact details omitted.`);
+    return null;
+  }
+}
+
+const business = await loadBusinessInfo();
 
 const dist = resolve('dist');
 const html = readFileSync(resolve(dist, 'index.html'), 'utf8');
@@ -41,7 +70,7 @@ function renderPage(path, page) {
     output = replaceRequired(output, new RegExp(`<meta ${kind}="${name}" content="[^"]*"\\s*\\/>`), `<meta ${kind}="${name}" content="${value}" />`);
   }
   // < keeps a "<" in any string from closing the script element early.
-  const schema = JSON.stringify(structuredDataFor(path, page)).replace(/</g, '\\u003c');
+  const schema = JSON.stringify(structuredDataFor(path, page, business)).replace(/</g, '\\u003c');
   output = replaceRequired(output, /<script type="application\/ld\+json">[\s\S]*?<\/script>/,
     `<script type="application/ld+json">${schema}</script>`);
   output = replaceRequired(output, /<div id="root"><\/div>/, `<div id="root">${renderFallback(page)}</div>`);

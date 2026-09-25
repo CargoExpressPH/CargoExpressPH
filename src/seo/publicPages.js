@@ -61,17 +61,41 @@ export const PUBLIC_PAGES = {
 // from the admin Company Information screen belong here — phone numbers and
 // addresses are editable in the database, so a copy baked in at build time
 // would go stale the first time an admin changes them.
-const BUSINESS_CONTACT = {
-  email: 'ship2doorofficial@gmail.com',
-  phones: ['+63-921-252-8208', '+63-927-505-0460'],
-  facebook: 'https://www.facebook.com/mscargodeliveryservice',
-  hubs: [
-    { name: 'Manila hub', locality: 'Dasmariñas', region: 'Cavite' },
-    { name: 'Bohol hub', locality: 'Batuan', region: 'Bohol' },
-  ],
-};
+/**
+ * Schema.org contact fields built from the company_information row that
+ * Admin > Company Information edits, used exactly as stored (no reformatting,
+ * nothing added). Empty fields are left out. Used by the build
+ * (scripts/generate-seo-pages.mjs) and live on the public pages
+ * (components/public/BusinessStructuredData.jsx), so a change in the admin
+ * screen needs no code change.
+ */
+export function businessContactFields(info) {
+  if (!info) return {};
+  const text = (value) => String(value ?? '').trim();
+  const phones = [info.smart_phone, info.globe_phone].map(text).filter(Boolean);
+  const hubs = [['Manila hub', info.manila_address], ['Bohol hub', info.bohol_address]]
+    .map(([label, address]) => [label, text(address)])
+    .filter(([, address]) => address);
+  const businessName = text(info.name) || 'CargoExpress PH';
+  const fields = {};
+  if (text(info.email)) fields.email = text(info.email);
+  if (phones.length) {
+    fields.telephone = phones[0];
+    fields.contactPoint = phones.map(telephone => ({
+      '@type': 'ContactPoint',
+      contactType: 'customer service',
+      telephone,
+      areaServed: 'PH',
+    }));
+  }
+  if (hubs.length) {
+    fields.location = hubs.map(([label, address]) => ({ '@type': 'Place', name: `${businessName} ${label}`, address }));
+  }
+  if (text(info.facebook)) fields.sameAs = [text(info.facebook)];
+  return fields;
+}
 
-export function structuredDataFor(path, page) {
+export function structuredDataFor(path, page, business = null) {
   const url = `${SITE_ORIGIN}${path === '/' ? '/' : path}`;
   const organization = {
     '@type': 'Organization',
@@ -85,24 +109,7 @@ export function structuredDataFor(path, page) {
       { '@type': 'Place', name: 'Metro Manila, Philippines' },
       { '@type': 'Place', name: 'Bohol, Philippines' },
     ],
-    // Contact details as stored in company_information (Admin → Company
-    // Information). Keep in step with that screen if the business details
-    // change; index.html carries the same block for the dev server.
-    email: BUSINESS_CONTACT.email,
-    telephone: BUSINESS_CONTACT.phones[0],
-    contactPoint: BUSINESS_CONTACT.phones.map(telephone => ({
-      '@type': 'ContactPoint',
-      contactType: 'customer service',
-      telephone,
-      areaServed: 'PH',
-      availableLanguage: ['en', 'fil'],
-    })),
-    location: BUSINESS_CONTACT.hubs.map(hub => ({
-      '@type': 'Place',
-      name: `CargoExpress PH ${hub.name}`,
-      address: { '@type': 'PostalAddress', addressLocality: hub.locality, addressRegion: hub.region, addressCountry: 'PH' },
-    })),
-    sameAs: [BUSINESS_CONTACT.facebook],
+    ...businessContactFields(business),
   };
   const website = {
     '@type': 'WebSite',

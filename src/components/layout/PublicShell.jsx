@@ -3,6 +3,7 @@ import { Outlet, Link } from 'react-router-dom';
 import BrandLockup from '../ui/BrandLogo';
 import Footer from './Footer';
 import { getCompanyInformation } from '../../lib/database';
+import BusinessStructuredData from '../public/BusinessStructuredData';
 
 /**
  * Minimal chrome for guest-accessible pages that aren't part of the About
@@ -44,6 +45,7 @@ const PublicShell = ({ children }) => {
       </main>
 
       <Footer companyName={company?.name} info={company} />
+      <BusinessStructuredData info={company} />
     </div>
   );
 };
