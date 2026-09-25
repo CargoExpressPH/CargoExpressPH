@@ -223,7 +223,6 @@ const SupportChatPage = () => {
   const [error, setError] = useState(null);
   const [sending, setSending] = useState(false);
   const [botTyping, setBotTyping] = useState(false);
-  const [textareaHeight, setTextareaHeight] = useState(48);
   const [hasMoreMessages, setHasMoreMessages] = useState(false);
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [menuActions, setMenuActions] = useState(() => getMainMenuActions());
@@ -247,19 +246,43 @@ const SupportChatPage = () => {
   const botContextRef = useRef(null);
   const botRequestSeqRef = useRef(0);
 
-  useLayoutEffect(() => {
+  const messagePlaceholder =
+    convStatus === CONVERSATION_STATUS.WAITING ? 'Leave more details for the admin...' :
+    convStatus === CONVERSATION_STATUS.RESOLVED && isWithinReopenGrace({ resolved_at: resolvedAt })
+      ? 'Reply to reopen this conversation…' :
+    botTyping ? 'Assistant is typing…' :
+                'Type your message…';
+
+  const resizeTextarea = useCallback(() => {
     const el = textareaRef.current;
     if (!el) return;
-    if (!input.trim()) {
-      el.style.height = `${TEXTAREA_BASE_HEIGHT}px`;
-      setTextareaHeight(TEXTAREA_BASE_HEIGHT);
-      return;
-    }
+    // The placeholder can wrap on narrow screens or at larger text sizes.
+    // Measure it too, even when the message is empty.
     el.style.height = 'auto';
     const h = Math.min(Math.max(el.scrollHeight, TEXTAREA_BASE_HEIGHT), 120);
     el.style.height = `${h}px`;
-    setTextareaHeight(h);
-  }, [input]);
+  }, []);
+
+  useLayoutEffect(() => {
+    resizeTextarea();
+  }, [input, messagePlaceholder, loading, error, isBotMode, resizeTextarea]);
+
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+
+    // Rotation, split screen, and browser text scaling can change line wraps
+    // without changing the input value. Ignore height-only observer callbacks.
+    let width = el.getBoundingClientRect().width;
+    const observer = new ResizeObserver(() => {
+      const nextWidth = el.getBoundingClientRect().width;
+      if (nextWidth === width) return;
+      width = nextWidth;
+      resizeTextarea();
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [loading, error, isBotMode, resizeTextarea]);
 
   const clearLoadTimeout = useCallback(() => {
     if (timeoutRef.current) { clearTimeout(timeoutRef.current); timeoutRef.current = null; }
@@ -685,8 +708,6 @@ const SupportChatPage = () => {
     if (!text || !conversationId || !user || sending || botTyping) return;
 
     setInput('');
-    if (textareaRef.current) textareaRef.current.style.height = 'auto';
-    setTextareaHeight(TEXTAREA_BASE_HEIGHT);
     sendCustomerText(text);
   };
 
@@ -920,12 +941,7 @@ const SupportChatPage = () => {
             <textarea
               ref={textareaRef}
               className="form-input support-chat-textarea"
-              placeholder={
-                isWaiting  ? 'Leave more details for the admin...' :
-                isResolved ? 'Reply to reopen this conversation…' :
-                botTyping  ? 'Assistant is typing…' :
-                             'Type your message…'
-              }
+              placeholder={messagePlaceholder}
               aria-label="Type your support message"
               maxLength={MAX_MESSAGE_LENGTH}
               value={input}
