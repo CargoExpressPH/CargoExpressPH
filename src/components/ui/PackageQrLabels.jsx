@@ -19,7 +19,7 @@ const MAX_PACKAGES = 50;
 // Once a booking is out the door, printing a new label set no longer maps to
 // anything physical — mirrors the existing contact-details lock
 // (ADMIN_CONTACT_EDIT_LOCKED_STATUSES) elsewhere on this page.
-const LOCKED_STATUSES = [ORDER_STATUS.OUT_FOR_DELIVERY, ORDER_STATUS.DELIVERED, ORDER_STATUS.CANCELLED];
+const LOCKED_STATUSES = [ORDER_STATUS.IN_TRANSIT, ORDER_STATUS.ARRIVED_HUB, ORDER_STATUS.OUT_FOR_DELIVERY, ORDER_STATUS.DELIVERED, ORDER_STATUS.CANCELLED];
 
 // The QR payload is intentionally an admin-only deep link, never the public
 // /track page: scanning a box with no session lands on the login wall, not
@@ -136,7 +136,7 @@ const PackageQrLabels = ({ order, onOrderUpdate }) => {
                 : `${count} box${count === 1 ? '' : 'es'} for this booking.`}
           </span>
 
-          <button type="button" className="btn btn-primary btn-sm" onClick={handlePrint}>
+          <button type="button" className="btn btn-primary btn-sm" onClick={handlePrint} disabled={locked}>
             <Printer size={14} /> Print Labels
           </button>
         </div>
