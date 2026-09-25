@@ -367,9 +367,10 @@ const DashboardPage = () => {
                 <CenteredSpinner />
               ) : capacity?.activeTrip ? (
                 <>
-                  <div className="flex items-center justify-between gap-8 mb-8">
-                    <Link to={`/admin/trips/${capacity.activeTrip.id}`} className="text-sm fw-600 text-accent" style={{ overflowWrap: 'anywhere' }}>
-                      {capacity.activeTrip.trip_number} • {capacity.activeTrip.origin} → {capacity.activeTrip.destination}
+                  <div className="flex items-center justify-between gap-8 mb-8 dash-active-trip-header">
+                    <Link to={`/admin/trips/${capacity.activeTrip.id}`} className="text-sm fw-600 text-accent dash-active-trip-link" style={{ overflowWrap: 'anywhere' }}>
+                      <span>{capacity.activeTrip.trip_number} • </span>
+                      <span className="dash-active-trip-route">{capacity.activeTrip.origin} → {capacity.activeTrip.destination}</span>
                     </Link>
                     <StatusBadge status={capacity.activeTrip.status} size="sm" />
                   </div>

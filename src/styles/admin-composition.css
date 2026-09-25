@@ -1073,6 +1073,22 @@
   white-space: nowrap;
 }
 
+.dash-active-trip-header {
+  min-width: 0;
+}
+
+.dash-active-trip-link {
+  min-width: 0;
+}
+
+.dash-active-trip-route {
+  white-space: nowrap;
+}
+
+.dash-active-trip-header > .badge {
+  flex-shrink: 0;
+}
+
 /* On phones, keep the route readable instead of squeezing it between the
    tracking number and the status badge. The number and route share the first
    column; the badge stays aligned in the second column. */
