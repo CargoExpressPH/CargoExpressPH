@@ -5,6 +5,7 @@ import {
   outstandingBalance,
 } from '../constants/status';
 import { phDateKey } from '../utils/datetime';
+import { orderPartyName } from './orderParties';
 
 /**
  * 'YYYY-MM' of the Manila calendar day a trip departs. departure_date is a
@@ -144,7 +145,7 @@ const buildRow = (order, activity, settlementSummary) => {
       id: order.id,
       order,
       trackingNumber: order.tracking_number,
-      customerName: order.profiles?.name || order.sender_name || 'Customer not named',
+      customerName: order.profiles?.name || orderPartyName(order, 'sender') || 'Customer not named',
       status: order.status,
       ...financials,
       cancellation: cancellationDecision(order, settlementSummary, financials),
@@ -158,7 +159,7 @@ const buildRow = (order, activity, settlementSummary) => {
     id: order.id,
     order,
     trackingNumber: order.tracking_number,
-    customerName: order.profiles?.name || order.sender_name || 'Customer not named',
+    customerName: order.profiles?.name || orderPartyName(order, 'sender') || 'Customer not named',
     status: order.status,
     ...financials,
     shippingFee,

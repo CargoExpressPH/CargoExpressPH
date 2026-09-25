@@ -24,6 +24,7 @@ import {
   persistBookingDraft,
   readBookingDraft,
 } from '../../lib/bookingDraft';
+import { orderPartyName, orderPartyAddress } from '../../lib/orderParties';
 
 const luxeEase = [0.22, 1, 0.36, 1];
 
@@ -492,16 +493,14 @@ const BookShipmentPage = () => {
         throw new Error('CargoExpress PH currently delivers to Bohol destinations only.');
       }
       
-      const fullSenderAddress = buildFullAddress({ lotBlock: form.sender_lot_block, street: form.sender_street, barangay: form.sender_barangay, city: form.sender_city, province: form.sender_province === 'Other Area' ? form.sender_other_province : form.sender_province, landmark: form.sender_landmark });
-      const fullReceiverAddress = buildFullAddress({ lotBlock: form.receiver_lot_block, street: form.receiver_street, barangay: form.receiver_barangay, city: form.receiver_city, province: form.receiver_province, landmark: form.receiver_landmark });
 
       const payload = {
         user_id: user.id,
         origin: selectedRoute.origin, destination: selectedRoute.destination, trip_id: selectedTrip ? form.trip_id : null,
-        sender_first_name: normalizeName(form.sender_first_name), sender_last_name: normalizeName(form.sender_last_name), sender_phone: form.sender_phone, sender_address: fullSenderAddress,
+        sender_first_name: normalizeName(form.sender_first_name), sender_last_name: normalizeName(form.sender_last_name), sender_phone: form.sender_phone,
         sender_facebook: normalizeName(form.sender_facebook), sender_city: form.sender_city, sender_province: form.sender_province === 'Other Area' ? form.sender_other_province : form.sender_province,
         sender_barangay: form.sender_barangay, sender_street: form.sender_street, sender_lot_block: form.sender_lot_block, sender_landmark: form.sender_landmark,
-        receiver_first_name: normalizeName(form.receiver_first_name), receiver_last_name: normalizeName(form.receiver_last_name), receiver_phone: form.receiver_phone, receiver_address: fullReceiverAddress,
+        receiver_first_name: normalizeName(form.receiver_first_name), receiver_last_name: normalizeName(form.receiver_last_name), receiver_phone: form.receiver_phone,
         receiver_facebook: normalizeName(form.receiver_facebook), receiver_city: form.receiver_city, receiver_province: form.receiver_province,
         receiver_barangay: form.receiver_barangay, receiver_street: form.receiver_street, receiver_lot_block: form.receiver_lot_block, receiver_landmark: form.receiver_landmark,
         package_description: form.package_description,
@@ -516,7 +515,7 @@ const BookShipmentPage = () => {
       const data = await createOrder(payload);
       
       if (payload.service_area_status === 'for_review') {
-        await logOrder('Out-of-Coverage Booking Submitted', data.id, data.tracking_number, { details: `Special pickup request submitted for ${data.sender_address}` });
+        await logOrder('Out-of-Coverage Booking Submitted', data.id, data.tracking_number, { details: `Special pickup request submitted for ${orderPartyAddress(data, 'sender')}` });
       } else {
         await logOrder('Booking Created', data.id, data.tracking_number, { details: 'Standard booking created via Customer Portal.' });
       }
@@ -833,12 +832,12 @@ const BookShipmentPage = () => {
 
             <div className="pr-transaction-row">
               <span className="pr-transaction-label">Sender</span>
-              <span className="pr-transaction-value">{success.sender_name}</span>
+              <span className="pr-transaction-value">{orderPartyName(success, 'sender')}</span>
             </div>
 
             <div className="pr-transaction-row">
               <span className="pr-transaction-label">Receiver</span>
-              <span className="pr-transaction-value">{success.receiver_name}</span>
+              <span className="pr-transaction-value">{orderPartyName(success, 'receiver')}</span>
             </div>
 
             {success.package_description && (

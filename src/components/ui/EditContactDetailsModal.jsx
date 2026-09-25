@@ -6,7 +6,6 @@ import CustomSelect from './CustomSelect';
 import BarangaySelect from './BarangaySelect';
 import useScrollLock from '../../hooks/useScrollLock';
 import { VALID_PROVINCES, PH_LOCATIONS } from '../../constants/phLocations';
-import { buildFullAddress } from '../../lib/address';
 import { normalizeName, toAddressCase } from '../../utils/string';
 import { validatePhone } from '../../utils/phone';
 
@@ -20,10 +19,10 @@ import { validatePhone } from '../../utils/phone';
  * form's state doesn't even hold those fields, so there is no path for them to
  * leak into the update it produces.
  *
- * `lot_block` and `facebook` are part of the stored address/contact but are
- * NOT exposed here (out of the field list this feature was scoped to) — their
- * existing values are carried through unchanged when the full address string
- * is rebuilt, so editing here never blanks them out.
+ * Only the structured address parts are edited (lot/block included). The
+ * complete address is never typed or sent: it is derived from these parts
+ * (public.format_address / src/lib/orderParties.js), so it cannot disagree
+ * with them. `facebook` is not exposed here and is left unchanged.
  *
  * This component only builds the update payload and hands it to `onSave`.
  * Both pages that use it (customer + admin) pass it straight to
@@ -93,7 +92,7 @@ const EditContactDetailsModal = ({ isOpen, onClose, order, onSave, saving = fals
     return errs;
   };
 
-  // The full new picture for every allowed column — update_order_contact_details()
+  // The full new picture for every allowed column — update_order_contact_parts()
   // takes the complete set on every call (it diffs against the current row
   // itself and no-ops if nothing changed), so this never needs to send a
   // partial patch.
@@ -108,17 +107,6 @@ const EditContactDetailsModal = ({ isOpen, onClose, order, onSave, saving = fals
         payload[column] = nextVal;
         if (nextVal !== (order[column] || '')) changed = true;
       }
-
-      const addressColumn = `${prefix}_address`;
-      payload[addressColumn] = buildFullAddress({
-        lotBlock: payload[`${prefix}_lot_block`],
-        street: payload[`${prefix}_street`],
-        barangay: payload[`${prefix}_barangay`],
-        city: payload[`${prefix}_city`],
-        province: payload[`${prefix}_province`],
-        landmark: payload[`${prefix}_landmark`],
-      });
-      if (payload[addressColumn] !== (order[addressColumn] || '')) changed = true;
     }
 
     return { payload, changed };

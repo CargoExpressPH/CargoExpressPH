@@ -16,6 +16,7 @@ import usePageTitle from '../../hooks/usePageTitle';
 import { outstandingBalance, isOrderPriced } from '../../constants/status';
 import { formatMoney } from '../../utils/currencyInput';
 import { formatPhDate, formatPhDateTime, phLocalInputToISO } from '../../utils/datetime';
+import { orderPartyName } from '../../lib/orderParties';
 
 const TripDetailPage = () => {
   usePageTitle('Trip Details');
@@ -445,7 +446,7 @@ const TripDetailPage = () => {
                     {/* The whole row opens the booking; the tracking number
                         is the keyboard / new-tab link. */}
                     <td data-label="Tracking"><Link to={`/admin/orders/${o.id}`} className="fw-700 text-accent">{o.tracking_number}</Link></td>
-                    <td data-label="Customer">{o.profiles?.name || o.sender_name || '—'}</td>
+                    <td data-label="Customer">{o.profiles?.name || orderPartyName(o, 'sender') || '—'}</td>
                     <td data-label="Route" className="text-sm">
                       {[o.sender_city, o.sender_province].filter(Boolean).join(', ') || '—'}
                       {' → '}

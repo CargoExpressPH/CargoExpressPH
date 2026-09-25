@@ -23,24 +23,15 @@ const STATUS_CONFIG = {
 };
 
 /**
- * Read an inquiry's contact channels.
- *
- * Prefers the normalized contact_phone / contact_email columns. Falls back to
- * parsing the legacy polymorphic `phone` column (a phone OR an email OR
- * "phone | email") for any row the backfill in
- * 20260803140000_contact_inquiries_normalize.sql did not reach.
+ * Read an inquiry's contact channels: contact_phone / contact_email are the
+ * only stored channels. The legacy combined `phone` column is retired
+ * (20260926100000) and dropped (20260926110000); every existing row already
+ * has at least one normalized channel (contact_inquiries_has_contact_channel).
  */
-const readContact = (inquiry) => {
-  if (!inquiry) return { phone: '', email: '' };
-  if (inquiry.contact_phone || inquiry.contact_email) {
-    return { phone: inquiry.contact_phone || '', email: inquiry.contact_email || '' };
-  }
-  const v = String(inquiry.phone || '').trim();
-  if (!v) return { phone: '', email: '' };
-  const parts = v.split('|').map(p => p.trim());
-  if (parts.length > 1) return { phone: parts[0], email: parts[1] };
-  return parts[0].includes('@') ? { phone: '', email: parts[0] } : { phone: parts[0], email: '' };
-};
+const readContact = (inquiry) => ({
+  phone: inquiry?.contact_phone || '',
+  email: inquiry?.contact_email || '',
+});
 
 /**
  * Compact list-view indicator for the authoritative "Email Updates"

@@ -130,14 +130,13 @@ const CompanyInformationPage = () => {
       default_price_per_kg: !(price > 0)
         ? 'Enter a price per kilogram greater than ₱0. Every unpriced order is costed from it.'
         : null,
-      // Create Trip now pulls capacity from here rather than asking the admin
-      // per trip (see CreateTripPage.jsx) — and a trip's own van-capacity
-      // enforcement trigger skips its check entirely when capacity is 0
-      // (guard_order_update(), "trip_row.capacity > 0"). Leaving this unset
-      // would silently create unlimited-capacity trips, so it is required
+      // This is THE trip capacity: every trip is checked against it
+      // (company_default_capacity() in guard_order_update() and the insert
+      // guards), and the check is skipped entirely when it is 0. Leaving it
+      // unset would silently make every trip unlimited, so it is required
       // just like the price is.
       default_capacity: !(capacity > 0)
-        ? 'Enter a default capacity greater than 0 kg. Every new trip is created with this capacity.'
+        ? 'Enter a default capacity greater than 0 kg. Every trip is checked against this capacity.'
         : null,
 
       facebook: optionalUrl('facebook', 'Facebook link'),

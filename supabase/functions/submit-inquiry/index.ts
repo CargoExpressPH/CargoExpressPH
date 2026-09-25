@@ -91,9 +91,19 @@ serve(async (req) => {
     }
     const trimmedName = (name || '').trim()
     const trimmedMessage = (message || '').trim()
-    const trimmedEmail = (contact_email || '').trim()
-    // AboutPage sends contact_phone OR contact_email, plus legacy phone
-    const phoneVal = (phone || contact_phone || contact_email || '').trim()
+    // contact_phone / contact_email are the only stored contact channels.
+    // `phone` is accepted ONLY from older cached clients that sent nothing
+    // else, and is split the same way the legacy column used to be read
+    // ("phone | email", a lone email, or a lone phone). It is not stored.
+    let trimmedPhone = (contact_phone || '').trim()
+    let trimmedEmail = (contact_email || '').trim()
+    if (!trimmedPhone && !trimmedEmail && typeof phone === 'string' && phone.trim()) {
+      const parts = phone.split('|').map((p: string) => p.trim()).filter(Boolean)
+      for (const part of parts) {
+        if (part.includes('@')) { if (!trimmedEmail) trimmedEmail = part }
+        else if (!trimmedPhone) trimmedPhone = part
+      }
+    }
     // Only a real `true` opts in — anything else (missing, string "false",
     // truthy-but-not-boolean) is treated as not consenting.
     const wantsAnnouncements = wants_announcements === true
@@ -104,8 +114,14 @@ serve(async (req) => {
     if (trimmedMessage.length < 10 || trimmedMessage.length > 2000) {
       return json({ error: 'Message must be 10-2000 characters.' }, 400)
     }
-    if (phoneVal.length < 6 || phoneVal.length > 100) {
-      return json({ error: 'Contact must be 6-100 characters.' }, 400)
+    if (!trimmedPhone && !trimmedEmail) {
+      return json({ error: 'Please provide a mobile number or an email address.' }, 400)
+    }
+    if (trimmedPhone && (trimmedPhone.length < 6 || trimmedPhone.length > 30)) {
+      return json({ error: 'Mobile number must be 6-30 characters.' }, 400)
+    }
+    if (trimmedEmail && (trimmedEmail.length < 6 || trimmedEmail.length > 254)) {
+      return json({ error: 'Email address must be 6-254 characters.' }, 400)
     }
     // The email-marketing opt-in is meaningless without an address to send
     // to, and requiring both phone and email on the form (per the frontend
@@ -127,17 +143,15 @@ serve(async (req) => {
     const adminClient = createClient(supabaseUrl, serviceRoleKey)
 
     const inquiryId = crypto.randomUUID()
-    // Dual-write legacy phone for rollback; cap to 100 to satisfy CHECK 7-100.
-    // Normalized columns contact_phone/email hold the full values.
-    const rawLegacy = [contact_phone || null, trimmedEmail || null].filter(Boolean).join(' | ') || phoneVal || null
-    const legacyPhone = rawLegacy && rawLegacy.length > 100 ? rawLegacy.slice(0, 100) : rawLegacy
-
+    // The legacy combined `phone` column is no longer written (retired by
+    // 20260926100000 / dropped by 20260926110000). Rate limiting keys on
+    // contact_phone, contact_email and the server-derived ip — see
+    // guard_contact_inquiry_rate_limit().
     const { error } = await adminClient.from('contact_inquiries').insert({
       id: inquiryId,
       name: trimmedName,
-      phone: legacyPhone || phoneVal,
       message: trimmedMessage,
-      contact_phone: contact_phone?.trim() || null,
+      contact_phone: trimmedPhone || null,
       contact_email: trimmedEmail || null,
       wants_announcements: wantsAnnouncements,
       ip,
@@ -150,7 +164,7 @@ serve(async (req) => {
       }
       // Map CHECK constraint violation
       if (error.code === '23514') {
-        return json({ error: 'Please check name (2-100), contact (6-100), message (10-2000).' }, 400)
+        return json({ error: 'Please check name (2-100), contact details, and message (10-2000).' }, 400)
       }
       // Anything else is an internal fault. The raw driver message names
       // tables, columns and constraints — free schema reconnaissance for an

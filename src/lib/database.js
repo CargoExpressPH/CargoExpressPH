@@ -6,6 +6,7 @@ import { detectPickupLocation } from '../constants/phLocations';
 import { phDayRangeISO, formatPhDate, phDateKey } from '../utils/datetime';
 import { buildPerTripSalesReport, aggregateMonthlySalesReports, tripMonthKey } from './perTripSalesReport';
 import { selectEarliestCapacityTrip, selectNextDepartureTrip, isScheduledTripOverdue } from './tripCapacitySelection';
+import { ORDER_PARTY_NAME_COLUMNS } from './orderParties';
 
 // ==================== HELPER ====================
 // Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
@@ -119,9 +120,38 @@ const assertTripCapacity = async (trip, incomingWeight, excludeOrderId = null) =
   }
 };
 
-const effectiveTripPrice = async (trip) => {
-  const tripPrice = parseFloat(trip?.price_per_kg || 0);
-  return tripPrice > 0 ? tripPrice : getGlobalPricePerKilo();
+/**
+ * Company Information owns the freight rate and the trip capacity
+ * (20260926100000_simplify_stage1_derive_and_compat.sql): trips no longer
+ * store their own copies. The database prices an order from the CURRENT
+ * company rate when its weight is recorded and never re-prices it on a
+ * payment, refund, discount or reassignment; capacity checks use the CURRENT
+ * company capacity plus TRIP_CAPACITY_ALLOWANCE_KG.
+ *
+ * attachCompanyTripDefaults() puts those two values on trip objects as
+ * `capacity` / `price_per_kg`, so every existing trip display and the
+ * tripCapacityState() UX guard keep working without the trip columns.
+ */
+export const getCompanyTripDefaults = async () => {
+  const { data, error } = await supabase
+    .from('company_information')
+    .select('default_capacity, default_price_per_kg')
+    .maybeSingle();
+  if (error) throw error;
+  return {
+    capacity: parseFloat(data?.default_capacity ?? 0) || 0,
+    price_per_kg: data?.default_price_per_kg != null ? parseFloat(data.default_price_per_kg) : 70,
+  };
+};
+
+export const attachCompanyTripDefaults = async (tripOrTrips) => {
+  if (!tripOrTrips) return tripOrTrips;
+  const defaults = await getCompanyTripDefaults();
+  const list = Array.isArray(tripOrTrips) ? tripOrTrips : [tripOrTrips];
+  for (const trip of list) {
+    if (trip) Object.assign(trip, defaults);
+  }
+  return tripOrTrips;
 };
 
 // ==================== PROFILES ====================
@@ -218,7 +248,7 @@ export const createOrder = async (orderData) => {
     const { data: trip, error: tripError } = await withTimeout(
       supabase
         .from('trips')
-        .select('id, origin, destination, capacity, price_per_kg')
+        .select('id, origin, destination')
         .eq('id', orderData.trip_id)
         .single()
     );
@@ -226,8 +256,8 @@ export const createOrder = async (orderData) => {
       throw new Error('Selected trip is no longer available. Please choose another trip or book without selecting one.');
     }
 
+    await attachCompanyTripDefaults(trip);
     await assertTripCapacity(trip, weight);
-    pricePerKilo = await effectiveTripPrice(trip);
     finalStatus = 'Assigned';
     finalTripId = orderData.trip_id;
     finalOrigin = trip.origin;
@@ -294,7 +324,18 @@ export const getOrders = async (userId, isAdmin = false, options = {}) => {
   }
 
   if (search) {
-    query = query.or(`tracking_number.ilike.%${search}%,sender_name.ilike.%${search}%,receiver_name.ilike.%${search}%`);
+    // Names are matched on the stored parts (full names are derived, not
+    // stored). A multi-word query also matches "first + last" together, so
+    // "Juan Dela Cruz" finds first_name Juan / last_name Dela Cruz.
+    const nameFilters = ['sender', 'receiver'].flatMap((side) => {
+      const filters = [`${side}_first_name.ilike.%${search}%`, `${side}_last_name.ilike.%${search}%`];
+      const words = String(search).trim().split(/\s+/);
+      if (words.length > 1) {
+        filters.push(`and(${side}_first_name.ilike.%${words[0]}%,${side}_last_name.ilike.%${words.slice(1).join(' ')}%)`);
+      }
+      return filters;
+    });
+    query = query.or([`tracking_number.ilike.%${search}%`, ...nameFilters].join(','));
   }
 
   if (page && perPage) {
@@ -395,11 +436,12 @@ export const getOrderById = async (orderId) => {
     .select(`
       *,
       profiles:user_id (name, phone, email, role),
-      trips:trip_id (origin, destination, trip_number, capacity, price_per_kg, departure_date, departure_at, estimated_arrival_at, arrived_at, arrival_date, status)
+      trips:trip_id (origin, destination, trip_number, departure_date, departure_at, estimated_arrival_at, arrived_at, arrival_date, status)
     `)
     .eq('id', orderId)
     .single();
   if (error) throw error;
+  await attachCompanyTripDefaults(data?.trips);
   return data;
 };
 
@@ -444,10 +486,11 @@ export const updateOrder = async (orderId, updates) => {
   if (updates.trip_id) {
     const { data: trip, error: tripError } = await supabase
       .from('trips')
-      .select('id, origin, destination, capacity, price_per_kg')
+      .select('id, origin, destination')
       .eq('id', updates.trip_id)
       .single();
     if (tripError) throw tripError;
+    await attachCompanyTripDefaults(trip);
     await assertTripCapacity(
       trip,
       updates.actual_weight ?? currentOrder?.actual_weight ?? 0,
@@ -455,31 +498,13 @@ export const updateOrder = async (orderId, updates) => {
     );
   }
 
-  // Recalculate shipping cost if actual_weight or trip_id changed
-  if (updates.actual_weight !== undefined || updates.trip_id !== undefined) {
-    let trip = null;
-    const tripId = updates.trip_id || currentOrder?.trip_id;
-    const weight = parseFloat(updates.actual_weight !== undefined ? updates.actual_weight : (currentOrder?.actual_weight ?? 0)) || 0;
-    
-    if (tripId) {
-      const { data: tripData } = await supabase
-        .from('trips')
-        .select('id, capacity, price_per_kg')
-        .eq('id', tripId)
-        .single();
-      trip = tripData;
-      // Deliberately NOT capacity-checked. The ceiling governs ACCEPTING a
-      // booking onto a trip; this path is an admin recording what the scale
-      // said about cargo that is already physically there. Refusing it would
-      // not un-load the van, it would only stop the system from knowing the
-      // truth — and every downstream figure (price, balance, the trip's own
-      // load) is derived from that weight. An overloaded trip is a dispatch
-      // problem to be solved by reassigning cargo, which the assign and
-      // reassign paths police.
-      void weight;
-    }
-    const pricePerKilo = trip ? await effectiveTripPrice(trip) : await getGlobalPricePerKilo();
-    updates.shipping_cost = weight * pricePerKilo;
+  // Optimistic shipping cost for a weight change only. guard_order_update()
+  // is authoritative: it prices a NEW weight at the current company rate and
+  // keeps the recorded charge on every other update (a trip reassignment
+  // included), so nothing is sent for a trip-only change.
+  if (updates.actual_weight !== undefined) {
+    const weight = parseFloat(updates.actual_weight) || 0;
+    updates.shipping_cost = weight * await getGlobalPricePerKilo();
   }
   
   // Ã¢â€â‚¬Ã¢â€â‚¬ Payment totals are NOT derived here Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
@@ -504,7 +529,8 @@ export const updateOrder = async (orderId, updates) => {
 
 /**
  * Edit an existing booking's sender/receiver identity & address — the ONLY
- * fields this path can touch. Routed through update_order_contact_details()
+ * fields this path can touch. Routed through update_order_contact_parts()
+ * (structured parts only — the full address is derived, never typed)
  * rather than the plain `.update()` above because there is no "customer can
  * update own orders" RLS policy (see 20260524190000_production_hardening.sql
  * — every customer-side order mutation is a narrow SECURITY DEFINER RPC, not
@@ -513,7 +539,7 @@ export const updateOrder = async (orderId, updates) => {
  * update, so the audit trail cannot be lost between two round trips.
  */
 export const updateOrderContactDetails = async (orderId, fields) => {
-  const { data, error } = await supabase.rpc('update_order_contact_details', {
+  const { data, error } = await supabase.rpc('update_order_contact_parts', {
     p_order_id: orderId,
     p_sender_first_name: fields.sender_first_name,
     p_sender_last_name: fields.sender_last_name,
@@ -522,8 +548,8 @@ export const updateOrderContactDetails = async (orderId, fields) => {
     p_sender_city: fields.sender_city,
     p_sender_barangay: fields.sender_barangay,
     p_sender_street: fields.sender_street,
+    p_sender_lot_block: fields.sender_lot_block ?? '',
     p_sender_landmark: fields.sender_landmark,
-    p_sender_address: fields.sender_address,
     p_receiver_first_name: fields.receiver_first_name,
     p_receiver_last_name: fields.receiver_last_name,
     p_receiver_phone: fields.receiver_phone,
@@ -531,8 +557,8 @@ export const updateOrderContactDetails = async (orderId, fields) => {
     p_receiver_city: fields.receiver_city,
     p_receiver_barangay: fields.receiver_barangay,
     p_receiver_street: fields.receiver_street,
+    p_receiver_lot_block: fields.receiver_lot_block ?? '',
     p_receiver_landmark: fields.receiver_landmark,
-    p_receiver_address: fields.receiver_address,
   });
   if (error) throw error;
   return data;
@@ -647,10 +673,11 @@ export const assignOrderToCustomer = async (orderId, customerId) => {
     .select(`
       *,
       profiles:user_id (name, phone, email, role),
-      trips:trip_id (origin, destination, trip_number, capacity, price_per_kg)
+      trips:trip_id (origin, destination, trip_number)
     `)
     .single();
   if (error) throw error;
+  await attachCompanyTripDefaults(data?.trips);
   return data;
 };
 
@@ -860,6 +887,9 @@ export const createTrip = async (tripData) => {
     }
     throw error;
   }
+  // Capacity is not a trip column; the auto-assignment below plans against
+  // the current Company Information capacity.
+  await attachCompanyTripDefaults(data);
 
   // Auto-assign pending orders matching this route
   let autoAssignedCount = 0;
@@ -988,6 +1018,7 @@ export const getTrips = async (statusFilter) => {
 
   const trips = data || [];
   if (trips.length === 0) return trips;
+  await attachCompanyTripDefaults(trips);
 
   // Ã¢â€â‚¬Ã¢â€â‚¬ Batch weight query (avoids N+1) Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
   // get_trips_load (20260830000000_get_trips_load_rpc.sql) is a SECURITY
@@ -1062,11 +1093,12 @@ export const getPerTripSalesReport = async (tripId) => {
     .eq('id', tripId)
     .single();
   if (tripError) throw tripError;
+  await attachCompanyTripDefaults(trip);
 
   const orders = [];
   const pageSize = 1000;
   let from = 0;
-  const orderSelect = 'id, tracking_number, sender_name, receiver_name, user_id, status, trip_id, actual_weight, sender_province, sender_city, receiver_province, receiver_city, origin, destination, created_at, shipping_cost, discount_amount, amount_paid, remaining_balance, payment_status, payment_method, payer_type, promised_payment_date, profiles:user_id (name)';
+  const orderSelect = `id, tracking_number, ${ORDER_PARTY_NAME_COLUMNS}, user_id, status, trip_id, actual_weight, sender_province, sender_city, receiver_province, receiver_city, origin, destination, created_at, shipping_cost, discount_amount, amount_paid, remaining_balance, payment_status, payment_method, payer_type, promised_payment_date, profiles:user_id (name)`;
 
   while (true) {
     const { data, error } = await supabase
@@ -1120,6 +1152,7 @@ export const getTripById = async (tripId) => {
     .eq('id', tripId)
     .single();
   if (error) throw error;
+  await attachCompanyTripDefaults(trip);
 
   const { data: gateRows, error: gateError } = await supabase.rpc('get_trip_start_date_gates', {
     p_trip_ids: [tripId],
@@ -1135,7 +1168,7 @@ export const getTripById = async (tripId) => {
     // user_id + the profiles embed back the "Message customer" shortcut on
     // each row. The trip's order table shows addresses, not the booker, so
     // without the embed there is no name to put on the control.
-    .select('id, tracking_number, sender_name, receiver_name, user_id, status, actual_weight, sender_province, sender_city, receiver_province, receiver_city, created_at, shipping_cost, discount_amount, amount_paid, remaining_balance, payment_status, promised_payment_date, profiles:user_id (name)')
+    .select(`id, tracking_number, ${ORDER_PARTY_NAME_COLUMNS}, user_id, status, actual_weight, sender_province, sender_city, receiver_province, receiver_city, created_at, shipping_cost, discount_amount, amount_paid, remaining_balance, payment_status, promised_payment_date, profiles:user_id (name)`)
     .eq('trip_id', tripId)
     .order('created_at', { ascending: true });
 
@@ -1307,10 +1340,11 @@ export const reassignTrip = async (orderId, newTripId, reason) => {
   // without it, "move it to another trip" would be the way around the limit.
   if (newTripId) {
     const [{ data: trip }, { data: order }] = await Promise.all([
-      supabase.from('trips').select('id, capacity').eq('id', newTripId).single(),
+      supabase.from('trips').select('id').eq('id', newTripId).single(),
       supabase.from('orders').select('actual_weight').eq('id', orderId).single(),
     ]);
     if (trip) {
+      await attachCompanyTripDefaults(trip);
       await assertTripCapacity(trip, parseFloat(order?.actual_weight || 0) || 0, orderId);
     }
   }
@@ -1679,7 +1713,7 @@ export const getDashboardStats = async () => {
 const getCapacityCandidateTrips = async () => {
   const { data: candidateTrips, error: tripError } = await supabase
     .from('trips')
-    .select('id, trip_number, origin, destination, capacity, price_per_kg, status, departure_date, arrival_date')
+    .select('id, trip_number, origin, destination, status, departure_date, arrival_date')
     .in('status', ['scheduled', 'in_progress', 'arrived'])
     // Keep PostgREST's capped result set deterministic too; the client then
     // applies the Manila-calendar comparator and same-day tie-breaker.
@@ -1687,7 +1721,7 @@ const getCapacityCandidateTrips = async () => {
     .order('trip_number', { ascending: true })
     .order('id', { ascending: true });
   if (tripError) throw tripError;
-  return candidateTrips || [];
+  return attachCompanyTripDefaults(candidateTrips || []);
 };
 
 const withTripLoad = async (selectedTrip) => {
@@ -2009,7 +2043,7 @@ export const getUnsettledOrders = async () => {
   const { data, error } = await supabase
     .from('orders')
     // sender_phone backs the PayMongo billing block in AdditionalPaymentModal.
-    .select('id, tracking_number, sender_name, sender_phone, receiver_name, user_id, status, payment_status, payment_method, payer_type, promised_payment_date, shipping_cost, discount_amount, amount_paid, remaining_balance, actual_weight, origin, destination, created_at, trip_id, profiles:user_id (name, phone, email)')
+    .select(`id, tracking_number, ${ORDER_PARTY_NAME_COLUMNS}, sender_phone, user_id, status, payment_status, payment_method, payer_type, promised_payment_date, shipping_cost, discount_amount, amount_paid, remaining_balance, actual_weight, origin, destination, created_at, trip_id, profiles:user_id (name, phone, email)`)
     .neq('status', 'Cancelled')
     .in('status', SETTLEMENT_TRACKED_STATUSES)
     .order('created_at', { ascending: false });
@@ -2176,10 +2210,8 @@ export const createAdminNotification = async (title, message, type = 'general', 
  * @param {string} [data.contact_email] — email address, if supplied
  * @param {boolean} [data.wants_announcements] — opted in to trip/promo/announcement emails
  *
- * Writes the normalized contact_phone/contact_email columns and, for this
- * release only, keeps the legacy polymorphic `phone` column in sync so a
- * rollback loses nothing. `phone` is deprecated — see
- * 20260803140000_contact_inquiries_normalize.sql.
+ * Sends only the normalized contact_phone / contact_email. The legacy
+ * combined `phone` column is retired (20260926100000_simplify_stage1...).
  */
 export const createContactInquiry = async (data) => {
   // Edge Function is the only production path - it captures IP server-side
@@ -2198,7 +2230,6 @@ export const createContactInquiry = async (data) => {
     contact_phone: data.contact_phone || null,
     contact_email: data.contact_email || null,
     wants_announcements: data.wants_announcements === true,
-    phone: [data.contact_phone, data.contact_email].filter(Boolean).join(' | ')?.slice(0, 100) || null,
   }
   let res
   try {
@@ -2444,30 +2475,9 @@ export const updateContactInquiry = async (id, updates) => {
 };
 
 // ==================== PAYMENT RECONCILIATION ====================
-export const createPaymentAttempt = async (attempt) => {
-  const { data, error } = await supabase
-    .from('payment_attempts')
-    .upsert({
-      source_id: attempt.source_id,
-      order_id: attempt.order_id,
-      amount: attempt.amount,
-      description: attempt.description || null,
-      actual_weight: attempt.actual_weight ?? null,
-      // Omission means "preserve the order" during reconciliation. Defaulting
-      // to sender here could silently convert a Freight Collect order.
-      payer_type: attempt.payer_type ?? null,
-      pickup_photos: attempt.pickup_photos ?? null,
-      payment_type: attempt.payment_type || 'full',
-      estimated_cost: attempt.estimated_cost ?? null,
-      promised_payment_date: attempt.promised_payment_date || null,
-      status: 'pending',
-      last_error: null,
-    }, { onConflict: 'source_id' })
-    .select('id, source_id, status')
-    .single();
-  if (error) throw error;
-  return data;
-};
+// Payment attempts are created only by the paymongo-create-payment Edge
+// Function (service role). The unused client-side createPaymentAttempt()
+// helper was removed with payment_attempts.description/estimated_cost.
 
 /** Latest PayMongo attempt for an order — the source the return path should poll. */
 export const getLatestPaymentAttemptByOrder = async (orderId) => {

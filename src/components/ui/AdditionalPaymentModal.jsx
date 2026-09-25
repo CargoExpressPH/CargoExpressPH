@@ -16,6 +16,7 @@ import { getPaymentAttemptBySource, getOrderPaymentSnapshot } from '../../lib/da
 import { supabase } from '../../lib/supabase';
 import { useToast } from '../../hooks/useToast';
 import { useAuth } from '../../contexts/AuthContext';
+import { orderPartyName } from '../../lib/orderParties';
 
 /**
  * AdditionalPaymentModal — Manually collects a LATER, out-of-band balance
@@ -117,7 +118,7 @@ const AdditionalPaymentModal = ({ order, remainingBalance, onClose, onSave, onPa
         return;
       }
       const billing = {
-        name: order.sender_name, // Defaulting to sender for additional payments
+        name: orderPartyName(order, 'sender'), // Defaulting to sender for additional payments
         phone: order.sender_phone,
       };
       

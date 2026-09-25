@@ -68,7 +68,7 @@ const getAttempt = async (adminSupabase: ReturnType<typeof createClient>, source
     .from('payment_attempts')
     // order_id is selected for the ownership binding in ensureAttempt / poll —
     // without it, an attempt could be silently re-pointed at another order.
-    .select('source_id, order_id, amount, status, payment_id, payment_status, payment_type, estimated_cost, promised_payment_date, actual_weight, payer_type, pickup_photos, created_by, return_token_hash, return_token_expires_at')
+    .select('source_id, order_id, amount, status, payment_id, payment_status, payment_type, promised_payment_date, actual_weight, payer_type, pickup_photos, created_by, return_token_hash, return_token_expires_at')
     .eq('source_id', sourceId)
     .maybeSingle()
   return data
@@ -78,7 +78,6 @@ const ensureAttempt = async (
   adminSupabase: ReturnType<typeof createClient>,
   sourceId: string,
   amount: number,
-  description: string | null,
   orderUpdate: Record<string, unknown> | null,
   createdBy: string,
 ) => {
@@ -110,18 +109,17 @@ const ensureAttempt = async (
     source_id: sourceId,
     order_id: orderUpdate.orderId,
     amount,
-    description,
     actual_weight: orderUpdate.actualWeight ?? null,
     // No fallback to "sender" here. A customer payment must preserve the
     // order's existing Freight Prepaid / Freight Collect choice; only an
     // admin-authorized pickup attempt may stage a new value.
     payer_type: orderUpdate.payerType ?? null,
     pickup_photos: orderUpdate.pickupPhotos ?? null,
-    // Bug Fix #2: Preserve payment_type, estimated_cost, promised_payment_date.
-    // These are set by the frontend when creating the payment attempt and must
-    // not be reset to defaults when the edge function re-upserts the row.
+    // Bug Fix #2: Preserve payment_type and promised_payment_date when the
+    // edge function re-upserts the row. (The request's `description` is sent
+    // to PayMongo at capture time and is no longer copied into this table;
+    // payment_attempts.estimated_cost was never populated and is removed.)
     payment_type: (existing?.payment_type ?? 'full') as string,
-    estimated_cost: (existing?.estimated_cost ?? null) as number | null,
     promised_payment_date: (existing?.promised_payment_date ?? null) as string | null,
     created_by: createdBy,
     return_token_hash: returnTokenHash,
@@ -154,7 +152,7 @@ const ensureAttempt = async (
   const { data, error } = await adminSupabase
     .from('payment_attempts')
     .insert(payload)
-    .select('source_id, amount, status, payment_id, payment_status, payment_type, estimated_cost, promised_payment_date')
+    .select('source_id, amount, status, payment_id, payment_status, payment_type, promised_payment_date')
     .single()
 
   if (error) throw error
@@ -516,7 +514,6 @@ serve(async (req) => {
       adminSupabase,
       sourceId,
       parsedAmount,
-      description || null,
       authorizedOrderUpdate || null,
       userData.user.id,
     )

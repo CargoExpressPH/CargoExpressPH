@@ -7,6 +7,7 @@ import { useToast } from '../../hooks/useToast';
 import { getAppUrl } from '../../utils/appUrl';
 import { ORDER_STATUS } from '../../constants/status';
 import PrintLabelsSheet from './PrintLabelsSheet';
+import { orderPartyName } from '../../lib/orderParties';
 
 // Mirrors orders_package_quantity_check in
 // 20260922080000_add_order_package_quantity.sql — the ceiling is a sanity
@@ -28,7 +29,7 @@ const buildLabel = (order, box, total) => ({
   box,
   total,
   trackingNumber: order.tracking_number,
-  receiverName: order.receiver_name,
+  receiverName: orderPartyName(order, 'receiver'),
   url: `${getAppUrl()}/admin/orders/${order.id}?box=${box}`,
 });
 

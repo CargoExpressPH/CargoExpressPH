@@ -15,6 +15,7 @@ import PaymentCollectionPanel, {
   buildPaymentSubmission,
   PAYMENT_FIELDS,
 } from './PaymentCollectionPanel';
+import { orderPartyName } from '../../lib/orderParties';
 
 /**
  * DeliveryModal — Admin delivery processing.
@@ -76,7 +77,7 @@ const DeliveryModal = ({ order, onClose, onSave }) => {
     confirmLabel: 'Complete Delivery',
     confirmVerb: 'complete the delivery',
     billing: {
-      name: order.receiver_name,
+      name: orderPartyName(order, 'receiver'),
       phone: order.receiver_phone,
     },
     sourceMetadata: { payerType: 'receiver' },
@@ -237,7 +238,7 @@ const DeliveryModal = ({ order, onClose, onSave }) => {
             <div>
               <div className="fw-700 text-accent">{order.tracking_number}</div>
               <div className="text-secondary" style={{ fontSize: 'var(--text-13)' }}>
-                Deliver to: {order.receiver_name}
+                Deliver to: {orderPartyName(order, 'receiver')}
               </div>
             </div>
             {needsPayment && (

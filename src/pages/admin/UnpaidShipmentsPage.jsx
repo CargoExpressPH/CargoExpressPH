@@ -19,6 +19,7 @@ import { exportPrintDocumentToPdf } from '../../lib/exportPdf';
 import { CheckCircle, Wallet, Printer, Download, Loader, RefreshCw, Search } from 'lucide-react';
 import { useToast } from '../../hooks/useToast';
 import usePageTitle from '../../hooks/usePageTitle';
+import { orderPartyName } from '../../lib/orderParties';
 
 const formatCurrency = (val) =>
   `₱${(parseFloat(val) || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -218,7 +219,7 @@ const UnpaidShipmentsPage = () => {
       if (filter === 'Ongoing' && (o.status === 'Delivered' || o.days_overdue > 0)) return false;
       
       if (!q) return true;
-      return [o.tracking_number, o.sender_name, o.receiver_name, o.profiles?.name]
+      return [o.tracking_number, orderPartyName(o, 'sender'), orderPartyName(o, 'receiver'), o.profiles?.name]
         .some(v => (v || '').toLowerCase().includes(q));
     });
   }, [orders, filter, search]);
@@ -436,14 +437,14 @@ const UnpaidShipmentsPage = () => {
                             sits on the name itself. Icon only — the column is
                             narrow and the row already has a labelled action. */}
                         <div className="flex items-center gap-4">
-                          <span>{o.profiles?.name || o.sender_name}</span>
+                          <span>{o.profiles?.name || orderPartyName(o, 'sender')}</span>
                           <MessageCustomerButton
                             customerId={o.user_id}
-                            customerName={o.profiles?.name || o.sender_name}
+                            customerName={o.profiles?.name || orderPartyName(o, 'sender')}
                           />
                         </div>
                         <div className="text-xs text-tertiary">
-                          {(o.payer_type || 'sender') === 'receiver' ? `Receiver pays · ${o.receiver_name}` : 'Sender pays'}
+                          {(o.payer_type || 'sender') === 'receiver' ? `Receiver pays · ${orderPartyName(o, 'receiver')}` : 'Sender pays'}
                         </div>
                       </td>
                       <td data-label="Shipment Status" className="unpaid-status-cell"><StatusBadge status={o.status} size="sm" /></td>
@@ -550,7 +551,7 @@ const UnpaidShipmentsPage = () => {
                 {filtered.map(o => (
                   <tr key={o.id}>
                     <td>{o.tracking_number}</td>
-                    <td>{o.profiles?.name || o.sender_name}</td>
+                    <td>{o.profiles?.name || orderPartyName(o, 'sender')}</td>
                     <td>{o.status}</td>
                     <td>{(BUCKET_META[o.settlement_bucket] || {}).label || '—'}</td>
                     <td>{o.promised_payment_date ? formatDate(o.promised_payment_date) : '—'}</td>

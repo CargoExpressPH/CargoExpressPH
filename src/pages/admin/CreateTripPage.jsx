@@ -25,10 +25,11 @@ const CreateTripPage = () => {
     announce_via_email: false,
   });
 
-  // Capacity & pricing are no longer typed per trip — every new trip is
-  // created with the global defaults from Company Information → Capacity &
-  // Pricing (company_information.default_capacity / default_price_per_kg),
-  // the same row global_price_per_kilo() already reads for unpriced orders.
+  // Capacity & pricing are not stored on trips at all — Company Information →
+  // Capacity & Pricing (company_information.default_capacity /
+  // default_price_per_kg) owns both (20260926100000). They are shown here for
+  // planning; the database applies the CURRENT values when cargo is weighed
+  // or added to a trip.
   // Fetched once on mount rather than re-derived per submit so a slow
   // network doesn't add latency to the actual "Create Trip" click.
   const [defaults, setDefaults] = useState(null); // { capacity, price_per_kg } | null while loading/failed
@@ -49,10 +50,9 @@ const CreateTripPage = () => {
     return () => { mounted = false; };
   }, []);
 
-  // Both must be a real, positive value — a 0 capacity would silently skip
-  // the trip's own van-capacity enforcement trigger (guard_order_update()
-  // only checks the limit when "trip_row.capacity > 0"), and a 0 price
-  // would cost every booking on the trip at ₱0/kg.
+  // Both must be a real, positive value — a 0 company capacity switches the
+  // van-capacity check off (company_default_capacity() > 0 in
+  // guard_order_update()), and a 0 rate would price every pickup at ₱0/kg.
   const defaultsReady = Boolean(defaults) && defaults.capacity > 0 && defaults.price_per_kg > 0;
 
   const u = (k, v) => {
@@ -89,9 +89,8 @@ const CreateTripPage = () => {
       && new Date(phLocalInputToISO(form.arrival_date)) <= new Date(phLocalInputToISO(form.departure_date)))
       ? 'Arrival date must be at least one day after departure.'
       : null,
-    // capacity/price_per_kg are no longer form fields — they come from
-    // Company Information's defaults (see defaultsReady below), injected
-    // right before the createTrip() call rather than validated here.
+    // capacity/price_per_kg are not trip fields — Company Information owns
+    // them (see defaultsReady below).
   });
 
   const handleSubmit = async (e) => {
@@ -139,8 +138,6 @@ const CreateTripPage = () => {
         // phLocalInputToISO in src/utils/datetime.js.
         departure_date: phLocalInputToISO(form.departure_date),
         arrival_date: form.arrival_date ? phLocalInputToISO(form.arrival_date) : null,
-        capacity:     defaults.capacity,
-        price_per_kg: defaults.price_per_kg,
       });
       if (result.autoAssignmentWarning) {
         toast.warning(result.autoAssignmentWarning, 7000);

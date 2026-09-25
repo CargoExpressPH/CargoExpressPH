@@ -24,6 +24,7 @@ import { formatPhDate } from '../../utils/datetime';
 import { isOrderPriced } from '../../constants/status';
 import { isScheduledTripOverdue } from '../../lib/tripCapacitySelection';
 import useRealtimeTripCapacity from '../../hooks/useRealtimeTripCapacity';
+import { orderPartyName } from '../../lib/orderParties';
 
 const HomePage = () => {
   usePageTitle('Home');
@@ -445,7 +446,7 @@ const HomePage = () => {
                     <span className="customer-route-node destination inline-flex items-center gap-4"><MapPin size={14} className="text-tertiary" aria-hidden="true" />{order.destination || 'Not set'}</span>
                   </div>
                   <div className="customer-list-card-footer flex items-center justify-between gap-8 flex-wrap">
-                    <span className="inline-flex items-center gap-6 text-sm">To: {order.receiver_name || 'Receiver'}</span>
+                    <span className="inline-flex items-center gap-6 text-sm">To: {orderPartyName(order, 'receiver') || 'Receiver'}</span>
                     <span className="flex items-center gap-6">
                       {order.actual_weight && <span className="chip chip-info inline-flex items-center gap-4"><Weight size={12} aria-hidden="true" />{order.actual_weight}kg</span>}
                       <span className="chip chip-success">{isOrderPriced(order) ? formatMoney(parseFloat(order.shipping_cost || 0)) : 'Priced at pickup'}</span>

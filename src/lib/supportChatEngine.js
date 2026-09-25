@@ -1346,7 +1346,7 @@ const ORDER_FIELDS = `
   id, tracking_number, status, origin, destination,
   shipping_cost, discount_amount, amount_paid, remaining_balance, payment_status,
   payment_method, payer_type,
-  actual_weight, sender_name, receiver_name,
+  actual_weight, sender_first_name, sender_last_name, receiver_first_name, receiver_last_name,
   created_at,
   trips:trip_id (trip_number, origin, destination, status)
 `;

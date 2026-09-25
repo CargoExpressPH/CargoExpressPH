@@ -20,6 +20,7 @@ import PaymentCollectionPanel, {
   buildPaymentSubmission,
   PAYMENT_FIELDS,
 } from './PaymentCollectionPanel';
+import { orderPartyName } from '../../lib/orderParties';
 
 /** The only three reasons a discount may be given — mirrors the CHECK
  * constraint on orders.discount_reason (see the shipping-discount migrations). */
@@ -163,7 +164,7 @@ const PickupModal = ({ order, onClose, onSave, onPreparePayment, pricePerKilo = 
     confirmLabel: 'Confirm Pickup',
     confirmVerb: 'confirm the pickup',
     billing: {
-      name: form.payer_type === 'sender' ? order.sender_name : order.receiver_name,
+      name: orderPartyName(order, form.payer_type === 'sender' ? 'sender' : 'receiver'),
       phone: form.payer_type === 'sender' ? order.sender_phone : order.receiver_phone,
     },
     sourceMetadata: {
@@ -385,7 +386,7 @@ const PickupModal = ({ order, onClose, onSave, onPreparePayment, pricePerKilo = 
             <div>
               <div className="fw-700 text-accent">{order.tracking_number}</div>
               <div className="text-secondary" style={{ fontSize: 'var(--text-13)' }}>
-                {order.sender_name} → {order.receiver_name}
+                {orderPartyName(order, 'sender')} → {orderPartyName(order, 'receiver')}
               </div>
             </div>
             <div className="text-xs text-tertiary">
@@ -592,7 +593,7 @@ const PickupModal = ({ order, onClose, onSave, onPreparePayment, pricePerKilo = 
               </div>
               <div className="text-xs text-secondary">
                 {finalFee > 0 ? <>₱{formatAmount(finalFee.toFixed(2))} will be collected from </> : <>The freight charge will be collected from </>}
-                <strong>{order?.receiver_name || 'the receiver'}</strong> on delivery.
+                <strong>{orderPartyName(order, 'receiver') || 'the receiver'}</strong> on delivery.
                 Weigh the parcel, take the proof photos, and confirm — there is nothing to collect now.
               </div>
             </div>

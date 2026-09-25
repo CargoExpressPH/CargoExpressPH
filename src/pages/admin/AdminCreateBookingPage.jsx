@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { createOrder } from '../../lib/database';
 import { useAuth } from '../../contexts/AuthContext';
 import { ROUTES, PH_LOCATIONS, VALID_PROVINCES, detectPickupLocation, validateRouteProvinces } from '../../constants/phLocations';
-import { buildFullAddress } from '../../lib/address';
 import { normalizeName, toTitleCase, toAddressCase } from '../../utils/string';
 import { validatePhone } from '../../utils/phone';
 // Pre-existing bug fixed incidentally: buildRules() below already called
@@ -21,6 +20,7 @@ import usePageTitle from '../../hooks/usePageTitle';
 import { logOrder } from '../../lib/activityLog';
 import useFieldErrors from '../../hooks/useFieldErrors';
 import FieldError, { invalidClass, fieldAttrs } from '../../components/ui/FieldError';
+import { formatPersonName } from '../../lib/orderParties';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -238,23 +238,6 @@ const AdminCreateBookingPage = () => {
 
     setLoading(true);
     try {
-      // Build full addresses from structured fields (matching customer booking)
-      const fullSenderAddress = buildFullAddress({
-        lotBlock: form.sender_lot_block,
-        street: form.sender_street,
-        barangay: form.sender_barangay,
-        city: form.sender_city,
-        province: form.sender_province,
-        landmark: form.sender_landmark,
-      });
-      const fullReceiverAddress = buildFullAddress({
-        lotBlock: form.receiver_lot_block,
-        street: form.receiver_street,
-        barangay: form.receiver_barangay,
-        city: form.receiver_city,
-        province: form.receiver_province,
-        landmark: form.receiver_landmark,
-      });
 
       const payload = {
         user_id: user.id,
@@ -264,7 +247,6 @@ const AdminCreateBookingPage = () => {
         sender_first_name: normalizeName(form.sender_first_name),
         sender_last_name: normalizeName(form.sender_last_name),
         sender_phone: form.sender_phone.trim(),
-        sender_address: fullSenderAddress,
         sender_facebook: normalizeName(form.sender_facebook),
         sender_province: form.sender_province,
         sender_city: form.sender_city,
@@ -276,7 +258,6 @@ const AdminCreateBookingPage = () => {
         receiver_first_name: normalizeName(form.receiver_first_name),
         receiver_last_name: normalizeName(form.receiver_last_name),
         receiver_phone: form.receiver_phone.trim(),
-        receiver_address: fullReceiverAddress,
         receiver_facebook: normalizeName(form.receiver_facebook),
         receiver_province: form.receiver_province,
         receiver_city: form.receiver_city,
@@ -294,8 +275,8 @@ const AdminCreateBookingPage = () => {
 
       const result = await createOrder(payload);
 
-      const senderFullName = `${payload.sender_first_name} ${payload.sender_last_name}`.trim();
-      const receiverFullName = `${payload.receiver_first_name} ${payload.receiver_last_name}`.trim();
+      const senderFullName = formatPersonName(payload.sender_first_name, payload.sender_last_name);
+      const receiverFullName = formatPersonName(payload.receiver_first_name, payload.receiver_last_name);
 
       logOrder('Admin Booking Created', result.id, result.tracking_number, {
         newValue: {

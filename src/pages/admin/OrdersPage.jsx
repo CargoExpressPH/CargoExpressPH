@@ -16,6 +16,7 @@ import { formatMoney } from '../../utils/currencyInput';
 import { isOrderPriced, ORDER_STATUS } from '../../constants/status';
 import { formatPhDate } from '../../utils/datetime';
 import { rowLinkProps } from '../../utils/rowLink';
+import { orderPartyName } from '../../lib/orderParties';
 
 // Eleven chips — one per status — put the whole state machine in the toolbar and
 // made the two that need a human ('Pending Review', 'Pending Cancellation') look
@@ -264,7 +265,7 @@ const AdminOrdersPage = () => {
                         )}
                       </div>
                     </td>
-                    <td data-label="Customer">{o.sender_name || o.profiles?.name}</td>
+                    <td data-label="Customer">{orderPartyName(o, 'sender') || o.profiles?.name}</td>
                     <td data-label="Route" className="text-sm">{o.origin} → {o.destination}</td>
                     <td data-label="Weight">{o.actual_weight ? `${o.actual_weight} kg` : '—'}</td>
                     <td data-label="Cost" className="fw-600">{isOrderPriced(o) ? formatMoney(parseFloat(o.shipping_cost || 0)) : '—'}</td>

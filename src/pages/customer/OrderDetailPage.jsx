@@ -31,6 +31,7 @@ import { formatMoney, sanitizeAmount, parseAmount } from '../../utils/currencyIn
 import { outstandingBalance, finalShippingFee, getSettlementState, isOrderPriced, SETTLEMENT_STATE, ORDER_STATUS, canCancelOrder, hasPendingCancellation, timelineStatus, canEditContactDetails } from '../../constants/status';
 import { formatPaymentType, formatRecordedBy, formatRefundRecordedBy, getPaymentActivityStatusDisplay, formatPaymentMethod as fmtMethod, getCustomerFriendlyNotes, getCustomerVisibleRef, getRefundAmountDisplay } from '../../utils/paymentDisplay';
 import useOrderPaymentRealtime from '../../hooks/useOrderPaymentRealtime';
+import { orderPartyName, orderPartyAddress } from '../../lib/orderParties';
 
 // Max time (ms) to wait for data before giving up and showing an error.
 const LOAD_TIMEOUT_MS = 15000;
@@ -636,7 +637,7 @@ const OrderDetailPage = () => {
     setProcessingPayment(true);
     try {
       const customer = {
-        name: userProfile?.name || order.sender_name,
+        name: userProfile?.name || orderPartyName(order, 'sender'),
         phone: userProfile?.phone || order.sender_phone,
       };
 
@@ -910,15 +911,15 @@ const OrderDetailPage = () => {
       <div className="customer-contact-grid stagger-item mb-16" style={{ animationDelay: '120ms' }}>
         <div className="customer-detail-card customer-contact-card card"><div className="card-body p-16">
           <div className="text-xs text-tertiary font-bold text-uppercase flex items-center gap-4 mb-8"><User size={12} /> Sender</div>
-          <div className="text-sm font-bold" style={{ marginBottom: 2 }}>{order.sender_name}</div>
+          <div className="text-sm font-bold" style={{ marginBottom: 2 }}>{orderPartyName(order, 'sender')}</div>
           <div className="text-sm text-secondary flex items-center gap-4" style={{ marginBottom: 2 }}><Phone size={12} /> {order.sender_phone}</div>
-          <div className="text-xs text-secondary"><MapPin size={12} className="inline mr-4" />{order.sender_address}</div>
+          <div className="text-xs text-secondary"><MapPin size={12} className="inline mr-4" />{orderPartyAddress(order, 'sender')}</div>
         </div></div>
         <div className="customer-detail-card customer-contact-card card"><div className="card-body p-16">
           <div className="text-xs text-tertiary font-bold text-uppercase flex items-center gap-4 mb-8"><User size={12} /> Receiver</div>
-          <div className="text-sm font-bold" style={{ marginBottom: 2 }}>{order.receiver_name}</div>
+          <div className="text-sm font-bold" style={{ marginBottom: 2 }}>{orderPartyName(order, 'receiver')}</div>
           <div className="text-sm text-secondary flex items-center gap-4" style={{ marginBottom: 2 }}><Phone size={12} /> {order.receiver_phone}</div>
-          <div className="text-xs text-secondary"><MapPin size={12} className="inline mr-4" />{order.receiver_address}</div>
+          <div className="text-xs text-secondary"><MapPin size={12} className="inline mr-4" />{orderPartyAddress(order, 'receiver')}</div>
         </div></div>
       </div>
 

@@ -52,6 +52,7 @@ import useOrderPaymentRealtime from '../../hooks/useOrderPaymentRealtime';
 import { formatPhDate, formatPhDateTime } from '../../utils/datetime';
 import { formatMoney } from '../../utils/currencyInput';
 import { truncateRef, isSystemGenerated, getPaymentActivityStatusDisplay, formatRecordedBy as fmtRecordedBy } from '../../utils/paymentDisplay';
+import { orderPartyName, orderPartyAddress } from '../../lib/orderParties';
 
 const safeFormatDate = (dateStr, options) => {
   if (!dateStr) return '—';
@@ -802,16 +803,17 @@ const AdminOrderDetailPage = () => {
   const hasPhotos = resolvedPickupPhotos.length > 0;
   const canReassignTrip = order.trip_id && [ORDER_STATUS.PENDING, ORDER_STATUS.ASSIGNED].includes(order.status);
 
-  // Back out the rate from a weighed order; otherwise fall back to the
-  // default. There is no declared weight to divide by any more.
-  const ratePerKg = parseFloat(order.trips?.price_per_kg || 0) > 0
+  // A weighed order's fee is the RECORDED shipping_cost — it was priced from
+  // the company rate in force when the weight was recorded and is never
+  // re-priced by a later rate change (guard_order_update). Only a new or
+  // corrected weight at pickup uses the CURRENT company rate, which
+  // attachCompanyTripDefaults() puts on order.trips.price_per_kg.
+  const currentCompanyRate = parseFloat(order.trips?.price_per_kg || 0) > 0
     ? parseFloat(order.trips.price_per_kg)
-    : parseFloat(order.actual_weight || 0) > 0
-      ? parseFloat(order.shipping_cost || 0) / parseFloat(order.actual_weight)
-      : 70;
+    : 70;
 
   const currentWeight = parseFloat(order.actual_weight) || 0;
-  const computedShippingCost = currentWeight * ratePerKg;
+  const computedShippingCost = currentWeight > 0 ? (parseFloat(order.shipping_cost) || 0) : 0;
   // The ORIGINAL fee is never touched by the discount — see the
   // shipping-discount migrations' design note. What is actually owed is the
   // original fee minus the fixed peso discount, floored at 0.
@@ -820,7 +822,7 @@ const AdminOrderDetailPage = () => {
   const computedAmountPaid = parseFloat(order.amount_paid || 0);
   const computedRemainingBalance = computedFinalFee - computedAmountPaid;
   const isOverpaid = computedRemainingBalance < 0;
-  const pickupPricePerKilo = ratePerKg;
+  const pickupPricePerKilo = currentCompanyRate;
 
   // 'unpriced' | 'settled' | 'owing'. Read from the shared helper so this page,
   // the dispatch gate, and the Unsettled list all answer the money question the
@@ -1090,7 +1092,7 @@ const AdminOrderDetailPage = () => {
               <AlertTriangle size={20} /> Out of Coverage Pickup Review
             </h3>
             <p className="text-sm mb-16" style={{ color: 'var(--warning-text)' }}>
-              This pickup location is outside standard coverage: <strong>{order.sender_address}</strong>.<br />
+              This pickup location is outside standard coverage: <strong>{orderPartyAddress(order, 'sender')}</strong>.<br />
               Please review feasibility and choose an action.
             </p>
             <div className="admin-action-group">
@@ -1222,15 +1224,15 @@ const AdminOrderDetailPage = () => {
       <div className="grid grid-2 mb-16">
         <div className="card stagger-item" style={{ animationDelay: '180ms' }}><div className="card-body p-16">
           <div className="text-xs text-tertiary font-bold text-uppercase flex items-center gap-6" style={{ marginBottom: 10 }}><User size={12} /> Sender</div>
-          <div className="text-sm font-bold">{order.sender_name}</div>
+          <div className="text-sm font-bold">{orderPartyName(order, 'sender')}</div>
           <div className="text-sm text-secondary flex items-center gap-4" style={{ marginTop: 2 }}><Phone size={12} /> {order.sender_phone}</div>
-          <div className="text-xs text-secondary" style={{ marginTop: 6 }}><MapPin size={12} className="inline mr-4" />{order.sender_address}</div>
+          <div className="text-xs text-secondary" style={{ marginTop: 6 }}><MapPin size={12} className="inline mr-4" />{orderPartyAddress(order, 'sender')}</div>
         </div></div>
         <div className="card stagger-item" style={{ animationDelay: '240ms' }}><div className="card-body p-16">
           <div className="text-xs text-tertiary font-bold text-uppercase flex items-center gap-6" style={{ marginBottom: 10 }}><User size={12} /> Receiver</div>
-          <div className="text-sm font-bold">{order.receiver_name}</div>
+          <div className="text-sm font-bold">{orderPartyName(order, 'receiver')}</div>
           <div className="text-sm text-secondary flex items-center gap-4" style={{ marginTop: 2 }}><Phone size={12} /> {order.receiver_phone}</div>
-          <div className="text-xs text-secondary" style={{ marginTop: 6 }}><MapPin size={12} className="inline mr-4" />{order.receiver_address}</div>
+          <div className="text-xs text-secondary" style={{ marginTop: 6 }}><MapPin size={12} className="inline mr-4" />{orderPartyAddress(order, 'receiver')}</div>
         </div></div>
       </div>
 
