@@ -35,22 +35,10 @@ export const FAQ_ITEMS = [
     answer: 'Payment is recorded during pickup, delivery, or approved balance settlement depending on the order.',
   },
   {
-    id: 'payment-methods',
-    title: 'Can I pay with cash or GCash, or pay later?',
-    category: 'Payments',
-    answer: 'Cash and GCash are offered when booking. Any pay-later or outstanding-balance arrangement must be confirmed with the team for your order.',
-  },
-  {
     id: 'restricted-items',
     title: 'What items are restricted?',
     category: 'Shipping',
     answer: 'Do not ship illegal goods, hazardous chemicals, weapons, or undocumented regulated items. Perishable or fragile items may require special approval and packaging. Contact the team before booking if you are unsure whether an item can be accepted.',
-  },
-  {
-    id: 'cancellation',
-    title: 'Can I cancel my booking?',
-    category: 'Booking',
-    answer: 'Before pickup, sign in, open your order, and use the cancellation option if available. Submit a reason for admin review; sending a request does not immediately cancel the booking. If the option is unavailable or your cargo has already been picked up, contact support.',
   },
   {
     id: 'fallback-support',
