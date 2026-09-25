@@ -7,8 +7,9 @@ import { buildStatusTimestamps } from '../../utils/statusTimestamps';
 import { formatPhDate, formatPhDateTime } from '../../utils/datetime';
 import {
   Search, Loader, Package, MapPin, Check, MessageCircle, Copy, Share2, Phone, ExternalLink,
+  History, ReceiptText, Tag, Radio, Route, CalendarCheck,
   CheckCircle2, XCircle, Clock, Weight, User,
-  RefreshCw, AlertTriangle, ShieldAlert, Truck, Calendar, Info, ClipboardCheck, Building2, Bike,
+  RefreshCw, AlertTriangle, ShieldAlert, Truck, Calendar, ClipboardCheck, Building2, Bike,
 } from 'lucide-react';
 import {
   STATUS_TIMELINE, TRACKING_STATUS_TONES, STATUS_ICONS, STATUS_DESCRIPTIONS, ORDER_STATUS, timelineStatus,
@@ -45,6 +46,30 @@ const formatDate = (iso, withTime = false) =>
   withTime ? formatPhDateTime(iso) : formatPhDate(iso);
 // "Sep 25, 10:58 AM" — journey steps and trip times, where the year is noise.
 const formatStepTime = (iso) => (iso ? formatPhDateTime(iso, { year: undefined, hour: 'numeric' }) : null);
+
+/* Recent searches: the last few numbers found on THIS device, so a receiver
+   checking the same parcel again can tap instead of retyping. Browser storage
+   only — never sent anywhere — and every access is guarded because storage can
+   be blocked (private mode, cleared site data). */
+const RECENT_KEY = 'cargoexpress_recent_tracking';
+const RECENT_MAX = 5;
+const TRACKING_FORMAT = /^CE-\d{8}-\d{4}$/;
+const readRecent = () => {
+  try {
+    const list = JSON.parse(localStorage.getItem(RECENT_KEY) || '[]');
+    return Array.isArray(list) ? list.filter(tn => TRACKING_FORMAT.test(tn)).slice(0, RECENT_MAX) : [];
+  } catch {
+    return [];
+  }
+};
+const writeRecent = (list) => {
+  try {
+    if (list.length) localStorage.setItem(RECENT_KEY, JSON.stringify(list));
+    else localStorage.removeItem(RECENT_KEY);
+  } catch {
+    // Storage unavailable: the list just won't survive a reload.
+  }
+};
 
 /* Auto-refresh cadence while the result is visible and the tab is focused.
    45s — frequent enough to feel "live", gentle on the anon RPC. */
@@ -129,6 +154,19 @@ const TrackingPage = ({ embedded = false }) => {
   const toast = useToast();
   const isCustomer = Boolean(user) && userProfile?.role === 'customer';
   const [activeShipments, setActiveShipments] = useState([]);
+  const [recentSearches, setRecentSearches] = useState(readRecent);
+  const rememberSearch = useCallback((tn) => {
+    if (!TRACKING_FORMAT.test(tn)) return;
+    setRecentSearches(prev => {
+      const next = [tn, ...prev.filter(item => item !== tn)].slice(0, RECENT_MAX);
+      writeRecent(next);
+      return next;
+    });
+  }, []);
+  const clearRecentSearches = () => {
+    writeRecent([]);
+    setRecentSearches([]);
+  };
   const [company, setCompany] = useState(null);
   const [searchParams] = useSearchParams();
   const [trackingNumber, setTrackingNumber] = useState(searchParams.get('q') || '');
@@ -244,6 +282,7 @@ const TrackingPage = ({ embedded = false }) => {
       setTrackingError(null);
       setOrder(data);
       setLastRefreshed(new Date());
+      if (!silent) rememberSearch(data.tracking_number || tn);
       // Status history via a public RPC keyed on the tracking number.
       //
       // This previously called getActivityLogsByRecord(data.id) — which never
@@ -271,7 +310,7 @@ const TrackingPage = ({ embedded = false }) => {
     } finally {
       if (!silent) setLoading(false);
     }
-  }, [applyRateLimit, clearRateLimit, setTrackingError]);
+  }, [applyRateLimit, clearRateLimit, setTrackingError, rememberSearch]);
 
   // Initial load from ?q= querystring
   useEffect(() => {
@@ -848,23 +887,80 @@ const TrackingPage = ({ embedded = false }) => {
       {/* ══════════ EMPTY STATE ══════════ */}
       {!searched && !order && !loading && (
         <div className="trk-empty">
-          <div className="trk-empty-icon">
-            <Package size={36} />
-          </div>
-          <h3 className="trk-empty-title">Enter Your Tracking Number</h3>
-          <p className="trk-empty-sub">
-            Paste or type your CargoExpress PH tracking number above to get live shipment updates.
+          {recentSearches.length > 0 && (
+            <section className="trk-recent" aria-labelledby="trk-recent-title">
+              <div className="trk-recent-head">
+                <p id="trk-recent-title" className="trk-quick-label"><History size={13} aria-hidden="true" /> Recent searches</p>
+                <button type="button" className="trk-recent-clear" onClick={clearRecentSearches}>
+                  Clear
+                </button>
+              </div>
+              <div className="trk-quick-list">
+                {recentSearches.map(tn => (
+                  <button
+                    key={tn}
+                    type="button"
+                    className="trk-quick-chip trk-recent-chip"
+                    onClick={() => trackShipment(tn)}
+                    disabled={isRateLimited}
+                  >
+                    <span className="trk-quick-number">{tn}</span>
+                  </button>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* Where the number comes from — the question a first-time visitor
+              (often the receiver, who never booked) actually has. */}
+          <section className="trk-guide" aria-labelledby="trk-guide-title">
+            <div className="trk-guide-head">
+              <div className="trk-guide-icon" aria-hidden="true"><Package size={22} /></div>
+              <div>
+                <h2 id="trk-guide-title" className="trk-guide-title">Where to find your tracking number</h2>
+                <p className="trk-guide-format">It looks like <strong>CE-YYYYMMDD-XXXX</strong></p>
+              </div>
+            </div>
+            <ul className="trk-guide-list">
+              <li>
+                <ReceiptText size={18} aria-hidden="true" />
+                <span><strong>Booking confirmation</strong>Shown right after booking, and in the Bookings list of your account.</span>
+              </li>
+              <li>
+                <Tag size={18} aria-hidden="true" />
+                <span><strong>Package label</strong>Printed on the QR label attached to each package.</span>
+              </li>
+              <li>
+                <Share2 size={18} aria-hidden="true" />
+                <span><strong>From the sender</strong>Receiving a package? Ask the sender to share the tracking number or link.</span>
+              </li>
+            </ul>
+          </section>
+
+          <section className="trk-preview" aria-labelledby="trk-preview-title">
+            <h2 id="trk-preview-title" className="trk-quick-label">What you&rsquo;ll see</h2>
+            <ul className="trk-preview-list">
+              <li>
+                <span className="trk-preview-icon" aria-hidden="true"><Radio size={18} /></span>
+                <strong>Live status</strong>
+                <span>Updates on its own while you keep the page open.</span>
+              </li>
+              <li>
+                <span className="trk-preview-icon" aria-hidden="true"><Route size={18} /></span>
+                <strong>Trip progress</strong>
+                <span>When it left, and when it is expected to arrive.</span>
+              </li>
+              <li>
+                <span className="trk-preview-icon" aria-hidden="true"><CalendarCheck size={18} /></span>
+                <strong>Every step, dated</strong>
+                <span>From booking to delivery, with the time of each.</span>
+              </li>
+            </ul>
+          </section>
+
+          <p className="trk-empty-help">
+            Can&rsquo;t find it? <Link to={supportPath} className="trk-footer-link">Contact us</Link> and we&rsquo;ll look it up.
           </p>
-          <div className="trk-empty-tips">
-            <div className="trk-empty-tip">
-              <Info size={14} color="var(--primary)" style={{ flexShrink: 0 }} aria-hidden="true" />
-              <span>Tracking numbers follow the format <strong>CE-YYYYMMDD-XXXX</strong></span>
-            </div>
-            <div className="trk-empty-tip">
-              <Package size={14} color="var(--primary)" style={{ flexShrink: 0 }} aria-hidden="true" />
-              <span>Contact CargoExpress PH staff if you need help locating it</span>
-            </div>
-          </div>
         </div>
       )}
 

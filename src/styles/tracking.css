@@ -642,36 +642,89 @@
   font-size: var(--text-12); color: var(--text-secondary);
 }
 
-/* -- Empty State -- */
+/* -- Before a search: recent searches, where to find the number, preview -- */
 .trk-empty {
-  width: 100%; margin-inline: auto;
-  text-align: center; padding: 20px 24px 0;
+  width: 100%; max-width: 580px; margin-inline: auto;
   position: relative; z-index: 1;
-  max-width: 420px;
+  display: flex; flex-direction: column; gap: 16px;
 }
-.trk-empty-icon {
-  margin: 0 auto 20px;
-  color: var(--primary-text);
-  display: flex; align-items: center; justify-content: center;
+.trk-recent-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  margin-bottom: 8px;
 }
-.trk-empty-title {
-  font-size: var(--text-20); font-weight: 700; color: var(--text); margin-bottom: 10px;
+.trk-recent-head .trk-quick-label {
+  display: inline-flex; align-items: center; gap: 6px; margin: 0;
 }
-.trk-empty-sub {
-  font-size: var(--text-14); color: var(--text-secondary); line-height: 1.65;
-  margin-bottom: 24px;
+.trk-recent-clear {
+  min-height: 32px; padding: 4px 10px;
+  border: none; background: none; border-radius: var(--radius-full);
+  color: var(--text-secondary); font-size: var(--text-13); font-weight: 600;
+  cursor: pointer; touch-action: manipulation;
 }
-.trk-empty-tips {
-  display: flex; flex-direction: column; gap: 8px;
-}
-.trk-empty-tip {
-  display: flex; align-items: center; gap: 10px;
+.trk-recent-clear:hover { background: var(--bg-secondary); color: var(--text); }
+.trk-recent-chip { justify-content: center; }
+
+.trk-guide {
   background: var(--surface);
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-2xl);
+  box-shadow: var(--shadow-md);
+  padding: 22px 24px;
+}
+.trk-guide-head { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; }
+.trk-guide-icon {
+  width: 46px; height: 46px; border-radius: 14px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--primary-bg); color: var(--primary-text);
+}
+.trk-guide-title { font-size: var(--text-18); font-weight: 800; color: var(--text); line-height: 1.25; }
+.trk-guide-format { margin-top: 3px; font-size: var(--text-13); color: var(--text-secondary); }
+.trk-guide-format strong { color: var(--text); letter-spacing: 0.02em; white-space: nowrap; }
+.trk-guide-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.trk-guide-list li {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 12px 14px;
+  background: var(--bg-secondary);
   border-radius: var(--radius-md);
-  padding: 10px 16px;
-  font-size: var(--text-13); color: var(--text-secondary);
-  text-align: left;
+}
+.trk-guide-list svg { flex-shrink: 0; margin-top: 1px; color: var(--primary-text); }
+.trk-guide-list span { display: flex; flex-direction: column; gap: 2px; font-size: var(--text-13); line-height: 1.5; color: var(--text-secondary); }
+.trk-guide-list strong { font-size: var(--text-14); color: var(--text); }
+
+.trk-preview .trk-quick-label { margin-bottom: 10px; }
+.trk-preview-list {
+  list-style: none; margin: 0; padding: 0;
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px;
+}
+.trk-preview-list li {
+  display: flex; flex-direction: column; gap: 4px;
+  padding: 14px;
+  background: var(--surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  font-size: var(--text-12); line-height: 1.45; color: var(--text-secondary);
+}
+.trk-preview-list strong { font-size: var(--text-14); color: var(--text); }
+.trk-preview-icon {
+  width: 34px; height: 34px; border-radius: 10px; margin-bottom: 6px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--primary-bg); color: var(--primary-text);
+}
+.trk-empty-help {
+  text-align: center; font-size: var(--text-13); color: var(--text-secondary);
+}
+
+@media (min-width: 1024px) {
+  .trk-page:not(.trk-page--embedded) .trk-empty { max-width: 760px; }
+  .trk-page:not(.trk-page--embedded) .trk-guide-list { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .trk-page:not(.trk-page--embedded) .trk-guide-list li { flex-direction: column; gap: 8px; }
+}
+@media (max-width: 640px) {
+  .trk-guide { padding: 18px 16px; border-radius: var(--radius-xl); }
+  .trk-preview-list { grid-template-columns: minmax(0, 1fr); }
+  .trk-preview-list li { flex-direction: row; flex-wrap: wrap; align-items: center; column-gap: 12px; }
+  .trk-preview-list li > span:last-child { flex-basis: 100%; padding-left: 46px; margin-top: -6px; }
+  .trk-preview-icon { margin-bottom: 0; }
 }
 
 /* -- Page Footer -- */
