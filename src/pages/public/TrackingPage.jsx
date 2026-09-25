@@ -168,7 +168,20 @@ const TrackingPage = ({ embedded = false }) => {
     setRecentSearches([]);
   };
   const [company, setCompany] = useState(null);
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+  // The address mirrors what is on screen: ?q= holds the number being viewed
+  // and is removed when the search is cleared. The page searches ?q= when it
+  // opens, so a stale ?q= left behind by Clear used to bring back a cleared
+  // search after visiting another page and pressing Back. `replace` keeps each
+  // search out of the Back history.
+  const syncQuery = useCallback((tn) => {
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      if (tn) next.set('q', tn);
+      else next.delete('q');
+      return next;
+    }, { replace: true });
+  }, [setSearchParams]);
   const [trackingNumber, setTrackingNumber] = useState(searchParams.get('q') || '');
   const [order,   setOrder]   = useState(null);
   const [loading, setLoading] = useState(false);
@@ -383,6 +396,7 @@ const TrackingPage = ({ embedded = false }) => {
     setTrackingNumber(tn);
     clearError('tracking_number');
     activeQueryRef.current = tn;
+    syncQuery(tn);
     fetchOrder(tn);
   };
 
@@ -428,6 +442,7 @@ const TrackingPage = ({ embedded = false }) => {
     // is a result, not a validation message, so this is reported at the field.
     if (!validate({ tracking_number: !tn ? 'Enter a tracking number to search.' : null })) return;
     activeQueryRef.current = tn;
+    syncQuery(tn);
     fetchOrder(tn);
   };
 
@@ -440,6 +455,7 @@ const TrackingPage = ({ embedded = false }) => {
 
   const handleReset = () => {
     activeQueryRef.current = null;
+    syncQuery(null);
     setTrackingNumber('');
     setOrder(null);
     setStatusEvents([]);
