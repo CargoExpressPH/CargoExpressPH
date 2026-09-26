@@ -249,7 +249,7 @@ const HomePage = () => {
 
       {/* ── Earliest scheduled / ongoing trip capacity summary ───── */}
       {!loading && (capacityError ? (
-        <StaggerItem delay={0}>
+        <StaggerItem delay={0} className="home-col-trip">
           <div className="card admin-section-card" role="alert" style={{ padding: 20 }}>
             <h3 className="fw-700 mb-8">Trip capacity unavailable</h3>
             <p className="text-sm text-secondary mb-12">{capacityError}</p>
@@ -259,7 +259,7 @@ const HomePage = () => {
       ) : capacityLoading && !activeTrip ? (
         <CenteredSpinner />
       ) : activeTrip ? (
-        <StaggerItem delay={0}>
+        <StaggerItem delay={0} className="home-col-trip">
           <h3 className="customer-section-title fw-700 mb-12 flex items-center gap-8">
             <Truck size={18} color="var(--primary)" />
             {activeTripOverdue ? 'Overdue Trip Capacity' : activeTrip.status === 'in_progress' ? 'Ongoing Trip Capacity' : activeTrip.status === 'arrived' ? 'Trip at Destination Hub' : 'Next Scheduled Trip Capacity'}
@@ -284,13 +284,6 @@ const HomePage = () => {
 
             {/* Dates + Capacity row */}
             <div className="home-trip-metrics-grid">
-              <div className="home-trip-metric-box">
-                <div className="flex items-center gap-6 mb-4">
-                  <Calendar size={13} opacity={0.7} />
-                  <span className="home-trip-metric-lbl">Scheduled departure</span>
-                </div>
-                <div className="home-trip-metric-val">{fmtDate(activeTrip.departure_date)}</div>
-              </div>
               <div className="home-trip-metric-box">
                 <div className="flex items-center gap-6 mb-4">
                   <Clock size={13} opacity={0.7} />
@@ -347,13 +340,6 @@ const HomePage = () => {
               </div>
             )}
 
-            {/* Price per kilo badge */}
-            {activeTripCanBook && activeTrip.price_per_kg && (
-              <div className="home-trip-price">
-                {formatMoney(parseFloat(activeTrip.price_per_kg))} / kg
-              </div>
-            )}
-
             {/* Book Cargo CTA */}
             {activeTripCanBook && (
               <button
@@ -361,14 +347,14 @@ const HomePage = () => {
                 onClick={() => handleBookFromTrip(activeTrip)}
                 className="home-trip-cta"
               >
-                <Package size={18} /> Book Cargo for This Trip
+                <Package size={18} /> Book this trip{activeTrip.price_per_kg ? ` · ${formatMoney(parseFloat(activeTrip.price_per_kg))}/kg` : ''}
                 <ChevronRight size={16} />
               </button>
             )}
           </div>
         </StaggerItem>
       ) : (
-        <StaggerItem delay={0}>
+        <StaggerItem delay={0} className="home-col-trip">
           <EmptyState
             icon={Truck}
             title="No scheduled or ongoing trip available."
@@ -437,7 +423,7 @@ const HomePage = () => {
 
       {/* ── Active Shipments ─────────────────────────────────────── */}
       {!loading && activeOrders.length > 0 && (
-        <StaggerItem delay={120}>
+        <StaggerItem delay={120} className="home-col-shipments">
           <div className="flex items-center justify-between mb-md">
             <h3 className="customer-section-title fw-700 flex items-center gap-8"><Package size={18} color="var(--primary)" /> Active Shipments</h3>
             <Link to="/customer/orders" className="customer-inline-action text-sm text-primary font-medium">
