@@ -10,11 +10,12 @@
 
    Layer order mirrors the former import order, so no rule changes meaning:
    tokens < base < components < layout < pages < effects < responsive
-   < refresh < hardening < density < sr-controls < mobile-inputs < print.
-   mobile-inputs is last for screen controls so compact page rules cannot
-   trigger iOS input-focus zoom; print remains last for documents. */
+   < refresh < hardening < density < sr-controls < mobile-inputs < perf
+   < print. mobile-inputs comes after the page layers so compact page rules
+   cannot trigger iOS input-focus zoom; perf (phone performance overrides)
+   is the last screen layer; print remains last for documents. */
 
-@layer tokens, base, components, layout, pages, effects, responsive, refresh, hardening, density, sr-controls, mobile-inputs, print;
+@layer tokens, base, components, layout, pages, effects, responsive, refresh, hardening, density, sr-controls, mobile-inputs, perf, print;
 
 /* ── 1. Design Tokens (no output, only CSS variables) ── */
 @import './tokens.css' layer(tokens);
@@ -88,6 +89,9 @@
 
 /* Keep all editable controls legible on phones and prevent iOS focus zoom. */
 @import './mobile-inputs.css' layer(mobile-inputs);
+
+/* Phones and tablets: no backdrop blur, solid bars (smooth scrolling). */
+@import './mobile-performance.css' layer(perf);
 
 @import './print-document.css' layer(print);
 

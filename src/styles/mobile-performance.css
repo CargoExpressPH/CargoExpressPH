@@ -1,0 +1,72 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   MOBILE PERFORMANCE — no backdrop blur on phones and tablets
+   ───────────────────────────────────────────────────────────────────────
+   A backdrop blur is re-drawn on every frame while the content behind it
+   moves. On budget phones that is the main cause of choppy scrolling, and
+   the worst offenders are the bars that stay on screen the whole time
+   (customer top bar and bottom tabs, admin top bar, sticky booking steps,
+   the support chat header and composer).
+
+   On touch devices and narrow screens this layer:
+   1. turns every backdrop blur off, and
+   2. gives the always-visible bars the same colour they already had,
+      fully opaque, so they look the same without needing the blur, and
+      makes panels that sit over photos more opaque so text stays easy
+      to read.
+   Desktop keeps the glass look unchanged.
+
+   `perf` is declared after every screen layer in main.css, so it wins at
+   equal specificity. `!important` is only used where unlayered page CSS
+   (landing.css, not-found.css) would otherwise win.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+@media (max-width: 900px), (hover: none) and (pointer: coarse) {
+  *,
+  *::before,
+  *::after {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+
+  /* Bars that stay on screen while scrolling: same colour, fully opaque. */
+  .customer-navbar,
+  .app-layout .topbar,
+  .topbar,
+  .customer-bottom-nav-inner {
+    background: #FFFFFF;
+  }
+
+  [data-theme="dark"] .customer-navbar,
+  [data-theme="dark"] .app-layout .topbar,
+  [data-theme="dark"] .topbar {
+    background: #081321;
+  }
+
+  [data-theme="dark"] .customer-bottom-nav-inner {
+    background: #132033;
+  }
+
+  .step-progress,
+  .support-chat-header,
+  .support-chat-input-area {
+    background: var(--customer-panel-solid);
+  }
+
+  /* Panels over photos or decorative backgrounds: more opaque, so text
+     stays easy to read without the blur behind it. */
+  .login-right-panel {
+    background: rgba(255, 255, 255, 0.95);
+  }
+
+  [data-theme="dark"] .login-right-panel {
+    background: rgba(19, 32, 51, 0.95);
+  }
+
+  .about-glass-nav.scrolled {
+    background: rgba(255, 255, 255, 0.96);
+  }
+
+  .lx-board {
+    background: rgba(2, 16, 12, 0.86) !important;
+  }
+}
