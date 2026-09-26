@@ -1,6 +1,5 @@
 import { createContext, useContext, useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
-import { disablePushForCurrentDevice } from '../lib/push-notifications';
 import { normalizeProfileAddressFields } from '../lib/address';
 import { LEGAL_DOCUMENTS } from '../constants/legalDocuments';
 import { getProfile, createProfile } from '../lib/database';
@@ -456,7 +455,9 @@ export const AuthProvider = ({ children }) => {
     if (signedInUserId) {
       try {
         await Promise.race([
-          disablePushForCurrentDevice(signedInUserId),
+          import('../lib/push-notifications').then(({ disablePushForCurrentDevice }) =>
+            disablePushForCurrentDevice(signedInUserId)
+          ),
           new Promise((_, reject) => setTimeout(() => reject(new Error('Push disable timeout')), 3000))
         ]);
       } catch {

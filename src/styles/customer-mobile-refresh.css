@@ -308,28 +308,28 @@
 .customer-home-hero.hero-morning {
   background-image:
     linear-gradient(100deg, rgba(6, 78, 59, 0.72) 0%, rgba(6, 78, 59, 0.46) 45%, rgba(0, 0, 0, 0.20) 100%),
-    url('/images/hero/hero-morning.jpg');
+    url('/images/hero/hero-morning.webp');
   box-shadow: 0 24px 58px rgba(6, 78, 59, 0.28);
 }
 
 .customer-home-hero.hero-afternoon {
   background-image:
     linear-gradient(100deg, rgba(9, 68, 47, 0.70) 0%, rgba(15, 110, 75, 0.44) 45%, rgba(0, 0, 0, 0.18) 100%),
-    url('/images/hero/hero-afternoon.jpg');
+    url('/images/hero/hero-afternoon.webp');
   box-shadow: 0 24px 58px rgba(9, 68, 47, 0.25);
 }
 
 .customer-home-hero.hero-evening {
   background-image:
     linear-gradient(100deg, rgba(20, 30, 25, 0.74) 0%, rgba(30, 41, 59, 0.42) 45%, rgba(0, 0, 0, 0.18) 100%),
-    url('/images/hero/hero-evening.jpg');
+    url('/images/hero/hero-evening.webp');
   box-shadow: 0 24px 58px rgba(15, 61, 46, 0.30);
 }
 
 .customer-home-hero.hero-night {
   background-image:
     linear-gradient(100deg, rgba(5, 15, 25, 0.76) 0%, rgba(15, 23, 42, 0.45) 45%, rgba(0, 0, 0, 0.20) 100%),
-    url('/images/hero/hero-night.jpg');
+    url('/images/hero/hero-night.webp');
   box-shadow: 0 24px 58px rgba(2, 44, 34, 0.35);
 }
 
