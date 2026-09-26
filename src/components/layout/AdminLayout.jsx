@@ -15,7 +15,6 @@ import { getUnreadNotificationCount } from '../../lib/database';
 import { NOTIFICATIONS_CHANGED_EVENT } from '../../lib/notification-events';
 import { usePushNotification } from '../../hooks/usePushNotification';
 import { useToast } from '../../hooks/useToast';
-import '../../styles/admin-route.css';
 
 const COLLAPSE_KEY = 'sidebar_collapsed';
 const DRAWER_QUERY = '(max-width: 1024px)';

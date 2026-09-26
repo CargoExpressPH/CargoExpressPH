@@ -1,5 +1,0 @@
-/* Loaded with AdminLayout, after the shared layer order in main.css.
-   Keep the original layers so their cascade precedence stays the same. */
-@import './layout-admin.css' layer(layout);
-@import './admin-composition.css' layer(pages);
-@import './admin-modern-refresh.css' layer(refresh);
