@@ -244,6 +244,51 @@ const HomePage = () => {
         </StaggerItem>
       )}
 
+      {/* ── Active Shipments ─────────────────────────────────────── */}
+      {!loading && activeOrders.length > 0 && (
+        <StaggerItem delay={40} className="home-col-shipments">
+          <div className="flex items-center justify-between mb-md">
+            <h3 className="customer-section-title fw-700 flex items-center gap-8"><Package size={18} color="var(--primary)" /> Active Shipments</h3>
+            <Link to="/customer/orders" className="customer-inline-action text-sm text-primary font-medium">
+              View All <ArrowRight size={14} />
+            </Link>
+          </div>
+          {activeOrders.slice(0, 3).map((order, index) => (
+            <StaggerItem key={order.id} delay={(index + 1) * 60} className="mb-12">
+              <Link to={`/customer/orders/${order.id}`} className="customer-shipment-card customer-shipment-card-v2 card card-interactive block text-no-underline" style={{ color: 'inherit' }}>
+                <div className="card-body p-16">
+                  <div className="customer-list-card-top customer-list-card-top--status">
+                    <div className="customer-list-card-status-row">
+                      <StatusBadge status={order.status} />
+                      <ChevronRight size={18} className="customer-card-chevron" aria-hidden="true" />
+                    </div>
+                    <div className="flex flex-col min-width-0">
+                      <span className="customer-list-card-title flex items-center gap-6"><Package size={14} className="text-tertiary" aria-hidden="true" />{order.tracking_number}</span>
+                      <span className="customer-list-card-booked-date">Booked: {fmtDate(order.created_at)}</span>
+                    </div>
+                  </div>
+                  {STATUS_DESCRIPTIONS[order.status] && (
+                    <p className="home-shipment-status-note">{STATUS_DESCRIPTIONS[order.status]}</p>
+                  )}
+                  <div className="customer-list-card-route-visual">
+                    <span className="customer-route-node origin inline-flex items-center gap-4"><Container size={14} className="text-tertiary" aria-hidden="true" />{order.origin || 'Not set'}</span>
+                    <RouteProgressLine status={order.status} />
+                    <span className="customer-route-node destination inline-flex items-center gap-4"><MapPin size={14} className="text-tertiary" aria-hidden="true" />{order.destination || 'Not set'}</span>
+                  </div>
+                  <div className="customer-list-card-footer flex items-center justify-between gap-8 flex-wrap">
+                    <span className="inline-flex items-center gap-6 text-sm">To: {orderPartyName(order, 'receiver') || 'Receiver'}</span>
+                    <span className="flex items-center gap-6">
+                      {order.actual_weight && <span className="chip chip-info inline-flex items-center gap-4"><Weight size={12} aria-hidden="true" />{order.actual_weight}kg</span>}
+                      <span className="chip chip-success">{isOrderPriced(order) ? formatMoney(parseFloat(order.shipping_cost || 0)) : 'Priced at pickup'}</span>
+                    </span>
+                  </div>
+                </div>
+              </Link>
+            </StaggerItem>
+          ))}
+        </StaggerItem>
+      )}
+
       {/* ── Loading State ─────────────────────────────────────── */}
       {loading && <CenteredSpinner />}
 
@@ -418,51 +463,6 @@ const HomePage = () => {
               </StaggerItem>
             );
           })}
-        </StaggerItem>
-      )}
-
-      {/* ── Active Shipments ─────────────────────────────────────── */}
-      {!loading && activeOrders.length > 0 && (
-        <StaggerItem delay={120} className="home-col-shipments">
-          <div className="flex items-center justify-between mb-md">
-            <h3 className="customer-section-title fw-700 flex items-center gap-8"><Package size={18} color="var(--primary)" /> Active Shipments</h3>
-            <Link to="/customer/orders" className="customer-inline-action text-sm text-primary font-medium">
-              View All <ArrowRight size={14} />
-            </Link>
-          </div>
-          {activeOrders.slice(0, 3).map((order, index) => (
-            <StaggerItem key={order.id} delay={(index + 4) * 60} className="mb-12">
-              <Link to={`/customer/orders/${order.id}`} className="customer-shipment-card customer-shipment-card-v2 card card-interactive block text-no-underline" style={{ color: 'inherit' }}>
-                <div className="card-body p-16">
-                  <div className="customer-list-card-top customer-list-card-top--status">
-                    <div className="customer-list-card-status-row">
-                      <StatusBadge status={order.status} />
-                      <ChevronRight size={18} className="customer-card-chevron" aria-hidden="true" />
-                    </div>
-                    <div className="flex flex-col min-width-0">
-                      <span className="customer-list-card-title flex items-center gap-6"><Package size={14} className="text-tertiary" aria-hidden="true" />{order.tracking_number}</span>
-                      <span className="customer-list-card-booked-date">Booked: {fmtDate(order.created_at)}</span>
-                    </div>
-                  </div>
-                  {STATUS_DESCRIPTIONS[order.status] && (
-                    <p className="home-shipment-status-note">{STATUS_DESCRIPTIONS[order.status]}</p>
-                  )}
-                  <div className="customer-list-card-route-visual">
-                    <span className="customer-route-node origin inline-flex items-center gap-4"><Container size={14} className="text-tertiary" aria-hidden="true" />{order.origin || 'Not set'}</span>
-                    <RouteProgressLine status={order.status} />
-                    <span className="customer-route-node destination inline-flex items-center gap-4"><MapPin size={14} className="text-tertiary" aria-hidden="true" />{order.destination || 'Not set'}</span>
-                  </div>
-                  <div className="customer-list-card-footer flex items-center justify-between gap-8 flex-wrap">
-                    <span className="inline-flex items-center gap-6 text-sm">To: {orderPartyName(order, 'receiver') || 'Receiver'}</span>
-                    <span className="flex items-center gap-6">
-                      {order.actual_weight && <span className="chip chip-info inline-flex items-center gap-4"><Weight size={12} aria-hidden="true" />{order.actual_weight}kg</span>}
-                      <span className="chip chip-success">{isOrderPriced(order) ? formatMoney(parseFloat(order.shipping_cost || 0)) : 'Priced at pickup'}</span>
-                    </span>
-                  </div>
-                </div>
-              </Link>
-            </StaggerItem>
-          ))}
         </StaggerItem>
       )}
 

@@ -2696,8 +2696,8 @@ a.customer-snapshot-pill:hover { transform: translateY(-1px); box-shadow: var(--
 
 /* Home on wide screens: active shipments left, next trip right; everything
    else keeps the full width. Only when both exist, so neither column is left
-   empty. `dense` lets the shipments fill the row beside the trip even though
-   announcements sit between them in the markup. */
+   empty. `dense` keeps the pair on one row whichever comes first in the
+   markup (shipments lead, so phones see the customer's own parcels first). */
 @media (min-width: 1100px) {
   .customer-home-page:has(.home-col-shipments):has(.home-col-trip) {
     grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
@@ -2707,7 +2707,114 @@ a.customer-snapshot-pill:hover { transform: translateY(-1px); box-shadow: var(--
   .customer-home-page:has(.home-col-shipments):has(.home-col-trip) > * { grid-column: 1 / -1; }
   .customer-home-page:has(.home-col-shipments):has(.home-col-trip) > .home-col-trip { grid-column: 2; }
   .customer-home-page:has(.home-col-shipments):has(.home-col-trip) > .home-col-shipments { grid-column: 1; }
+  /* Match the shipments header row (its View All link makes it 36px tall with
+     a 16px gap) so both columns' first cards start on the same line. */
+  .customer-home-page:has(.home-col-shipments):has(.home-col-trip) > .home-col-trip > .customer-section-title {
+    min-height: 36px;
+    margin-bottom: 16px;
+  }
 }
 
 /* Next trip card: departure and space side by side, no separate delivery box. */
 .home-trip-metrics-grid { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
+
+/* ── Home + booking on tablets ─────────────────────────────────────────
+   Below 900px the customer column is capped at 560px for phones; on a
+   portrait tablet that left the dashboard and the booking wizard as a narrow
+   strip with ~100px of empty page either side. These two screens are laid out
+   to use the width, so they get a wider column from 600px up. */
+@media (min-width: 600px) and (max-width: 899.98px) {
+  .customer-main:has(.customer-home-page),
+  .customer-main:has(.booking-page) {
+    max-width: 760px;
+  }
+
+  /* Paired fields (first/last name, phone/Facebook, province/city …) sit side
+     by side again; one-per-row on a tablet read as an endless form. */
+  .booking-page .grid.grid-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* Step names fit beside their numbers from here up. */
+@media (min-width: 700px) and (max-width: 899.98px) {
+  .booking-page .step-progress .step-label {
+    display: inline;
+  }
+}
+
+/* ── Booking wizard polish ───────────────────────────────────────────── */
+
+/* The grid gap already separates the fields; the .form-group bottom margin on
+   top of it doubled every gap (~40px) and stretched the forms. */
+.booking-page .grid > .form-group {
+  margin-bottom: 0;
+}
+
+/* Trip summary under the trip picker: two columns on phones instead of a tall
+   single stack of four label/value pairs. */
+@media (max-width: 899.98px) {
+  .booking-trip-preview {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px 12px;
+    padding: 12px 14px;
+  }
+}
+
+/* "Use my registered address": a whole-row tappable option card rather than
+   a bare checkbox on a grey strip. */
+.booking-use-registered {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+  padding: 14px 16px;
+  border: 1.5px solid var(--customer-line);
+  border-radius: 16px;
+  background: var(--customer-panel-solid);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+/* Mouse only: a touch tap leaves :hover stuck, which read as "selected". */
+@media (hover: hover) {
+  .booking-use-registered:hover {
+    border-color: color-mix(in srgb, var(--customer-green) 45%, var(--customer-line));
+  }
+}
+
+.booking-use-registered.is-checked {
+  border-color: var(--customer-green);
+  background: var(--customer-green-soft);
+}
+
+.booking-use-registered:has(input:focus-visible) {
+  outline: 3px solid var(--primary-light);
+  outline-offset: 2px;
+}
+
+.booking-use-registered input {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  accent-color: var(--primary-fill);
+  cursor: pointer;
+}
+
+.booking-use-registered-text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.booking-use-registered-text strong {
+  color: var(--customer-ink);
+  font-size: var(--text-14);
+  font-weight: 700;
+}
+
+.booking-use-registered-text span {
+  color: var(--customer-muted);
+  font-size: var(--text-12);
+}

@@ -114,6 +114,12 @@ const BookShipmentPage = () => {
   const [recentContacts, setRecentContacts] = useState({ senders: [], receivers: [] });
   const [openContactDropdown, setOpenContactDropdown] = useState(null); // 'sender' | 'receiver' | null
   const contactWrapRefs = useRef({});
+  // Set while focusFirstInvalid moves focus. The First Name field opens Recent
+  // Contacts on focus, and after a failed Continue that menu would cover the
+  // very fields the customer was just sent to fix.
+  const programmaticFocusRef = useRef(false);
+  // Set when a step change should leave the scroll to a field focus instead.
+  const skipStepScrollRef = useRef(false);
 
   // Block navigation only after the customer has entered meaningful booking
   // data. Route/trip selection is lightweight setup and safe to repeat; treating
@@ -463,7 +469,11 @@ const BookShipmentPage = () => {
   const focusFirstInvalid = () => {
     requestAnimationFrame(() => {
       const el = document.querySelector('.booking-page [aria-invalid="true"]');
-      if (el && typeof el.focus === 'function') el.focus();
+      if (el && typeof el.focus === 'function') {
+        programmaticFocusRef.current = true;
+        el.focus();
+        programmaticFocusRef.current = false;
+      }
     });
   };
 
@@ -484,8 +494,8 @@ const BookShipmentPage = () => {
     try {
       if (!selectedRoute) throw new Error('Please select a route.');
       // C-2 fix: Navigate to the step containing the error before throwing
-      const sErrs = validateSender(); if (Object.keys(sErrs).length) { setFieldErrors(sErrs); setStep(2); focusingInvalidField = true; focusFirstInvalid(); throw new Error('Please fix sender details.'); }
-      const rErrs = validateReceiver(); if (Object.keys(rErrs).length) { setFieldErrors(rErrs); setStep(3); focusingInvalidField = true; focusFirstInvalid(); throw new Error('Please fix receiver details.'); }
+      const sErrs = validateSender(); if (Object.keys(sErrs).length) { setFieldErrors(sErrs); skipStepScrollRef.current = true; setStep(2); focusingInvalidField = true; focusFirstInvalid(); throw new Error('Please fix sender details.'); }
+      const rErrs = validateReceiver(); if (Object.keys(rErrs).length) { setFieldErrors(rErrs); skipStepScrollRef.current = true; setStep(3); focusingInvalidField = true; focusFirstInvalid(); throw new Error('Please fix receiver details.'); }
       const validation = validateRouteProvinces(form.sender_province, form.receiver_province, selectedRoute);
       if (!validation.valid) throw new Error(validation.error);
       
@@ -593,7 +603,7 @@ const BookShipmentPage = () => {
                   className={`form-input ${fc('first_name')}`}
                   value={form[`${prefix}_first_name`]}
                   onChange={handleTextChange(`${prefix}_first_name`)}
-                  onFocus={() => { if (contacts.length > 0) setOpenContactDropdown(prefix); }}
+                  onFocus={() => { if (contacts.length > 0 && !programmaticFocusRef.current) setOpenContactDropdown(prefix); }}
                   placeholder="First Name"
                   autoComplete={isSender ? 'given-name' : 'shipping given-name'}
                   autoCapitalize="words"
@@ -693,6 +703,21 @@ const BookShipmentPage = () => {
 
   const [trackingCopied, setTrackingCopied] = useState(false);
   const reduceMotion = useReducedMotion();
+
+  // Each step starts at its own top. Continue sits at the bottom of a long
+  // form, so without this the next step opened mid-way down, below its heading
+  // and the "use my registered address" shortcut.
+  const previousStepRef = useRef(step);
+  useEffect(() => {
+    if (previousStepRef.current === step) return;
+    previousStepRef.current = step;
+    if (skipStepScrollRef.current) {
+      skipStepScrollRef.current = false;
+      return;
+    }
+    window.scrollTo({ top: 0, behavior: reduceMotion ? 'auto' : 'smooth' });
+  }, [step, reduceMotion]);
+
   const particles = useMemo(
     () => Array.from({ length: 24 }, (_, i) => ({
       id: i,
@@ -1066,10 +1091,13 @@ const BookShipmentPage = () => {
         <div className="card animate-fade-in"><div className="card-body">
           <h3 className="fw-700 mb-16 flex items-center gap-8"><User size={18} aria-hidden="true" />Sender Details</h3>
           {showSenderCheckbox && (
-            <div className="mb-20 p-12 flex items-center gap-10 rounded-sm" style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)' }}>
-              <input type="checkbox" id="useRegSender" checked={useRegisteredSender} onChange={e => handleUseRegisteredSenderChange(e.target.checked)} className="w-18" style={{ height: 18 }} />
-              <label htmlFor="useRegSender" className="text-sm fw-600 cursor-pointer" style={{ color: 'var(--text)' }}>Use my registered address for sender details</label>
-            </div>
+            <label htmlFor="useRegSender" className={`booking-use-registered${useRegisteredSender ? ' is-checked' : ''}`}>
+              <input type="checkbox" id="useRegSender" checked={useRegisteredSender} onChange={e => handleUseRegisteredSenderChange(e.target.checked)} />
+              <span className="booking-use-registered-text">
+                <strong>Use my registered address</strong>
+                <span>Fill in the sender details from your profile.</span>
+              </span>
+            </label>
           )}
           {renderAddressFields('sender')}
           <button type="button" className="btn btn-primary btn-lg w-full mt-20 justify-center" onClick={() => {
@@ -1086,10 +1114,13 @@ const BookShipmentPage = () => {
         <div className="card animate-fade-in"><div className="card-body">
           <h3 className="fw-700 mb-16 flex items-center gap-8"><User size={18} aria-hidden="true" />Receiver Details</h3>
           {showReceiverCheckbox && (
-            <div className="mb-20 p-12 flex items-center gap-10 rounded-sm" style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)' }}>
-              <input type="checkbox" id="useRegReceiver" checked={useRegisteredReceiver} onChange={e => handleUseRegisteredReceiverChange(e.target.checked)} className="w-18" style={{ height: 18 }} />
-              <label htmlFor="useRegReceiver" className="text-sm fw-600 cursor-pointer" style={{ color: 'var(--text)' }}>Use my registered address for receiver details</label>
-            </div>
+            <label htmlFor="useRegReceiver" className={`booking-use-registered${useRegisteredReceiver ? ' is-checked' : ''}`}>
+              <input type="checkbox" id="useRegReceiver" checked={useRegisteredReceiver} onChange={e => handleUseRegisteredReceiverChange(e.target.checked)} />
+              <span className="booking-use-registered-text">
+                <strong>Use my registered address</strong>
+                <span>Fill in the receiver details from your profile.</span>
+              </span>
+            </label>
           )}
           {renderAddressFields('receiver')}
           <button type="button" className="btn btn-primary btn-lg w-full mt-20 justify-center" onClick={() => {
