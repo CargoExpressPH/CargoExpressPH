@@ -1,0 +1,330 @@
+/* --- GENERATED PUBLIC PAGES ------------------------------------------------
+   Chrome for the HTML in #root of each generated page (see SeoPage.jsx):
+   header, footer, FAQ, and which of splash or page is showing. Inlined by
+   scripts/generate-seo-pages.mjs alongside boot-splash.css and landing.css;
+   the app never loads this file. Tokens come from .lp-theme in landing.css. */
+
+/* Without JavaScript nothing adds `app-booting`, so the page shows and the
+   splash never does. With it, the splash shows until React replaces #root,
+   or until index.html gives up waiting and removes the class. */
+#root > .seo-boot { display: none; }
+html.app-booting #root > .seo-boot { display: flex; }
+html.app-booting #root > .seo-fallback { display: none; }
+
+.seo-fallback {
+  display: block;
+  margin: 0;
+}
+
+.seo-page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: var(--lp-page);
+  color: var(--lp-ink);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+.seo-page *,
+.seo-page *::before,
+.seo-page *::after { box-sizing: border-box; }
+
+.seo-body {
+  flex: 1;
+  padding: clamp(12px, 2vw, 28px) clamp(12px, 2.6vw, 32px) 0;
+}
+
+/* ═══ Header ═══════════════════════════════════════════════════════════════ */
+
+.seo-top {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px clamp(16px, 3vw, 32px);
+  border-bottom: 1px solid var(--lp-line);
+  background: var(--lp-page);
+}
+
+@supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+  .seo-top {
+    background: color-mix(in srgb, var(--lp-page) 78%, transparent);
+    -webkit-backdrop-filter: saturate(1.6) blur(16px);
+    backdrop-filter: saturate(1.6) blur(16px);
+  }
+}
+
+.seo-brand {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 10px;
+  color: var(--lp-ink);
+  text-decoration: none;
+}
+
+.seo-brand img {
+  display: block;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 0 1px var(--lp-line);
+}
+
+.seo-wordmark {
+  font-size: 0.9375rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+
+.seo-wordmark span { color: var(--lp-green-ink); }
+
+.seo-nav {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin: 0 auto;
+}
+
+.seo-nav a {
+  padding: 8px 12px;
+  border-radius: 10px;
+  color: var(--lp-ink-2);
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+.seo-nav a:hover { background: var(--lp-surface); color: var(--lp-ink); }
+.seo-nav a[aria-current="page"] { background: var(--lp-green-soft); color: var(--lp-green-ink); }
+
+.seo-signin {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  min-height: 40px;
+  padding: 0 18px;
+  border-radius: 12px;
+  background: #15803d;
+  box-shadow: 0 8px 18px -10px rgba(21, 128, 61, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  color: #fff;
+  font-size: 0.875rem;
+  font-weight: 700;
+  text-decoration: none;
+  transition: transform 0.2s, background-color 0.2s;
+}
+
+.seo-signin:hover { background: #166534; color: #fff; transform: translateY(-1px); }
+
+.seo-top a:focus-visible,
+.seo-foot a:focus-visible,
+.seo-faq-item summary:focus-visible {
+  outline: 2px solid var(--lp-green);
+  outline-offset: 2px;
+}
+
+/* ═══ FAQ ══════════════════════════════════════════════════════════════════ */
+
+.seo-faq-list {
+  display: grid;
+  gap: 12px;
+  max-width: 860px;
+  margin: 0 auto;
+}
+
+.seo-faq-item {
+  border: 1px solid var(--lp-line);
+  border-radius: 20px;
+  background: var(--lp-surface);
+  box-shadow: var(--lp-shadow);
+  transition: border-color 0.3s, box-shadow 0.3s;
+}
+
+.seo-faq-item[open] { border-color: var(--lp-line-2); box-shadow: var(--lp-shadow-lift); }
+
+.seo-faq-item summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 16px;
+  row-gap: 6px;
+  padding: 20px 22px;
+  border-radius: 20px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.seo-faq-item summary::-webkit-details-marker { display: none; }
+
+.seo-faq-category {
+  grid-column: 1;
+  color: var(--lp-green-ink);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.seo-faq-item h3 {
+  grid-column: 1;
+  margin: 0;
+  color: var(--lp-ink);
+  font-size: 1.0625rem;
+  font-weight: 700;
+  line-height: 1.4;
+  letter-spacing: -0.012em;
+}
+
+.seo-faq-toggle {
+  position: relative;
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--lp-line-2);
+  border-radius: 50%;
+  background: var(--lp-surface-2);
+  transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), background-color 0.3s;
+}
+
+.seo-faq-toggle::before,
+.seo-faq-toggle::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 12px;
+  height: 2px;
+  margin: -1px 0 0 -6px;
+  border-radius: 2px;
+  background: var(--lp-ink-2);
+}
+
+.seo-faq-toggle::after { transform: rotate(90deg); }
+.seo-faq-item[open] .seo-faq-toggle { transform: rotate(45deg); background: var(--lp-green-soft); }
+
+.seo-faq-item p {
+  margin: 0;
+  padding: 0 22px 22px;
+  color: var(--lp-ink-2);
+  font-size: 0.9875rem;
+  line-height: 1.7;
+}
+
+/* ═══ Footer ═══════════════════════════════════════════════════════════════ */
+
+.seo-foot {
+  margin-top: clamp(80px, 11vw, 136px);
+  padding: clamp(40px, 6vw, 64px) clamp(16px, 3vw, 32px) 28px;
+  border-top: 1px solid var(--lp-line);
+  background: var(--lp-surface-2);
+}
+
+.seo-foot-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) repeat(3, minmax(0, 1fr));
+  gap: clamp(28px, 4vw, 48px);
+  width: min(100%, 1200px);
+  margin: 0 auto;
+}
+
+.seo-foot-brand p {
+  max-width: 24rem;
+  margin: 16px 0 0;
+  color: var(--lp-ink-2);
+  font-size: 0.9375rem;
+  line-height: 1.65;
+}
+
+.seo-foot-route {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--lp-green-ink);
+  font-weight: 700;
+}
+
+.seo-foot-route svg { flex: none; }
+
+.seo-foot-col,
+.seo-foot-col address {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  font-style: normal;
+}
+
+.seo-foot-col h2 {
+  margin: 0 0 4px;
+  color: var(--lp-ink-3);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.seo-foot-col a,
+.seo-foot-col span {
+  color: var(--lp-ink-2);
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+.seo-foot-col a:hover { color: var(--lp-green-ink); }
+.seo-foot-col b { color: var(--lp-ink); font-weight: 650; }
+
+.seo-foot-legal {
+  width: min(100%, 1200px);
+  margin: clamp(32px, 5vw, 48px) auto 0;
+  padding-top: 24px;
+  border-top: 1px solid var(--lp-line);
+  color: var(--lp-ink-3);
+  font-size: 0.8125rem;
+}
+
+/* ═══ Responsive ═══════════════════════════════════════════════════════════ */
+
+@media (max-width: 960px) {
+  .seo-foot-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .seo-foot-brand { grid-column: 1 / -1; }
+}
+
+/* Phones: brand and Sign In on the first row, the page links on a row of
+   their own that scrolls sideways rather than wrapping into a block. */
+@media (max-width: 820px) {
+  .seo-top { flex-wrap: wrap; row-gap: 8px; padding-bottom: 8px; }
+  .seo-signin { margin-left: auto; }
+  .seo-nav {
+    order: 3;
+    flex-basis: 100%;
+    margin: 0 -16px;
+    padding: 0 12px 2px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .seo-nav::-webkit-scrollbar { display: none; }
+}
+
+@media (max-width: 520px) {
+  .seo-foot-grid { grid-template-columns: minmax(0, 1fr); }
+  .seo-faq-item summary { padding: 18px; }
+  .seo-faq-item p { padding: 0 18px 18px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .seo-page *,
+  .seo-page *::before,
+  .seo-page *::after { transition: none !important; }
+}

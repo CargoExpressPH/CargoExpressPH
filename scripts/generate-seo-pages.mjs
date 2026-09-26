@@ -1,8 +1,8 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { loadEnv } from 'vite';
+import { createServer, loadEnv } from 'vite';
+import react from '@vitejs/plugin-react';
 import { PUBLIC_PAGES, SITE_ORIGIN, structuredDataFor } from '../src/seo/publicPages.js';
-import { FAQ_ITEMS } from '../src/constants/faqContent.js';
 
 // Business contact details come from Admin > Company Information at build
 // time (read-only, public anon key, the same data the About page shows), so
@@ -30,7 +30,44 @@ async function loadBusinessInfo() {
   }
 }
 
+/**
+ * The page body is rendered from the app's own React components
+ * (src/seo/SeoPage.jsx), so crawlers read what visitors see. Vite loads them
+ * for SSR with a bare config on purpose: the project config's plugins stamp
+ * dist/sw.js when a server closes, which would wipe the precache list the
+ * build just wrote. `module-sync` picks react-router's ESM build, the one
+ * whose named exports Vite can link. The server stays open until every page
+ * is rendered.
+ */
+async function startRenderer() {
+  return createServer({
+    configFile: false,
+    plugins: [react()],
+    appType: 'custom',
+    logLevel: 'warn',
+    clearScreen: false,
+    server: { middlewareMode: true, hmr: false, watch: null },
+    optimizeDeps: { noDiscovery: true, include: [] },
+    ssr: { resolve: { externalConditions: ['module-sync'] } },
+  });
+}
+
+// Inlined rather than linked: the page has to look right before, and without,
+// the app stylesheet — that is exactly when this HTML is on screen.
+const PAGE_STYLES = [
+  'src/styles/boot-splash.css',
+  'src/pages/public/landing.css',
+  'src/seo/seo-page.css',
+].map((file) => readFileSync(resolve(file), 'utf8'))
+  .join('\n')
+  .replace(/\/\*[\s\S]*?\*\//g, '')
+  .replace(/\s+/g, ' ')
+  .replace(/\s*([{};,])\s*/g, '$1')
+  .trim();
+
 const business = await loadBusinessInfo();
+const renderer = await startRenderer();
+const { renderSeoPage } = await renderer.ssrLoadModule('/src/seo/SeoPage.jsx');
 
 const dist = resolve('dist');
 const html = readFileSync(resolve(dist, 'index.html'), 'utf8');
@@ -42,22 +79,12 @@ function replaceRequired(source, pattern, replacement) {
   return source.replace(pattern, replacement);
 }
 
-function renderFallback(page, path) {
-  // Real, publicly visible navigation and a summary of the corresponding
-  // screen. React replaces this when the app loads; it stays usable without JS.
-  const links = [
-    ['/', 'Home'], ['/about', 'About'], ['/schedules', 'Trip Schedules'],
-    ['/track', 'Track Shipment'], ['/faq', 'Help'],
-    ['/terms', 'Terms'], ['/privacy', 'Privacy'], ['/login', 'Sign In'],
-  ];
-  const faqs = path === '/faq' || path === '/about'
-    ? `<section id="faq" aria-labelledby="faq-heading"><h2 id="faq-heading">Frequently Asked Questions</h2>`
-      + FAQ_ITEMS.map(({ title, answer }) => `<article><h3>${escapeHtml(title)}</h3><p>${escapeHtml(answer)}</p></article>`).join('')
-      + '</section>'
-    : '';
-  return `<main class="seo-fallback"><a href="/">CargoExpress PH</a>`
-    + `<h1>${escapeHtml(page.heading)}</h1><p>${escapeHtml(page.summary)}</p>`
-    + `<nav aria-label="Site pages">${links.map(([href, label]) => `<a href="${href}">${label}</a>`).join('')}</nav>${faqs}</main>`;
+function withBody(source, path, page) {
+  // Functions as replacements, so a "$" in the markup is never read as a
+  // replacement pattern.
+  const output = replaceRequired(source, /<\/head>/, () => `<style id="seo-page-styles">${PAGE_STYLES}</style></head>`);
+  return replaceRequired(output, /<div id="root"><\/div>/,
+    () => `<div id="root">${renderSeoPage({ path, page, business })}</div>`);
 }
 
 function renderPage(path, page) {
@@ -78,9 +105,8 @@ function renderPage(path, page) {
   // < keeps a "<" in any string from closing the script element early.
   const schema = JSON.stringify(structuredDataFor(path, page, business)).replace(/</g, '\\u003c');
   output = replaceRequired(output, /<script type="application\/ld\+json">[\s\S]*?<\/script>/,
-    `<script type="application/ld+json">${schema}</script>`);
-  output = replaceRequired(output, /<div id="root"><\/div>/, `<div id="root">${renderFallback(page, path)}</div>`);
-  return output;
+    () => `<script type="application/ld+json">${schema}</script>`);
+  return withBody(output, path, page);
 }
 
 function renderNotFound() {
@@ -97,18 +123,18 @@ function renderNotFound() {
   output = replaceRequired(output, /\s*<link rel="canonical" href="[^"]*"\s*\/>/, '');
   output = replaceRequired(output, /\s*<meta property="og:url" content="[^"]*"\s*\/>/, '');
   output = replaceRequired(output, /\s*<script type="application\/ld\+json">[\s\S]*?<\/script>/, '');
-  output = replaceRequired(output, /<div id="root"><\/div>/, `<div id="root">${renderFallback({
-    heading: 'Page not found',
-    summary: 'The page you were looking for does not exist or has moved.',
-  })}</div>`);
-  return output;
+  return withBody(output, null, null);
 }
 
-mkdirSync(resolve(dist, '_seo'), { recursive: true });
-for (const [path, page] of Object.entries(PUBLIC_PAGES)) {
-  const destination = path === '/' ? 'index.html' : `_seo/${path.slice(1)}.html`;
-  writeFileSync(resolve(dist, destination), renderPage(path, page));
-  console.log(`[seo] Generated ${destination} for ${path}`);
+try {
+  mkdirSync(resolve(dist, '_seo'), { recursive: true });
+  for (const [path, page] of Object.entries(PUBLIC_PAGES)) {
+    const destination = path === '/' ? 'index.html' : `_seo/${path.slice(1)}.html`;
+    writeFileSync(resolve(dist, destination), renderPage(path, page));
+    console.log(`[seo] Generated ${destination} for ${path}`);
+  }
+  writeFileSync(resolve(dist, '404.html'), renderNotFound());
+  console.log('[seo] Generated 404.html');
+} finally {
+  await renderer.close();
 }
-writeFileSync(resolve(dist, '404.html'), renderNotFound());
-console.log('[seo] Generated 404.html');

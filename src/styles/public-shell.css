@@ -22,6 +22,15 @@
   z-index: var(--z-sticky);
 }
 
+/* Frosted where the browser can blur what scrolls beneath it. */
+@supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+  .public-shell-header {
+    background: var(--glass-bg);
+    -webkit-backdrop-filter: saturate(1.6) blur(var(--glass-blur));
+    backdrop-filter: saturate(1.6) blur(var(--glass-blur));
+  }
+}
+
 .public-shell-brand {
   display: inline-flex;
   align-items: center;
@@ -54,6 +63,12 @@
   margin: 0 auto;
   padding: 24px 20px 48px;
   box-sizing: border-box;
+}
+
+/* The home page's panels span a wider canvas than the reading-width pages. */
+.public-shell-main--wide {
+  max-width: 1264px;
+  padding: clamp(12px, 2vw, 28px) clamp(12px, 2.6vw, 32px) clamp(72px, 9vw, 120px);
 }
 
 @media (max-width: 480px) {

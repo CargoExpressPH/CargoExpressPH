@@ -7,8 +7,28 @@ import { FAQ_ITEMS } from '../src/constants/faqContent.js';
 const config = JSON.parse(readFileSync(resolve('vercel.json'), 'utf8'));
 const sitemap = readFileSync(resolve('dist/sitemap.xml'), 'utf8');
 const readJsonLd = (html) => JSON.parse(html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/)[1]);
-const escapeHtml = (value) => value.replace(/&/g, '&amp;').replace(/</g, '&lt;')
-  .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+// The page body is rendered by React, so compare text rather than exact
+// markup: headings carry classes and styling spans, and entities may be
+// written either way (&#39; or &#x27;).
+const decodeHtml = (value) => value
+  .replace(/&#x([0-9a-f]+);/gi, (_, hex) => String.fromCodePoint(parseInt(hex, 16)))
+  .replace(/&#(\d+);/g, (_, dec) => String.fromCodePoint(Number(dec)))
+  .replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+const textOf = (markup) => decodeHtml(markup.replace(/<[^>]+>/g, '')).replace(/\s+/g, ' ').trim();
+const textsOf = (html, tag) => [...html.matchAll(new RegExp(`<${tag}\\b[^>]*>([\\s\\S]*?)<\\/${tag}>`, 'g'))].map((m) => textOf(m[1]));
+
+// The generated body: the boot splash, then the readable page, with the
+// styles for both inlined so neither waits on the app stylesheet.
+function assertPageShell(html, label) {
+  const root = html.match(/<div id="root">([\s\S]*?<\/main>)<\/div>/)?.[1] || '';
+  // React may lead with <link rel="preload"> hints for the logo image.
+  assert.match(root, /^(?:<link [^>]*>)*<div class="boot-splash seo-boot" role="status">/, `Boot splash must open #root: ${label}`);
+  assert.ok(root.includes('<main class="seo-fallback">'), `Readable page missing from #root: ${label}`);
+  const styles = html.match(/<style id="seo-page-styles">([\s\S]*?)<\/style>/)?.[1] || '';
+  for (const selector of ['html.app-booting #root > .seo-boot', 'html.app-booting #root > .seo-fallback', '.boot-splash{', '.lp-hero', '.seo-top']) {
+    assert.ok(styles.includes(selector), `Inlined styles missing ${selector}: ${label}`);
+  }
+}
 
 // Vercel matches `source` as a path-to-regexp pattern. The rewrites here only
 // use literal paths and regex groups, which read the same as a plain RegExp.
@@ -29,15 +49,16 @@ for (const [path, page] of Object.entries(PUBLIC_PAGES)) {
   assert.ok(html.includes(`<meta property="og:image:width" content="${SOCIAL_IMAGE.width}" />`)
     && html.includes(`<meta property="og:image:height" content="${SOCIAL_IMAGE.height}" />`), `Social image size missing: ${path}`);
   assert.ok(html.includes('<meta name="twitter:card" content="summary_large_image" />'), `Not a large-image card: ${path}`);
-  assert.ok(html.includes(`<h1>${page.heading}</h1>`), `No crawlable content: ${path}`);
+  assert.deepEqual(textsOf(html, 'h1'), [page.heading], `No crawlable content: ${path}`);
+  assertPageShell(html, path);
   assert.ok(html.includes('<meta name="robots" content="index, follow" />'), `Not indexable: ${path}`);
   if (path === '/faq' || path === '/about') {
     // Verify the delivered body contains complete answers even without JS,
     // rather than only metadata or a heading that waits for React to load.
     const body = html.match(/<main class="seo-fallback">([\s\S]*?)<\/main>/)?.[1] || '';
     for (const { title, answer } of FAQ_ITEMS) {
-      assert.ok(body.includes(`<h3>${escapeHtml(title)}</h3>`), `Missing FAQ question on ${path}: ${title}`);
-      assert.ok(body.includes(`<p>${escapeHtml(answer)}</p>`), `Missing FAQ answer on ${path}: ${title}`);
+      assert.ok(textsOf(body, 'h3').includes(title), `Missing FAQ question on ${path}: ${title}`);
+      assert.ok(textsOf(body, 'p').includes(answer), `Missing FAQ answer on ${path}: ${title}`);
     }
   }
   assert.ok(sitemap.includes(`<loc>${url}</loc>`), `Missing sitemap entry: ${path}`);
@@ -64,6 +85,8 @@ const notFound = readFileSync(resolve('dist/404.html'), 'utf8');
 assert.ok(notFound.includes('<meta name="robots" content="noindex, nofollow" />'), '404 page must be noindex');
 assert.ok(!notFound.includes('rel="canonical"'), '404 page must not claim a canonical URL');
 assert.ok(notFound.includes('<div id="root">'), '404 page must still boot the app');
+assert.deepEqual(textsOf(notFound, 'h1'), ['Page not found'], '404 page must say what happened');
+assertPageShell(notFound, '404');
 
 // Every route the app serves must be reachable, or deep links and page
 // refreshes on it would land on the 404 page.
