@@ -89,6 +89,13 @@ function renderPage(path, page) {
   output = replaceRequired(output, /<title>[^<]*<\/title>/, `<title>${title}</title>`);
   output = replaceRequired(output, /<meta name="description" content="[^"]*"\s*\/>/, `<meta name="description" content="${description}" />`);
   output = replaceRequired(output, /<link rel="canonical" href="[^"]*"\s*\/>/, `<link rel="canonical" href="${url}" />`);
+  // The home hero is the largest above-the-fold element. Start its request
+  // while the app loads; only preload the size selected by this viewport.
+  // Other public pages do not use this image and must not download it early.
+  if (path === '/') {
+    output = output.replace(`<link rel="canonical" href="${url}" />`,
+      `<link rel="canonical" href="${url}" />\n    <link rel="preload" as="image" href="/images/landing-hero-sm.webp" media="(max-width: 700px)" fetchpriority="high" />\n    <link rel="preload" as="image" href="/images/landing-hero.webp" media="(min-width: 701px)" fetchpriority="high" />`);
+  }
   for (const [kind, name, value] of [
     ['property', 'og:title', title], ['property', 'og:description', description],
     ['property', 'og:url', url], ['name', 'twitter:title', title],

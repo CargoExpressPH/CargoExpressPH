@@ -14,9 +14,7 @@ import { resolveAuthRouteState } from './lib/authRouteState';
 import { loadCustomerHomePage } from './lib/routePreloads';
 import { isStandaloneWebApp } from './lib/apple-platform';
 
-// Layouts — eagerly loaded (always needed)
-import AdminLayout from './components/layout/AdminLayout';
-import CustomerLayout from './components/layout/CustomerLayout';
+// Account layouts are only needed after entering their protected routes.
 import PublicShell from './components/layout/PublicShell';
 import LandingPage from './pages/public/LandingPage';
 
@@ -25,14 +23,17 @@ import LoginPage from './pages/auth/LoginPage';
 // Eager (not lazy): this must paint the instant the payer lands back from
 // PayMongo — a lazy chunk here would reintroduce the splash-screen wait.
 import PaymentReturnPage from './pages/shared/PaymentReturnPage';
-import RegisterPage from './pages/auth/RegisterPage';
-import ForgotPasswordPage from './pages/auth/ForgotPasswordPage';
-import ResetPasswordPage from './pages/auth/ResetPasswordPage';
 import { BrandLogo, BrandWordmark } from './components/ui/BrandLogo';
 
 // ─── Lazy-loaded Pages ─────────────────────────────────────────────────────
 // Each page is loaded on-demand only when the user navigates to it.
 // This splits the 826 kB bundle into smaller, route-specific chunks.
+
+const AdminLayout = lazyWithRetry(() => import('./components/layout/AdminLayout'));
+const CustomerLayout = lazyWithRetry(() => import('./components/layout/CustomerLayout'));
+const RegisterPage = lazyWithRetry(() => import('./pages/auth/RegisterPage'));
+const ForgotPasswordPage = lazyWithRetry(() => import('./pages/auth/ForgotPasswordPage'));
+const ResetPasswordPage = lazyWithRetry(() => import('./pages/auth/ResetPasswordPage'));
 
 // Customer Pages
 const HomePage = lazyWithRetry(loadCustomerHomePage);

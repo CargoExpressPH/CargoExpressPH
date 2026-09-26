@@ -32,7 +32,6 @@
 @import './validation.css' layer(components);
 
 /* ── 4. Layouts ── */
-@import './layout-admin.css' layer(layout);
 @import './layout-customer.css' layer(layout);
 
 /* ── 5. Page-Specific Styles ── */
@@ -50,7 +49,6 @@
 @import './micro-effects.css' layer(pages);
 @import './tables-mobile.css' layer(pages);
 @import './onboarding-lightbox.css' layer(pages);
-@import './admin-composition.css' layer(pages);
 @import './trip-detail.css' layer(pages);
 @import './feedback-inquiries.css' layer(pages);
 @import './public-shell.css' layer(pages);
@@ -68,8 +66,6 @@
 @import './customer-mobile-refresh.css' layer(refresh);
 
 /* Admin mobile app refresh */
-@import './admin-modern-refresh.css' layer(refresh);
-
 /* Final mobile viewport and tap-readability hardening */
 @import './viewport-hardening.css' layer(hardening);
 

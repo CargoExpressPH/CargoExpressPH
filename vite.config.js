@@ -123,7 +123,9 @@ export default defineConfig({
       output: {
         manualChunks(id) {
           if (id.includes('node_modules')) {
-            if (id.includes('react') || id.includes('react-dom') || id.includes('react-router-dom')) {
+            // Match package boundaries: `includes('react')` also forced
+            // react-leaflet and react-qr-code into the initial shared chunk.
+            if (/\/node_modules\/(?:react|react-dom|react-router|react-router-dom|scheduler)(?:\/|$)/.test(id)) {
               return 'vendor-react';
             }
             if (id.includes('@supabase')) {
