@@ -2229,6 +2229,26 @@ body:has(textarea:focus) .support-chat-page {
     padding-bottom: 40px;
     scroll-padding-bottom: 40px;
   }
+
+  /* Keep the conversation's scrollbar visible on desktop even though the
+     customer shell hides scrollbars on its other descendants. */
+  .customer-layout-v2 .customer-main .support-chat-messages {
+    scrollbar-width: auto;
+    scrollbar-color: var(--customer-muted) var(--customer-panel-solid);
+    -ms-overflow-style: auto;
+  }
+
+  .customer-layout-v2 .customer-main .support-chat-messages::-webkit-scrollbar {
+    display: block;
+    width: 10px;
+    background: var(--customer-panel-solid);
+  }
+
+  .customer-layout-v2 .customer-main .support-chat-messages::-webkit-scrollbar-thumb {
+    background: var(--customer-muted);
+    border: 2px solid var(--customer-panel-solid);
+    border-radius: 999px;
+  }
 }
 
 @media (max-width: 899.98px) {
