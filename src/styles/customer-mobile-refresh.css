@@ -2661,3 +2661,35 @@ body:has(textarea:focus) .support-chat-page {
 @media (max-width: 480px) {
   .step-progress .step-connector { margin-inline: 4px; min-width: 6px; }
 }
+
+/* Home: money owed, tappable overview tiles, compact trip route, status note */
+.home-due-banner {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding: 14px 16px; border-radius: 20px;
+  background: var(--warning-bg); border: 1px solid var(--warning);
+}
+.home-due-icon {
+  width: 40px; height: 40px; border-radius: 12px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--surface); color: var(--warning-text);
+}
+.home-due-text { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.home-due-text strong { font-size: var(--text-16); color: var(--text); }
+.home-due-text span { font-size: var(--text-13); color: var(--text-secondary); overflow-wrap: anywhere; }
+.home-due-action {
+  display: inline-flex; align-items: center; gap: 4px; min-height: 40px;
+  padding: 8px 16px; border-radius: var(--radius-full);
+  background: var(--primary-fill); color: #fff; font-weight: 700; font-size: var(--text-14);
+  text-decoration: none;
+}
+a.customer-snapshot-pill { color: inherit; text-decoration: none; transition: transform 0.15s ease, box-shadow 0.15s ease; }
+a.customer-snapshot-pill:hover { transform: translateY(-1px); box-shadow: var(--shadow-md); }
+.customer-snapshot-value { font-size: var(--text-24); }
+.home-trip-route-title { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px; overflow-wrap: anywhere; }
+.home-trip-route-arrow { color: var(--text-tertiary); flex-shrink: 0; }
+.home-trip-route-when { display: flex; align-items: center; gap: 6px; margin-top: 4px; font-size: var(--text-13); font-weight: 600; color: var(--text-secondary); }
+.home-shipment-status-note { margin: 8px 0 0; font-size: var(--text-13); line-height: 1.45; color: var(--text-secondary); }
+.home-due-text span { overflow-wrap: normal; }
+@media (max-width: 420px) {
+  .home-due-action { flex: 1 1 100%; justify-content: center; }
+}

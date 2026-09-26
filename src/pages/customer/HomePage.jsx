@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../hooks/useToast';
 import { getOrders, getAnnouncements, getTripCapacitySummary } from '../../lib/database';
-import { isTripBookable } from '../../constants/status';
+import { isTripBookable, getSettlementState, outstandingBalance, SETTLEMENT_STATE, STATUS_DESCRIPTIONS } from '../../constants/status';
 import StatusBadge from '../../components/ui/StatusBadge';
 import RouteProgressLine from '../../components/ui/RouteProgressLine';
 import { CenteredSpinner } from '../../components/ui/Loader';
@@ -14,7 +14,7 @@ import {
   Package, Search, Plus, ArrowRight,
   Container, MapPin, Calendar, Weight, ChevronRight,
   Truck, CheckCircle, Zap, AlertTriangle, Bell, Megaphone, Clock,
-  Sun, CloudSun, Moon, LayoutDashboard,
+  Sun, CloudSun, Moon, LayoutDashboard, Wallet,
 } from 'lucide-react';
 import usePageTitle from '../../hooks/usePageTitle';
 import { formatMoney } from '../../utils/currencyInput';
@@ -96,6 +96,11 @@ const HomePage = () => {
 
   const activeOrders = orders.filter(o => !['Delivered', 'Cancelled'].includes(o.status));
   const deliveredOrders = orders.filter(o => o.status === 'Delivered');
+  // Weighed, priced bookings with money still due from this customer. A
+  // receiver-pays (freight collect) booking is paid at delivery by someone
+  // else, so it is not this customer's bill to settle.
+  const owingOrders = orders.filter(o => o.payer_type !== 'receiver' && getSettlementState(o) === SETTLEMENT_STATE.OWING);
+  const totalOwed = owingOrders.reduce((sum, o) => sum + outstandingBalance(o), 0);
 
   const getGreetingData = () => {
     const h = new Date().getHours();
@@ -163,7 +168,7 @@ const HomePage = () => {
               id="home-tracking-search"
               name="tracking_number"
               aria-label="Tracking number"
-              placeholder="Enter tracking number (CE-YYYYMMDD-XXXX)"
+              placeholder="Enter tracking number"
               value={trackingSearch}
               onChange={e => setTrackingSearch(e.target.value)}
               className="hero-search-input"
@@ -179,13 +184,31 @@ const HomePage = () => {
         </form>
       </div>
 
+      {!loading && owingOrders.length > 0 && (
+        <StaggerItem delay={20}>
+          <div className="home-due-banner" role="status">
+            <div className="home-due-icon" aria-hidden="true"><Wallet size={20} /></div>
+            <div className="home-due-text">
+              <strong>{formatMoney(totalOwed)} to pay</strong>
+              <span>on {owingOrders.length === 1 ? owingOrders[0].tracking_number : `${owingOrders.length} bookings`}</span>
+            </div>
+            <Link
+              to={owingOrders.length === 1 ? `/customer/orders/${owingOrders[0].id}` : '/customer/payments'}
+              className="home-due-action"
+            >
+              Pay now <ChevronRight size={16} aria-hidden="true" />
+            </Link>
+          </div>
+        </StaggerItem>
+      )}
+
       {!loading && (
         <StaggerItem delay={30}>
           <h3 className="customer-section-title fw-700 mb-12 flex items-center gap-8">
             <LayoutDashboard size={18} color="var(--primary)" /> Overview
           </h3>
           <div className="customer-home-snapshot" style={{ marginTop: 0 }}>
-            <div className="customer-snapshot-pill stat-total">
+            <Link to="/customer/orders" className="customer-snapshot-pill stat-total">
               <div className="customer-snapshot-icon-chip chip-purple">
                 <Package size={16} />
               </div>
@@ -196,9 +219,9 @@ const HomePage = () => {
                   <span className="customer-snapshot-label-short">Bookings</span>
                 </div>
               </div>
-            </div>
+            </Link>
 
-            <div className="customer-snapshot-pill stat-active">
+            <Link to="/customer/orders" className="customer-snapshot-pill stat-active">
               <div className="customer-snapshot-icon-chip chip-blue">
                 <Truck size={16} />
               </div>
@@ -206,9 +229,9 @@ const HomePage = () => {
                 <div className="customer-snapshot-value">{activeOrders.length}</div>
                 <div className="customer-snapshot-label">Active now</div>
               </div>
-            </div>
+            </Link>
 
-            <div className="customer-snapshot-pill stat-delivered">
+            <Link to="/customer/orders" className="customer-snapshot-pill stat-delivered">
               <div className="customer-snapshot-icon-chip chip-green">
                 <CheckCircle size={16} />
               </div>
@@ -216,7 +239,7 @@ const HomePage = () => {
                 <div className="customer-snapshot-value">{deliveredOrders.length}</div>
                 <div className="customer-snapshot-label">Delivered</div>
               </div>
-            </div>
+            </Link>
           </div>
         </StaggerItem>
       )}
@@ -251,17 +274,12 @@ const HomePage = () => {
               </span>
             </div>
 
-            {/* Route */}
-            <div className="flex items-center gap-10 mb-md">
-              <div className="home-trip-route-icon">
-                <MapPin size={20} color="var(--customer-green, var(--primary))" />
+            {/* Route, with the day it leaves */}
+            <div className="home-trip-route mb-md">
+              <div className="home-trip-route-title">
+                {activeTrip.origin} <ArrowRight size={18} aria-hidden="true" className="home-trip-route-arrow" /> {activeTrip.destination}
               </div>
-              <div>
-                <div className="home-trip-route-label">Route</div>
-                <div className="home-trip-route-title">
-                  {activeTrip.origin} → {activeTrip.destination}
-                </div>
-              </div>
+              <div className="home-trip-route-when"><Calendar size={14} aria-hidden="true" /> {formatPhDate(activeTrip.departure_date, { weekday: 'short', month: 'short' })}</div>
             </div>
 
             {/* Dates + Capacity row */}
@@ -363,7 +381,7 @@ const HomePage = () => {
       {!loading && announcements.length > 0 && (
         <StaggerItem delay={60}>
           <div className="flex items-center justify-between mb-md">
-            <h3 className="customer-section-title fw-700">Announcements</h3>
+            <h3 className="customer-section-title fw-700 flex items-center gap-8"><Megaphone size={18} color="var(--primary)" /> Announcements</h3>
             <span className="text-xs text-tertiary fw-600">{Math.min(announcements.length, 5)} Latest</span>
           </div>
           {announcements.slice(0, 5).map((a, index) => {
@@ -421,7 +439,7 @@ const HomePage = () => {
       {!loading && activeOrders.length > 0 && (
         <StaggerItem delay={120}>
           <div className="flex items-center justify-between mb-md">
-            <h3 className="customer-section-title fw-700">Active Shipments</h3>
+            <h3 className="customer-section-title fw-700 flex items-center gap-8"><Package size={18} color="var(--primary)" /> Active Shipments</h3>
             <Link to="/customer/orders" className="customer-inline-action text-sm text-primary font-medium">
               View All <ArrowRight size={14} />
             </Link>
@@ -440,6 +458,9 @@ const HomePage = () => {
                       <span className="customer-list-card-booked-date">Booked: {fmtDate(order.created_at)}</span>
                     </div>
                   </div>
+                  {STATUS_DESCRIPTIONS[order.status] && (
+                    <p className="home-shipment-status-note">{STATUS_DESCRIPTIONS[order.status]}</p>
+                  )}
                   <div className="customer-list-card-route-visual">
                     <span className="customer-route-node origin inline-flex items-center gap-4"><Container size={14} className="text-tertiary" aria-hidden="true" />{order.origin || 'Not set'}</span>
                     <RouteProgressLine status={order.status} />
