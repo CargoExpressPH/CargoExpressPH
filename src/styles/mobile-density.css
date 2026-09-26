@@ -514,9 +514,6 @@
     min-width: 0;
   }
 
-  .customer-layout-v2 .home-trip-metric-box:last-child {
-    grid-column: 1 / -1;
-  }
 }
 
 @media (max-width: 400px) {
