@@ -744,12 +744,42 @@
 @media (max-width: 640px) {
   .trk-page { padding: 28px 16px 48px; }
   .trk-headline { font-size: var(--text-24); }
+  .trk-page--embedded .trk-headline { font-size: var(--text-24); }
   .trk-search-box { padding: 5px 5px 5px 14px; border-radius: var(--radius-xl); }
   .trk-search-btn { padding: 11px 18px; font-size: var(--text-14); }
   .trk-card-footer { flex-direction: column; align-items: flex-start; }
+
+  /* Older iPhone Safari versions ignore @container. Give the tracking card a
+     usable phone layout without relying on those card-width queries. */
+  .trk-hero { padding: 20px 18px; }
+  .trk-hero-top { flex-direction: column; align-items: stretch; }
+  .trk-hero-status { width: 100%; }
+  .trk-hero-status-value { font-size: var(--text-20); overflow-wrap: break-word; }
+  .trk-hero-number {
+    width: 100%;
+    flex-direction: column;
+    align-items: flex-start;
+    text-align: left;
+  }
+  .trk-hero-actions { justify-content: flex-start; }
+  .trk-section { padding: 20px 18px; }
+  .trk-details-grid { grid-template-columns: minmax(0, 1fr); }
+  .trk-help { padding: 16px 18px; }
+  .trk-help-actions { width: 100%; }
+  .trk-help-link { flex: 1 1 auto; justify-content: center; }
 }
 @media (max-width: 380px) {
   .trk-headline { font-size: var(--text-24); }
+  .trk-hero, .trk-section { padding-inline: 14px; }
+  .trk-help { padding-inline: 14px; }
+  /* A clipped chip looks like missing shipment data on a 320px phone. */
+  .trk-quick-list {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    overflow-x: visible;
+    scroll-snap-type: none;
+  }
+  .trk-quick-chip { width: 100%; min-width: 0; }
 }
 
 /* Public About / Contact Page */
@@ -902,4 +932,3 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
-

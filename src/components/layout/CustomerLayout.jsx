@@ -32,6 +32,7 @@ const bottomNavItems = [
 
 const pagesWithInFlowSupport = new Set([
   '/customer/book',
+  '/customer/track',
   '/customer/payments',
   '/customer/profile',
   '/customer/help-guidelines',
