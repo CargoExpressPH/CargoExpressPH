@@ -830,8 +830,11 @@
   box-shadow: var(--customer-shadow-soft);
 }
 
+/* A step keeps its full width (number + name); the connector lines give
+   way instead, so a name never spills over its line. */
 .step-progress .step {
   min-width: 0;
+  flex: 0 0 auto;
 }
 
 .step-progress .step-number {
@@ -867,7 +870,9 @@
 
 .step-progress .step-connector {
   height: 2px;
-  margin-inline: 3px;
+  /* Clear gap either side so the line never touches a step name. */
+  margin-inline: 10px;
+  min-width: 12px;
   border-radius: 999px;
 }
 
@@ -2548,4 +2553,111 @@ body:has(textarea:focus) .support-chat-page {
   .ctrip-stats { gap: 8px; }
   .ctrip-stat { padding: 10px 12px; }
   .ctrip-footer .customer-trip-book-cta { width: 100%; justify-content: center; }
+}
+
+/* ── Reading widths on large screens ──────────────────────────────────────
+   Account forms and the settings list were stretched to the full content
+   width (~935px) on desktop, which made fields and rows hard to scan.
+   Phones are unaffected: these limits are wider than any phone. */
+.account-form-page {
+  width: 100%;
+  max-width: 560px;
+}
+
+.account-form-intro {
+  margin: 0 0 20px;
+  font-size: var(--text-14);
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.profile-page {
+  width: 100%;
+  max-width: 760px;
+  margin-inline: auto;
+}
+
+/* Booking: "Pickup address" / "Delivery address" break inside the sender and
+   receiver forms, so nine fields read as two short groups. */
+.booking-field-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 6px 0 -4px;
+  font-size: var(--text-12);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+.booking-field-group::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--border-light);
+}
+
+/* Booking review: each summary card gets an Edit link back to its step. */
+.booking-review-intro {
+  margin: -6px 0 16px;
+  font-size: var(--text-13);
+  color: var(--text-secondary);
+}
+
+.booking-summary-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.booking-summary-edit {
+  min-height: 32px;
+  padding: 4px 12px;
+  margin: -6px -8px 0 0;
+  border: none;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--primary-text-strong);
+  font-size: var(--text-13);
+  font-weight: 700;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.booking-summary-edit:hover { background: var(--primary-bg); }
+.booking-summary-edit:focus-visible { outline: 3px solid var(--primary-light); outline-offset: 2px; }
+
+.booking-summary-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 20px;
+  margin: 8px 0 0;
+}
+
+.booking-summary-facts div { display: flex; gap: 6px; font-size: var(--text-13); }
+.booking-summary-facts dt { color: var(--text-secondary); }
+.booking-summary-facts dd { margin: 0; font-weight: 700; color: var(--text); }
+
+/* Booking review: each summary card gets an Edit link back to its step. */
+.booking-review-intro { margin: -6px 0 16px; font-size: var(--text-13); color: var(--text-secondary); }
+.booking-summary-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.booking-summary-edit {
+  min-height: 32px; padding: 4px 12px; margin: -6px -8px 0 0;
+  border: none; border-radius: var(--radius-full); background: transparent;
+  color: var(--primary-text-strong); font-size: var(--text-13); font-weight: 700;
+  cursor: pointer; touch-action: manipulation;
+}
+.booking-summary-edit:hover { background: var(--primary-bg); }
+.booking-summary-edit:focus-visible { outline: 3px solid var(--primary-light); outline-offset: 2px; }
+.booking-summary-facts { display: flex; flex-wrap: wrap; gap: 6px 20px; margin: 8px 0 0; }
+.booking-summary-facts div { display: flex; gap: 6px; font-size: var(--text-13); }
+.booking-summary-facts dt { color: var(--text-secondary); }
+.booking-summary-facts dd { margin: 0; font-weight: 700; color: var(--text); }
+
+/* Small phones: names are hidden, so the lines can sit closer and all five
+   step circles fit inside a 320px screen. */
+@media (max-width: 480px) {
+  .step-progress .step-connector { margin-inline: 4px; min-width: 6px; }
 }

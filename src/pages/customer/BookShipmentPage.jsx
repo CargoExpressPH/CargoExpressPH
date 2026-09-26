@@ -641,6 +641,8 @@ const BookShipmentPage = () => {
         </div>
         <div className="form-group"><label className="form-label" htmlFor={id('phone')}>Mobile Number <span className="required">*</span></label><input id={id('phone')} className={`form-input ${fc('phone')}`} value={form[`${prefix}_phone`]} onChange={handlePhoneChange(`${prefix}_phone`)} inputMode="numeric" maxLength={11} placeholder="09xxxxxxxxx" autoComplete="tel" required {...a11y('phone')} />{errEl('phone')}</div>
         <div className="form-group"><label className="form-label" htmlFor={id('facebook')}>Facebook Name <span className="required">*</span></label><input id={id('facebook')} className={`form-input ${fc('facebook')}`} value={form[`${prefix}_facebook`]} onChange={handleTextChange(`${prefix}_facebook`)} placeholder="Your name on Facebook" autoCapitalize="words" required {...a11y('facebook')} />{errEl('facebook')}</div>
+        {/* Contact fields above, the address below: a visible break in a long form. */}
+        <p className="col-full booking-field-group">{prefix === 'sender' ? 'Pickup address' : 'Delivery address'}</p>
         <div className="form-group"><label className="form-label" htmlFor={id('province')}>Province <span className="required">*</span></label>
           <CustomSelect searchable id={id('province')} className={`form-select ${fc('province')}`} value={form[`${prefix}_province`]} onChange={e => { u(`${prefix}_province`, e.target.value); u(`${prefix}_city`, ''); u(`${prefix}_barangay`, ''); }} {...a11y('province')}>
             <option value="">Select Province</option>
@@ -676,8 +678,8 @@ const BookShipmentPage = () => {
           />
           {errEl('barangay')}
         </div>
-        <div className="form-group"><label className="form-label" htmlFor={id('street')}>Street and Subdivision (put NA if not applicable) <span className="required">*</span></label><input id={id('street')} className={`form-input ${fc('street')}`} value={form[`${prefix}_street`]} onChange={handleAddressChange(`${prefix}_street`)} placeholder="Street and Subdivision (put NA if not applicable)" autoComplete="address-line1" autoCapitalize="words" required {...a11y('street')} />{errEl('street')}</div>
-        <div className="form-group"><label className="form-label" htmlFor={id('lot-block')}>Lot / Block / Purok <span className="required">*</span></label><input id={id('lot-block')} className={`form-input ${fc('lot_block')}`} value={form[`${prefix}_lot_block`]} onChange={handleAddressChange(`${prefix}_lot_block`)} autoComplete="address-line2" autoCapitalize="words" required {...a11y('lot_block')} />{errEl('lot_block')}</div>
+        <div className="form-group"><label className="form-label" htmlFor={id('street')}>Street and Subdivision (put NA if not applicable) <span className="required">*</span></label><input id={id('street')} className={`form-input ${fc('street')}`} value={form[`${prefix}_street`]} onChange={handleAddressChange(`${prefix}_street`)} placeholder="e.g. Mabini St., Villa Verde Subd." autoComplete="address-line1" autoCapitalize="words" required {...a11y('street')} />{errEl('street')}</div>
+        <div className="form-group"><label className="form-label" htmlFor={id('lot-block')}>Lot / Block / Purok <span className="required">*</span></label><input id={id('lot-block')} className={`form-input ${fc('lot_block')}`} value={form[`${prefix}_lot_block`]} onChange={handleAddressChange(`${prefix}_lot_block`)} placeholder="e.g. Blk 4 Lot 12, or Purok 3" autoComplete="address-line2" autoCapitalize="words" required {...a11y('lot_block')} />{errEl('lot_block')}</div>
         <div className="form-group"><label className="form-label" htmlFor={id('landmark')}>Landmark <span className="required">*</span></label><input id={id('landmark')} className={`form-input ${fc('landmark')}`} value={form[`${prefix}_landmark`]} onChange={handleAddressChange(`${prefix}_landmark`)} placeholder="Near what building/place?" autoCapitalize="words" required {...a11y('landmark')} />{errEl('landmark')}</div>
         {isSender && form[`${prefix}_province`] === 'Other Area' && (
           <div className="alert alert-warning mt-md col-full">
@@ -1106,11 +1108,13 @@ const BookShipmentPage = () => {
         <div className="card animate-fade-in"><div className="card-body">
           <h3 className="fw-700 mb-16 flex items-center gap-8"><Package size={18} aria-hidden="true" />Package Details</h3>
           <div className="form-group">
-            <label className="form-label" htmlFor="package-description">What are you sending? <span className="text-danger">*</span></label>
+            <label className="form-label" htmlFor="package-description">What are you sending? <span className="required">*</span></label>
             <input id="package-description" className={`form-input ${fieldErrors.package_description ? 'field-invalid' : ''}`} value={form.package_description} onChange={e => { u('package_description', e.target.value); setFieldErrors(prev => ({...prev, package_description: false})); }} placeholder="e.g. Documents, 2 boxes of clothes, small appliance" aria-invalid={fieldErrors.package_description ? 'true' : undefined} aria-describedby={fieldErrors.package_description ? 'package-description-error package-description-helper' : 'package-description-helper'} />
             {fieldErrors.package_description && <div className="field-error-inline" id="package-description-error" role="alert"><AlertTriangle size={12} aria-hidden="true" />Package description is required.</div>}
             <p id="package-description-helper" className="text-xs text-secondary mt-4">Describe your items. We weigh the parcel at pickup and the exact cost is confirmed then.</p>
           </div>
+          {/* Side by side on wide screens, stacked on phones (.grid-2). */}
+          <div className="grid grid-2 gap-16 booking-pay-row">
           <div className="form-group"><label className="form-label" htmlFor="payer-type">Who Pays?</label>
             <CustomSelect id="payer-type" className="form-select" value={form.payer_type} onChange={e => u('payer_type', e.target.value)}>
               <option value="sender">Sender</option><option value="receiver">Receiver</option>
@@ -1123,6 +1127,7 @@ const BookShipmentPage = () => {
               <option value="gcash">GCash</option>
             </CustomSelect>
             <p className="text-xs text-secondary mt-4">Letting us know how you plan to pay helps our team prepare for pickup or delivery.</p>
+          </div>
           </div>
           <div className="form-group">
             <label className="form-label" htmlFor="package-notes">Special Instructions / Notes (Optional)</label>
@@ -1159,23 +1164,50 @@ const BookShipmentPage = () => {
       {step === 5 && (
         <div className="card animate-fade-in"><div className="card-body">
           <h3 className="fw-700 mb-16">Review & Confirm</h3>
+          <p className="booking-review-intro">Check everything once more. Tap <strong>Edit</strong> on any section to change it.</p>
           <div className="booking-summary-card mb-16">
-            <div className="booking-summary-label">Route</div>
+            <div className="booking-summary-head">
+              <div className="booking-summary-label">Route</div>
+              <button type="button" className="booking-summary-edit" onClick={() => setStep(1)} aria-label="Edit route">Edit</button>
+            </div>
             <div className="booking-summary-value">{form.route}</div>
           </div>
           <div className="grid grid-2 gap-12 mb-16">
-            <div className="booking-summary-card">
-              <div className="booking-summary-label">Sender</div>
-              <div className="text-sm font-bold">{form.sender_first_name} {form.sender_last_name}</div>
-              <div className="text-xs text-secondary">{form.sender_phone}</div>
-              <div className="text-xs text-secondary mt-4">{form.sender_street}, {form.sender_barangay}, {form.sender_city}, {form.sender_province}</div>
+            {[['sender', 'Sender', 2], ['receiver', 'Receiver', 3]].map(([p, title, editStep]) => {
+              // Same wording as the order page: every part the customer typed,
+              // lot/block and landmark included.
+              const province = form[`${p}_province`] === 'Other Area' && form[`${p}_other_province`]
+                ? form[`${p}_other_province`]
+                : form[`${p}_province`];
+              return (
+                <div key={p} className="booking-summary-card">
+                  <div className="booking-summary-head">
+                    <div className="booking-summary-label">{title}</div>
+                    <button type="button" className="booking-summary-edit" onClick={() => setStep(editStep)} aria-label={`Edit ${title.toLowerCase()} details`}>Edit</button>
+                  </div>
+                  <div className="text-sm font-bold">{form[`${p}_first_name`]} {form[`${p}_last_name`]}</div>
+                  <div className="text-xs text-secondary">{form[`${p}_phone`]}</div>
+                  <div className="text-xs text-secondary mt-4">
+                    {buildFullAddress({
+                      lotBlock: form[`${p}_lot_block`], street: form[`${p}_street`], barangay: form[`${p}_barangay`],
+                      city: form[`${p}_city`], province, landmark: form[`${p}_landmark`],
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <div className="booking-summary-card mb-16">
+            <div className="booking-summary-head">
+              <div className="booking-summary-label">Package</div>
+              <button type="button" className="booking-summary-edit" onClick={() => setStep(4)} aria-label="Edit package details">Edit</button>
             </div>
-            <div className="booking-summary-card">
-              <div className="booking-summary-label">Receiver</div>
-              <div className="text-sm font-bold">{form.receiver_first_name} {form.receiver_last_name}</div>
-              <div className="text-xs text-secondary">{form.receiver_phone}</div>
-              <div className="text-xs text-secondary mt-4">{form.receiver_street}, {form.receiver_barangay}, {form.receiver_city}, {form.receiver_province}</div>
-            </div>
+            <div className="text-sm font-bold">{form.package_description}</div>
+            <dl className="booking-summary-facts">
+              <div><dt>Who pays</dt><dd>{form.payer_type === 'receiver' ? 'Receiver' : 'Sender'}</dd></div>
+              <div><dt>Payment</dt><dd>{{ cash: 'Cash', gcash: 'GCash' }[form.payment_preference] || 'Decide later'}</dd></div>
+            </dl>
+            {form.notes?.trim() && <div className="text-xs text-secondary mt-4">Notes: {form.notes}</div>}
           </div>
           <div className="booking-cost-card text-center mb-16">
             <div className="text-sm text-secondary">{shippingRateLabel}</div>

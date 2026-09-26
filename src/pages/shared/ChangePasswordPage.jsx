@@ -133,7 +133,7 @@ const ChangePasswordPage = () => {
         variant="danger"
       />
 
-      <div className="animate-slide-up customer-personal-info-page">
+      <div className="animate-slide-up customer-personal-info-page account-form-page">
       <div className="customer-top-actions">
         <button type="button" onClick={() => navigate(-1)} className="btn btn-ghost customer-back-action">
           <ArrowLeft size={18} /> Back
@@ -144,7 +144,8 @@ const ChangePasswordPage = () => {
           </Link>
         )}
       </div>
-      <h1 className="fw-700 mb-20">Change Password</h1>
+      <h1 className="fw-700 mb-4">Change Password</h1>
+      <p className="account-form-intro">Use at least 8 characters, and a password you do not use on other sites.</p>
 
       <div className="card">
         <div className="card-body">

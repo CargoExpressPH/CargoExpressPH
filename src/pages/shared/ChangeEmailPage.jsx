@@ -152,7 +152,7 @@ const ChangeEmailPage = () => {
         variant="danger"
       />
 
-      <div className="page-transition animate-slide-up" style={{ maxWidth: 520 }}>
+      <div className="page-transition animate-slide-up account-form-page">
         <div className="customer-top-actions">
           <button type="button" onClick={() => navigate(-1)} className="btn btn-ghost customer-back-action">
             <ArrowLeft size={18} /> Back
