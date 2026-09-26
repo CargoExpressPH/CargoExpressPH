@@ -2696,8 +2696,8 @@ a.customer-snapshot-pill:hover { transform: translateY(-1px); box-shadow: var(--
 
 /* Home on wide screens: active shipments left, next trip right; everything
    else keeps the full width. Only when both exist, so neither column is left
-   empty. `dense` keeps the pair on one row whichever comes first in the
-   markup (shipments lead, so phones see the customer's own parcels first). */
+   empty. `dense` lets the shipments fill the row beside the trip even though
+   announcements sit between them in the markup. */
 @media (min-width: 1100px) {
   .customer-home-page:has(.home-col-shipments):has(.home-col-trip) {
     grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
