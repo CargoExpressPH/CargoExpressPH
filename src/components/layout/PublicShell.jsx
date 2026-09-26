@@ -18,11 +18,8 @@ import { useDashboardPath } from '../../hooks/useDashboardPath';
  * No live system-status indicator here (see Footer.jsx) — that's wired up
  * from About page's own data-loading effect and isn't worth duplicating for
  * two lightweight pages.
- *
- * `wide` lifts the reading-width cap for the home page, whose full-bleed
- * panels lay out their own columns.
  */
-const PublicShell = ({ children, wide = false }) => {
+const PublicShell = ({ children }) => {
   const [company, setCompany] = useState(null);
   // A signed-in visitor is offered their dashboard instead of being asked
   // to log in again.
@@ -56,7 +53,7 @@ const PublicShell = ({ children, wide = false }) => {
         </nav>
       </header>
 
-      <main className={`public-shell-main${wide ? ' public-shell-main--wide' : ''}`}>
+      <main className="public-shell-main">
         {children || <Outlet />}
       </main>
 

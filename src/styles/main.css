@@ -38,6 +38,7 @@
 /* ── 5. Page-Specific Styles ── */
 @import './auth.css' layer(pages);
 @import './pages.css' layer(pages);
+@import './not-found.css' layer(pages);
 @import './about-page.css' layer(pages);
 @import './legal-page.css' layer(pages);
 @import './tracking.css' layer(pages);

@@ -28,7 +28,7 @@ import PaymentReturnPage from './pages/shared/PaymentReturnPage';
 import RegisterPage from './pages/auth/RegisterPage';
 import ForgotPasswordPage from './pages/auth/ForgotPasswordPage';
 import ResetPasswordPage from './pages/auth/ResetPasswordPage';
-import BootSplash from './components/ui/BootSplash';
+import { BrandLogo, BrandWordmark } from './components/ui/BrandLogo';
 
 // ─── Lazy-loaded Pages ─────────────────────────────────────────────────────
 // Each page is loaded on-demand only when the user navigates to it.
@@ -80,9 +80,16 @@ const PrivacyPage = lazyWithRetry(() => import('./pages/public/LegalPage').then(
 
 // ─── Loading Screens ────────────────────────────────────────────────────────
 
-// The same splash the generated public pages show before the app loads, so
-// the hand-off from that HTML to React is seamless.
-const LoadingScreen = () => <BootSplash />;
+const LoadingScreen = () => (
+  <div className="loading-screen">
+    <div className="loading-brand animate-scale-in">
+      <BrandLogo size={44} decorative />
+      <h1><BrandWordmark /></h1>
+    </div>
+    <div className="spinner" />
+    <p>Loading CargoExpress PH...</p>
+  </div>
+);
 
 // ─── Route Guards ───────────────────────────────────────────────────────────
 
@@ -137,7 +144,7 @@ const RootRedirect = () => {
   // browser, "/" stays the public home page that search engines index.
   if (!user) {
     if (isStandaloneWebApp()) return <Navigate to="/login" replace />;
-    return <PublicShell wide><LandingPage /></PublicShell>;
+    return <PublicShell><LandingPage /></PublicShell>;
   }
   if (!userProfile || !userProfile.role) return <Navigate to="/login" replace />;
   return <Navigate to={userProfile.role === 'admin' ? '/admin' : '/customer'} replace />;
