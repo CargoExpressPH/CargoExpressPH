@@ -62,8 +62,13 @@
     background: rgba(19, 32, 51, 0.95);
   }
 
+  /* Same colours as --glass-bg in each theme, just more opaque. */
   .about-glass-nav.scrolled {
     background: rgba(255, 255, 255, 0.96);
+  }
+
+  [data-theme="dark"] .about-glass-nav.scrolled {
+    background: rgba(15, 23, 42, 0.96);
   }
 
   .lx-board {
