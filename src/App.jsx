@@ -5,6 +5,7 @@ import InstallAppBanner from './components/ui/InstallAppBanner';
 import IosInstallBanner from './components/ui/IosInstallBanner';
 import UpdateAvailableBanner from './components/ui/UpdateAvailableBanner';
 import RouteErrorBoundary from './components/ui/RouteErrorBoundary';
+import PerformanceInsights from './components/ui/PerformanceInsights';
 import { createBrowserRouter, RouterProvider, Navigate, Outlet, useLocation, useMatches } from 'react-router-dom';
 import useKeyboardInset, { scrollFocusedFieldIntoView } from './hooks/useKeyboardInset';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -185,6 +186,7 @@ const RootLayout = () => {
   return (
     <Suspense fallback={<LoadingScreen />}>
       <ScrollToTop />
+      <PerformanceInsights />
       <InstallPrompts />
       {/* The public payment confirmation must stay visually isolated: no PWA
           install or service-worker update overlay may cover its message. */}
