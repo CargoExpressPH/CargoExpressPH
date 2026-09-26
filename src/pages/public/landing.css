@@ -290,6 +290,21 @@
   .lx-board-rate { grid-area: rate; }
 }
 
+/* Safari before container queries still needs room for the route and fare
+   on narrow phones. The hero leaves at least 36px for side padding. */
+@media (max-width: 436px) {
+  .lx-board-rows li {
+    grid-template-columns: 58px minmax(0, 1fr);
+    grid-template-areas: "date route" "date rate";
+    gap: 4px 12px;
+    padding-top: 12px;
+    padding-bottom: 12px;
+  }
+  .lx-board-date { grid-area: date; align-self: start; }
+  .lx-board-route { grid-area: route; }
+  .lx-board-rate { grid-area: rate; }
+}
+
 .lx-board-skeleton {
   position: relative;
   overflow: hidden;

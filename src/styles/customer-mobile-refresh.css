@@ -520,6 +520,7 @@
 
 /* Home Trip Capacity Progress Strip */
 .home-trip-capacity-strip {
+  background: var(--customer-green-soft, var(--primary-bg));
   background: color-mix(in srgb, var(--customer-green-soft, var(--primary-bg)) 45%, var(--customer-panel-solid, var(--surface)));
   border: 1px solid var(--customer-line, var(--border));
   border-radius: 16px;
@@ -561,8 +562,10 @@
    shipment cards / snapshot pills: light panel light mode, dark panel dark mode. */
 .customer-layout-v2 .customer-trip-card {
   overflow: hidden;
+  border: 1px solid var(--customer-line, var(--border));
   border: 1px solid color-mix(in srgb, var(--customer-green) 22%, transparent);
   border-radius: 28px;
+  background: var(--customer-panel-solid, var(--surface));
   background: linear-gradient(135deg, color-mix(in srgb, var(--customer-green-soft) 82%, var(--customer-panel-solid) 18%), var(--customer-panel-solid) 62%),
     var(--customer-panel-solid);
   color: var(--customer-ink);
@@ -824,6 +827,7 @@
   padding: 10px;
   border: 1px solid var(--customer-line);
   border-radius: 24px;
+  background: var(--customer-panel-solid, var(--surface));
   background: color-mix(in srgb, var(--customer-panel-solid) 92%, transparent);
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);

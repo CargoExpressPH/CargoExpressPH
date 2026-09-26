@@ -49,6 +49,7 @@
      under the floating tab bar. */
   min-height: 0;
   overflow: hidden;
+  background: var(--customer-panel-solid, var(--surface));
   background: color-mix(in srgb, var(--customer-panel-solid) 88%, var(--bg) 12%);
   border: 1px solid var(--customer-line, var(--border-light));
   border-radius: 24px;
@@ -67,6 +68,7 @@
   gap: 10px;
   flex: 0 0 auto;
   padding: 10px 12px;
+  background: var(--customer-panel-solid, var(--surface));
   background: color-mix(in srgb, var(--customer-panel-solid) 94%, transparent);
   border-bottom: 1px solid var(--customer-line, var(--border-light));
   backdrop-filter: blur(18px);
@@ -183,6 +185,7 @@
   flex: 0 0 auto;
   padding: 8px;
   padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+  background: var(--customer-panel-solid, var(--surface));
   background: color-mix(in srgb, var(--customer-panel-solid) 92%, transparent);
   border: none;
   border-top: 1px solid var(--customer-line);
@@ -223,6 +226,7 @@
 .support-chat-menu-actions {
   flex: 0 0 auto;
   padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px));
+  background: var(--customer-panel-solid, var(--surface));
   background: color-mix(in srgb, var(--customer-panel-solid) 92%, transparent);
   border-top: 1px solid var(--customer-line);
   position: relative;

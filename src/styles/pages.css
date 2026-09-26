@@ -76,7 +76,7 @@
 
 /* --- HERO -------------------------------------------------------------- */
 
-.hero { background: linear-gradient(135deg, rgba(15, 23, 42, 0.92), color-mix(in srgb, var(--primary) 88%, #0F172A)),
+.hero { background: var(--accent); background: linear-gradient(135deg, rgba(15, 23, 42, 0.92), color-mix(in srgb, var(--primary) 88%, #0F172A)),
     var(--accent); border-radius: var(--radius-xl); padding: 36px; color: white; position: relative; overflow: hidden; transform-style: preserve-3d; perspective: 600px; }
 .hero::before {
   content: ''; position: absolute; top: -50%; right: -20%;

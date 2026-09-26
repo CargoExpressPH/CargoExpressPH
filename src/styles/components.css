@@ -267,7 +267,7 @@ tr.row-link {
 
 .card-body { padding: var(--space-xl); }
 
-.card-header { padding: var(--space-md) var(--space-xl); border-bottom: 1px solid var(--border-light); display: flex; align-items: center; justify-content: space-between; background: color-mix(in srgb, var(--surface) 88%, var(--bg) 12%); }
+.card-header { padding: var(--space-md) var(--space-xl); border-bottom: 1px solid var(--border-light); display: flex; align-items: center; justify-content: space-between; background: var(--surface); background: color-mix(in srgb, var(--surface) 88%, var(--bg) 12%); }
 .card-header h3 {
   font-size: var(--text-16); font-weight: 700;
   display: flex; align-items: center; gap: var(--space-xs);
@@ -315,7 +315,7 @@ tr.row-link {
 
 .form-input,
 .form-select,
-.form-textarea { width: 100%; min-height: 44px; padding: 10px 14px; border: 1.5px solid var(--border); border-radius: var(--radius-sm); font-size: var(--text-16); background: color-mix(in srgb, var(--surface) 94%, var(--bg) 6%); transition: border-color 0.2s ease, box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1), background 0.2s ease; color: var(--text); }
+.form-textarea { width: 100%; min-height: 44px; padding: 10px 14px; border: 1.5px solid var(--border); border-radius: var(--radius-sm); font-size: var(--text-16); background: var(--surface); background: color-mix(in srgb, var(--surface) 94%, var(--bg) 6%); transition: border-color 0.2s ease, box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1), background 0.2s ease; color: var(--text); }
 
 .form-control { width: 100%; min-height: 44px; padding: 10px 14px; border: 1.5px solid var(--border); border-radius: var(--radius-sm); font-size: var(--text-16); background: var(--surface); transition: border-color 0.2s ease, box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1), background 0.2s ease; color: var(--text); }
 .form-input:hover, .form-select:hover, .form-textarea:hover, .form-control:hover {

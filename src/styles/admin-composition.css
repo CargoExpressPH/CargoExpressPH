@@ -1148,6 +1148,13 @@
   }
 }
 
+/* Older Safari skips container queries. The mobile month card has too little
+   room for both a long month name and the Reports label; the link keeps its
+   accessible name through aria-label. */
+@media (max-width: 380px) {
+  .dash-month-reports > span { display: none; }
+}
+
 /* Keep all three totals aligned, even when this card is half of a desktop
    grid. Respond to the available card width rather than the viewport. */
 .dash-money-grid {
