@@ -10,7 +10,9 @@ import { initiateGCashPayment, registerSource, pollPaymentStatus } from '../../l
 import { clearPendingPayment, getPendingPayment, savePendingPayment } from '../../lib/pendingPayment';
 import { savePaymentReturnContext } from '../../lib/paymentReturnContext';
 import { isPaymentPollReconciled } from '../../utils/paymentReconciliation';
+import StatusBadge from '../../components/ui/StatusBadge';
 import CopyButton from '../../components/ui/CopyButton';
+import ShareButton from '../../components/ui/ShareButton';
 import TrackingTimeline from '../../components/ui/TrackingTimeline';
 import ConfirmModal from '../../components/ui/ConfirmModal';
 import PaymentResultModal from '../../components/ui/PaymentResultModal';
@@ -23,7 +25,6 @@ import { CenteredSpinner } from '../../components/ui/Loader';
 import AmountInput from '../../components/ui/AmountInput';
 import CancellationSettlementSummary from '../../components/ui/CancellationSettlementSummary';
 import { ArrowLeft, MapPin, User, Phone, Package, CreditCard, Truck, Camera, Image, XCircle, Loader, AlertTriangle, Check } from 'lucide-react';
-import { OrderHero, OrderRouteProgress, OrderStatusLine } from '../../components/ui/OrderStatusHero';
 import { useToast } from '../../hooks/useToast';
 import usePageTitle from '../../hooks/usePageTitle';
 import { formatPhDate, formatPhDateTime } from '../../utils/datetime';
@@ -733,22 +734,29 @@ const OrderDetailPage = () => {
   const hasOrderDiscount = (parseFloat(order.discount_amount || 0) || 0) > 0;
 
   return (
-    <div className="page-transition customer-order-detail-screen od-screen">
-      <button onClick={() => navigate(-1)} className="btn btn-ghost customer-back-action od-back">
+    <div className="page-transition customer-order-detail-screen">
+      <button onClick={() => navigate(-1)} className="btn btn-ghost customer-back-action mb-16">
         <ArrowLeft size={18} /> Back
       </button>
 
-      {/* Header: tracking number, status, and the route with progress. */}
-      <OrderHero status={order.status} className="animate-slide-up">
-        <div className="od-hero-head">
+      {/* Header */}
+      <div className="customer-order-detail-header flex items-center justify-between animate-slide-up mb-20">
+        <div>
           <div className="order-tracking-title">
-            <h1>{order.tracking_number}</h1>
-            <CopyButton value={order.tracking_number} label="Copy tracking number" copiedMessage="Tracking number copied" />
+            <h1 className="fw-700">{order.tracking_number}</h1>
+            <span className="order-tracking-actions">
+              <CopyButton value={order.tracking_number} label="Copy tracking number" copiedMessage="Tracking number copied" />
+              <ShareButton trackingNumber={order.tracking_number} />
+            </span>
           </div>
-          <OrderStatusLine status={order.status} />
+          <div className="flex items-center gap-8 mt-4 text-sm">
+            <span className="fw-700" style={{ color: 'var(--text)' }}>{order.origin}</span>
+            <span className="fw-700" style={{ color: 'var(--primary-text)' }}>➔</span>
+            <span className="fw-700 text-secondary">{order.destination}</span>
+          </div>
         </div>
-        <OrderRouteProgress order={order} />
-      </OrderHero>
+        <StatusBadge status={order.status} />
+      </div>
 
       {/* Cancellation request awaiting review — states plainly that nothing
           has been cancelled yet, and shows back the reason that was given so
@@ -795,9 +803,9 @@ const OrderDetailPage = () => {
 
       {/* Tracking Timeline */}
       {!isCancelled && (
-        <div className="customer-detail-card customer-tracking-card card od-card stagger-item" style={{ animationDelay: '40ms' }}>
-          <div className="card-body">
-            <h2 className="od-card-title">Tracking Timeline</h2>
+        <div className="customer-detail-card customer-tracking-card card stagger-item mb-16" style={{ animationDelay: '40ms' }}>
+          <div className="card-body p-16">
+            <h4 className="fw-700 mb-16">Tracking Timeline</h4>
             <TrackingTimeline currentStatus={timelineStatus(order)} compact stepTimestamps={stepTimestamps} />
           </div>
         </div>
@@ -877,34 +885,61 @@ const OrderDetailPage = () => {
         </div>
       )}
 
-      {/* Sender & Receiver */}
-      <section className="od-section stagger-item" style={{ animationDelay: '60ms' }}>
-        <div className="customer-contact-grid">
-          {['sender', 'receiver'].map((side) => (
-            <div key={side} className="customer-detail-card customer-contact-card card od-card od-party">
-              <div className="card-body">
-                <span className="od-label"><User size={12} aria-hidden="true" />{side === 'sender' ? 'Sender' : 'Receiver'}</span>
-                <strong className="od-party-name">{orderPartyName(order, side)}</strong>
-                <span className="od-party-line"><Phone size={14} aria-hidden="true" />{order[`${side}_phone`]}</span>
-                <span className="od-party-line"><MapPin size={14} aria-hidden="true" />{orderPartyAddress(order, side)}</span>
+      {/* Trip Info */}
+      {order.trip_id && order.trips && (
+        <div className="customer-detail-card customer-detail-trip-card card stagger-item mb-16" style={{ animationDelay: '60ms' }}>
+          <div className="card-body flex items-center gap-12" style={{ padding: 14 }}>
+            <div className="w-40 h-40 flex items-center justify-center flex-shrink-0" style={{ borderRadius: 10, background: 'linear-gradient(135deg, var(--accent), var(--accent-light))', color: 'white' }}>
+              <Truck size={20} />
+            </div>
+            <div>
+              <div className="text-sm font-bold">Trip: {order.trips.trip_number}</div>
+              <div className="text-xs text-secondary">{order.trips.origin} → {order.trips.destination}</div>
+              {(order.trips.departure_at || order.trips.estimated_arrival_at || order.trips.arrived_at) && (
+                <div className="text-xs text-tertiary mt-4">Times shown in Manila time.</div>
+              )}
+              {order.trips.departure_at && <div className="text-xs text-secondary mt-4">Departed: {formatPhDateTime(order.trips.departure_at)}</div>}
+              <div className="text-xs text-secondary mt-4">
+                {order.trips.arrived_at
+                  ? `Arrived at destination hub: ${formatPhDateTime(order.trips.arrived_at)}`
+                  : order.trips.estimated_arrival_at
+                    ? `Estimated hub arrival: ${formatPhDateTime(order.trips.estimated_arrival_at)}`
+                    : order.trips.departure_at ? 'Hub arrival: To be confirmed' : ''}
               </div>
             </div>
-          ))}
+          </div>
         </div>
-        {/* Hidden once the parcel is out for delivery, delivered, or cancelled —
-            see canEditContactDetails. Past that point the address on the row is
-            either already what the courier is acting on or the booking is done,
-            so there is nothing left for an edit here to reach. */}
-        {canEditContactDetails(order) && (
-          <button
-            type="button"
-            className="btn btn-outline btn-sm od-edit-details"
-            onClick={() => setShowEditContactModal(true)}
-          >
-            <User size={14} /> Edit Details
-          </button>
-        )}
-      </section>
+      )}
+
+      {/* Sender & Receiver */}
+      <div className="customer-contact-grid stagger-item mb-16" style={{ animationDelay: '120ms' }}>
+        <div className="customer-detail-card customer-contact-card card"><div className="card-body p-16">
+          <div className="text-xs text-tertiary font-bold text-uppercase flex items-center gap-4 mb-8"><User size={12} /> Sender</div>
+          <div className="text-sm font-bold" style={{ marginBottom: 2 }}>{orderPartyName(order, 'sender')}</div>
+          <div className="text-sm text-secondary flex items-center gap-4" style={{ marginBottom: 2 }}><Phone size={12} /> {order.sender_phone}</div>
+          <div className="text-xs text-secondary"><MapPin size={12} className="inline mr-4" />{orderPartyAddress(order, 'sender')}</div>
+        </div></div>
+        <div className="customer-detail-card customer-contact-card card"><div className="card-body p-16">
+          <div className="text-xs text-tertiary font-bold text-uppercase flex items-center gap-4 mb-8"><User size={12} /> Receiver</div>
+          <div className="text-sm font-bold" style={{ marginBottom: 2 }}>{orderPartyName(order, 'receiver')}</div>
+          <div className="text-sm text-secondary flex items-center gap-4" style={{ marginBottom: 2 }}><Phone size={12} /> {order.receiver_phone}</div>
+          <div className="text-xs text-secondary"><MapPin size={12} className="inline mr-4" />{orderPartyAddress(order, 'receiver')}</div>
+        </div></div>
+      </div>
+
+      {/* Hidden once the parcel is out for delivery, delivered, or cancelled —
+          see canEditContactDetails. Past that point the address on the row is
+          either already what the courier is acting on or the booking is done,
+          so there is nothing left for an edit here to reach. */}
+      {canEditContactDetails(order) && (
+        <button
+          type="button"
+          className="btn btn-outline btn-sm animate-slide-up mb-16"
+          onClick={() => setShowEditContactModal(true)}
+        >
+          <User size={14} /> Edit Details
+        </button>
+      )}
 
       <EditContactDetailsModal
         isOpen={showEditContactModal}
@@ -914,57 +949,34 @@ const OrderDetailPage = () => {
         saving={savingContactDetails}
       />
 
-      {/* Package, and the trip it travels on */}
-      <div className={`od-pair stagger-item${order.trip_id && order.trips ? '' : ' od-pair-single'}`} style={{ animationDelay: '120ms' }}>
-        <div className="customer-detail-card customer-package-card card od-card">
-          <div className="card-body">
-            <h2 className="od-card-title"><Package size={16} aria-hidden="true" />Package Details</h2>
-            <dl className="od-facts">
-              <div className="od-fact-wide"><dt>Description</dt><dd>{order.package_description || '—'}</dd></div>
-              <div>
-                <dt>Actual Weight</dt>
-                <dd className={order.actual_weight ? 'od-strong' : 'od-muted'}>
-                  {order.actual_weight ? `${order.actual_weight} kg` : 'To be weighed'}
-                </dd>
-              </div>
-            </dl>
-            {order.notes && (
-              <div className="od-note">
-                <span className="od-label">Special Instructions / Notes</span>
-                <p>{order.notes}</p>
-              </div>
-            )}
-          </div>
-        </div>
+      {/* Package Details */}
+      <div className="customer-detail-card customer-package-card card stagger-item mb-16" style={{ animationDelay: '180ms' }}>
+        <div className="card-body p-16">
+          <h4 className="fw-700 mb-12 flex items-center gap-8"><Package size={16} aria-hidden="true" />Package Details</h4>
+          <div className="grid grid-2 gap-12">
+            <div><span className="text-xs text-tertiary">Description</span><div className="text-sm">{order.package_description || '—'}</div></div>
 
-        {order.trip_id && order.trips && (
-          <div className="customer-detail-card customer-detail-trip-card card od-card">
-            <div className="card-body">
-              <h2 className="od-card-title"><Truck size={16} aria-hidden="true" />Trip: {order.trips.trip_number}</h2>
-              <p className="od-trip-route">{order.trips.origin} → {order.trips.destination}</p>
-              {order.trips.departure_at && <p className="od-trip-line">Departed: {formatPhDateTime(order.trips.departure_at)}</p>}
-              {(order.trips.arrived_at || order.trips.estimated_arrival_at || order.trips.departure_at) && (
-                <p className="od-trip-line">
-                  {order.trips.arrived_at
-                    ? `Arrived at destination hub: ${formatPhDateTime(order.trips.arrived_at)}`
-                    : order.trips.estimated_arrival_at
-                      ? `Estimated hub arrival: ${formatPhDateTime(order.trips.estimated_arrival_at)}`
-                      : 'Hub arrival: To be confirmed'}
-                </p>
-              )}
-              {(order.trips.departure_at || order.trips.estimated_arrival_at || order.trips.arrived_at) && (
-                <p className="od-footnote">Times shown in Manila time.</p>
-              )}
+            <div>
+              <span className="text-xs text-tertiary">Actual Weight</span>
+              <div className={`text-sm fw-600 ${order.actual_weight ? 'text-success' : 'text-secondary'}`}>
+                {order.actual_weight ? `${order.actual_weight} kg` : 'To be weighed'}
+              </div>
             </div>
           </div>
-        )}
+          {order.notes && (
+            <div className="mt-12 pt-12" style={{ borderTop: '1px dashed var(--customer-line, #E2E8F0)' }}>
+              <span className="text-xs text-tertiary">Special Instructions / Notes</span>
+              <div className="text-sm mt-4 text-secondary" style={{ whiteSpace: 'pre-wrap' }}>{order.notes}</div>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Shipment Proofs */}
       {(resolvedPickupPhotos.length > 0 || resolvedDeliveryPhotos.length > 0) && (
-        <div className="customer-detail-card customer-proof-card card od-card stagger-item" style={{ animationDelay: '180ms' }}>
-          <div className="card-body">
-            <h2 className="od-card-title"><Camera size={16} aria-hidden="true" />Shipment Proofs</h2>
+        <div className="customer-detail-card customer-proof-card card stagger-item mb-16" style={{ animationDelay: '240ms' }}>
+          <div className="card-body p-16">
+            <h4 className="fw-700 mb-12 flex items-center gap-8"><Camera size={16} />Shipment Proofs</h4>
             
             {resolvedPickupPhotos.length > 0 && (
               <div className="mb-20">
@@ -1018,9 +1030,9 @@ const OrderDetailPage = () => {
       )}
 
       {/* Payment */}
-      <div className="customer-detail-card customer-payment-card card od-card stagger-item" style={{ animationDelay: '240ms' }}>
-        <div className="card-body">
-          <h2 className="od-card-title"><CreditCard size={16} aria-hidden="true" />Payment Details</h2>
+      <div className="customer-detail-card customer-payment-card card stagger-item" style={{ animationDelay: '300ms' }}>
+        <div className="card-body p-16">
+          <h4 className="fw-700 mb-12 flex items-center gap-8"><CreditCard size={16} aria-hidden="true" />Payment Details</h4>
           {isCancelled ? (
             <>
               <div className="customer-payment-summary mb-16">
@@ -1296,7 +1308,7 @@ const OrderDetailPage = () => {
       </div>
 
       {/* Timestamps */}
-      <div className="customer-detail-timestamps od-meta">
+      <div className="customer-detail-timestamps flex justify-between mt-16 text-xs text-tertiary">
         <span>Booked: {formatPhDate(order.created_at)}</span>
         <span>Updated: {formatPhDateTime(order.updated_at)}</span>
       </div>

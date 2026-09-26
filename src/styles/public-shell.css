@@ -66,6 +66,27 @@
   }
 }
 
+/* Small phones: brand, Log In and Sign Up on one line without wrapping. On
+   the narrowest screens the badge alone stands for the brand (the link keeps
+   its "CargoExpress PH home" label). */
+@media (max-width: 400px) {
+  .public-shell--links .public-shell-header {
+    gap: 10px;
+    padding: 10px 12px;
+  }
+  .public-shell--links .public-shell-nav {
+    gap: 10px;
+  }
+  .public-shell--links .public-shell-nav > * {
+    white-space: nowrap;
+  }
+}
+@media (max-width: 360px) {
+  .public-shell--links .public-shell-brand .brand-wordmark {
+    display: none;
+  }
+}
+
 .public-shell-link {
   font-size: var(--text-14);
   font-weight: 600;

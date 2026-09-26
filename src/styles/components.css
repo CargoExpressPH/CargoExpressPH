@@ -80,13 +80,20 @@
   }
 }
 
-/* Tracking number heading + its copy button on one line. The heading keeps
-   its own wrapping rules; the button never shrinks. */
+/* Tracking number heading + its copy and share buttons. The buttons move to
+   the next line as a pair when the row is too narrow, so the number is never
+   split to make room for them. */
 .order-tracking-title {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: 6px 8px;
   min-width: 0;
+}
+.order-tracking-actions {
+  display: inline-flex;
+  flex: 0 0 auto;
+  gap: 8px;
 }
 .order-tracking-title > h1 {
   min-width: 0;

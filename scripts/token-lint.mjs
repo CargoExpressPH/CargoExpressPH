@@ -36,9 +36,6 @@ const RUNTIME_DEFINED = new Set([
   // Injected as an inline style by BrandLogo (src/components/ui/BrandLogo.jsx)
   // so responsive rules can still override it; the 40px fallbacks are the rest.
   '--brand-logo-size',
-  // Inline style on the order page route bar (components/ui/OrderStatusHero.jsx):
-  // how far through the shipment stages the order is, 0 to 1.
-  '--od-progress',
   // Written to <html> by useKeyboardInset (src/hooks/useKeyboardInset.js) while
   // SupportChatPage is mounted: the height of the on-screen keyboard, which
   // `dvh` does not report under this app's `interactive-widget=resizes-visual`

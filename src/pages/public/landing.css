@@ -62,8 +62,11 @@
   display: grid;
   justify-items: start;
   gap: 20px;
+  min-width: 0;
   max-width: 580px;
 }
+
+.lx-hero-copy > * { max-width: 100%; }
 
 .lx-route-line {
   margin: 0;
@@ -126,8 +129,11 @@
   color: #64748b;
 }
 
+/* width: 0 drops the input's default ~20-character width, so on a small
+   phone the field fits the screen and the input takes whatever is left. */
 .lx-track-field input {
-  flex: 1;
+  flex: 1 1 auto;
+  width: 0;
   min-width: 0;
   height: 46px;
   padding: 0 6px;
@@ -168,6 +174,7 @@
 /* -- Departures board ------------------------------------------------------ */
 
 .lx-board {
+  container-type: inline-size;
   display: grid;
   border: 1px solid rgba(255, 255, 255, .14);
   border-radius: 18px;
@@ -177,6 +184,7 @@
 
 .lx-board header {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
   justify-content: space-between;
   gap: 12px;
@@ -245,6 +253,8 @@
 
 .lx-board-trip {
   flex-basis: 100%;
+  min-width: 0;
+  overflow-wrap: anywhere;
   color: rgba(240, 253, 244, .6);
   font-family: var(--font-mono);
   font-size: .75rem;
@@ -262,6 +272,22 @@
 .lx-board-rate span {
   color: rgba(240, 253, 244, .6);
   font-weight: 500;
+}
+
+/* A narrow board (phones, and the hero column on small laptops) gives each
+   trip two lines: the date on the left, the route over the rate on the
+   right, so a long trip number never runs into the rate. */
+@container (max-width: 400px) {
+  .lx-board-rows li {
+    grid-template-columns: 58px minmax(0, 1fr);
+    grid-template-areas: "date route" "date rate";
+    gap: 4px 12px;
+    padding-top: 12px;
+    padding-bottom: 12px;
+  }
+  .lx-board-date { grid-area: date; align-self: start; }
+  .lx-board-route { grid-area: route; }
+  .lx-board-rate { grid-area: rate; }
 }
 
 .lx-board-skeleton {
@@ -505,14 +531,14 @@
 /* -- Sizes ------------------------------------------------------------------------ */
 
 @media (max-width: 1000px) {
-  .lx-hero-inner { grid-template-columns: 1fr; }
+  .lx-hero-inner { grid-template-columns: minmax(0, 1fr); }
   .lx-hero-copy { max-width: 640px; }
   .lx-hero::before {
     background: linear-gradient(180deg, rgba(3, 27, 20, .84) 0%, rgba(3, 27, 20, .72) 45%, rgba(3, 27, 20, .92) 100%);
   }
   .lx-board { max-width: 640px; }
   .lx-steps { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 32px; }
-  .lx-more { grid-template-columns: 1fr; }
+  .lx-more { grid-template-columns: minmax(0, 1fr); }
 }
 
 @media (max-width: 640px) {
@@ -524,10 +550,9 @@
   .lx-board-rows li,
   .lx-board-note,
   .lx-board-all { padding-left: 16px; padding-right: 16px; }
-  .lx-board-rows li { grid-template-columns: 58px minmax(0, 1fr) auto; gap: 10px; }
-  .lx-steps { grid-template-columns: 1fr; gap: 24px; }
+  .lx-steps { grid-template-columns: minmax(0, 1fr); gap: 24px; }
   .lx-steps li {
-    grid-template-columns: 40px 1fr;
+    grid-template-columns: 40px minmax(0, 1fr);
     column-gap: 8px;
     row-gap: 6px;
   }

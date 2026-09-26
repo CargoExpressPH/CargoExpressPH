@@ -429,11 +429,15 @@
   margin-bottom: 16px;
 }
 
+/* One line at every width: the earlier crumbs keep their size and the
+   current page (last) shortens with an ellipsis instead of wrapping onto a
+   second line. */
 .breadcrumb-list {
   list-style: none;
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  min-width: 0;
   gap: 2px;
   margin: 0;
   padding: 0;
@@ -441,8 +445,19 @@
 
 .breadcrumb-item {
   display: flex;
+  flex: 0 0 auto;
   align-items: center;
   gap: 2px;
+}
+
+.breadcrumb-item:last-child {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.breadcrumb-item:last-child .breadcrumb-current,
+.breadcrumb-item:last-child .breadcrumb-link {
+  min-width: 0;
 }
 
 .breadcrumb-sep {

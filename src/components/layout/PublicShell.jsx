@@ -45,7 +45,7 @@ const PublicShell = ({ children, wide = false, links = false }) => {
   }, []);
 
   return (
-    <div className="public-shell">
+    <div className={`public-shell${links ? ' public-shell--links' : ''}`}>
       <header className="public-shell-header">
         <Link to="/" className="public-shell-brand" aria-label="CargoExpress PH home">
           <BrandLockup size={32} />
