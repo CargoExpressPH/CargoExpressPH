@@ -10,11 +10,11 @@
 
    Layer order mirrors the former import order, so no rule changes meaning:
    tokens < base < components < layout < pages < effects < responsive
-   < refresh < hardening < density < print. density stays last on purpose
-   (phone-width density beats every earlier mobile rule), and print is last
-   so formal documents can always outrank the screen. */
+   < refresh < hardening < density < sr-controls < mobile-inputs < print.
+   mobile-inputs is last for screen controls so compact page rules cannot
+   trigger iOS input-focus zoom; print remains last for documents. */
 
-@layer tokens, base, components, layout, pages, effects, responsive, refresh, hardening, density, sr-controls, print;
+@layer tokens, base, components, layout, pages, effects, responsive, refresh, hardening, density, sr-controls, mobile-inputs, print;
 
 /* ── 1. Design Tokens (no output, only CSS variables) ── */
 @import './tokens.css' layer(tokens);
@@ -85,6 +85,9 @@
    one page; see the file header for why layer order, not specificity,
    is what decides this. */
 @import './sales-reports-controls.css' layer(sr-controls);
+
+/* Keep all editable controls legible on phones and prevent iOS focus zoom. */
+@import './mobile-inputs.css' layer(mobile-inputs);
 
 @import './print-document.css' layer(print);
 

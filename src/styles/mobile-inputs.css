@@ -1,0 +1,16 @@
+/* iOS Safari enlarges the visual viewport when a focused editable field has
+   small text. A late screen layer beats the compact 12–14px field rules from
+   customer, admin and shared pages without changing their layout or disabling
+   the user's ability to pinch zoom. Keep buttons and non-editable inputs out. */
+@media (max-width: 768px) {
+  input:not([type]),
+  input[type="text"], input[type="search"], input[type="email"],
+  input[type="password"], input[type="tel"], input[type="number"],
+  input[type="url"], input[type="date"], input[type="time"],
+  input[type="datetime-local"], input[type="month"], input[type="week"],
+  textarea,
+  select,
+  [contenteditable]:not([contenteditable="false"]) {
+    font-size: 16px;
+  }
+}
