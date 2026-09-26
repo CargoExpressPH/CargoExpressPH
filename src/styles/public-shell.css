@@ -34,6 +34,38 @@
   gap: 16px;
 }
 
+/* Public page links (PublicShell `links`), centred between brand and account. */
+.public-shell-pages {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.public-shell-page-link {
+  padding: 8px 12px;
+  border-radius: 999px;
+  font-size: var(--text-14);
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background-color .2s ease, color .2s ease;
+}
+.public-shell-page-link:hover {
+  background: var(--bg-secondary);
+  color: var(--text);
+}
+.public-shell-page-link.active {
+  background: var(--primary-icon-bg);
+  color: var(--primary-text);
+}
+
+@media (max-width: 860px) {
+  .public-shell-pages {
+    display: none;
+  }
+}
+
 .public-shell-link {
   font-size: var(--text-14);
   font-weight: 600;

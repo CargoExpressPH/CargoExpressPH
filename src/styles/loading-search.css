@@ -21,6 +21,38 @@
 .loading-screen .loading-brand h1 {
   font-size: var(--text-24); font-weight: 700;
 }
+/* The app's LoadingScreen (App.jsx): the same logo, wordmark and bar as the
+   splash in index.html, so there is no visual jump between the two. */
+.loading-screen[role="status"] { gap: 18px; }
+.loading-screen-logo {
+  box-shadow: 0 0 0 6px rgba(var(--primary-rgb), 0.12), var(--shadow-md);
+}
+.loading-screen[role="status"] .brand-wordmark { font-size: var(--text-18); }
+.loading-screen-bar {
+  position: relative;
+  overflow: hidden;
+  width: 120px;
+  height: 3px;
+  border-radius: 3px;
+  background: rgba(var(--primary-rgb), 0.16);
+}
+.loading-screen-bar::after {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 40%;
+  border-radius: 3px;
+  background: var(--primary);
+  animation: loading-bar 1.1s ease-in-out infinite;
+}
+@keyframes loading-bar {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(250%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .loading-screen-bar::after { width: 100%; animation: none; }
+}
+
 .loading-screen p {
   color: var(--text-tertiary); font-weight: 500;
   font-size: var(--text-16);

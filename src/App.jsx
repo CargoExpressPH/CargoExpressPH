@@ -80,14 +80,14 @@ const PrivacyPage = lazyWithRetry(() => import('./pages/public/LegalPage').then(
 
 // ─── Loading Screens ────────────────────────────────────────────────────────
 
+// Matches the splash in index.html that the generated public pages show while
+// the app starts, so the hand-over from that splash to React is seamless.
 const LoadingScreen = () => (
-  <div className="loading-screen">
-    <div className="loading-brand animate-scale-in">
-      <BrandLogo size={44} decorative />
-      <h1><BrandWordmark /></h1>
-    </div>
-    <div className="spinner" />
-    <p>Loading CargoExpress PH...</p>
+  <div className="loading-screen" role="status">
+    <BrandLogo size={64} decorative className="loading-screen-logo" />
+    <BrandWordmark />
+    <span className="loading-screen-bar" aria-hidden="true" />
+    <span className="sr-only">Loading CargoExpress PH</span>
   </div>
 );
 
@@ -144,7 +144,7 @@ const RootRedirect = () => {
   // browser, "/" stays the public home page that search engines index.
   if (!user) {
     if (isStandaloneWebApp()) return <Navigate to="/login" replace />;
-    return <PublicShell><LandingPage /></PublicShell>;
+    return <PublicShell wide links><LandingPage /></PublicShell>;
   }
   if (!userProfile || !userProfile.role) return <Navigate to="/login" replace />;
   return <Navigate to={userProfile.role === 'admin' ? '/admin' : '/customer'} replace />;
@@ -220,7 +220,7 @@ const router = createBrowserRouter([
       // which now redirects to /login with state.from so the guard is
       // enforced once, centrally, instead of per button/link.
       {
-        element: <PublicShell />,
+        element: <PublicShell links />,
         children: [
           { path: '/schedules', element: <CustTripsPage /> },
           { path: '/faq', element: <HelpGuidelinesPage /> },

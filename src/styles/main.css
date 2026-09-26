@@ -79,6 +79,9 @@
    is enforced by the layer list, not by this file's import position. */
 @import './mobile-density.css' layer(density);
 
+/* Customer and admin order detail pages: hero, cards and figures. */
+@import './order-detail.css' layer(density);
+
 /* Formal bond-paper print documents (Reports & Sales) */
 /* Sales & Reports control bar. Must sit after `refresh`/`density` to
    override their global mobile .admin-page-header .btn sizing for this

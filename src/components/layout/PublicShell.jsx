@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Outlet, Link } from 'react-router-dom';
+import { Outlet, Link, NavLink } from 'react-router-dom';
 import BrandLockup from '../ui/BrandLogo';
 import Footer from './Footer';
 import { getCompanyInformation } from '../../lib/database';
@@ -19,10 +19,18 @@ import { useDashboardPath } from '../../hooks/useDashboardPath';
  * from About page's own data-loading effect and isn't worth duplicating for
  * two lightweight pages.
  *
- * `wide` lifts the reading-width cap for the 404 page, whose full-bleed
- * panels lay out their own columns.
+ * `wide` lifts the reading-width cap for pages whose full-bleed panels lay
+ * out their own columns (the home page and the 404 page). `links` adds the
+ * public page links to the header; phones hide them, the footer has them.
  */
-const PublicShell = ({ children, wide = false }) => {
+const PAGE_LINKS = [
+  ['/schedules', 'Trip Schedules'],
+  ['/track', 'Track'],
+  ['/faq', 'Help'],
+  ['/about', 'About'],
+];
+
+const PublicShell = ({ children, wide = false, links = false }) => {
   const [company, setCompany] = useState(null);
   // A signed-in visitor is offered their dashboard instead of being asked
   // to log in again.
@@ -42,6 +50,13 @@ const PublicShell = ({ children, wide = false }) => {
         <Link to="/" className="public-shell-brand" aria-label="CargoExpress PH home">
           <BrandLockup size={32} />
         </Link>
+        {links && (
+          <nav className="public-shell-pages" aria-label="Site pages">
+            {PAGE_LINKS.map(([to, label]) => (
+              <NavLink key={to} to={to} className="public-shell-page-link">{label}</NavLink>
+            ))}
+          </nav>
+        )}
         <nav className="public-shell-nav" aria-label="Account">
           {dashboardPath ? (
             <Link to={dashboardPath} className="btn btn-primary btn-sm public-shell-dashboard">

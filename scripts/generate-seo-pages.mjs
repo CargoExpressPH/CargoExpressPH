@@ -42,22 +42,43 @@ function replaceRequired(source, pattern, replacement) {
   return source.replace(pattern, replacement);
 }
 
+// The pages every crawlable page links to, with the line shown on its card.
+const PAGE_CARDS = [
+  ['/schedules', 'Trip schedules', 'Upcoming departures between Manila and Bohol.'],
+  ['/track', 'Track a shipment', 'The latest status of your cargo, no account needed.'],
+  ['/faq', 'Help & guidelines', 'Preparing cargo, restricted items, pickup and delivery.'],
+  ['/about', 'About us', 'Coverage areas, customer feedback and contact details.'],
+];
+
+const LOGO = '<img src="/images/logo-nav.png" width="36" height="36" alt="" />';
+
 function renderFallback(page, path) {
-  // Real, publicly visible navigation and a summary of the corresponding
-  // screen. React replaces this when the app loads; it stays usable without JS.
-  const links = [
-    ['/', 'Home'], ['/about', 'About'], ['/schedules', 'Trip Schedules'],
-    ['/track', 'Track Shipment'], ['/faq', 'Help'],
-    ['/terms', 'Terms'], ['/privacy', 'Privacy'], ['/login', 'Sign In'],
-  ];
+  // A real, styled page: header, the screen's heading and summary, links to
+  // the other public pages and a footer. React replaces it when the app
+  // loads; it stays usable without JS. The styles live in index.html.
+  // `.seo-boot` is the loading splash shown instead while the app starts.
+  const nav = [['/', 'Home'], ...PAGE_CARDS.map(([href, label]) => [href, label])]
+    .map(([href, label]) => `<a href="${href}"${href === path ? ' aria-current="page"' : ''}>${label}</a>`).join('');
+  const cards = PAGE_CARDS.filter(([href]) => href !== path)
+    .map(([href, label, text]) => `<a href="${href}"><strong>${label}</strong><span>${text}</span></a>`).join('');
   const faqs = path === '/faq' || path === '/about'
-    ? `<section id="faq" aria-labelledby="faq-heading"><h2 id="faq-heading">Frequently Asked Questions</h2>`
+    ? `<section class="seo-faq" id="faq" aria-labelledby="faq-heading"><h2 id="faq-heading">Frequently Asked Questions</h2>`
       + FAQ_ITEMS.map(({ title, answer }) => `<article><h3>${escapeHtml(title)}</h3><p>${escapeHtml(answer)}</p></article>`).join('')
       + '</section>'
     : '';
-  return `<main class="seo-fallback"><a href="/">CargoExpress PH</a>`
+  return `<div class="seo-boot" aria-hidden="true"><img src="/images/logo-nav.png" width="64" height="64" alt="" />`
+    + `<span>CARGOEXPRESS <b>PH</b></span><i></i></div>`
+    + `<main class="seo-fallback">`
+    + `<header class="seo-top"><a class="seo-brand" href="/">${LOGO}<span>CargoExpress PH</span></a>`
+    + `<nav aria-label="Site pages">${nav}</nav>`
+    + `<a class="seo-signin" href="/login">Log in</a></header>`
+    + `<section class="seo-hero"><p class="seo-eyebrow">Manila ⇄ Bohol</p>`
     + `<h1>${escapeHtml(page.heading)}</h1><p>${escapeHtml(page.summary)}</p>`
-    + `<nav aria-label="Site pages">${links.map(([href, label]) => `<a href="${href}">${label}</a>`).join('')}</nav>${faqs}</main>`;
+    + `<div class="seo-actions"><a class="seo-btn" href="/track">Track a shipment</a>`
+    + `<a class="seo-btn seo-btn-ghost" href="/register">Create an account</a></div></section>`
+    + `<nav class="seo-cards" aria-label="Explore CargoExpress PH">${cards}</nav>${faqs}`
+    + `<footer class="seo-foot"><span>© CargoExpress PH · Door-to-door cargo between Manila and Bohol</span>`
+    + `<span><a href="/terms">Terms</a><a href="/privacy">Privacy</a></span></footer></main>`;
 }
 
 function renderPage(path, page) {

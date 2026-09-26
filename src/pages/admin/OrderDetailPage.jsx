@@ -53,6 +53,7 @@ import { formatPhDate, formatPhDateTime } from '../../utils/datetime';
 import { formatMoney } from '../../utils/currencyInput';
 import { truncateRef, isSystemGenerated, getPaymentActivityStatusDisplay, formatRecordedBy as fmtRecordedBy } from '../../utils/paymentDisplay';
 import { orderPartyName, orderPartyAddress } from '../../lib/orderParties';
+import { OrderHero, OrderRouteProgress } from '../../components/ui/OrderStatusHero';
 
 const safeFormatDate = (dateStr, options) => {
   if (!dateStr) return '—';
@@ -874,7 +875,7 @@ const AdminOrderDetailPage = () => {
   );
 
   return (
-    <div className="page-transition">
+    <div className="page-transition od-screen od-screen-admin">
       <Breadcrumb items={[
         { label: 'Dashboard', to: '/admin' },
         { label: 'Orders', to: '/admin/orders' },
@@ -882,7 +883,8 @@ const AdminOrderDetailPage = () => {
       ]} />
 
       <ErrorBoundarySection message="Order info failed to load.">
-      {/* Header */}
+      {/* Header: tracking number, status, customer, and the route with progress. */}
+      <OrderHero status={order.status}>
       <div className="admin-order-heading mb-8">
         <div className="order-tracking-title">
           <h1 className="fw-700 text-2xl">{order.tracking_number}</h1>
@@ -897,11 +899,7 @@ const AdminOrderDetailPage = () => {
             )}
         </div>
       </div>
-      <div className="flex items-center gap-8 text-sm mb-20 flex-wrap">
-        <span className="fw-700 text-secondary">{order.origin}</span>
-        <span className="fw-700" style={{ color: 'var(--primary-text)' }}>➔</span>
-        <span className="fw-700 text-secondary">{order.destination}</span>
-        <span className="text-secondary opacity-50">•</span>
+      <div className="od-hero-customer">
         {isGuestBooking ? (
           <>
             <span className="badge badge-warning" style={{ fontSize: 'var(--text-12)' }}>Guest Booking</span>
@@ -930,6 +928,8 @@ const AdminOrderDetailPage = () => {
           </>
         )}
       </div>
+      <OrderRouteProgress order={order} />
+      </OrderHero>
 
       {/* Reached via a scanned package QR label (?box=n) — see scannedBox
           above. Purely informational: it does not gate anything, the login
