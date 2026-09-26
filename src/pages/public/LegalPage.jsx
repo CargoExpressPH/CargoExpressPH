@@ -1,4 +1,4 @@
-import { Link, useLocation, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Scale, ShieldCheck } from 'lucide-react';
 import usePageTitle from '../../hooks/usePageTitle';
 import { LEGAL_DOCUMENTS } from '../../constants/legalDocuments';
@@ -134,22 +134,35 @@ const CONTENT = { terms: TERMS_SECTIONS, privacy: PRIVACY_SECTIONS };
 
 const LegalPage = ({ documentKey }) => {
   const location = useLocation();
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const document = LEGAL_DOCUMENTS[documentKey];
   const isTerms = documentKey === 'terms';
   const Icon = isTerms ? Scale : ShieldCheck;
   const other = LEGAL_DOCUMENTS[isTerms ? 'privacy' : 'terms'];
   const returnToRegister = searchParams.get('returnTo') === 'register';
-  const backPath = returnToRegister ? '/register?step=2' : '/about';
+  const backPath = returnToRegister ? '/register?step=2' : '/';
   const backLabel = 'Back';
   const relatedPath = `${other.path}${returnToRegister ? '?returnTo=register' : ''}`;
+  const currentPath = `${document.path}${returnToRegister ? '?returnTo=register' : ''}`;
+
+  const handleBack = (event) => {
+    // Preserve the registration draft and step when returning from consent.
+    // For other visitors, use the route they actually came from. A direct
+    // visit has no in-app history, so the Link's Home href is the fallback.
+    if (returnToRegister || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    if ((window.history.state?.idx ?? 0) > 0) {
+      event.preventDefault();
+      navigate(-1);
+    }
+  };
 
   usePageTitle(document.title, `${document.title} for CargoExpress PH. Effective ${document.effectiveDate}.`);
 
   return (
     <main className="legal-page">
       <nav className="legal-nav" aria-label="Legal document navigation">
-        <Link to={backPath} state={returnToRegister ? location.state : undefined} className="legal-back">
+        <Link to={backPath} state={returnToRegister ? location.state : undefined} onClick={handleBack} className="legal-back">
           <ArrowLeft size={16} /> {backLabel}
         </Link>
       </nav>
@@ -180,8 +193,8 @@ const LegalPage = ({ documentKey }) => {
       <footer className="legal-footer">
         <span>© {new Date().getFullYear()} CargoExpress PH</span>
         <div>
-          <Link to="/terms">Terms</Link>
-          <Link to="/privacy">Privacy</Link>
+          <Link to={isTerms ? currentPath : relatedPath} replace={isTerms} state={returnToRegister ? location.state : undefined}>Terms</Link>
+          <Link to={isTerms ? relatedPath : currentPath} replace={!isTerms} state={returnToRegister ? location.state : undefined}>Privacy</Link>
           <Link to="/about#contact">Contact us</Link>
         </div>
       </footer>

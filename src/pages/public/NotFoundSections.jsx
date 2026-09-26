@@ -9,7 +9,7 @@ import {
  * illustration, and links to the main public pages. Styles: ./not-found.css.
  */
 
-const SCHEDULES_PATH = '/about#trip-schedules';
+const SCHEDULES_PATH = '/schedules';
 
 export const NOT_FOUND_HERO = {
   eyebrow: 'Error 404',
