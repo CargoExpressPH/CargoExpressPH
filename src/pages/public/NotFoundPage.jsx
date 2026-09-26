@@ -1,5 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { PackageX, Home, Search, ArrowLeft, Compass } from 'lucide-react';
+import { ArrowLeft, ArrowRight, CircleHelp, CircleX, Home, MapPin, Search } from 'lucide-react';
+import BrandLockup from '../../components/ui/BrandLogo';
 import usePageTitle from '../../hooks/usePageTitle';
 
 const NotFoundPage = () => {
@@ -7,7 +8,8 @@ const NotFoundPage = () => {
   const navigate = useNavigate();
 
   const handleGoBack = () => {
-    if (window.history.length > 2) {
+    // A direct visit has no useful in-app destination to return to.
+    if (window.history.state?.idx > 0) {
       navigate(-1);
     } else {
       navigate('/', { replace: true });
@@ -15,59 +17,61 @@ const NotFoundPage = () => {
   };
 
   return (
-  <main id="main-content" className="not-found-page">
-    <a href="#main-content" className="skip-link">Skip to main content</a>
-    {/* Decorative background orbs */}
-    <div className="nf-orb nf-orb-1" aria-hidden="true" />
-    <div className="nf-orb nf-orb-2" aria-hidden="true" />
+    <main id="main-content" className="not-found-page">
+      <a href="#nf-content" className="skip-link">Skip to main content</a>
 
-    <div className="not-found-card">
-      {/* Animated icon with pulse ring */}
-      <div className="nf-icon-wrap">
-        <div className="nf-icon-ring" aria-hidden="true" />
-        <div className="nf-icon-circle">
-          <PackageX size={36} strokeWidth={1.8} aria-hidden="true" />
+      <div className="nf-shell">
+        <header className="nf-header">
+          <Link to="/" aria-label="CargoExpress PH home" className="nf-brand">
+            <BrandLockup size={34} />
+          </Link>
+          <Link to="/about#contact" className="nf-help-link">
+            <CircleHelp size={17} aria-hidden="true" /> <span>Need help?</span>
+          </Link>
+        </header>
+
+        <div className="nf-layout" id="nf-content">
+          <div className="nf-copy">
+            <p className="nf-eyebrow"><span className="nf-eyebrow-dot" /> Error 404 <span className="nf-eyebrow-line" /> Page not found</p>
+            <h1 className="nf-title">This page isn’t<br className="nf-desktop-break" /> on the route.</h1>
+            <p className="nf-description">
+              The link may be outdated, or the address may have a typo. Let’s get you back on track.
+            </p>
+
+            <div className="nf-actions">
+              <Link to="/" className="nf-action nf-action-primary">
+                <Home size={19} aria-hidden="true" /> Go to homepage <ArrowRight size={18} aria-hidden="true" className="nf-action-arrow" />
+              </Link>
+              <Link to="/track" className="nf-action nf-action-secondary">
+                <Search size={19} aria-hidden="true" /> Track a shipment
+              </Link>
+            </div>
+
+            <button type="button" onClick={handleGoBack} className="nf-back-link">
+              <ArrowLeft size={17} aria-hidden="true" /> Go back to the previous page
+            </button>
+          </div>
+
+          <div className="nf-art" aria-hidden="true">
+            <div className="nf-art-top"><span>PAGE STATUS</span><span className="nf-art-status"><span /> LINK NOT FOUND</span></div>
+            <div className="nf-art-center">
+              <div className="nf-art-code">404</div>
+              <div className="nf-art-route">
+                <span className="nf-art-start"><MapPin size={20} /></span>
+                <span className="nf-art-path" />
+                <span className="nf-art-end"><CircleX size={25} /></span>
+              </div>
+            </div>
+            <div className="nf-art-bottom"><span>WRONG TURN</span><span>FIND YOUR WAY BACK <ArrowRight size={15} /></span></div>
+          </div>
         </div>
+
+        <footer className="nf-footer">
+          <span>CargoExpress PH</span><span className="nf-footer-separator" aria-hidden="true" />
+          <span>Connecting Manila &amp; Bohol</span>
+        </footer>
       </div>
-
-      {/* Error code with gradient */}
-      <h1 className="nf-code">
-        <span className="nf-code-4">4</span>
-        <span className="nf-code-0">0</span>
-        <span className="nf-code-4b">4</span>
-      </h1>
-
-      <h2 className="not-found-title">Page Not Found</h2>
-      <p className="not-found-text">
-        Looks like this package got lost in transit. The page you're looking for
-        doesn't exist, has been moved, or is temporarily unavailable.
-      </p>
-
-      {/* Navigation suggestions */}
-      <div className="nf-suggestions">
-        <div className="nf-suggestion-label">
-          <Compass size={14} aria-hidden="true" /> Here's where you can go:
-        </div>
-      </div>
-
-      <div className="not-found-actions">
-        <Link to="/" className="btn btn-primary">
-          <Home size={16} aria-hidden="true" /> Go Home
-        </Link>
-        <Link to="/track" className="btn btn-outline">
-          <Search size={16} aria-hidden="true" /> Track Shipment
-        </Link>
-      </div>
-
-      <button
-        type="button"
-        onClick={handleGoBack}
-        className="nf-back-link"
-      >
-        <ArrowLeft size={14} /> Go back to previous page
-      </button>
-    </div>
-  </main>
+    </main>
   );
 };
 

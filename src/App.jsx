@@ -5,7 +5,7 @@ import InstallAppBanner from './components/ui/InstallAppBanner';
 import IosInstallBanner from './components/ui/IosInstallBanner';
 import UpdateAvailableBanner from './components/ui/UpdateAvailableBanner';
 import RouteErrorBoundary from './components/ui/RouteErrorBoundary';
-import { createBrowserRouter, RouterProvider, Navigate, Outlet, useLocation } from 'react-router-dom';
+import { createBrowserRouter, RouterProvider, Navigate, Outlet, useLocation, useMatches } from 'react-router-dom';
 import useKeyboardInset, { scrollFocusedFieldIntoView } from './hooks/useKeyboardInset';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
@@ -168,7 +168,8 @@ const ScrollToTop = () => {
 /** Keep PWA-install overlays off public, time-sensitive tracking tasks. */
 const InstallPrompts = () => {
   const { pathname } = useLocation();
-  if (pathname === '/' || pathname === '/track' || pathname === '/payment/return') return null;
+  const matches = useMatches();
+  if (pathname === '/' || pathname === '/track' || pathname === '/payment/return' || matches.some(match => match.id === 'not-found')) return null;
   return <>
     <InstallAppBanner />
     <IosInstallBanner />
@@ -294,7 +295,7 @@ const router = createBrowserRouter([
       },
 
       // 404
-      { path: '*', element: <Suspense fallback={<PageLoader />}><NotFoundPage /></Suspense> },
+      { id: 'not-found', path: '*', element: <Suspense fallback={<PageLoader />}><NotFoundPage /></Suspense> },
     ],
   },
 ]);
