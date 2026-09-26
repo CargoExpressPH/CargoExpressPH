@@ -253,13 +253,19 @@
   min-width: 0;
   overflow-wrap: anywhere;
 }
+/* Date over time, each kept to its own step so neighbouring steps in the
+   horizontal track never run into each other. */
 .status-timeline-time {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   font-size: var(--text-12);
   font-weight: 600;
-  line-height: 1.2;
+  line-height: 1.25;
   color: var(--text-tertiary);
   letter-spacing: 0.01em;
   white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 .status-timeline-step.completed .status-timeline-time {
   color: var(--success-text);

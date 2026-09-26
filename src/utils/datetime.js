@@ -113,7 +113,8 @@ export const formatPhDate = (value, opts = {}) =>
 export const formatPhDateTime = (value, opts = {}) =>
   formatInPH(value, {
     year: 'numeric', month: 'short', day: 'numeric',
-    hour: '2-digit', minute: '2-digit', ...opts,
+    // "1:57 PM", not "01:57 PM" — how times are written in the Philippines.
+    hour: 'numeric', minute: '2-digit', ...opts,
   });
 
 /**

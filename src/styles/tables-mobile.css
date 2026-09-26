@@ -965,8 +965,16 @@
     white-space: normal;
   }
 
+  /* Vertical list: one line, "Sep 25 · 11:56 AM". */
   .status-timeline-time {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 0 5px;
     white-space: normal;
+  }
+
+  .status-timeline-time span + span::before {
+    content: "· ";
   }
 
   .customer-order-detail-header {

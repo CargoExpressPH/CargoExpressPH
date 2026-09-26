@@ -1,4 +1,5 @@
 import { STATUS_TIMELINE } from '../../constants/status';
+import { formatPhDate, formatPhDateTime } from '../../utils/datetime';
 import { Check, Package, ClipboardCheck, Truck, Building2, Bike, CheckCircle } from 'lucide-react';
 
 const STEP_ICONS = {
@@ -28,26 +29,20 @@ const TrackingTimeline = ({ currentStatus, compact = false, stepTimestamps = nul
   const currentIdx = STATUS_TIMELINE.indexOf(currentStatus);
   const isCancelled = currentStatus === 'Cancelled';
 
-  // Format an ISO string into a compact "Jul 19 · 2:30 PM" label.
-  // Returns null for missing/invalid input or locale formatting errors.
+  // { date: "Jul 19", time: "2:30 PM" } in Manila time, whatever zone the
+  // viewer's device is set to. Date and time render on separate lines so
+  // neighbouring steps in the horizontal layout never run into each other.
+  // Returns null for missing/invalid input.
   const formatStepTime = (iso) => {
     if (!iso || (typeof iso !== 'string' && typeof iso !== 'number')) return null;
+    if (Number.isNaN(Date.parse(iso))) return null;
     try {
-      const ts = Date.parse(iso);
-      if (Number.isNaN(ts)) return null;
-      const d = new Date(ts);
-      if (Number.isNaN(d.getTime())) return null;
-
-      const date = d.toLocaleDateString('en-PH', { month: 'short', day: 'numeric' });
-      const time = d.toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit', hour12: true });
-      return `${date} · ${time}`;
+      return {
+        date: formatPhDate(iso, { year: undefined }),
+        time: formatPhDateTime(iso, { year: undefined, month: undefined, day: undefined, hour: 'numeric' }),
+      };
     } catch {
-      try {
-        const d = new Date(iso);
-        return d.toLocaleString();
-      } catch {
-        return null;
-      }
+      return null;
     }
   };
 
@@ -92,7 +87,8 @@ const TrackingTimeline = ({ currentStatus, compact = false, stepTimestamps = nul
                 </div>
                 {tsLabel && (
                   <time className="status-timeline-time" dateTime={typeof rawTs === 'string' ? rawTs : undefined}>
-                    {tsLabel}
+                    <span>{tsLabel.date}</span>
+                    <span>{tsLabel.time}</span>
                   </time>
                 )}
               </div>
