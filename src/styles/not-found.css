@@ -191,7 +191,7 @@
 .nf-art-end { width: 51px; height: 51px; background: var(--primary-bg); border-color: rgba(22, 163, 74, 0.28); }
 .nf-art-path { flex: 1; height: 2px; border-top: 2px dashed var(--primary); opacity: 0.65; }
 .nf-art-bottom { padding-top: 18px; border-top: 1px solid var(--border); }
-.nf-art-bottom > span:last-child { display: inline-flex; gap: 6px; align-items: center; color: var(--primary-text-strong); }
+.nf-art-bottom > span:last-child { color: var(--text-secondary); }
 .nf-footer { justify-content: flex-start; gap: 12px; color: var(--text-secondary); font-size: 12px; font-weight: 500; }
 .nf-footer-separator { width: 3px; height: 3px; border-radius: 50%; background: var(--text-tertiary); }
 

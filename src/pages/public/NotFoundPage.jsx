@@ -62,7 +62,7 @@ const NotFoundPage = () => {
                 <span className="nf-art-end"><CircleX size={25} /></span>
               </div>
             </div>
-            <div className="nf-art-bottom"><span>WRONG TURN</span><span>FIND YOUR WAY BACK <ArrowRight size={15} /></span></div>
+            <div className="nf-art-bottom"><span>WRONG TURN</span><span>NOT SHIPMENT STATUS</span></div>
           </div>
         </div>
 
