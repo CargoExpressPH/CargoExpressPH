@@ -12,18 +12,26 @@ import { useLocation, useMatches } from 'react-router-dom';
  */
 const SCRIPT_SRC = '/_vercel/speed-insights/script.js';
 
+// Fallback for a report that arrives without a route: any UUID or long
+// number in the path is treated as a record ID.
+const ID_SEGMENT = /\/(?:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|\d{4,})(?=\/|$)/gi;
+
 /**
- * Query strings and hashes never leave the browser: tracking numbers,
- * unsubscribe tokens and password-reset tokens travel in them.
+ * Nothing that identifies a person, order or trip leaves the browser:
+ * - query strings and hashes are dropped (tracking numbers, unsubscribe
+ *   tokens and password-reset tokens travel in them), and
+ * - the path is replaced by its route pattern, so /customer/orders/8f1c…
+ *   is sent as /customer/orders/[id] with no real ID in it.
  */
-const stripQueryAndHash = (event) => {
+const redactUrl = (event) => {
   try {
     const url = new URL(event.url);
     url.search = '';
     url.hash = '';
+    url.pathname = event.route || url.pathname.replace(ID_SEGMENT, '/[id]');
     return { ...event, url: url.toString() };
   } catch {
-    return event;
+    return null;
   }
 };
 
@@ -61,7 +69,7 @@ export default function PerformanceInsights() {
     window.si = window.si || function si(...args) {
       (window.siq = window.siq || []).push(args);
     };
-    window.si('beforeSend', stripQueryAndHash);
+    window.si('beforeSend', redactUrl);
 
     let script = document.head.querySelector(`script[src="${SCRIPT_SRC}"]`);
     if (!script) {
