@@ -15,6 +15,11 @@ import OnboardingModal from '../ui/OnboardingModal';
 import { motion, AnimatePresence } from 'framer-motion';
 import PageTransition from '../ui/PageTransition';
 
+// The skip link's target. Exactly one <main> renders at a time — booking opts
+// out of PageTransition (see below) — so this id is never duplicated in the
+// document. Held in one place so the link and both branches cannot drift apart.
+const MAIN_CONTENT_ID = 'customer-main-content';
+
 const desktopNavItems = [
   { to: '/customer/book', icon: Plus, label: 'Book Shipment' },
   { to: '/customer/orders', icon: Package, label: 'Bookings' },
@@ -291,7 +296,7 @@ const CustomerLayout = () => {
     <>
     <OnboardingModal />
     <div className={`customer-layout-v2${location.pathname === '/customer/book' ? ' booking-scroll-shell' : ''}`}>
-      <a href="#customer-main-content" className="skip-link">Skip to main content</a>
+      <a href={`#${MAIN_CONTENT_ID}`} className="skip-link">Skip to main content</a>
       {/* ─── Top Navigation Bar ─── */}
       <header className="customer-navbar">
         <div className="customer-navbar-inner">
@@ -426,11 +431,11 @@ const CustomerLayout = () => {
       {location.pathname === '/customer/book' ? (
         // Older WebKit can lose sticky descendants of an animated transform.
         // Keep booking's progress bar in the ordinary document scroll tree.
-        <main id="customer-main-content" className="w-full customer-main customer-main--booking" key={location.pathname} tabIndex={-1}>
+        <main id={MAIN_CONTENT_ID} className="w-full customer-main customer-main--booking" key={location.pathname} tabIndex={-1}>
           <ErrorBoundary><Outlet /></ErrorBoundary>
         </main>
       ) : (
-        <PageTransition as="main" id="customer-main-content" className="customer-main" key={location.pathname} tabIndex={-1}>
+        <PageTransition as="main" id={MAIN_CONTENT_ID} className="customer-main" key={location.pathname} tabIndex={-1}>
           <ErrorBoundary><Outlet /></ErrorBoundary>
         </PageTransition>
       )}

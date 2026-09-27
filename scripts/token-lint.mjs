@@ -50,6 +50,13 @@ const RUNTIME_DEFINED = new Set([
   // route line the cargo has travelled. A percentage length, never a colour,
   // and the 0% fallback is the pre-pickup resting state.
   '--route-progress',
+  // Written to <html> by BookShipmentPage (src/pages/customer/BookShipmentPage.jsx)
+  // while the booking form is mounted: the top edge and height of the visual
+  // viewport, so the progress bar stays pinned as the keyboard pans the view.
+  // Both are removed on unmount, and both are lengths rather than colours, so
+  // no theme can be got wrong by them.
+  '--booking-visible-top',
+  '--booking-visible-height',
 ]);
 
 /**
