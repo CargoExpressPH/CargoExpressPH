@@ -42,6 +42,9 @@ const RUNTIME_DEFINED = new Set([
   // viewport. The 0px fallbacks are the no-keyboard resting state, and it is a
   // length rather than a colour, so no theme can be got wrong by it.
   '--keyboard-inset',
+  // Written to <html> by the same hook as the visual viewport pans. Booking
+  // uses this length to keep the navbar and progress above focused inputs.
+  '--booking-visual-offset',
   // Injected as an inline style by RouteProgressLine
   // (src/components/ui/RouteProgressLine.jsx): how far along the booking-card
   // route line the cargo has travelled. A percentage length, never a colour,

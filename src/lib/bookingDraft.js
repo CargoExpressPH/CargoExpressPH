@@ -18,6 +18,25 @@ export const hasMeaningfulBookingData = (form = {}) => (
   BOOKING_DATA_FIELDS.some((field) => String(form[field] ?? '').trim().length > 0)
 );
 
+// A route switch invalidates the trip and the addresses on the opposite side.
+// Keep the contact details so the customer does not have to retype them.
+export const changeBookingRoute = (form, label, route) => {
+  if (form.route === label) return form;
+  const senderMatches = !form.sender_province || (route.origin === 'Bohol'
+    ? form.sender_province === 'Bohol'
+    : ['Metro Manila', 'Cavite', 'Batangas', 'Laguna', 'Bulacan', 'Other Area'].includes(form.sender_province));
+  return {
+    ...form,
+    route: label,
+    trip_id: '',
+    sender_other_province: senderMatches && form.sender_province === 'Other Area' ? form.sender_other_province : '',
+    ...(!senderMatches && {
+      sender_province: '', sender_other_province: '', sender_city: '', sender_barangay: '',
+    }),
+    receiver_province: '', receiver_city: '', receiver_barangay: '',
+  };
+};
+
 const getSessionStorage = (storage) => storage ?? globalThis.sessionStorage;
 const formKey = (userId) => `${DRAFT_PREFIX}:${userId}:form`;
 const stepKey = (userId) => `${DRAFT_PREFIX}:${userId}:step`;

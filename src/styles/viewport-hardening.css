@@ -310,19 +310,29 @@
   top: calc(82px + var(--app-safe-top));
 }
 
-/* Focus and scrollIntoView should land booking fields beneath the sticky
-   header and progress strip instead of placing them behind either bar. */
+/* On Android the visual viewport can pan separately from the layout viewport
+   when an input receives focus. Keep both bars visible during keyboard close
+   as well; focusout happens before the visual viewport returns to normal. */
+.customer-layout-v2:has(.booking-page) .customer-navbar {
+  top: var(--booking-visual-offset, 0px);
+}
+
+.customer-layout-v2 .booking-page .step-progress {
+  top: calc(82px + var(--app-safe-top) + var(--booking-visual-offset, 0px));
+}
+
+/* Browser focus and scrollIntoView land fields beneath the sticky bars. */
 html:has(.customer-layout-v2 .booking-page) {
-  scroll-padding-top: calc(152px + var(--app-safe-top));
+  scroll-padding-top: calc(152px + var(--app-safe-top) + var(--booking-visual-offset, 0px));
 }
 
 @media (max-width: 899.98px) {
-  .customer-layout-v2 .step-progress {
-    top: calc(74px + var(--app-safe-top));
+  .customer-layout-v2 .booking-page .step-progress {
+    top: calc(74px + var(--app-safe-top) + var(--booking-visual-offset, 0px));
   }
 
   html:has(.customer-layout-v2 .booking-page) {
-    scroll-padding-top: calc(144px + var(--app-safe-top));
+    scroll-padding-top: calc(144px + var(--app-safe-top) + var(--booking-visual-offset, 0px));
   }
 }
 

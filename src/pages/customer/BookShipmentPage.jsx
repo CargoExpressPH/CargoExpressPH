@@ -20,6 +20,7 @@ import { validatePhone } from '../../utils/phone';
 import { validateName, validateAddressLine, validateFacebookName } from '../../utils/validation';
 import {
   clearBookingDraftStorage,
+  changeBookingRoute,
   hasMeaningfulBookingData,
   persistBookingDraft,
   readBookingDraft,
@@ -37,8 +38,20 @@ function fallbackCopy(text) {
   el.focus();
   el.select();
   el.setSelectionRange(0, text.length);
-  try { document.execCommand('copy'); } catch { /* fallback copy command failure silent */ }
-  document.body.removeChild(el);
+  let copied = false;
+  try { copied = document.execCommand('copy'); } catch { /* Clipboard may be blocked. */ }
+  el.remove();
+  return copied;
+}
+
+async function copyTrackingNumber(text) {
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch { /* Try the legacy copy API when clipboard permission is denied. */ }
+  return fallbackCopy(text);
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -114,10 +127,6 @@ const BookShipmentPage = () => {
   const [recentContacts, setRecentContacts] = useState({ senders: [], receivers: [] });
   const [openContactDropdown, setOpenContactDropdown] = useState(null); // 'sender' | 'receiver' | null
   const contactWrapRefs = useRef({});
-  // Set while focusFirstInvalid moves focus. The First Name field opens Recent
-  // Contacts on focus, and after a failed Continue that menu would cover the
-  // very fields the customer was just sent to fix.
-  const programmaticFocusRef = useRef(false);
   // Set when a step change should leave the scroll to a field focus instead.
   const skipStepScrollRef = useRef(false);
 
@@ -253,6 +262,7 @@ const BookShipmentPage = () => {
     const userId = user?.id;
     if (!userId || draftReadyUserId !== userId) return undefined;
     if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
+    if (success) return undefined;
     autosaveTimerRef.current = setTimeout(() => {
       // A stale timeout from account A must never write after logout/switch.
       if (activeDraftUserRef.current === userId) {
@@ -260,7 +270,7 @@ const BookShipmentPage = () => {
       }
     }, 150);
     return () => clearTimeout(autosaveTimerRef.current);
-  }, [draftReadyUserId, form, step, user?.id]);
+  }, [draftReadyUserId, form, step, success, user?.id]);
 
   const selectedRoute = ROUTES.find(r => r.label === form.route);
   // Route match AND departure not yet past — a trip an admin forgot to close
@@ -298,14 +308,11 @@ const BookShipmentPage = () => {
   const receiverCities = form.receiver_province ? PH_LOCATIONS[form.receiver_province] || [] : [];
 
   const handleRouteChange = (label) => {
-    u('route', label);
-    if (label !== form.route) u('trip_id', '');
+    if (label === form.route) return;
     const route = ROUTES.find(r => r.label === label);
     if (route) {
-      const senderSide = detectPickupLocation(form.sender_province);
-      const expectedSender = route.origin === 'Bohol' ? 'bohol' : 'manila';
-      if (form.sender_province && senderSide !== expectedSender) { u('sender_province', ''); u('sender_city', ''); }
-      u('receiver_province', ''); u('receiver_city', '');
+      setForm(prev => changeBookingRoute(prev, label, route));
+      setFieldErrors({});
       setUseRegisteredSender(false); setUseRegisteredReceiver(false);
     }
   };
@@ -339,14 +346,14 @@ const BookShipmentPage = () => {
         sender_first_name: firstName, sender_last_name: lastName, sender_phone: userProfile.phone || '', sender_facebook: userProfile.facebook_name || '',
         sender_lot_block: userProfile.address_lot_block || '', sender_street: userProfile.address_street || '',
         sender_barangay: userProfile.address_barangay || '', sender_city: userProfile.address_city || '',
-        sender_province: userProfile.address_province || '', sender_landmark: userProfile.address_landmark || '',
+        sender_province: userProfile.address_province || '', sender_other_province: '', sender_landmark: userProfile.address_landmark || '',
       }));
     } else {
       setForm(p => ({
         ...p,
         sender_first_name: '', sender_last_name: '', sender_phone: '', sender_facebook: '',
         sender_lot_block: '', sender_street: '', sender_barangay: '',
-        sender_city: '', sender_province: '', sender_landmark: '',
+        sender_city: '', sender_province: '', sender_other_province: '', sender_landmark: '',
       }));
     }
   };
@@ -381,13 +388,16 @@ const BookShipmentPage = () => {
   // that side's checkbox state if it happened to be on, same as typing into
   // any of these fields already does via `u()`.
   const handleSelectRecentContact = (prefix, contact) => {
+    const otherSenderProvince = prefix === 'sender' && selectedRoute?.destination === 'Bohol'
+      && contact.province !== 'Bohol' && !PH_LOCATIONS[contact.province];
     setForm(p => ({
       ...p,
       [`${prefix}_first_name`]: contact.first_name,
       [`${prefix}_last_name`]: contact.last_name,
       [`${prefix}_phone`]: contact.phone,
       [`${prefix}_facebook`]: contact.facebook,
-      [`${prefix}_province`]: contact.province,
+      [`${prefix}_province`]: otherSenderProvince ? 'Other Area' : contact.province,
+      ...(prefix === 'sender' ? { sender_other_province: otherSenderProvince ? contact.province : '' } : {}),
       [`${prefix}_city`]: contact.city,
       [`${prefix}_barangay`]: contact.barangay,
       [`${prefix}_street`]: contact.street,
@@ -411,12 +421,14 @@ const BookShipmentPage = () => {
     if (fbErr) errs.sender_facebook = fbErr;
     
     if (!form.sender_province) errs.sender_province = 'Province is required.';
-    else if (form.sender_province === 'Other Area' && selectedRoute?.destination !== 'Bohol') {
+    else if (!getSenderProvinces().includes(form.sender_province)) {
+      errs.sender_province = 'Select a pickup province supported by this route.';
+    } else if (form.sender_province === 'Other Area' && selectedRoute?.destination !== 'Bohol') {
       errs.sender_province = 'Out-of-coverage pickup is only available when delivering to Bohol. Please select a listed province.';
     }
-    if (form.sender_province === 'Other Area' && !form.sender_other_province) errs.sender_other_province = 'Exact province is required.';
-    if (!form.sender_city) errs.sender_city = 'City is required.';
-    if (!form.sender_barangay) errs.sender_barangay = 'Barangay is required.';
+    if (form.sender_province === 'Other Area' && !form.sender_other_province?.trim()) errs.sender_other_province = 'Exact province is required.';
+    if (!form.sender_city?.trim()) errs.sender_city = 'City is required.';
+    if (!form.sender_barangay?.trim()) errs.sender_barangay = 'Barangay is required.';
     
     const streetErr = validateAddressLine(form.sender_street);
     if (streetErr) errs.sender_street = streetErr;
@@ -444,8 +456,11 @@ const BookShipmentPage = () => {
     if (fbErr) errs.receiver_facebook = fbErr;
     
     if (!form.receiver_province) errs.receiver_province = 'Province is required.';
-    if (!form.receiver_city) errs.receiver_city = 'City is required.';
-    if (!form.receiver_barangay) errs.receiver_barangay = 'Barangay is required.';
+    else if (!getReceiverProvinces().includes(form.receiver_province)) {
+      errs.receiver_province = 'Select a delivery province supported by this route.';
+    }
+    if (!form.receiver_city?.trim()) errs.receiver_city = 'City is required.';
+    if (!form.receiver_barangay?.trim()) errs.receiver_barangay = 'Barangay is required.';
     
     const streetErr = validateAddressLine(form.receiver_street);
     if (streetErr) errs.receiver_street = streetErr;
@@ -470,9 +485,18 @@ const BookShipmentPage = () => {
     requestAnimationFrame(() => {
       const el = document.querySelector('.booking-page [aria-invalid="true"]');
       if (el && typeof el.focus === 'function') {
-        programmaticFocusRef.current = true;
-        el.focus();
-        programmaticFocusRef.current = false;
+        el.focus({ preventScroll: true });
+        // An explicit error should sit below the sticky progress even when the
+        // keyboard has not opened yet. Avoid the page-wide smooth scroll here.
+        const progressBottom = document.querySelector('.booking-page .step-progress')?.getBoundingClientRect().bottom || 0;
+        const rect = el.getBoundingClientRect();
+        const viewport = window.visualViewport;
+        const visibleBottom = (viewport?.offsetTop || 0) + (viewport?.height || window.innerHeight);
+        if (rect.top < progressBottom + 12) {
+          window.scrollBy({ top: Math.floor(rect.top - progressBottom - 12), behavior: 'instant' });
+        } else if (rect.bottom > visibleBottom - 16) {
+          window.scrollBy({ top: Math.ceil(rect.bottom - visibleBottom + 16), behavior: 'instant' });
+        }
       }
     });
   };
@@ -492,12 +516,26 @@ const BookShipmentPage = () => {
     // user was just sent to fix, so it is skipped on that path only.
     let focusingInvalidField = false;
     try {
-      if (!selectedRoute) throw new Error('Please select a route.');
+      if (!selectedRoute) { setStep(1); throw new Error('Please select a route.'); }
+      if (form.trip_id && !selectedTrip) {
+        setForm(prev => ({ ...prev, trip_id: '' }));
+        setStep(1);
+        throw new Error('Selected trip is no longer available. Please choose another trip or book without selecting one.');
+      }
       // C-2 fix: Navigate to the step containing the error before throwing
       const sErrs = validateSender(); if (Object.keys(sErrs).length) { setFieldErrors(sErrs); skipStepScrollRef.current = true; setStep(2); focusingInvalidField = true; focusFirstInvalid(); throw new Error('Please fix sender details.'); }
       const rErrs = validateReceiver(); if (Object.keys(rErrs).length) { setFieldErrors(rErrs); skipStepScrollRef.current = true; setStep(3); focusingInvalidField = true; focusFirstInvalid(); throw new Error('Please fix receiver details.'); }
       const validation = validateRouteProvinces(form.sender_province, form.receiver_province, selectedRoute);
       if (!validation.valid) throw new Error(validation.error);
+
+      if (!form.package_description?.trim()) {
+        setFieldErrors({ package_description: true });
+        skipStepScrollRef.current = true;
+        setStep(4);
+        focusingInvalidField = true;
+        focusFirstInvalid();
+        throw new Error('Please describe what you are sending.');
+      }
       
       if (form.sender_province === 'Other Area' && selectedRoute.destination !== 'Bohol') {
         throw new Error('CargoExpress PH currently delivers to Bohol destinations only.');
@@ -506,7 +544,7 @@ const BookShipmentPage = () => {
 
       const payload = {
         user_id: user.id,
-        origin: selectedRoute.origin, destination: selectedRoute.destination, trip_id: selectedTrip ? form.trip_id : null,
+        origin: selectedRoute.origin, destination: selectedRoute.destination, trip_id: form.trip_id || null,
         sender_first_name: normalizeName(form.sender_first_name), sender_last_name: normalizeName(form.sender_last_name), sender_phone: form.sender_phone,
         sender_facebook: normalizeName(form.sender_facebook), sender_city: form.sender_city, sender_province: form.sender_province === 'Other Area' ? form.sender_other_province : form.sender_province,
         sender_barangay: form.sender_barangay, sender_street: form.sender_street, sender_lot_block: form.sender_lot_block, sender_landmark: form.sender_landmark,
@@ -524,12 +562,14 @@ const BookShipmentPage = () => {
       
       const data = await createOrder(payload);
       
-      if (payload.service_area_status === 'for_review') {
-        await logOrder('Out-of-Coverage Booking Submitted', data.id, data.tracking_number, { details: `Special pickup request submitted for ${orderPartyAddress(data, 'sender')}` });
-      } else {
-        await logOrder('Booking Created', data.id, data.tracking_number, { details: 'Standard booking created via Customer Portal.' });
-      }
-      
+      // The order insert is the point of success. Activity logging is queued
+      // separately; its failure must never present a saved order as failed and
+      // invite a second Confirm click that creates a duplicate booking.
+      void (payload.service_area_status === 'for_review'
+        ? logOrder('Out-of-Coverage Booking Submitted', data.id, data.tracking_number, { details: `Special pickup request submitted for ${orderPartyAddress(data, 'sender')}` })
+        : logOrder('Booking Created', data.id, data.tracking_number, { details: 'Standard booking created via Customer Portal.' })
+      ).catch(() => {});
+
       setSuccess(data);
       // Not clearing `loading` here: `success` now takes over rendering via
       // the early-return below, and this page never reads `loading` again —
@@ -574,12 +614,14 @@ const BookShipmentPage = () => {
     const routeSide = isSender ? selectedRoute?.origin : selectedRoute?.destination;
     const allContacts = recentContacts[`${prefix}s`] || [];
     const contacts = routeSide
-      ? allContacts.filter(c => (routeSide === 'Bohol' ? c.province === 'Bohol' : c.province !== 'Bohol'))
+      ? allContacts.filter(c => (routeSide === 'Bohol'
+        ? c.province === 'Bohol'
+        : c.province && (isSender || ['Metro Manila', 'Cavite', 'Batangas', 'Laguna', 'Bulacan'].includes(c.province)) && c.province !== 'Bohol'))
       : allContacts;
     const dropdownOpen = openContactDropdown === prefix;
     return (
       <div className="grid grid-2 gap-16">
-        <div className="form-group col-full">
+        <div className="form-group col-full" ref={el => { contactWrapRefs.current[prefix] = el; }}>
           <div className="flex items-center justify-between">
             <span className="form-label mb-0">Full Name <span className="required">*</span></span>
             {contacts.length > 0 && (
@@ -594,7 +636,7 @@ const BookShipmentPage = () => {
               </button>
             )}
           </div>
-          <div className="recent-contacts-wrap" ref={el => { contactWrapRefs.current[prefix] = el; }}>
+          <div className="recent-contacts-wrap">
             <div className="grid grid-2 gap-12 mt-4">
               <div>
                 <label className="form-label sr-only" htmlFor={id('first_name')}>First Name</label>
@@ -603,7 +645,6 @@ const BookShipmentPage = () => {
                   className={`form-input ${fc('first_name')}`}
                   value={form[`${prefix}_first_name`]}
                   onChange={handleTextChange(`${prefix}_first_name`)}
-                  onFocus={() => { if (contacts.length > 0 && !programmaticFocusRef.current) setOpenContactDropdown(prefix); }}
                   placeholder="First Name"
                   autoComplete={isSender ? 'given-name' : 'shipping given-name'}
                   autoCapitalize="words"
@@ -654,7 +695,7 @@ const BookShipmentPage = () => {
         {/* Contact fields above, the address below: a visible break in a long form. */}
         <p className="col-full booking-field-group">{prefix === 'sender' ? 'Pickup address' : 'Delivery address'}</p>
         <div className="form-group"><label className="form-label" htmlFor={id('province')}>Province <span className="required">*</span></label>
-          <CustomSelect searchable id={id('province')} className={`form-select ${fc('province')}`} value={form[`${prefix}_province`]} onChange={e => { u(`${prefix}_province`, e.target.value); u(`${prefix}_city`, ''); u(`${prefix}_barangay`, ''); }} {...a11y('province')}>
+          <CustomSelect searchable id={id('province')} className={`form-select ${fc('province')}`} value={form[`${prefix}_province`]} onChange={e => { u(`${prefix}_province`, e.target.value); if (isSender && e.target.value !== 'Other Area') u('sender_other_province', ''); u(`${prefix}_city`, ''); u(`${prefix}_barangay`, ''); }} {...a11y('province')}>
             <option value="">Select Province</option>
             {getProvinces().map(p => <option key={p} value={p}>{p}</option>)}
           </CustomSelect>{errEl('province')}
@@ -711,6 +752,7 @@ const BookShipmentPage = () => {
   useEffect(() => {
     if (previousStepRef.current === step) return;
     previousStepRef.current = step;
+    setOpenContactDropdown(null);
     if (skipStepScrollRef.current) {
       skipStepScrollRef.current = false;
       return;
@@ -839,10 +881,13 @@ const BookShipmentPage = () => {
                 <button
                   type="button"
                   className={`booking-success-copy-btn${trackingCopied ? ' is-copied' : ''}`}
-                  onClick={() => {
-                    fallbackCopy(success.tracking_number);
-                    setTrackingCopied(true);
-                    setTimeout(() => setTrackingCopied(false), 2000);
+                  onClick={async () => {
+                    if (await copyTrackingNumber(success.tracking_number)) {
+                      setTrackingCopied(true);
+                      setTimeout(() => setTrackingCopied(false), 2000);
+                    } else {
+                      toast.error('Could not copy the tracking number. Please select and copy it manually.');
+                    }
                   }}
                   aria-label="Copy tracking number"
                   title="Copy tracking number"
@@ -1028,7 +1073,7 @@ const BookShipmentPage = () => {
             <Info size={14} aria-hidden="true" />
             <span><strong>Coverage Area:</strong> CargoExpress PH currently operates routes to and from <strong>Bohol only</strong>. Select a route below to view specific province rules.</span>
           </div>
-          {preTripId && (
+          {preTripId && selectedTrip && (
             <div className="alert-banner alert-banner-success mb-16">
               <CheckCircle size={16} /> Route & trip pre-selected from home page. You may change below if needed.
             </div>
@@ -1202,6 +1247,13 @@ const BookShipmentPage = () => {
               <button type="button" className="booking-summary-edit" onClick={() => setStep(1)} aria-label="Edit route">Edit</button>
             </div>
             <div className="booking-summary-value">{form.route}</div>
+            {form.trip_id && (
+              <div className="text-xs text-secondary mt-4">
+                {selectedTrip
+                  ? `Trip ${selectedTrip.trip_number} · ${formatBookingTripDate(selectedTrip.departure_date)}`
+                  : 'Selected trip is no longer available. Edit your route before confirming.'}
+              </div>
+            )}
           </div>
           <div className="grid grid-2 gap-12 mb-16">
             {[['sender', 'Sender', 2], ['receiver', 'Receiver', 3]].map(([p, title, editStep]) => {
