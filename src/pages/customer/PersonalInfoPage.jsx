@@ -45,6 +45,7 @@ const PersonalInfoPage = () => {
   // sync effect below so it can only ever fill the form in, never clobber an
   // edit already in progress.
   const hasEditedRef = useRef(false);
+  const savedRef = useRef(false);
 
   // `userProfile` was only read once, via the useState initializer above —
   // if it arrives or changes after this page has already mounted (a slow
@@ -69,7 +70,7 @@ const PersonalInfoPage = () => {
 
   // C-4 fix: Track dirty state and block navigation when form has unsaved changes
   const isFormDirty = useCallback(() => {
-    if (!userProfile) return false;
+    if (!userProfile || savedRef.current) return false;
     return (
       form.name !== (userProfile.name || '') ||
       form.facebook_name !== (userProfile.facebook_name || '') ||
@@ -91,6 +92,7 @@ const PersonalInfoPage = () => {
 
   const setField = (key, value) => {
     hasEditedRef.current = true;
+    savedRef.current = false;
     setForm(prev => ({ ...prev, [key]: value }));
   };
 
@@ -146,10 +148,22 @@ const PersonalInfoPage = () => {
     if (!form.address_barangay) errors.address_barangay = 'Barangay is required.';
 
     setFieldErrors(errors);
+    if (Object.keys(errors).length) {
+      const fieldIds = {
+        name: 'profile-name', facebook_name: 'profile-facebook-name', phone: 'profile-phone',
+        address_province: 'profile-province', address_city: 'profile-city',
+        address_barangay: 'profile-barangay', address_street: 'profile-street',
+        address_lot_block: 'profile-lot-block', address_landmark: 'profile-landmark',
+      };
+      // The save button is below a long form; take the customer to the first
+      // field needing attention instead of leaving them at the bottom.
+      document.getElementById(fieldIds[Object.keys(errors)[0]])?.focus();
+    }
     return Object.keys(errors).length === 0;
   };
 
-  const handleSave = async () => {
+  const handleSave = async (event) => {
+    event.preventDefault();
     if (!validate()) return;
     if (!user?.id) { toast.error('You are not logged in.'); return; }
     setLoading(true);
@@ -172,11 +186,9 @@ const PersonalInfoPage = () => {
         updated_at:        new Date().toISOString(),
       });
       await refreshProfile();
+      savedRef.current = true;
       toast.success('Profile updated successfully!');
-      setTimeout(() => navigate(-1), 1200);
-      // Not clearing `loading` here: the navigation is still 1200ms away, and
-      // resetting it now would re-enable the Save button (and un-disable the
-      // form) for that whole window before the page actually leaves.
+      navigate(-1);
     } catch (err) {
       let msg = 'Failed to save changes. Please try again.';
       if (err?.code === 'PGRST301' || err?.message?.includes('JWT')) msg = 'Session expired. Please sign in again.';
@@ -216,13 +228,19 @@ const PersonalInfoPage = () => {
         </Link>
       </div>
       <h1 className="fw-700 mb-20">Personal Information</h1>
+      <p className="account-form-intro">Keep your contact details and default address up to date for bookings. Fields marked * are required.</p>
 
       <div className="card">
-        <div className="card-body">
+        <form className="card-body personal-info-form" onSubmit={handleSave} noValidate>
+
+          <div className="personal-info-group-heading">
+            <h2>Contact details</h2>
+            <p>How we identify and contact you about a shipment.</p>
+          </div>
 
           {/* Full Name */}
           <div className="form-group">
-            <label className="form-label" htmlFor="profile-name">Full Name</label>
+            <label className="form-label" htmlFor="profile-name">Full Name <span className="required">*</span></label>
             <div className="form-input-wrapper">
               <User size={15} className="form-input-icon" />
               <input
@@ -244,7 +262,7 @@ const PersonalInfoPage = () => {
 
           {/* Facebook Name */}
           <div className="form-group">
-            <label className="form-label" htmlFor="profile-facebook-name">Facebook Name</label>
+            <label className="form-label" htmlFor="profile-facebook-name">Facebook Name <span className="required">*</span></label>
             <div className="form-input-wrapper">
               <MessageSquare size={15} className="form-input-icon" />
               <input
@@ -265,7 +283,7 @@ const PersonalInfoPage = () => {
 
           {/* Mobile Number */}
           <div className="form-group">
-            <label className="form-label" htmlFor="profile-phone">Mobile Number</label>
+            <label className="form-label" htmlFor="profile-phone">Mobile Number <span className="required">*</span></label>
             <div className="form-input-wrapper">
               <Phone size={15} className="form-input-icon" />
               <input
@@ -276,6 +294,8 @@ const PersonalInfoPage = () => {
                 onChange={handlePhone}
                 inputMode="numeric"
                 maxLength={11}
+                required
+                aria-required="true"
                 aria-invalid={fieldErrors.phone ? 'true' : undefined}
                 aria-describedby={fieldErrors.phone ? 'profile-phone-error' : 'profile-phone-helper'}
               />
@@ -284,6 +304,11 @@ const PersonalInfoPage = () => {
               ? <FieldError id="profile-phone-error" message={fieldErrors.phone} />
               : <p className="form-helper" id="profile-phone-helper">Must start with 09 and be exactly 11 digits</p>
             }
+          </div>
+
+          <div className="personal-info-group-heading personal-info-address-heading">
+            <h2>Default address</h2>
+            <p>Used to fill in your sender details when you book.</p>
           </div>
 
           {/* Province */}
@@ -443,9 +468,8 @@ const PersonalInfoPage = () => {
 
           {/* Save */}
           <button
-            type="button"
+            type="submit"
             className="btn btn-primary btn-lg w-full justify-center mt-8"
-            onClick={handleSave}
             disabled={loading}
           >
             {loading
@@ -454,7 +478,7 @@ const PersonalInfoPage = () => {
             }
           </button>
 
-        </div>
+        </form>
       </div>
     </div>
   );

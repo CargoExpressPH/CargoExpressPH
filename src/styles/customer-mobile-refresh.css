@@ -1372,6 +1372,30 @@ input:checked + .toggle-slider:before {
   gap: 14px;
 }
 
+.personal-info-group-heading {
+  margin: 0 0 18px;
+}
+
+.personal-info-address-heading {
+  border-top: 1px solid var(--customer-line);
+  padding-top: 22px;
+  margin-top: 28px;
+}
+
+.personal-info-group-heading h2 {
+  margin: 0 0 4px;
+  color: var(--customer-ink);
+  font-size: var(--text-18);
+  font-weight: 700;
+}
+
+.personal-info-group-heading p {
+  margin: 0;
+  color: var(--customer-muted);
+  font-size: var(--text-13);
+  line-height: 1.5;
+}
+
 .customer-personal-info-page > h2 {
   color: var(--customer-ink);
   font-size: clamp(1.8rem, 5vw, 2.35rem);

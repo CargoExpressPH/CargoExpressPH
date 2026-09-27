@@ -80,7 +80,13 @@ const ChangePasswordPage = () => {
           ? "Passwords don't match."
           : null,
     });
-    if (!ok) return;
+    if (!ok) {
+      const firstInvalid = !currentPassword ? 'change-current-password'
+        : !password || !allChecks ? 'change-new-password'
+          : 'change-confirm-password';
+      document.getElementById(firstInvalid)?.focus();
+      return;
+    }
 
     setLoading(true);
     try {
@@ -148,7 +154,7 @@ const ChangePasswordPage = () => {
       <p className="account-form-intro">Use at least 8 characters, and a password you do not use on other sites.</p>
 
       <div className="card">
-        <div className="card-body">
+        <form className="card-body" onSubmit={handleSubmit} noValidate>
 
           {/* Current Password */}
           <div className="form-group">
@@ -171,7 +177,7 @@ const ChangePasswordPage = () => {
                 type="button"
                 onClick={() => setShowCurrent(!showCurrent)}
                 className="form-pw-toggle"
-                aria-label={showCurrent ? 'Hide password' : 'Show password'}
+                aria-label={showCurrent ? 'Hide current password' : 'Show current password'}
                 aria-pressed={showCurrent}
               >
                 {showCurrent ? <EyeOff size={15} /> : <Eye size={15} />}
@@ -202,7 +208,7 @@ const ChangePasswordPage = () => {
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
                 className="form-pw-toggle"
-                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                aria-label={showPassword ? 'Hide new password' : 'Show new password'}
                 aria-pressed={showPassword}
               >
                 {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
@@ -227,28 +233,26 @@ const ChangePasswordPage = () => {
               </div>
             )}
 
-            {password && (
-              <div className="rp-requirements" role="list" aria-label="Password requirements">
-                {[
-                  { key: 'length',    label: '8+ characters'    },
-                  { key: 'uppercase', label: 'Uppercase letter'  },
-                  { key: 'lowercase', label: 'Lowercase letter'  },
-                  { key: 'number',    label: 'Number'            },
-                ].map(({ key, label }) => (
-                  <div
-                    key={key}
-                    className={`rp-requirement-item ${checks[key] ? 'met' : ''}`}
-                    role="listitem"
-                    aria-label={`${label}: ${checks[key] ? 'met' : 'not met'}`}
-                  >
-                    <div className="rp-req-icon">
-                      <Check size={10} strokeWidth={3} />
-                    </div>
-                    {label}
+            <div className="rp-requirements" role="list" aria-label="Password requirements">
+              {[
+                { key: 'length',    label: '8+ characters'    },
+                { key: 'uppercase', label: 'Uppercase letter'  },
+                { key: 'lowercase', label: 'Lowercase letter'  },
+                { key: 'number',    label: 'Number'            },
+              ].map(({ key, label }) => (
+                <div
+                  key={key}
+                  className={`rp-requirement-item ${checks[key] ? 'met' : ''}`}
+                  role="listitem"
+                  aria-label={`${label}: ${checks[key] ? 'met' : 'not met'}`}
+                >
+                  <div className="rp-req-icon">
+                    <Check size={10} strokeWidth={3} />
                   </div>
-                ))}
-              </div>
-            )}
+                  {label}
+                </div>
+              ))}
+            </div>
           </div>
 
           {/* Confirm New Password */}
@@ -275,7 +279,7 @@ const ChangePasswordPage = () => {
                 type="button"
                 onClick={() => setShowConfirm(!showConfirm)}
                 className="form-pw-toggle"
-                aria-label={showConfirm ? 'Hide password' : 'Show password'}
+                aria-label={showConfirm ? 'Hide confirmation password' : 'Show confirmation password'}
                 aria-pressed={showConfirm}
               >
                 {showConfirm ? <EyeOff size={15} /> : <Eye size={15} />}
@@ -291,9 +295,8 @@ const ChangePasswordPage = () => {
 
           {/* Submit */}
           <button
-            type="button"
+            type="submit"
             className="btn btn-primary btn-lg w-full justify-center mt-8"
-            onClick={handleSubmit}
             disabled={loading}
           >
             {loading
@@ -305,7 +308,7 @@ const ChangePasswordPage = () => {
             You must enter your current password to change it.
           </p>
 
-        </div>
+        </form>
       </div>
       </div>
     </>
