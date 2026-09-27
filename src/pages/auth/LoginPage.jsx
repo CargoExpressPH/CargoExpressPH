@@ -74,7 +74,20 @@ const LoginPage = () => {
   const [loginLoading, setLoginLoading] = useState(false);
   const [fieldErrors, setFieldErrors]   = useState({ email: '', password: '' });
   const [credentialErrorActive, setCredentialErrorActive] = useState(false);
-  const { login }  = useAuth();
+  const { login, resendSignupConfirmation } = useAuth();
+  const [resendNote, setResendNote] = useState('');
+  const [resending, setResending] = useState(false);
+  // login() reports an unconfirmed account with this wording; offer the fix
+  // right under the message instead of sending them to find the old email.
+  const needsConfirmation = /confirm your email/i.test(loginError);
+
+  const handleResendConfirmation = async () => {
+    if (resending || !email.trim()) return;
+    setResending(true);
+    const result = await resendSignupConfirmation(email.trim());
+    setResending(false);
+    setResendNote(result.success ? 'Sent. Check your inbox and spam folder for the confirmation link.' : result.error);
+  };
   const navigate   = useNavigate();
   const location   = useLocation();
 
@@ -136,6 +149,7 @@ const LoginPage = () => {
     e.preventDefault();
     clearLoginErrorTimer();
     setLoginError('');
+    setResendNote('');
     setCredentialErrorActive(false);
     setFieldErrors({ email: '', password: '' });
 
@@ -246,6 +260,15 @@ const LoginPage = () => {
             <div className="login-error-box" role="alert">
               <AlertTriangle size={15} />
               <span>{loginError}</span>
+            </div>
+          )}
+
+          {needsConfirmation && (
+            <div className="login-resend-row">
+              <button type="button" className="btn btn-outline btn-sm" onClick={handleResendConfirmation} disabled={resending}>
+                {resending ? 'Sending…' : 'Resend confirmation email'}
+              </button>
+              {resendNote && <span className="login-resend-note" role="status">{resendNote}</span>}
             </div>
           )}
 

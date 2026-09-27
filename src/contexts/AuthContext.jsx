@@ -17,13 +17,18 @@ const AuthContext = createContext({});
 
 export const useAuth = () => useContext(AuthContext);
 
-const getPasswordResetRedirectUrl = () => {
+const getAppOrigin = () => {
   if (typeof window !== 'undefined' && window.location.origin && !window.location.hostname.includes('localhost')) {
-    return `${window.location.origin}/reset-password`;
+    return window.location.origin;
   }
-  const fallback = import.meta.env.VITE_APP_URL || 'https://cargoexpress-ph.vercel.app';
-  return `${fallback.replace(/\/+$/, '')}/reset-password`;
+  return (import.meta.env.VITE_APP_URL || 'https://cargoexpress-ph.vercel.app').replace(/\/+$/, '');
 };
+
+const getPasswordResetRedirectUrl = () => `${getAppOrigin()}/reset-password`;
+
+// Where the sign-up confirmation link lands. "/" sends a now signed-in
+// customer straight to their dashboard (RootRedirect).
+const getSignupRedirectUrl = () => `${getAppOrigin()}/`;
 
 const clearSupabaseAuthStorage = () => {
   try {
@@ -306,7 +311,7 @@ export const AuthProvider = ({ children }) => {
           msg.toLowerCase().includes('invalid login')) {
         msg = 'Incorrect password or email.';
       } else if (msg.toLowerCase().includes('email not confirmed')) {
-        msg = 'Your email is not confirmed. Please check your inbox.';
+        msg = 'Please confirm your email first. Check your inbox for our link.';
       } else if (msg.toLowerCase().includes('rate limit') ||
                  msg.toLowerCase().includes('too many')) {
         msg = 'Too many failed attempts. Please wait a few minutes and try again.';
@@ -348,8 +353,21 @@ export const AuthProvider = ({ children }) => {
         email,
         password,
         options: {
+          emailRedirectTo: getSignupRedirectUrl(),
           data: {
             name: profileFields.name,
+            // Saved by handle_new_user in the same transaction as the account
+            // (20260927045101): with email confirmation on there is no session
+            // yet to write them from this browser.
+            phone: profileFields.phone || null,
+            facebook_name: profileFields.facebook_name || null,
+            address_province: profileFields.address_province || null,
+            address_city: profileFields.address_city || null,
+            address_barangay: profileFields.address_barangay || null,
+            address_street: profileFields.address_street || null,
+            address_lot_block: profileFields.address_lot_block || null,
+            address_landmark: profileFields.address_landmark || null,
+            wants_announcements: profileFields.wants_announcements === true,
             legal_terms_accepted: true,
             legal_privacy_accepted: true,
             legal_terms_version: legalConsent.termsVersion,
@@ -358,6 +376,22 @@ export const AuthProvider = ({ children }) => {
         },
       });
       if (error) throw error;
+
+      // With email confirmation on, Supabase answers a sign-up for an email
+      // that already has an account with a user that has no identities (and
+      // no error, so addresses cannot be probed). Report it as before.
+      if (data?.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+        throw new Error('This email is already registered. Please sign in instead.');
+      }
+
+      // No session: the account exists but waits for the link in the inbox.
+      // The profile details were saved server-side from the metadata above.
+      if (!data?.session) {
+        isAuthAction.current = false;
+        setLoading(false);
+        clearPasswordRecoveryPending();
+        return { success: true, needsEmailConfirmation: true, email };
+      }
 
       const normalizedAddress = normalizeProfileAddressFields(profileFields);
       const profilePayload = {
@@ -528,6 +562,26 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
+  const resendSignupConfirmation = useCallback(async (email) => {
+    try {
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email,
+        options: { emailRedirectTo: getSignupRedirectUrl() },
+      });
+      if (error) throw error;
+      return { success: true };
+    } catch (error) {
+      const msg = error.message || '';
+      return {
+        success: false,
+        error: /rate limit|too many|seconds/i.test(msg)
+          ? 'Please wait a minute before requesting another email.'
+          : 'We could not send the email. Please try again.',
+      };
+    }
+  }, []);
+
   const changePassword = useCallback(async (newPassword) => {
     try {
       const { error } = await supabase.auth.updateUser({ password: newPassword });
@@ -610,10 +664,11 @@ export const AuthProvider = ({ children }) => {
     logout,
     discardPasswordRecovery,
     resetPassword,
+    resendSignupConfirmation,
     changePassword,
     changeEmail,
     refreshProfile,
-  }), [user, userProfile, loading, authTransition, logout, discardPasswordRecovery, resetPassword, changePassword, changeEmail, refreshProfile, completeRegistrationTransition]);
+  }), [user, userProfile, loading, authTransition, logout, discardPasswordRecovery, resetPassword, resendSignupConfirmation, changePassword, changeEmail, refreshProfile, completeRegistrationTransition]);
 
   return (
     <AuthContext.Provider value={value}>

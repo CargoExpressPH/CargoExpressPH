@@ -175,8 +175,11 @@ const ChangeEmailPage = () => {
                     <Inbox size={34} aria-hidden="true" />
                   </div>
                 </div>
-                {/* Secure email change is on in Supabase Auth: the change only
-                    completes once BOTH addresses confirm, so the steps name both. */}
+                {/* Secure email change is on in Supabase Auth, and with sign-up
+                    email confirmation on (mailer_autoconfirm = false) GoTrue
+                    enforces it: the change only completes once BOTH addresses
+                    confirm. If "Confirm email" is ever switched off again,
+                    one click on either link completes it and this copy is wrong. */}
                 <h2 className="ce-success-title">Check both inboxes</h2>
                 <p className="ce-success-subtitle">
                   For your security, we sent a confirmation link to your current email

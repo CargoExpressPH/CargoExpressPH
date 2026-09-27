@@ -5,7 +5,7 @@ import { normalizeProfileAddressFields } from '../../lib/address';
 import {
   Eye, EyeOff, Loader, Check,
   AlertTriangle, User, Mail, Phone, Lock, MapPin, MessageSquare,
-  Home, Landmark, CheckCircle2, Navigation,
+  Home, Landmark, CheckCircle2, Navigation, MailCheck,
 } from 'lucide-react';
 import { PH_LOCATIONS, VALID_PROVINCES } from '../../constants/phLocations';
 import CustomSelect from '../../components/ui/CustomSelect';
@@ -101,13 +101,36 @@ const RegisterPage = () => {
   // be saved (see AuthContext.register's recovery path) — the account is
   // real and usable, it just needs a trip to Profile to finish.
   const [profileIncomplete, setProfileIncomplete] = useState(false);
+  // Set when the account was created but waits for the inbox link.
+  const [confirmEmail, setConfirmEmail] = useState('');
+  const [resendState, setResendState] = useState({ busy: false, message: '', error: false, cooldown: 0 });
   const [legalConsent,  setLegalConsent]  = useState(false);
   const [wantsAnnouncements, setWantsAnnouncements] = useState(false);
   const topRef = useRef(null);
   const errorRef = useRef(null);
   const redirectTimerRef = useRef(null);
 
-  const { register, completeRegistrationTransition } = useAuth();
+  const { register, completeRegistrationTransition, resendSignupConfirmation } = useAuth();
+
+  // Resend is rate limited by Supabase; a short visible cooldown keeps
+  // customers from tapping into that limit.
+  useEffect(() => {
+    if (!resendState.cooldown) return undefined;
+    const t = setTimeout(() => setResendState(r => ({ ...r, cooldown: r.cooldown - 1 })), 1000);
+    return () => clearTimeout(t);
+  }, [resendState.cooldown]);
+
+  const handleResend = async () => {
+    if (!confirmEmail || resendState.busy || resendState.cooldown) return;
+    setResendState(r => ({ ...r, busy: true, message: '' }));
+    const result = await resendSignupConfirmation(confirmEmail);
+    setResendState({
+      busy: false,
+      error: !result.success,
+      message: result.success ? 'Sent again. Check your inbox and spam folder.' : result.error,
+      cooldown: result.success ? 60 : 0,
+    });
+  };
   const navigate     = useNavigate();
 
   const cities = form.address_province ? PH_LOCATIONS[form.address_province] || [] : [];
@@ -401,7 +424,13 @@ const RegisterPage = () => {
         },
       });
 
-      if (result.success) {
+      if (result.success && result.needsEmailConfirmation) {
+        // Email confirmation is on: the account exists and its details are
+        // saved, but the customer signs in by clicking the link we emailed.
+        try { sessionStorage.removeItem('reg_draft'); } catch (e) {}
+        setConfirmEmail(result.email || form.email.trim());
+        setLoading(false);
+      } else if (result.success) {
         // Deliberately NOT calling setLoading(false) here: doing so would
         // briefly re-render the "Create Account" form (button un-loading)
         // before the `success` early-return takes over, flashing the form
@@ -445,6 +474,53 @@ const RegisterPage = () => {
       });
     }
   };
+
+  /* ── Check-your-email View (email confirmation on) ── */
+  if (confirmEmail) {
+    return (
+      <div className="auth-page">
+        <div className="auth-mesh-bg" aria-hidden="true">
+          <div className="auth-mesh-orb auth-mesh-orb-1" />
+          <div className="auth-mesh-orb auth-mesh-orb-2" />
+          <div className="auth-mesh-orb auth-mesh-orb-3" />
+        </div>
+        <div className="auth-card auth-success-card animate-scale-in">
+          <div className="auth-success-icon">
+            <MailCheck size={44} />
+          </div>
+          <h1 className="auth-success-title">Confirm your email</h1>
+          <p className="auth-success-sub">
+            Your account is created. We sent a confirmation link to{' '}
+            <strong className="auth-confirm-email">{confirmEmail}</strong>.
+            Click it to activate your account. You'll be signed in automatically.
+          </p>
+          <p className="auth-success-sub auth-confirm-hint">
+            The link expires after 1 hour. Check your spam folder if it doesn't arrive.
+          </p>
+          <div className="auth-confirm-actions">
+            <button
+              type="button"
+              className="btn btn-outline btn-block"
+              onClick={handleResend}
+              disabled={resendState.busy || resendState.cooldown > 0}
+            >
+              {resendState.busy
+                ? <><Loader size={16} className="animate-spin" /> Sending…</>
+                : resendState.cooldown > 0
+                  ? `Resend email (${resendState.cooldown}s)`
+                  : 'Resend email'}
+            </button>
+            <Link to="/login" className="btn btn-primary btn-block">Back to Sign In</Link>
+          </div>
+          {resendState.message && (
+            <p className={`auth-confirm-status${resendState.error ? ' is-error' : ''}`} role="status">
+              {resendState.message}
+            </p>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   /* ── Success Flash View ── */
   if (success) {

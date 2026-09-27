@@ -11,6 +11,8 @@ import { supabase } from '../../lib/supabase';
  *       first click of a secure (two-inbox) email change
  *   #access_token=…&type=email_change
  *       second click: the change is done
+ *   #access_token=…&type=signup
+ *       sign-up confirmation link: the account is active and signed in
  *   #error=access_denied&error_code=otp_expired&error_description=…
  *       an expired or reused link of any kind
  *
@@ -39,6 +41,11 @@ export const readAuthLinkNotice = (hash = '') => {
 
   if (params.get('type') === 'email_change' && params.get('access_token')) {
     return { kind: 'success', text: 'Your email address has been updated.', token: params.get('access_token') };
+  }
+
+  // The sign-up confirmation link: the account is now active and signed in.
+  if (params.get('type') === 'signup' && params.get('access_token')) {
+    return { kind: 'success', text: 'Your email is confirmed. Welcome to CargoExpress PH!', token: params.get('access_token') };
   }
 
   return null;

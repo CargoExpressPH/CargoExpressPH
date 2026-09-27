@@ -718,3 +718,12 @@
   outline-offset: 2px;
 }
 
+
+/* -- Confirm-your-email view (sign-up with email confirmation) -- */
+.auth-confirm-email { color: var(--text); overflow-wrap: anywhere; }
+.auth-confirm-hint { font-size: var(--text-13); color: var(--text-tertiary); margin-top: -8px; }
+.auth-confirm-actions { width: 100%; max-width: 320px; display: grid; gap: 10px; margin-top: 8px; }
+.auth-confirm-status { font-size: var(--text-13); color: var(--success-text); }
+.auth-confirm-status.is-error { color: var(--error-text); }
+.login-resend-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: -6px 0 16px; }
+.login-resend-note { font-size: var(--text-13); color: var(--text-secondary); }
