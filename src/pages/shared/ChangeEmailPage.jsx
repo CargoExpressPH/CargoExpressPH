@@ -175,11 +175,13 @@ const ChangeEmailPage = () => {
                     <Inbox size={34} aria-hidden="true" />
                   </div>
                 </div>
-                <h2 className="ce-success-title">Check your new inbox</h2>
+                {/* Secure email change is on in Supabase Auth: the change only
+                    completes once BOTH addresses confirm, so the steps name both. */}
+                <h2 className="ce-success-title">Check both inboxes</h2>
                 <p className="ce-success-subtitle">
-                  We sent a confirmation link to{' '}
-                  <strong className="ce-email-highlight">{newEmailTrimmed}</strong>.
-                  Your email will be updated once you click it.
+                  For your security, we sent a confirmation link to your current email
+                  and to <strong className="ce-email-highlight">{newEmailTrimmed}</strong>.
+                  Your email changes after you confirm both.
                 </p>
               </div>
 
@@ -188,22 +190,22 @@ const ChangeEmailPage = () => {
                 <ol className="ce-steps-list">
                   <li className="ce-step-item">
                     <span className="ce-step-dot" aria-hidden="true">1</span>
-                    <span>Open the confirmation email sent to <strong className="ce-email-highlight">{newEmailTrimmed}</strong></span>
+                    <span>In <strong className="ce-email-highlight">{currentEmail}</strong>, open our email and click <strong>Confirm Email Change</strong></span>
                   </li>
                   <li className="ce-step-item">
                     <span className="ce-step-dot" aria-hidden="true">2</span>
-                    <span>Click the <strong>Confirm change</strong> button inside</span>
+                    <span>Do the same in <strong className="ce-email-highlight">{newEmailTrimmed}</strong>. Either one can come first.</span>
                   </li>
                   <li className="ce-step-item">
                     <span className="ce-step-dot" aria-hidden="true">3</span>
-                    <span>You'll be signed in with your new email automatically</span>
+                    <span>After the second one, you'll be signed in with your new email</span>
                   </li>
                 </ol>
               </div>
 
               <div className="ce-note-box">
                 <Info size={14} className="ce-note-icon" aria-hidden="true" />
-                <span>Until then, you can still sign in with your current email. Check your spam folder if the email doesn't arrive.</span>
+                <span>Until both are confirmed, keep signing in with your current email. The links expire after 1 hour. Check your spam folder if an email doesn't arrive.</span>
               </div>
 
               <button
@@ -272,7 +274,7 @@ const ChangeEmailPage = () => {
                     aria-disabled="true"
                   />
                 </div>
-                <p className="form-helper">Your new email must be confirmed before the change takes effect.</p>
+                <p className="form-helper">You'll confirm the change from both your current and your new email.</p>
               </div>
 
               {/* New Email */}
@@ -356,7 +358,7 @@ const ChangeEmailPage = () => {
                 }
               </button>
               <p className="form-helper mt-12 text-center">
-                A confirmation link will be sent to your new email address.
+                We'll send a confirmation link to your current and your new email address.
               </p>
 
             </div>

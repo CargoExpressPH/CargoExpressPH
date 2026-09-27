@@ -5,6 +5,7 @@ import InstallAppBanner from './components/ui/InstallAppBanner';
 import IosInstallBanner from './components/ui/IosInstallBanner';
 import UpdateAvailableBanner from './components/ui/UpdateAvailableBanner';
 import RouteErrorBoundary from './components/ui/RouteErrorBoundary';
+import AuthLinkNotice from './components/ui/AuthLinkNotice';
 import PerformanceInsights from './components/ui/PerformanceInsights';
 import { createBrowserRouter, RouterProvider, Navigate, Outlet, useLocation, useMatches } from 'react-router-dom';
 import useKeyboardInset, { scrollFocusedFieldIntoView } from './hooks/useKeyboardInset';
@@ -186,6 +187,7 @@ const RootLayout = () => {
   return (
     <Suspense fallback={<LoadingScreen />}>
       <ScrollToTop />
+      <AuthLinkNotice />
       <PerformanceInsights />
       <InstallPrompts />
       {/* The public payment confirmation must stay visually isolated: no PWA
