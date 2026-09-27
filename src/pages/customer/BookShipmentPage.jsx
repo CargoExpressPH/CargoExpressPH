@@ -760,6 +760,43 @@ const BookShipmentPage = () => {
     window.scrollTo({ top: 0, behavior: reduceMotion ? 'auto' : 'smooth' });
   }, [step, reduceMotion]);
 
+  // Sticky positioning follows the layout viewport. On phones the keyboard
+  // can move the visible viewport down without moving that sticky edge, so
+  // follow its top only while it has passed the customer navbar. The normal
+  // CSS sticky position remains in charge at every other time and on older
+  // browsers without visualViewport.
+  const progressRef = useRef(null);
+  useEffect(() => {
+    const viewport = window.visualViewport;
+    const bar = progressRef.current;
+    if (!viewport || !bar) return undefined;
+
+    let frame = 0;
+    let appliedTop = '';
+    const update = () => {
+      frame = 0;
+      const visibleTop = Math.max(0, viewport.offsetTop || 0);
+      if (visibleTop === 0 && appliedTop === '') return;
+      const navbarBottom = document.querySelector('.customer-navbar')?.getBoundingClientRect().bottom || 0;
+      const nextTop = visibleTop > navbarBottom ? `${Math.round(visibleTop + 8)}px` : '';
+      if (nextTop !== appliedTop) {
+        bar.style.top = nextTop;
+        appliedTop = nextTop;
+      }
+    };
+    const schedule = () => { if (!frame) frame = requestAnimationFrame(update); };
+    viewport.addEventListener('scroll', schedule);
+    viewport.addEventListener('resize', schedule);
+    schedule();
+
+    return () => {
+      viewport.removeEventListener('scroll', schedule);
+      viewport.removeEventListener('resize', schedule);
+      if (frame) cancelAnimationFrame(frame);
+      bar.style.top = '';
+    };
+  }, [success]);
+
   const particles = useMemo(
     () => Array.from({ length: 24 }, (_, i) => ({
       id: i,
@@ -1026,7 +1063,7 @@ const BookShipmentPage = () => {
       <h2 className="fw-700 mb-8">Book Shipment</h2>
 
       {/* Step Progress */}
-      <div className="step-progress" role="list" aria-label="Booking progress">
+      <div ref={progressRef} className="step-progress" role="list" aria-label="Booking progress">
         {steps.map((s, i) => {
           const completed = step > i + 1;
           const stepClass = `step ${completed ? 'completed clickable' : step === i + 1 ? 'active' : ''}`;

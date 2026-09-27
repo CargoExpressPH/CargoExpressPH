@@ -8,13 +8,14 @@ import { JSDOM } from 'jsdom';
 // Run the real booking component, address pickers, drafts, and keyboard hook.
 // Stub only the authenticated session and remote database: this test never
 // creates a customer or booking in production.
-const dom = new JSDOM('<!doctype html><html><body><div id="app"></div></body></html>', {
+const dom = new JSDOM('<!doctype html><html><body><header class="customer-navbar"></header><div id="app"></div></body></html>', {
   url: 'https://example.test/customer/book', pretendToBeVisual: true,
 });
 for (const key of ['window', 'document', 'navigator', 'HTMLElement', 'Element', 'SVGElement', 'Node', 'MutationObserver']) {
   Object.defineProperty(globalThis, key, { configurable: true, value: key === 'window' ? dom.window : dom.window[key] });
 }
 globalThis.getComputedStyle = dom.window.getComputedStyle;
+document.querySelector('.customer-navbar').getBoundingClientRect = () => ({ bottom: 66 });
 globalThis.requestAnimationFrame = dom.window.requestAnimationFrame.bind(dom.window);
 globalThis.cancelAnimationFrame = dom.window.cancelAnimationFrame.bind(dom.window);
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
@@ -157,6 +158,16 @@ try {
   assert.deepEqual(pageScrolls, [], 'typing and panning with the keyboard open must not scroll the booking page');
   assert.equal(document.documentElement.style.getPropertyValue('--booking-keyboard-height'), '300px',
     'booking bottom space must remain stable when the visual viewport pans');
+  assert.equal(document.querySelector('.step-progress').style.top, '128px',
+    'booking progress follows the visible viewport above the keyboard');
+  visualViewport.offsetTop = 40;
+  visualViewport.dispatchEvent(new dom.window.Event('scroll'));
+  await flush();
+  assert.equal(document.querySelector('.step-progress').style.top, '',
+    'booking progress stays below the visible navbar when the visual offset is small');
+  visualViewport.offsetTop = 0;
+  visualViewport.dispatchEvent(new dom.window.Event('scroll'));
+  await flush();
 
   await click(button('Continue'));
   step(3);

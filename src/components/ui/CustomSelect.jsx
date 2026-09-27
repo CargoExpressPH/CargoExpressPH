@@ -7,8 +7,8 @@ const optionText = (children) => {
   return String(children);
 };
 
-// Floating menus stay clear of the app header and any booking progress strip
-// still visible near the top of the form.
+// Floating menus must stay clear of both the app header and the booking
+// progress strip when that strip sticks below the header.
 const visibleMenuBounds = (root) => {
   const viewport = window.visualViewport;
   const viewportTop = viewport?.offsetTop || 0;

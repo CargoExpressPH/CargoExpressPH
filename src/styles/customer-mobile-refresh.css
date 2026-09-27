@@ -817,7 +817,10 @@
 }
 
 .step-progress {
-  position: static;
+  position: -webkit-sticky;
+  position: sticky;
+  top: 82px;
+  z-index: 5;
   gap: 0;
   margin-top: 0;
   margin-right: -2px;
@@ -830,6 +833,12 @@
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
   box-shadow: var(--customer-shadow-soft);
+}
+
+/* Keep booking progress visible above the form and its floating menus while
+   leaving the site header as the topmost sticky element. */
+.booking-page .step-progress {
+  z-index: calc(var(--z-sticky) - 1);
 }
 
 /* A step keeps its full width (number + name); the connector lines give
@@ -1531,6 +1540,7 @@ input:checked + .toggle-slider:before {
   }
 
   .step-progress {
+    top: 74px;
     overflow-x: auto;
   }
 
