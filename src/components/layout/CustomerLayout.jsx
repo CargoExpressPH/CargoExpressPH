@@ -472,9 +472,9 @@ const CustomerLayout = () => {
           </span>
         </Link>
       )}
-      {/* On booking the bar sits at the bottom of a fixed shell whose resting
-          bounds match the fixed bar on every other customer route. The shell
-          follows the measured visual viewport only while typing. */}
+      {/* The bar is fixed on ordinary routes. On booking it is positioned
+          inside the measured visual-viewport shell (see viewport-hardening)
+          so older WebKit cannot leave a gap beneath it. */}
     <nav className="customer-bottom-nav" aria-label="Customer navigation">
         <div className="customer-bottom-nav-inner">
           {bottomNavItems.map(item => (
