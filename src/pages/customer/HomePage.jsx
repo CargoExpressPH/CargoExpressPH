@@ -170,10 +170,10 @@ const HomePage = () => {
 
   return (
     <PullToRefresh onRefresh={loadData}>
-      <PageTransition className={`customer-home-page${hasMainColumn ? ' home-split' : ''}`} initial={false}>
+      <PageTransition className={`customer-home-page${hasMainColumn ? ' home-split' : ''}`}>
 
       {/* ── Hero ─────────────────────────────────────────────────── */}
-      <div className={`hero customer-home-hero hero-${greetingInfo.period}`}>
+      <div className={`hero customer-home-hero hero-${greetingInfo.period} animate-slide-up`}>
         <span className="text-sm">
           <GreetingIcon size={14} aria-hidden="true" />
           {greetingInfo.text},
@@ -208,7 +208,7 @@ const HomePage = () => {
       </div>
 
       {!loading && owingOrders.length > 0 && (
-        <StaggerItem initial={false}>
+        <StaggerItem delay={20}>
           <div className="home-due-banner" role="status">
             <div className="home-due-icon" aria-hidden="true"><Wallet size={20} /></div>
             <div className="home-due-text">
@@ -226,7 +226,7 @@ const HomePage = () => {
       )}
 
       {!loading && (
-        <StaggerItem initial={false}>
+        <StaggerItem delay={30}>
           <div className="home-section-head">
             <h2 className="customer-section-title fw-700 flex items-center gap-8">
               <LayoutDashboard size={18} aria-hidden="true" /> Overview
@@ -277,7 +277,7 @@ const HomePage = () => {
         <div className="home-col-side">
           {/* ── Earliest scheduled / ongoing trip capacity summary ───── */}
           {capacityError ? (
-            <StaggerItem initial={false} className="home-trip-block">
+            <StaggerItem delay={0} className="home-trip-block">
               <div className="card admin-section-card home-trip-error" role="alert">
                 <h2 className="home-trip-error-title fw-700 mb-8">Trip capacity unavailable</h2>
                 <p className="text-sm text-secondary mb-12">{capacityError}</p>
@@ -287,7 +287,7 @@ const HomePage = () => {
           ) : capacityLoading && !activeTrip ? (
             <HomeLoadingPanel message="Checking available trips…" />
           ) : activeTrip ? (
-            <StaggerItem initial={false} className="home-trip-block">
+            <StaggerItem delay={0} className="home-trip-block">
               <div className="home-section-head">
                 <h2 className="customer-section-title fw-700 flex items-center gap-8">
                   <Truck size={18} aria-hidden="true" />
@@ -384,7 +384,7 @@ const HomePage = () => {
               </div>
             </StaggerItem>
           ) : (
-            <StaggerItem initial={false} className="home-trip-block">
+            <StaggerItem delay={0} className="home-trip-block">
               <EmptyState
                 icon={Truck}
                 title="No scheduled or ongoing trip available."
@@ -397,16 +397,16 @@ const HomePage = () => {
 
       {/* ── Announcements ────────────────────────────────────────── */}
       {!loading && announcements.length > 0 && (
-        <StaggerItem initial={false}>
+        <StaggerItem delay={60}>
           <div className="flex items-center justify-between mb-md">
             <h3 className="customer-section-title fw-700 flex items-center gap-8"><Megaphone size={18} color="var(--primary)" /> Announcements</h3>
             <span className="text-xs text-tertiary fw-600">{Math.min(announcements.length, 5)} Latest</span>
           </div>
-          {announcements.slice(0, 5).map((a) => {
+          {announcements.slice(0, 5).map((a, index) => {
             const cat = getAnnouncementCategoryInfo(a);
             const CatIcon = cat.icon;
             return (
-              <StaggerItem key={a.id} className="mb-12" initial={false}>
+              <StaggerItem key={a.id} className="mb-12" delay={(index + 2) * 60}>
                 <div
                   className="card customer-announcement-card"
                   style={{
@@ -457,15 +457,15 @@ const HomePage = () => {
           Below the trip and the news on phones (the order 95615bc restored).
           On wide screens this is the left column, beside .home-col-side. */}
       {!loading && activeOrders.length > 0 && (
-        <StaggerItem initial={false} className="home-col-shipments">
+        <StaggerItem delay={120} className="home-col-shipments">
           <div className="home-section-head">
             <h2 className="customer-section-title fw-700 flex items-center gap-8"><Package size={18} aria-hidden="true" /> Active Shipments</h2>
             <Link to="/customer/orders" className="customer-inline-action text-sm text-primary font-medium">
               View All <ArrowRight size={14} />
             </Link>
           </div>
-          {activeOrders.slice(0, 3).map((order) => (
-            <StaggerItem key={order.id} initial={false} className="mb-12">
+          {activeOrders.slice(0, 3).map((order, index) => (
+            <StaggerItem key={order.id} delay={(index + 4) * 60} className="mb-12">
               <Link to={`/customer/orders/${order.id}`} className="customer-shipment-card customer-shipment-card-v2 card card-interactive block text-no-underline" style={{ color: 'inherit' }}>
                 <div className="card-body p-16">
                   <div className="customer-list-card-top customer-list-card-top--status">
@@ -502,7 +502,7 @@ const HomePage = () => {
 
       {/* A brand-new customer: the booking prompt, in the shipments column. */}
       {!loading && !capacityLoading && orders.length === 0 && !activeTrip && (
-        <StaggerItem initial={false} className="home-col-shipments">
+        <StaggerItem delay={60} className="home-col-shipments">
           <EmptyState
             icon={Container}
             title="No Shipments Yet"
