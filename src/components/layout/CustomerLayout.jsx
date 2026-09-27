@@ -423,11 +423,17 @@ const CustomerLayout = () => {
       )}
 
       {/* ─── Page Content ─── */}
-      <PageTransition as="main" id="customer-main-content" className="customer-main" key={location.pathname} tabIndex={-1}>
-        <ErrorBoundary>
-          <Outlet />
-        </ErrorBoundary>
-      </PageTransition>
+      {location.pathname === '/customer/book' ? (
+        // Older WebKit can lose sticky descendants of an animated transform.
+        // Keep booking's progress bar in the ordinary document scroll tree.
+        <main id="customer-main-content" className="w-full customer-main customer-main--booking" key={location.pathname} tabIndex={-1}>
+          <ErrorBoundary><Outlet /></ErrorBoundary>
+        </main>
+      ) : (
+        <PageTransition as="main" id="customer-main-content" className="customer-main" key={location.pathname} tabIndex={-1}>
+          <ErrorBoundary><Outlet /></ErrorBoundary>
+        </PageTransition>
+      )}
 
       {/* ─── Floating chat support bubble (mobile only) ───
           Keep it off pages that provide an in-flow support link so it cannot

@@ -92,6 +92,10 @@ const emptyBookingForm = ({ route = '', tripId = '' } = {}) => ({
 
 const BookShipmentPage = () => {
   usePageTitle('Book Shipment');
+  useEffect(() => {
+    document.documentElement.classList.add('booking-route-active');
+    return () => document.documentElement.classList.remove('booking-route-active');
+  }, []);
   const { user, userProfile } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -760,11 +764,11 @@ const BookShipmentPage = () => {
     window.scrollTo({ top: 0, behavior: reduceMotion ? 'auto' : 'smooth' });
   }, [step, reduceMotion]);
 
-  // Sticky positioning follows the layout viewport. On phones the keyboard
-  // can move the visible viewport down without moving that sticky edge, so
-  // follow its top only while it has passed the customer navbar. The normal
-  // CSS sticky position remains in charge at every other time and on older
-  // browsers without visualViewport.
+  // Sticky positioning follows the layout viewport. The iOS keyboard can pan
+  // the visible viewport independently, so move the sticky edge down with it.
+  // Installed older Safari sometimes reports offsetTop=0 during the resize
+  // event, then corrects it without firing another event. Recheck after focus
+  // and resize settle instead of trusting that first reading.
   const progressRef = useRef(null);
   useEffect(() => {
     const viewport = window.visualViewport;
@@ -773,9 +777,20 @@ const BookShipmentPage = () => {
 
     let frame = 0;
     let appliedTop = '';
+    let settleTimers = [];
     const update = () => {
       frame = 0;
-      const visibleTop = Math.max(0, viewport.offsetTop || 0);
+      const keyboardField = document.activeElement?.closest?.('.booking-page')
+        && document.activeElement.matches?.('input, textarea, [contenteditable="true"]');
+      const bodyShift = keyboardField && window.innerHeight - viewport.height > 100
+        ? -document.body.getBoundingClientRect().top - window.scrollY
+        : 0;
+      const visibleTop = Math.max(
+        0,
+        viewport.offsetTop || 0,
+        (viewport.pageTop || 0) - window.scrollY,
+        bodyShift,
+      );
       if (visibleTop === 0 && appliedTop === '') return;
       const navbarBottom = document.querySelector('.customer-navbar')?.getBoundingClientRect().bottom || 0;
       const nextTop = visibleTop > navbarBottom ? `${Math.round(visibleTop + 8)}px` : '';
@@ -785,14 +800,31 @@ const BookShipmentPage = () => {
       }
     };
     const schedule = () => { if (!frame) frame = requestAnimationFrame(update); };
+    const scheduleAfterSettle = () => {
+      schedule();
+      settleTimers.forEach(clearTimeout);
+      settleTimers = [50, 200, 400].map(delay => setTimeout(schedule, delay));
+    };
+    const onTouchEnd = () => {
+      if (document.activeElement?.closest?.('.booking-page')) scheduleAfterSettle();
+    };
     viewport.addEventListener('scroll', schedule);
-    viewport.addEventListener('resize', schedule);
-    schedule();
+    viewport.addEventListener('resize', scheduleAfterSettle);
+    window.addEventListener('scroll', schedule, { passive: true });
+    document.addEventListener('focusin', scheduleAfterSettle);
+    document.addEventListener('focusout', scheduleAfterSettle);
+    document.addEventListener('touchend', onTouchEnd, { passive: true });
+    scheduleAfterSettle();
 
     return () => {
       viewport.removeEventListener('scroll', schedule);
-      viewport.removeEventListener('resize', schedule);
+      viewport.removeEventListener('resize', scheduleAfterSettle);
+      window.removeEventListener('scroll', schedule);
+      document.removeEventListener('focusin', scheduleAfterSettle);
+      document.removeEventListener('focusout', scheduleAfterSettle);
+      document.removeEventListener('touchend', onTouchEnd);
       if (frame) cancelAnimationFrame(frame);
+      settleTimers.forEach(clearTimeout);
       bar.style.top = '';
     };
   }, [success]);

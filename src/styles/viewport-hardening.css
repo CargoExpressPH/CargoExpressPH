@@ -311,7 +311,7 @@
 }
 
 /* Browser focus and scrollIntoView land fields beneath the sticky bars. */
-html:has(.customer-layout-v2 .booking-page) {
+html.booking-route-active {
   scroll-padding-top: calc(152px + var(--app-safe-top));
 }
 
@@ -320,7 +320,7 @@ html:has(.customer-layout-v2 .booking-page) {
     top: calc(74px + var(--app-safe-top));
   }
 
-  html:has(.customer-layout-v2 .booking-page) {
+  html.booking-route-active {
     scroll-padding-top: calc(144px + var(--app-safe-top));
   }
 }
@@ -423,12 +423,12 @@ body.keyboard-open .customer-main:not(:has(.support-chat-page)) {
    `--keyboard-inset` decreases as `offsetTop` grows even with the keyboard
    at the same height. Retain the resting navigation reserve and provide room
    to reach the last field above the keyboard. */
-body .customer-layout-v2 .customer-main:has(.booking-page) {
+body .customer-layout-v2 .customer-main--booking {
   padding-bottom: max(40px, calc(24px + var(--booking-keyboard-height, 0px)));
 }
 
 @media (max-width: 899.98px) {
-  body .customer-layout-v2 .customer-main:has(.booking-page) {
+  body .customer-layout-v2 .customer-main--booking {
     padding-bottom: max(calc(160px + var(--customer-safe-bottom)), calc(24px + var(--booking-keyboard-height, 0px)));
   }
 }

@@ -24,11 +24,11 @@ dom.window.matchMedia = (query) => ({ matches: query.includes('pointer: coarse')
 // rule won and replaced booking's stable padding as soon as the keyboard opened.
 const viewportCss = await readFile('src/styles/viewport-hardening.css', 'utf8');
 const globalRule = viewportCss.match(/body\.keyboard-open \.customer-main:not\(:has\(\.support-chat-page\)\)\s*\{[^}]+\}/)?.[0];
-const bookingRule = viewportCss.match(/body \.customer-layout-v2 \.customer-main:has\(\.booking-page\)\s*\{[^}]+\}/)?.[0];
+const bookingRule = viewportCss.match(/body \.customer-layout-v2 \.customer-main--booking\s*\{[^}]+\}/)?.[0];
 assert.ok(globalRule && bookingRule, 'both keyboard padding rules exist');
 const selectorProbe = new JSDOM(`<style>${globalRule.replace(/padding-bottom:[^;]+;/, 'padding-bottom:24px;')}
   ${bookingRule.replace(/padding-bottom:[^;]+;/, 'padding-bottom:180px;')}</style>
-  <body class="keyboard-open"><div class="customer-layout-v2"><main class="customer-main"><div class="booking-page"></div></main></div></body>`);
+  <body class="keyboard-open"><div class="customer-layout-v2"><main class="customer-main customer-main--booking"><div class="booking-page"></div></main></div></body>`);
 assert.equal(selectorProbe.window.getComputedStyle(selectorProbe.window.document.querySelector('main')).paddingBottom,
   '180px', 'booking bottom space must win over the global keyboard rule');
 selectorProbe.window.close();
@@ -128,6 +128,8 @@ try {
 
   await act(async () => root.render(createElement(Router.RouterProvider, { router })));
   await flush();
+  assert.ok(document.documentElement.classList.contains('booking-route-active'),
+    'booking scroll padding uses a selector supported by older Safari');
   step(1);
   await click(button('Bohol → Manila'));
   await click(button('Continue'));
@@ -165,6 +167,13 @@ try {
   await flush();
   assert.equal(document.querySelector('.step-progress').style.top, '',
     'booking progress stays below the visible navbar when the visual offset is small');
+  visualViewport.offsetTop = 0;
+  visualViewport.dispatchEvent(new dom.window.Event('resize'));
+  await new Promise((resolve) => setTimeout(resolve, 25));
+  visualViewport.offsetTop = 120; // Older installed Safari can correct this without another event.
+  await new Promise((resolve) => setTimeout(resolve, 90));
+  assert.equal(document.querySelector('.step-progress').style.top, '128px',
+    'booking progress remeasures after a late iOS viewport correction');
   visualViewport.offsetTop = 0;
   visualViewport.dispatchEvent(new dom.window.Event('scroll'));
   await flush();
@@ -212,6 +221,8 @@ try {
   assert.equal(fixture.orders[0].sender_lot_block, 'Lot 13');
   assert.equal(fixture.errors.length, 3, 'only the three deliberately invalid steps should report errors');
   await act(async () => root.unmount());
+  assert.ok(!document.documentElement.classList.contains('booking-route-active'),
+    'booking route scroll padding is removed on navigation');
   console.log('Booking DOM integration passed: five steps, validation, autofill, keyboard pan, dropdowns, review, and duplicate-submit guard.');
 } finally {
   await rm(outputDirectory, { recursive: true, force: true });

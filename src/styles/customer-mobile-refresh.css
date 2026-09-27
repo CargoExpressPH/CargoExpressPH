@@ -2782,8 +2782,11 @@ a.customer-snapshot-pill:hover { transform: translateY(-1px); box-shadow: var(--
    strip with ~100px of empty page either side. These two screens are laid out
    to use the width, so they get a wider column from 600px up. */
 @media (min-width: 600px) and (max-width: 899.98px) {
-  .customer-main:has(.customer-home-page),
-  .customer-main:has(.booking-page) {
+  .customer-main--booking {
+    max-width: 760px;
+  }
+
+  .customer-main:has(.customer-home-page) {
     max-width: 760px;
   }
 
