@@ -17,8 +17,9 @@
     <link rel="canonical" href="https://www.cargoexpress-ph.online/" />
 
     <!-- ====== Theme & Colors ====== -->
-    <meta name="theme-color" content="#16A34A" />
-    <meta name="theme-color" content="#0F172A" media="(prefers-color-scheme: dark)" />
+    <!-- A single color hint avoids competing Android PWA status-bar colors.
+         Start with the dark navbar color until the saved theme is restored. -->
+    <meta name="theme-color" content="#081321" />
     <meta name="msapplication-TileColor" content="#16A34A" />
     <meta name="msapplication-navbutton-color" content="#16A34A" />
     <meta name="color-scheme" content="dark light" />
@@ -34,9 +35,7 @@
         } catch (error) { /* Storage or media preference unavailable: use light. */ }
         document.documentElement.setAttribute('data-theme', theme);
         document.documentElement.style.colorScheme = theme;
-        document.querySelectorAll('meta[name="theme-color"]').forEach(function (meta) {
-          meta.content = theme === 'dark' ? '#0F172A' : '#16A34A';
-        });
+        document.querySelector('meta[name="theme-color"]').content = theme === 'dark' ? '#081321' : '#16A34A';
       })();
     </script>
 
