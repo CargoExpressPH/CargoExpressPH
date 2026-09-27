@@ -3,7 +3,6 @@ import { createContext, useContext, useState, useEffect, useLayoutEffect, useCal
 const ThemeContext = createContext(null);
 
 const STORAGE_KEY = 'cargoexpress_theme';
-const TRANSITION_DURATION = 400;
 
 const getSystemTheme = () => {
   if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
@@ -26,30 +25,30 @@ const getInitialTheme = () => getStoredTheme() || getSystemTheme();
 export const ThemeProvider = ({ children }) => {
   const [theme, setTheme] = useState(getInitialTheme);
   const hasMounted = useRef(false);
-  const transitionTimer = useRef(null);
+  const transitionFrame = useRef(null);
 
   const applyTheme = useCallback((t, { animate = true } = {}) => {
     if (typeof document === 'undefined') return;
 
     const root = document.documentElement;
+    if (transitionFrame.current !== null) {
+      cancelAnimationFrame(transitionFrame.current);
+      transitionFrame.current = null;
+    }
+
+    // Suppress each component's own color transition for the theme change.
+    // Remove the class after one painted frame so normal hover effects resume.
+    root.classList.toggle('theme-transition', animate);
     root.setAttribute('data-theme', t);
     root.style.colorScheme = t;
-
-    if (transitionTimer.current) {
-      clearTimeout(transitionTimer.current);
-      transitionTimer.current = null;
+    if (animate) {
+      transitionFrame.current = requestAnimationFrame(() => {
+        transitionFrame.current = requestAnimationFrame(() => {
+          root.classList.remove('theme-transition');
+          transitionFrame.current = null;
+        });
+      });
     }
-
-    if (!animate) {
-      root.classList.remove('theme-transition');
-      return;
-    }
-
-    root.classList.add('theme-transition');
-    transitionTimer.current = setTimeout(() => {
-      root.classList.remove('theme-transition');
-      transitionTimer.current = null;
-    }, TRANSITION_DURATION);
   }, []);
 
   useLayoutEffect(() => {
@@ -58,9 +57,11 @@ export const ThemeProvider = ({ children }) => {
   }, [theme, applyTheme]);
 
   useEffect(() => () => {
-    if (transitionTimer.current) {
-      clearTimeout(transitionTimer.current);
+    if (transitionFrame.current !== null) {
+      cancelAnimationFrame(transitionFrame.current);
+      transitionFrame.current = null;
     }
+    document.documentElement.classList.remove('theme-transition');
   }, []);
 
   useEffect(() => {
