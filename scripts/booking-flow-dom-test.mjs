@@ -8,7 +8,7 @@ import { JSDOM } from 'jsdom';
 // Run the real booking component, address pickers, drafts, and keyboard hook.
 // Stub only the authenticated session and remote database: this test never
 // creates a customer or booking in production.
-const dom = new JSDOM('<!doctype html><html><body><header class="customer-navbar"></header><div id="app"></div></body></html>', {
+const dom = new JSDOM('<!doctype html><html><body><div class="customer-layout-v2 booking-scroll-shell"><header class="customer-navbar"></header><main id="app" class="customer-main customer-main--booking"></main></div></body></html>', {
   url: 'https://example.test/customer/book', pretendToBeVisual: true,
 });
 for (const key of ['window', 'document', 'navigator', 'HTMLElement', 'Element', 'SVGElement', 'Node', 'MutationObserver']) {
@@ -160,20 +160,32 @@ try {
   assert.deepEqual(pageScrolls, [], 'typing and panning with the keyboard open must not scroll the booking page');
   assert.equal(document.documentElement.style.getPropertyValue('--booking-keyboard-height'), '300px',
     'booking bottom space must remain stable when the visual viewport pans');
-  assert.equal(document.querySelector('.step-progress').style.top, '128px',
-    'booking progress follows the visible viewport above the keyboard');
+  assert.equal(document.documentElement.style.getPropertyValue('--booking-visible-top'), '120px',
+    'booking shell follows the visible viewport above the keyboard');
+  assert.equal(document.documentElement.style.getPropertyValue('--booking-visible-height'), '500px',
+    'booking shell shrinks to the visible area above the keyboard');
+  assert.equal(document.querySelector('.step-progress').style.top, '',
+    'the progress bar uses the shell scroll position, not a moving inline offset');
   visualViewport.offsetTop = 40;
   visualViewport.dispatchEvent(new dom.window.Event('scroll'));
   await flush();
-  assert.equal(document.querySelector('.step-progress').style.top, '',
-    'booking progress stays below the visible navbar when the visual offset is small');
+  assert.equal(document.documentElement.style.getPropertyValue('--booking-visible-top'), '40px',
+    'the booking shell tracks small viewport pans too');
+  const bodyRect = document.body.getBoundingClientRect.bind(document.body);
+  document.body.getBoundingClientRect = () => ({ top: -80 });
+  visualViewport.offsetTop = 0;
+  document.querySelector('.customer-main--booking').dispatchEvent(new dom.window.Event('scroll'));
+  await flush();
+  assert.equal(document.documentElement.style.getPropertyValue('--booking-visible-top'), '80px',
+    'body position compensates when older iOS reports a zero visual viewport offset');
+  document.body.getBoundingClientRect = bodyRect;
   visualViewport.offsetTop = 0;
   visualViewport.dispatchEvent(new dom.window.Event('resize'));
   await new Promise((resolve) => setTimeout(resolve, 25));
   visualViewport.offsetTop = 120; // Older installed Safari can correct this without another event.
   await new Promise((resolve) => setTimeout(resolve, 90));
-  assert.equal(document.querySelector('.step-progress').style.top, '128px',
-    'booking progress remeasures after a late iOS viewport correction');
+  assert.equal(document.documentElement.style.getPropertyValue('--booking-visible-top'), '120px',
+    'booking shell remeasures after a late iOS viewport correction');
   visualViewport.offsetTop = 0;
   visualViewport.dispatchEvent(new dom.window.Event('scroll'));
   await flush();

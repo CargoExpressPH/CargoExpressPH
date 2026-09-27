@@ -418,11 +418,8 @@ body.keyboard-open .customer-main:not(:has(.support-chat-page)) {
   padding-bottom: calc(24px + var(--keyboard-inset, 0px));
 }
 
-/* The booking form scrolls with the document. Its available space must not
-   change each time the browser pans the visual viewport to a focused field;
-   `--keyboard-inset` decreases as `offsetTop` grows even with the keyboard
-   at the same height. Retain the resting navigation reserve and provide room
-   to reach the last field above the keyboard. */
+/* Desktop booking still scrolls with the document. On phones, the fixed
+   booking shell below replaces this bottom reserve with its own padding. */
 body .customer-layout-v2 .customer-main--booking {
   padding-bottom: max(40px, calc(24px + var(--booking-keyboard-height, 0px)));
 }
@@ -512,5 +509,60 @@ body.keyboard-open .customer-chat-fab {
   .modal.modal-lg .fs-remove-btn {
     width: 100%;
     flex: 0 0 auto;
+  }
+}
+
+/* The booking form is the only scroll surface on phones. Keeping the header
+   outside that scroll surface means iOS keyboard panning cannot drag both
+   sticky controls through the screen while a field is focused. The shell uses
+   the measured visual viewport because 100dvh still includes the keyboard on
+   iOS and Android when only the visual viewport shrinks. */
+@media (max-width: 899.98px) {
+  html.booking-route-active,
+  html.booking-route-active body {
+    overflow: hidden;
+  }
+
+  .customer-layout-v2.booking-scroll-shell {
+    position: fixed;
+    top: var(--booking-visible-top, 0px);
+    left: 0;
+    right: 0;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    height: var(--booking-visible-height, 100vh);
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .booking-scroll-shell .customer-navbar {
+    position: relative;
+    top: auto;
+    flex: 0 0 auto;
+    background: var(--customer-panel-solid, var(--surface));
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  body .booking-scroll-shell .customer-main--booking {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior-y: contain;
+    scroll-padding-top: 88px;
+    padding-bottom: calc(160px + var(--customer-safe-bottom));
+  }
+
+  body.keyboard-active .booking-scroll-shell .customer-main--booking {
+    padding-bottom: 24px;
+  }
+
+  .booking-scroll-shell .booking-page .step-progress {
+    top: 8px;
+    background: var(--customer-panel-solid, var(--surface));
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
   }
 }

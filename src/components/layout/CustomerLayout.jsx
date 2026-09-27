@@ -290,7 +290,7 @@ const CustomerLayout = () => {
   return (
     <>
     <OnboardingModal />
-    <div className="customer-layout-v2">
+    <div className={`customer-layout-v2${location.pathname === '/customer/book' ? ' booking-scroll-shell' : ''}`}>
       <a href="#customer-main-content" className="skip-link">Skip to main content</a>
       {/* ─── Top Navigation Bar ─── */}
       <header className="customer-navbar">

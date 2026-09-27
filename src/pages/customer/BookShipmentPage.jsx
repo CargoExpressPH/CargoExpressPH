@@ -90,6 +90,11 @@ const emptyBookingForm = ({ route = '', tripId = '' } = {}) => ({
   payment_preference: 'unspecified', notes: '', sender_other_province: '',
 });
 
+const bookingScrollTarget = () => {
+  const main = document.querySelector('.customer-main--booking');
+  return main && getComputedStyle(main).overflowY === 'auto' ? main : window;
+};
+
 const BookShipmentPage = () => {
   usePageTitle('Book Shipment');
   useEffect(() => {
@@ -494,12 +499,15 @@ const BookShipmentPage = () => {
         // keyboard has not opened yet. Avoid the page-wide smooth scroll here.
         const progressBottom = document.querySelector('.booking-page .step-progress')?.getBoundingClientRect().bottom || 0;
         const rect = el.getBoundingClientRect();
+        const scrollTarget = bookingScrollTarget();
         const viewport = window.visualViewport;
-        const visibleBottom = (viewport?.offsetTop || 0) + (viewport?.height || window.innerHeight);
+        const visibleBottom = scrollTarget === window
+          ? (viewport?.offsetTop || 0) + (viewport?.height || window.innerHeight)
+          : scrollTarget.getBoundingClientRect().bottom;
         if (rect.top < progressBottom + 12) {
-          window.scrollBy({ top: Math.floor(rect.top - progressBottom - 12), behavior: 'instant' });
+          scrollTarget.scrollBy({ top: Math.floor(rect.top - progressBottom - 12), behavior: 'instant' });
         } else if (rect.bottom > visibleBottom - 16) {
-          window.scrollBy({ top: Math.ceil(rect.bottom - visibleBottom + 16), behavior: 'instant' });
+          scrollTarget.scrollBy({ top: Math.ceil(rect.bottom - visibleBottom + 16), behavior: 'instant' });
         }
       }
     });
@@ -586,7 +594,7 @@ const BookShipmentPage = () => {
       refreshRecentContacts();
     } catch (err) {
       toast.error(err.message || 'An unexpected error occurred while saving the booking.');
-      if (!focusingInvalidField) window.scrollTo({ top: 0, behavior: 'smooth' });
+      if (!focusingInvalidField) bookingScrollTarget().scrollTo({ top: 0, behavior: 'smooth' });
       setLoading(false);
     } finally {
       submittingRef.current = false;
@@ -761,28 +769,28 @@ const BookShipmentPage = () => {
       skipStepScrollRef.current = false;
       return;
     }
-    window.scrollTo({ top: 0, behavior: reduceMotion ? 'auto' : 'smooth' });
+    bookingScrollTarget().scrollTo({ top: 0, behavior: reduceMotion ? 'auto' : 'smooth' });
   }, [step, reduceMotion]);
 
-  // Sticky positioning follows the layout viewport. The iOS keyboard can pan
-  // the visible viewport independently, so move the sticky edge down with it.
-  // Installed older Safari sometimes reports offsetTop=0 during the resize
-  // event, then corrects it without firing another event. Recheck after focus
-  // and resize settle instead of trusting that first reading.
-  const progressRef = useRef(null);
+  // On phones the booking route has its own scrollable shell. Keep that shell
+  // aligned to the visible viewport when iOS pans it for the keyboard; scrolling
+  // the form then cannot carry the header or progress bar away. Older installed
+  // Safari reports viewport offsets late, sometimes without another event.
   useEffect(() => {
     const viewport = window.visualViewport;
-    const bar = progressRef.current;
-    if (!viewport || !bar) return undefined;
+    const root = document.documentElement;
+    const scroller = document.querySelector('.customer-main--booking');
+    if (!viewport || !scroller) return undefined;
 
     let frame = 0;
-    let appliedTop = '';
+    let appliedTop = -1;
+    let appliedHeight = -1;
     let settleTimers = [];
     const update = () => {
       frame = 0;
-      const keyboardField = document.activeElement?.closest?.('.booking-page')
+      const focusedField = document.activeElement?.closest?.('.booking-page')
         && document.activeElement.matches?.('input, textarea, [contenteditable="true"]');
-      const bodyShift = keyboardField && window.innerHeight - viewport.height > 100
+      const bodyShift = focusedField && window.innerHeight - viewport.height > 100
         ? -document.body.getBoundingClientRect().top - window.scrollY
         : 0;
       const visibleTop = Math.max(
@@ -791,12 +799,15 @@ const BookShipmentPage = () => {
         (viewport.pageTop || 0) - window.scrollY,
         bodyShift,
       );
-      if (visibleTop === 0 && appliedTop === '') return;
-      const navbarBottom = document.querySelector('.customer-navbar')?.getBoundingClientRect().bottom || 0;
-      const nextTop = visibleTop > navbarBottom ? `${Math.round(visibleTop + 8)}px` : '';
+      const nextTop = Math.round(visibleTop);
+      const nextHeight = Math.round(viewport.height > 100 ? viewport.height : window.innerHeight);
       if (nextTop !== appliedTop) {
-        bar.style.top = nextTop;
+        root.style.setProperty('--booking-visible-top', `${nextTop}px`);
         appliedTop = nextTop;
+      }
+      if (nextHeight !== appliedHeight) {
+        root.style.setProperty('--booking-visible-height', `${nextHeight}px`);
+        appliedHeight = nextHeight;
       }
     };
     const schedule = () => { if (!frame) frame = requestAnimationFrame(update); };
@@ -811,6 +822,7 @@ const BookShipmentPage = () => {
     viewport.addEventListener('scroll', schedule);
     viewport.addEventListener('resize', scheduleAfterSettle);
     window.addEventListener('scroll', schedule, { passive: true });
+    scroller.addEventListener('scroll', schedule, { passive: true });
     document.addEventListener('focusin', scheduleAfterSettle);
     document.addEventListener('focusout', scheduleAfterSettle);
     document.addEventListener('touchend', onTouchEnd, { passive: true });
@@ -820,12 +832,14 @@ const BookShipmentPage = () => {
       viewport.removeEventListener('scroll', schedule);
       viewport.removeEventListener('resize', scheduleAfterSettle);
       window.removeEventListener('scroll', schedule);
+      scroller.removeEventListener('scroll', schedule);
       document.removeEventListener('focusin', scheduleAfterSettle);
       document.removeEventListener('focusout', scheduleAfterSettle);
       document.removeEventListener('touchend', onTouchEnd);
       if (frame) cancelAnimationFrame(frame);
       settleTimers.forEach(clearTimeout);
-      bar.style.top = '';
+      root.style.removeProperty('--booking-visible-top');
+      root.style.removeProperty('--booking-visible-height');
     };
   }, [success]);
 
@@ -1095,7 +1109,7 @@ const BookShipmentPage = () => {
       <h2 className="fw-700 mb-8">Book Shipment</h2>
 
       {/* Step Progress */}
-      <div ref={progressRef} className="step-progress" role="list" aria-label="Booking progress">
+      <div className="step-progress" role="list" aria-label="Booking progress">
         {steps.map((s, i) => {
           const completed = step > i + 1;
           const stepClass = `step ${completed ? 'completed clickable' : step === i + 1 ? 'active' : ''}`;

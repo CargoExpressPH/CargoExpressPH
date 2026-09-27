@@ -2067,7 +2067,13 @@ input:checked + .toggle-slider:before {
 }
 
 /* ── Auto-hide customer bottom navigation when typing on mobile ── */
-body.keyboard-active .customer-bottom-nav,
+body.keyboard-active .customer-bottom-nav {
+  transform: translateY(180%) ;
+  opacity: 0 ;
+  pointer-events: none ;
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease ;
+}
+
 body:has(input:is([type="text"], [type="search"], [type="password"], [type="email"], [type="tel"], [type="number"], [type="url"], [type="date"], [type="time"], [type="datetime-local"]):focus, textarea:focus) .customer-bottom-nav {
   transform: translateY(180%) ;
   opacity: 0 ;
