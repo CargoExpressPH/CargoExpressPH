@@ -433,16 +433,6 @@ body .customer-layout-v2 .customer-main:has(.booking-page) {
   }
 }
 
-@media (max-width: 899.98px) {
-  /* Fields brought into view without the keyboard (Tab, a dropdown trigger,
-     the browser's next-field arrows) stop above the floating tab bar, not
-     under it. With the keyboard up the tab bar is hidden and the keyboard
-     inset is the larger of the two. */
-  html:has(.customer-layout-v2 .booking-page) {
-    scroll-padding-bottom: max(var(--keyboard-inset, 0px), calc(104px + env(safe-area-inset-bottom, 0px)));
-  }
-}
-
 body.keyboard-open .page-content {
   padding-bottom: calc(28px + var(--keyboard-inset, 0px));
 }

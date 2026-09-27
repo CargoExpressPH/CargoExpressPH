@@ -30,15 +30,12 @@ export const ToastProvider = ({ children }) => {
   const error   = useCallback((msg, dur)  => addToast(msg, 'error',   dur ?? 5000), [addToast]);
   const warning = useCallback((msg, dur)  => addToast(msg, 'warning', dur), [addToast]);
   const info    = useCallback((msg, dur)  => addToast(msg, 'info',    dur), [addToast]);
-  // Drops error toasts that no longer apply — e.g. a form's 'please fill in'
-  // message once the customer has fixed it and moved on.
-  const clearErrors = useCallback(() => setToasts(prev => prev.filter(t => t.type !== 'error')), []);
 
   // Stable identity: without this, every toast show/hide re-created the value
   // object and re-rendered every useToast() consumer in the tree.
   const value = useMemo(
-    () => ({ success, error, warning, info, addToast, clearErrors }),
-    [success, error, warning, info, addToast, clearErrors]
+    () => ({ success, error, warning, info, addToast }),
+    [success, error, warning, info, addToast]
   );
 
   return (

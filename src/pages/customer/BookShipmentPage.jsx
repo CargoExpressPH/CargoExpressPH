@@ -491,22 +491,9 @@ const BookShipmentPage = () => {
         const progressBottom = document.querySelector('.booking-page .step-progress')?.getBoundingClientRect().bottom || 0;
         const rect = el.getBoundingClientRect();
         const viewport = window.visualViewport;
-        // The phone tab bar floats over the bottom of the page; a field under
-        // it is as hidden as one below the screen, and a tap there lands on
-        // the tab bar instead.
-        const tabBar = document.querySelector('.customer-bottom-nav');
-        const tabBarTop = tabBar && getComputedStyle(tabBar).display !== 'none'
-          ? tabBar.getBoundingClientRect().top
-          : Infinity;
-        const visibleBottom = Math.min(
-          (viewport?.offsetTop || 0) + (viewport?.height || window.innerHeight),
-          tabBarTop,
-        );
-        // Bring the field's label into view too, not just the box: a red
-        // field whose name is hidden under the progress bar says nothing.
-        const labelTop = (el.closest('.form-group') || el).getBoundingClientRect().top;
-        if (labelTop < progressBottom + 12) {
-          window.scrollBy({ top: Math.floor(labelTop - progressBottom - 12), behavior: 'instant' });
+        const visibleBottom = (viewport?.offsetTop || 0) + (viewport?.height || window.innerHeight);
+        if (rect.top < progressBottom + 12) {
+          window.scrollBy({ top: Math.floor(rect.top - progressBottom - 12), behavior: 'instant' });
         } else if (rect.bottom > visibleBottom - 16) {
           window.scrollBy({ top: Math.ceil(rect.bottom - visibleBottom + 16), behavior: 'instant' });
         }
@@ -764,69 +751,14 @@ const BookShipmentPage = () => {
   const previousStepRef = useRef(step);
   useEffect(() => {
     if (previousStepRef.current === step) return;
-    const movedForward = step > previousStepRef.current;
     previousStepRef.current = step;
     setOpenContactDropdown(null);
-    // A step passed its checks, so an earlier "please fill in…" toast is now
-    // wrong — it followed the customer onto the Review step. Only forwards:
-    // when Confirm sends them back to fix a field, its error is shown in the
-    // same render and must stay.
-    if (movedForward) toast.clearErrors?.();
     if (skipStepScrollRef.current) {
       skipStepScrollRef.current = false;
       return;
     }
     window.scrollTo({ top: 0, behavior: reduceMotion ? 'auto' : 'smooth' });
-  }, [step, reduceMotion, toast]);
-
-  // The progress bar stays at the top of the screen while the customer types.
-  // On a phone the keyboard does not shrink the page: the browser slides the
-  // visible area (the visual viewport) down over it to show the field. A
-  // sticky bar is pinned to the page, not to that visible area, so it slid
-  // off the top with it. While a field has the keyboard up, this moves the
-  // bar down by exactly the part that would be hidden — directly under the
-  // navbar while that is still in view, at the very top once it is not.
-  // A transform only: no layout change, so the focused field never moves.
-  // No-op on desktop and without visualViewport (iOS before 13).
-  const progressRef = useRef(null);
-  useEffect(() => {
-    const vv = window.visualViewport;
-    const bar = progressRef.current;
-    if (!vv || !bar) return undefined;
-    let frame = 0;
-    let shift = 0;
-    const update = () => {
-      frame = 0;
-      const active = document.activeElement;
-      const typing = Boolean(active && active !== document.body
-        && active.matches?.('input, textarea, [contenteditable="true"]')
-        && window.innerHeight - vv.height > 100);
-      let next = 0;
-      if (typing && vv.offsetTop > 0) {
-        const restingTop = bar.getBoundingClientRect().top - shift;
-        next = Math.max(0, Math.round(vv.offsetTop - restingTop));
-      }
-      if (next !== shift) {
-        shift = next;
-        bar.style.transform = shift ? `translate3d(0, ${shift}px, 0)` : '';
-      }
-    };
-    const schedule = () => { if (!frame) frame = requestAnimationFrame(update); };
-    vv.addEventListener('scroll', schedule);
-    vv.addEventListener('resize', schedule);
-    window.addEventListener('scroll', schedule, { passive: true });
-    document.addEventListener('focusin', schedule);
-    document.addEventListener('focusout', schedule);
-    return () => {
-      vv.removeEventListener('scroll', schedule);
-      vv.removeEventListener('resize', schedule);
-      window.removeEventListener('scroll', schedule);
-      document.removeEventListener('focusin', schedule);
-      document.removeEventListener('focusout', schedule);
-      if (frame) cancelAnimationFrame(frame);
-      bar.style.transform = '';
-    };
-  }, [success]);
+  }, [step, reduceMotion]);
 
   const particles = useMemo(
     () => Array.from({ length: 24 }, (_, i) => ({
@@ -1083,10 +1015,7 @@ const BookShipmentPage = () => {
       />
 
       <div className="customer-top-actions">
-        {/* Cancel goes back, or Home when booking was the first page opened
-            (a shared link, a refresh, the installed app) — there is no
-            history entry then and navigate(-1) did nothing. */}
-        <button type="button" onClick={() => (step > 1 ? setStep(step - 1) : location.key === 'default' ? navigate('/customer') : navigate(-1))} className="btn btn-ghost customer-back-action">
+        <button type="button" onClick={() => step > 1 ? setStep(step - 1) : navigate(-1)} className="btn btn-ghost customer-back-action">
           <ArrowLeft size={18} /> {step > 1 ? 'Back' : 'Cancel'}
         </button>
         <Link to="/customer/support" className="customer-inline-support-link">
@@ -1097,7 +1026,7 @@ const BookShipmentPage = () => {
       <h2 className="fw-700 mb-8">Book Shipment</h2>
 
       {/* Step Progress */}
-      <div ref={progressRef} className="step-progress" role="list" aria-label="Booking progress">
+      <div className="step-progress" role="list" aria-label="Booking progress">
         {steps.map((s, i) => {
           const completed = step > i + 1;
           const stepClass = `step ${completed ? 'completed clickable' : step === i + 1 ? 'active' : ''}`;
