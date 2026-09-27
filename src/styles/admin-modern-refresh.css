@@ -733,7 +733,7 @@
   border-color: var(--admin-line);
   border-radius: var(--radius-lg);
   background: color-mix(in srgb, var(--admin-panel-solid) 92%, var(--bg) 8%);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55);
+  box-shadow: inset 0 1px 0 var(--control-inset-highlight);
 }
 
 .app-layout .form-input:focus,
@@ -775,7 +775,7 @@
 .app-layout .admin-toolbar:has(.search-box) .search-box input {
   border: 1.5px solid var(--admin-line);
   background: color-mix(in srgb, var(--admin-panel-solid) 92%, var(--bg) 8%);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55);
+  box-shadow: inset 0 1px 0 var(--control-inset-highlight);
   border-radius: var(--radius-lg);
 }
 .app-layout .admin-toolbar:has(.search-box):focus-within {

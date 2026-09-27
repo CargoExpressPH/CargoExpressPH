@@ -133,6 +133,10 @@
   --border: #E2E8F0;
   --border-light: #F1F5F9;
   --border-hover: #CBD5E1;
+  /* Thin highlights on controls and floating surfaces; keep light-mode depth. */
+  --control-inset-highlight: rgba(255, 255, 255, 0.55);
+  --panel-inset-highlight: rgba(255, 255, 255, 0.6);
+  --nav-inset-highlight: rgba(255, 255, 255, 0.78);
 
   --text: #0F172A;
   --text-secondary: #475569;
@@ -320,6 +324,10 @@
    DARK MODE — Full theme override via [data-theme="dark"]
    ═══════════════════════════════════════════════════════════════════════ */
 [data-theme="dark"] {
+  /* Light-mode highlights otherwise show as white rims on dark surfaces. */
+  --control-inset-highlight: rgba(255, 255, 255, 0.035);
+  --panel-inset-highlight: rgba(255, 255, 255, 0.035);
+  --nav-inset-highlight: rgba(255, 255, 255, 0.035);
   /* -- "Soft Slate" palette: replaces the old near-black bg + neon-green
      primary. Deep Slate / Lighter Slate backgrounds (Tailwind slate-900/800),
      a toned-down Emerald primary, and Slate White / Muted Slate text keep
