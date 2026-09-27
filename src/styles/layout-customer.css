@@ -569,6 +569,15 @@
 .customer-chat-fab.is-tucked .customer-chat-fab-inner {
   transform: scale(0.6);
 }
+/* The link stays in the tab order while tucked. Reveal it whenever a keyboard
+   or assistive-technology user focuses it, instead of focusing an invisible link. */
+body:not(.keyboard-active) .customer-chat-fab.is-tucked:focus {
+  opacity: 1;
+  pointer-events: auto;
+}
+body:not(.keyboard-active) .customer-chat-fab.is-tucked:focus .customer-chat-fab-inner {
+  transform: scale(1);
+}
 
 /* The keyboard takes the bottom of the screen; the FAB would otherwise sit on
    top of whatever is being typed into. Same rule the bottom nav follows. */
