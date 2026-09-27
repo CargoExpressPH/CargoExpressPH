@@ -6,7 +6,6 @@ import { getOrders, getAnnouncements, getTripCapacitySummary } from '../../lib/d
 import { isTripBookable, getSettlementState, outstandingBalance, SETTLEMENT_STATE, STATUS_DESCRIPTIONS } from '../../constants/status';
 import StatusBadge from '../../components/ui/StatusBadge';
 import RouteProgressLine from '../../components/ui/RouteProgressLine';
-import { CenteredSpinner } from '../../components/ui/Loader';
 import EmptyState from '../../components/ui/EmptyState';
 import PageTransition, { StaggerItem } from '../../components/ui/PageTransition';
 import PullToRefresh from '../../components/ui/PullToRefresh';
@@ -14,7 +13,7 @@ import {
   Package, Search, ArrowRight,
   Container, MapPin, Calendar, Weight, ChevronRight,
   Truck, CheckCircle, Megaphone, Clock,
-  Sun, CloudSun, Moon, LayoutDashboard, Wallet,
+  Sun, CloudSun, Moon, LayoutDashboard, Wallet, Loader,
 } from 'lucide-react';
 import usePageTitle from '../../hooks/usePageTitle';
 import { formatMoney } from '../../utils/currencyInput';
@@ -26,6 +25,13 @@ import { isScheduledTripOverdue } from '../../lib/tripCapacitySelection';
 import useRealtimeTripCapacity from '../../hooks/useRealtimeTripCapacity';
 import { orderPartyName } from '../../lib/orderParties';
 import { readCustomerHome, saveCustomerHome } from '../../lib/customerPageCache';
+
+const HomeLoadingPanel = ({ message }) => (
+  <div className="home-loading-panel" role="status" aria-live="polite">
+    <Loader size={20} className="animate-spin" aria-hidden="true" />
+    <span>{message}</span>
+  </div>
+);
 
 const HomePage = () => {
   usePageTitle('Home');
@@ -148,10 +154,10 @@ const HomePage = () => {
   const greetingInfo = getGreetingData();
   const GreetingIcon = greetingInfo.icon;
 
-  // Reserve one line while loading instead of swapping a long generic
-  // sentence for the actual count and resizing the hero mid-navigation.
+  // Keep useful text visible on the first load. Returning customers keep their
+  // last successful summary while the fresh request runs in the background.
   const heroStatus = loading
-    ? '\u00a0'
+    ? 'Loading your shipments…'
     : activeOrders.length > 0
       ? `You have ${activeOrders.length} active shipment${activeOrders.length === 1 ? '' : 's'}.`
       : orders.length > 0
@@ -263,8 +269,9 @@ const HomePage = () => {
         </StaggerItem>
       )}
 
-      {/* ── Loading State ─────────────────────────────────────── */}
-      {loading && <CenteredSpinner />}
+      {/* Show a compact, visible loading surface instead of an empty gap below
+          the hero while the first orders request is in flight. */}
+      {loading && <HomeLoadingPanel message="Loading your bookings…" />}
 
       {!loading && (
         <div className="home-col-side">
@@ -278,7 +285,7 @@ const HomePage = () => {
               </div>
             </StaggerItem>
           ) : capacityLoading && !activeTrip ? (
-            <CenteredSpinner />
+            <HomeLoadingPanel message="Checking available trips…" />
           ) : activeTrip ? (
             <StaggerItem initial={false} className="home-trip-block">
               <div className="home-section-head">

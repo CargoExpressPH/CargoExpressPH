@@ -26,6 +26,28 @@
 
 /* ── Page rhythm ───────────────────────────────────────────────────────── */
 
+/* Visible on a first visit and when trip capacity takes longer than bookings.
+   A static surface is cheaper to paint on older phones than a large skeleton
+   and gives the next section a clear place until its data arrives. */
+.customer-layout-v2 .home-loading-panel {
+  display: flex;
+  align-items: center;
+  min-height: 76px;
+  padding: 16px 20px;
+  border: 1px solid var(--customer-line);
+  border-radius: 20px;
+  background: var(--customer-panel-solid, var(--surface));
+  color: var(--customer-muted);
+  font-size: var(--text-14);
+  font-weight: 600;
+}
+
+.customer-layout-v2 .home-loading-panel svg {
+  flex: 0 0 auto;
+  margin-right: 12px;
+  color: var(--customer-green-dark);
+}
+
 /* The trip, wrapped so the wide layout can place it as one column. On
    phones it is just more of the page: the same grid gap. */
 .customer-layout-v2 .home-col-side {
