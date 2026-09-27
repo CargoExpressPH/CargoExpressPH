@@ -24,19 +24,19 @@
     <meta name="color-scheme" content="dark light" />
     <script>
       (function () {
+        var theme = 'light';
         try {
           var storedTheme = localStorage.getItem('cargoexpress_theme');
           var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-          var theme = storedTheme === 'dark' || storedTheme === 'light'
+          theme = storedTheme === 'dark' || storedTheme === 'light'
             ? storedTheme
             : prefersDark ? 'dark' : 'light';
-
-          document.documentElement.setAttribute('data-theme', theme);
-          document.documentElement.style.colorScheme = theme;
-        } catch (error) {
-          document.documentElement.setAttribute('data-theme', 'light');
-          document.documentElement.style.colorScheme = 'light';
-        }
+        } catch (error) { /* Storage or media preference unavailable: use light. */ }
+        document.documentElement.setAttribute('data-theme', theme);
+        document.documentElement.style.colorScheme = theme;
+        document.querySelectorAll('meta[name="theme-color"]').forEach(function (meta) {
+          meta.content = theme === 'dark' ? '#0F172A' : '#16A34A';
+        });
       })();
     </script>
 
