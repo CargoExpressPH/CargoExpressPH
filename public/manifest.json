@@ -2,7 +2,7 @@
   "name": "CargoExpress PH",
   "short_name": "CargoExpress PH",
   "description": "Web-Based Cargo Delivery Booking and Tracking System",
-  "theme_color": "#081321",
+  "theme_color": "#16A34A",
   "background_color": "#0F172A",
   "display": "standalone",
   "orientation": "portrait-primary",
