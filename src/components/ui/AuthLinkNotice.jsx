@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useToast } from '../../hooks/useToast';
-import { supabase } from '../../lib/supabase';
+import { supabase, initialAuthRedirectHash } from '../../lib/supabase';
 
 /**
  * Supabase Auth sends people back from email links with the outcome in the
@@ -54,11 +54,11 @@ export const readAuthLinkNotice = (hash = '') => {
 const AuthLinkNotice = () => {
   const { pathname } = useLocation();
   const toast = useToast();
-  // Read on the first render: RootRedirect's <Navigate> and the Supabase
-  // client both rewrite the URL right after it, and the hash goes with them.
+  // The Supabase client may already have consumed the hash by the first React
+  // render. Read the copy captured before createClient ran in that case.
   const notice = useRef(
     typeof window !== 'undefined' && pathname !== '/reset-password'
-      ? readAuthLinkNotice(window.location.hash)
+      ? readAuthLinkNotice(initialAuthRedirectHash || window.location.hash)
       : null,
   );
 
