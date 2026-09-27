@@ -1,8 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 
-test('booking layout keeps progress below the header while a focused form scrolls', async ({ page, browser }) => {
-  test.skip(browser.browserType().name() !== 'webkit', 'Run with playwright.booking.config.js');
+test('booking layout keeps navigation anchored and progress below the header while a focused form scrolls', async ({ page }) => {
   const html = readFileSync('dist/index.html', 'utf8');
   const cssPath = html.match(/href="([^"]+\.css)"/)?.[1];
   expect(cssPath).toBeTruthy();
@@ -13,16 +12,29 @@ test('booking layout keeps progress below the header while a focused form scroll
     <main class="w-full customer-main customer-main--booking"><div class="page-transition booking-page"><div class="customer-top-actions">Back</div><h2>Book Shipment</h2>
     <div class="step-progress" role="list" aria-label="Booking progress">1 &nbsp; 2 &nbsp; 3 &nbsp; 4 &nbsp; 5</div>
     <section style="height:1100px"><input id="field" class="form-input" style="margin-top:500px" aria-label="Sender address"></section>
-    </div></main></div></body></html>`);
+    </div></main><nav class="customer-bottom-nav" aria-label="Customer navigation"><div class="customer-bottom-nav-inner">Home &nbsp; Book &nbsp; Trips</div></nav></div></body></html>`);
   await page.locator('.step-progress').evaluate(() => document.fonts.ready);
   await expect(page.locator('.step-progress')).toHaveCSS('position', 'sticky');
   const focusOffset = await page.locator('html').evaluate(el => parseFloat(getComputedStyle(el).scrollPaddingTop));
   expect(focusOffset).toBeGreaterThan(100);
   for (const [width, height] of [[320, 568], [375, 667], [390, 844]]) {
     await page.setViewportSize({ width, height });
+    // Older iOS can report a visual viewport shorter than the layout viewport
+    // even before an input is focused. The Book tab must stay at the same
+    // screen edge as the other customer tabs in that state.
+    await page.evaluate(({ height }) => {
+      document.body.classList.remove('keyboard-active');
+      document.documentElement.style.setProperty('--booking-visible-top', '0px');
+      document.documentElement.style.setProperty('--booking-visible-height', `${height - 70}px`);
+    }, { height });
+    const bottomNav = page.locator('.customer-bottom-nav');
+    await expect(bottomNav, `${width}px bottom nav remains visible`).toBeVisible();
+    const bottomEdge = await bottomNav.evaluate(el => el.getBoundingClientRect().bottom);
+    expect(bottomEdge, `${width}px Book tab bar stays at screen bottom`).toBeCloseTo(height, 0);
     for (const focused of [false, true]) {
       await page.evaluate(({ height, focused }) => {
         document.activeElement?.blur();
+        document.body.classList.toggle('keyboard-active', focused);
         document.documentElement.style.setProperty('--booking-visible-top', focused ? '32px' : '0px');
         document.documentElement.style.setProperty('--booking-visible-height', `${focused ? Math.floor(height * 0.58) : height}px`);
         document.querySelector('.customer-main--booking').scrollTop = 0;

@@ -829,8 +829,8 @@ const BookShipmentPage = () => {
     document.addEventListener('focusin', scheduleAfterSettle);
     document.addEventListener('focusout', scheduleAfterSettle);
     document.addEventListener('touchend', onTouchEnd, { passive: true });
-    // Anchor the booking shell and its absolute tab bar before the first paint;
-    // waiting for requestAnimationFrame visibly lifts the bar on older Safari.
+    // Measure before first paint so the form follows the keyboard immediately
+    // when focus moves to a field on older Safari.
     update();
     scheduleAfterSettle();
 
