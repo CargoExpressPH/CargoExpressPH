@@ -7,6 +7,23 @@ const optionText = (children) => {
   return String(children);
 };
 
+// Floating menus must stay clear of both the app header and the booking
+// progress strip when that strip sticks below the header.
+const visibleMenuBounds = (root) => {
+  const viewport = window.visualViewport;
+  const viewportTop = viewport?.offsetTop || 0;
+  let bottom = viewportTop + (viewport?.height || window.innerHeight);
+  const layout = root.closest('.customer-layout-v2');
+  const bottomNav = layout?.querySelector('.customer-bottom-nav');
+  if (bottomNav && getComputedStyle(bottomNav).display !== 'none' && getComputedStyle(bottomNav).opacity !== '0') {
+    bottom = Math.min(bottom, bottomNav.getBoundingClientRect().top);
+  }
+  const navbar = layout?.querySelector('.customer-navbar');
+  const progress = root.closest('.booking-page')?.querySelector('.step-progress');
+  const top = Math.max(viewportTop, navbar?.getBoundingClientRect().bottom || viewportTop, progress?.getBoundingClientRect().bottom || viewportTop);
+  return { top, bottom };
+};
+
 const CustomSelect = ({
   id,
   className = '',
@@ -65,15 +82,7 @@ const CustomSelect = ({
 
     const rect = rootRef.current.getBoundingClientRect();
     const gutter = 8;
-    const viewport = window.visualViewport;
-    const viewportTop = viewport?.offsetTop || 0;
-    let viewportBottom = viewportTop + (viewport?.height || window.innerHeight);
-    const bottomNav = rootRef.current.closest('.customer-layout-v2')?.querySelector('.customer-bottom-nav');
-    if (bottomNav && getComputedStyle(bottomNav).display !== 'none' && getComputedStyle(bottomNav).opacity !== '0') {
-      viewportBottom = Math.min(viewportBottom, bottomNav.getBoundingClientRect().top);
-    }
-    const navbar = rootRef.current.closest('.customer-layout-v2')?.querySelector('.customer-navbar');
-    const unobstructedTop = Math.max(viewportTop, navbar?.getBoundingClientRect().bottom || viewportTop);
+    const { top: unobstructedTop, bottom: viewportBottom } = visibleMenuBounds(rootRef.current);
     const optionHeight = 44;
     const estimatedMenuHeight = Math.min(320, (options.length * optionHeight) + (searchable ? 58 : 12));
     const spaceBelow = Math.max(0, viewportBottom - rect.bottom - gutter);
@@ -113,9 +122,9 @@ const CustomSelect = ({
 
     const repositionMenu = () => {
       const rect = rootRef.current?.getBoundingClientRect();
-      const viewport = window.visualViewport;
-      const visibleTop = viewport?.offsetTop || 0;
-      const visibleBottom = visibleTop + (viewport?.height || window.innerHeight);
+      const { top: visibleTop, bottom: visibleBottom } = rect
+        ? visibleMenuBounds(rootRef.current)
+        : { top: 0, bottom: 0 };
       // Scrolling past an open select must not leave its floating menu over
       // unrelated fields further up or down the booking form.
       if (!rect || rect.bottom <= visibleTop || rect.top >= visibleBottom) {

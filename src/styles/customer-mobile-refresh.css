@@ -834,6 +834,12 @@
   box-shadow: var(--customer-shadow-soft);
 }
 
+/* Keep booking progress visible above the form and its floating menus while
+   leaving the site header as the topmost sticky element. */
+.booking-page .step-progress {
+  z-index: calc(var(--z-sticky) - 1);
+}
+
 /* A step keeps its full width (number + name); the connector lines give
    way instead, so a name never spills over its line. */
 .step-progress .step {
@@ -1535,13 +1541,6 @@ input:checked + .toggle-slider:before {
   .step-progress {
     top: 74px;
     overflow-x: auto;
-  }
-
-  /* The booking form scrolls under the fixed navbar. Keeping its progress
-     strip sticky covers labels and dropdowns while entering long addresses. */
-  .booking-page .step-progress {
-    position: static;
-    overflow: visible;
   }
 
   .step-progress .step-label {
