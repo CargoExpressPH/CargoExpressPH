@@ -306,22 +306,14 @@
   padding-top: var(--app-safe-top);
 }
 
-.customer-layout-v2 .step-progress {
-  top: calc(82px + var(--app-safe-top));
-}
-
-/* Browser focus and scrollIntoView land fields beneath the sticky bars. */
+/* Browser focus and scrollIntoView land fields beneath the sticky navbar. */
 html:has(.customer-layout-v2 .booking-page) {
-  scroll-padding-top: calc(152px + var(--app-safe-top));
+  scroll-padding-top: calc(82px + var(--app-safe-top));
 }
 
 @media (max-width: 899.98px) {
-  .customer-layout-v2 .booking-page .step-progress {
-    top: calc(74px + var(--app-safe-top));
-  }
-
   html:has(.customer-layout-v2 .booking-page) {
-    scroll-padding-top: calc(144px + var(--app-safe-top));
+    scroll-padding-top: calc(74px + var(--app-safe-top));
   }
 }
 
