@@ -9,7 +9,7 @@ import ResponsiveFilterControls from '../../components/ui/ResponsiveFilterContro
 import ConfirmModal from '../../components/ui/ConfirmModal';
 import {
   Mail, Phone, Clock, CheckCircle, Eye, UserCheck,
-  Loader, MessageSquare, AlertCircle, X, Megaphone
+  Loader, MessageSquare, AlertCircle, X, Megaphone, RefreshCw
 } from 'lucide-react';
 import usePageTitle from '../../hooks/usePageTitle';
 import FocusTrap from '../../components/ui/FocusTrap';
@@ -360,22 +360,33 @@ const ContactInquiriesPage = () => {
   return (
     <div className="page-transition">
       {/* Header */}
+      {/* Title and Refresh share one row at every width. A .btn here would be
+          stretched into a full-width band on phones by the admin header rules. */}
       <div className="admin-page-header">
-        <div>
-          <h1 className="admin-page-title">
-            <Mail size={24} color="var(--primary)" aria-hidden="true" />
-            Contact Inquiries
-            {newCount > 0 && (
-              <span className="badge badge-warning text-xs">
-                {newCount} new
-              </span>
-            )}
-          </h1>
-          <p className="text-secondary text-sm">Messages from the public contact form</p>
+        <div className="inquiry-header-row">
+          <div>
+            <h1 className="admin-page-title">
+              <Mail size={24} color="var(--primary)" aria-hidden="true" />
+              Contact Inquiries
+              {newCount > 0 && (
+                <span className="badge badge-warning text-xs">
+                  {newCount} new
+                </span>
+              )}
+            </h1>
+            <p className="admin-page-subtitle">Messages from the public contact form</p>
+          </div>
+          <button
+            type="button"
+            className="btn-icon btn-ghost inquiry-refresh"
+            onClick={() => loadInquiries()}
+            disabled={loading}
+            aria-label="Refresh inquiries"
+            title="Refresh"
+          >
+            <RefreshCw size={18} className={loading ? 'animate-spin' : undefined} aria-hidden="true" />
+          </button>
         </div>
-        <button type="button" className="btn btn-outline btn-sm" onClick={() => loadInquiries()} disabled={loading}>
-          {loading ? <Loader size={14} className="animate-spin" /> : 'Refresh'}
-        </button>
       </div>
 
       {/* Filters */}
@@ -400,7 +411,7 @@ const ContactInquiriesPage = () => {
         </div>
       ) : (
         <div className="card">
-          <div className="table-container">
+          <div className="table-container inquiry-table">
             <table className="data-table">
               <thead>
                 <tr>
@@ -500,6 +511,81 @@ const ContactInquiriesPage = () => {
               </tbody>
           </table>
         </div>
+
+          {/* Phones and tablets: a list built for the job instead of the
+              generic table-as-cards, which stacked six label rows per
+              inquiry and broke emails mid-word. Tapping the card opens the
+              same detail view as a table row. */}
+          <ul className="inquiry-list" aria-label="Contact inquiries">
+            {filtered.map(inq => {
+              const cfg = STATUS_CONFIG[inq.status] || STATUS_CONFIG.new;
+              const { phone, email } = readContact(inq);
+              const gate = resolveGate(inq);
+              return (
+                <li key={inq.id} className={`inquiry-card${inq.status === 'new' ? ' is-new' : ''}`}>
+                  <button type="button" className="inquiry-card-main" onClick={() => handleView(inq)}>
+                    <span className="sidebar-user-avatar inquiry-card-avatar" aria-hidden="true">
+                      {(inq.name || '?')[0].toUpperCase()}
+                    </span>
+                    <span className="inquiry-card-body">
+                      <span className="inquiry-card-top">
+                        <span className="inquiry-card-name">{inq.name}</span>
+                        <span className={`badge ${cfg.className}`}>{cfg.label}</span>
+                      </span>
+                      <span className="inquiry-card-meta">
+                        {new Date(inq.created_at).toLocaleDateString('en-PH', {
+                          month: 'short', day: 'numeric', year: 'numeric',
+                        })}
+                        {inq.assigned_admin_id && (
+                          <span className="inquiry-card-claim">
+                            <UserCheck size={12} aria-hidden="true" />
+                            {inq.assigned_admin_id === user?.id ? 'Claimed by you' : `With ${inq.assigned_admin?.name || 'another admin'}`}
+                          </span>
+                        )}
+                      </span>
+                      <span className="inquiry-card-message">{inq.message}</span>
+                    </span>
+                  </button>
+                  {(phone || email || inq.email_subscription || (inq.status !== 'resolved' && gate.canResolve)) && (
+                    <div className="inquiry-card-foot">
+                      <div className="inquiry-card-contact">
+                        {phone && (
+                          <a className="inquiry-card-link" href={getContactHref(phone)} title={`Call ${phone}`}>
+                            <Phone size={13} aria-hidden="true" />
+                            <span>{phone}</span>
+                          </a>
+                        )}
+                        {email && (
+                          <a className="inquiry-card-link" href={getContactHref(email)} title={`Email ${email}`}>
+                            <Mail size={13} aria-hidden="true" />
+                            <span className="inquiry-card-email">{email}</span>
+                          </a>
+                        )}
+                        <EmailSubscriptionBadge subscription={inq.email_subscription} />
+                      </div>
+                      {/* Resolving needs your own claim (resolveGate). Offer it
+                          only when it works: a greyed icon whose reason lives
+                          in a hover tooltip explains nothing on a phone. */}
+                      {inq.status !== 'resolved' && gate.canResolve && (
+                        <button
+                          type="button"
+                          className="btn btn-outline btn-sm inquiry-card-resolve"
+                          disabled={updating === inq.id}
+                          onClick={() => handleStatusChange(inq.id, 'resolved')}
+                          aria-label={`Mark inquiry from ${inq.name} as resolved`}
+                        >
+                          {updating === inq.id
+                            ? <Loader size={14} className="animate-spin" aria-hidden="true" />
+                            : <CheckCircle size={14} aria-hidden="true" />}
+                          Resolve
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
       </div>
       )}
 
@@ -507,7 +593,7 @@ const ContactInquiriesPage = () => {
       {selectedInquiry && (
         <FocusTrap active={!!selectedInquiry}>
           <div className="modal-overlay" onClick={() => setSelectedInquiry(null)}>
-            <div className="modal" role="dialog" aria-modal="true" aria-labelledby="inquiry-modal-title" onClick={e => e.stopPropagation()} style={{ maxWidth: 520 }}>
+            <div className="modal inquiry-modal" role="dialog" aria-modal="true" aria-labelledby="inquiry-modal-title" onClick={e => e.stopPropagation()} style={{ maxWidth: 520 }}>
               <div className="modal-header">
                 <h3 id="inquiry-modal-title" className="flex items-center gap-8">
                 <MessageSquare size={18} />

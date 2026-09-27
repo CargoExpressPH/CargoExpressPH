@@ -153,7 +153,6 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
   padding: 32px 24px 28px;
   text-align: center;
   background: var(--surface);
@@ -161,7 +160,12 @@
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg);
 }
-.payment-return-brand { margin-bottom: 8px; }
+/* Spacing by margins, not flex gap: iOS before 14.5 ignores gap in flexbox. */
+.payment-return-card > * { margin: 0; }
+.payment-return-card > * + * { margin-top: 12px; }
+.payment-return-card > .payment-return-brand + * { margin-top: 20px; }
+.payment-return-card > .payment-return-title { margin-top: 16px; }
+.payment-return-card > .payment-return-text + * { margin-top: 20px; }
 .payment-return-icon {
   display: grid;
   place-items: center;
@@ -173,17 +177,14 @@
 .payment-return-icon--error { background: var(--error-bg); color: var(--error-text-strong); }
 .payment-return-icon--pending { background: var(--warning-bg); color: var(--warning-text); }
 .payment-return-title {
-  margin: 4px 0 0;
   font-size: var(--text-24);
   line-height: 1.25;
   color: var(--text);
 }
 .payment-return-text,
 .payment-return-note {
-  margin: 0 0 8px;
   max-width: 34ch;
   color: var(--text-secondary);
   line-height: 1.55;
 }
-.payment-return-note { margin: 4px 0 0; font-size: var(--text-14); }
-
+.payment-return-note { font-size: var(--text-14); }

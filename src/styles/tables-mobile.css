@@ -332,19 +332,6 @@
     grid-column: 2;
   }
 
-  /* Prose (a customer's message) reads badly as a right-aligned sliver in
-     column 2: stack it under its label, full width, left-aligned. */
-  .data-table td[data-label="Message"] {
-    grid-template-columns: minmax(0, 1fr);
-    row-gap: 4px;
-  }
-  /* :not(:first-child) matches the specificity of the column-2 rule above. */
-  .data-table td[data-label="Message"]:not(:first-child) > * {
-    grid-column: 1;
-    justify-self: stretch;
-    text-align: left;
-  }
-
   .data-table td:not([data-label]),
   .report-table td:not([data-label]) {
     display: block;
