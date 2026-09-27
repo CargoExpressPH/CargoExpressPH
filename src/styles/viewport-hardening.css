@@ -433,18 +433,6 @@ body .customer-layout-v2 .customer-main:has(.booking-page) {
   }
 }
 
-/* While the on-screen keyboard is up on a phone, the booking progress stops
-   sticking. The browser pans the visual viewport to the focused field, but a
-   sticky bar is pinned to the layout viewport, so it drifted down the screen
-   or half off the top as the page moved under the keyboard. Following the
-   pan in JS (3afbe32) made fields jump and was reverted (06b0f71).
-   In the page flow it simply scrolls away with the heading above it, and it
-   is sticky again the moment the keyboard closes. The fields get its height
-   back: on a 320px iPhone SE the keyboard leaves ~300px, and the navbar plus
-   a sticky progress bar took ~135px of it.
-   Keyed off `keyboard-open`, which is measured (visualViewport), never set on
-   desktop. The scroll-padding rule uses :has() and is ignored before iOS
-   15.4, which keeps the resting 144px there — the same as before. */
 @media (max-width: 899.98px) {
   /* Fields brought into view without the keyboard (Tab, a dropdown trigger,
      the browser's next-field arrows) stop above the floating tab bar, not
@@ -452,14 +440,6 @@ body .customer-layout-v2 .customer-main:has(.booking-page) {
      inset is the larger of the two. */
   html:has(.customer-layout-v2 .booking-page) {
     scroll-padding-bottom: max(var(--keyboard-inset, 0px), calc(104px + env(safe-area-inset-bottom, 0px)));
-  }
-
-  body.keyboard-open .customer-layout-v2 .booking-page .step-progress {
-    position: static;
-  }
-
-  html:has(body.keyboard-open .customer-layout-v2 .booking-page) {
-    scroll-padding-top: calc(84px + var(--app-safe-top));
   }
 }
 
