@@ -1,0 +1,261 @@
+/* Customer account forms. Scoped so the shared admin screens keep their layout. */
+.customer-account-page {
+  display: grid;
+  gap: 24px;
+  width: 100%;
+  max-width: 580px;
+  min-width: 0;
+  margin-inline: auto;
+}
+
+.customer-account-page--details { max-width: 800px; }
+
+.account-settings-header { min-width: 0; }
+
+.customer-account-page .customer-top-actions {
+  margin: 0 0 24px;
+  gap: 12px;
+}
+
+.customer-account-page .customer-back-action {
+  min-height: 44px;
+  padding: 8px 12px;
+  margin-left: -12px;
+  border-radius: 12px;
+}
+
+.account-settings-title-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.account-settings-title-row > div { min-width: 0; }
+
+.account-settings-icon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 54px;
+  width: 54px;
+  height: 54px;
+  border: 1px solid color-mix(in srgb, var(--customer-green) 18%, transparent);
+  border-radius: 17px;
+  background: var(--customer-green-soft);
+  color: var(--customer-green-dark);
+}
+
+.account-settings-eyebrow {
+  margin: 0 0 4px;
+  color: var(--customer-muted);
+  font-size: var(--text-12);
+  font-weight: 700;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+
+.account-settings-title-row h1 {
+  margin: 0;
+  color: var(--customer-ink);
+  font-size: clamp(1.4rem, 3vw, 1.85rem);
+  line-height: 1.2;
+  letter-spacing: -.035em;
+  overflow-wrap: break-word;
+}
+
+.account-settings-description {
+  max-width: 58ch;
+  margin: 14px 0 0;
+  color: var(--customer-muted);
+  font-size: var(--text-14);
+  line-height: 1.65;
+}
+
+.customer-account-page .account-settings-card,
+.customer-account-page .account-settings-card:hover {
+  min-width: 0;
+  border: 1px solid var(--customer-line);
+  border-radius: 20px;
+  background: var(--customer-panel-solid);
+  box-shadow: var(--shadow-sm);
+}
+
+.customer-account-page .account-settings-body { padding: 28px; }
+
+.account-details-form {
+  display: grid;
+  gap: 20px;
+  min-width: 0;
+}
+
+.account-required-note {
+  margin: 0 0 -8px;
+  color: var(--customer-muted);
+  font-size: var(--text-12);
+}
+
+.account-required-note .required { color: var(--error-text); }
+
+.account-section-heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 24px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--customer-line);
+}
+
+.account-section-icon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 38px;
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  color: var(--customer-green-dark);
+  background: var(--customer-green-soft);
+}
+
+.account-section-heading h2 {
+  margin: 0 0 4px;
+  color: var(--customer-ink);
+  font-size: var(--text-16);
+  line-height: 1.4;
+  font-weight: 700;
+}
+
+.account-section-heading p {
+  margin: 0;
+  color: var(--customer-muted);
+  font-size: var(--text-13);
+  line-height: 1.5;
+}
+
+.account-fields-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: 22px 20px;
+  min-width: 0;
+}
+
+.account-field-full { grid-column: 1 / -1; }
+
+.customer-account-page .form-group { min-width: 0; margin-bottom: 24px; }
+.customer-account-page .account-fields-grid > .form-group { margin: 0; }
+
+.customer-account-page .form-label {
+  color: var(--customer-ink);
+  font-size: var(--text-13);
+  line-height: 1.5;
+  margin-bottom: 8px;
+}
+
+.customer-account-page .form-input,
+.customer-account-page .form-select {
+  min-width: 0;
+  min-height: 50px;
+  border-radius: 12px;
+  font-size: var(--text-16);
+}
+
+.customer-account-page .form-input:disabled {
+  color: var(--customer-muted);
+  -webkit-text-fill-color: var(--customer-muted);
+  opacity: 1;
+}
+
+.customer-account-page .form-helper {
+  margin-top: 8px;
+  color: var(--customer-muted);
+  font-size: var(--text-12);
+  line-height: 1.6;
+}
+
+.customer-account-page .form-pw-toggle {
+  min-width: 44px;
+  min-height: 44px;
+  right: 3px;
+  border-radius: 10px;
+}
+
+.customer-account-page .form-input-icon-right { padding-right: 50px; }
+
+.customer-account-page .rp-requirements {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+  padding: 14px;
+  border: 1px solid var(--customer-line);
+  border-radius: 12px;
+  background: var(--bg-secondary);
+}
+
+.customer-account-page .rp-requirement-item { min-width: 0; line-height: 1.5; }
+.customer-account-page .rp-req-icon { flex-shrink: 0; }
+
+.customer-account-page .account-current-email {
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--customer-line);
+}
+
+.customer-account-page .account-security-actions {
+  padding-top: 20px;
+  border-top: 1px solid var(--customer-line);
+}
+
+.customer-account-page .account-security-actions .btn {
+  min-height: 50px;
+  margin-top: 0;
+  border-radius: 12px;
+  white-space: normal;
+}
+
+.account-form-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 4px 0;
+}
+
+.account-form-actions > p {
+  max-width: 36ch;
+  margin: 0;
+  color: var(--customer-muted);
+  font-size: var(--text-12);
+  line-height: 1.6;
+}
+
+.customer-account-page .account-submit {
+  flex-shrink: 0;
+  min-height: 50px;
+  padding-inline: 28px;
+  border-radius: 12px;
+}
+
+.customer-account-page .ce-success-body { gap: 24px; }
+.customer-account-page .ce-success-subtitle { max-width: 42ch; }
+.customer-account-page .ce-success-cta { border-radius: 12px; white-space: normal; }
+
+@media (max-width: 599px) {
+  .customer-account-page { gap: 20px; }
+  .customer-account-page .customer-top-actions { margin-bottom: 20px; }
+  .account-settings-icon { flex-basis: 46px; width: 46px; height: 46px; border-radius: 14px; }
+  .account-settings-title-row { gap: 12px; }
+  .account-settings-description { font-size: var(--text-13); margin-top: 12px; }
+  .customer-account-page .account-settings-body { padding: 20px; }
+  .account-fields-grid { grid-template-columns: minmax(0, 1fr); gap: 20px; }
+  .account-section-heading { margin-bottom: 20px; padding-bottom: 18px; }
+  .account-details-form { gap: 16px; }
+  .account-form-actions { flex-direction: column; align-items: stretch; gap: 12px; }
+  .account-form-actions > p { max-width: none; text-align: center; }
+  .customer-account-page .account-submit { width: 100%; }
+}
+
+@media (max-width: 359px) {
+  .customer-account-page .account-settings-body { padding: 16px; }
+  .account-settings-title-row h1 { font-size: var(--text-20); }
+  .customer-account-page .rp-requirements { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+}

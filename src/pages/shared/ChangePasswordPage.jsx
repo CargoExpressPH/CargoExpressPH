@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '../../hooks/useToast';
 import ConfirmModal from '../../components/ui/ConfirmModal';
+import CustomerAccountHeader from '../../components/ui/CustomerAccountHeader';
 import usePageTitle from '../../hooks/usePageTitle';
 import { getPasswordStrength } from '../../utils/password';
 import useFieldErrors from '../../hooks/useFieldErrors';
@@ -139,7 +140,15 @@ const ChangePasswordPage = () => {
         variant="danger"
       />
 
-      <div className="animate-slide-up customer-personal-info-page account-form-page">
+      <div className={`animate-slide-up customer-personal-info-page account-form-page${isCustomerPage ? ' customer-account-page' : ''}`}>
+      {isCustomerPage ? (
+        <CustomerAccountHeader
+          title="Change Password"
+          description="Keep your account secure with a strong password you don't use anywhere else."
+          icon={ShieldCheck}
+        />
+      ) : (
+        <>
       <div className="customer-top-actions">
         <button type="button" onClick={() => navigate(-1)} className="btn btn-ghost customer-back-action">
           <ArrowLeft size={18} /> Back
@@ -152,9 +161,11 @@ const ChangePasswordPage = () => {
       </div>
       <h1 className="fw-700 mb-4">Change Password</h1>
       <p className="account-form-intro">Use at least 8 characters, and a password you do not use on other sites.</p>
+        </>
+      )}
 
-      <div className="card">
-        <form className="card-body" onSubmit={handleSubmit} noValidate>
+      <div className="card account-settings-card">
+        <form className="card-body account-settings-body" onSubmit={handleSubmit} noValidate>
 
           {/* Current Password */}
           <div className="form-group">
@@ -293,7 +304,7 @@ const ChangePasswordPage = () => {
             )}
           </div>
 
-          {/* Submit */}
+          <div className="account-security-actions">
           <button
             type="submit"
             className="btn btn-primary btn-lg w-full justify-center mt-8"
@@ -307,6 +318,7 @@ const ChangePasswordPage = () => {
           <p className="form-helper mt-12 text-center">
             You must enter your current password to change it.
           </p>
+          </div>
 
         </form>
       </div>

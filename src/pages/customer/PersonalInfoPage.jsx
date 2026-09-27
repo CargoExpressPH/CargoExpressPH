@@ -1,17 +1,18 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { Link, useNavigate, useBlocker } from 'react-router-dom';
+import { useNavigate, useBlocker } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { normalizeProfileAddressFields } from '../../lib/address';
 import { updateOwnProfile } from '../../lib/database';
 import { PH_LOCATIONS, VALID_PROVINCES } from '../../constants/phLocations';
 import {
-  ArrowLeft, Loader, Save,
-  User, Phone, MapPin, Home, Hash, MessageSquare, Map, Building, Navigation, Headset,
+  Loader, Save,
+  User, Phone, MapPin, Home, Hash, MessageSquare, Map, Building, Navigation,
 } from 'lucide-react';
 import { useToast } from '../../hooks/useToast';
 import CustomSelect from '../../components/ui/CustomSelect';
 import BarangaySelect from '../../components/ui/BarangaySelect';
 import ConfirmModal from '../../components/ui/ConfirmModal';
+import CustomerAccountHeader from '../../components/ui/CustomerAccountHeader';
 import usePageTitle from '../../hooks/usePageTitle';
 import { toTitleCase, toAddressCase, normalizeName } from '../../utils/string';
 import FieldError, { invalidClass } from '../../components/ui/FieldError';
@@ -200,7 +201,7 @@ const PersonalInfoPage = () => {
   };
 
   return (
-    <div className="animate-slide-up customer-personal-info-page">
+    <div className="animate-slide-up customer-personal-info-page customer-account-page customer-account-page--details">
       {/* Unsaved-changes guard. Uses the shared ConfirmModal rather than a
           hand-rolled overlay: the local copy rendered in place, so it was
           trapped inside <PageTransition>'s stacking context and the bottom tab
@@ -219,27 +220,27 @@ const PersonalInfoPage = () => {
         variant="danger"
       />
 
-      <div className="customer-top-actions">
-        <button type="button" onClick={() => navigate(-1)} className="btn btn-ghost customer-back-action">
-          <ArrowLeft size={18} /> Back
-        </button>
-        <Link to="/customer/support" className="customer-inline-support-link">
-          <Headset size={16} aria-hidden="true" /> Chat support
-        </Link>
-      </div>
-      <h1 className="fw-700 mb-20">Personal Information</h1>
-      <p className="account-form-intro">Keep your contact details and default address up to date for bookings. Fields marked * are required.</p>
+      <CustomerAccountHeader
+        title="Personal Information"
+        description="Keep your contact details and default address up to date for your next shipment."
+        icon={User}
+      />
 
-      <div className="card">
-        <form className="card-body personal-info-form" onSubmit={handleSave} noValidate>
-
-          <div className="personal-info-group-heading">
-            <h2>Contact details</h2>
-            <p>How we identify and contact you about a shipment.</p>
-          </div>
+      <form className="personal-info-form account-details-form" onSubmit={handleSave} noValidate>
+        <p className="account-required-note">Fields marked <span className="required">*</span> are required.</p>
+        <section className="card account-settings-card" aria-labelledby="contact-details-title">
+          <div className="account-settings-body">
+            <div className="account-section-heading">
+              <span className="account-section-icon"><User size={19} aria-hidden="true" /></span>
+              <div>
+                <h2 id="contact-details-title">Contact details</h2>
+                <p>How we reach you about your shipment.</p>
+              </div>
+            </div>
+            <div className="account-fields-grid">
 
           {/* Full Name */}
-          <div className="form-group">
+          <div className="form-group account-field-full">
             <label className="form-label" htmlFor="profile-name">Full Name <span className="required">*</span></label>
             <div className="form-input-wrapper">
               <User size={15} className="form-input-icon" />
@@ -306,10 +307,20 @@ const PersonalInfoPage = () => {
             }
           </div>
 
-          <div className="personal-info-group-heading personal-info-address-heading">
-            <h2>Default address</h2>
-            <p>Used to fill in your sender details when you book.</p>
+            </div>
           </div>
+        </section>
+
+        <section className="card account-settings-card" aria-labelledby="default-address-title">
+          <div className="account-settings-body">
+            <div className="account-section-heading">
+              <span className="account-section-icon"><MapPin size={19} aria-hidden="true" /></span>
+              <div>
+                <h2 id="default-address-title">Default address</h2>
+                <p>Pre-filled as your sender address when you book.</p>
+              </div>
+            </div>
+            <div className="account-fields-grid">
 
           {/* Province */}
           <div className="form-group">
@@ -402,13 +413,13 @@ const PersonalInfoPage = () => {
 
           {/* Street */}
           <div className="form-group">
-            <label className="form-label" htmlFor="profile-street">Street and Subdivision (put NA if not applicable) <span className="required">*</span></label>
+            <label className="form-label" htmlFor="profile-street">Street / Subdivision <span className="required">*</span></label>
             <div className="form-input-wrapper">
               <Home size={15} className="form-input-icon" />
               <input
                 id="profile-street"
                 className={`form-input form-input-icon-left ${invalidClass('address_street', fieldErrors)}`}
-                placeholder="Street and Subdivision (put NA if not applicable)"
+                placeholder="e.g. Rizal Street, Green Village"
                 value={form.address_street}
                 onChange={handleAddressCase('address_street')}
                 required
@@ -417,12 +428,13 @@ const PersonalInfoPage = () => {
                 spellCheck="false"
                 aria-required="true"
                 aria-invalid={Boolean(fieldErrors.address_street)}
-                aria-describedby={fieldErrors.address_street ? 'profile-street-error' : undefined}
+                aria-describedby={fieldErrors.address_street ? 'profile-street-error' : 'profile-street-helper'}
               />
             </div>
             {fieldErrors.address_street && (
               <FieldError id="profile-street-error" message={fieldErrors.address_street} />
             )}
+            {!fieldErrors.address_street && <p className="form-helper" id="profile-street-helper">Enter NA if not applicable.</p>}
           </div>
 
           {/* Lot / Block / Purok */}
@@ -466,10 +478,15 @@ const PersonalInfoPage = () => {
             {fieldErrors.address_landmark && <FieldError id="profile-landmark-error" message={fieldErrors.address_landmark} />}
           </div>
 
-          {/* Save */}
+            </div>
+          </div>
+        </section>
+
+        <div className="account-form-actions">
+          <p>Your updated details will be used for future bookings.</p>
           <button
             type="submit"
-            className="btn btn-primary btn-lg w-full justify-center mt-8"
+            className="btn btn-primary btn-lg account-submit"
             disabled={loading}
           >
             {loading
@@ -477,9 +494,8 @@ const PersonalInfoPage = () => {
               : <><Save size={18} /> Save Changes</>
             }
           </button>
-
-        </form>
-      </div>
+        </div>
+      </form>
     </div>
   );
 };

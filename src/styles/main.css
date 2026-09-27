@@ -67,6 +67,7 @@
 
 /* Customer mobile app refresh */
 @import './customer-mobile-refresh.css' layer(refresh);
+@import './customer-account.css' layer(refresh);
 
 /* Admin mobile app refresh */
 @import './admin-modern-refresh.css' layer(refresh);

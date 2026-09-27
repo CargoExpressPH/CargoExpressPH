@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '../../hooks/useToast';
 import ConfirmModal from '../../components/ui/ConfirmModal';
+import CustomerAccountHeader from '../../components/ui/CustomerAccountHeader';
 import usePageTitle from '../../hooks/usePageTitle';
 import useFieldErrors from '../../hooks/useFieldErrors';
 import FieldError, { fieldAttrs, invalidClass } from '../../components/ui/FieldError';
@@ -152,7 +153,15 @@ const ChangeEmailPage = () => {
         variant="danger"
       />
 
-      <div className="page-transition animate-slide-up account-form-page">
+      <div className={`page-transition animate-slide-up account-form-page${isCustomerPage ? ' customer-account-page' : ''}`}>
+        {isCustomerPage ? (
+          <CustomerAccountHeader
+            title="Change Email"
+            description="Update the email you use to sign in and receive shipment updates."
+            icon={Mail}
+          />
+        ) : (
+          <>
         <div className="customer-top-actions">
           <button type="button" onClick={() => navigate(-1)} className="btn btn-ghost customer-back-action">
             <ArrowLeft size={18} /> Back
@@ -164,10 +173,12 @@ const ChangeEmailPage = () => {
           )}
         </div>
         <h1 className="fw-700 mb-20">Change Email</h1>
+          </>
+        )}
 
         {submitted ? (
-          <div className="card">
-            <div className="card-body ce-success-body">
+          <div className="card account-settings-card">
+            <div className="card-body ce-success-body account-settings-body">
               <div className="ce-success-hero">
                 <div className="ce-success-icon-wrap">
                   <div className="ce-success-ring" aria-hidden="true" />
@@ -221,8 +232,8 @@ const ChangeEmailPage = () => {
             </div>
           </div>
         ) : (
-          <div className="card">
-            <div className="card-body">
+          <div className="card account-settings-card">
+            <div className="card-body account-settings-body">
 
               {/*
                 ── Autofill sink ──────────────────────────────────────────
@@ -264,7 +275,7 @@ const ChangeEmailPage = () => {
               />
 
               {/* Current Email */}
-              <div className="form-group">
+              <div className="form-group account-current-email">
                 <label className="form-label" htmlFor="change-current-email">Current Email</label>
                 <div className="form-input-wrapper">
                   <Mail size={15} className="form-input-icon" aria-hidden="true" />
@@ -347,6 +358,7 @@ const ChangeEmailPage = () => {
                 </p>
               </div>
 
+              <div className="account-security-actions">
               {/* Submit — enabled even when incomplete, so pressing it reports
                   what is missing instead of doing nothing. */}
               <button
@@ -363,6 +375,7 @@ const ChangeEmailPage = () => {
               <p className="form-helper mt-12 text-center">
                 We'll send a confirmation link to your current and your new email address.
               </p>
+              </div>
 
             </div>
           </div>
