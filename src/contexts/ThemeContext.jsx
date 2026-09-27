@@ -34,11 +34,6 @@ export const ThemeProvider = ({ children }) => {
     const root = document.documentElement;
     root.setAttribute('data-theme', t);
     root.style.colorScheme = t;
-    // The site can use dark mode even when the phone's OS remains in light mode.
-    // Keep browser chrome aligned with the user's selected app theme.
-    document.querySelectorAll('meta[name="theme-color"]').forEach(meta => {
-      meta.content = t === 'dark' ? '#0F172A' : '#16A34A';
-    });
 
     if (transitionTimer.current) {
       clearTimeout(transitionTimer.current);
