@@ -43,6 +43,12 @@
     <!-- The generated public HTML is readable without JavaScript. While the
          app starts, show its loading state instead of flashing that markup. -->
     <style>
+      /* Paint the document canvas before React or the bundled stylesheet loads.
+         The boot screen is replaced when React mounts; without a canvas color,
+         that handoff can briefly expose the browser's black dark-mode canvas. */
+      html { background-color: #f3f7fa; }
+      html[data-theme="dark"] { background-color: #0f172a; }
+
       /* Crawlable page (scripts/generate-seo-pages.mjs). Readable without JS
          and without the app stylesheet; light unless the theme is dark. */
       .seo-fallback {
