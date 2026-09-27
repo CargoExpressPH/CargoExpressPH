@@ -14,6 +14,7 @@ import ConfirmModal from '../ui/ConfirmModal';
 import OnboardingModal from '../ui/OnboardingModal';
 import { motion, AnimatePresence } from 'framer-motion';
 import PageTransition from '../ui/PageTransition';
+import { clearCustomerPageCache } from '../../lib/customerPageCache';
 
 // The skip link's target. Exactly one <main> renders at a time — booking opts
 // out of PageTransition (see below) — so this id is never duplicated in the
@@ -288,6 +289,7 @@ const CustomerLayout = () => {
   const handleLogout = async () => {
     setShowLogoutConfirm(false);
     setDropdownOpen(false);
+    clearCustomerPageCache();
     await logout();
     navigate('/login');
   };
@@ -470,11 +472,9 @@ const CustomerLayout = () => {
           </span>
         </Link>
       )}
-    </div>
-
-    {/* Keep the fixed tab bar outside booking's clipped, viewport-sized shell.
-        WebKit otherwise repositions its fixed descendants when that shell is
-        added or measured, making the entire bar jump on the Book route. */}
+      {/* The bar is fixed on ordinary routes. On booking it is positioned
+          inside the measured visual-viewport shell (see viewport-hardening)
+          so older WebKit cannot leave a gap beneath it. */}
     <nav className="customer-bottom-nav" aria-label="Customer navigation">
         <div className="customer-bottom-nav-inner">
           {bottomNavItems.map(item => (
@@ -509,6 +509,7 @@ const CustomerLayout = () => {
           ))}
         </div>
       </nav>
+    </div>
     <ConfirmModal
       isOpen={showLogoutConfirm}
       onClose={() => setShowLogoutConfirm(false)}

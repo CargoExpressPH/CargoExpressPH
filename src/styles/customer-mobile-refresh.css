@@ -77,20 +77,6 @@
   color: var(--customer-ink);
 }
 
-/* The tab bar lives beside the booking scroll shell so iOS can anchor it to
-   the viewport. Preserve the same colours and safe-area padding it inherited
-   when it was nested inside .customer-layout-v2. */
-.customer-bottom-nav {
-  --customer-green: #16A34A;
-  --customer-green-soft: #F0FDF4;
-  --customer-safe-bottom: env(safe-area-inset-bottom, 0px);
-}
-
-[data-theme="dark"] .customer-bottom-nav {
-  --customer-green: #34D399;
-  --customer-green-soft: rgba(16, 185, 129, 0.12);
-}
-
 [data-theme="dark"] .customer-layout-v2 {
   --customer-green: #34D399;
   --customer-green-dark: #A7F3D0;

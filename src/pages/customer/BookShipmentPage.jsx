@@ -1,5 +1,6 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useMemo, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import { clearCustomerPageCache } from '../../lib/customerPageCache';
 import { Link, useNavigate, useLocation, useBlocker } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { createOrder, getTrips, getSettings, getRecentContacts } from '../../lib/database';
@@ -98,7 +99,7 @@ const bookingScrollTarget = () => {
 
 const BookShipmentPage = () => {
   usePageTitle('Book Shipment');
-  useEffect(() => {
+  useLayoutEffect(() => {
     document.documentElement.classList.add('booking-route-active');
     return () => document.documentElement.classList.remove('booking-route-active');
   }, []);
@@ -574,6 +575,7 @@ const BookShipmentPage = () => {
       }
       
       const data = await createOrder(payload);
+      clearCustomerPageCache();
       
       // The order insert is the point of success. Activity logging is queued
       // separately; its failure must never present a saved order as failed and
@@ -777,7 +779,7 @@ const BookShipmentPage = () => {
   // aligned to the visible viewport when iOS pans it for the keyboard; scrolling
   // the form then cannot carry the header or progress bar away. Older installed
   // Safari reports viewport offsets late, sometimes without another event.
-  useEffect(() => {
+  useLayoutEffect(() => {
     const viewport = window.visualViewport;
     const root = document.documentElement;
     const scroller = document.querySelector('.customer-main--booking');
@@ -827,6 +829,9 @@ const BookShipmentPage = () => {
     document.addEventListener('focusin', scheduleAfterSettle);
     document.addEventListener('focusout', scheduleAfterSettle);
     document.addEventListener('touchend', onTouchEnd, { passive: true });
+    // Anchor the booking shell and its absolute tab bar before the first paint;
+    // waiting for requestAnimationFrame visibly lifts the bar on older Safari.
+    update();
     scheduleAfterSettle();
 
     return () => {

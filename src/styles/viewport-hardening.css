@@ -536,6 +536,15 @@ body.keyboard-open .customer-chat-fab {
     overflow: hidden;
   }
 
+  /* Position the tab bar against the SAME measured viewport as the booking
+     header and form. Fixed descendants of this fixed shell drift upwards on
+     older iOS when the route locks body scrolling. */
+  .booking-scroll-shell .customer-bottom-nav {
+    position: absolute;
+    top: auto;
+    bottom: 0;
+  }
+
   .booking-scroll-shell .customer-navbar {
     position: relative;
     top: auto;
