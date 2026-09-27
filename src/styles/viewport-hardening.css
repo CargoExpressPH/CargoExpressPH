@@ -551,8 +551,13 @@ body.keyboard-open .customer-chat-fab {
     overflow-y: auto;
     overflow-x: hidden;
     overscroll-behavior-y: contain;
+    padding-top: 0;
     scroll-padding-top: 88px;
     padding-bottom: calc(160px + var(--customer-safe-bottom));
+  }
+
+  .booking-scroll-shell .booking-page > .customer-top-actions {
+    margin-top: 18px;
   }
 
   body.keyboard-active .booking-scroll-shell .customer-main--booking {

@@ -10,7 +10,7 @@ test('booking layout keeps progress below the header while a focused form scroll
   await page.setContent(`<!doctype html><html class="booking-route-active"><head><meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="stylesheet" href="http://localhost:5173${cssPath}"></head><body>
     <div class="customer-layout-v2 booking-scroll-shell"><header class="customer-navbar"><div class="customer-navbar-inner">CargoExpress PH</div></header>
-    <main class="w-full customer-main customer-main--booking"><div class="page-transition booking-page"><h2>Book Shipment</h2>
+    <main class="w-full customer-main customer-main--booking"><div class="page-transition booking-page"><div class="customer-top-actions">Back</div><h2>Book Shipment</h2>
     <div class="step-progress" role="list" aria-label="Booking progress">1 &nbsp; 2 &nbsp; 3 &nbsp; 4 &nbsp; 5</div>
     <section style="height:1100px"><input id="field" class="form-input" style="margin-top:500px" aria-label="Sender address"></section>
     </div></main></div></body></html>`);
@@ -48,7 +48,7 @@ test('booking layout keeps progress below the header while a focused form scroll
       expect(result.documentScrollY, `${width}px document remains still`).toBe(0);
       expect(result.navTop, `${width}px header tracks visible viewport`).toBe(focused ? 32 : 0);
       expect(result.barTop, `${width}px progress top`).toBeGreaterThanOrEqual(result.navBottom - 1);
-      expect(result.barTop, `${width}px progress top`).toBeLessThanOrEqual(result.navBottom + 32);
+      expect(result.barTop, `${width}px progress top`).toBeLessThanOrEqual(result.navBottom + 12);
       if (focused) {
         expect(result.fieldTop, `${width}px focused field below progress`).toBeGreaterThan(result.barBottom);
         expect(result.fieldBottom, `${width}px focused field above keyboard`).toBeLessThan(result.mainBottom);
