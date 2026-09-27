@@ -491,9 +491,22 @@ const BookShipmentPage = () => {
         const progressBottom = document.querySelector('.booking-page .step-progress')?.getBoundingClientRect().bottom || 0;
         const rect = el.getBoundingClientRect();
         const viewport = window.visualViewport;
-        const visibleBottom = (viewport?.offsetTop || 0) + (viewport?.height || window.innerHeight);
-        if (rect.top < progressBottom + 12) {
-          window.scrollBy({ top: Math.floor(rect.top - progressBottom - 12), behavior: 'instant' });
+        // The phone tab bar floats over the bottom of the page; a field under
+        // it is as hidden as one below the screen, and a tap there lands on
+        // the tab bar instead.
+        const tabBar = document.querySelector('.customer-bottom-nav');
+        const tabBarTop = tabBar && getComputedStyle(tabBar).display !== 'none'
+          ? tabBar.getBoundingClientRect().top
+          : Infinity;
+        const visibleBottom = Math.min(
+          (viewport?.offsetTop || 0) + (viewport?.height || window.innerHeight),
+          tabBarTop,
+        );
+        // Bring the field's label into view too, not just the box: a red
+        // field whose name is hidden under the progress bar says nothing.
+        const labelTop = (el.closest('.form-group') || el).getBoundingClientRect().top;
+        if (labelTop < progressBottom + 12) {
+          window.scrollBy({ top: Math.floor(labelTop - progressBottom - 12), behavior: 'instant' });
         } else if (rect.bottom > visibleBottom - 16) {
           window.scrollBy({ top: Math.ceil(rect.bottom - visibleBottom + 16), behavior: 'instant' });
         }
@@ -751,14 +764,20 @@ const BookShipmentPage = () => {
   const previousStepRef = useRef(step);
   useEffect(() => {
     if (previousStepRef.current === step) return;
+    const movedForward = step > previousStepRef.current;
     previousStepRef.current = step;
     setOpenContactDropdown(null);
+    // A step passed its checks, so an earlier "please fill in…" toast is now
+    // wrong — it followed the customer onto the Review step. Only forwards:
+    // when Confirm sends them back to fix a field, its error is shown in the
+    // same render and must stay.
+    if (movedForward) toast.clearErrors?.();
     if (skipStepScrollRef.current) {
       skipStepScrollRef.current = false;
       return;
     }
     window.scrollTo({ top: 0, behavior: reduceMotion ? 'auto' : 'smooth' });
-  }, [step, reduceMotion]);
+  }, [step, reduceMotion, toast]);
 
   const particles = useMemo(
     () => Array.from({ length: 24 }, (_, i) => ({
@@ -1015,7 +1034,10 @@ const BookShipmentPage = () => {
       />
 
       <div className="customer-top-actions">
-        <button type="button" onClick={() => step > 1 ? setStep(step - 1) : navigate(-1)} className="btn btn-ghost customer-back-action">
+        {/* Cancel goes back, or Home when booking was the first page opened
+            (a shared link, a refresh, the installed app) — there is no
+            history entry then and navigate(-1) did nothing. */}
+        <button type="button" onClick={() => (step > 1 ? setStep(step - 1) : location.key === 'default' ? navigate('/customer') : navigate(-1))} className="btn btn-ghost customer-back-action">
           <ArrowLeft size={18} /> {step > 1 ? 'Back' : 'Cancel'}
         </button>
         <Link to="/customer/support" className="customer-inline-support-link">
