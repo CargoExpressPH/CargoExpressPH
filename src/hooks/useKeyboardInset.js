@@ -34,14 +34,15 @@ import { useEffect, useRef } from 'react';
  * `visualViewport.offsetTop` is part of the arithmetic on purpose: when the
  * browser scrolls the visual viewport to keep a focused field in sight, the
  * keyboard's height alone no longer describes how much of the layout viewport
- * is hidden below the fold.
+ * is hidden below the fold. Booking's bottom space instead uses the height
+ * difference, which does not change each time the visual viewport pans.
  */
 
 const subscribers = new Set();
 let attached = false;
 let frame = 0;
 let lastInset = -1;
-let lastViewportTop = -1;
+let lastKeyboardHeight = -1;
 
 const measure = () => {
   frame = 0;
@@ -51,17 +52,17 @@ const measure = () => {
   const hidden = window.innerHeight - vv.height - vv.offsetTop;
   // Small negative values show up mid-animation and under desktop zoom.
   const inset = Math.max(0, Math.round(hidden));
-  const viewportTop = Math.max(0, Math.round(vv.offsetTop));
-  if (inset === lastInset && viewportTop === lastViewportTop) return;
+  // Unlike `inset`, this stays stable when Android pans the visual viewport
+  // over a focused field. Booking uses it only for scrollable bottom space.
+  const keyboardHeight = Math.max(0, Math.round(window.innerHeight - vv.height));
+  if (inset === lastInset && keyboardHeight === lastKeyboardHeight) return;
   const insetChanged = inset !== lastInset;
   lastInset = inset;
-  lastViewportTop = viewportTop;
+  lastKeyboardHeight = keyboardHeight;
 
   const root = document.documentElement;
   root.style.setProperty('--keyboard-inset', `${inset}px`);
-  // Sticky booking chrome follows the visual viewport while Android pans it
-  // to reveal a focused field. This is a no-op everywhere else.
-  root.style.setProperty('--booking-visual-offset', `${viewportTop}px`);
+  root.style.setProperty('--booking-keyboard-height', `${keyboardHeight}px`);
   // A separate class from the existing `keyboard-active`, which CustomerLayout
   // derives from focus events. Two writers on one class would fight: a
   // focusout fires while the keyboard is still on screen. This one is measured
@@ -95,22 +96,20 @@ const detach = () => {
   vv.removeEventListener('resize', schedule);
   vv.removeEventListener('scroll', schedule);
   lastInset = -1;
-  lastViewportTop = -1;
+  lastKeyboardHeight = -1;
   document.documentElement.style.removeProperty('--keyboard-inset');
-  document.documentElement.style.removeProperty('--booking-visual-offset');
+  document.documentElement.style.removeProperty('--booking-keyboard-height');
   document.body.classList.remove('keyboard-open');
 };
 
 /**
- * Scroll the focused field above the keyboard, but only when the keyboard is
- * actually covering it.
+ * Scroll a focused field outside booking above the keyboard, but only when
+ * the keyboard is actually covering it.
  *
- * The browser's own "scroll the focused element into view" runs against the
- * layout viewport, which under `resizes-visual` does not know the bottom of
- * the screen is covered — so it considers a field sitting behind the keyboard
- * to be perfectly visible. This checks against the VISUAL viewport instead,
- * and stays silent when the field is already in the clear so that typing never
- * causes an unrequested jump.
+ * On other pages, the browser can leave a field behind the keyboard under
+ * `resizes-visual`. This checks against the visual viewport and moves only a
+ * covered field. Booking is handled by native focus panning plus stable page
+ * padding: a second scroll during a viewport animation yanks the field away.
  */
 export const scrollFocusedFieldIntoView = () => {
   const vv = window.visualViewport;
@@ -120,17 +119,13 @@ export const scrollFocusedFieldIntoView = () => {
   const isField = el.matches?.('input, textarea, select, [contenteditable]:not([contenteditable="false"])');
   if (!isField) return;
 
+  // On Android, the browser has already panned the focused booking field into
+  // view. Scrolling the page again on each visual viewport event makes it
+  // oscillate while the keyboard is still open (including while typing).
+  if (el.closest('.booking-page')) return;
+
   const rect = el.getBoundingClientRect();
   const visibleBottom = vv.offsetTop + vv.height;
-  if (el.closest('.booking-page')) {
-    // `block:center` centres against the *layout* viewport, whose lower part
-    // is covered by the keyboard. It also obeys html's smooth scroll CSS, so
-    // repeated viewport resize events start competing scroll animations.
-    // Move only the pixels needed to clear the keyboard instead.
-    const overlap = rect.bottom - (visibleBottom - 16);
-    if (overlap > 0) window.scrollBy({ top: Math.ceil(overlap), behavior: 'instant' });
-    return;
-  }
   // A little breathing room so the field is not flush against the keyboard.
   const covered = rect.bottom > visibleBottom - 8;
   if (!covered) return;

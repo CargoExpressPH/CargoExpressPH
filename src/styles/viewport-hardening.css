@@ -310,29 +310,18 @@
   top: calc(82px + var(--app-safe-top));
 }
 
-/* On Android the visual viewport can pan separately from the layout viewport
-   when an input receives focus. Keep both bars visible during keyboard close
-   as well; focusout happens before the visual viewport returns to normal. */
-.customer-layout-v2:has(.booking-page) .customer-navbar {
-  top: var(--booking-visual-offset, 0px);
-}
-
-.customer-layout-v2 .booking-page .step-progress {
-  top: calc(82px + var(--app-safe-top) + var(--booking-visual-offset, 0px));
-}
-
 /* Browser focus and scrollIntoView land fields beneath the sticky bars. */
 html:has(.customer-layout-v2 .booking-page) {
-  scroll-padding-top: calc(152px + var(--app-safe-top) + var(--booking-visual-offset, 0px));
+  scroll-padding-top: calc(152px + var(--app-safe-top));
 }
 
 @media (max-width: 899.98px) {
   .customer-layout-v2 .booking-page .step-progress {
-    top: calc(74px + var(--app-safe-top) + var(--booking-visual-offset, 0px));
+    top: calc(74px + var(--app-safe-top));
   }
 
   html:has(.customer-layout-v2 .booking-page) {
-    scroll-padding-top: calc(144px + var(--app-safe-top) + var(--booking-visual-offset, 0px));
+    scroll-padding-top: calc(144px + var(--app-safe-top));
   }
 }
 
@@ -427,6 +416,21 @@ body.keyboard-open .customer-main:not(:has(.support-chat-page)) {
      directly above the keyboard. Adding the inset again as padding would count
      it twice and leave a gap the height of the keyboard under the composer. */
   padding-bottom: calc(24px + var(--keyboard-inset, 0px));
+}
+
+/* The booking form scrolls with the document. Its available space must not
+   change each time the browser pans the visual viewport to a focused field;
+   `--keyboard-inset` decreases as `offsetTop` grows even with the keyboard
+   at the same height. Retain the resting navigation reserve and provide room
+   to reach the last field above the keyboard. */
+body .customer-layout-v2 .customer-main:has(.booking-page) {
+  padding-bottom: max(40px, calc(24px + var(--booking-keyboard-height, 0px)));
+}
+
+@media (max-width: 899.98px) {
+  body .customer-layout-v2 .customer-main:has(.booking-page) {
+    padding-bottom: max(calc(160px + var(--customer-safe-bottom)), calc(24px + var(--booking-keyboard-height, 0px)));
+  }
 }
 
 body.keyboard-open .page-content {

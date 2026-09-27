@@ -23,6 +23,7 @@ assert.equal(changeBookingRoute(boholSender, 'Bohol → Manila', bohol).sender_c
 
 const scrolls = [];
 let bottom = 650;
+let inBooking = true;
 globalThis.window = {
   visualViewport: { offsetTop: 90, height: 450 },
   scrollBy: (options) => scrolls.push(options),
@@ -31,15 +32,22 @@ globalThis.document = {
   body: {},
   activeElement: {
     matches: () => true,
-    closest: () => ({}),
+    closest: () => inBooking ? ({}) : null,
     getBoundingClientRect: () => ({ top: bottom - 44, bottom }),
   },
 };
 scrollFocusedFieldIntoView();
-assert.deepEqual(scrolls, [{ top: 126, behavior: 'instant' }],
-  'keyboard clearance moves only the covered distance, without smooth scrolling');
+assert.equal(scrolls.length, 0,
+  'viewport panning while a booking field is focused must not scroll the page again');
 bottom = 420;
 scrollFocusedFieldIntoView();
-assert.equal(scrolls.length, 1, 'a visible field should not cause another page jump');
+assert.equal(scrolls.length, 0, 'typing in a visible booking field must not jump the page');
+
+inBooking = false;
+bottom = 650;
+let focusedOutsideBooking = 0;
+globalThis.document.activeElement.scrollIntoView = () => { focusedOutsideBooking += 1; };
+scrollFocusedFieldIntoView();
+assert.equal(focusedOutsideBooking, 1, 'other pages still clear focused fields covered by the keyboard');
 
 console.log('Booking route and keyboard focus regression checks passed.');
