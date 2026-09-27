@@ -7,7 +7,7 @@ import { usePushNotification } from '../../hooks/usePushNotification';
 import {
   User, LogOut, ChevronRight, Bell, MessageCircle,
   CreditCard, HelpCircle, FileText, CheckCircle2,
-  Sun, Moon, Lock, Mail, Megaphone
+  Sun, Moon, Lock, Mail, Megaphone, Pencil
 } from 'lucide-react';
 import ConfirmModal from '../../components/ui/ConfirmModal';
 import usePageTitle from '../../hooks/usePageTitle';
@@ -148,67 +148,70 @@ const ProfilePage = () => {
   const isProfileComplete = completedProfileFields === PROFILE_COMPLETION_FIELDS.length;
   return (
     <>
-      <div className="page-transition profile-page">
-        <h1 className="sr-only">My Profile</h1>
-        {/* Profile Card */}
-        <div className="profile-card-premium animate-slide-up">
-          <div className="profile-card-banner" />
-          <div className="profile-card-body-content">
-            <div className="profile-avatar-container">
-              <div className="profile-card-avatar-circle">
+      <div className="page-transition profile-page customer-profile-page">
+        <header className="profile-page-heading">
+          <p>Account settings</p>
+          <h1>My Profile</h1>
+          <span>Manage your details, preferences, and account.</span>
+        </header>
+
+        <div className="profile-settings-layout">
+          <section className="profile-summary" aria-labelledby="profile-summary-name">
+            <div className="profile-summary-identity">
+              <div className="profile-summary-avatar" aria-hidden="true">
                 {(userProfile?.name || 'U')[0].toUpperCase()}
               </div>
+              <div className="profile-summary-details">
+                <h2 id="profile-summary-name">{userProfile?.name || 'User'}</h2>
+                <p>{userProfile?.email || user?.email}</p>
+              </div>
             </div>
 
-            <div className="profile-card-info-header">
-              <div className="flex items-center gap-8 flex-wrap">
-                <h2 className="profile-user-name">{userProfile?.name || 'User'}</h2>
-                <span
-                  className={`profile-tier-badge${isProfileComplete ? '' : ' incomplete'}`}
-                  style={isProfileComplete ? undefined : { background: 'var(--warning-bg)', color: 'var(--warning-text)' }}
+            {isProfileComplete ? (
+              <span className="profile-ready-badge">
+                <CheckCircle2 size={14} aria-hidden="true" /> Profile complete
+              </span>
+            ) : (
+              <div className="profile-summary-progress">
+                <div className="profile-completion-header">
+                  <span>Complete your profile</span>
+                  <strong>{completionScore}%</strong>
+                </div>
+                <div
+                  className="profile-completion-bar"
+                  role="progressbar"
+                  aria-label="Profile completion"
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={completionScore}
                 >
-                  <CheckCircle2 size={11} style={{ marginRight: 2 }} /> {isProfileComplete ? 'Profile complete' : 'Action needed'}
-                </span>
+                  <div className="profile-completion-fill" style={{ width: `${completionScore}%` }} />
+                </div>
+                <p>Add your contact details and address for faster booking.</p>
               </div>
-              <p className="profile-user-email">{userProfile?.email || user?.email}</p>
-            </div>
+            )}
+            <button
+              type="button"
+              onClick={() => navigate('/customer/personal-info')}
+              className="btn btn-outline profile-edit-action"
+            >
+              <Pencil size={16} aria-hidden="true" /> Edit profile
+            </button>
+          </section>
 
-            {/* Profile Completion Meter */}
-            <div className="profile-completion-container">
-              <div className="profile-completion-header">
-                <span>Profile Completion</span>
-                <strong>{completionScore}%</strong>
-              </div>
-              <div className="profile-completion-bar">
-                <div className="profile-completion-fill" style={{ width: `${completionScore}%` }} />
-              </div>
-              {!isProfileComplete ? (
-                <button
-                  type="button"
-                  onClick={() => navigate('/customer/personal-info')}
-                  className="profile-completion-action"
-                >
-                  Complete your personal information for faster booking
-                </button>
-              ) : (
-                <span className="text-xs font-semibold text-primary flex items-center" style={{ gap: 4 }}>
-                  <CheckCircle2 size={12} /> Your details are ready for faster booking.
-                </span>
-              )}
-            </div>
-          </div>
-        </div>
+          <div className="profile-settings-content">
 
         {/* Section 1: Account Settings */}
-        <h3 className="profile-section-title">Account & Security</h3>
-        <div className="card mb-16 profile-menu-card stagger-item" style={{ animationDelay: '120ms' }}>
+        <section aria-labelledby="profile-account-heading">
+        <h2 className="profile-section-title" id="profile-account-heading">Account & Security</h2>
+        <div className="card profile-menu-card">
           <button type="button" onClick={() => navigate('/customer/personal-info')} className="profile-menu-item">
             <div className="profile-menu-icon-wrap primary">
               <User size={18} />
             </div>
             <div className="flex-1 text-left">
               <div className="text-sm font-bold">Personal Info & Addresses</div>
-              <div className="text-xs text-secondary">Edit your name, contact details, and default address</div>
+              <div className="text-xs text-secondary">Your name, contact details, and default address</div>
             </div>
             <ChevronRight size={16} color="var(--text-tertiary)" />
           </button>
@@ -218,7 +221,7 @@ const ProfilePage = () => {
             </div>
             <div className="flex-1 text-left">
               <div className="text-sm font-bold">Change Password</div>
-              <div className="text-xs text-secondary">Update and secure your account credentials</div>
+              <div className="text-xs text-secondary">Keep your account secure</div>
             </div>
             <ChevronRight size={16} color="var(--text-tertiary)" />
           </button>
@@ -228,7 +231,7 @@ const ProfilePage = () => {
             </div>
             <div className="flex-1 text-left">
               <div className="text-sm font-bold">Change Email</div>
-              <div className="text-xs text-secondary">Update the email address you sign in with</div>
+              <div className="text-xs text-secondary">The email you use to sign in</div>
             </div>
             <ChevronRight size={16} color="var(--text-tertiary)" />
           </button>
@@ -238,15 +241,17 @@ const ProfilePage = () => {
             </div>
             <div className="flex-1 text-left">
               <div className="text-sm font-bold">Payment History</div>
-              <div className="text-xs text-secondary">Your payments, open balances, and receipts</div>
+              <div className="text-xs text-secondary">Payments, balances, and receipts</div>
             </div>
             <ChevronRight size={16} color="var(--text-tertiary)" />
           </button>
         </div>
+        </section>
 
         {/* Section 2: App Settings */}
-        <h3 className="profile-section-title">Preferences</h3>
-        <div className="card mb-16 profile-menu-card stagger-item" style={{ animationDelay: '240ms' }}>
+        <section aria-labelledby="profile-preferences-heading">
+        <h2 className="profile-section-title" id="profile-preferences-heading">Preferences</h2>
+        <div className="card profile-menu-card">
           <div className="profile-menu-item no-hover">
             <div className="profile-menu-icon-wrap primary">
               {theme === 'dark' ? <Moon size={18} /> : <Sun size={18} />}
@@ -255,7 +260,7 @@ const ProfilePage = () => {
               <div className="text-sm font-bold">Dark Mode</div>
               <div className="text-xs text-secondary">Toggle dark and light themes</div>
             </div>
-            <label className="toggle-switch">
+            <label className="profile-setting-switch">
               <input type="checkbox" checked={theme === 'dark'} onChange={toggleTheme} aria-label="Toggle Dark Mode" />
               <span className="toggle-slider" />
             </label>
@@ -269,7 +274,7 @@ const ProfilePage = () => {
               <div className="text-xs text-secondary">{pushStatusLabel}</div>
             </div>
             {canTogglePush ? (
-              <label className={`toggle-switch${pushBusy ? ' opacity-50' : ''}`}>
+              <label className={`profile-setting-switch${pushBusy ? ' opacity-50' : ''}`}>
                 <input
                   type="checkbox"
                   checked={isSubscribed}
@@ -280,7 +285,7 @@ const ProfilePage = () => {
                 <span className="toggle-slider" />
               </label>
             ) : (
-              <label className="toggle-switch disabled opacity-50">
+              <label className="profile-setting-switch disabled opacity-50">
                 <input
                   type="checkbox"
                   checked={false}
@@ -297,9 +302,9 @@ const ProfilePage = () => {
             </div>
             <div className="flex-1 text-left">
               <div className="text-sm font-bold">Email Announcements</div>
-              <div className="text-xs text-secondary">Trip schedules, promos, and news sent to {userProfile?.email || user?.email}</div>
+              <div className="text-xs text-secondary">Trip schedules, promos, and news by email</div>
             </div>
-            <label className={`toggle-switch${announceBusy ? ' opacity-50' : ''}`}>
+            <label className={`profile-setting-switch${announceBusy ? ' opacity-50' : ''}`}>
               <input
                 type="checkbox"
                 checked={!!userProfile?.wants_announcements}
@@ -311,10 +316,12 @@ const ProfilePage = () => {
             </label>
           </div>
         </div>
+        </section>
 
         {/* Section 3: Help & Support */}
-        <h3 className="profile-section-title">Help & Support</h3>
-        <div className="card mb-16 profile-menu-card stagger-item" style={{ animationDelay: '300ms' }}>
+        <section aria-labelledby="profile-help-heading">
+        <h2 className="profile-section-title" id="profile-help-heading">Help & Support</h2>
+        <div className="card profile-menu-card">
           <button type="button" onClick={() => navigate('/customer/support')} className="profile-menu-item">
             <div className="profile-menu-icon-wrap info">
               <MessageCircle size={18} />
@@ -351,16 +358,20 @@ const ProfilePage = () => {
             <ChevronRight size={16} color="var(--text-tertiary)" />
           </button>
         </div>
+        </section>
 
         {/* Sign Out */}
+        <div className="profile-session-actions">
         <button
           type="button"
-          className="btn btn-outline w-full stagger-item justify-center profile-signout"
+          className="btn btn-outline profile-signout"
           onClick={() => setShowLogoutConfirm(true)}
-          style={{ color: 'var(--error-text)', borderColor: 'var(--error-glow)', animationDelay: '360ms' }}
         >
           <LogOut size={18} /> Sign Out
         </button>
+        </div>
+          </div>
+        </div>
       </div>
 
       <ConfirmModal
