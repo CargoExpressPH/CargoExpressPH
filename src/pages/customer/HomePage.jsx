@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../hooks/useToast';
@@ -13,24 +13,18 @@ import PullToRefresh from '../../components/ui/PullToRefresh';
 import {
   Package, Search, ArrowRight,
   Container, MapPin, Calendar, Weight, ChevronRight,
-  Truck, CheckCircle, Megaphone, Clock, MessageSquare,
+  Truck, CheckCircle, Megaphone, Clock,
   Sun, CloudSun, Moon, LayoutDashboard, Wallet,
 } from 'lucide-react';
 import usePageTitle from '../../hooks/usePageTitle';
 import { formatMoney } from '../../utils/currencyInput';
-import { announcementDisplayTitle, getAnnouncementCategoryInfo } from '../../lib/announcements';
-import AnnouncementModal from '../../components/ui/AnnouncementModal';
+import { getAnnouncementCategoryInfo } from '../../lib/announcements';
+import AnnouncementComments from '../../components/ui/AnnouncementComments';
 import { formatPhDate } from '../../utils/datetime';
 import { isOrderPriced } from '../../constants/status';
 import { isScheduledTripOverdue } from '../../lib/tripCapacitySelection';
 import useRealtimeTripCapacity from '../../hooks/useRealtimeTripCapacity';
 import { orderPartyName } from '../../lib/orderParties';
-
-// Announcements are a compact list on Home; the full text and the comment
-// thread open in a modal. Three show at first, up to five on request — the
-// five the feed has always offered.
-const NEWS_INITIAL = 3;
-const NEWS_MAX = 5;
 
 const HomePage = () => {
   usePageTitle('Home');
@@ -44,8 +38,6 @@ const HomePage = () => {
   const [capacityError, setCapacityError] = useState(null);
   const [trackingSearch, setTrackingSearch] = useState('');
   const [loading, setLoading]         = useState(true);
-  const [showAllNews, setShowAllNews] = useState(false);
-  const [openAnnouncementId, setOpenAnnouncementId] = useState(null);
   const homeLoadSequence = useRef(0);
   const capacityRequestSequence = useRef(0);
   const isMountedRef = useRef(false);
@@ -143,17 +135,6 @@ const HomePage = () => {
     });
   };
 
-  // The modal reads the announcement out of the list, so a comment posted in
-  // it updates the count on the card behind it, and a refresh that drops the
-  // announcement closes the modal instead of leaving an empty one open.
-  const openAnnouncement = openAnnouncementId
-    ? announcements.find(a => a.id === openAnnouncementId) || null
-    : null;
-  const closeAnnouncement = useCallback(() => setOpenAnnouncementId(null), []);
-  const handleAnnouncementComments = useCallback((comments) => {
-    setAnnouncements(prev => prev.map(item => (item.id === openAnnouncementId ? { ...item, comments } : item)));
-  }, [openAnnouncementId]);
-
   const totalCapacity = Number(activeTrip?.capacity) || 0;
   const currentWeight = Number(activeTrip?.current_weight) || 0;
   const availableSlots = activeTrip ? Math.max(0, totalCapacity - currentWeight) : 0;
@@ -175,13 +156,9 @@ const HomePage = () => {
         ? 'No active shipments right now.'
         : 'Book your first shipment or track a package below.';
 
-  const newsShown = announcements.slice(0, showAllNews ? NEWS_MAX : NEWS_INITIAL);
-  const newsHidden = Math.min(announcements.length, NEWS_MAX) - NEWS_INITIAL;
-
   // Classes, not CSS :has(), decide the wide layout: iOS before 15.4 has no
   // :has(), and an iPad on it would otherwise never get the two columns.
   const hasMainColumn = !loading && (activeOrders.length > 0 || (orders.length === 0 && !activeTrip));
-  const hasNews = announcements.length > 0;
 
   return (
     <PullToRefresh onRefresh={loadData}>
@@ -288,7 +265,7 @@ const HomePage = () => {
       {loading && <CenteredSpinner />}
 
       {!loading && (
-        <div className={`home-col-side${hasNews ? ' has-news' : ''}`}>
+        <div className="home-col-side">
           {/* ── Earliest scheduled / ongoing trip capacity summary ───── */}
           {capacityError ? (
             <StaggerItem delay={0} className="home-trip-block">
@@ -406,63 +383,65 @@ const HomePage = () => {
               />
             </StaggerItem>
           )}
-
-          {/* ── Announcements ──────────────────────────────────────
-              A short list to scan. The full text and the comment thread open
-              in AnnouncementModal, the same one a notification opens. */}
-          {hasNews && (
-            <StaggerItem delay={60} className="home-news">
-              <div className="home-section-head">
-                <h2 className="customer-section-title fw-700 flex items-center gap-8"><Megaphone size={18} aria-hidden="true" /> Announcements</h2>
-              </div>
-              <ul className="home-news-list">
-                {newsShown.map((a) => {
-                  const cat = getAnnouncementCategoryInfo(a);
-                  const CatIcon = cat.icon;
-                  const commentCount = Array.isArray(a.comments) ? a.comments.length : 0;
-                  return (
-                    <li key={a.id}>
-                      <button
-                        type="button"
-                        className="home-news-item"
-                        aria-haspopup="dialog"
-                        onClick={() => setOpenAnnouncementId(a.id)}
-                      >
-                        <span className="home-news-meta">
-                          <span className="home-news-category" style={{ background: cat.badgeBg, color: cat.badgeColor }}>
-                            <CatIcon size={12} aria-hidden="true" />
-                            {cat.label}
-                          </span>
-                          <span className="home-news-date">
-                            <Clock size={12} aria-hidden="true" />
-                            {new Date(a.created_at).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })}
-                          </span>
-                        </span>
-                        <span className="home-news-title">{announcementDisplayTitle(a.title)}</span>
-                        {a.content && <span className="home-news-excerpt">{a.content}</span>}
-                        <span className="home-news-foot">
-                          <MessageSquare size={13} aria-hidden="true" />
-                          {commentCount === 0 ? 'Read & comment' : `${commentCount} comment${commentCount === 1 ? '' : 's'}`}
-                          <ChevronRight size={16} aria-hidden="true" className="home-news-chevron" />
-                        </span>
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-              {newsHidden > 0 && (
-                <button
-                  type="button"
-                  className="home-news-more"
-                  aria-expanded={showAllNews}
-                  onClick={() => setShowAllNews(v => !v)}
-                >
-                  {showAllNews ? 'Show fewer' : `Show ${newsHidden} more`}
-                </button>
-              )}
-            </StaggerItem>
-          )}
         </div>
+      )}
+
+      {/* ── Announcements ────────────────────────────────────────── */}
+      {!loading && announcements.length > 0 && (
+        <StaggerItem delay={60}>
+          <div className="flex items-center justify-between mb-md">
+            <h3 className="customer-section-title fw-700 flex items-center gap-8"><Megaphone size={18} color="var(--primary)" /> Announcements</h3>
+            <span className="text-xs text-tertiary fw-600">{Math.min(announcements.length, 5)} Latest</span>
+          </div>
+          {announcements.slice(0, 5).map((a, index) => {
+            const cat = getAnnouncementCategoryInfo(a);
+            const CatIcon = cat.icon;
+            return (
+              <StaggerItem key={a.id} className="mb-12" delay={(index + 2) * 60}>
+                <div
+                  className="card customer-announcement-card"
+                  style={{
+                    transition: 'transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease',
+                  }}
+                >
+                  <div className="card-body p-16">
+                    <div className="flex items-center justify-between gap-8 mb-8">
+                      <span
+                        className="inline-flex items-center gap-6 px-8 py-2 rounded-full fw-700 text-uppercase"
+                        style={{
+                          fontSize: 'var(--text-12)',
+                          letterSpacing: '0.04em',
+                          background: cat.badgeBg,
+                          color: cat.badgeColor,
+                        }}
+                      >
+                        <CatIcon size={12} />
+                        {cat.label}
+                      </span>
+                      <span className="inline-flex items-center gap-4 text-xs text-tertiary">
+                        <Clock size={12} />
+                        {new Date(a.created_at).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })}
+                      </span>
+                    </div>
+                    <div className="fw-700 text-base mb-6" style={{ color: 'var(--text)', lineHeight: 1.35 }}>
+                      {a.title}
+                    </div>
+                    <div className="text-sm text-secondary" style={{ lineHeight: 1.5 }}>
+                      {a.content}
+                    </div>
+                    <AnnouncementComments
+                      announcementId={a.id}
+                      comments={a.comments}
+                      onCommentsChange={comments => setAnnouncements(prev =>
+                        prev.map(item => (item.id === a.id ? { ...item, comments } : item))
+                      )}
+                    />
+                  </div>
+                </div>
+              </StaggerItem>
+            );
+          })}
+        </StaggerItem>
       )}
 
       {/* ── Active Shipments ─────────────────────────────────────
@@ -525,12 +504,6 @@ const HomePage = () => {
         </StaggerItem>
       )}
     </PageTransition>
-    <AnnouncementModal
-      open={Boolean(openAnnouncement)}
-      announcement={openAnnouncement}
-      onClose={closeAnnouncement}
-      onCommentsChange={handleAnnouncementComments}
-    />
     </PullToRefresh>
   );
 };

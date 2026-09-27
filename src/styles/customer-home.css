@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════════════
-   CUSTOMER HOME — layout, section headers, announcements, hero search
+   CUSTOMER HOME — layout, section headers, hero search
    ═══════════════════════════════════════════════════════════════════════
    Imported into layer(home), after `density` and `hardening` and before
    `mobile-inputs` and `perf`, so the iOS focus-zoom and phone-performance
@@ -20,14 +20,14 @@
    button from customer-mobile-refresh.css; see the hero search below.
 
    Order on the page (HomePage.jsx), as restored by 95615bc:
-     hero → money due → overview → trip + announcements → active shipments
-   From 720px up, shipments are the left column and .home-col-side (trip,
-   then announcements) the right. */
+     hero → money due → overview → trip → announcements → active shipments
+   From 720px up, shipments are the left column and .home-col-side (the
+   trip) the right, with the announcements full width below them. */
 
 /* ── Page rhythm ───────────────────────────────────────────────────────── */
 
-/* Trip and announcements share one wrapper so the wide layout can put them
-   in one column. On phones it is just more of the page: the same grid gap. */
+/* The trip, wrapped so the wide layout can place it as one column. On
+   phones it is just more of the page: the same grid gap. */
 .customer-layout-v2 .home-col-side {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -156,190 +156,24 @@
   color: var(--error-text);
 }
 
-/* ── Announcements ─────────────────────────────────────────────────────── */
-
-.customer-layout-v2 .home-news-list {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 10px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-/* A block-level button with block children, not a grid or flex button:
-   older WebKit does not lay out a <button> as a grid container. */
-.customer-layout-v2 .home-news-item {
-  display: block;
-  width: 100%;
-  min-width: 0;
-  max-width: 100%;
-  margin: 0;
-  padding: 14px 16px;
-  border: 1px solid var(--customer-line);
-  border-radius: 20px;
-  background: var(--customer-panel);
-  box-shadow: var(--customer-shadow-soft);
-  color: var(--customer-ink);
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-  touch-action: manipulation;
-  -webkit-tap-highlight-color: transparent;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
-}
-
-/* Mouse only: a touch tap leaves :hover stuck on the card it opened. */
-@media (hover: hover) {
-  .customer-layout-v2 .home-news-item:hover {
-    border-color: var(--customer-green);
-    border-color: color-mix(in srgb, var(--customer-green) 28%, var(--customer-line));
-    box-shadow: var(--customer-shadow);
-  }
-}
-
-.customer-layout-v2 .home-news-item:focus-visible {
-  outline: 3px solid var(--primary-light);
-  outline-offset: 2px;
-}
-
-.customer-layout-v2 .home-news-meta {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-}
-
-.customer-layout-v2 .home-news-category {
-  display: inline-flex;
-  align-items: center;
-  margin-right: 8px;
-  padding: 3px 9px;
-  border-radius: var(--radius-full);
-  font-size: var(--text-12);
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-.customer-layout-v2 .home-news-category > svg {
-  flex-shrink: 0;
-  margin-right: 5px;
-}
-
-.customer-layout-v2 .home-news-date {
-  display: inline-flex;
-  align-items: center;
-  color: var(--customer-muted);
-  font-size: var(--text-12);
-}
-
-.customer-layout-v2 .home-news-date > svg {
-  flex-shrink: 0;
-  margin-right: 4px;
-}
-
-.customer-layout-v2 .home-news-title {
-  display: block;
-  margin-top: 8px;
-  color: var(--customer-ink);
-  font-size: var(--text-16);
-  font-weight: 700;
-  line-height: 1.35;
-  overflow-wrap: break-word;
-  overflow-wrap: anywhere;
-}
-
-/* Two lines to scan; the whole text is one tap away in the modal. */
-.customer-layout-v2 .home-news-excerpt {
-  display: -webkit-box;
-  margin-top: 4px;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-  overflow: hidden;
-  color: var(--customer-muted);
-  font-size: var(--text-13);
-  line-height: 1.5;
-  overflow-wrap: break-word;
-  overflow-wrap: anywhere;
-}
-
-.customer-layout-v2 .home-news-foot {
-  display: flex;
-  align-items: center;
-  margin-top: 10px;
-  color: var(--customer-green-dark);
-  font-size: var(--text-12);
-  font-weight: 700;
-}
-
-.customer-layout-v2 .home-news-foot > svg {
-  flex-shrink: 0;
-  margin-right: 6px;
-}
-
-.customer-layout-v2 .home-news-foot > .home-news-chevron {
-  margin-right: 0;
-  margin-left: auto;
-  color: var(--customer-muted);
-}
-
-.customer-layout-v2 .home-news-more {
-  display: block;
-  width: 100%;
-  min-height: 44px;
-  margin-top: 10px;
-  padding: 10px 16px;
-  border: 1px dashed var(--customer-line);
-  border-radius: 16px;
-  background: transparent;
-  color: var(--customer-green-dark);
-  font: inherit;
-  font-size: var(--text-13);
-  font-weight: 700;
-  text-align: center;
-  cursor: pointer;
-  touch-action: manipulation;
-  -webkit-tap-highlight-color: transparent;
-}
-
-@media (hover: hover) {
-  .customer-layout-v2 .home-news-more:hover {
-    background: var(--customer-green-soft);
-  }
-}
-
-.customer-layout-v2 .home-news-more:focus-visible {
-  outline: 3px solid var(--primary-light);
-  outline-offset: 2px;
-}
-
 @media (max-width: 768px) {
   .customer-layout-v2 .home-section-head {
     margin-bottom: 10px;
-  }
-
-  .customer-layout-v2 .home-news-item {
-    padding: 13px 14px;
-    border-radius: 18px;
-  }
-
-  .customer-layout-v2 .home-news-title {
-    font-size: var(--text-14);
   }
 }
 
 /* ── Wide layout ───────────────────────────────────────────────────────── */
 
-/* Two columns from 720px: shipments left; trip and announcements right.
+/* Two columns from 720px: shipments left, trip right; everything else,
+   announcements included, keeps the full width.
    Below 900px the Home column is 760px wide (customer-mobile-refresh.css),
    so each column is about as wide as a phone and the cards keep their phone
    proportions instead of stretching a route line across a tablet.
    `home-split` is set by HomePage.jsx only when the left column has
    something in it; otherwise the right-hand content takes the full width.
-   The shipments come after .home-col-side in the markup (phone order), so
-   `dense` lets them fill the left cell of the row the side column is in. */
+   The shipments come last in the markup (phone order), so `dense` lets
+   them fill the left cell beside the trip even though the full-width
+   announcements sit between the two. */
 @media (min-width: 720px) {
   .customer-layout-v2 .customer-home-page.home-split {
     grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
@@ -357,12 +191,5 @@
 
   .customer-layout-v2 .customer-home-page.home-split > .home-col-side {
     grid-column: 2;
-  }
-
-  /* No shipments column: the trip and the announcements sit side by side
-     rather than one full-width card above the other. */
-  .customer-layout-v2 .customer-home-page:not(.home-split) > .home-col-side.has-news {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    align-items: start;
   }
 }

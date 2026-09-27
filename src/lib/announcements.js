@@ -9,23 +9,6 @@ export const ANNOUNCEMENT_CATEGORIES = [
   { value: 'general', label: 'General Update', icon: Megaphone, emoji: '📢' },
 ];
 
-const CATEGORY_EMOJI_PREFIX = new RegExp(
-  `^\\s*(?:${ANNOUNCEMENT_CATEGORIES.filter(c => c.emoji).map(c => c.emoji).concat('🔔').join('|')})\\uFE0F?\\s*`,
-  'u',
-);
-
-/**
- * The title as a customer should read it. An explicit category is stored as
- * an emoji at the front of the title (see AnnouncementsPage), and the category
- * badge already shows it — keeping it in the title printed the same marker
- * twice. Only the display changes; getAnnouncementCategoryInfo still reads the
- * stored title.
- */
-export const announcementDisplayTitle = (title) => {
-  const raw = String(title || '');
-  return raw.replace(CATEGORY_EMOJI_PREFIX, '').trim() || raw.trim();
-};
-
 /**
  * Resolves category metadata (label, icon, colors) for any announcement.
  * Checks explicit category markers (emojis/tags) first, then falls back to keyword matching.
