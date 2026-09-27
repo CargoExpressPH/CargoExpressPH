@@ -101,7 +101,9 @@ const TripsPage = () => {
       </div>
 
       {loading ? (
-        <CenteredSpinner />
+        // One trip card tall (280-313px): the list replaces it without
+        // pushing the footer down, the layout shift that failed CLS here.
+        <CenteredSpinner minHeight={300} />
       ) : error ? (
         <div className="card animate-scale-in text-center" role="alert" style={{ padding: 40 }}>
           <div className="flex items-center justify-center mx-auto mb-16" style={{ width: 56, height: 56, borderRadius: '50%', background: 'var(--error-bg)' }}>

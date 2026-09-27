@@ -339,6 +339,10 @@ const AboutPage = () => {
     info: null, features: [], highlights: [], coverage: [], feedback: []
   });
   const [fetching, setFetching] = useState(true);
+  // The page renders once the company info is in; coverage, featured
+  // deliveries and reviews arrive afterwards. Until they do, their sections
+  // show a spinner rather than a premature "nothing here yet".
+  const [sectionsLoading, setSectionsLoading] = useState(true);
   // Loaded independently of the Promise.all below: a trips-fetch failure
   // should only blank out the Trip Schedules section, not the whole page.
   const [tripsState, setTripsState] = useState({ trips: [], loading: true, error: null });
@@ -398,14 +402,25 @@ const AboutPage = () => {
         setIsOnline(false);
         setSystemStatus('offline');
         if (initial) setFetching(false);
+        setSectionsLoading(false);
         return;
       }
 
       try {
         if (initial) setFetching(true);
         setSystemStatus('checking');
+        // Paint the page (hero, story, contact) as soon as the company info
+        // lands instead of after all four queries and the photo lookups.
+        // Waiting for the slowest one kept the whole page a spinner, then
+        // rendered it in one long main-thread block.
+        const infoPromise = getCompanyInformation();
+        infoPromise.then((earlyInfo) => {
+          if (!isMounted || requestId !== requestSequence) return;
+          setData((prev) => ({ ...prev, info: earlyInfo, features: earlyInfo?.features || [] }));
+          setFetching(false);
+        }).catch(() => { /* reported by the Promise.all below */ });
         const [info, highlights, coverage, feedback] = await Promise.all([
-          getCompanyInformation(), getFeaturedDeliveries(),
+          infoPromise, getFeaturedDeliveries(),
           getCoverageAreas(), getPublicFeedback()
         ]);
         const features = info?.features || [];
@@ -438,7 +453,10 @@ const AboutPage = () => {
           setSystemStatus(stillOnline ? 'unavailable' : 'offline');
         }
       } finally {
-        if (isMounted && requestId === requestSequence) setFetching(false);
+        if (isMounted && requestId === requestSequence) {
+          setFetching(false);
+          setSectionsLoading(false);
+        }
       }
     };
 
@@ -450,6 +468,7 @@ const AboutPage = () => {
         requestSequence += 1;
         setSystemStatus('offline');
         setFetching(false);
+        setSectionsLoading(false);
         return;
       }
 
@@ -503,13 +522,15 @@ const AboutPage = () => {
   // Footer, Footer's "FAQs" (/about#faq), or a direct/bookmarked link. Waits for the loading spinner to
   // clear first, since section elements don't exist in the DOM until then. ───
   useEffect(() => {
-    if (fetching) return;
+    // Also wait for the later sections: they grow the page above most
+    // targets, so jumping earlier would land short of the section.
+    if (fetching || sectionsLoading) return;
     const hash = location.hash?.replace('#', '');
     if (!hash) return;
     const raf = requestAnimationFrame(() => scrollToSection(hash));
     return () => cancelAnimationFrame(raf);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fetching, location.hash]);
+  }, [fetching, sectionsLoading, location.hash]);
 
   // ─── Form handlers ───
   const PHONE_RE = /^09\d{9}$/;
@@ -743,10 +764,12 @@ const AboutPage = () => {
         <div className="about-gradient-orb about-gradient-orb-primary" />
         <div className="about-gradient-orb about-gradient-orb-accent" />
 
-        <motion.div 
+        {/* A rise only, no fade: starting at opacity 0 hid the page's largest
+            text (its LCP element) until the animation ran. */}
+        <motion.div
           className="about-hero-content"
-          initial={{ opacity: 0, y: 40 }}
-          animate={{ opacity: 1, y: 0 }}
+          initial={{ y: 24 }}
+          animate={{ y: 0 }}
           transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
         >
           <div className="about-hero-badge">
@@ -1004,6 +1027,8 @@ const AboutPage = () => {
               </div>
             </div>
             </>
+          ) : sectionsLoading ? (
+            <CenteredSpinner />
           ) : (
             <div className="about-empty-state">
               <MapPin size={48} className="about-empty-icon" />
@@ -1188,7 +1213,9 @@ const AboutPage = () => {
             </div>
           </div>
 
-          {(!feedback || feedback.length === 0) ? (
+          {(!feedback || feedback.length === 0) && sectionsLoading ? (
+            <CenteredSpinner />
+          ) : (!feedback || feedback.length === 0) ? (
             <div className="about-empty-state about-empty-state-lg">
               <MessageSquare size={48} className="about-empty-icon" />
               <div className="about-empty-text">No customer feedback has been submitted yet.</div>

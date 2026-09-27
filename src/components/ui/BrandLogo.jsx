@@ -38,23 +38,29 @@
  * every use inside BrandLockup, since the visible wordmark next to it already
  * says "CARGOEXPRESS PH" and announcing it twice is worse than not at all.
  */
+// WebP (~10 KB) where supported, the PNG (~36 KB) on iOS before 14. The
+// <picture> is display: contents, so it adds no box and every existing
+// .brand-logo rule still lands on the image element.
 export const BrandLogo = ({ size = 40, decorative = false, className = '' }) => (
-  <img
-    src="/images/logo-nav.png"
-    alt={decorative ? '' : 'CargoExpress PH'}
-    // Intrinsic size, so the row reserves the box before the image lands and
-    // does not jolt sideways on first paint.
-    width={size}
-    height={size}
-    className={`brand-logo ${className}`.trim()}
-    // The size travels as a custom property rather than as inline width/height
-    // so responsive rules can still override it. An inline style outranks every
-    // stylesheet selector, and `@media (max-width: 640px)` deliberately shrinks
-    // `.topbar-logo-icon` on phones — an inline size silently defeats that and
-    // leaves a desktop-sized logo in a cramped mobile topbar.
-    style={{ '--brand-logo-size': `${size}px` }}
-    decoding="async"
-  />
+  <picture className="brand-logo-picture">
+    <source srcSet="/images/logo-nav.webp" type="image/webp" />
+    <img
+      src="/images/logo-nav.png"
+      alt={decorative ? '' : 'CargoExpress PH'}
+      // Intrinsic size, so the row reserves the box before the image lands and
+      // does not jolt sideways on first paint.
+      width={size}
+      height={size}
+      className={`brand-logo ${className}`.trim()}
+      // The size travels as a custom property rather than as inline width/height
+      // so responsive rules can still override it. An inline style outranks every
+      // stylesheet selector, and `@media (max-width: 640px)` deliberately shrinks
+      // `.topbar-logo-icon` on phones — an inline size silently defeats that and
+      // leaves a desktop-sized logo in a cramped mobile topbar.
+      style={{ '--brand-logo-size': `${size}px` }}
+      decoding="async"
+    />
+  </picture>
 );
 
 /**

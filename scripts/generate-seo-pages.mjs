@@ -50,7 +50,10 @@ const PAGE_CARDS = [
   ['/about', 'About us', 'Coverage areas, customer feedback and contact details.'],
 ];
 
-const LOGO = '<img src="/images/logo-nav.png" width="36" height="36" alt="" />';
+// WebP (~10 KB) for browsers that take it, the PNG (~36 KB) for iOS before 14.
+const logo = (size) => `<picture><source srcset="/images/logo-nav.webp" type="image/webp" />`
+  + `<img src="/images/logo-nav.png" width="${size}" height="${size}" alt="" /></picture>`;
+const LOGO = logo(36);
 
 function renderFallback(page, path) {
   // A real, styled page: header, the screen's heading and summary, links to
@@ -66,7 +69,7 @@ function renderFallback(page, path) {
       + FAQ_ITEMS.map(({ title, answer }) => `<article><h3>${escapeHtml(title)}</h3><p>${escapeHtml(answer)}</p></article>`).join('')
       + '</section>'
     : '';
-  return `<div class="seo-boot" aria-hidden="true"><img src="/images/logo-nav.png" width="64" height="64" alt="" />`
+  return `<div class="seo-boot" aria-hidden="true">${logo(64)}`
     + `<span>CARGOEXPRESS <b>PH</b></span><i></i></div>`
     + `<main class="seo-fallback">`
     + `<header class="seo-top"><a class="seo-brand" href="/">${LOGO}<span>CargoExpress PH</span></a>`
@@ -92,9 +95,13 @@ function renderPage(path, page) {
   // The home hero is the largest above-the-fold element. Start its request
   // while the app loads; only preload the size selected by this viewport.
   // Other public pages do not use this image and must not download it early.
+  // The home page is also dist/index.html, which vercel.json serves for
+  // /login, /register and every /customer and /admin screen. Static <link>
+  // tags would preload the hero on all of those, so an inline script adds
+  // them only when the visitor is actually on "/". ES5, for old browsers.
   if (path === '/') {
     output = output.replace(`<link rel="canonical" href="${url}" />`,
-      `<link rel="canonical" href="${url}" />\n    <link rel="preload" as="image" href="/images/landing-hero-sm.webp" media="(max-width: 700px)" fetchpriority="high" />\n    <link rel="preload" as="image" href="/images/landing-hero.webp" media="(min-width: 701px)" fetchpriority="high" />`);
+      `<link rel="canonical" href="${url}" />\n    <script>if (location.pathname === '/') { [['/images/landing-hero-sm.webp', '(max-width: 700px)'], ['/images/landing-hero.webp', '(min-width: 701px)']].forEach(function (h) { var l = document.createElement('link'); l.rel = 'preload'; l.as = 'image'; l.href = h[0]; l.media = h[1]; l.setAttribute('fetchpriority', 'high'); document.head.appendChild(l); }); }</script>`);
   }
   for (const [kind, name, value] of [
     ['property', 'og:title', title], ['property', 'og:description', description],

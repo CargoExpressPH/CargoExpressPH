@@ -28,6 +28,9 @@ const APP_SHELL = [
   // broken-image icon on the loading screen the moment the app opened
   // offline.
   '/images/logo-nav.png',
+  // BrandLogo serves this WebP to every browser that supports it (the PNG
+  // above remains the iOS < 14 fallback), so it is what renders offline.
+  '/images/logo-nav.webp',
   '/icons/icon-32.png',
   '/icons/icon-192.png',
   '/icons/icon-72.png',

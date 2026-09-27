@@ -1195,6 +1195,8 @@ input[type="datetime-local"]:hover::-webkit-calendar-picker-indicator {
    alpha). Clipping to a circle turns that white from a box around the logo into
    the badge's own fill, which is what makes it sit correctly on the dark
    sidebar and the dark glass navbar as well as on light. */
+/* The WebP/PNG <picture> around the logo takes no box of its own. */
+.brand-logo-picture { display: contents; }
 .brand-logo {
   width: var(--brand-logo-size, 40px);
   height: var(--brand-logo-size, 40px);
