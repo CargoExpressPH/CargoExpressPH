@@ -65,16 +65,26 @@ const CustomSelect = ({
 
     const rect = rootRef.current.getBoundingClientRect();
     const gutter = 8;
-    const viewportHeight = window.visualViewport?.height || window.innerHeight;
+    const viewport = window.visualViewport;
+    const viewportTop = viewport?.offsetTop || 0;
+    let viewportBottom = viewportTop + (viewport?.height || window.innerHeight);
+    const bottomNav = rootRef.current.closest('.customer-layout-v2')?.querySelector('.customer-bottom-nav');
+    if (bottomNav && getComputedStyle(bottomNav).display !== 'none' && getComputedStyle(bottomNav).opacity !== '0') {
+      viewportBottom = Math.min(viewportBottom, bottomNav.getBoundingClientRect().top);
+    }
+    const navbar = rootRef.current.closest('.customer-layout-v2')?.querySelector('.customer-navbar');
+    const unobstructedTop = Math.max(viewportTop, navbar?.getBoundingClientRect().bottom || viewportTop);
     const optionHeight = 44;
-    const estimatedMenuHeight = Math.min(320, viewportHeight * 0.52, (options.length * optionHeight) + 12);
-    const spaceBelow = viewportHeight - rect.bottom - gutter;
-    const spaceAbove = rect.top - gutter;
+    const estimatedMenuHeight = Math.min(320, (options.length * optionHeight) + (searchable ? 58 : 12));
+    const spaceBelow = Math.max(0, viewportBottom - rect.bottom - gutter);
+    const spaceAbove = Math.max(0, rect.top - unobstructedTop - gutter);
     const shouldOpenUp = placement === 'top' || (placement === 'auto' && spaceBelow < estimatedMenuHeight && spaceAbove > spaceBelow);
+    // Explicit bottom placement is used in admin controls whose panel must
+    // keep opening below the trigger even when it reaches the viewport edge.
     const availableSpace = placement === 'bottom' ? Math.max(spaceBelow, 320) : (shouldOpenUp ? spaceAbove : spaceBelow);
 
     setMenuPlacement(shouldOpenUp ? 'top' : 'bottom');
-    setMenuMaxHeight(Math.max(96, Math.min(320, availableSpace - gutter)));
+    setMenuMaxHeight(Math.max(0, Math.min(320, availableSpace - gutter)));
   };
 
   const openMenu = () => {
@@ -101,37 +111,61 @@ const CustomSelect = ({
       }
     };
 
-    const repositionMenu = () => updateMenuPlacement();
+    const repositionMenu = () => {
+      const rect = rootRef.current?.getBoundingClientRect();
+      const viewport = window.visualViewport;
+      const visibleTop = viewport?.offsetTop || 0;
+      const visibleBottom = visibleTop + (viewport?.height || window.innerHeight);
+      // Scrolling past an open select must not leave its floating menu over
+      // unrelated fields further up or down the booking form.
+      if (!rect || rect.bottom <= visibleTop || rect.top >= visibleBottom) {
+        setOpen(false);
+        return;
+      }
+      updateMenuPlacement();
+    };
 
     document.addEventListener('pointerdown', closeOnOutsidePointer);
     document.addEventListener('keydown', closeOnEscape);
+    document.addEventListener('scroll', repositionMenu, true);
     window.addEventListener('resize', repositionMenu);
+    window.visualViewport?.addEventListener('resize', repositionMenu);
+    window.visualViewport?.addEventListener('scroll', repositionMenu);
 
     return () => {
       document.removeEventListener('pointerdown', closeOnOutsidePointer);
       document.removeEventListener('keydown', closeOnEscape);
+      document.removeEventListener('scroll', repositionMenu, true);
       window.removeEventListener('resize', repositionMenu);
+      window.visualViewport?.removeEventListener('resize', repositionMenu);
+      window.visualViewport?.removeEventListener('scroll', repositionMenu);
     };
   }, [open, options.length]);
 
-  // Keep the keyboard cursor on screen. Without this the arrow keys move a
-  // highlight the user cannot see the moment a list is longer than the menu —
-  // which the barangay lists are (Quezon City has 142).
+  // Scroll only the list. scrollIntoView also scrolls the page on Android,
+  // moving the trigger and leaving an open menu over unrelated booking fields.
   useEffect(() => {
     if (!open || !menuRef.current) return;
-    // The search box, when present, is the menu's first DOM child, ahead of
-    // the options — shift the lookup past it so the index still lands on the
-    // highlighted option and not the search box itself.
+    const menu = menuRef.current;
     const domIndex = highlightedIndex + (searchable ? 1 : 0);
-    const node = menuRef.current.children[domIndex];
-    node?.scrollIntoView({ block: 'nearest' });
-  }, [open, highlightedIndex, searchable]);
+    const node = menu.children[domIndex];
+    if (!node) return;
+    const menuRect = menu.getBoundingClientRect();
+    const optionRect = node.getBoundingClientRect();
+    const searchHeight = searchable ? menu.firstElementChild?.getBoundingClientRect().height || 0 : 0;
+    if (optionRect.top < menuRect.top + searchHeight) {
+      menu.scrollTop -= menuRect.top + searchHeight - optionRect.top;
+    } else if (optionRect.bottom > menuRect.bottom) {
+      menu.scrollTop += optionRect.bottom - menuRect.bottom;
+    }
+  }, [open, highlightedIndex, searchable, searchQuery]);
 
-  // Auto-focus the search box the moment the menu opens, so the user can
-  // start typing immediately instead of having to click into it first.
+  // On touch devices, focusing here opens the software keyboard and shrinks
+  // the viewport before the customer has chosen to search. Keep the menu
+  // anchored; the customer can tap Search if needed.
   useEffect(() => {
-    if (open && searchable) {
-      searchInputRef.current?.focus();
+    if (open && searchable && !window.matchMedia('(pointer: coarse)').matches) {
+      searchInputRef.current?.focus({ preventScroll: true });
     }
   }, [open, searchable]);
 
@@ -253,7 +287,7 @@ const CustomSelect = ({
           id={listboxId}
           role="listbox"
           aria-label={ariaLabel}
-          style={menuMaxHeight ? { maxHeight: `${menuMaxHeight}px` } : undefined}
+          style={menuMaxHeight !== null ? { maxHeight: `${menuMaxHeight}px` } : undefined}
         >
           {searchable && (
             <div className="custom-select-search">

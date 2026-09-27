@@ -1537,6 +1537,13 @@ input:checked + .toggle-slider:before {
     overflow-x: auto;
   }
 
+  /* The booking form scrolls under the fixed navbar. Keeping its progress
+     strip sticky covers labels and dropdowns while entering long addresses. */
+  .booking-page .step-progress {
+    position: static;
+    overflow: visible;
+  }
+
   .step-progress .step-label {
     display: none;
   }
@@ -2072,7 +2079,7 @@ body:has(input:is([type="text"], [type="search"], [type="password"], [type="emai
    Collapsing it on input focus moves Save between pointerdown and pointerup,
    swallowing the first click. Real keyboard clearance still comes from the
    measured keyboard-open rule in viewport-hardening.css. */
-body.keyboard-active .customer-main:not(:has(.customer-account-page)),
+body.keyboard-active .customer-main:not(:has(.customer-account-page)):not(:has(.booking-page)),
 body.keyboard-active .customer-main:has(.support-chat-page),
 body:has(textarea:focus) .customer-main:has(.support-chat-page) {
   padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px)) ;

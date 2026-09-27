@@ -314,6 +314,10 @@
   .customer-layout-v2 .step-progress {
     top: calc(74px + var(--app-safe-top));
   }
+
+  .customer-layout-v2 .booking-page .step-progress {
+    position: static;
+  }
 }
 
 .app-layout .sidebar {
