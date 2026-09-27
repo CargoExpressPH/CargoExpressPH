@@ -27,10 +27,10 @@ import CancellationSettlementSummary from '../../components/ui/CancellationSettl
 import { ArrowLeft, MapPin, User, Phone, Package, CreditCard, Truck, Camera, Image, XCircle, Loader, AlertTriangle, Check } from 'lucide-react';
 import { useToast } from '../../hooks/useToast';
 import usePageTitle from '../../hooks/usePageTitle';
-import { formatPhDate, formatPhDateTime } from '../../utils/datetime';
+import { formatPhDate, formatPhDateTime, formatPhTime } from '../../utils/datetime';
 import { formatMoney, sanitizeAmount, parseAmount } from '../../utils/currencyInput';
 import { outstandingBalance, finalShippingFee, getSettlementState, isOrderPriced, SETTLEMENT_STATE, ORDER_STATUS, canCancelOrder, hasPendingCancellation, timelineStatus, canEditContactDetails } from '../../constants/status';
-import { formatPaymentType, formatRecordedBy, formatRefundRecordedBy, getPaymentActivityStatusDisplay, formatPaymentMethod as fmtMethod, getCustomerFriendlyNotes, getCustomerVisibleRef, getRefundAmountDisplay } from '../../utils/paymentDisplay';
+import { getOrderPaymentStatusDisplay, formatPaymentType, formatRecordedBy, formatRefundRecordedBy, getPaymentActivityStatusDisplay, formatPaymentMethod as fmtMethod, getCustomerFriendlyNotes, getCustomerVisibleRef, getRefundAmountDisplay } from '../../utils/paymentDisplay';
 import useOrderPaymentRealtime from '../../hooks/useOrderPaymentRealtime';
 import { orderPartyName, orderPartyAddress } from '../../lib/orderParties';
 
@@ -1118,8 +1118,8 @@ const OrderDetailPage = () => {
                 {isOrderPriced(order) && finalShippingFee(order) <= 0 ? (
                   <span className="badge badge-success">No Payment Due</span>
                 ) : (
-                  <span className={`badge ${order.payment_status === 'paid' ? 'badge-success' : order.payment_status === 'partial' ? 'badge-warning' : 'badge-error text-capitalize'}`}>
-                    {order.payment_status || 'unpaid'}
+                  <span className={`badge ${getOrderPaymentStatusDisplay(order.payment_status).badge}`}>
+                    {getOrderPaymentStatusDisplay(order.payment_status).label}
                   </span>
                 )}
               </div>
@@ -1264,7 +1264,7 @@ const OrderDetailPage = () => {
                           <td data-label="Date">
                             <div className="cell-stack">
                               <span>{formatPhDate(tx.created_at)}</span>
-                              <span className="text-tertiary" style={{ fontSize: 'var(--text-12)' }}>{new Date(tx.created_at).toLocaleTimeString('en-PH', {hour: '2-digit', minute:'2-digit'})}</span>
+                              <span className="text-tertiary" style={{ fontSize: 'var(--text-12)' }}>{formatPhTime(tx.created_at)}</span>
                             </div>
                           </td>
                           <td data-label="Type">{formatPaymentType(tx.payment_type)}</td>

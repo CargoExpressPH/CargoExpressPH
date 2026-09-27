@@ -513,7 +513,7 @@ const PerTripSalesPage = () => {
                     <div className="card-header">
                       <div>
                         <h4>Active & completed bookings ({tripSummary.activeBookingCount})</h4>
-                        <p className="text-secondary fs-12 mb-0">Final cargo fees and active balances exclude cancelled bookings.</p>
+                        <p className="text-secondary text-xs mb-0">Final cargo fees and active balances exclude cancelled bookings.</p>
                       </div>
                     </div>
                     {activeRows.length > 0 ? <ActiveBookingsTable rows={activeRows} /> : <EmptyState title="No active or completed bookings" description="This trip has no non-cancelled bookings." className="empty-state-compact" />}
@@ -526,7 +526,7 @@ const PerTripSalesPage = () => {
                       <div className="card-header">
                         <div>
                           <h4>Cancelled bookings ({tripSummary.cancelledBookingCount})</h4>
-                          <p className="text-secondary fs-12 mb-0">Cancelled bookings stay separate. No fee or refund is assumed without a recorded decision.</p>
+                          <p className="text-secondary text-xs mb-0">Cancelled bookings stay separate. No fee or refund is assumed without a recorded decision.</p>
                         </div>
                       </div>
                       <CancelledBookingsTable rows={cancelledRows} />
@@ -539,7 +539,7 @@ const PerTripSalesPage = () => {
             })
           )}
 
-          <p className="per-trip-last-updated text-secondary fs-12 mt-16 no-print">
+          <p className="per-trip-last-updated text-secondary text-xs mt-16 no-print">
             {lastUpdated ? `Last updated ${formatPhDateTime(lastUpdated)}.` : 'Not updated yet.'} Changes are refreshed from the authorized backend view without reloading the page.
           </p>
 

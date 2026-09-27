@@ -61,7 +61,7 @@ const resolveAdminPath = (path) => path
 
 const COMMAND_PALETTE_DESTINATIONS = [
   { label: 'Dashboard', path: '/admin' },
-  { label: 'Orders', path: '/admin/orders' },
+  { label: 'Bookings', path: '/admin/orders' },
   { label: 'Trips', path: '/admin/trips' },
   { label: 'Customers', path: '/admin/customers' },
   { label: 'Sales & Reports', path: '/admin/sales' },

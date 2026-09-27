@@ -117,6 +117,10 @@ export const formatPhDateTime = (value, opts = {}) =>
     hour: 'numeric', minute: '2-digit', ...opts,
   });
 
+/** "6:00 PM" — the PH wall clock, to sit beside a formatPhDate day. */
+export const formatPhTime = (value) =>
+  formatInPH(value, { hour: 'numeric', minute: '2-digit' });
+
 /**
  * { month: 'AUG', day: '11', full: 'August 11, 2026' } for a trip's
  * departure/arrival date badge — shared by the customer Trips page and the

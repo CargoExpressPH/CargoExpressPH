@@ -355,12 +355,12 @@ const CompanyInformationPage = () => {
                   <FieldError name="name" errors={errors} />
                 </div>
                 <div className="form-group">
-                  <label className="form-label" htmlFor="company-short-description">Short Description <span className="text-tertiary" style={{fontWeight: 400}}>(shown in footer and search results)</span></label>
+                  <label className="form-label" htmlFor="company-short-description"><span>Short Description <span className="text-tertiary" style={{fontWeight: 400}}>(shown in footer and search results)</span></span></label>
                   <input id="company-short-description" className="form-input" value={companyInfo.short_description || ''} onChange={e => handleInfoChange('short_description', e.target.value)} placeholder="One-line company description..." maxLength={160} />
                   <span className="form-helper">{(companyInfo.short_description || '').length}/160 characters</span>
                 </div>
                 <div className="form-group mb-0">
-                  <label className="form-label" htmlFor="company-long-description">Company Introduction <span className="text-tertiary" style={{fontWeight: 400}}>(main text on the About Us page)</span></label>
+                  <label className="form-label" htmlFor="company-long-description"><span>Company Introduction <span className="text-tertiary" style={{fontWeight: 400}}>(main text on the About Us page)</span></span></label>
                   <textarea id="company-long-description" className="form-textarea" rows={5} value={companyInfo.long_description || ''} onChange={e => handleInfoChange('long_description', e.target.value)} placeholder="Tell your company's story..." style={{ minHeight: 120 }} />
                 </div>
               </div>

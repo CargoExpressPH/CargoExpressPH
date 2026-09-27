@@ -29,7 +29,7 @@ const toolsNav = [
 
 const systemNav = [
   { to: '/admin/company-info', icon: Building, label: 'Company Information' },
-  { to: '/admin/storage-monitoring', icon: HardDrive, label: 'Photo Monitoring' },
+  { to: '/admin/storage-monitoring', icon: HardDrive, label: 'Photo Storage' },
 ];
 
 const Sidebar = ({ isOpen, onClose, isCollapsed, onToggleCollapse }) => {

@@ -455,14 +455,16 @@ const CustomersPage = () => {
         }
 
         @media (max-width: 680px) {
+          /* Phones: the name keeps the full line and the status drops under
+             it, rather than either being cut ("Ramon Villanu…", "No active booki…"). */
+          .customer-directory-mobile-topline { flex-wrap: wrap; row-gap: 4px; }
+          .customer-directory-mobile-topline .customer-directory-name { flex-basis: 100%; }
         }
 
         @media (max-width: 420px) {
           .customer-directory-mobile { padding: 8px; gap: 8px; }
           .customer-directory-mobile-card { grid-template-columns: 38px minmax(0, 1fr) 18px; gap: 9px; min-height: 92px; padding: 11px; }
           .customer-directory-mobile-card .customer-directory-avatar { width: 38px; height: 38px; flex-basis: 38px; }
-          .customer-directory-mobile-topline { align-items: flex-start; }
-          .customer-directory-mobile-topline .badge { max-width: 104px; overflow: hidden; text-overflow: ellipsis; }
           .customer-directory-mobile-contact { gap: 5px; }
         }
       `}</style>

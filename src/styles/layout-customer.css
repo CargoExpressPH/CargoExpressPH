@@ -559,6 +559,17 @@
   opacity: 0;
 }
 
+/* Tucked away while the customer scrolls down through a list, so it never sits
+   on a card's amount or chevron they are reading; back on the first scroll up.
+   Opacity on the box (the float owns its transform), scale on the disc. */
+.customer-chat-fab.is-tucked {
+  opacity: 0;
+  pointer-events: none;
+}
+.customer-chat-fab.is-tucked .customer-chat-fab-inner {
+  transform: scale(0.6);
+}
+
 /* The keyboard takes the bottom of the screen; the FAB would otherwise sit on
    top of whatever is being typed into. Same rule the bottom nav follows. */
 body.keyboard-active .customer-chat-fab {

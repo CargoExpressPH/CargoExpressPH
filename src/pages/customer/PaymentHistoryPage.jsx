@@ -17,7 +17,7 @@ import usePageTitle from '../../hooks/usePageTitle';
 import { outstandingBalance } from '../../constants/status';
 import {
   formatPaymentType, formatPaymentMethod as fmtMethod, formatRecordedBy, formatRefundRecordedBy,
-  getPaymentActivityStatusDisplay, getCustomerVisibleRef, getCustomerFriendlyNotes,
+  getOrderPaymentStatusDisplay, getPaymentActivityStatusDisplay, getCustomerVisibleRef, getCustomerFriendlyNotes,
   getRefundAmountDisplay, getNetPaymentActivityDisplay,
 } from '../../utils/paymentDisplay';
 
@@ -362,7 +362,7 @@ const PaymentHistoryPage = () => {
                     <div>
                       <div className="fw-700">{order.tracking_number}</div>
                       <div className="text-xs text-tertiary mt-4">
-                        {methodLabel(order.payment_method)} | {order.payment_status || 'unpaid'}
+                        {methodLabel(order.payment_method)} | {getOrderPaymentStatusDisplay(order.payment_status).label}
                         {order.promised_payment_date ? ` | Due ${formatDate(order.promised_payment_date)}` : ''}
                       </div>
                     </div>

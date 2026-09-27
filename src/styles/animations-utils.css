@@ -273,6 +273,7 @@
 .mb-md { margin-bottom: 16px; }
 .mb-lg { margin-bottom: 24px; }
 .truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nowrap { white-space: nowrap; }
 .cursor-pointer { cursor: pointer; }
 .select-none { user-select: none; }
 

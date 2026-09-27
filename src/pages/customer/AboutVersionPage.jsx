@@ -112,6 +112,7 @@ const AboutVersionPage = () => {
 
       {/* ── App identity ──────────────────────────────────────────── */}
       <div className="about-app-identity">
+        <h1 className="sr-only">About &amp; Version</h1>
         <BrandLogo size={84} decorative className="about-app-mark" />
         <BrandWordmark />
         <p className="about-app-tagline">Customer Portal</p>

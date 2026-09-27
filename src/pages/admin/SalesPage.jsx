@@ -149,7 +149,7 @@ const SalesPage = () => {
               <div className="stat-label">Unpaid Amount for Delivered Shipments</div>
             </div>
           </div>
-          <p className="text-secondary fs-12 mb-20">
+          <p className="text-secondary text-xs mb-20">
             Payments after refunds are payments received minus successful refunds. Unpaid totals are the amounts still due on current shipments.
           </p>
 
@@ -161,7 +161,7 @@ const SalesPage = () => {
               </h3>
             </div>
             <div className="card-body p-24">
-              <p className="text-secondary fs-12 mb-16">
+              <p className="text-secondary text-xs mb-16">
                 Each bar shows payments received minus successful refunds for one month this year.
               </p>
               <MiniBarChart

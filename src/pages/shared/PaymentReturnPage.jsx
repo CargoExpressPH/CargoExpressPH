@@ -6,6 +6,8 @@ import {
   getPaymentReturnContext,
 } from '../../lib/paymentReturnContext';
 import usePageTitle from '../../hooks/usePageTitle';
+import { CircleAlert, CircleCheck, Clock } from 'lucide-react';
+import BrandLockup from '../../components/ui/BrandLogo';
 
 const TERMINAL_PHASES = new Set(['confirmed', 'failed', 'invalid']);
 const AUTO_CHECK_DELAYS = [0, 1500, 3000, 5000, 8000, 12000];
@@ -144,38 +146,6 @@ const PaymentReturnPage = () => {
     }
   };
 
-  if (phase === 'confirmed') {
-    return (
-      <main className="loading-screen" aria-live="polite" style={{ padding: 24, textAlign: 'center' }}>
-        <h1 style={{ margin: 0, fontSize: 'var(--text-24)' }}>Thank you for your payment!</h1>
-        <p className="text-secondary" style={{ maxWidth: 360, margin: '12px auto 0' }}>
-          Your payment has been successfully confirmed.
-        </p>
-        <button
-          type="button"
-          onClick={handleClose}
-          style={{
-            marginTop: 20,
-            padding: '10px 24px',
-            background: 'var(--primary)',
-            color: '#fff',
-            border: 'none',
-            borderRadius: 8,
-            fontSize: 16,
-            cursor: 'pointer',
-          }}
-        >
-          {originatingReturnTo ? 'Return to CargoExpress' : 'Close'}
-        </button>
-        {closeFallbackVisible && !originatingReturnTo && (
-          <p className="text-secondary" style={{ maxWidth: 360, margin: '12px auto 0' }}>
-            You may now close this tab and return to the device where you started your payment.
-          </p>
-        )}
-      </main>
-    );
-  }
-
   if (phase === 'verifying') {
     return (
       <main className="loading-screen" aria-live="polite">
@@ -186,41 +156,54 @@ const PaymentReturnPage = () => {
   }
 
   const copy = {
+    confirmed: 'Your payment has been successfully confirmed.',
     processing: 'We are still confirming your payment. Please check again in a few seconds.',
     failed: 'Your payment could not be confirmed. You may close this page.',
     invalid: 'This payment confirmation link is invalid or expired.',
     unavailable: 'Payment verification is temporarily unavailable. Please try again.',
   };
+  const title = {
+    confirmed: 'Thank you for your payment!',
+    failed: 'Payment not confirmed',
+    invalid: 'Payment link unavailable',
+  }[phase] || 'Payment verification';
+  const tone = phase === 'confirmed' ? 'success' : phase === 'failed' || phase === 'invalid' ? 'error' : 'pending';
+  const StatusIcon = tone === 'success' ? CircleCheck : tone === 'error' ? CircleAlert : Clock;
   const canRetry = phase === 'processing' || phase === 'unavailable';
 
   return (
-    <main className="loading-screen" aria-live="polite" style={{ padding: 24, textAlign: 'center' }}>
-      <h1 style={{ margin: 0, fontSize: 'var(--text-24)' }}>
-        {phase === 'failed' ? 'Payment not confirmed' : phase === 'invalid' ? 'Payment link unavailable' : 'Payment verification'}
-      </h1>
-      <p className="text-secondary" style={{ maxWidth: 360, margin: '12px auto 0' }}>
-        {copy[phase] || copy.unavailable}
-      </p>
-      {canRetry && (
-        <button
-          type="button"
-          onClick={checkAgain}
-          disabled={checking}
-          style={{
-            marginTop: 20,
-            padding: '10px 22px',
-            background: 'var(--primary)',
-            color: '#fff',
-            border: 'none',
-            borderRadius: 8,
-            fontSize: 16,
-            cursor: checking ? 'wait' : 'pointer',
-            opacity: checking ? 0.7 : 1,
-          }}
-        >
-          {checking ? 'Checking…' : 'Check again'}
-        </button>
-      )}
+    <main className="payment-return" aria-live="polite">
+      <div className="payment-return-card">
+        <BrandLockup size={32} className="payment-return-brand" />
+        <span className={`payment-return-icon payment-return-icon--${tone}`} aria-hidden="true">
+          <StatusIcon size={30} />
+        </span>
+        <h1 className="payment-return-title">{title}</h1>
+        <p className="payment-return-text">{copy[phase] || copy.unavailable}</p>
+
+        {phase === 'confirmed' && (
+          <button type="button" className="btn btn-primary btn-block" onClick={handleClose}>
+            {originatingReturnTo ? 'Return to CargoExpress' : 'Close'}
+          </button>
+        )}
+        {phase === 'confirmed' && closeFallbackVisible && !originatingReturnTo && (
+          <p className="payment-return-note">
+            You may now close this tab and return to the device where you started your payment.
+          </p>
+        )}
+
+        {canRetry && (
+          <button type="button" className="btn btn-primary btn-block" onClick={checkAgain} disabled={checking} aria-busy={checking}>
+            {checking ? 'Checking…' : 'Check again'}
+          </button>
+        )}
+
+        {/* A plain link, not a session-aware one: "/" already sends a
+            signed-in visitor to their dashboard and a guest to the home page. */}
+        {(phase === 'failed' || phase === 'invalid') && (
+          <a className="btn btn-outline btn-block" href="/">Go to CargoExpress PH</a>
+        )}
+      </div>
     </main>
   );
 };

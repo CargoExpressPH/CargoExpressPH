@@ -137,7 +137,7 @@ const OrdersPage = () => {
           id="customer-orders-search"
           name="qbookings"
           aria-label="Search bookings"
-          placeholder="Search tracking, sender, receiver, destination..."
+          placeholder="Tracking no., name or route"
           value={search}
           onChange={handleSearchChange}
         />

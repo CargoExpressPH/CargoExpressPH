@@ -447,3 +447,11 @@
 }
 
 
+
+/* Two facts in one cell (date over time, amount over note): always stacked.
+   The phone card layout adds its own alignment on top of this. */
+.cell-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}

@@ -129,7 +129,7 @@ const HelpGuidelinesPage = () => {
           <input
             id="help-search"
             className="form-input form-input-icon-left"
-            placeholder="Search tracking, payments, pickup, delivery..."
+            placeholder="Search the FAQs"
             value={search}
             onChange={e => setSearch(e.target.value)}
           />

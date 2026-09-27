@@ -52,7 +52,7 @@ import usePageTitle from '../../hooks/usePageTitle';
 import useOrderPaymentRealtime from '../../hooks/useOrderPaymentRealtime';
 import { formatPhDate, formatPhDateTime } from '../../utils/datetime';
 import { formatMoney } from '../../utils/currencyInput';
-import { truncateRef, isSystemGenerated, getPaymentActivityStatusDisplay, formatRecordedBy as fmtRecordedBy } from '../../utils/paymentDisplay';
+import { getOrderPaymentStatusDisplay, truncateRef, isSystemGenerated, getPaymentActivityStatusDisplay, formatRecordedBy as fmtRecordedBy } from '../../utils/paymentDisplay';
 import { orderPartyName, orderPartyAddress } from '../../lib/orderParties';
 
 const safeFormatDate = (dateStr, options) => {
@@ -878,7 +878,7 @@ const AdminOrderDetailPage = () => {
     <div className="page-transition">
       <Breadcrumb items={[
         { label: 'Dashboard', to: '/admin' },
-        { label: 'Orders', to: '/admin/orders' },
+        { label: 'Bookings', to: '/admin/orders' },
         { label: order.tracking_number },
       ]} />
 
@@ -1503,7 +1503,7 @@ const AdminOrderDetailPage = () => {
               <span className="badge badge-success">No Payment Due (Discount)</span>
             ) : (
               <>
-                {order.payment_status && <span className={`badge ${order.payment_status === 'paid' ? 'badge-success' : order.payment_status === 'partial' ? 'badge-warning' : 'badge-error'} text-capitalize`}>{order.payment_status}</span>}
+                {order.payment_status && <span className={`badge ${getOrderPaymentStatusDisplay(order.payment_status).badge}`}>{getOrderPaymentStatusDisplay(order.payment_status).label}</span>}
                 {settlementState === SETTLEMENT_STATE.SETTLED
                   ? <span className="badge badge-success">Settled</span>
                   : <span className="badge badge-error">{formatMoney(outstandingBalance(order))} Remaining Balance</span>}

@@ -505,9 +505,6 @@ const AdminCreateBookingPage = () => {
                 >
                   <Truck size={22} color={form.origin === r.origin ? 'var(--primary)' : 'var(--text-tertiary)'} className="mx-auto mb-8" />
                   <div className="fw-700" style={{ fontSize: 'var(--text-16)' }}>{r.label}</div>
-                  <div className="text-xs text-tertiary mt-4">
-                    {r.origin} → {r.destination}
-                  </div>
                 </button>
               ))}
             </div>

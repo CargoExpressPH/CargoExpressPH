@@ -9,7 +9,7 @@ import useScrollLock from '../../hooks/useScrollLock';
 
 const COMMANDS = [
   { label: 'Dashboard', to: '/admin', icon: LayoutDashboard, section: 'Navigation', keywords: 'home overview stats' },
-  { label: 'Orders', to: '/admin/orders', icon: Package, section: 'Navigation', keywords: 'shipments bookings packages' },
+  { label: 'Bookings', to: '/admin/orders', icon: Package, section: 'Navigation', keywords: 'orders shipments bookings packages' },
   { label: 'Trips', to: '/admin/trips', icon: Truck, section: 'Navigation', keywords: 'routes vehicles delivery' },
   { label: 'Customers', to: '/admin/customers', icon: Users, section: 'Navigation', keywords: 'clients users accounts' },
   { label: 'Sales & Reports', to: '/admin/sales', icon: BarChart3, section: 'Management', keywords: 'sales reports revenue income payments analytics data export' },
@@ -19,7 +19,7 @@ const COMMANDS = [
   { label: 'Customer Feedback', to: '/admin/feedback', icon: MessageSquare, section: 'Management', keywords: 'feedback testimonials reviews' },
   { label: 'Activity Logs', to: '/admin/activity-logs', icon: ClipboardList, section: 'Management', keywords: 'audit history logs' },
   { label: 'Company Information', to: '/admin/company-info', icon: Building, section: 'System', keywords: 'profile config business coverage settings' },
-  { label: 'Photo Monitoring', to: '/admin/storage-monitoring', icon: HardDrive, section: 'System', keywords: 'storage photos firebase supabase fallback uploads health monitoring email resend activity usage announcements reminders' },
+  { label: 'Photo Storage', to: '/admin/storage-monitoring', icon: HardDrive, section: 'System', keywords: 'storage photos firebase supabase fallback uploads health monitoring email resend activity usage announcements reminders' },
   { label: 'Profile', to: '/admin/profile', icon: User, section: 'System', keywords: 'account admin personal details avatar' },
   { label: 'Change Email', to: '/admin/change-email', icon: Mail, section: 'System', keywords: 'account security email address' },
   { label: 'Change Password', to: '/admin/change-password', icon: KeyRound, section: 'System', keywords: 'account security password credentials' },

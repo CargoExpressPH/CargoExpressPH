@@ -62,6 +62,37 @@ const CustomerLayout = () => {
   const dropdownRef = useRef(null);
   const [unreadCount, setUnreadCount] = useState(0);
   const toast = useToast();
+  const chatFabRef = useRef(null);
+
+  // Tuck the chat bubble away while scrolling down and bring it back on the
+  // first scroll up. A class on the element, not state: scrolling must never
+  // re-render this layout and the page under it.
+  useEffect(() => {
+    let lastY = window.scrollY;
+    let frame = 0;
+    const onScroll = () => {
+      if (frame) return;
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        const y = window.scrollY;
+        const fab = chatFabRef.current;
+        if (fab && Math.abs(y - lastY) > 6) {
+          fab.classList.toggle('is-tucked', y > lastY && y > 120);
+          lastY = y;
+        }
+      });
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      cancelAnimationFrame(frame);
+    };
+  }, []);
+
+  // A new page starts at the top, where the bubble belongs.
+  useEffect(() => {
+    chatFabRef.current?.classList.remove('is-tucked');
+  }, [location.pathname]);
 
   const refreshUnreadCount = useCallback(() => {
     if (!user) return;
@@ -417,6 +448,7 @@ const CustomerLayout = () => {
         // screen conveys what this opens. It names the bot rather than saying
         // "chat" alone, which is what a screen-reader user hears.
         <Link
+          ref={chatFabRef}
           to="/customer/support"
           className="customer-chat-fab"
           aria-label="Ask CargoMate — chat support"

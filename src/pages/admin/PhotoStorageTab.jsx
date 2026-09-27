@@ -984,7 +984,7 @@ const CompanyImagesBrowser = ({ onFilesChanged }) => {
  * Top level — storage usage card + bucket selector + chosen browser
  * ==========================================================================*/
 const PhotoStorageTab = () => {
-  usePageTitle('Photo Monitoring — Photo Storage');
+  usePageTitle('Photo Storage');
 
   const [overviewLoading, setOverviewLoading] = useState(true);
   const [health, setHealth] = useState(null);

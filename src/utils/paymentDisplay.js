@@ -122,6 +122,19 @@ export const getCustomerFriendlyNotes = (notes, adminName) => {
 };
 
 /**
+ * Label and badge class for an order's own payment_status column
+ * ('paid' | 'partial' | 'unpaid'), as shown on the order detail pages.
+ * @param {string} status
+ * @returns {{ label: string, badge: string }}
+ */
+export const getOrderPaymentStatusDisplay = (status) => {
+  const s = (status || 'unpaid').toLowerCase();
+  if (s === 'paid') return { label: 'Paid', badge: 'badge-success' };
+  if (s === 'partial') return { label: 'Partly Paid', badge: 'badge-warning' };
+  return { label: 'Unpaid', badge: 'badge-error' };
+};
+
+/**
  * Get a clean customer-facing payment status label and tone.
  * @param {string} status - Raw payment_status from DB
  * @returns {{ label: string, tone: string }}

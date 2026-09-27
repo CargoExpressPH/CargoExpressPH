@@ -750,7 +750,7 @@ const AboutPage = () => {
           transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
         >
           <div className="about-hero-badge">
-            Trusted Logistics Partner
+            Manila ⇄ Bohol Cargo
           </div>
           <h2 className="about-hero-heading">
             {info?.banner_title || 'Deliveries Made Simple.'}
@@ -1326,7 +1326,7 @@ const AboutPage = () => {
               <div className="about-contact-info">
                 <h2 className="about-contact-heading">Get in Touch.</h2>
                 <p className="about-contact-subtext">
-                  Have questions about our services? Need a quote? Our team is ready to assist you 24/7.
+                  Questions about a shipment, or need a quote? Call, email, or send us a message below.
                 </p>
 
                 <div className="about-contact-blocks">

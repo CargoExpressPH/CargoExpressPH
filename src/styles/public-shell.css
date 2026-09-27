@@ -135,3 +135,55 @@
     display: none;
   }
 }
+
+/* ── Payment result (/payment/return) ─────────────────────────────────────
+   One card for every outcome — confirmed, failed, invalid, still checking —
+   in the same shape as the other public result pages (reset link, unsubscribe). */
+.payment-return {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 24px 16px;
+  background: var(--bg);
+}
+.payment-return-card {
+  width: 100%;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 32px 24px 28px;
+  text-align: center;
+  background: var(--surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+}
+.payment-return-brand { margin-bottom: 8px; }
+.payment-return-icon {
+  display: grid;
+  place-items: center;
+  width: 60px;
+  height: 60px;
+  border-radius: 999px;
+}
+.payment-return-icon--success { background: var(--success-bg); color: var(--success-text); }
+.payment-return-icon--error { background: var(--error-bg); color: var(--error-text-strong); }
+.payment-return-icon--pending { background: var(--warning-bg); color: var(--warning-text); }
+.payment-return-title {
+  margin: 4px 0 0;
+  font-size: var(--text-24);
+  line-height: 1.25;
+  color: var(--text);
+}
+.payment-return-text,
+.payment-return-note {
+  margin: 0 0 8px;
+  max-width: 34ch;
+  color: var(--text-secondary);
+  line-height: 1.55;
+}
+.payment-return-note { margin: 4px 0 0; font-size: var(--text-14); }
+

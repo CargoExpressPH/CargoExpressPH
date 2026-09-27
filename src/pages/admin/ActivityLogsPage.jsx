@@ -242,15 +242,15 @@ const ActivityLogsPage = () => {
         { label: 'Activity Logs' },
       ]} />
 
-      <div className="flex items-center justify-between mb-8 flex-wrap gap-12">
+      <div className="admin-page-header">
         <div>
           <h1 className="admin-page-title">
             <ClipboardList size={24} color="var(--primary)" aria-hidden="true" />
             Activity Logs
           </h1>
-          <p className="text-secondary text-sm mt-4">Audit trail of system actions — logs are kept for 7 days, older entries are deleted automatically</p>
+          <p className="admin-page-subtitle">Audit trail of system actions. Logs are kept for 7 days, then deleted automatically.</p>
         </div>
-        <div className="flex items-center gap-8">
+        <div className="admin-page-meta">
           <span className={`activity-logs-live-status activity-logs-live-status--${liveStatus}`} role="status" aria-live="polite">
             <span className="activity-logs-live-dot" aria-hidden="true" />
             {liveStatus === 'live' ? 'Live updates' : liveStatus === 'offline' ? 'Offline' : 'Connecting'}

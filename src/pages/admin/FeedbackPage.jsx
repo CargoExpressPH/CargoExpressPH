@@ -58,10 +58,10 @@ const FeedbackPage = () => {
 
   return (
     <div className="page-transition">
-      <div className="flex justify-between items-center mb-24 flex-wrap" style={{ gap: 12 }}>
+      <div className="admin-page-header">
         <div>
           <h1 className="admin-page-title"><MessageSquare size={24} color="var(--primary)" aria-hidden="true" />Customer Feedback</h1>
-          <p className="page-subtitle mt-4">Manage reviews and delivery feedback from customers</p>
+          <p className="admin-page-subtitle">Reviews customers left after delivery. Hidden reviews stay off the public website.</p>
         </div>
       </div>
 
@@ -77,7 +77,7 @@ const FeedbackPage = () => {
                 className="form-input"
                 aria-label="Search feedback"
                 style={{ paddingLeft: 48 }}
-                placeholder="Search by customer, message, or tracking number..."
+                placeholder="Name, message, tracking no."
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
               />
@@ -121,7 +121,7 @@ const FeedbackPage = () => {
                 <div>
                   <div style={{ fontWeight: 700, fontSize: 'var(--text-18)' }}>{fb.profiles?.name || 'Unknown Customer'}</div>
                   <div className="text-tertiary" style={{fontSize: 'var(--text-14)'}}>
-                    {fb.profiles?.email} • Order {fb.orders?.tracking_number}
+                    {fb.profiles?.email} • <span className="nowrap">Order {fb.orders?.tracking_number}</span>
                   </div>
                 </div>
                 

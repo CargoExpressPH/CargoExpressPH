@@ -208,7 +208,7 @@ const ReportsPage = () => {
                   <div className="stat-label">Cargo Fees for Delivered Shipments</div>
                 </div>
               </div>
-              <p className="text-secondary fs-12 mb-20">
+              <p className="text-secondary text-xs mb-20">
                 Payments received, money returned, and payments after refunds use events recorded within your selected dates. Money returned includes successful refunds only. Cargo fees are the current fees for shipments delivered during those dates, not payments received.
               </p>
 
@@ -289,7 +289,7 @@ const ReportsPage = () => {
                         <tbody>
                           {data.methodTotals?.map((mt, idx) => (
                             <tr key={idx}>
-                              <td data-label="How Customers Paid" className="text-capitalize">{mt.method} <span className="text-secondary fs-12">({mt.payment_count} payment{mt.payment_count === 1 ? '' : 's'})</span></td>
+                              <td data-label="How Customers Paid" className="text-capitalize">{mt.method} <span className="text-secondary text-xs">({mt.payment_count} payment{mt.payment_count === 1 ? '' : 's'})</span></td>
                               <td data-label="Payments Received" className="text-right fw-500 text-info">{formatCurrency(mt.gross)}</td>
                               <td data-label="Money Returned" className="text-right fw-500 text-warning">{formatCurrency(mt.refunds)}</td>
                               <td data-label="Payments After Refunds" className="text-right fw-600 text-success">{formatCurrency(mt.net)}</td>
@@ -317,7 +317,7 @@ const ReportsPage = () => {
                   <span className="badge badge-primary">{data.completedDeliveries?.length || 0} shipments</span>
                 </div>
                 <div className="card-body p-0">
-                  <p className="text-secondary fs-12" style={{ padding: '0 16px 12px' }}>
+                  <p className="text-secondary text-xs" style={{ padding: '0 16px 12px' }}>
                     Payments and refunds above were recorded within the selected dates. Below are each delivered shipment's current cargo fee, amount paid, and amount still unpaid as of {formatDateTime(data.generatedAt)}. These amounts are not payments received and do not need to add up to the payment totals above.
                   </p>
                   <div className="table-responsive">
@@ -340,10 +340,10 @@ const ReportsPage = () => {
                             <td className="fw-600 text-primary">{order.tracking_number}</td>
                             <td>
                               <div className="fw-500">{order.sender_name}</div>
-                              <div className="text-secondary fs-12">to {order.receiver_name}</div>
+                              <div className="text-secondary text-xs">to {order.receiver_name}</div>
                             </td>
                             <td>
-                              <div className="flex items-center gap-4 text-secondary fs-13">
+                              <div className="flex items-center gap-4 text-secondary text-sm">
                                 {order.origin} <ArrowRight size={12} /> {order.destination}
                               </div>
                             </td>
