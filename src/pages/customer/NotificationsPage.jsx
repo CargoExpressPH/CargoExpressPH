@@ -5,7 +5,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { getNotifications, getUnreadNotificationCount, getAnnouncementById, markNotificationRead, markAllNotificationsRead, deleteNotification, deleteAllNotifications } from '../../lib/database';
 import {
-  AlertTriangle, Bell, CheckCheck, ChevronDown, Clock, Loader, Mail,
+  AlertTriangle, Bell, CheckCheck, ChevronDown, Loader, Mail,
   Megaphone, MessageSquare, Package, ReceiptText, RefreshCw, Star, Trash2,
   Truck, X,
 } from 'lucide-react';
@@ -15,9 +15,8 @@ import { CenteredSpinner } from '../../components/ui/Loader';
 import FocusTrap from '../../components/ui/FocusTrap';
 import usePageTitle from '../../hooks/usePageTitle';
 import PullToRefresh from '../../components/ui/PullToRefresh';
-import { getAnnouncementCategoryInfo } from '../../lib/announcements';
 import { getCustomerNotificationRoute } from '../../lib/notification-routing';
-import AnnouncementComments from '../../components/ui/AnnouncementComments';
+import AnnouncementModal from '../../components/ui/AnnouncementModal';
 
 const iconMap = {
   order_update: Package,
@@ -184,103 +183,6 @@ const SwipeableNotificationCard = ({ notification, onRead, onDelete, onClick, in
         </button>
       </div>
     </div>
-  );
-};
-
-// ── Announcement detail modal ──────────────────────────────────────────────
-/**
- * The full announcement, opened from its notification.
- *
- * The notification itself only carries the announcement's TITLE — the fan-out
- * in createAnnouncement writes `message: announcement.title` — so the body has
- * to be fetched by `reference_id`. Until it lands, the title the notification
- * already holds is shown, so the modal opens with content rather than with a
- * spinner in an empty frame.
- *
- * `reference_id` carries no foreign key to announcements, so the row can be
- * gone while the notification survives. That is a real state, not an error:
- * the modal falls back to what the notification itself says and tells the
- * customer the rest is no longer available, rather than showing an empty body.
- */
-const AnnouncementModal = ({ open, notification, announcement, loading, failed, onClose, onCommentsChange }) => {
-  useEffect(() => {
-    if (!open) return undefined;
-    const onEscape = (e) => { if (e.key === 'Escape') onClose(); };
-    document.addEventListener('keydown', onEscape);
-    return () => document.removeEventListener('keydown', onEscape);
-  }, [open, onClose]);
-
-  if (!open || !notification) return null;
-
-  // The announcement is the better source for both; the notification is the
-  // fallback that is always present.
-  const title = announcement?.title || notification.message || notification.title;
-  const postedAt = announcement?.created_at || notification.created_at;
-  const category = getAnnouncementCategoryInfo(announcement || { title, content: '' });
-  const CategoryIcon = category.icon;
-
-  return createPortal(
-    <FocusTrap active={open}>
-      <div
-        className="notification-modal-overlay"
-        onClick={onClose}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="announcement-modal-title"
-      >
-        <div className="notification-modal announcement-modal" onClick={e => e.stopPropagation()}>
-          <button className="notification-modal-close" type="button" onClick={onClose} aria-label="Close announcement">
-            <X size={18} />
-          </button>
-
-          <span
-            className="announcement-modal-category"
-            style={{ background: category.badgeBg, color: category.badgeColor }}
-          >
-            <CategoryIcon size={13} aria-hidden="true" />
-            {category.label}
-          </span>
-
-          <h3 id="announcement-modal-title" className="announcement-modal-title">{title}</h3>
-
-          <div className="announcement-modal-meta">
-            <Clock size={13} aria-hidden="true" />
-            {new Date(postedAt).toLocaleDateString('en-PH', {
-              month: 'long', day: 'numeric', year: 'numeric',
-            })}
-          </div>
-
-          <div className="announcement-modal-body">
-            {loading && (
-              <p className="announcement-modal-loading">
-                <Loader size={15} className="animate-spin" aria-hidden="true" /> Loading the full announcement…
-              </p>
-            )}
-            {!loading && announcement?.content && (
-              <p className="announcement-modal-content">{announcement.content}</p>
-            )}
-            {!loading && !announcement?.content && (
-              <p className="announcement-modal-missing">
-                The full text of this announcement is no longer available.
-                {failed ? ' Please check your connection and try again.' : ''}
-              </p>
-            )}
-
-            {/* Only once the row itself is in hand: without an announcement id
-                there is nothing to comment on, and a composer over a
-                notification whose announcement is gone would fail on submit. */}
-            {!loading && announcement?.id && (
-              <AnnouncementComments
-                announcementId={announcement.id}
-                comments={announcement.comments}
-                onCommentsChange={onCommentsChange}
-              />
-            )}
-          </div>
-        </div>
-      </div>
-    </FocusTrap>,
-    document.body
   );
 };
 
@@ -627,9 +529,10 @@ const NotificationsPage = () => {
       )}
 
       <AnnouncementModal
-        open={announcementModal.open}
-        notification={announcementModal.notification}
+        open={announcementModal.open && Boolean(announcementModal.notification)}
         announcement={announcementModal.announcement}
+        fallbackTitle={announcementModal.notification?.message || announcementModal.notification?.title}
+        fallbackDate={announcementModal.notification?.created_at}
         loading={announcementModal.loading}
         failed={announcementModal.failed}
         onClose={closeAnnouncementModal}

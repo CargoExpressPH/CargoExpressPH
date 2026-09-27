@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../hooks/useToast';
@@ -11,20 +11,26 @@ import EmptyState from '../../components/ui/EmptyState';
 import PageTransition, { StaggerItem } from '../../components/ui/PageTransition';
 import PullToRefresh from '../../components/ui/PullToRefresh';
 import {
-  Package, Search, Plus, ArrowRight,
+  Package, Search, ArrowRight,
   Container, MapPin, Calendar, Weight, ChevronRight,
-  Truck, CheckCircle, Zap, AlertTriangle, Bell, Megaphone, Clock,
+  Truck, CheckCircle, Megaphone, Clock, MessageSquare,
   Sun, CloudSun, Moon, LayoutDashboard, Wallet,
 } from 'lucide-react';
 import usePageTitle from '../../hooks/usePageTitle';
 import { formatMoney } from '../../utils/currencyInput';
-import { getAnnouncementCategoryInfo } from '../../lib/announcements';
-import AnnouncementComments from '../../components/ui/AnnouncementComments';
+import { announcementDisplayTitle, getAnnouncementCategoryInfo } from '../../lib/announcements';
+import AnnouncementModal from '../../components/ui/AnnouncementModal';
 import { formatPhDate } from '../../utils/datetime';
 import { isOrderPriced } from '../../constants/status';
 import { isScheduledTripOverdue } from '../../lib/tripCapacitySelection';
 import useRealtimeTripCapacity from '../../hooks/useRealtimeTripCapacity';
 import { orderPartyName } from '../../lib/orderParties';
+
+// Announcements are a compact list on Home; the full text and the comment
+// thread open in a modal. Three show at first, up to five on request — the
+// five the feed has always offered.
+const NEWS_INITIAL = 3;
+const NEWS_MAX = 5;
 
 const HomePage = () => {
   usePageTitle('Home');
@@ -38,6 +44,8 @@ const HomePage = () => {
   const [capacityError, setCapacityError] = useState(null);
   const [trackingSearch, setTrackingSearch] = useState('');
   const [loading, setLoading]         = useState(true);
+  const [showAllNews, setShowAllNews] = useState(false);
+  const [openAnnouncementId, setOpenAnnouncementId] = useState(null);
   const homeLoadSequence = useRef(0);
   const capacityRequestSequence = useRef(0);
   const isMountedRef = useRef(false);
@@ -135,6 +143,17 @@ const HomePage = () => {
     });
   };
 
+  // The modal reads the announcement out of the list, so a comment posted in
+  // it updates the count on the card behind it, and a refresh that drops the
+  // announcement closes the modal instead of leaving an empty one open.
+  const openAnnouncement = openAnnouncementId
+    ? announcements.find(a => a.id === openAnnouncementId) || null
+    : null;
+  const closeAnnouncement = useCallback(() => setOpenAnnouncementId(null), []);
+  const handleAnnouncementComments = useCallback((comments) => {
+    setAnnouncements(prev => prev.map(item => (item.id === openAnnouncementId ? { ...item, comments } : item)));
+  }, [openAnnouncementId]);
+
   const totalCapacity = Number(activeTrip?.capacity) || 0;
   const currentWeight = Number(activeTrip?.current_weight) || 0;
   const availableSlots = activeTrip ? Math.max(0, totalCapacity - currentWeight) : 0;
@@ -145,9 +164,28 @@ const HomePage = () => {
   const greetingInfo = getGreetingData();
   const GreetingIcon = greetingInfo.icon;
 
+  // One line under the name that says where things stand, in place of a
+  // slogan. The generic line stays until the bookings have loaded so the
+  // hero never claims "no shipments" before it knows.
+  const heroStatus = loading
+    ? 'Track and manage your shipments with ease.'
+    : activeOrders.length > 0
+      ? `You have ${activeOrders.length} active shipment${activeOrders.length === 1 ? '' : 's'}.`
+      : orders.length > 0
+        ? 'No active shipments right now.'
+        : 'Book your first shipment or track a package below.';
+
+  const newsShown = announcements.slice(0, showAllNews ? NEWS_MAX : NEWS_INITIAL);
+  const newsHidden = Math.min(announcements.length, NEWS_MAX) - NEWS_INITIAL;
+
+  // Classes, not CSS :has(), decide the wide layout: iOS before 15.4 has no
+  // :has(), and an iPad on it would otherwise never get the two columns.
+  const hasMainColumn = !loading && (activeOrders.length > 0 || (orders.length === 0 && !activeTrip));
+  const hasNews = announcements.length > 0;
+
   return (
     <PullToRefresh onRefresh={loadData}>
-      <PageTransition className="customer-home-page">
+      <PageTransition className={`customer-home-page${hasMainColumn ? ' home-split' : ''}`}>
 
       {/* ── Hero ─────────────────────────────────────────────────── */}
       <div className={`hero customer-home-hero hero-${greetingInfo.period} animate-slide-up`}>
@@ -156,7 +194,7 @@ const HomePage = () => {
           {greetingInfo.text},
         </span>
         <h1>{userProfile?.name || (user?.email?.split('@')[0]) || 'Welcome'}</h1>
-        <p className="mt-8">Track and manage your shipments with ease.</p>
+        <p className="mt-8">{heroStatus}</p>
         {orders.length >= 50 && (
           <span className="text-xs text-tertiary">Showing your latest 50 bookings — older shipments live in Bookings.</span>
         )}
@@ -174,12 +212,12 @@ const HomePage = () => {
               className="hero-search-input"
             />
           </div>
-          <button
-            type="submit"
-            className="btn btn-primary flex-shrink-0"
-            style={{ borderRadius: 10 }}
-          >
-            Track
+          {/* The label stays in the DOM at every width; on phones it is
+              visually hidden and the arrow stands in, so the field keeps the
+              row instead of the button taking a line of its own. */}
+          <button type="submit" className="btn btn-primary flex-shrink-0 customer-track-btn">
+            <span className="customer-track-btn-label">Track</span>
+            <ArrowRight size={18} aria-hidden="true" className="customer-track-btn-icon" />
           </button>
         </form>
       </div>
@@ -204,10 +242,12 @@ const HomePage = () => {
 
       {!loading && (
         <StaggerItem delay={30}>
-          <h3 className="customer-section-title fw-700 mb-12 flex items-center gap-8">
-            <LayoutDashboard size={18} color="var(--primary)" /> Overview
-          </h3>
-          <div className="customer-home-snapshot" style={{ marginTop: 0 }}>
+          <div className="home-section-head">
+            <h2 className="customer-section-title fw-700 flex items-center gap-8">
+              <LayoutDashboard size={18} aria-hidden="true" /> Overview
+            </h2>
+          </div>
+          <div className="customer-home-snapshot">
             <Link to="/customer/orders" className="customer-snapshot-pill stat-total">
               <div className="customer-snapshot-icon-chip chip-purple">
                 <Package size={16} />
@@ -247,185 +287,191 @@ const HomePage = () => {
       {/* ── Loading State ─────────────────────────────────────── */}
       {loading && <CenteredSpinner />}
 
-      {/* ── Earliest scheduled / ongoing trip capacity summary ───── */}
-      {!loading && (capacityError ? (
-        <StaggerItem delay={0} className="home-col-trip">
-          <div className="card admin-section-card" role="alert" style={{ padding: 20 }}>
-            <h3 className="fw-700 mb-8">Trip capacity unavailable</h3>
-            <p className="text-sm text-secondary mb-12">{capacityError}</p>
-            <button type="button" className="btn btn-outline btn-sm" onClick={refreshCapacity}>Retry</button>
-          </div>
-        </StaggerItem>
-      ) : capacityLoading && !activeTrip ? (
-        <CenteredSpinner />
-      ) : activeTrip ? (
-        <StaggerItem delay={0} className="home-col-trip">
-          <h3 className="customer-section-title fw-700 mb-12 flex items-center gap-8">
-            <Truck size={18} color="var(--primary)" />
-            {activeTripOverdue ? 'Overdue Trip Capacity' : activeTrip.status === 'in_progress' ? 'Ongoing Trip Capacity' : activeTrip.status === 'arrived' ? 'Trip at Destination Hub' : 'Next Scheduled Trip Capacity'}
-          </h3>
-          {/* Same surface language as shipment / snapshot cards (theme-aware panel). */}
-          <div className="home-hero-trip-card">
-            {/* Trip badge */}
-            <div className="flex items-center justify-between mb-md">
-              <StatusBadge status={activeTrip.status} />
-              <span className="home-trip-badge-num">
-                {activeTrip.trip_number}
-              </span>
-            </div>
-
-            {/* Route, with the day it leaves */}
-            <div className="home-trip-route mb-md">
-              <div className="home-trip-route-title">
-                {activeTrip.origin} <ArrowRight size={18} aria-hidden="true" className="home-trip-route-arrow" /> {activeTrip.destination}
+      {!loading && (
+        <div className={`home-col-side${hasNews ? ' has-news' : ''}`}>
+          {/* ── Earliest scheduled / ongoing trip capacity summary ───── */}
+          {capacityError ? (
+            <StaggerItem delay={0} className="home-trip-block">
+              <div className="card admin-section-card home-trip-error" role="alert">
+                <h2 className="home-trip-error-title fw-700 mb-8">Trip capacity unavailable</h2>
+                <p className="text-sm text-secondary mb-12">{capacityError}</p>
+                <button type="button" className="btn btn-outline btn-sm" onClick={refreshCapacity}>Retry</button>
               </div>
-              <div className="home-trip-route-when"><Calendar size={14} aria-hidden="true" /> {formatPhDate(activeTrip.departure_date, { weekday: 'short', month: 'short' })}</div>
-            </div>
-
-            {/* Dates + Capacity row */}
-            <div className="home-trip-metrics-grid">
-              <div className="home-trip-metric-box">
-                <div className="flex items-center gap-6 mb-4">
-                  <Clock size={13} opacity={0.7} />
-                  <span className="home-trip-metric-lbl">Estimated delivery</span>
-                </div>
-                <div className="home-trip-metric-val">{fmtDate(activeTrip.arrival_date)}</div>
+            </StaggerItem>
+          ) : capacityLoading && !activeTrip ? (
+            <CenteredSpinner />
+          ) : activeTrip ? (
+            <StaggerItem delay={0} className="home-trip-block">
+              <div className="home-section-head">
+                <h2 className="customer-section-title fw-700 flex items-center gap-8">
+                  <Truck size={18} aria-hidden="true" />
+                  {activeTripOverdue ? 'Overdue Trip Capacity' : activeTrip.status === 'in_progress' ? 'Ongoing Trip Capacity' : activeTrip.status === 'arrived' ? 'Trip at Destination Hub' : 'Next Scheduled Trip Capacity'}
+                </h2>
               </div>
-              <div className="home-trip-metric-box">
-                <div className="flex items-center gap-6 mb-4">
-                  <Weight size={13} opacity={0.7} />
-                  <span className="home-trip-metric-lbl">{activeTripCanBook ? 'Available space' : 'Remaining physical space'}</span>
-                </div>
-                <div className="home-trip-metric-val font-bold text-success">
-                  {availableSlots > 0 ? `${Math.round(availableSlots).toLocaleString()} kg` : 'Full'}
-                </div>
-              </div>
-            </div>
-
-            {activeTripOverdue && (
-              <div className="alert-banner alert-banner-warning mb-12" role="status">
-                Overdue — Reschedule Required. This trip can’t accept new bookings until it is rescheduled.
-              </div>
-            )}
-            {activeTrip.status === 'in_progress' && (
-              <div className="text-xs text-secondary mb-12" role="status">
-                This is the ongoing trip. Remaining space does not mean new bookings are open.
-              </div>
-            )}
-            {activeTrip.status === 'arrived' && (
-              <div className="text-xs text-secondary mb-12" role="status">
-                This trip has arrived at the destination hub and is awaiting completion. New bookings are closed.
-              </div>
-            )}
-
-            {/* Live Capacity Progress Strip */}
-            {totalCapacity > 0 && (
-              <div className="home-trip-capacity-strip mb-16">
-                <div className="flex items-center justify-between text-xs mb-6">
-                  <span className="home-trip-capacity-lbl font-semibold">
-                    Trip Load ({bookedPct}% booked)
-                  </span>
-                  <span className="home-trip-capacity-pct font-bold" style={{ color: availableSlots > 0 ? '#10b981' : '#ef4444' }}>
-                    {availableSlots > 0
-                      ? `${Math.round(availableSlots).toLocaleString()} kg ${activeTripCanBook ? 'Available' : 'Remaining'}`
-                      : 'Fully Booked'}
+              {/* Same surface language as shipment / snapshot cards (theme-aware panel). */}
+              <div className="home-hero-trip-card">
+                {/* Trip badge */}
+                <div className="flex items-center justify-between mb-md">
+                  <StatusBadge status={activeTrip.status} />
+                  <span className="home-trip-badge-num">
+                    {activeTrip.trip_number}
                   </span>
                 </div>
-                <div className="home-trip-progress-track">
-                  <div
-                    className="home-trip-progress-bar"
-                    style={{ width: `${bookedPct}%` }}
-                  />
+
+                {/* Route, with the day it leaves */}
+                <div className="home-trip-route mb-md">
+                  <div className="home-trip-route-title">
+                    {activeTrip.origin} <ArrowRight size={18} aria-hidden="true" className="home-trip-route-arrow" /> {activeTrip.destination}
+                  </div>
+                  <div className="home-trip-route-when"><Calendar size={14} aria-hidden="true" /> {formatPhDate(activeTrip.departure_date, { weekday: 'short', month: 'short' })}</div>
                 </div>
-              </div>
-            )}
 
-            {/* Book Cargo CTA */}
-            {activeTripCanBook && (
-              <button
-                type="button"
-                onClick={() => handleBookFromTrip(activeTrip)}
-                className="home-trip-cta"
-              >
-                <Package size={18} /> Book this trip{activeTrip.price_per_kg ? ` · ${formatMoney(parseFloat(activeTrip.price_per_kg))}/kg` : ''}
-                <ChevronRight size={16} />
-              </button>
-            )}
-          </div>
-        </StaggerItem>
-      ) : (
-        <StaggerItem delay={0} className="home-col-trip">
-          <EmptyState
-            icon={Truck}
-            title="No scheduled or ongoing trip available."
-            description="A trip summary will appear here when a trip is scheduled or underway."
-          />
-        </StaggerItem>
-      ))}
-
-      {/* ── Announcements ────────────────────────────────────────── */}
-      {!loading && announcements.length > 0 && (
-        <StaggerItem delay={60}>
-          <div className="flex items-center justify-between mb-md">
-            <h3 className="customer-section-title fw-700 flex items-center gap-8"><Megaphone size={18} color="var(--primary)" /> Announcements</h3>
-            <span className="text-xs text-tertiary fw-600">{Math.min(announcements.length, 5)} Latest</span>
-          </div>
-          {announcements.slice(0, 5).map((a, index) => {
-            const cat = getAnnouncementCategoryInfo(a);
-            const CatIcon = cat.icon;
-            return (
-              <StaggerItem key={a.id} className="mb-12" delay={(index + 2) * 60}>
-                <div
-                  className="card customer-announcement-card"
-                  style={{
-                    transition: 'transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease',
-                  }}
-                >
-                  <div className="card-body p-16">
-                    <div className="flex items-center justify-between gap-8 mb-8">
-                      <span
-                        className="inline-flex items-center gap-6 px-8 py-2 rounded-full fw-700 text-uppercase"
-                        style={{
-                          fontSize: 'var(--text-12)',
-                          letterSpacing: '0.04em',
-                          background: cat.badgeBg,
-                          color: cat.badgeColor,
-                        }}
-                      >
-                        <CatIcon size={12} />
-                        {cat.label}
-                      </span>
-                      <span className="inline-flex items-center gap-4 text-xs text-tertiary">
-                        <Clock size={12} />
-                        {new Date(a.created_at).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })}
-                      </span>
+                {/* Dates + Capacity row */}
+                <div className="home-trip-metrics-grid">
+                  <div className="home-trip-metric-box">
+                    <div className="flex items-center gap-6 mb-4">
+                      <Clock size={13} opacity={0.7} />
+                      <span className="home-trip-metric-lbl">Estimated delivery</span>
                     </div>
-                    <div className="fw-700 text-base mb-6" style={{ color: 'var(--text)', lineHeight: 1.35 }}>
-                      {a.title}
+                    <div className="home-trip-metric-val">{fmtDate(activeTrip.arrival_date)}</div>
+                  </div>
+                  <div className="home-trip-metric-box">
+                    <div className="flex items-center gap-6 mb-4">
+                      <Weight size={13} opacity={0.7} />
+                      <span className="home-trip-metric-lbl">{activeTripCanBook ? 'Available space' : 'Remaining physical space'}</span>
                     </div>
-                    <div className="text-sm text-secondary" style={{ lineHeight: 1.5 }}>
-                      {a.content}
+                    <div className="home-trip-metric-val font-bold text-success">
+                      {availableSlots > 0 ? `${Math.round(availableSlots).toLocaleString()} kg` : 'Full'}
                     </div>
-                    <AnnouncementComments
-                      announcementId={a.id}
-                      comments={a.comments}
-                      onCommentsChange={comments => setAnnouncements(prev =>
-                        prev.map(item => (item.id === a.id ? { ...item, comments } : item))
-                      )}
-                    />
                   </div>
                 </div>
-              </StaggerItem>
-            );
-          })}
-        </StaggerItem>
+
+                {activeTripOverdue && (
+                  <div className="alert-banner alert-banner-warning mb-12" role="status">
+                    Overdue — Reschedule Required. This trip can’t accept new bookings until it is rescheduled.
+                  </div>
+                )}
+                {activeTrip.status === 'in_progress' && (
+                  <div className="text-xs text-secondary mb-12" role="status">
+                    This is the ongoing trip. Remaining space does not mean new bookings are open.
+                  </div>
+                )}
+                {activeTrip.status === 'arrived' && (
+                  <div className="text-xs text-secondary mb-12" role="status">
+                    This trip has arrived at the destination hub and is awaiting completion. New bookings are closed.
+                  </div>
+                )}
+
+                {/* Live Capacity Progress Strip */}
+                {totalCapacity > 0 && (
+                  <div className="home-trip-capacity-strip mb-16">
+                    <div className="flex items-center justify-between text-xs mb-6">
+                      <span className="home-trip-capacity-lbl font-semibold">
+                        Trip Load ({bookedPct}% booked)
+                      </span>
+                      <span className={`home-trip-capacity-pct font-bold${availableSlots > 0 ? '' : ' is-full'}`}>
+                        {availableSlots > 0
+                          ? `${Math.round(availableSlots).toLocaleString()} kg ${activeTripCanBook ? 'Available' : 'Remaining'}`
+                          : 'Fully Booked'}
+                      </span>
+                    </div>
+                    <div className="home-trip-progress-track">
+                      <div
+                        className="home-trip-progress-bar"
+                        style={{ width: `${bookedPct}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Book Cargo CTA */}
+                {activeTripCanBook && (
+                  <button
+                    type="button"
+                    onClick={() => handleBookFromTrip(activeTrip)}
+                    className="home-trip-cta"
+                  >
+                    <Package size={18} /> Book this trip{activeTrip.price_per_kg ? ` · ${formatMoney(parseFloat(activeTrip.price_per_kg))}/kg` : ''}
+                    <ChevronRight size={16} />
+                  </button>
+                )}
+              </div>
+            </StaggerItem>
+          ) : (
+            <StaggerItem delay={0} className="home-trip-block">
+              <EmptyState
+                icon={Truck}
+                title="No scheduled or ongoing trip available."
+                description="A trip summary will appear here when a trip is scheduled or underway."
+              />
+            </StaggerItem>
+          )}
+
+          {/* ── Announcements ──────────────────────────────────────
+              A short list to scan. The full text and the comment thread open
+              in AnnouncementModal, the same one a notification opens. */}
+          {hasNews && (
+            <StaggerItem delay={60} className="home-news">
+              <div className="home-section-head">
+                <h2 className="customer-section-title fw-700 flex items-center gap-8"><Megaphone size={18} aria-hidden="true" /> Announcements</h2>
+              </div>
+              <ul className="home-news-list">
+                {newsShown.map((a) => {
+                  const cat = getAnnouncementCategoryInfo(a);
+                  const CatIcon = cat.icon;
+                  const commentCount = Array.isArray(a.comments) ? a.comments.length : 0;
+                  return (
+                    <li key={a.id}>
+                      <button
+                        type="button"
+                        className="home-news-item"
+                        aria-haspopup="dialog"
+                        onClick={() => setOpenAnnouncementId(a.id)}
+                      >
+                        <span className="home-news-meta">
+                          <span className="home-news-category" style={{ background: cat.badgeBg, color: cat.badgeColor }}>
+                            <CatIcon size={12} aria-hidden="true" />
+                            {cat.label}
+                          </span>
+                          <span className="home-news-date">
+                            <Clock size={12} aria-hidden="true" />
+                            {new Date(a.created_at).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })}
+                          </span>
+                        </span>
+                        <span className="home-news-title">{announcementDisplayTitle(a.title)}</span>
+                        {a.content && <span className="home-news-excerpt">{a.content}</span>}
+                        <span className="home-news-foot">
+                          <MessageSquare size={13} aria-hidden="true" />
+                          {commentCount === 0 ? 'Read & comment' : `${commentCount} comment${commentCount === 1 ? '' : 's'}`}
+                          <ChevronRight size={16} aria-hidden="true" className="home-news-chevron" />
+                        </span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+              {newsHidden > 0 && (
+                <button
+                  type="button"
+                  className="home-news-more"
+                  aria-expanded={showAllNews}
+                  onClick={() => setShowAllNews(v => !v)}
+                >
+                  {showAllNews ? 'Show fewer' : `Show ${newsHidden} more`}
+                </button>
+              )}
+            </StaggerItem>
+          )}
+        </div>
       )}
 
-      {/* ── Active Shipments ─────────────────────────────────────── */}
+      {/* ── Active Shipments ─────────────────────────────────────
+          Below the trip and the news on phones (the order 95615bc restored).
+          On wide screens this is the left column, beside .home-col-side. */}
       {!loading && activeOrders.length > 0 && (
         <StaggerItem delay={120} className="home-col-shipments">
-          <div className="flex items-center justify-between mb-md">
-            <h3 className="customer-section-title fw-700 flex items-center gap-8"><Package size={18} color="var(--primary)" /> Active Shipments</h3>
+          <div className="home-section-head">
+            <h2 className="customer-section-title fw-700 flex items-center gap-8"><Package size={18} aria-hidden="true" /> Active Shipments</h2>
             <Link to="/customer/orders" className="customer-inline-action text-sm text-primary font-medium">
               View All <ArrowRight size={14} />
             </Link>
@@ -466,8 +512,9 @@ const HomePage = () => {
         </StaggerItem>
       )}
 
+      {/* A brand-new customer: the booking prompt, in the shipments column. */}
       {!loading && orders.length === 0 && !activeTrip && (
-        <StaggerItem delay={60}>
+        <StaggerItem delay={60} className="home-col-shipments">
           <EmptyState
             icon={Container}
             title="No Shipments Yet"
@@ -478,6 +525,12 @@ const HomePage = () => {
         </StaggerItem>
       )}
     </PageTransition>
+    <AnnouncementModal
+      open={Boolean(openAnnouncement)}
+      announcement={openAnnouncement}
+      onClose={closeAnnouncement}
+      onCommentsChange={handleAnnouncementComments}
+    />
     </PullToRefresh>
   );
 };

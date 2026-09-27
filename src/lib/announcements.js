@@ -9,6 +9,23 @@ export const ANNOUNCEMENT_CATEGORIES = [
   { value: 'general', label: 'General Update', icon: Megaphone, emoji: '📢' },
 ];
 
+const CATEGORY_EMOJI_PREFIX = new RegExp(
+  `^\\s*(?:${ANNOUNCEMENT_CATEGORIES.filter(c => c.emoji).map(c => c.emoji).concat('🔔').join('|')})\\uFE0F?\\s*`,
+  'u',
+);
+
+/**
+ * The title as a customer should read it. An explicit category is stored as
+ * an emoji at the front of the title (see AnnouncementsPage), and the category
+ * badge already shows it — keeping it in the title printed the same marker
+ * twice. Only the display changes; getAnnouncementCategoryInfo still reads the
+ * stored title.
+ */
+export const announcementDisplayTitle = (title) => {
+  const raw = String(title || '');
+  return raw.replace(CATEGORY_EMOJI_PREFIX, '').trim() || raw.trim();
+};
+
 /**
  * Resolves category metadata (label, icon, colors) for any announcement.
  * Checks explicit category markers (emojis/tags) first, then falls back to keyword matching.
@@ -66,8 +83,14 @@ export const getAnnouncementCategoryInfo = (announcement) => {
 
   // 2. Keyword Auto-Detection Fallback
   const wordMatch = (word) => new RegExp(`\\b${word}\\b`, 'i').test(text);
+  // `\b` treats a hyphen as a word edge, so wordMatch('off') matched the "off"
+  // in "cut-off" and tagged every booking cut-off notice as a promo. The
+  // promo words only count on their own ("10% off", "free delivery"), not
+  // inside cut-off, drop-off or toll-free. No lookbehind: iOS Safari before
+  // 16.4 throws on one, and this runs while the page renders.
+  const standaloneWord = (word) => new RegExp(`(?:^|[^\\w-])${word}(?![\\w-])`, 'i').test(text);
 
-  if (text.includes('gcash') || text.includes('paymongo') || text.includes('promo') || text.includes('discount') || wordMatch('free') || wordMatch('off') || text.includes('payment')) {
+  if (text.includes('gcash') || text.includes('paymongo') || text.includes('promo') || text.includes('discount') || standaloneWord('free') || standaloneWord('off') || text.includes('payment')) {
     return {
       label: 'Special Promo',
       icon: Zap,

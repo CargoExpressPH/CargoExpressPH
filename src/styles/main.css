@@ -10,12 +10,14 @@
 
    Layer order mirrors the former import order, so no rule changes meaning:
    tokens < base < components < layout < pages < effects < responsive
-   < refresh < hardening < density < sr-controls < mobile-inputs < perf
-   < print. mobile-inputs comes after the page layers so compact page rules
+   < refresh < hardening < density < home < sr-controls < mobile-inputs
+   < perf < print. home is the customer Home screen, placed after every
+   layer its older rules are spread across. mobile-inputs comes after the
+   page layers so compact page rules
    cannot trigger iOS input-focus zoom; perf (phone performance overrides)
    is the last screen layer; print remains last for documents. */
 
-@layer tokens, base, components, layout, pages, effects, responsive, refresh, hardening, density, sr-controls, mobile-inputs, perf, print;
+@layer tokens, base, components, layout, pages, effects, responsive, refresh, hardening, density, home, sr-controls, mobile-inputs, perf, print;
 
 /* ── 1. Design Tokens (no output, only CSS variables) ── */
 @import './tokens.css' layer(tokens);
@@ -81,6 +83,10 @@
    outrank every earlier layer at equal specificity — the ordering contract
    is enforced by the layer list, not by this file's import position. */
 @import './mobile-density.css' layer(density);
+
+/* Customer Home. Its own layer after density, so Home is tuned in one file
+   instead of against rules in four earlier layers. */
+@import './customer-home.css' layer(home);
 
 /* Formal bond-paper print documents (Reports & Sales) */
 /* Sales & Reports control bar. Must sit after `refresh`/`density` to
