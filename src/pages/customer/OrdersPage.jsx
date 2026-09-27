@@ -123,7 +123,7 @@ const OrdersPage = () => {
 
   return (
     <PullToRefresh onRefresh={() => loadOrders(true)}>
-      <PageTransition className="customer-orders-page">
+      <PageTransition className="customer-orders-page" initial={false}>
       <div className="customer-page-heading">
         <div>
           <h1 className="fw-700 mb-4">My Bookings</h1>
@@ -131,7 +131,7 @@ const OrdersPage = () => {
         </div>
         {!loading && <span className="badge badge-info">{filtered.length} shown</span>}
       </div>
-      <StaggerItem className="search-box customer-orders-search mb-16" role="search" delay={0}>
+      <StaggerItem className="search-box customer-orders-search mb-16" role="search" initial={false}>
         <Search size={16} className="search-icon" aria-hidden="true" />
         <input
           id="customer-orders-search"
@@ -142,7 +142,7 @@ const OrdersPage = () => {
           onChange={handleSearchChange}
         />
       </StaggerItem>
-      <StaggerItem className="mb-16" delay={60}>
+      <StaggerItem className="mb-16" initial={false}>
         <ResponsiveFilterControls
           options={filterOptions}
           value={activeTab}

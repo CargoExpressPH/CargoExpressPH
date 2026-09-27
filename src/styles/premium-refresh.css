@@ -287,12 +287,20 @@ body {
 
 .booking-success-page {
   position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
   inset: 0;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   padding: 16px;
+  padding-top: calc(16px + env(safe-area-inset-top, 0px));
+  padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
   background: var(--bg);
   z-index: var(--z-overlay);
 }
@@ -300,11 +308,13 @@ body {
 .booking-success-content {
   position: relative;
   z-index: 1;
+  flex: 0 0 auto;
   display: flex;
   flex-direction: column;
   align-items: center;
   width: 100%;
   max-width: 420px;
+  margin: auto 0;
   text-align: center;
 }
 
@@ -414,7 +424,14 @@ body {
   font-size: var(--text-14);
   font-weight: 700;
   text-align: right;
+  word-break: break-word;
   overflow-wrap: anywhere;
+}
+
+.booking-success-card .pr-transaction-row > .flex {
+  flex: 1 1 auto;
+  min-width: 0;
+  justify-content: flex-end;
 }
 
 .booking-success-card .pr-transaction-id {
@@ -558,6 +575,8 @@ body {
 @media (max-width: 420px) {
   .booking-success-page {
     padding: 12px;
+    padding-top: calc(12px + env(safe-area-inset-top, 0px));
+    padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
   }
 
   .booking-success-visual {

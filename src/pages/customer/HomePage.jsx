@@ -162,10 +162,10 @@ const HomePage = () => {
 
   return (
     <PullToRefresh onRefresh={loadData}>
-      <PageTransition className={`customer-home-page${hasMainColumn ? ' home-split' : ''}`}>
+      <PageTransition className={`customer-home-page${hasMainColumn ? ' home-split' : ''}`} initial={false}>
 
       {/* ── Hero ─────────────────────────────────────────────────── */}
-      <div className={`hero customer-home-hero hero-${greetingInfo.period} animate-slide-up`}>
+      <div className={`hero customer-home-hero hero-${greetingInfo.period}`}>
         <span className="text-sm">
           <GreetingIcon size={14} aria-hidden="true" />
           {greetingInfo.text},

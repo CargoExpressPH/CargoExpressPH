@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { Link, useNavigate, useLocation, useBlocker } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { createOrder, getTrips, getSettings, getRecentContacts } from '../../lib/database';
@@ -860,7 +861,7 @@ const BookShipmentPage = () => {
     const statusLabel = success.status || 'Pending';
     const isAssigned = statusLabel === 'Assigned';
 
-    return (
+    return createPortal(
       <div className="booking-success-page" aria-labelledby="booking-success-title">
         <div className="booking-success-content" role="status" aria-live="polite">
           {/* Checkmark with rings */}
@@ -1059,7 +1060,8 @@ const BookShipmentPage = () => {
             </button>
           </motion.div>
         </div>
-      </div>
+      </div>,
+      document.body
     );
   }
 

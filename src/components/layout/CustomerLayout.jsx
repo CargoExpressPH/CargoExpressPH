@@ -435,7 +435,7 @@ const CustomerLayout = () => {
           <ErrorBoundary><Outlet /></ErrorBoundary>
         </main>
       ) : (
-        <PageTransition as="main" id={MAIN_CONTENT_ID} className="customer-main" key={location.pathname} tabIndex={-1}>
+        <PageTransition as="main" id={MAIN_CONTENT_ID} className="customer-main" key={location.pathname} tabIndex={-1} initial={false}>
           <ErrorBoundary><Outlet /></ErrorBoundary>
         </PageTransition>
       )}
@@ -470,9 +470,12 @@ const CustomerLayout = () => {
           </span>
         </Link>
       )}
+    </div>
 
-      {/* ─── Bottom Tab Bar (Mobile Only) ─── */}
-      <nav className="customer-bottom-nav" aria-label="Customer navigation">
+    {/* Keep the fixed tab bar outside booking's clipped, viewport-sized shell.
+        WebKit otherwise repositions its fixed descendants when that shell is
+        added or measured, making the entire bar jump on the Book route. */}
+    <nav className="customer-bottom-nav" aria-label="Customer navigation">
         <div className="customer-bottom-nav-inner">
           {bottomNavItems.map(item => (
             <NavLink
@@ -506,7 +509,6 @@ const CustomerLayout = () => {
           ))}
         </div>
       </nav>
-    </div>
     <ConfirmModal
       isOpen={showLogoutConfirm}
       onClose={() => setShowLogoutConfirm(false)}
