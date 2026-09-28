@@ -25,7 +25,9 @@ test('booking layout keeps navigation anchored and progress below the header whi
     // even before an input is focused. The Book tab must stay at the same
     // screen edge as the other customer tabs in that state.
     await page.evaluate(({ height }) => {
-      document.body.classList.remove('keyboard-active');
+      document.activeElement?.blur();
+      document.documentElement.classList.remove('booking-field-focused');
+      document.body.classList.remove('keyboard-active', 'keyboard-open');
       document.documentElement.style.setProperty('--booking-visible-top', '0px');
       document.documentElement.style.setProperty('--booking-visible-height', `${height - 70}px`);
     }, { height });
@@ -35,6 +37,9 @@ test('booking layout keeps navigation anchored and progress below the header whi
     const bottomEdge = await bottomNav.evaluate(el => el.getBoundingClientRect().bottom);
     const bookPillTop = await page.locator('.customer-bottom-nav-inner').evaluate(el => el.getBoundingClientRect().top);
     expect(bottomEdge, `${width}px Book tab bar stays at screen bottom`).toBeCloseTo(height, 0);
+    await page.evaluate(() => document.body.classList.add('keyboard-open'));
+    await expect(bottomNav, `${width}px measured keyboard hides the tab bar`).toBeHidden();
+    await page.evaluate(() => document.body.classList.remove('keyboard-open'));
     // The real navigation stays mounted while the route changes. Toggle the
     // shell state in place and verify the bar does not move with it.
     const ordinaryRoute = await page.evaluate(() => {
@@ -66,11 +71,13 @@ test('booking layout keeps navigation anchored and progress below the header whi
         await expect(page.locator('.booking-scroll-shell'), `${width}px focused form uses viewport shell`).toHaveCSS('position', 'fixed');
         await expect(page.locator('.booking-progress-dock'), `${width}px progress dock is visible during keyboard focus`).toBeVisible();
         await expect(page.locator('.booking-page > .step-progress')).toBeHidden();
+        await expect(bottomNav, `${width}px focused text field hides the tab bar`).toBeHidden();
       } else {
         await expect(page.locator('html'), `${width}px root stays unlocked before input focus`).not.toHaveCSS('overflow-y', 'hidden');
         await expect(page.locator('.booking-scroll-shell'), `${width}px Book shares the ordinary tab layout at rest`).not.toHaveCSS('position', 'fixed');
         await expect(page.locator('.booking-progress-dock')).toBeHidden();
         await expect(page.locator('.booking-page > .step-progress')).toBeVisible();
+        await expect(bottomNav, `${width}px tab bar returns without the keyboard`).toBeVisible();
       }
       if (focused) await page.locator('#field').focus();
       await page.evaluate(({ focused }) => {

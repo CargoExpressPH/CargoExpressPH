@@ -453,12 +453,16 @@ body.keyboard-open .confirm-modal {
 }
 
 /* Bottom-anchored fixed furniture would otherwise sit on top of the keyboard.
-   The customer tab bar already hides on `keyboard-active`; this covers the
-   measured case and the chat bubble, which is fixed to the same edge. */
-body.keyboard-open .customer-bottom-nav,
+   Hide the tab bar entirely so iOS cannot paint it above the keyboard during
+   viewport animations; the chat bubble uses its own opacity rule. */
 body.keyboard-open .customer-chat-fab {
   opacity: 0;
   pointer-events: none;
+}
+
+body.keyboard-open .customer-bottom-nav,
+html.booking-field-focused .customer-bottom-nav {
+  display: none;
 }
 
 /* FeatureShipmentModal (.modal-lg) footer buttons — deliberately placed in

@@ -15,6 +15,7 @@ import OnboardingModal from '../ui/OnboardingModal';
 import { motion, AnimatePresence } from 'framer-motion';
 import PageTransition from '../ui/PageTransition';
 import { clearCustomerPageCache } from '../../lib/customerPageCache';
+import { watchCustomerKeyboardVisibility } from '../../lib/customerKeyboardVisibility';
 
 // The skip link's target. Exactly one <main> renders at a time — booking opts
 // out of PageTransition (see below) — so this id is never duplicated in the
@@ -146,60 +147,7 @@ const CustomerLayout = () => {
   }, [user, refreshUnreadCount]);
 
   // ── Keyboard visibility listener (Hides bottom nav when typing on mobile) ──
-  useEffect(() => {
-    const handleViewportChange = () => {
-      if (window.visualViewport) {
-        const activeElement = document.activeElement;
-        const isTextInputActive = activeElement && (
-          activeElement.tagName === 'TEXTAREA' ||
-          (activeElement.tagName === 'INPUT' && ['text', 'search', 'password', 'email', 'tel', 'number', 'url', 'date', 'time', 'datetime-local'].includes(activeElement.type))
-        );
-        const isKeyboard = isTextInputActive && (window.visualViewport.height < window.innerHeight - 120);
-        document.body.classList.toggle('keyboard-active', isKeyboard);
-      }
-    };
-
-    const handleFocusIn = (e) => {
-      const target = e.target;
-      const isTextInput = target && (
-        target.tagName === 'TEXTAREA' ||
-        (target.tagName === 'INPUT' && ['text', 'search', 'password', 'email', 'tel', 'number', 'url', 'date', 'time', 'datetime-local'].includes(target.type))
-      );
-      if (isTextInput) {
-        document.body.classList.add('keyboard-active');
-      } else {
-        document.body.classList.remove('keyboard-active');
-      }
-    };
-
-    const handleFocusOut = () => {
-      setTimeout(() => {
-        const activeElement = document.activeElement;
-        const isTextInputActive = activeElement && (
-          activeElement.tagName === 'TEXTAREA' ||
-          (activeElement.tagName === 'INPUT' && ['text', 'search', 'password', 'email', 'tel', 'number', 'url', 'date', 'time', 'datetime-local'].includes(activeElement.type))
-        );
-        if (!isTextInputActive) {
-          document.body.classList.remove('keyboard-active');
-        }
-      }, 100);
-    };
-
-    if (window.visualViewport) {
-      window.visualViewport.addEventListener('resize', handleViewportChange);
-    }
-    window.addEventListener('focusin', handleFocusIn);
-    window.addEventListener('focusout', handleFocusOut);
-
-    return () => {
-      if (window.visualViewport) {
-        window.visualViewport.removeEventListener('resize', handleViewportChange);
-      }
-      window.removeEventListener('focusin', handleFocusIn);
-      window.removeEventListener('focusout', handleFocusOut);
-      document.body.classList.remove('keyboard-active');
-    };
-  }, []);
+  useEffect(() => watchCustomerKeyboardVisibility(window), []);
 
   // Reset badge when user visits the notifications page
   useEffect(() => {
