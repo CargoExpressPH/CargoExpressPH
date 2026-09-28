@@ -514,10 +514,12 @@ body.keyboard-open .customer-chat-fab {
 
 /* The booking form is the only scroll surface on phones. Its shell follows
    the visible viewport during keyboard focus, while the customer tab bar
-   remains outside the shell with the same fixed anchor on every route. */
+   remains outside the shell with the same fixed anchor on every route.
+   Locking the root scroll before focus lifts fixed furniture on older iOS;
+   the shell itself already contains ordinary touch scrolling. */
 @media (max-width: 899.98px) {
-  html.booking-route-active,
-  html.booking-route-active body {
+  html.booking-route-active.booking-field-focused,
+  html.booking-route-active.booking-field-focused body {
     overflow: hidden;
   }
 

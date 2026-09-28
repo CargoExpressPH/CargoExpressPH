@@ -130,6 +130,8 @@ try {
   await flush();
   assert.ok(document.documentElement.classList.contains('booking-route-active'),
     'booking scroll padding uses a selector supported by older Safari');
+  assert.ok(!document.documentElement.classList.contains('booking-field-focused'),
+    'opening Book does not lock the root scroll before a field is focused');
   step(1);
   await click(button('Bohol → Manila'));
   await click(button('Continue'));
@@ -145,6 +147,8 @@ try {
     'autofilling must clear stale validation state');
 
   document.getElementById('sender-lot-block').focus();
+  assert.ok(document.documentElement.classList.contains('booking-field-focused'),
+    'a focused booking field locks the root during keyboard scrolling');
   // Simulate the focused field being 150px below the visible viewport bottom,
   // which reproduced the second programmatic scroll in the previous build.
   document.getElementById('sender-lot-block').getBoundingClientRect = () => ({ top: 600, bottom: 650 });
@@ -189,6 +193,10 @@ try {
   visualViewport.offsetTop = 0;
   visualViewport.dispatchEvent(new dom.window.Event('scroll'));
   await flush();
+  document.activeElement.blur();
+  await flush();
+  assert.ok(!document.documentElement.classList.contains('booking-field-focused'),
+    'the root scroll unlocks after the booking field loses focus');
 
   await click(button('Continue'));
   step(3);

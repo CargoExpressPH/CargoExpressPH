@@ -100,8 +100,29 @@ const bookingScrollTarget = () => {
 const BookShipmentPage = () => {
   usePageTitle('Book Shipment');
   useLayoutEffect(() => {
-    document.documentElement.classList.add('booking-route-active');
-    return () => document.documentElement.classList.remove('booking-route-active');
+    const root = document.documentElement;
+    let blurFrame = 0;
+    const updateFocusedField = () => {
+      blurFrame = 0;
+      const field = document.activeElement;
+      root.classList.toggle('booking-field-focused', Boolean(
+        field?.closest?.('.booking-page') && field.matches?.('input, textarea, select, [contenteditable="true"]')
+      ));
+    };
+    const onFocusOut = () => {
+      if (blurFrame) cancelAnimationFrame(blurFrame);
+      blurFrame = requestAnimationFrame(updateFocusedField);
+    };
+    root.classList.add('booking-route-active');
+    document.addEventListener('focusin', updateFocusedField);
+    document.addEventListener('focusout', onFocusOut);
+    updateFocusedField();
+    return () => {
+      document.removeEventListener('focusin', updateFocusedField);
+      document.removeEventListener('focusout', onFocusOut);
+      if (blurFrame) cancelAnimationFrame(blurFrame);
+      root.classList.remove('booking-route-active', 'booking-field-focused');
+    };
   }, []);
   const { user, userProfile } = useAuth();
   const navigate = useNavigate();

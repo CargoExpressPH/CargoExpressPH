@@ -17,6 +17,7 @@ test('booking layout keeps navigation anchored and progress below the header whi
   await expect(page.locator('.step-progress')).toHaveCSS('position', 'sticky');
   const focusOffset = await page.locator('html').evaluate(el => parseFloat(getComputedStyle(el).scrollPaddingTop));
   expect(focusOffset).toBeGreaterThan(100);
+  await expect(page.locator('html'), 'Book does not lock the root before typing').not.toHaveCSS('overflow-y', 'hidden');
   for (const [width, height] of [[320, 568], [375, 667], [390, 844]]) {
     await page.setViewportSize({ width, height });
     // Older iOS can report a visual viewport shorter than the layout viewport
@@ -53,10 +54,16 @@ test('booking layout keeps navigation anchored and progress below the header whi
       await page.evaluate(({ height, focused }) => {
         document.activeElement?.blur();
         document.body.classList.toggle('keyboard-active', focused);
+        document.documentElement.classList.toggle('booking-field-focused', focused);
         document.documentElement.style.setProperty('--booking-visible-top', focused ? '32px' : '0px');
         document.documentElement.style.setProperty('--booking-visible-height', `${focused ? Math.floor(height * 0.58) : height}px`);
         document.querySelector('.customer-main--booking').scrollTop = 0;
       }, { height, focused });
+      if (focused) {
+        await expect(page.locator('html'), `${width}px root locks only during input focus`).toHaveCSS('overflow-y', 'hidden');
+      } else {
+        await expect(page.locator('html'), `${width}px root stays unlocked before input focus`).not.toHaveCSS('overflow-y', 'hidden');
+      }
       if (focused) await page.locator('#field').focus();
       await page.evaluate(() => document.querySelector('.customer-main--booking').scrollTo({ top: 500, behavior: 'instant' }));
       const result = await page.evaluate(() => ({
