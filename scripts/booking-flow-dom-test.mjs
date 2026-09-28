@@ -8,7 +8,7 @@ import { JSDOM } from 'jsdom';
 // Run the real booking component, address pickers, drafts, and keyboard hook.
 // Stub only the authenticated session and remote database: this test never
 // creates a customer or booking in production.
-const dom = new JSDOM('<!doctype html><html><body><div class="customer-layout-v2 booking-scroll-shell"><header class="customer-navbar"></header><main id="app" class="customer-main customer-main--booking"></main></div></body></html>', {
+const dom = new JSDOM('<!doctype html><html><body><div class="customer-layout-v2 booking-scroll-shell"><header class="customer-navbar"></header><div class="booking-progress-dock"></div><main id="app" class="customer-main customer-main--booking"></main></div></body></html>', {
   url: 'https://example.test/customer/book', pretendToBeVisual: true,
 });
 for (const key of ['window', 'document', 'navigator', 'HTMLElement', 'Element', 'SVGElement', 'Node', 'MutationObserver']) {
@@ -132,6 +132,8 @@ try {
     'booking scroll padding uses a selector supported by older Safari');
   assert.ok(!document.documentElement.classList.contains('booking-field-focused'),
     'opening Book does not lock the root scroll before a field is focused');
+  assert.ok(document.querySelector('.booking-progress-dock .step-progress'),
+    'booking progress is available outside the form scroller for keyboard focus');
   step(1);
   await click(button('Bohol → Manila'));
   await click(button('Continue'));

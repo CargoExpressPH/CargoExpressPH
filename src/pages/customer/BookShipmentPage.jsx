@@ -99,6 +99,10 @@ const bookingScrollTarget = () => {
 
 const BookShipmentPage = () => {
   usePageTitle('Book Shipment');
+  const [progressDock, setProgressDock] = useState(null);
+  useLayoutEffect(() => {
+    setProgressDock(document.querySelector('.booking-progress-dock'));
+  }, []);
   useLayoutEffect(() => {
     const root = document.documentElement;
     let blurFrame = 0;
@@ -533,9 +537,12 @@ const BookShipmentPage = () => {
       const el = document.querySelector('.booking-page [aria-invalid="true"]');
       if (el && typeof el.focus === 'function') {
         el.focus({ preventScroll: true });
-        // An explicit error should sit below the sticky progress even when the
+        // An explicit error should sit below the progress bar even when the
         // keyboard has not opened yet. Avoid the page-wide smooth scroll here.
-        const progressBottom = document.querySelector('.booking-page .step-progress')?.getBoundingClientRect().bottom || 0;
+        const progressSelector = document.documentElement.classList.contains('booking-field-focused')
+          ? '.booking-progress-dock .step-progress'
+          : '.booking-page > .step-progress';
+        const progressBottom = document.querySelector(progressSelector)?.getBoundingClientRect().bottom || 0;
         const rect = el.getBoundingClientRect();
         const scrollTarget = bookingScrollTarget();
         const viewport = window.visualViewport;
@@ -1107,9 +1114,42 @@ const BookShipmentPage = () => {
   }
 
   const steps = ['Route', 'Sender', 'Receiver', 'Package', 'Review'];
+  const renderStepProgress = () => (
+    <div className="step-progress" role="list" aria-label="Booking progress">
+      {steps.map((s, i) => {
+        const completed = step > i + 1;
+        const stepClass = `step ${completed ? 'completed clickable' : step === i + 1 ? 'active' : ''}`;
+        const stepChildren = (
+          <>
+            <div className="step-number" aria-current={step === i + 1 ? 'step' : undefined}>
+              {completed ? <Check size={14} aria-hidden="true" /> : i + 1}
+            </div>
+            <span className="step-label">{s}</span>
+          </>
+        );
+
+        return (
+          <div key={s} role="listitem" className="flex items-center flex-1">
+            {completed ? (
+              <button
+                type="button"
+                className={stepClass}
+                onClick={() => setStep(i + 1)}
+                aria-label={`Go back to step ${i + 1}: ${s}`}
+              >
+                {stepChildren}
+              </button>
+            ) : <div className={stepClass}>{stepChildren}</div>}
+            {i < steps.length - 1 && <div className="step-connector" style={{ background: completed ? 'var(--success)' : 'var(--border)' }} />}
+          </div>
+        );
+      })}
+    </div>
+  );
 
   return (
     <div className="page-transition booking-page">
+      {progressDock && createPortal(renderStepProgress(), progressDock)}
       {/* Submitting overlay. The disabled button alone was not enough feedback:
           createOrder() can take many seconds, and if the review step is
           scrolled the spinner sits off-screen, leaving what looks like a dead
@@ -1152,36 +1192,7 @@ const BookShipmentPage = () => {
       <h2 className="fw-700 mb-8">Book Shipment</h2>
 
       {/* Step Progress */}
-      <div className="step-progress" role="list" aria-label="Booking progress">
-        {steps.map((s, i) => {
-          const completed = step > i + 1;
-          const stepClass = `step ${completed ? 'completed clickable' : step === i + 1 ? 'active' : ''}`;
-          const stepChildren = (
-            <>
-              <div className="step-number" aria-current={step === i + 1 ? 'step' : undefined}>
-                {completed ? <Check size={14} aria-hidden="true" /> : i + 1}
-              </div>
-              <span className="step-label">{s}</span>
-            </>
-          );
-
-          return (
-            <div key={s} role="listitem" className="flex items-center flex-1">
-              {completed ? (
-                <button
-                  type="button"
-                  className={stepClass}
-                  onClick={() => setStep(i + 1)}
-                  aria-label={`Go back to step ${i + 1}: ${s}`}
-                >
-                  {stepChildren}
-                </button>
-              ) : <div className={stepClass}>{stepChildren}</div>}
-              {i < steps.length - 1 && <div className="step-connector" style={{ background: completed ? 'var(--success)' : 'var(--border)' }} />}
-            </div>
-          );
-        })}
-      </div>
+      {renderStepProgress()}
       <div className="booking-current-step" aria-live="polite">Step {step} of {steps.length}: {steps[step - 1]}</div>
 
       {/* C-6 fix: Show loading indicator while initial data loads */}

@@ -431,11 +431,14 @@ const CustomerLayout = () => {
 
       {/* ─── Page Content ─── */}
       {location.pathname === '/customer/book' ? (
-        // Older WebKit can lose sticky descendants of an animated transform.
-        // Keep booking's progress bar in the ordinary document scroll tree.
-        <main id={MAIN_CONTENT_ID} className="w-full customer-main customer-main--booking" key={location.pathname} tabIndex={-1}>
-          <ErrorBoundary><Outlet /></ErrorBoundary>
-        </main>
+        <>
+          {/* A separate dock holds booking progress above the form scroller
+              during keyboard focus; it has no layout effect at rest. */}
+          <div className="booking-progress-dock" />
+          <main id={MAIN_CONTENT_ID} className="w-full customer-main customer-main--booking" key={location.pathname} tabIndex={-1}>
+            <ErrorBoundary><Outlet /></ErrorBoundary>
+          </main>
+        </>
       ) : (
         <PageTransition as="main" id={MAIN_CONTENT_ID} className="customer-main" key={location.pathname} tabIndex={-1} initial={false}>
           <ErrorBoundary><Outlet /></ErrorBoundary>

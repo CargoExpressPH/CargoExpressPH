@@ -515,6 +515,10 @@ body.keyboard-open .customer-chat-fab {
 /* Keep Book in the same document flow as the other customer tabs until a
    field is focused. Only keyboard editing needs a viewport-sized form
    scroller; a fixed shell at rest lifts the tab bar on older iOS. */
+.booking-progress-dock {
+  display: none;
+}
+
 @media (max-width: 899.98px) {
   html.booking-route-active.booking-field-focused,
   html.booking-route-active.booking-field-focused body {
@@ -550,6 +554,28 @@ body.keyboard-open .customer-chat-fab {
     -webkit-backdrop-filter: none;
   }
 
+  html.booking-field-focused .booking-scroll-shell .booking-progress-dock {
+    display: block;
+    flex: 0 0 auto;
+    width: 100%;
+    max-width: 560px;
+    box-sizing: border-box;
+    margin: 0 auto;
+    padding: 8px 18px 0;
+  }
+
+  html.booking-field-focused .booking-progress-dock .step-progress {
+    position: static;
+    margin-bottom: 0;
+    background: var(--customer-panel-solid, var(--surface));
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  html.booking-field-focused .booking-page > .step-progress {
+    display: none;
+  }
+
   html.booking-field-focused body .booking-scroll-shell .customer-main--booking {
     flex: 1 1 auto;
     min-height: 0;
@@ -557,7 +583,7 @@ body.keyboard-open .customer-chat-fab {
     overflow-x: hidden;
     overscroll-behavior-y: contain;
     padding-top: 0;
-    scroll-padding-top: 88px;
+    scroll-padding-top: 16px;
     padding-bottom: calc(160px + var(--customer-safe-bottom));
   }
 
@@ -569,10 +595,9 @@ body.keyboard-open .customer-chat-fab {
     padding-bottom: 24px;
   }
 
-  html.booking-field-focused .booking-scroll-shell .booking-page .step-progress {
-    top: 8px;
-    background: var(--customer-panel-solid, var(--surface));
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
+  @media (min-width: 600px) {
+    html.booking-field-focused .booking-scroll-shell .booking-progress-dock {
+      max-width: 760px;
+    }
   }
 }

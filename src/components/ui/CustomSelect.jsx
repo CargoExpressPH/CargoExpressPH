@@ -7,19 +7,22 @@ const optionText = (children) => {
   return String(children);
 };
 
-// Floating menus must stay clear of both the app header and the booking
-// progress strip when that strip sticks below the header.
+// Floating menus must stay clear of the app header and whichever booking
+// progress strip is visible (the in-page bar or its keyboard-focus dock).
 const visibleMenuBounds = (root) => {
   const viewport = window.visualViewport;
   const viewportTop = viewport?.offsetTop || 0;
   let bottom = viewportTop + (viewport?.height || window.innerHeight);
   const layout = root.closest('.customer-layout-v2');
-  const bottomNav = layout?.querySelector('.customer-bottom-nav');
+  const bottomNav = layout && document.querySelector('.customer-bottom-nav');
   if (bottomNav && getComputedStyle(bottomNav).display !== 'none' && getComputedStyle(bottomNav).opacity !== '0') {
     bottom = Math.min(bottom, bottomNav.getBoundingClientRect().top);
   }
   const navbar = layout?.querySelector('.customer-navbar');
-  const progress = root.closest('.booking-page')?.querySelector('.step-progress');
+  const dockProgress = layout?.querySelector('.booking-progress-dock .step-progress');
+  const progress = dockProgress?.getBoundingClientRect().height
+    ? dockProgress
+    : root.closest('.booking-page')?.querySelector('.step-progress');
   const top = Math.max(viewportTop, navbar?.getBoundingClientRect().bottom || viewportTop, progress?.getBoundingClientRect().bottom || viewportTop);
   return { top, bottom };
 };
