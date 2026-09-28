@@ -84,7 +84,7 @@ const PaymentReturnPage = () => {
   const [phase, setPhase] = useState(returnToken ? 'verifying' : 'invalid');
   const [checking, setChecking] = useState(false);
   const [returnContext, setReturnContext] = useState(null);
-  const [closeFallbackVisible, setCloseFallbackVisible] = useState(false);
+  const [contextReady, setContextReady] = useState(false);
 
   // This is intentionally only a same-browser navigation convenience. The
   // server verification below never depends on auth or localStorage. Requiring
@@ -92,8 +92,13 @@ const PaymentReturnPage = () => {
   // different logged-in account on Device B from being sent to a private page.
   useEffect(() => {
     let cancelled = false;
+    setContextReady(false);
+    setReturnContext(null);
     const context = getPaymentReturnContext(returnToken);
-    if (!context) return undefined;
+    if (!context) {
+      setContextReady(true);
+      return undefined;
+    }
 
     supabase.auth.getSession().then(({ data }) => {
       if (!cancelled && data?.session?.user?.id === context.userId) {
@@ -101,6 +106,8 @@ const PaymentReturnPage = () => {
       }
     }).catch(() => {
       // A session read failure keeps the public fallback available.
+    }).finally(() => {
+      if (!cancelled) setContextReady(true);
     });
 
     return () => { cancelled = true; };
@@ -192,18 +199,6 @@ const PaymentReturnPage = () => {
       clearPaymentReturnContext(returnToken);
       // replace() prevents Back from reopening the checkout/return flow.
       window.location.replace(originatingReturnTo);
-      return;
-    }
-
-    // Browsers only honor window.close() for tabs/windows opened by script.
-    // Always render the fallback after attempting it so the user is never
-    // trapped waiting for a programmatic close that the browser rejects.
-    try {
-      window.close();
-    } catch {
-      // Some embedded browsers throw instead of silently ignoring close().
-    } finally {
-      setCloseFallbackVisible(true);
     }
   };
 
@@ -233,9 +228,15 @@ const PaymentReturnPage = () => {
 
         {phase !== 'verifying' && (
           <div className="payment-return-actions">
-            {phase === 'confirmed' && (
+            {phase === 'confirmed' && contextReady && originatingReturnTo && (
               <button type="button" className="btn btn-primary btn-block" onClick={handleClose}>
-                {originatingReturnTo ? 'View booking' : 'Close'}
+                View booking
+              </button>
+            )}
+
+            {phase === 'confirmed' && contextReady && !originatingReturnTo && (
+              <button type="button" className="btn btn-primary btn-block" onClick={() => window.location.replace('/')}>
+                Go to CargoExpress PH
               </button>
             )}
 
@@ -259,9 +260,9 @@ const PaymentReturnPage = () => {
           </div>
         )}
 
-        {phase === 'confirmed' && closeFallbackVisible && !originatingReturnTo && (
+        {phase === 'confirmed' && contextReady && !originatingReturnTo && (
           <p className="payment-return-note">
-            You may now close this tab and return to the device where you started your payment.
+            Return to the device where the booking was started to continue. This payment is already confirmed.
           </p>
         )}
       </div>

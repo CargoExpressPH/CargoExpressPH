@@ -293,6 +293,8 @@
 .admin-notif-unread-pill {
   font-size: var(--text-12);
   font-weight: 700;
+  white-space: nowrap;
+  flex-shrink: 0;
   padding: 2px 8px;
   border-radius: var(--radius-full);
   background: linear-gradient(135deg, var(--admin-green), var(--primary-light));
@@ -554,6 +556,34 @@
     right: -12px;
     max-height: 70vh;
   }
+  .admin-notif-header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+    gap: 8px;
+    padding: 12px;
+  }
+  .admin-notif-header-left {
+    min-width: 0;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+  .admin-notif-header h3 { white-space: nowrap; }
+  .admin-notif-header-actions { gap: 2px; }
+  .admin-notif-action-btn {
+    width: 36px;
+    height: 36px;
+    flex-shrink: 0;
+  }
+  .admin-notif-item {
+    gap: 8px;
+    padding: 10px 12px;
+  }
+  .admin-notif-item-icon { width: 32px; height: 32px; }
+  .admin-notif-item-actions { gap: 4px; }
+  .admin-notif-chevron { display: none; }
+  .admin-notif-item-msg { -webkit-line-clamp: 3; }
 }
 @media (min-width: 481px) and (max-width: 768px) {
   .admin-notif-dropdown {
