@@ -1,12 +1,13 @@
 ﻿import { useState, useCallback } from 'react';
-import { Link, useLocation, useNavigate, useBlocker } from 'react-router-dom';
+import { useLocation, useNavigate, useBlocker } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import {
-  ArrowLeft, Loader, Mail, Lock, CheckCircle2, Eye, EyeOff, ShieldCheck, Inbox, Info, Headset,
+  Loader, Mail, Lock, CheckCircle2, Eye, EyeOff, ShieldCheck, Inbox, Info,
 } from 'lucide-react';
 import { useToast } from '../../hooks/useToast';
 import ConfirmModal from '../../components/ui/ConfirmModal';
 import CustomerAccountHeader from '../../components/ui/CustomerAccountHeader';
+import BreakableEmail from '../../components/ui/BreakableEmail';
 import usePageTitle from '../../hooks/usePageTitle';
 import useFieldErrors from '../../hooks/useFieldErrors';
 import FieldError, { fieldAttrs, invalidClass } from '../../components/ui/FieldError';
@@ -153,28 +154,16 @@ const ChangeEmailPage = () => {
         variant="danger"
       />
 
-      <div className={`page-transition animate-slide-up account-form-page${isCustomerPage ? ' customer-account-page' : ''}`}>
-        {isCustomerPage ? (
-          <CustomerAccountHeader
-            title="Change Email"
-            description="Update the email you use to sign in and receive shipment updates."
-            icon={Mail}
-          />
-        ) : (
-          <>
-        <div className="customer-top-actions">
-          <button type="button" onClick={() => navigate(-1)} className="btn btn-ghost customer-back-action">
-            <ArrowLeft size={18} /> Back
-          </button>
-          {isCustomerPage && (
-            <Link to="/customer/support" className="customer-inline-support-link">
-              <Headset size={16} aria-hidden="true" /> Chat support
-            </Link>
-          )}
-        </div>
-        <h1 className="fw-700 mb-20">Change Email</h1>
-          </>
-        )}
+      <div className="page-transition animate-slide-up account-form-page customer-account-page">
+        <CustomerAccountHeader
+          title="Change Email"
+          description={isCustomerPage
+            ? 'Update the email you use to sign in and receive shipment updates.'
+            : 'Update the email you use to sign in to the administrator portal.'}
+          icon={Mail}
+          backTo={isCustomerPage ? '/customer/profile' : '/admin/profile'}
+          showSupport={isCustomerPage}
+        />
 
         {submitted ? (
           <div className="card account-settings-card">
@@ -276,17 +265,13 @@ const ChangeEmailPage = () => {
 
               {/* Current Email */}
               <div className="form-group account-current-email">
-                <label className="form-label" htmlFor="change-current-email">Current Email</label>
-                <div className="form-input-wrapper">
-                  <Mail size={15} className="form-input-icon" aria-hidden="true" />
-                  <input
-                    id="change-current-email"
-                    type="email"
-                    className="form-input form-input-icon-left"
-                    value={currentEmail}
-                    disabled
-                    aria-disabled="true"
-                  />
+                {/* Read-only text, not a disabled input: an input cannot wrap,
+                    so a long address was cut off mid-word on phones, and a
+                    disabled input looked the same as the editable ones. */}
+                <p className="form-label">Current Email</p>
+                <div id="change-current-email" className="account-readonly-value">
+                  <Mail size={15} aria-hidden="true" />
+                  <span><BreakableEmail value={currentEmail} /></span>
                 </div>
                 <p className="form-helper">You'll confirm the change from both your current and your new email.</p>
               </div>
@@ -294,7 +279,7 @@ const ChangeEmailPage = () => {
               {/* New Email */}
               <div className="form-group">
                 <label className="form-label" htmlFor="change-new-email">New Email <span className="required">*</span></label>
-                <div className="form-input-wrapper">
+                <div className={`form-input-wrapper${shownErrors.new_email ? ' form-input-wrapper--invalid' : ''}`}>
                   <Mail size={15} className="form-input-icon" aria-hidden="true" />
                   <input
                     id="change-new-email"
@@ -329,13 +314,13 @@ const ChangeEmailPage = () => {
               {/* Current Password */}
               <div className="form-group">
                 <label className="form-label" htmlFor="change-email-password">Current Password <span className="required">*</span></label>
-                <div className="form-input-wrapper">
+                <div className={`form-input-wrapper${shownErrors.current_password ? ' form-input-wrapper--invalid' : ''}`}>
                   <Lock size={15} className="form-input-icon" aria-hidden="true" />
                   <input
                     id="change-email-password"
                     type={showPassword ? 'text' : 'password'}
                     className={`form-input form-input-icon-left form-input-icon-right ${invalidClass('current_password', shownErrors)}`}
-                    placeholder="Enter your current password"
+                    placeholder="Current password"
                     value={currentPassword}
                     onChange={e => { setCurrentPassword(e.target.value); clearError('current_password'); }}
                     autoComplete="current-password"

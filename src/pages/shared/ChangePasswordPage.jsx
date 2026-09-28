@@ -1,10 +1,10 @@
 ﻿import { useState, useCallback } from 'react';
-import { Link, useLocation, useNavigate, useBlocker } from 'react-router-dom';
+import { useLocation, useNavigate, useBlocker } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 import {
-  ArrowLeft, Loader, Lock, CheckCircle2,
-  Eye, EyeOff, ShieldCheck, Check, Headset,
+  Loader, Lock, CheckCircle2,
+  Eye, EyeOff, ShieldCheck, Check,
 } from 'lucide-react';
 import { useToast } from '../../hooks/useToast';
 import ConfirmModal from '../../components/ui/ConfirmModal';
@@ -140,29 +140,14 @@ const ChangePasswordPage = () => {
         variant="danger"
       />
 
-      <div className={`animate-slide-up customer-personal-info-page account-form-page${isCustomerPage ? ' customer-account-page' : ''}`}>
-      {isCustomerPage ? (
-        <CustomerAccountHeader
-          title="Change Password"
-          description="Keep your account secure with a strong password you don't use anywhere else."
-          icon={ShieldCheck}
-        />
-      ) : (
-        <>
-      <div className="customer-top-actions">
-        <button type="button" onClick={() => navigate(-1)} className="btn btn-ghost customer-back-action">
-          <ArrowLeft size={18} /> Back
-        </button>
-        {isCustomerPage && (
-          <Link to="/customer/support" className="customer-inline-support-link">
-            <Headset size={16} aria-hidden="true" /> Chat support
-          </Link>
-        )}
-      </div>
-      <h1 className="fw-700 mb-4">Change Password</h1>
-      <p className="account-form-intro">Use at least 8 characters, and a password you do not use on other sites.</p>
-        </>
-      )}
+      <div className="animate-slide-up customer-personal-info-page account-form-page customer-account-page">
+      <CustomerAccountHeader
+        title="Change Password"
+        description="Keep your account secure with a strong password you don't use anywhere else."
+        icon={ShieldCheck}
+        backTo={isCustomerPage ? '/customer/profile' : '/admin/profile'}
+        showSupport={isCustomerPage}
+      />
 
       <div className="card account-settings-card">
         <form className="card-body account-settings-body" onSubmit={handleSubmit} noValidate>
@@ -170,13 +155,13 @@ const ChangePasswordPage = () => {
           {/* Current Password */}
           <div className="form-group">
             <label className="form-label" htmlFor="change-current-password">Current Password <span className="required">*</span></label>
-            <div className="form-input-wrapper">
+            <div className={`form-input-wrapper${errors.current_password ? ' form-input-wrapper--invalid' : ''}`}>
               <Lock size={15} className="form-input-icon" aria-hidden="true" />
               <input
                 id="change-current-password"
                 type={showCurrent ? 'text' : 'password'}
                 className={`form-input form-input-icon-left form-input-icon-right ${invalidClass('current_password', errors)}`}
-                placeholder="Enter your current password"
+                placeholder="Current password"
                 value={currentPassword}
                 onChange={e => { setCurrentPassword(e.target.value); clearError('current_password'); }}
                 required
@@ -200,7 +185,7 @@ const ChangePasswordPage = () => {
           {/* New Password */}
           <div className="form-group">
             <label className="form-label" htmlFor="change-new-password">New Password <span className="required">*</span></label>
-            <div className="form-input-wrapper">
+            <div className={`form-input-wrapper${errors.new_password ? ' form-input-wrapper--invalid' : ''}`}>
               <Lock size={15} className="form-input-icon" aria-hidden="true" />
               <input
                 id="change-new-password"
@@ -269,7 +254,7 @@ const ChangePasswordPage = () => {
           {/* Confirm New Password */}
           <div className="form-group">
             <label className="form-label" htmlFor="change-confirm-password">Confirm New Password <span className="required">*</span></label>
-            <div className="form-input-wrapper">
+            <div className={`form-input-wrapper${confirmError ? ' form-input-wrapper--invalid' : ''}`}>
               <Lock size={15} className="form-input-icon" aria-hidden="true" />
               <input
                 id="change-confirm-password"

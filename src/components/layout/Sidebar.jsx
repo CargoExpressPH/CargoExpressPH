@@ -296,7 +296,8 @@ const Sidebar = ({ isOpen, onClose, isCollapsed, onToggleCollapse }) => {
         title="Sign Out"
         message="You are about to sign out of the administrator portal. You will need to sign back in to manage bookings, track trips, and update company settings."
         confirmLabel="Sign Out"
-        variant="primary"
+        variant="danger"
+        icon={LogOut}
       />
     </>
   );

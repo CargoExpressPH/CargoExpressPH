@@ -1,4 +1,6 @@
-/* Customer account forms. Scoped so the shared admin screens keep their layout. */
+/* Account forms (Change Email, Change Password, Personal Info). Used by the
+   customer portal and, since the admin Profile redesign, by the admin copies
+   of Change Email and Change Password too. */
 .customer-account-page {
   display: grid;
   gap: 24px;
@@ -258,4 +260,37 @@
   .customer-account-page .account-settings-body { padding: 16px; }
   .account-settings-title-row h1 { font-size: var(--text-20); }
   .customer-account-page .rp-requirements { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+}
+
+/* Current Email on Change Email: read-only text rather than a disabled input,
+   so a long address wraps instead of being cut off. Tinted and dashed so it
+   reads as locked next to the editable fields. Margins, not flex gap, for
+   iOS before 14.5. */
+.account-current-email > .form-label { margin-top: 0; }
+
+.account-readonly-value {
+  display: flex;
+  align-items: flex-start;
+  min-width: 0;
+  min-height: 50px;
+  padding: 14px 16px 14px 15px;
+  border: 1px dashed var(--border-hover);
+  border-radius: 12px;
+  background: var(--bg-secondary);
+  color: var(--customer-muted);
+  font-size: var(--text-14);
+  line-height: 1.5;
+}
+
+.account-readonly-value svg {
+  flex-shrink: 0;
+  margin: 3px 14px 0 0;
+}
+
+.account-readonly-value span {
+  min-width: 0;
+  color: var(--customer-ink);
+  font-weight: 500;
+  overflow-wrap: break-word;
+  overflow-wrap: anywhere;
 }

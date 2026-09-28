@@ -66,3 +66,11 @@
   border-color: var(--success) !important;
   box-shadow: 0 0 0 3px var(--success-glow) !important;
 }
+
+/* An input's leading icon sits before it in the DOM, so CSS cannot follow the
+   input's invalid state without :has() (iOS 15.4+). Forms mark the wrapper
+   instead; otherwise :focus-within turned the icon green on a red field. */
+.form-input-wrapper--invalid .form-input-icon,
+.form-input-wrapper--invalid:focus-within .form-input-icon {
+  color: var(--error-text);
+}

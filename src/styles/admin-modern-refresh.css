@@ -1384,3 +1384,42 @@
     text-align: center;
   }
 }
+
+/* Sidebar account menu: solid panel. mobile-performance.css turns off
+   backdrop blur on phones, which left the glass panel see-through over the
+   nav items behind it. */
+.app-layout .sidebar-profile-dropdown {
+  background: var(--surface);
+}
+
+@media (max-width: 1023px), (hover: none) {
+  .app-layout .sidebar-profile-dropdown-item { min-height: 44px; }
+}
+
+/* Admin Profile, Change Email and Change Password reuse customer-profile.css
+   and customer-account.css, which read the --customer-* tokens. Only
+   .customer-layout-v2 corrects those for dark mode (the tokens.css dark alias
+   for --customer-green-dark is #064E3B, near-invisible on a dark surface),
+   so inside the admin shell they follow the admin palette above. */
+.app-layout .customer-profile-page,
+.app-layout .customer-account-page {
+  --customer-green: var(--admin-green);
+  --customer-green-dark: var(--admin-green-dark);
+  --customer-green-soft: var(--admin-green-soft);
+  --customer-green-glow: var(--admin-green-glow);
+  --customer-ink: var(--admin-ink);
+  --customer-muted: var(--admin-muted);
+  --customer-panel: var(--admin-panel);
+  --customer-panel-solid: var(--admin-panel-solid);
+  --customer-line: var(--admin-line);
+  --customer-shadow: var(--admin-shadow);
+  --customer-shadow-soft: var(--admin-shadow-soft);
+}
+
+/* The sidebar's color-mix() gradient starts ~3.5% transparent in dark mode
+   (it mixes in the translucent --admin-green-soft), and the background
+   shorthand leaves no colour behind it, so page text showed faintly through
+   the phone drawer. A solid colour under the gradient closes that. */
+.app-layout .sidebar {
+  background-color: var(--admin-panel-solid);
+}

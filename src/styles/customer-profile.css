@@ -80,6 +80,7 @@
   font-weight: 700;
   line-height: 1.3;
   letter-spacing: -.025em;
+  overflow-wrap: break-word;
   overflow-wrap: anywhere;
 }
 
@@ -88,6 +89,7 @@
   color: var(--customer-muted);
   font-size: var(--text-13);
   line-height: 1.5;
+  overflow-wrap: break-word;
   overflow-wrap: anywhere;
 }
 
@@ -174,6 +176,7 @@
 
 .customer-profile-page .profile-menu-item > .flex-1 {
   min-width: 0;
+  overflow-wrap: break-word;
   overflow-wrap: anywhere;
 }
 
@@ -277,3 +280,8 @@
   .profile-summary-identity { gap: 12px; }
   .customer-profile-page .profile-menu-item { padding: 14px 12px; gap: 10px; }
 }
+
+/* Admin Profile (/admin/profile) uses this same layout inside the admin
+   shell; its badge carries a shield icon that must not shrink beside the
+   label on a 320px screen. */
+.admin-profile-page .profile-ready-badge svg { flex-shrink: 0; }
