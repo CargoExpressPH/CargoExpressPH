@@ -189,7 +189,6 @@ const HomePage = () => {
             <input
               ref={trackingInputRef}
               id="home-tracking-search"
-              name="tracking_number"
               aria-label="Tracking number"
               placeholder="Enter tracking number"
               value={trackingSearch}
@@ -197,7 +196,10 @@ const HomePage = () => {
               className="hero-search-input"
               // As on the Track page: no browser list of past entries, which
               // grew with every search and offered no way to clear it. Recent
-              // searches, with Clear, live on the Track page.
+              // searches, with Clear, live on the Track page. No `name` either:
+              // browsers file saved entries under it and could keep offering
+              // the ones saved before autocomplete was off. The search reads
+              // the field's state, never the form data.
               autoComplete="off"
               spellCheck="false"
             />
