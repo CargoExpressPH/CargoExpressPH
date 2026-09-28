@@ -226,17 +226,11 @@ const PaymentReturnPage = () => {
           </div>
         )}
 
-        {phase !== 'verifying' && (
+        {phase !== 'verifying' && (phase !== 'confirmed' || Boolean(originatingReturnTo)) && (
           <div className="payment-return-actions">
             {phase === 'confirmed' && contextReady && originatingReturnTo && (
               <button type="button" className="btn btn-primary btn-block" onClick={handleClose}>
                 View booking
-              </button>
-            )}
-
-            {phase === 'confirmed' && contextReady && !originatingReturnTo && (
-              <button type="button" className="btn btn-primary btn-block" onClick={() => window.location.replace('/')}>
-                Go to CargoExpress PH
               </button>
             )}
 
@@ -262,7 +256,7 @@ const PaymentReturnPage = () => {
 
         {phase === 'confirmed' && contextReady && !originatingReturnTo && (
           <p className="payment-return-note">
-            Return to the device where the booking was started to continue. This payment is already confirmed.
+            You can close this tab. If someone else arranged the booking, let them know the payment was confirmed.
           </p>
         )}
       </div>
