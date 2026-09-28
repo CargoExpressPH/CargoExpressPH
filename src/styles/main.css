@@ -76,6 +76,9 @@
 /* Admin mobile app refresh */
 @import './admin-modern-refresh.css' layer(refresh);
 
+/* Payment and booking result screens (after booking-success.css) */
+@import './result-screens.css' layer(refresh);
+
 /* Final mobile viewport and tap-readability hardening */
 @import './viewport-hardening.css' layer(hardening);
 

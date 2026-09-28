@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createOrder } from '../../lib/database';
 import { useAuth } from '../../contexts/AuthContext';
@@ -13,13 +13,15 @@ import CustomSelect from '../../components/ui/CustomSelect';
 import BarangaySelect from '../../components/ui/BarangaySelect';
 import {
   ArrowLeft, Loader, Truck, User, MapPin, Package,
-  CreditCard, FileText, Plus, Copy, Check, CheckCircle2, RotateCcw, Lock
+  CreditCard, FileText, Plus, Copy, Check, Lock, ArrowRight, AlertTriangle
 } from 'lucide-react';
 import { useToast } from '../../hooks/useToast';
 import usePageTitle from '../../hooks/usePageTitle';
 import { logOrder } from '../../lib/activityLog';
 import useFieldErrors from '../../hooks/useFieldErrors';
 import FieldError, { invalidClass, fieldAttrs } from '../../components/ui/FieldError';
+import ResultIcon from '../../components/ui/ResultIcon';
+import { describeBookingSaveError } from '../../utils/bookingSaveError';
 import { formatPersonName } from '../../lib/orderParties';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -97,6 +99,15 @@ const AdminCreateBookingPage = () => {
   const [form, setForm] = useState(INITIAL_FORM);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(null);
+  // Set when saving the booking itself failed; shown above the submit button
+  // as { reason, detail } — detail keeps the server's wording for the admin.
+  const [submitError, setSubmitError] = useState(null);
+  const submitErrorRef = useRef(null);
+  // The notice appears where the button was; on a phone it can land partly
+  // below the fold, so bring all of it into view.
+  useEffect(() => {
+    if (submitError) submitErrorRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }, [submitError]);
   const [copied, setCopied] = useState(false);
   const { errors: fieldErrors, validate, clearError } = useFieldErrors();
   const submittingRef = useRef(false);
@@ -237,6 +248,7 @@ const AdminCreateBookingPage = () => {
     submittingRef.current = true;
 
     setLoading(true);
+    setSubmitError(null);
     try {
 
       const payload = {
@@ -295,15 +307,20 @@ const AdminCreateBookingPage = () => {
         receiver_name: receiverFullName,
         origin: payload.origin,
         destination: payload.destination,
+        status: result.status || 'Pending',
       });
-      toast.success('Booking created successfully!');
+      // No success toast: the confirmation screen below replaces the form.
       // Not clearing `loading` here: `success` now takes over rendering via
       // the early-return below, and this page never reads `loading` again —
       // clearing it would risk a frame of the un-loading form before that
       // switch. submittingRef is reset regardless since a fresh submit is
       // never possible from the success view anyway.
     } catch (err) {
-      toast.error(err.message || 'Failed to create booking. Please try again.');
+      // Shown in the notice above the button rather than as a toast, which
+      // repeated it with the raw text only.
+      const reason = describeBookingSaveError(err);
+      const raw = String(err?.message || '').trim();
+      setSubmitError({ reason, detail: raw && raw !== reason ? raw : null });
       setLoading(false);
     } finally {
       submittingRef.current = false;
@@ -340,6 +357,7 @@ const AdminCreateBookingPage = () => {
     setLoading(false);
     setForm(INITIAL_FORM);
     setSuccess(null);
+    setSubmitError(null);
     setCopied(false);
   };
 
@@ -347,109 +365,66 @@ const AdminCreateBookingPage = () => {
 
   if (success) {
     return (
-      <div className="page-transition">
-        <div className="card stagger-item" style={{ maxWidth: 540, margin: '0 auto', animationDelay: '0ms' }}>
-          <div className="card-body" style={{ textAlign: 'center', padding: '40px 24px' }}>
-            <div
-              style={{
-                width: 64, height: 64, borderRadius: '50%',
-                background: 'var(--primary-bg)', display: 'flex',
-                alignItems: 'center', justifyContent: 'center',
-                margin: '0 auto 20px',
-              }}
-            >
-              <CheckCircle2 size={32} color="var(--primary)" />
+      <div className="page-transition admin-booking-success">
+        {/* Same receipt as the customer's booking confirmation (booking-success.css). */}
+        <div className="booking-success-intro" role="status" aria-live="polite">
+          <ResultIcon tone="success" className="booking-success-mark" />
+          <h1 className="booking-success-heading">Booking created</h1>
+          <p className="booking-success-subtitle">
+            Send the tracking number to the customer so they can follow the shipment.
+          </p>
+        </div>
+
+        <section className="booking-success-card" aria-label="Booking details">
+          <div className="booking-success-card-header">
+            <span>Booking details</span>
+            <span className={`booking-success-status-pill ${success.status === 'Assigned' ? 'is-assigned' : 'is-pending'}`}>
+              {success.status}
+            </span>
+          </div>
+
+          <div className="booking-success-tracking">
+            <div className="booking-success-tracking-text">
+              <span className="booking-success-label">Tracking number</span>
+              <strong className="booking-success-tracking-number">{success.tracking_number}</strong>
             </div>
-
-            <h2 className="fw-700" style={{ fontSize: 'var(--text-24)', marginBottom: 8 }}>
-              Booking Created Successfully!
-            </h2>
-            <p className="text-tertiary" style={{ fontSize: 'var(--text-14)', marginBottom: 28 }}>
-              The tracking number below has been generated. Copy it and send it to the customer.
-            </p>
-
-            {/* Tracking Number Display */}
-            <div
-              style={{
-                background: 'var(--surface-raised, var(--surface))',
-                border: '2px dashed var(--primary)',
-                borderRadius: 'var(--radius-lg, 12px)',
-                padding: '20px 16px',
-                marginBottom: 16,
-              }}
-            >
-              <p className="text-tertiary" style={{ fontSize: 'var(--text-12)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>
-                Tracking Number
-              </p>
-              <p className="fw-700" style={{ fontSize: 'var(--text-24)', color: 'var(--primary)', letterSpacing: '0.04em', margin: 0, wordBreak: 'break-all' }}>
-                {success.tracking_number}
-              </p>
-            </div>
-
-            {/* Copy Button */}
             <button
               type="button"
-              className="btn btn-primary btn-lg"
+              className={`booking-success-copy-btn${copied ? ' is-copied' : ''}`}
               onClick={handleCopy}
-              style={{ width: '100%', marginBottom: 24, gap: 8 }}
+              aria-label={copied ? 'Tracking number copied' : 'Copy tracking number'}
             >
-              {copied ? <><Check size={18} /> Copied!</> : <><Copy size={18} /> Copy Tracking Number</>}
+              {copied ? <Check size={16} aria-hidden="true" /> : <Copy size={16} aria-hidden="true" />}
+              <span>{copied ? 'Copied' : 'Copy'}</span>
             </button>
+          </div>
 
-            {/* Booking Summary */}
-            <div
-              style={{
-                background: 'var(--surface-raised, var(--surface))',
-                borderRadius: 'var(--radius-md, 8px)',
-                padding: '16px',
-                textAlign: 'left',
-                marginBottom: 24,
-                border: '1px solid var(--border)',
-              }}
-            >
-              <p className="fw-600 mb-8" style={{ fontSize: 'var(--text-13)', color: 'var(--text-secondary)' }}>
-                Booking Summary
-              </p>
-              <div style={{ display: 'grid', gap: 6, fontSize: 'var(--text-13)' }}>
-                <div className="flex items-center gap-8">
-                  <span className="text-tertiary" style={{ minWidth: 70 }}>Route:</span>
-                  <span className="fw-600">{success.origin} → {success.destination}</span>
-                </div>
-                <div className="flex items-center gap-8">
-                  <span className="text-tertiary" style={{ minWidth: 70 }}>Sender:</span>
-                  <span>{success.sender_name}</span>
-                </div>
-                <div className="flex items-center gap-8">
-                  <span className="text-tertiary" style={{ minWidth: 70 }}>Receiver:</span>
-                  <span>{success.receiver_name}</span>
-                </div>
-                <div className="flex items-center gap-8">
-                  <span className="text-tertiary" style={{ minWidth: 70 }}>Status:</span>
-                  <span className="fw-600" style={{ color: 'var(--primary)' }}>Pending</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Actions */}
-            <div className="flex gap-12" style={{ flexWrap: 'wrap' }}>
-              <button
-                type="button"
-                className="btn btn-primary flex-1"
-                onClick={handleReset}
-                style={{ gap: 8 }}
-              >
-                <RotateCcw size={16} /> Create Another Booking
-              </button>
-              <button
-                type="button"
-                className="btn btn-ghost flex-1"
-                onClick={() => navigate(`/admin/orders/${success.id}`)}
-                style={{ gap: 8 }}
-              >
-                <Package size={16} /> View Order
-              </button>
+          <div className="booking-success-route">
+            <span className="booking-success-label">Route</span>
+            <div className="booking-success-route-path">
+              <span>{success.origin}</span>
+              <ArrowRight size={18} aria-hidden="true" />
+              <span>{success.destination}</span>
             </div>
           </div>
+
+          <dl className="booking-success-details">
+            <div><dt>Sender</dt><dd>{success.sender_name}</dd></div>
+            <div><dt>Receiver</dt><dd>{success.receiver_name}</dd></div>
+          </dl>
+        </section>
+
+        <div className="booking-success-actions">
+          <button type="button" className="btn booking-success-btn-primary" onClick={handleReset}>
+            Create Another Booking
+          </button>
+          <button
+            type="button"
+            className="btn booking-success-btn-outline"
+            onClick={() => navigate(`/admin/orders/${success.id}`)}
+          >
+            View Booking
+          </button>
         </div>
       </div>
     );
@@ -936,6 +911,22 @@ const AdminCreateBookingPage = () => {
         </div>
 
         {/* ── Submit ─────────────────────────────────────────── */}
+        {submitError && (
+          <div className="booking-submit-failure" role="alert" ref={submitErrorRef}>
+            <AlertTriangle size={18} className="booking-submit-failure-icon" aria-hidden="true" />
+            <div className="booking-submit-failure-body">
+              <p className="booking-submit-failure-title">We couldn’t confirm the booking</p>
+              <p>{submitError.reason}</p>
+              <p>
+                Everything you entered is still here. Try again, or if the connection
+                dropped while saving, check Bookings first, as it may already be saved.
+              </p>
+              {submitError.detail && (
+                <p className="booking-submit-failure-detail">Details: {submitError.detail}</p>
+              )}
+            </div>
+          </div>
+        )}
         <div className="admin-form-actions">
           <button
             type="submit"

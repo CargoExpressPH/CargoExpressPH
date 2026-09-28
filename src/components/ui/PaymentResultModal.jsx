@@ -52,11 +52,11 @@ const PaymentResultModal = ({
   const isProcessing = variant === 'processing';
   const displayPaymentMethod = paymentMethod || 'GCash';
 
-  const title = isSuccess ? 'Payment Successful!'
-    : isError ? 'Payment Failed!'
-    : 'Payment Processing';
+  const title = isSuccess ? 'Payment successful'
+    : isError ? 'Payment didn’t go through'
+    : 'Confirming your payment';
 
-  const subtitle = isSuccess ? 'Your payment was processed successfully!'
+  const subtitle = isSuccess ? 'The booking has been updated with this payment.'
     : isError ? `Your ${displayPaymentMethod} payment was not completed. Try again or choose another payment option.`
     : `Your ${displayPaymentMethod} payment is being confirmed. This usually takes a few seconds.`;
 
@@ -181,10 +181,10 @@ const PaymentResultModal = ({
               <button
                 ref={!onRetry ? btnRef : undefined}
                 type="button"
-                className={`btn w-full justify-center ${isError ? 'pr-btn-danger' : 'btn-outline pr-btn-outline'}`}
+                className="btn btn-outline pr-btn-outline w-full justify-center"
                 onClick={onClose}
               >
-                {isError ? 'Back' : 'Close'}
+                Close
               </button>
             )}
           </div>

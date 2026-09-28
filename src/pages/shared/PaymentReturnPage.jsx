@@ -1,16 +1,71 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import {
   clearPaymentReturnContext,
   getPaymentReturnContext,
 } from '../../lib/paymentReturnContext';
 import usePageTitle from '../../hooks/usePageTitle';
-import { CircleAlert, CircleCheck, Clock } from 'lucide-react';
+import { Info } from 'lucide-react';
 import BrandLockup from '../../components/ui/BrandLogo';
+import ResultIcon from '../../components/ui/ResultIcon';
 
 const TERMINAL_PHASES = new Set(['confirmed', 'failed', 'invalid']);
 const AUTO_CHECK_DELAYS = [0, 1500, 3000, 5000, 8000, 12000];
+
+/**
+ * What each phase says. The page itself never learns the amount or the
+ * booking (the server returns only a status), so on the paying device the
+ * details come from the booking page, which this page hands off to.
+ */
+const SCREENS = {
+  verifying: {
+    tone: 'loading',
+    title: 'Confirming your payment',
+    text: 'This usually takes a few seconds. Please keep this page open.',
+  },
+  confirmed: {
+    tone: 'success',
+    title: 'Thank you for your payment!',
+    text: 'Your payment has been successfully confirmed.',
+  },
+  processing: {
+    tone: 'pending',
+    title: 'Still confirming your payment',
+    text: 'GCash hasn’t finished confirming this payment yet. Please check again in a few seconds.',
+    help: 'Please don’t pay again while this is being checked.',
+  },
+  unavailable: {
+    tone: 'pending',
+    title: 'We can’t check right now',
+    text: 'Payment verification is temporarily unavailable. Please try again in a moment.',
+    help: 'Your payment may still have gone through, so please don’t pay again until this confirms.',
+  },
+  failed: {
+    tone: 'error',
+    title: 'Payment didn’t go through',
+    text: 'Your GCash payment was not completed.',
+    help: 'If GCash shows the amount was deducted, don’t pay again. Contact CargoExpress PH with your GCash reference number.',
+  },
+  invalid: {
+    tone: 'error',
+    title: 'This link has expired',
+    text: 'This payment confirmation link is invalid or expired.',
+  },
+};
+
+/**
+ * Adds the outcome to the originating page's path (for example
+ * `/customer/orders/<id>?payment=success`). That page already handles the
+ * parameter: it re-checks the payment and shows its own result with the
+ * amount and booking details, which are private to the paying account.
+ */
+const withPaymentResult = (path, result) => {
+  const [pathname, query = ''] = path.split('?');
+  const params = new URLSearchParams(query);
+  params.set('payment', result);
+  return `${pathname}?${params.toString()}`;
+};
 
 /**
  * Public Device B landing page for a PayMongo redirect.
@@ -18,8 +73,8 @@ const AUTO_CHECK_DELAYS = [0, 1500, 3000, 5000, 8000, 12000];
  * Payment verification does not depend on auth state or localStorage. The
  * high-entropy return capability in the URL is sent to the public Edge
  * Function, which validates its hash server-side and returns only a status
- * enum. Local storage is consulted only after confirmation to decide whether
- * this exact browser may navigate back to its own originating page.
+ * enum. Local storage is consulted only to decide whether this exact browser
+ * may navigate back to its own originating page.
  */
 const PaymentReturnPage = () => {
   usePageTitle('Payment Status');
@@ -28,7 +83,7 @@ const PaymentReturnPage = () => {
   const timerRef = useRef(null);
   const [phase, setPhase] = useState(returnToken ? 'verifying' : 'invalid');
   const [checking, setChecking] = useState(false);
-  const [originatingReturnTo, setOriginatingReturnTo] = useState(null);
+  const [returnContext, setReturnContext] = useState(null);
   const [closeFallbackVisible, setCloseFallbackVisible] = useState(false);
 
   // This is intentionally only a same-browser navigation convenience. The
@@ -42,7 +97,7 @@ const PaymentReturnPage = () => {
 
     supabase.auth.getSession().then(({ data }) => {
       if (!cancelled && data?.session?.user?.id === context.userId) {
-        setOriginatingReturnTo(context.returnTo);
+        setReturnContext({ returnTo: context.returnTo, role: context.role });
       }
     }).catch(() => {
       // A session read failure keeps the public fallback available.
@@ -126,6 +181,12 @@ const PaymentReturnPage = () => {
     await verifyOnce();
   };
 
+  // Only the device that started the payment (same browser, same account)
+  // gets a way back to its booking; everyone else sees the public result.
+  const originatingReturnTo = returnContext
+    ? withPaymentResult(returnContext.returnTo, phase === 'failed' ? 'failed' : 'success')
+    : null;
+
   const handleClose = () => {
     if (originatingReturnTo) {
       clearPaymentReturnContext(returnToken);
@@ -146,62 +207,62 @@ const PaymentReturnPage = () => {
     }
   };
 
-  if (phase === 'verifying') {
-    return (
-      <main className="loading-screen" aria-live="polite">
-        <div className="spinner" aria-hidden="true" />
-        <p>Verifying your payment…</p>
-      </main>
-    );
-  }
-
-  const copy = {
-    confirmed: 'Your payment has been successfully confirmed.',
-    processing: 'We are still confirming your payment. Please check again in a few seconds.',
-    failed: 'Your payment could not be confirmed. You may close this page.',
-    invalid: 'This payment confirmation link is invalid or expired.',
-    unavailable: 'Payment verification is temporarily unavailable. Please try again.',
-  };
-  const title = {
-    confirmed: 'Thank you for your payment!',
-    failed: 'Payment not confirmed',
-    invalid: 'Payment link unavailable',
-  }[phase] || 'Payment verification';
-  const tone = phase === 'confirmed' ? 'success' : phase === 'failed' || phase === 'invalid' ? 'error' : 'pending';
-  const StatusIcon = tone === 'success' ? CircleCheck : tone === 'error' ? CircleAlert : Clock;
+  const screen = SCREENS[phase] || SCREENS.unavailable;
+  const tone = screen.tone === 'loading' ? 'pending' : screen.tone;
   const canRetry = phase === 'processing' || phase === 'unavailable';
 
   return (
-    <main className="payment-return" aria-live="polite">
+    <main className={`payment-return payment-return--${tone}`} aria-live="polite">
       <div className="payment-return-card">
-        <BrandLockup size={32} className="payment-return-brand" />
-        <span className={`payment-return-icon payment-return-icon--${tone}`} aria-hidden="true">
-          <StatusIcon size={30} />
-        </span>
-        <h1 className="payment-return-title">{title}</h1>
-        <p className="payment-return-text">{copy[phase] || copy.unavailable}</p>
+        <BrandLockup size={30} className="payment-return-brand" />
+        <ResultIcon tone={screen.tone} className="payment-return-mark" />
+        <h1 className="payment-return-title">{screen.title}</h1>
+        <p className="payment-return-text">{screen.text}</p>
 
-        {phase === 'confirmed' && (
-          <button type="button" className="btn btn-primary btn-block" onClick={handleClose}>
-            {originatingReturnTo ? 'Return to CargoExpress' : 'Close'}
-          </button>
+        {screen.help && (
+          <div className={`payment-return-help payment-return-help--${tone}`}>
+            <Info size={16} aria-hidden="true" />
+            <p>
+              {screen.help}
+              {phase === 'failed' && returnContext?.role === 'customer' && (
+                <> <Link to="/customer/support">Chat with us</Link></>
+              )}
+            </p>
+          </div>
         )}
+
+        {phase !== 'verifying' && (
+          <div className="payment-return-actions">
+            {phase === 'confirmed' && (
+              <button type="button" className="btn btn-primary btn-block" onClick={handleClose}>
+                {originatingReturnTo ? 'View booking' : 'Close'}
+              </button>
+            )}
+
+            {canRetry && (
+              <button type="button" className="btn btn-primary btn-block" onClick={checkAgain} disabled={checking} aria-busy={checking}>
+                {checking ? 'Checking…' : 'Check again'}
+              </button>
+            )}
+
+            {phase === 'failed' && originatingReturnTo && (
+              <button type="button" className="btn btn-primary btn-block" onClick={handleClose}>
+                Try again
+              </button>
+            )}
+
+            {/* A plain link, not a session-aware one: "/" already sends a
+                signed-in visitor to their dashboard and a guest to the home page. */}
+            {(phase === 'invalid' || (phase === 'failed' && !originatingReturnTo)) && (
+              <a className="btn btn-outline btn-block" href="/">Go to CargoExpress PH</a>
+            )}
+          </div>
+        )}
+
         {phase === 'confirmed' && closeFallbackVisible && !originatingReturnTo && (
           <p className="payment-return-note">
             You may now close this tab and return to the device where you started your payment.
           </p>
-        )}
-
-        {canRetry && (
-          <button type="button" className="btn btn-primary btn-block" onClick={checkAgain} disabled={checking} aria-busy={checking}>
-            {checking ? 'Checking…' : 'Check again'}
-          </button>
-        )}
-
-        {/* A plain link, not a session-aware one: "/" already sends a
-            signed-in visitor to their dashboard and a guest to the home page. */}
-        {(phase === 'failed' || phase === 'invalid') && (
-          <a className="btn btn-outline btn-block" href="/">Go to CargoExpress PH</a>
         )}
       </div>
     </main>

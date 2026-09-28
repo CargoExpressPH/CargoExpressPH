@@ -13,6 +13,8 @@ import { useToast } from '../../hooks/useToast';
 import CustomSelect from '../../components/ui/CustomSelect';
 import BarangaySelect from '../../components/ui/BarangaySelect';
 import ConfirmModal from '../../components/ui/ConfirmModal';
+import BrandLockup from '../../components/ui/BrandLogo';
+import ResultIcon from '../../components/ui/ResultIcon';
 import { useReducedMotion } from 'framer-motion';
 import usePageTitle from '../../hooks/usePageTitle';
 import { formatMoney } from '../../utils/currencyInput';
@@ -28,6 +30,7 @@ import {
   readBookingDraft,
 } from '../../lib/bookingDraft';
 import { orderPartyName, orderPartyAddress } from '../../lib/orderParties';
+import { describeBookingSaveError } from '../../utils/bookingSaveError';
 
 function fallbackCopy(text) {
   const el = document.createElement('textarea');
@@ -155,6 +158,10 @@ const BookShipmentPage = () => {
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [success, setSuccess] = useState(null);
+  // Set only when saving the booking itself failed (not for a validation
+  // stop); shown at the top of Review so the customer knows what to do next.
+  const [submitError, setSubmitError] = useState(null);
+  useEffect(() => { if (step !== 5) setSubmitError(null); }, [step]);
   const [trips, setTrips] = useState([]);
   const [pricePerKilo, setPricePerKilo] = useState(70);
 
@@ -565,6 +572,10 @@ const BookShipmentPage = () => {
     if (submittingRef.current) return;
     submittingRef.current = true;
     setLoading(true);
+    setSubmitError(null);
+    // True once the booking is actually sent, so the catch below can tell a
+    // failed save apart from a validation stop.
+    let sendingBooking = false;
     // When validation sends the user back to a step, we focus the offending
     // field — and focusing already scrolls it into view. The catch block's
     // scroll-to-top would fight that, yanking the page away from the field the
@@ -615,6 +626,7 @@ const BookShipmentPage = () => {
         payload.status = 'Pending Review';
       }
       
+      sendingBooking = true;
       const data = await createOrder(payload);
       clearCustomerPageCache();
       
@@ -637,7 +649,10 @@ const BookShipmentPage = () => {
       // Another" dropdown reflects it instead of the stale pre-edit version.
       refreshRecentContacts();
     } catch (err) {
-      toast.error(err.message || 'An unexpected error occurred while saving the booking.');
+      // A failed save gets the notice at the top of Review instead of a toast:
+      // the toast repeated it with raw text such as "HTTP Error 500".
+      if (sendingBooking) setSubmitError(describeBookingSaveError(err));
+      else toast.error(err.message || 'An unexpected error occurred while saving the booking.');
       if (!focusingInvalidField) bookingScrollTarget().scrollTo({ top: 0, behavior: 'smooth' });
       setLoading(false);
     } finally {
@@ -899,10 +914,9 @@ const BookShipmentPage = () => {
     return createPortal(
       <div className="booking-success-page" aria-labelledby="booking-success-title">
         <div className="booking-success-content">
-          <div className="booking-success-brand"><Package size={18} aria-hidden="true" /> CargoExpress PH</div>
+          <BrandLockup size={30} className="booking-success-brand" />
           <div className="booking-success-intro" role="status" aria-live="polite">
-            <div className="booking-success-visual" aria-hidden="true"><Check size={32} strokeWidth={2.7} /></div>
-            <div className="booking-success-eyebrow">Booking saved</div>
+            <ResultIcon tone="success" className="booking-success-mark" />
             <h1 id="booking-success-title" className="booking-success-heading">Booking received</h1>
             <p className="booking-success-subtitle">
               {isReview
@@ -1273,6 +1287,20 @@ const BookShipmentPage = () => {
       {step === 5 && (
         <div className="card animate-fade-in"><div className="card-body">
           <h3 className="fw-700 mb-16">Review & Confirm</h3>
+          {submitError && (
+            <div className="booking-submit-failure" role="alert">
+              <AlertTriangle size={18} className="booking-submit-failure-icon" aria-hidden="true" />
+              <div className="booking-submit-failure-body">
+                <p className="booking-submit-failure-title">We couldn’t confirm your booking</p>
+                <p>{submitError}</p>
+                <p>
+                  Your details are still here. Tap Confirm Booking below to try again.
+                  If your connection dropped while sending, check Bookings first, as it
+                  may already be saved.
+                </p>
+              </div>
+            </div>
+          )}
           <p className="booking-review-intro">Check everything once more. Tap <strong>Edit</strong> on any section to change it.</p>
           <div className="booking-summary-card mb-16">
             <div className="booking-summary-head">
