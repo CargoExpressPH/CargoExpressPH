@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Search, LayoutDashboard, Package, Truck, Users, BarChart3,
-  Megaphone, MessageSquare, Mail, Building, ClipboardList, User, KeyRound, HardDrive
+  Megaphone, MessageSquare, Mail, Building, ClipboardList, User, KeyRound, HardDrive, Star
 } from 'lucide-react';
 import FocusTrap from './FocusTrap';
 import useScrollLock from '../../hooks/useScrollLock';
@@ -16,7 +16,7 @@ const COMMANDS = [
   { label: 'Announcements', to: '/admin/announcements', icon: Megaphone, section: 'Management', keywords: 'notifications broadcast' },
   { label: 'Inbox', to: '/admin/inbox', icon: MessageSquare, section: 'Management', keywords: 'messages chat support' },
   { label: 'Contact Inquiries', to: '/admin/contact-inquiries', icon: Mail, section: 'Management', keywords: 'messages inquiries contact' },
-  { label: 'Customer Feedback', to: '/admin/feedback', icon: MessageSquare, section: 'Management', keywords: 'feedback testimonials reviews' },
+  { label: 'Customer Feedback', to: '/admin/feedback', icon: Star, section: 'Management', keywords: 'feedback testimonials reviews' },
   { label: 'Activity Logs', to: '/admin/activity-logs', icon: ClipboardList, section: 'Management', keywords: 'audit history logs' },
   { label: 'Company Information', to: '/admin/company-info', icon: Building, section: 'System', keywords: 'profile config business coverage settings' },
   { label: 'Photo Storage', to: '/admin/storage-monitoring', icon: HardDrive, section: 'System', keywords: 'storage photos firebase supabase fallback uploads health monitoring email resend activity usage announcements reminders' },

@@ -6,14 +6,15 @@ import { getAdminInboxUnreadCount, getNewInquiryCount } from '../../lib/database
 import {
   LayoutDashboard, Package, Truck, Users, BarChart3,
   Megaphone, MessageSquare, LogOut, Mail,
-  ChevronsLeft, ArrowLeft, ClipboardList, Building, ChevronUp, User, PackagePlus, HardDrive
+  ChevronsLeft, ArrowLeft, ClipboardList, Building, ChevronUp, User, HardDrive, Star
 } from 'lucide-react';
 import ConfirmModal from '../ui/ConfirmModal';
 import { BrandLogo, BrandWordmark } from '../ui/BrandLogo';
 
 const mainNav = [
   { to: '/admin', icon: LayoutDashboard, label: 'Dashboard', end: true },
-  { to: '/admin/orders', icon: Package, label: 'Bookings' },
+  // Create Booking lives outside /admin/orders but is still bookings work.
+  { to: '/admin/orders', icon: Package, label: 'Bookings', alsoActive: ['/admin/create-booking'] },
   { to: '/admin/trips', icon: Truck, label: 'Trips' },
   { to: '/admin/customers', icon: Users, label: 'Customers' },
 ];
@@ -23,7 +24,7 @@ const toolsNav = [
   { to: '/admin/announcements', icon: Megaphone, label: 'Announcements' },
   { to: '/admin/inbox', icon: MessageSquare, label: 'Inbox', badgeKey: 'inbox' },
   { to: '/admin/contact-inquiries', icon: Mail, label: 'Inquiries', badgeKey: 'inquiries' },
-  { to: '/admin/feedback', icon: MessageSquare, label: 'Customer Feedback' },
+  { to: '/admin/feedback', icon: Star, label: 'Customer Feedback' },
   { to: '/admin/activity-logs', icon: ClipboardList, label: 'Activity Logs' },
 ];
 
@@ -32,6 +33,10 @@ const systemNav = [
   { to: '/admin/storage-monitoring', icon: HardDrive, label: 'Photo Storage' },
 ];
 
+// Pages reached from the account menu; the account button is highlighted on
+// them the way a nav link is on its own page.
+const accountPaths = ['/admin/profile', '/admin/change-email', '/admin/change-password'];
+
 const Sidebar = ({ isOpen, onClose, isCollapsed, onToggleCollapse }) => {
   const { logout, userProfile } = useAuth();
   const navigate = useNavigate();
@@ -39,6 +44,15 @@ const Sidebar = ({ isOpen, onClose, isCollapsed, onToggleCollapse }) => {
   const [badges, setBadges] = useState({ inbox: 0, inquiries: 0 });
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const profileMenuRef = useRef(null);
+  const navRef = useRef(null);
+  // The collapsed rail's name labels. They are rendered outside the <aside>
+  // because the sidebar and its scrolling nav both clip overflow, which cut
+  // off the old CSS ::after tooltips entirely.
+  const [railTip, setRailTip] = useState(null);
+  // True while nav items are hidden below the fold; shows a fade above the
+  // account button so a short screen reads as scrollable.
+  const [navHasMore, setNavHasMore] = useState(false);
+  const onAccountPage = accountPaths.includes(location.pathname);
 
   useEffect(() => {
     if (userProfile?.role !== 'admin') return;
@@ -103,6 +117,48 @@ const Sidebar = ({ isOpen, onClose, isCollapsed, onToggleCollapse }) => {
     };
   }, [userProfile?.role]);
 
+  useEffect(() => {
+    const nav = navRef.current;
+    if (!nav) return undefined;
+    const update = () => {
+      setNavHasMore(nav.scrollHeight - nav.scrollTop - nav.clientHeight > 4);
+    };
+    update();
+    nav.addEventListener('scroll', update, { passive: true });
+    window.addEventListener('resize', update);
+    // ResizeObserver needs iOS 13.4; the resize listener covers older ones.
+    const observer = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(update) : null;
+    observer?.observe(nav);
+    return () => {
+      nav.removeEventListener('scroll', update);
+      window.removeEventListener('resize', update);
+      observer?.disconnect();
+    };
+  }, [isOpen, isCollapsed]);
+
+  useEffect(() => { setRailTip(null); }, [isCollapsed, location.pathname, profileMenuOpen]);
+
+  // Only on the collapsed desktop rail: in the phone drawer the labels are
+  // visible even when the saved preference is "collapsed".
+  const showRailTip = (event) => {
+    const el = event.currentTarget;
+    const label = el.querySelector('.sidebar-link-label, .sidebar-profile-info');
+    // Collapsed labels are faded to opacity 0 (links) or display: none (the
+    // account name); width is no test, as flex-grow can still give them some.
+    const labelShown = label && label.offsetParent !== null
+      && parseFloat(window.getComputedStyle(label).opacity) > 0.5;
+    if (!isCollapsed || !label || labelShown) return;
+    const rect = el.getBoundingClientRect();
+    setRailTip({ text: el.dataset.tooltip, top: rect.top + rect.height / 2, left: rect.right + 12 });
+  };
+  const hideRailTip = () => setRailTip(null);
+  const railTipHandlers = {
+    onMouseEnter: showRailTip,
+    onMouseLeave: hideRailTip,
+    onFocus: showRailTip,
+    onBlur: hideRailTip,
+  };
+
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   const handleLogout = async () => {
@@ -142,12 +198,15 @@ const Sidebar = ({ isOpen, onClose, isCollapsed, onToggleCollapse }) => {
         to={item.to}
         end={item.end}
         className={({ isActive }) => {
-          const isCustomActive = item.matchPaths ? item.matchPaths.includes(location.pathname) : isActive;
+          const isCustomActive = item.matchPaths
+            ? item.matchPaths.includes(location.pathname)
+            : isActive || Boolean(item.alsoActive?.includes(location.pathname));
           return `sidebar-link ${isCustomActive ? 'active' : ''}`;
         }}
         onClick={onClose}
-        data-tooltip={item.label}
+        data-tooltip={badgeCount > 0 ? `${item.label} (${formatBadge(badgeCount)})` : item.label}
         aria-label={`${item.label}${badgeCount > 0 ? `, ${badgeCount} unread items` : ''}`}
+        {...railTipHandlers}
       >
         <item.icon size={18} aria-hidden="true" />
         <span className="sidebar-link-label">{item.label}</span>
@@ -156,6 +215,9 @@ const Sidebar = ({ isOpen, onClose, isCollapsed, onToggleCollapse }) => {
             {formatBadge(badgeCount)}
           </span>
         )}
+        {/* The count badge has no room on the collapsed rail; this dot keeps
+            unread work visible there (shown by CSS on the rail only). */}
+        {badgeCount > 0 && <span className="sidebar-rail-dot" aria-hidden="true" />}
       </NavLink>
       );
     });
@@ -163,21 +225,24 @@ const Sidebar = ({ isOpen, onClose, isCollapsed, onToggleCollapse }) => {
   return (
     <>
       {isOpen && <div className="sidebar-backdrop" onClick={onClose} aria-hidden="true" />}
+      {/* Collapse toggle (desktop only). Outside the <aside>, which clips
+          overflow and used to cut this edge-straddling button in half. */}
+      <button
+        className="sidebar-collapse-btn"
+        type="button"
+        onClick={onToggleCollapse}
+        aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        aria-controls="admin-sidebar"
+        aria-expanded={!isCollapsed}
+        title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+      >
+        <ChevronsLeft size={16} aria-hidden="true" />
+      </button>
       <aside
         id="admin-sidebar"
-        className={`sidebar ${isOpen ? 'open' : ''} ${isCollapsed ? 'collapsed' : ''}`}
-        aria-label="Admin navigation"
+        className={`sidebar ${isOpen ? 'open' : ''} ${isCollapsed ? 'collapsed' : ''}${navHasMore ? ' nav-has-more' : ''}`}
+        aria-label="Admin sidebar"
       >
-        {/* Collapse toggle (desktop only) */}
-        <button
-          className="sidebar-collapse-btn"
-          type="button"
-          onClick={onToggleCollapse}
-          aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-        >
-          <ChevronsLeft size={16} aria-hidden="true" />
-        </button>
 
         <div className="sidebar-brand">
           {/* The mark sits OUTSIDE the wordmark on purpose: `.sidebar.collapsed
@@ -197,7 +262,7 @@ const Sidebar = ({ isOpen, onClose, isCollapsed, onToggleCollapse }) => {
           </button>
         </div>
 
-        <nav className="sidebar-nav" aria-label="Admin navigation">
+        <nav className="sidebar-nav" aria-label="Admin navigation" ref={navRef} onScroll={hideRailTip}>
           <div className="sidebar-section-label">Main</div>
           {renderLinks(mainNav)}
 
@@ -213,7 +278,7 @@ const Sidebar = ({ isOpen, onClose, isCollapsed, onToggleCollapse }) => {
           <div className="sidebar-profile-menu" ref={profileMenuRef}>
             <button
               type="button"
-              className={`sidebar-profile-btn${profileMenuOpen ? ' active' : ''}`}
+              className={`sidebar-profile-btn${profileMenuOpen || onAccountPage ? ' active' : ''}`}
               onClick={() => setProfileMenuOpen(prev => !prev)}
               onKeyDown={(e) => {
                 if (e.key === 'Escape' && profileMenuOpen) {
@@ -225,6 +290,7 @@ const Sidebar = ({ isOpen, onClose, isCollapsed, onToggleCollapse }) => {
                 }
               }}
               data-tooltip="Account"
+              {...railTipHandlers}
               aria-label="Open account menu"
               aria-haspopup="menu"
               aria-expanded={profileMenuOpen}
@@ -289,6 +355,15 @@ const Sidebar = ({ isOpen, onClose, isCollapsed, onToggleCollapse }) => {
           </div>
         </div>
       </aside>
+      {railTip && (
+        <div
+          className="sidebar-rail-tooltip"
+          style={{ top: railTip.top, left: railTip.left }}
+          aria-hidden="true"
+        >
+          {railTip.text}
+        </div>
+      )}
       <ConfirmModal
         isOpen={showLogoutConfirm}
         onClose={() => setShowLogoutConfirm(false)}

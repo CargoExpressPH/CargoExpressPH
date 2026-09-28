@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { getAdminFeedback, updateFeedbackVisibility } from '../../lib/database';
 import { useToast } from '../../hooks/useToast';
-import { MessageSquare, Search, Filter, Eye, EyeOff } from 'lucide-react';
+import { MessageSquare, Search, Filter, Eye, EyeOff, Star } from 'lucide-react';
 import usePageTitle from '../../hooks/usePageTitle';
 import { formatPhDateTime } from '../../utils/datetime';
 import { CenteredSpinner } from '../../components/ui/Loader';
@@ -60,7 +60,7 @@ const FeedbackPage = () => {
     <div className="page-transition">
       <div className="admin-page-header">
         <div>
-          <h1 className="admin-page-title"><MessageSquare size={24} color="var(--primary)" aria-hidden="true" />Customer Feedback</h1>
+          <h1 className="admin-page-title"><Star size={24} color="var(--primary)" aria-hidden="true" />Customer Feedback</h1>
           <p className="admin-page-subtitle">Reviews customers left after delivery. Hidden reviews stay off the public website.</p>
         </div>
       </div>

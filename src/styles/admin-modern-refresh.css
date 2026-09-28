@@ -1423,3 +1423,123 @@
 .app-layout .sidebar {
   background-color: var(--admin-panel-solid);
 }
+
+/* ── Sidebar: collapsed rail, short screens ──────────────────────────────
+   Layer note: this file is layer(refresh), later than layout and
+   responsive, so these beat layout-admin.css and responsive.css regardless
+   of specificity. viewport-hardening.css (a later layer) still sets the
+   collapse button's top for the iOS safe area. */
+
+/* Collapse button now sits outside the <aside> (which clips overflow), so
+   it is positioned against the viewport and follows the sidebar's width. */
+.app-layout .sidebar-collapse-btn {
+  position: fixed;
+  right: auto;
+  left: calc(var(--sidebar-width) - 14px);
+  z-index: calc(var(--z-overlay) + 2);
+  transition:
+    left 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    background 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.app-layout.sidebar-collapsed .sidebar-collapse-btn {
+  left: calc(var(--sidebar-collapsed-width) - 14px);
+}
+
+.app-layout.sidebar-collapsed .sidebar-collapse-btn svg {
+  transform: rotate(180deg);
+}
+
+/* The old CSS tooltips could never be seen (clipped by the nav) and still
+   added off-screen overflow; Sidebar.jsx renders .sidebar-rail-tooltip. */
+.app-layout .sidebar.collapsed .sidebar-link::after {
+  display: none;
+}
+
+.app-layout .sidebar-rail-tooltip {
+  position: fixed;
+  z-index: calc(var(--z-overlay) + 3);
+  transform: translateY(-50%);
+  padding: 7px 12px;
+  border: 1px solid var(--admin-line);
+  border-radius: var(--radius-sm);
+  background: var(--admin-panel-solid);
+  color: var(--admin-ink);
+  box-shadow: var(--shadow-lg);
+  font-size: var(--text-13);
+  font-weight: 600;
+  line-height: 1.3;
+  white-space: nowrap;
+  pointer-events: none;
+  animation: fadeIn 0.12s ease;
+}
+
+/* Unread dot on the collapsed desktop rail, where the count badge is
+   squeezed to zero width. Hidden everywhere else, including the phone
+   drawer, which shows the full badge. */
+.app-layout .sidebar-link > span.sidebar-rail-dot {
+  display: none;
+}
+
+@media (min-width: 1025px) {
+  .app-layout .sidebar.collapsed .sidebar-link > span.sidebar-rail-dot {
+    display: block;
+    position: absolute;
+    top: 9px;
+    left: 50%;
+    width: 10px;
+    height: 10px;
+    margin-left: 4px;
+    overflow: visible;
+    opacity: 1;
+    border: 2px solid var(--admin-panel-solid);
+    border-radius: 50%;
+    background: #DC2626;
+  }
+}
+
+/* Short desktop screens: tighten the list so all 13 items fit without
+   scrolling on common laptop heights (1366x768 leaves ~650px for the page).
+   Phones and tablets keep 44px+ touch targets; they scroll instead. */
+@media (min-width: 1025px) and (max-height: 900px) {
+  .app-layout .sidebar-brand { min-height: 68px; padding-top: 16px; padding-bottom: 16px; }
+  .app-layout .sidebar-link { min-height: 40px; padding-top: 8px; padding-bottom: 8px; }
+  .app-layout .sidebar:not(.collapsed) .sidebar-section-label { padding-top: 12px; padding-bottom: 6px; }
+  .app-layout .sidebar-footer { padding-top: 8px; padding-bottom: 8px; }
+}
+
+@media (min-width: 1025px) and (max-height: 800px) {
+  .app-layout .sidebar-brand { min-height: 60px; padding-top: 12px; padding-bottom: 12px; }
+  .app-layout .sidebar-link { min-height: 32px; padding-top: 6px; padding-bottom: 6px; margin-bottom: 0; }
+  .app-layout .sidebar:not(.collapsed) .sidebar-section-label { padding-top: 8px; padding-bottom: 4px; }
+  .app-layout .sidebar-profile-btn { min-height: 44px; }
+}
+
+/* Scroll cue: a fade above the account button while nav items are hidden
+   below it (Sidebar.jsx toggles .nav-has-more). Solid-colour stops rather
+   than "transparent", which older Safari blends through grey. */
+.app-layout .sidebar-footer {
+  position: relative;
+}
+
+.app-layout .sidebar-footer::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 100%;
+  height: 40px;
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0), #FFFFFF);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+[data-theme="dark"] .app-layout .sidebar-footer::before {
+  background: linear-gradient(to bottom, rgba(30, 41, 59, 0), #1E293B);
+}
+
+.app-layout .sidebar.nav-has-more .sidebar-footer::before {
+  opacity: 1;
+}
