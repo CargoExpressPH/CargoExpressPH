@@ -256,7 +256,7 @@ const PaymentReturnPage = () => {
 
         {phase === 'confirmed' && contextReady && !originatingReturnTo && (
           <p className="payment-return-note">
-            You can close this tab. If someone else arranged the booking, let them know the payment was confirmed.
+            You may now close this tab. Your booking has been updated with this payment.
           </p>
         )}
       </div>
