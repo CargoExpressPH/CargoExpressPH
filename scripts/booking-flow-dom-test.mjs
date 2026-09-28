@@ -253,6 +253,10 @@ try {
   assert.equal(fixture.orders[0].receiver_city, 'Manila');
   assert.equal(fixture.orders[0].sender_lot_block, 'Lot 13');
   assert.equal(fixture.errors.length, 3, 'only the three deliberately invalid steps should report errors');
+  assert.equal(document.activeElement?.id, 'booking-success-title',
+    'the confirmation moves focus to its heading');
+  assert.ok(document.querySelector('.booking-success-actions + .booking-success-end'),
+    'the confirmation keeps its bottom spacing after the pinned buttons');
   await act(async () => root.unmount());
   assert.ok(!document.documentElement.classList.contains('booking-route-active'),
     'booking route scroll padding is removed on navigation');

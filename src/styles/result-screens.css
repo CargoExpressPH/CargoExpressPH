@@ -216,6 +216,118 @@
   .booking-success-mark svg { width: 32px; height: 32px; }
 }
 
+/* The check in the same brand green as the receipt's primary button. */
+.booking-success-mark.result-icon--success {
+  background: var(--primary-fill);
+  box-shadow: 0 0 0 8px var(--primary-bg), 0 14px 30px rgba(21, 128, 61, 0.26);
+}
+
+/* Receipt spacing as margins instead of flex gap (older iOS). Same sizes as
+   the gap values in booking-success.css, so newer browsers look identical. */
+.booking-success-brand,
+.booking-success-card-header,
+.booking-success-status-pill,
+.booking-success-tracking,
+.booking-success-tracking-text,
+.booking-success-copy-btn,
+.booking-success-route,
+.booking-success-route-path,
+.booking-success-btn-primary { gap: 0; }
+
+.booking-success-brand .brand-logo { margin-right: 8px; }
+.booking-success-card-header .booking-success-status-pill { margin-left: 10px; }
+.booking-success-status-pill::before { margin-right: 7px; }
+.booking-success-tracking .booking-success-copy-btn { margin-left: 12px; }
+.booking-success-tracking-number { margin-top: 4px; }
+.booking-success-copy-btn span { margin-left: 6px; }
+.booking-success-btn-primary svg { margin-left: 8px; }
+/* 6px under "Route"; items keep 8px apart across and, when wrapped, down. */
+.booking-success-route-path { margin-top: 2px; margin-bottom: -4px; }
+.booking-success-route-path > * { margin-top: 4px; margin-bottom: 4px; }
+.booking-success-route-path > svg { margin-left: 8px; margin-right: 8px; }
+
+/* ── Customer confirmation: buttons pinned to the bottom edge ──────────────
+   On most phones the receipt is taller than the screen, which left "View
+   Booking" below the fold. The bar is sticky: it pins to the bottom only
+   while more receipt is below it and sits in place wherever everything fits
+   (tablet, desktop, tall phones), so there it looks as before. .is-pinned
+   (BookShipmentPage) adds the top edge while pinned. Without sticky support
+   the bar stays in the flow, as before.
+
+   A sticky bar stops at its scroller's padding, so the page's bottom spacing
+   moves into the bar (safe area) and .booking-success-end (the rest). At rest
+   every distance equals the original padding and margins. Scoped to
+   .booking-success-page: the admin receipt shares these classes. */
+.booking-success-page { padding-bottom: 0; }
+
+.booking-success-page .booking-success-actions {
+  position: -webkit-sticky;
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  box-sizing: border-box;
+  margin-top: 12px;
+  padding: 12px 0 calc(12px + env(safe-area-inset-bottom, 0px));
+}
+
+/* Backing in the page colour, so the receipt scrolls out of sight under the
+   bar. It reaches across the page's side padding (edge to edge on phones)
+   and no further, so it never widens the scroller. */
+.booking-success-page .booking-success-actions::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: -16px;
+  bottom: 0;
+  left: -16px;
+  z-index: -1;
+  border-top: 1px solid transparent;
+  background: var(--bg);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.booking-success-page .booking-success-actions.is-pinned::before {
+  border-top-color: var(--border);
+  box-shadow: 0 -10px 24px -18px rgba(15, 23, 42, 0.35);
+}
+
+.booking-success-page .booking-success-end { height: 20px; }
+
+.booking-success-page .booking-success-heading:focus { outline: none; }
+
+@media (max-width: 479px) {
+  /* Side by side on phones too, so the pinned bar stays one row high. */
+  .booking-success-page .booking-success-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin-top: 6px;
+  }
+  .booking-success-page .booking-success-actions::before { right: -12px; left: -12px; }
+  .booking-success-page .booking-success-end { height: 12px; }
+}
+
+@media (max-width: 359px) {
+  .booking-success-page .booking-success-btn-primary,
+  .booking-success-page .booking-success-btn-outline { padding-left: 8px; padding-right: 8px; }
+}
+
+@media (max-height: 600px) {
+  .booking-success-page .booking-success-actions { margin-top: 4px; }
+}
+
+/* Phones held sideways: a smaller heading and mark leave room for the
+   receipt between them and the pinned bar. */
+@media (max-height: 500px) {
+  .booking-success-page { padding-top: calc(16px + env(safe-area-inset-top, 0px)); }
+  .booking-success-page .booking-success-intro { margin-top: 10px; }
+  .booking-success-page .booking-success-mark { width: 48px; height: 48px; margin-bottom: 14px; }
+  .booking-success-page .booking-success-mark svg { width: 28px; height: 28px; }
+  .booking-success-page .booking-success-heading { font-size: 26px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .booking-success-page .booking-success-actions::before { transition: none; }
+}
+
 /* "We couldn't confirm your booking" — Review step (customer) and above the
    Create Booking button (admin). Shown only when saving itself failed. */
 .booking-submit-failure {

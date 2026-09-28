@@ -814,6 +814,9 @@ const BookShipmentPage = () => {
   };
 
   const [trackingCopied, setTrackingCopied] = useState(false);
+  const [successActionsPinned, setSuccessActionsPinned] = useState(false);
+  const successTitleRef = useRef(null);
+  const successEndRef = useRef(null);
   const reduceMotion = useReducedMotion();
 
   // Each step starts at its own top. Continue sits at the bottom of a long
@@ -905,6 +908,31 @@ const BookShipmentPage = () => {
     };
   }, [success]);
 
+  // The confirmation replaces the form: move focus to its heading so keyboard
+  // and screen-reader users start there, and arrow keys scroll the receipt.
+  useEffect(() => {
+    if (success) successTitleRef.current?.focus({ preventScroll: true });
+  }, [success]);
+
+  // On phones the receipt is taller than the screen, so its buttons stay
+  // pinned to the bottom edge (result-screens.css). The bar gets its top edge
+  // only while more of the receipt is below it: while the marker at the
+  // receipt's end is out of view. Without IntersectionObserver the bar still
+  // pins, just without the edge.
+  useEffect(() => {
+    const end = successEndRef.current;
+    if (!success || !end || typeof IntersectionObserver === 'undefined') return undefined;
+    const observer = new IntersectionObserver(
+      ([entry]) => setSuccessActionsPinned(!entry.isIntersecting),
+      { root: end.closest('.booking-success-page') },
+    );
+    observer.observe(end);
+    return () => {
+      observer.disconnect();
+      setSuccessActionsPinned(false);
+    };
+  }, [success]);
+
   if (success) {
     const orderPath = success.id ? `/customer/orders/${success.id}` : '/customer/orders';
     const statusLabel = success.status || 'Pending';
@@ -917,7 +945,7 @@ const BookShipmentPage = () => {
           <BrandLockup size={30} className="booking-success-brand" />
           <div className="booking-success-intro" role="status" aria-live="polite">
             <ResultIcon tone="success" className="booking-success-mark" />
-            <h1 id="booking-success-title" className="booking-success-heading">Booking received</h1>
+            <h1 id="booking-success-title" className="booking-success-heading" ref={successTitleRef} tabIndex={-1}>Booking received</h1>
             <p className="booking-success-subtitle">
               {isReview
                 ? 'We’ll review your pickup area and update this booking soon.'
@@ -977,7 +1005,7 @@ const BookShipmentPage = () => {
           <p className="booking-success-note">Final shipping cost is confirmed after your parcel is weighed at pickup.</p>
 
           {/* Action buttons */}
-          <div className="booking-success-actions">
+          <div className={`booking-success-actions${successActionsPinned ? ' is-pinned' : ''}`}>
             <button type="button" className="btn booking-success-btn-primary" onClick={() => navigate(orderPath)}>
               View Booking <ArrowRight size={17} aria-hidden="true" />
             </button>
@@ -1017,6 +1045,9 @@ const BookShipmentPage = () => {
               Book Another
             </button>
           </div>
+          {/* The page's bottom spacing, kept inside the receipt so the pinned
+              bar can reach the screen edge; also the marker observed above. */}
+          <div className="booking-success-end" ref={successEndRef} aria-hidden="true" />
         </div>
       </div>,
       document.body
@@ -1294,9 +1325,8 @@ const BookShipmentPage = () => {
                 <p className="booking-submit-failure-title">We couldn’t confirm your booking</p>
                 <p>{submitError}</p>
                 <p>
-                  Your details are still here. Tap Confirm Booking below to try again.
-                  If your connection dropped while sending, check Bookings first, as it
-                  may already be saved.
+                  Your details are still here. Tap Confirm Booking to try again, but
+                  check Bookings first in case it was already saved.
                 </p>
               </div>
             </div>

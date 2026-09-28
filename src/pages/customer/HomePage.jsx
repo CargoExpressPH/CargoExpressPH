@@ -195,6 +195,11 @@ const HomePage = () => {
               value={trackingSearch}
               onChange={e => setTrackingSearch(e.target.value)}
               className="hero-search-input"
+              // As on the Track page: no browser list of past entries, which
+              // grew with every search and offered no way to clear it. Recent
+              // searches, with Clear, live on the Track page.
+              autoComplete="off"
+              spellCheck="false"
             />
           </div>
           {/* The label stays in the DOM at every width; on phones it is
