@@ -19,7 +19,7 @@ document.querySelector('.customer-navbar').getBoundingClientRect = () => ({ bott
 globalThis.requestAnimationFrame = dom.window.requestAnimationFrame.bind(dom.window);
 globalThis.cancelAnimationFrame = dom.window.cancelAnimationFrame.bind(dom.window);
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
-dom.window.matchMedia = (query) => ({ matches: query.includes('pointer: coarse'), addEventListener() {}, removeEventListener() {} });
+dom.window.matchMedia = (query) => ({ matches: query.includes('pointer: coarse') || query.includes('max-width: 899.98px'), addEventListener() {}, removeEventListener() {} });
 // Exercise the real selector precedence. Before the fix, the global keyboard
 // rule won and replaced booking's stable padding as soon as the keyboard opened.
 const viewportCss = await readFile('src/styles/viewport-hardening.css', 'utf8');
@@ -146,9 +146,17 @@ try {
   assert.equal(document.getElementById('sender-first_name').getAttribute('aria-invalid'), null,
     'autofilling must clear stale validation state');
 
+  document.activeElement.blur();
+  await flush();
+  assert.ok(!document.documentElement.classList.contains('booking-field-focused'),
+    'the booking shell leaves keyboard mode after the prior field loses focus');
+  Object.defineProperty(dom.window, 'scrollY', { configurable: true, value: 210 });
   document.getElementById('sender-lot-block').focus();
   assert.ok(document.documentElement.classList.contains('booking-field-focused'),
     'a focused booking field locks the root during keyboard scrolling');
+  assert.equal(document.querySelector('.customer-main--booking').scrollTop, 210,
+    'focusing a field preserves the document scroll position inside the form');
+  Object.defineProperty(dom.window, 'scrollY', { configurable: true, value: 0 });
   // Simulate the focused field being 150px below the visible viewport bottom,
   // which reproduced the second programmatic scroll in the previous build.
   document.getElementById('sender-lot-block').getBoundingClientRect = () => ({ top: 600, bottom: 650 });
@@ -193,10 +201,13 @@ try {
   visualViewport.offsetTop = 0;
   visualViewport.dispatchEvent(new dom.window.Event('scroll'));
   await flush();
+  document.querySelector('.customer-main--booking').scrollTop = 260;
   document.activeElement.blur();
   await flush();
   assert.ok(!document.documentElement.classList.contains('booking-field-focused'),
     'the root scroll unlocks after the booking field loses focus');
+  assert.ok(pageScrolls.some(([method, left, top]) => method === 'to' && left === 0 && top === 260),
+    'blurring restores the form scroll position to the document');
 
   await click(button('Continue'));
   step(3);

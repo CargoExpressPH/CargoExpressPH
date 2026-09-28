@@ -53,6 +53,7 @@ test('booking layout keeps navigation anchored and progress below the header whi
     for (const focused of [false, true]) {
       await page.evaluate(({ height, focused }) => {
         document.activeElement?.blur();
+        window.scrollTo(0, 0);
         document.body.classList.toggle('keyboard-active', focused);
         document.documentElement.classList.toggle('booking-field-focused', focused);
         document.documentElement.style.setProperty('--booking-visible-top', focused ? '32px' : '0px');
@@ -61,11 +62,15 @@ test('booking layout keeps navigation anchored and progress below the header whi
       }, { height, focused });
       if (focused) {
         await expect(page.locator('html'), `${width}px root locks only during input focus`).toHaveCSS('overflow-y', 'hidden');
+        await expect(page.locator('.booking-scroll-shell'), `${width}px focused form uses viewport shell`).toHaveCSS('position', 'fixed');
       } else {
         await expect(page.locator('html'), `${width}px root stays unlocked before input focus`).not.toHaveCSS('overflow-y', 'hidden');
+        await expect(page.locator('.booking-scroll-shell'), `${width}px Book shares the ordinary tab layout at rest`).not.toHaveCSS('position', 'fixed');
       }
       if (focused) await page.locator('#field').focus();
-      await page.evaluate(() => document.querySelector('.customer-main--booking').scrollTo({ top: 500, behavior: 'instant' }));
+      await page.evaluate(({ focused }) => {
+        (focused ? document.querySelector('.customer-main--booking') : window).scrollTo({ top: 500, behavior: 'instant' });
+      }, { focused });
       const result = await page.evaluate(() => ({
         transform: getComputedStyle(document.querySelector('.customer-main')).transform,
         position: getComputedStyle(document.querySelector('.step-progress')).position,
@@ -81,8 +86,8 @@ test('booking layout keeps navigation anchored and progress below the header whi
       }));
       expect(result.transform, `${width}px main transform`).toBe('none');
       expect(result.position, `${width}px progress position`).toBe('sticky');
-      expect(result.scrollY, `${width}px scroll amount`).toBeGreaterThan(300);
-      expect(result.documentScrollY, `${width}px document remains still`).toBe(0);
+      expect(focused ? result.scrollY : result.documentScrollY, `${width}px active scroll amount`).toBeGreaterThan(300);
+      if (focused) expect(result.documentScrollY, `${width}px document remains still during focus`).toBe(0);
       expect(result.navTop, `${width}px header tracks visible viewport`).toBe(focused ? 32 : 0);
       expect(result.barTop, `${width}px progress top`).toBeGreaterThanOrEqual(result.navBottom - 1);
       expect(result.barTop, `${width}px progress top`).toBeLessThanOrEqual(result.navBottom + 12);

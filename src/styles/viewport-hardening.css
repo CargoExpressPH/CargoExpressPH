@@ -512,18 +512,16 @@ body.keyboard-open .customer-chat-fab {
   }
 }
 
-/* The booking form is the only scroll surface on phones. Its shell follows
-   the visible viewport during keyboard focus, while the customer tab bar
-   remains outside the shell with the same fixed anchor on every route.
-   Locking the root scroll before focus lifts fixed furniture on older iOS;
-   the shell itself already contains ordinary touch scrolling. */
+/* Keep Book in the same document flow as the other customer tabs until a
+   field is focused. Only keyboard editing needs a viewport-sized form
+   scroller; a fixed shell at rest lifts the tab bar on older iOS. */
 @media (max-width: 899.98px) {
   html.booking-route-active.booking-field-focused,
   html.booking-route-active.booking-field-focused body {
     overflow: hidden;
   }
 
-  .customer-layout-v2.booking-scroll-shell {
+  html.booking-field-focused .customer-layout-v2.booking-scroll-shell {
     position: fixed;
     top: 0;
     bottom: 0;
@@ -536,14 +534,14 @@ body.keyboard-open .customer-chat-fab {
     overflow: hidden;
   }
 
-  body.keyboard-active .booking-scroll-shell {
+  html.booking-field-focused body.keyboard-active .booking-scroll-shell {
     top: var(--booking-visible-top, 0px);
     bottom: auto;
     height: 100vh;
     height: var(--booking-visible-height, 100vh);
   }
 
-  .booking-scroll-shell .customer-navbar {
+  html.booking-field-focused .booking-scroll-shell .customer-navbar {
     position: relative;
     top: auto;
     flex: 0 0 auto;
@@ -552,7 +550,7 @@ body.keyboard-open .customer-chat-fab {
     -webkit-backdrop-filter: none;
   }
 
-  body .booking-scroll-shell .customer-main--booking {
+  html.booking-field-focused body .booking-scroll-shell .customer-main--booking {
     flex: 1 1 auto;
     min-height: 0;
     overflow-y: auto;
@@ -563,15 +561,15 @@ body.keyboard-open .customer-chat-fab {
     padding-bottom: calc(160px + var(--customer-safe-bottom));
   }
 
-  .booking-scroll-shell .booking-page > .customer-top-actions {
+  html.booking-field-focused .booking-scroll-shell .booking-page > .customer-top-actions {
     margin-top: 18px;
   }
 
-  body.keyboard-active .booking-scroll-shell .customer-main--booking {
+  html.booking-field-focused body.keyboard-active .booking-scroll-shell .customer-main--booking {
     padding-bottom: 24px;
   }
 
-  .booking-scroll-shell .booking-page .step-progress {
+  html.booking-field-focused .booking-scroll-shell .booking-page .step-progress {
     top: 8px;
     background: var(--customer-panel-solid, var(--surface));
     backdrop-filter: none;

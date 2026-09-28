@@ -105,9 +105,24 @@ const BookShipmentPage = () => {
     const updateFocusedField = () => {
       blurFrame = 0;
       const field = document.activeElement;
-      root.classList.toggle('booking-field-focused', Boolean(
-        field?.closest?.('.booking-page') && field.matches?.('input, textarea, select, [contenteditable="true"]')
-      ));
+      const focused = Boolean(
+        field?.closest?.('.booking-page') && (
+          field.tagName === 'TEXTAREA' ||
+          (field.tagName === 'INPUT' && ['text', 'search', 'password', 'email', 'tel', 'number', 'url', 'date', 'time', 'datetime-local'].includes(field.type))
+        )
+      );
+      const wasFocused = root.classList.contains('booking-field-focused');
+      if (focused === wasFocused) return;
+      const scroller = document.querySelector('.customer-main--booking');
+      const useInnerScroll = window.matchMedia('(max-width: 899.98px)').matches && scroller;
+      // The focused form uses an inner scroller so Safari cannot pan its
+      // header away. Carry the same scroll offset between the two surfaces.
+      const previousScroll = useInnerScroll ? (focused ? window.scrollY : scroller.scrollTop) : 0;
+      root.classList.toggle('booking-field-focused', focused);
+      if (useInnerScroll) {
+        if (focused) scroller.scrollTop = previousScroll;
+        else window.scrollTo(0, previousScroll);
+      }
     };
     const onFocusOut = () => {
       if (blurFrame) cancelAnimationFrame(blurFrame);
