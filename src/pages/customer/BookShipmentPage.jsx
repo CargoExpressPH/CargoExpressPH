@@ -8,12 +8,12 @@ import { logOrder } from '../../lib/activityLog';
 import { buildFullAddress } from '../../lib/address';
 import { ROUTES, PH_LOCATIONS, VALID_PROVINCES, detectPickupLocation, validateRouteProvinces } from '../../constants/phLocations';
 import { isTripBookable } from '../../constants/status';
-import { ArrowLeft, Loader, CheckCircle, Copy, Check, Package, MapPin, User, Truck, AlertTriangle, Info, Clock, Headset } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Loader, CheckCircle, Copy, Check, Package, MapPin, User, Truck, AlertTriangle, Info, Clock, Headset } from 'lucide-react';
 import { useToast } from '../../hooks/useToast';
 import CustomSelect from '../../components/ui/CustomSelect';
 import BarangaySelect from '../../components/ui/BarangaySelect';
 import ConfirmModal from '../../components/ui/ConfirmModal';
-import { motion, useReducedMotion } from 'framer-motion';
+import { useReducedMotion } from 'framer-motion';
 import usePageTitle from '../../hooks/usePageTitle';
 import { formatMoney } from '../../utils/currencyInput';
 import { toTitleCase, toAddressCase, normalizeName, splitFullName } from '../../utils/string';
@@ -28,8 +28,6 @@ import {
   readBookingDraft,
 } from '../../lib/bookingDraft';
 import { orderPartyName, orderPartyAddress } from '../../lib/orderParties';
-
-const luxeEase = [0.22, 1, 0.36, 1];
 
 function fallbackCopy(text) {
   const el = document.createElement('textarea');
@@ -892,184 +890,82 @@ const BookShipmentPage = () => {
     };
   }, [success]);
 
-  const particles = useMemo(
-    () => Array.from({ length: 24 }, (_, i) => ({
-      id: i,
-      angle: (i / 24) * Math.PI * 2,
-      distance: 100 + Math.random() * 80,
-      size: 3 + Math.random() * 5,
-      delay: 0.6 + Math.random() * 0.3,
-    })),
-    []
-  );
-
   if (success) {
     const orderPath = success.id ? `/customer/orders/${success.id}` : '/customer/orders';
-    const routeLabel = `${success.origin} → ${success.destination}`;
     const statusLabel = success.status || 'Pending';
     const isAssigned = statusLabel === 'Assigned';
+    const isReview = statusLabel === 'Pending Review';
 
     return createPortal(
       <div className="booking-success-page" aria-labelledby="booking-success-title">
-        <div className="booking-success-content" role="status" aria-live="polite">
-          {/* Checkmark with rings */}
-          <div className="booking-success-visual">
-            {/* Solid circle */}
-            <motion.div
-              className="booking-success-check-circle"
-              initial={{ scale: 0, rotate: -45 }}
-              animate={{ scale: 1, rotate: 0 }}
-              transition={{ type: 'spring', stiffness: 180, damping: 14, delay: 0.2 }}
-            />
-
-            {/* Particle burst */}
-            {!reduceMotion && particles.map((p) => (
-              <motion.span
-                key={p.id}
-                className="booking-success-particle"
-                style={{ width: p.size, height: p.size, marginLeft: -p.size / 2, marginTop: -p.size / 2 }}
-                initial={{ x: 0, y: 0, opacity: 0, scale: 0 }}
-                animate={{
-                  x: Math.cos(p.angle) * p.distance,
-                  y: Math.sin(p.angle) * p.distance,
-                  opacity: [0, 1, 0],
-                  scale: [0, 1, 0.3],
-                }}
-                transition={{ duration: 1.2, delay: p.delay, ease: luxeEase }}
-              />
-            ))}
-
-            {/* SVG checkmark drawn in */}
-            <svg viewBox="0 0 100 100" className="booking-success-checkmark-svg">
-              <motion.path
-                d="M28 52 L44 68 L74 36"
-                fill="none"
-                stroke="#fff"
-                strokeWidth="7"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                initial={{ pathLength: 0 }}
-                animate={{ pathLength: 1 }}
-                transition={{ duration: 0.7, delay: 0.55, ease: luxeEase }}
-              />
-            </svg>
+        <div className="booking-success-content">
+          <div className="booking-success-brand"><Package size={18} aria-hidden="true" /> CargoExpress PH</div>
+          <div className="booking-success-intro" role="status" aria-live="polite">
+            <div className="booking-success-visual" aria-hidden="true"><Check size={32} strokeWidth={2.7} /></div>
+            <div className="booking-success-eyebrow">Booking saved</div>
+            <h1 id="booking-success-title" className="booking-success-heading">Booking received</h1>
+            <p className="booking-success-subtitle">
+              {isReview
+                ? 'We’ll review your pickup area and update this booking soon.'
+                : 'Your booking is saved. Follow its status anytime from Bookings.'}
+            </p>
           </div>
 
-          {/* Eyebrow */}
-          <motion.div
-            className="booking-success-eyebrow"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.9, ease: luxeEase }}
-          >
-            {isAssigned ? 'Assigned' : 'Booked'}
-          </motion.div>
-
-          {/* Heading */}
-          <motion.h1
-            id="booking-success-title"
-            className="booking-success-heading"
-            initial={{ opacity: 0, y: 24 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.9, delay: 1.0, ease: luxeEase }}
-          >
-            Shipment booked!
-          </motion.h1>
-
-          {/* Subtitle */}
-          <motion.p
-            className="booking-success-subtitle"
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.9, delay: 1.15, ease: luxeEase }}
-          >
-            Your package is on its way. Track it anytime from your bookings.
-          </motion.p>
-
-          {/* Sets the pricing expectation the rest of the app states — the
-              ticket itself carries no amount because the parcel isn't weighed yet. */}
-          <motion.p
-            className="text-xs text-tertiary"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.6, delay: 1.4 }}
-          >
-            Final cost is confirmed when we weigh your parcel at pickup.
-          </motion.p>
-
-          {/* Booking Details Card — Clean, high-precision receipt layout */}
-          <motion.div
-            className="pr-transaction-card booking-success-card"
-            initial={{ opacity: 0, y: 40 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 1, delay: 1.3, ease: luxeEase }}
-          >
-            <div className="pr-transaction-header">Booking Details</div>
-
-            <div className="pr-transaction-row">
-              <span className="pr-transaction-label">Tracking Number</span>
-              <div className="flex items-center gap-8">
-                <span className="pr-transaction-value pr-transaction-id">#{success.tracking_number}</span>
-                <button
-                  type="button"
-                  className={`booking-success-copy-btn${trackingCopied ? ' is-copied' : ''}`}
-                  onClick={async () => {
-                    if (await copyTrackingNumber(success.tracking_number)) {
-                      setTrackingCopied(true);
-                      setTimeout(() => setTrackingCopied(false), 2000);
-                    } else {
-                      toast.error('Could not copy the tracking number. Please select and copy it manually.');
-                    }
-                  }}
-                  aria-label="Copy tracking number"
-                  title="Copy tracking number"
-                >
-                  {trackingCopied ? <Check size={13} aria-hidden="true" /> : <Copy size={13} aria-hidden="true" />}
-                </button>
-              </div>
-            </div>
-
-            <div className="pr-transaction-row">
-              <span className="pr-transaction-label">Route</span>
-              <span className="pr-transaction-value">{routeLabel}</span>
-            </div>
-
-            <div className="pr-transaction-row">
-              <span className="pr-transaction-label">Sender</span>
-              <span className="pr-transaction-value">{orderPartyName(success, 'sender')}</span>
-            </div>
-
-            <div className="pr-transaction-row">
-              <span className="pr-transaction-label">Receiver</span>
-              <span className="pr-transaction-value">{orderPartyName(success, 'receiver')}</span>
-            </div>
-
-            {success.package_description && (
-              <div className="pr-transaction-row">
-                <span className="pr-transaction-label">Package Items</span>
-                <span className="pr-transaction-value" style={{ maxWidth: '60%', textAlign: 'right' }}>
-                  {success.package_description}
-                </span>
-              </div>
-            )}
-
-            <div className="pr-transaction-row">
-              <span className="pr-transaction-label">Status</span>
+          <section className="booking-success-card" aria-label="Booking details">
+            <div className="booking-success-card-header">
+              <span>Booking details</span>
               <span className={`booking-success-status-pill ${isAssigned ? 'is-assigned' : 'is-pending'}`}>
                 {statusLabel}
               </span>
             </div>
-          </motion.div>
+
+            <div className="booking-success-tracking">
+              <div className="booking-success-tracking-text">
+                <span className="booking-success-label">Tracking number</span>
+                <strong className="booking-success-tracking-number">{success.tracking_number}</strong>
+              </div>
+              <button
+                type="button"
+                className={`booking-success-copy-btn${trackingCopied ? ' is-copied' : ''}`}
+                onClick={async () => {
+                  if (await copyTrackingNumber(success.tracking_number)) {
+                    setTrackingCopied(true);
+                    setTimeout(() => setTrackingCopied(false), 2000);
+                  } else {
+                    toast.error('Could not copy the tracking number. Please select and copy it manually.');
+                  }
+                }}
+                aria-label={trackingCopied ? 'Tracking number copied' : 'Copy tracking number'}
+              >
+                {trackingCopied ? <Check size={16} aria-hidden="true" /> : <Copy size={16} aria-hidden="true" />}
+                <span>{trackingCopied ? 'Copied' : 'Copy'}</span>
+              </button>
+            </div>
+
+            <div className="booking-success-route">
+              <span className="booking-success-label">Route</span>
+              <div className="booking-success-route-path">
+                <span>{success.origin}</span>
+                <ArrowRight size={18} aria-hidden="true" />
+                <span>{success.destination}</span>
+              </div>
+            </div>
+
+            <dl className="booking-success-details">
+              <div><dt>Sender</dt><dd>{orderPartyName(success, 'sender')}</dd></div>
+              <div><dt>Receiver</dt><dd>{orderPartyName(success, 'receiver')}</dd></div>
+              {success.package_description && (
+                <div className="booking-success-package"><dt>Package</dt><dd>{success.package_description}</dd></div>
+              )}
+            </dl>
+          </section>
+
+          <p className="booking-success-note">Final shipping cost is confirmed after your parcel is weighed at pickup.</p>
 
           {/* Action buttons */}
-          <motion.div
-            className="booking-success-actions"
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 1.5, ease: luxeEase }}
-          >
+          <div className="booking-success-actions">
             <button type="button" className="btn booking-success-btn-primary" onClick={() => navigate(orderPath)}>
-              View Booking
+              View Booking <ArrowRight size={17} aria-hidden="true" />
             </button>
             <button
               type="button"
@@ -1106,7 +1002,7 @@ const BookShipmentPage = () => {
             >
               Book Another
             </button>
-          </motion.div>
+          </div>
         </div>
       </div>,
       document.body

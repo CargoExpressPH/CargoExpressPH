@@ -66,6 +66,7 @@
 
 /* ── 8. Premium Product Refresh ── */
 @import './premium-refresh.css' layer(refresh);
+@import './booking-success.css' layer(refresh);
 
 /* Customer mobile app refresh */
 @import './customer-mobile-refresh.css' layer(refresh);
