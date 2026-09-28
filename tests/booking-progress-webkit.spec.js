@@ -12,7 +12,7 @@ test('booking layout keeps navigation anchored and progress below the header whi
     <main class="w-full customer-main customer-main--booking"><div class="page-transition booking-page"><div class="customer-top-actions">Back</div><h2>Book Shipment</h2>
     <div class="step-progress" role="list" aria-label="Booking progress">1 &nbsp; 2 &nbsp; 3 &nbsp; 4 &nbsp; 5</div>
     <section style="height:1100px"><input id="field" class="form-input" style="margin-top:500px" aria-label="Sender address"></section>
-    </div></main><nav class="customer-bottom-nav" aria-label="Customer navigation"><div class="customer-bottom-nav-inner">Home &nbsp; Book &nbsp; Trips</div></nav></div></body></html>`);
+    </div></main></div><nav class="customer-bottom-nav" aria-label="Customer navigation"><div class="customer-bottom-nav-inner">Home &nbsp; Book &nbsp; Trips</div></nav></body></html>`);
   await page.locator('.step-progress').evaluate(() => document.fonts.ready);
   await expect(page.locator('.step-progress')).toHaveCSS('position', 'sticky');
   const focusOffset = await page.locator('html').evaluate(el => parseFloat(getComputedStyle(el).scrollPaddingTop));
@@ -29,8 +29,26 @@ test('booking layout keeps navigation anchored and progress below the header whi
     }, { height });
     const bottomNav = page.locator('.customer-bottom-nav');
     await expect(bottomNav, `${width}px bottom nav remains visible`).toBeVisible();
+    await expect(bottomNav, `${width}px bottom nav uses the same anchor on Book`).toHaveCSS('position', 'fixed');
     const bottomEdge = await bottomNav.evaluate(el => el.getBoundingClientRect().bottom);
+    const bookPillTop = await page.locator('.customer-bottom-nav-inner').evaluate(el => el.getBoundingClientRect().top);
     expect(bottomEdge, `${width}px Book tab bar stays at screen bottom`).toBeCloseTo(height, 0);
+    // The real navigation stays mounted while the route changes. Toggle the
+    // shell state in place and verify the bar does not move with it.
+    const ordinaryRoute = await page.evaluate(() => {
+      document.documentElement.classList.remove('booking-route-active');
+      document.querySelector('.customer-layout-v2').classList.remove('booking-scroll-shell');
+      return {
+        bottom: document.querySelector('.customer-bottom-nav').getBoundingClientRect().bottom,
+        pillTop: document.querySelector('.customer-bottom-nav-inner').getBoundingClientRect().top,
+      };
+    });
+    expect(ordinaryRoute.bottom, `${width}px ordinary tab bar bottom`).toBeCloseTo(bottomEdge, 0);
+    expect(ordinaryRoute.pillTop, `${width}px pill stays in place across routes`).toBeCloseTo(bookPillTop, 0);
+    await page.evaluate(() => {
+      document.documentElement.classList.add('booking-route-active');
+      document.querySelector('.customer-layout-v2').classList.add('booking-scroll-shell');
+    });
     for (const focused of [false, true]) {
       await page.evaluate(({ height, focused }) => {
         document.activeElement?.blur();

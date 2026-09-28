@@ -512,11 +512,9 @@ body.keyboard-open .customer-chat-fab {
   }
 }
 
-/* The booking form is the only scroll surface on phones. Keep its shell at the
-   same viewport edges as the other routes while the keyboard is closed. Older
-   iOS can report a shorter visualViewport.height even at rest, which would
-   lift the tab bar anchored inside this shell. When typing, the tab bar hides
-   and the form follows the measured visual viewport above the keyboard. */
+/* The booking form is the only scroll surface on phones. Its shell follows
+   the visible viewport during keyboard focus, while the customer tab bar
+   remains outside the shell with the same fixed anchor on every route. */
 @media (max-width: 899.98px) {
   html.booking-route-active,
   html.booking-route-active body {
@@ -541,14 +539,6 @@ body.keyboard-open .customer-chat-fab {
     bottom: auto;
     height: 100vh;
     height: var(--booking-visible-height, 100vh);
-  }
-
-  /* Keep the bar anchored to its shell, avoiding fixed descendants of the
-     clipped booking layout on older WebKit. */
-  .booking-scroll-shell .customer-bottom-nav {
-    position: absolute;
-    top: auto;
-    bottom: 0;
   }
 
   .booking-scroll-shell .customer-navbar {

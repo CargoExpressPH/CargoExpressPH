@@ -55,7 +55,8 @@
   color: rgba(255, 255, 255, 0.85);
 }
 
-.customer-layout-v2 {
+.customer-layout-v2,
+.customer-bottom-nav {
   /* Scoped overrides on purpose — these are NOT duplicates of the
      tokens.css aliases. Several alias mappings resolve to different values
      (e.g. dark --customer-green-dark -> var(--primary-lighter) = #064E3B,
@@ -77,7 +78,8 @@
   color: var(--customer-ink);
 }
 
-[data-theme="dark"] .customer-layout-v2 {
+[data-theme="dark"] .customer-layout-v2,
+[data-theme="dark"] .customer-bottom-nav {
   --customer-green: #34D399;
   --customer-green-dark: #A7F3D0;
   --customer-green-soft: rgba(16, 185, 129, 0.12);

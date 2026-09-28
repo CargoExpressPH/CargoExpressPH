@@ -472,9 +472,10 @@ const CustomerLayout = () => {
           </span>
         </Link>
       )}
-      {/* The bar is fixed on ordinary routes. On booking it is positioned
-          inside the measured visual-viewport shell (see viewport-hardening)
-          so older WebKit cannot leave a gap beneath it. */}
+    </div>
+    {/* Keep one viewport-fixed tab bar outside the booking scroll shell. The
+        shell changes size for keyboard focus; the tab bar must not inherit
+        that route-specific positioning when Book opens. */}
     <nav className="customer-bottom-nav" aria-label="Customer navigation">
         <div className="customer-bottom-nav-inner">
           {bottomNavItems.map(item => (
@@ -509,7 +510,6 @@ const CustomerLayout = () => {
           ))}
         </div>
       </nav>
-    </div>
     <ConfirmModal
       isOpen={showLogoutConfirm}
       onClose={() => setShowLogoutConfirm(false)}
