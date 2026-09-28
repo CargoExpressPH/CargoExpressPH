@@ -381,7 +381,8 @@ const ProfilePage = () => {
         title="Sign Out"
         message="You are about to sign out of your account. You can sign back in at any time to access your active bookings and shipment tracking."
         confirmLabel="Sign Out"
-        variant="primary"
+        variant="danger"
+        icon={LogOut}
       />
     </>
   );
