@@ -937,7 +937,7 @@ const AboutPage = () => {
                     <MapPin size={28} />
                   </div>
                   <h2 className="about-coverage-heading">Where We Deliver</h2>
-                  <p className="about-coverage-desc">Explore the destinations we serve from Bohol. Select a destination on the map or a coverage card to preview its route.</p>
+                  <p className="about-coverage-desc">Pickup and delivery between Bohol and our listed Luzon areas, in both directions. Select an area to see its covered cities and municipalities. Confirm your exact address with our team before booking.</p>
                   
                   <InteractiveMap 
                     coverage={coverage} 
@@ -956,8 +956,8 @@ const AboutPage = () => {
                         type="search"
                         maxLength={100}
                         enterKeyHint="search"
-                        placeholder="Search municipalities..."
-                        aria-label="Search municipalities"
+                        placeholder="Search areas, cities or municipalities..."
+                        aria-label="Search coverage areas, cities or municipalities"
                         value={citySearchQuery}
                         onChange={(e) => setCitySearchQuery(e.target.value)}
                         className="about-coverage-search-input"
@@ -965,22 +965,25 @@ const AboutPage = () => {
                     </div>
                   </div>
                   {citySearchQuery && !coverage.some(region =>
-                    region.municipalities?.some(m => m.name.toLowerCase().includes(citySearchQuery.toLowerCase()))
+                    region.name.toLowerCase().includes(citySearchQuery.trim().toLowerCase()) ||
+                    region.municipalities?.some(m => m.name.toLowerCase().includes(citySearchQuery.trim().toLowerCase()))
                   ) && (
                     <div className="about-region-card about-coverage-no-result">
                       <Search size={22} className="about-coverage-no-result-icon" aria-hidden="true" />
-                      <p className="about-coverage-no-result-title">No municipalities found</p>
+                      <p className="about-coverage-no-result-title">No matching areas found</p>
                       <p className="about-coverage-no-result-desc">
                         Nothing matches “{citySearchQuery}”. Try a different spelling or a nearby town.
                       </p>
                     </div>
                   )}
                   {coverage.map((region) => {
+                    const matchesRegion = region.name.toLowerCase().includes(citySearchQuery.trim().toLowerCase());
                     const filteredMunis = region.municipalities?.filter(m => 
-                      m.name.toLowerCase().includes(citySearchQuery.toLowerCase())
+                      matchesRegion ||
+                      m.name.toLowerCase().includes(citySearchQuery.trim().toLowerCase())
                     ) || [];
 
-                    if (citySearchQuery && filteredMunis.length === 0) return null;
+                    if (citySearchQuery && !matchesRegion && filteredMunis.length === 0) return null;
 
                     const isSelected = selectedRegionId === region.id;
                     const isExpanded = isSelected || citySearchQuery.length > 0;
@@ -1558,4 +1561,3 @@ const AboutPage = () => {
 };
 
 export default AboutPage;
-

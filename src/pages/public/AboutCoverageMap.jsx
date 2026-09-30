@@ -1,27 +1,23 @@
-import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import L from 'leaflet';
 import {
   AttributionControl,
   MapContainer,
   Marker,
-  Polyline,
   TileLayer,
   ZoomControl,
+  useMap,
 } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
+import './AboutCoverageMap.css';
 import {
   PHILIPPINES_MAP_BOUNDS,
   PHILIPPINES_MAP_CENTER,
-  PHILIPPINES_MAP_REGIONS,
   PHILIPPINES_MAP_ZOOM,
+  getCoverageMapRegion,
 } from '../../constants/phMapCoordinates';
 
-// ─── Interactive coverage map (About page) ───
-// Lives in its own file so Leaflet (the map library and its styles) is only
-// downloaded when a visitor scrolls near the map; see LazyCoverageMap in
-// AboutPage.jsx.
-
+// Kept lazy so Leaflet is only downloaded near the coverage section.
 const DEFAULT_MAP_TILE_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
 const DEFAULT_MAP_TILE_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
 const CONFIGURED_MAP_TILE_URL = import.meta.env.VITE_MAP_TILE_URL?.trim();
@@ -29,159 +25,172 @@ const MAP_TILE_URL = CONFIGURED_MAP_TILE_URL || DEFAULT_MAP_TILE_URL;
 const MAP_TILE_ATTRIBUTION = CONFIGURED_MAP_TILE_URL
   ? (import.meta.env.VITE_MAP_TILE_ATTRIBUTION?.trim() || DEFAULT_MAP_TILE_ATTRIBUTION)
   : DEFAULT_MAP_TILE_ATTRIBUTION;
-const BOHOL_MAP_REGION = PHILIPPINES_MAP_REGIONS.find(region => region.name === 'Bohol');
-const BOHOL_POSITION = BOHOL_MAP_REGION.position;
 
-const getCoverageMatch = (coverage, mapRegion) => (
-  coverage.find(region => {
-    const regionName = region?.name?.toLowerCase() || '';
-    return mapRegion.aliases.some(alias => regionName.includes(alias));
-  })
-);
-
-const createMapPinIcon = (isOrigin, isActive) => L.divIcon({
+// Keep the marker's DOM stable while it gains focus or hover. Replacing its
+// inner HTML between mousedown and mouseup prevents the browser's click.
+const MAP_PIN_ICON = L.divIcon({
   className: 'about-leaflet-marker',
-  html: '<span class="about-leaflet-marker-shell'
-    + (isOrigin ? ' is-origin' : '')
-    + (isActive ? ' is-active' : '')
-    + '"><span class="about-leaflet-marker-dot"></span></span>',
+  html: '<span class="about-leaflet-marker-shell"><span class="about-leaflet-marker-dot"></span></span>',
   iconSize: [28, 28],
   iconAnchor: [14, 14],
 });
 
-const buildShippingRoute = (from, to) => {
-  const control = [
-    (from[0] + to[0]) / 2 + 1.4,
-    (from[1] + to[1]) / 2 - 1,
-  ];
+function CoverageViewport({ mappedRegions, selectedRegionId, overviewRevision }) {
+  const map = useMap();
 
-  return Array.from({ length: 25 }, (_, index) => {
-    const t = index / 24;
-    const inverse = 1 - t;
-    return [
-      inverse * inverse * from[0] + 2 * inverse * t * control[0] + t * t * to[0],
-      inverse * inverse * from[1] + 2 * inverse * t * control[1] + t * t * to[1],
-    ];
-  });
-};
+  useEffect(() => {
+    const updateView = () => {
+      map.invalidateSize({ pan: false });
+      const selected = mappedRegions.find(({ coverageRegion }) => coverageRegion.id === selectedRegionId);
+      if (selected) {
+        // Manila-side markers overlap at national scale. Focus the selected
+        // area without shifting any marker away from its geographic position.
+        map.setView(selected.mapRegion.position, 9, { animate: false });
+      } else if (mappedRegions.length) {
+        map.fitBounds(mappedRegions.map(({ mapRegion }) => mapRegion.position), {
+          paddingTopLeft: [40, 60], paddingBottomRight: [40, 60],
+          maxZoom: 8, animate: false,
+        });
+      }
+    };
+    updateView();
+    // The map column changes size at the About page's responsive breakpoint.
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(updateView);
+    observer?.observe(map.getContainer());
+    return () => observer?.disconnect();
+  }, [map, mappedRegions, selectedRegionId, overviewRevision]);
 
-const InteractiveMap = ({ coverage, selectedRegionId, onSelectRegion }) => {
-  const [hoveredPin, setHoveredPin] = useState(null);
-  const mappedRegions = PHILIPPINES_MAP_REGIONS
-    .map(mapRegion => ({
-      mapRegion,
-      coverageRegion: getCoverageMatch(coverage, mapRegion),
-    }))
-    .filter(({ coverageRegion }) => coverageRegion);
+  return null;
+}
 
-  const selectedMapRegion = mappedRegions.find(
-    ({ coverageRegion }) => coverageRegion.id === selectedRegionId
-  )?.mapRegion || null;
-  const selectedDestination = selectedMapRegion?.name === 'Bohol' ? null : selectedMapRegion;
-  const defaultRouteRegion = PHILIPPINES_MAP_REGIONS.find(
-    mapRegion => mapRegion.name === 'Batangas'
-  ) || null;
-  const routeRegion = selectedDestination || defaultRouteRegion;
-  const tooltipRegion = hoveredPin
-    ? mappedRegions.find(({ mapRegion }) => mapRegion.name === hoveredPin)?.mapRegion
-    : selectedMapRegion;
+function CoverageMarker({ mapRegion, coverageRegion, isSelected, hoveredPin, setHoveredPin, onSelectRegion }) {
+  const markerRef = useRef(null);
+  const isActive = isSelected || hoveredPin === coverageRegion.id;
+
+  useEffect(() => {
+    const element = markerRef.current?.getElement();
+    if (!element) return undefined;
+    element.setAttribute('aria-label', 'Select ' + coverageRegion.name + ' coverage area');
+    element.setAttribute('aria-pressed', String(isSelected));
+    element.classList.toggle('is-active', isActive);
+    const focus = () => setHoveredPin(coverageRegion.id);
+    const blur = () => setHoveredPin(null);
+    element.addEventListener('focus', focus);
+    element.addEventListener('blur', blur);
+    return () => {
+      element.removeEventListener('focus', focus);
+      element.removeEventListener('blur', blur);
+    };
+  }, [coverageRegion.id, coverageRegion.name, isActive, isSelected, setHoveredPin]);
 
   return (
-    <div className="about-map-box">
-      <MapContainer
-        className="about-leaflet-map"
-        center={PHILIPPINES_MAP_CENTER}
-        zoom={PHILIPPINES_MAP_ZOOM}
-        maxBounds={PHILIPPINES_MAP_BOUNDS}
-        maxBoundsViscosity={1}
-        minZoom={PHILIPPINES_MAP_ZOOM}
-        maxZoom={13}
-        worldCopyJump={false}
-        scrollWheelZoom={false}
-        zoomControl={false}
-        attributionControl={false}
-      >
-        <TileLayer
-          url={MAP_TILE_URL}
-          attribution={MAP_TILE_ATTRIBUTION}
-          bounds={PHILIPPINES_MAP_BOUNDS}
-          noWrap
-          maxZoom={19}
-        />
-        <AttributionControl prefix={false} position="bottomright" />
-        <ZoomControl position="topright" />
+    <Marker
+      ref={markerRef}
+      position={mapRegion.position}
+      icon={MAP_PIN_ICON}
+      keyboard
+      title={coverageRegion.name + ' · approximate area marker'}
+      autoPanOnFocus={false}
+      zIndexOffset={isActive ? 1000 : 0}
+      eventHandlers={{
+        click: () => onSelectRegion(isSelected ? null : coverageRegion.id),
+        keydown: (event) => {
+          const originalEvent = event.originalEvent;
+          if (originalEvent?.key !== 'Enter' && originalEvent?.key !== ' ') return;
+          originalEvent.preventDefault();
+          if (!originalEvent.repeat) onSelectRegion(isSelected ? null : coverageRegion.id);
+        },
+        mouseover: () => setHoveredPin(coverageRegion.id),
+        mouseout: () => setHoveredPin(null),
+      }}
+    />
+  );
+}
 
-        {routeRegion && (
-          <Polyline
-            positions={buildShippingRoute(BOHOL_POSITION, routeRegion.position)}
-            pathOptions={{
-              color: '#22c55e',
-              weight: selectedDestination ? 4 : 3,
-              opacity: selectedDestination ? 0.84 : 0.38,
-              dashArray: selectedDestination ? '8 10' : '5 9',
-              lineCap: 'round',
-              lineJoin: 'round',
+export default function InteractiveMap({ coverage = [], selectedRegionId, onSelectRegion }) {
+  const [hoveredPin, setHoveredPin] = useState(null);
+  const [overviewRevision, setOverviewRevision] = useState(0);
+  const [tilesUnavailable, setTilesUnavailable] = useState(false);
+  const mappedRegions = useMemo(() => coverage
+    .map(coverageRegion => ({ coverageRegion, mapRegion: getCoverageMapRegion(coverageRegion.name) }))
+    .filter(({ mapRegion }) => mapRegion), [coverage]);
+  const selected = mappedRegions.find(({ coverageRegion }) => coverageRegion.id === selectedRegionId);
+  const tooltipRegion = mappedRegions.find(({ coverageRegion }) => coverageRegion.id === hoveredPin) || selected;
+
+  return (
+    <div>
+      <div className="about-map-box">
+        <MapContainer
+          className="about-leaflet-map"
+          center={PHILIPPINES_MAP_CENTER}
+          zoom={PHILIPPINES_MAP_ZOOM}
+          maxBounds={PHILIPPINES_MAP_BOUNDS}
+          maxBoundsViscosity={1}
+          minZoom={PHILIPPINES_MAP_ZOOM}
+          maxZoom={13}
+          worldCopyJump={false}
+          scrollWheelZoom={false}
+          zoomControl={false}
+          attributionControl={false}
+        >
+          <TileLayer
+            url={MAP_TILE_URL}
+            attribution={MAP_TILE_ATTRIBUTION}
+            bounds={PHILIPPINES_MAP_BOUNDS}
+            noWrap
+            maxZoom={19}
+            eventHandlers={{
+              tileerror: () => setTilesUnavailable(true),
+              tileload: () => setTilesUnavailable(false),
             }}
           />
-        )}
-
-        {mappedRegions.map(({ mapRegion, coverageRegion }) => {
-          const isSelected = selectedRegionId === coverageRegion.id;
-          const isActive = isSelected || hoveredPin === mapRegion.name;
-
-          return (
-            <Marker
-              key={mapRegion.name}
-              position={mapRegion.position}
-              icon={createMapPinIcon(mapRegion.isOrigin, isActive)}
-              keyboard
-              title={'Select ' + mapRegion.name + ' region'}
-              alt={'Select ' + mapRegion.name + ' region'}
-              autoPanOnFocus={false}
-              zIndexOffset={isActive ? 1000 : 0}
-              eventHandlers={{
-                click: () => onSelectRegion(isSelected ? null : coverageRegion.id),
-                keydown: (event) => {
-                  const key = event.originalEvent?.key;
-                  if (key !== 'Enter' && key !== ' ') return;
-                  event.originalEvent.preventDefault();
-                  onSelectRegion(isSelected ? null : coverageRegion.id);
-                },
-                mouseover: () => setHoveredPin(mapRegion.name),
-                mouseout: () => setHoveredPin(null),
-                focus: () => setHoveredPin(mapRegion.name),
-                blur: () => setHoveredPin(null),
-              }}
+          <AttributionControl prefix={false} position="bottomright" />
+          <ZoomControl position="topright" />
+          <CoverageViewport mappedRegions={mappedRegions} selectedRegionId={selectedRegionId} overviewRevision={overviewRevision} />
+          {mappedRegions.map(({ mapRegion, coverageRegion }) => (
+            <CoverageMarker
+              key={coverageRegion.id}
+              mapRegion={mapRegion}
+              coverageRegion={coverageRegion}
+              isSelected={selectedRegionId === coverageRegion.id}
+              hoveredPin={hoveredPin}
+              setHoveredPin={setHoveredPin}
+              onSelectRegion={onSelectRegion}
             />
-          );
-        })}
-      </MapContainer>
+          ))}
+        </MapContainer>
 
-      <div className="about-coverage-tag">
-        <span className="about-green-dot" /> COVERAGE EXPLORER
-      </div>
-      <div className="about-map-hint">
-        Real Philippine map · Select a hub for route details
-      </div>
+        <div className="about-coverage-tag">
+          <span className="about-green-dot" /> AREAS
+        </div>
+        <button
+          type="button"
+          className="about-map-overview"
+          onClick={() => {
+            setHoveredPin(null);
+            onSelectRegion(null);
+            setOverviewRevision(value => value + 1);
+          }}
+        >Show all areas</button>
+        {tilesUnavailable && (
+          <div className="about-map-status" role="status">Map background unavailable. Use the coverage cards.</div>
+        )}
+        <div className="about-map-hint">Select an area card or zoom in to choose a marker.</div>
 
-      <AnimatePresence>
         {tooltipRegion && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 5 }}
-            className="about-map-tooltip"
-          >
+          <div className="about-map-tooltip" role="status">
             <div className="about-map-tooltip-dot" />
             <div className="about-map-tooltip-body">
-              <div className="about-map-tooltip-name">{tooltipRegion.name}</div>
-              <div className="about-map-tooltip-detail">{tooltipRegion.details}</div>
+              <div className="about-map-tooltip-name">{tooltipRegion.coverageRegion.name}</div>
+              <div className="about-map-tooltip-detail">Approximate reference near {tooltipRegion.mapRegion.reference}</div>
             </div>
-          </motion.div>
+          </div>
         )}
-      </AnimatePresence>
+      </div>
+      <p className="about-map-note">Markers show approximate area locations, not company offices or pickup addresses. See the cards for covered cities and municipalities.</p>
+      {mappedRegions.length < coverage.length && (
+        <p className="about-map-note">Some listed areas have no map marker. Their coverage details are available in the cards.</p>
+      )}
     </div>
   );
-};
-
-export default InteractiveMap;
+}

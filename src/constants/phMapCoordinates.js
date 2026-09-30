@@ -1,6 +1,7 @@
-// Stable geographic anchors for the service regions shown on the About page.
-// Coverage data currently stores names and municipalities, not coordinates, so
-// these visual map anchors stay separate from the editable coverage content.
+// Representative city/town coordinates for the About page's area selector.
+// These are approximate area references, not company facilities, pickup
+// addresses, service boundaries, or transport routes. Coverage comes from
+// the editable company_information.coverage list, not these coordinates.
 export const PHILIPPINES_MAP_CENTER = [12.2, 122.1];
 export const PHILIPPINES_MAP_ZOOM = 5;
 // Padded bounds keep the full Philippine service area visible while
@@ -15,37 +16,43 @@ export const PHILIPPINES_MAP_REGIONS = [
     name: 'Metro Manila',
     aliases: ['metro manila', 'manila'],
     position: [14.5995, 120.9842],
-    details: 'Manila Hub (Sea Freight Terminal)',
+    reference: 'Manila',
   },
   {
     name: 'Bulacan',
     aliases: ['bulacan'],
     position: [14.7942, 120.8799],
-    details: 'Bulacan Distribution Network',
+    reference: 'Bulakan',
   },
   {
     name: 'Cavite',
     aliases: ['cavite'],
     position: [14.4791, 120.897],
-    details: 'Cavite Logistics Center',
+    reference: 'Cavite City',
   },
   {
     name: 'Laguna',
     aliases: ['laguna'],
     position: [14.2691, 121.4113],
-    details: 'Laguna Delivery Hub',
+    reference: 'Santa Cruz',
   },
   {
     name: 'Batangas',
     aliases: ['batangas'],
     position: [13.7565, 121.0583],
-    details: 'Batangas Shipping Hub',
+    reference: 'Batangas City',
   },
   {
     name: 'Bohol',
     aliases: ['bohol'],
     position: [9.647, 123.855],
-    details: 'Bohol Distribution Terminal',
-    isOrigin: true,
+    reference: 'Tagbilaran City',
   },
 ];
+
+export const getCoverageMapRegion = (name) => {
+  const normalizedName = typeof name === 'string' ? name.trim().toLowerCase().replace(/\s+/g, ' ') : '';
+  // Only known area names may acquire a marker; substring matching can put
+  // an unrelated/new area at an existing area's coordinates.
+  return PHILIPPINES_MAP_REGIONS.find(region => region.aliases.includes(normalizedName)) || null;
+};
