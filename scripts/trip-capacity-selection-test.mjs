@@ -94,7 +94,9 @@ assert.equal(selectEarliestCapacityTrip([
 ]), null, 'invalid dates and unknown statuses are not selected');
 
 const databaseSource = await readFile(new URL('../src/lib/database.js', import.meta.url), 'utf8');
-assert.match(databaseSource, /\.select\('id, trip_number, origin, destination, capacity, price_per_kg, status, departure_date, arrival_date'\)/);
+assert.match(databaseSource, /\.select\('id, trip_number, origin, destination, status, departure_date, arrival_date'\)/);
+assert.match(databaseSource, /return attachCompanyTripDefaults\(candidateTrips \|\| \[\]\)/,
+  'capacity candidates receive the company defaults after the removed trip columns are omitted');
 assert.match(databaseSource, /\.order\('departure_date', \{ ascending: true \}\)[\s\S]*?\.order\('trip_number', \{ ascending: true \}\)[\s\S]*?\.order\('id', \{ ascending: true \}\)/,
   'the database result is deterministically ordered before the API row cap');
 assert.match(databaseSource, /trip_ids:\s*\[selectedTrip\.id\]/,

@@ -74,7 +74,7 @@ await db.exec(`
 const triggerMigration = readFileSync(
   path.join(REPO, 'supabase/migrations/20260910020000_trip_reschedule_email_trigger.sql'),
   'utf8',
-).replace(/CREATE EXTENSION IF NOT EXISTS pg_net.*?;\n/, '');
+).replace(/CREATE EXTENSION IF NOT EXISTS pg_net.*?;\r?\n/, '');
 await db.exec(triggerMigration);
 
 // The real durable-announcement-broadcast migration (F-03) — creates

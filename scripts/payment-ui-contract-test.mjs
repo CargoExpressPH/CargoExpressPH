@@ -102,7 +102,7 @@ assert.match(returnContext, /candidate\.startsWith\('\/\/'\)/);
 assert.match(returnContext, /parsed\.origin !== origin/);
 assert.match(paymentReturn, /Thank you for your payment!/);
 assert.match(paymentReturn, /Your payment has been successfully confirmed\./);
-assert.match(paymentReturn, /You can close this tab\. If someone else arranged the booking/);
+assert.match(paymentReturn, /You may now close this tab\. Your booking has been updated with this payment\./);
 assert.match(paymentReturn, /contextReady && originatingReturnTo/);
 assert.match(paymentReturn, /contextReady && !originatingReturnTo/);
 assert.match(paymentReturn, /phase !== 'confirmed' \|\| Boolean\(originatingReturnTo\)/);

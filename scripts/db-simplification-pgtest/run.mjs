@@ -14,7 +14,7 @@ import { makeDb, as, REPO } from './harness.mjs';
 import * as F from './fixtures.mjs';
 
 const STAGE1 = '20260926100000_simplify_stage1_derive_and_compat.sql';
-const STAGE2 = 'supabase/migrations_pending/20260926110000_simplify_stage2_drop_columns.sql';
+const STAGE2 = 'supabase/migrations/20260926110000_simplify_stage2_drop_columns.sql';
 
 let passed = 0, failed = 0;
 const failures = [];
@@ -434,8 +434,9 @@ section('Fresh-start reset rehearsal (synthetic data)');
   const CLEAR = ['orders','order_status_events','trips','payment_attempts','payment_transactions','payment_refunds','cancellation_settlements',
     'cancellation_settlement_history','contact_inquiries','customer_feedback','conversations','chat_messages','notifications',
     'notification_delivery_jobs','activity_logs','photo_storage_events','photo_cleanup_queue','announcement_email_recipients',
-    'announcement_email_broadcasts','private.paymongo_refund_recovery_jobs','private.manual_refund_reauth_attempts'];
-  const KEEP = ['profiles','company_information','legal_documents','legal_consents','photo_storage_settings','user_device_tokens','email_subscriptions','announcements','auth.users'];
+    'announcement_email_broadcasts','private.paymongo_refund_recovery_jobs','private.manual_refund_reauth_attempts',
+    'email_subscriptions','announcements'];
+  const KEEP = ['profiles','company_information','legal_documents','legal_consents','photo_storage_settings','user_device_tokens','auth.users'];
   const before = {};
   for (const t of [...CLEAR, ...KEEP]) before[t] = await count(t);
   ok('rehearsal fixture populated every CLEAR table', CLEAR.every(t => before[t] > 0 || t === 'cancellation_settlements'), before);
@@ -503,8 +504,12 @@ section('Stage 1 rollback restores the live definitions');
   const after = new Map((await db.query(fnSig)).rows.map(r => [r.sig, r.def]));
   const missing = [...liveDefs.keys()].filter(k => !after.has(k));
   const extra = [...after.keys()].filter(k => !liveDefs.has(k));
-  const changed = [...liveDefs.keys()].filter(k => after.has(k) && after.get(k) !== liveDefs.get(k));
-  ok('every live function is back with an identical definition', missing.length === 0 && changed.length === 0, { missing, changed });
+  // Postgres preserves CRLF inside function bodies from a Windows checkout.
+  // Compare all definition text while allowing only that line-ending difference.
+  const normalizeLineEndings = (definition) => definition.replace(/\r\n/g, '\n');
+  const changed = [...liveDefs.keys()].filter(k => after.has(k)
+    && normalizeLineEndings(after.get(k)) !== normalizeLineEndings(liveDefs.get(k)));
+  ok('every live function is back with an identical definition (ignoring CRLF)', missing.length === 0 && changed.length === 0, { missing, changed });
   ok('no stage-1 function remains', extra.length === 0, extra);
   const trig = (await db.query(`SELECT tgname FROM pg_trigger WHERE tgrelid='public.orders'::regclass AND NOT tgisinternal ORDER BY 1`)).rows.map(r => r.tgname);
   ok('orders triggers identical to live', JSON.stringify(trig) === JSON.stringify(liveTrig), trig);

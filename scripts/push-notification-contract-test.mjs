@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
+import { runInNewContext } from 'node:vm';
+import { transformSync } from 'esbuild';
 
 const read = path => readFileSync(path, 'utf8');
 const sender = read('supabase/functions/send-push/index.ts');
@@ -103,5 +105,79 @@ assert.match(pushLifecycle, /isSafariBrowser/);
 // call push unsupported, while it is in fact working.
 assert.doesNotMatch(pushLifecycle, /isIosDevice: true/);
 assert.match(pushLifecycle, /isIosDevice: ios,/);
+
+// Exercise the real foreground listener with Firebase and device registration
+// mocked. Unsupported browsers must never initialize Firebase messaging;
+// supported browsers must retain payload delivery and unsubscribe behavior.
+const foregroundModule = transformSync(read('src/lib/firebase-messaging.js'), {
+  format: 'cjs',
+  define: { 'import.meta.env': '{}' },
+}).code;
+
+const loadForegroundListener = ({ window, navigator, app = {}, initializationError = false }) => {
+  const calls = { initialized: 0, subscribed: 0, unsubscribed: 0 };
+  const messaging = {};
+  let deliver;
+  const module = { exports: {} };
+  runInNewContext(foregroundModule, {
+    module,
+    exports: module.exports,
+    window,
+    navigator,
+    require: name => {
+      if (name === './firebase') return app;
+      if (name === './push-device') return {};
+      if (name === 'firebase/messaging') return {
+        getMessaging: receivedApp => {
+          calls.initialized++;
+          assert.equal(receivedApp, app);
+          if (initializationError) throw new Error('Messaging unavailable');
+          return messaging;
+        },
+        onMessage: (receivedMessaging, listener) => {
+          assert.equal(receivedMessaging, messaging);
+          calls.subscribed++;
+          deliver = listener;
+          return () => { calls.unsubscribed++; };
+        },
+      };
+      throw new Error(`Unexpected foreground test import: ${name}`);
+    },
+  });
+  return { listen: module.exports.onForegroundMessage, calls, deliver: payload => deliver(payload) };
+};
+
+for (const browser of [
+  { window: undefined, navigator: undefined },
+  { window: {}, navigator: { serviceWorker: {} } },
+  { window: { Notification: {} }, navigator: {} },
+]) {
+  const { listen, calls } = loadForegroundListener(browser);
+  const unsubscribe = listen(() => assert.fail('Unsupported browsers must not deliver FCM messages'));
+  assert.equal(typeof unsubscribe, 'function');
+  assert.doesNotThrow(unsubscribe);
+  assert.equal(calls.initialized, 0);
+  assert.equal(calls.subscribed, 0);
+}
+
+const supportedBrowser = { window: { Notification: {} }, navigator: { serviceWorker: {} } };
+const supported = loadForegroundListener(supportedBrowser);
+const payload = { notification: { title: 'Shipment update' }, data: { url: '/customer/notifications' } };
+const received = [];
+const unsubscribe = supported.listen(value => received.push(value));
+supported.deliver(payload);
+assert.equal(received[0], payload);
+assert.equal(supported.calls.initialized, 1);
+assert.equal(supported.calls.subscribed, 1);
+unsubscribe();
+assert.equal(supported.calls.unsubscribed, 1);
+
+const missingApp = loadForegroundListener({ ...supportedBrowser, app: null });
+assert.doesNotThrow(missingApp.listen(() => {}));
+assert.equal(missingApp.calls.initialized, 0);
+
+const failedInitialization = loadForegroundListener({ ...supportedBrowser, initializationError: true });
+assert.doesNotThrow(failedInitialization.listen(() => {}));
+assert.equal(failedInitialization.calls.subscribed, 0);
 
 console.log('Push notification contract tests passed.');

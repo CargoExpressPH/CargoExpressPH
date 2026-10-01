@@ -217,7 +217,8 @@ export const disableNotificationsForDevice = async (userId) => {
 
 /** Listen for foreground FCM messages. */
 export const onForegroundMessage = (callback) => {
-  if (!app) return () => {};
+  // Firebase can reject browser support asynchronously, outside this catch.
+  if (!app || !isFcmSupported()) return () => {};
 
   try {
     const messaging = getMessaging(app);
