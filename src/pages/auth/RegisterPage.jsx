@@ -20,6 +20,7 @@ import { BrandLogo, BrandWordmark } from '../../components/ui/BrandLogo';
 import AuthHeroPanel from '../../components/auth/AuthHeroPanel';
 import { LEGAL_DOCUMENTS } from '../../constants/legalDocuments';
 import { preloadCustomerHomePage } from '../../lib/routePreloads';
+import { SIGNUP_EMAIL_UNAVAILABLE_MESSAGE, SIGNUP_RATE_LIMIT_MESSAGE } from '../../lib/signupErrors';
 
 /* ── Helpers ──────────────────────────────────────────────────────────── */
 
@@ -449,7 +450,17 @@ const RegisterPage = () => {
         setLoading(false);
         const errorMsg = result.error || 'Registration failed. Please try again.';
         setError(errorMsg);
-        if (errorMsg.toLowerCase().includes('email')) {
+        // A delivery problem or rate limit is not the customer's input being
+        // wrong: keep them on this step with every field intact and show only
+        // the banner, so "Create Account" can simply be pressed again.
+        const isServiceProblem = errorMsg === SIGNUP_EMAIL_UNAVAILABLE_MESSAGE
+          || errorMsg === SIGNUP_RATE_LIMIT_MESSAGE;
+        if (isServiceProblem) {
+          requestAnimationFrame(() => {
+            errorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            errorRef.current?.focus({ preventScroll: true });
+          });
+        } else if (errorMsg.toLowerCase().includes('email')) {
           setStep(1);
           setFieldErrors({ email: errorMsg });
           focusFirstError({ email: errorMsg });

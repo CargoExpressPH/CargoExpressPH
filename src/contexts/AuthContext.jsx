@@ -7,6 +7,7 @@ import { logAuth } from '../lib/activityLog';
 import useNetworkRecovery from '../hooks/useNetworkRecovery';
 import { AUTH_TRANSITIONS } from '../lib/authRouteState';
 import { clearBookingDraftStorage } from '../lib/bookingDraft';
+import { friendlySignupError } from '../lib/signupErrors';
 import {
   clearPasswordRecoveryPending,
   hasPendingPasswordRecovery,
@@ -458,11 +459,7 @@ export const AuthProvider = ({ children }) => {
       isAuthAction.current = false;
       setAuthTransition(null);
       setLoading(false);
-      let msg = error.message || 'Registration failed. Please try again.';
-      if (msg.includes('already registered')) {
-        msg = 'This email is already registered. Please sign in instead.';
-      }
-      return { success: false, error: msg };
+      return { success: false, error: friendlySignupError(error) };
     }
   };
 
