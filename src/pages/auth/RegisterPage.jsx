@@ -889,7 +889,7 @@ const RegisterPage = () => {
 
               <div className="reg-section-label">
                 <MapPin size={13} />
-                Delivery Address
+                Your Address
               </div>
 
               {/* Province */}
