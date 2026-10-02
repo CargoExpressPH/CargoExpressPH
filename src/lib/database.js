@@ -445,6 +445,18 @@ export const getOrderById = async (orderId) => {
   return data;
 };
 
+/** Order id for an exact tracking number, or null when none matches. Used by the admin QR scanner. */
+export const findOrderIdByTrackingNumber = async (trackingNumber) => {
+  const { data, error } = await supabase
+    .from('orders')
+    .select('id')
+    .eq('tracking_number', trackingNumber)
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  return data?.id || null;
+};
+
 export const updateOrder = async (orderId, updates) => {
   // Status transition validation
   let currentOrder = null;

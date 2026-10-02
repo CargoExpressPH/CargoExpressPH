@@ -6,7 +6,7 @@ import PageTransition from '../ui/PageTransition';
 import CommandPalette from '../ui/CommandPalette';
 import FocusTrap from '../ui/FocusTrap';
 import AdminNotificationCenter from '../ui/AdminNotificationCenter';
-import { Menu, Search, Bell } from 'lucide-react';
+import { Menu, Search, Bell, ScanQrCode } from 'lucide-react';
 import BrandLockup from '../ui/BrandLogo';
 import ThemeToggle from '../ui/ThemeToggle';
 import { useAuth } from '../../contexts/AuthContext';
@@ -28,6 +28,10 @@ const AdminLayout = () => {
   const [cmdPaletteOpen, setCmdPaletteOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  // The package QR scanner (and its decoder) is fetched on first tap, so the
+  // camera code never weighs on admin pages that don't use it.
+  const [Scanner, setScanner] = useState(null);
+  const [scannerLoading, setScannerLoading] = useState(false);
   const bellRef = useRef(null);
   const menuButtonRef = useRef(null);
   const { user, userProfile } = useAuth();
@@ -127,6 +131,22 @@ const AdminLayout = () => {
   const handleNotificationBellClick = useCallback(() => {
     setNotifOpen(prev => !prev);
   }, []);
+
+  const openScanner = useCallback(() => {
+    if (scannerLoading) return;
+    setNotifOpen(false);
+    setScannerLoading(true);
+    import('../ui/QrScannerModal')
+      .then((module) => setScanner(() => module.default))
+      .catch(() => {
+        toast.error(typeof navigator !== 'undefined' && navigator.onLine === false
+          ? 'The scanner is not available offline yet. Reconnect and try again.'
+          : 'The scanner could not load. Please try again.');
+      })
+      .finally(() => setScannerLoading(false));
+  }, [scannerLoading, toast]);
+
+  const closeScanner = useCallback(() => setScanner(null), []);
 
   useEffect(() => {
     const drawerQuery = window.matchMedia(DRAWER_QUERY);
@@ -229,6 +249,19 @@ const AdminLayout = () => {
               </kbd>
             </button>
 
+            {/* ── Package QR scanner ── */}
+            <button
+              className="btn-icon btn-ghost topbar-scan-btn"
+              type="button"
+              onClick={openScanner}
+              aria-haspopup="dialog"
+              aria-busy={scannerLoading || undefined}
+              aria-label="Scan package QR code"
+              title="Scan package QR code"
+            >
+              <ScanQrCode size={19} aria-hidden="true" />
+            </button>
+
             {/* ── Notification Bell ── */}
             <div className="relative" style={{ position: 'relative' }}>
               <button
@@ -267,6 +300,8 @@ const AdminLayout = () => {
 
       {/* Command Palette */}
       <CommandPalette isOpen={cmdPaletteOpen} onClose={() => setCmdPaletteOpen(false)} />
+
+      {Scanner && <Scanner onClose={closeScanner} />}
     </div>
   );
 };
