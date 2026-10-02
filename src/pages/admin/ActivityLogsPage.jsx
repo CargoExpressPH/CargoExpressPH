@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { getActivityLogs, getActivityLogsForExport } from '../../lib/database';
 import { supabase } from '../../lib/supabase';
-import Breadcrumb from '../../components/ui/Breadcrumb';
 import { CenteredSpinner } from '../../components/ui/Loader';
 import EmptyState from '../../components/ui/EmptyState';
 import CustomSelect from '../../components/ui/CustomSelect';
@@ -237,11 +236,6 @@ const ActivityLogsPage = () => {
 
   return (
     <div className="page-transition">
-      <Breadcrumb items={[
-        { label: 'Dashboard', to: '/admin' },
-        { label: 'Activity Logs' },
-      ]} />
-
       <div className="admin-page-header">
         <div>
           <h1 className="admin-page-title">
