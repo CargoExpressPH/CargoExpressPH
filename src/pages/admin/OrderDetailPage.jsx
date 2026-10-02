@@ -4,7 +4,7 @@ import { getOrderById, updateOrder, updateOrderContactDetails, getTripReassignme
 import { pollPaymentStatus } from '../../lib/paymongo';
 import { clearPendingPayment, getPendingPayment } from '../../lib/pendingPayment';
 import { isPaymentPollReconciled } from '../../utils/paymentReconciliation';
-import { logOrder, logPayment } from '../../lib/activityLog';
+import { logOrder } from '../../lib/activityLog';
 import { buildStatusTimestamps } from '../../utils/statusTimestamps';
 import { resolvePhotoUrls, deletePhoto } from '../../lib/storage';
 import { supabase } from '../../lib/supabase';
@@ -389,6 +389,19 @@ const AdminOrderDetailPage = () => {
   };
 
   useOrderPaymentRealtime(id, () => loadOrder(true, { silent: true }));
+
+  // Pending/failed refunds can change history without changing order totals.
+  useEffect(() => {
+    if (!id || !user?.id) return undefined;
+    const channel = supabase
+      .channel(`admin_order_activity_${id}`)
+      .on('postgres_changes', {
+        event: 'INSERT', schema: 'public', table: 'activity_logs',
+        filter: `record_id=eq.${id}`,
+      }, () => { void loadOrder(true, { silent: true }); })
+      .subscribe();
+    return () => { void supabase.removeChannel(channel); };
+  }, [id, user?.id]);
 
   const handleStatusAdvance = async () => {
     const next = STATUS_FLOW[order.status];
@@ -1745,22 +1758,16 @@ const AdminOrderDetailPage = () => {
         <RefundPaymentModal
           transaction={refundPayment}
           order={order}
-          onClose={() => setRefundPayment(null)}
-          onSuccess={async (result, amount) => {
+          onClose={() => {
             setRefundPayment(null);
+            void loadOrder(true, { silent: true });
+          }}
+          onSuccess={async (result) => {
+            setRefundPayment(null);
+            // The database saves the activity in the refund transaction.
             await loadOrder();
             const isCompleted = result?.status === 'succeeded' && result?.ledgerReconciled === true;
             const isFailed = result?.status === 'failed';
-            const activity = isCompleted
-              ? 'Refund Confirmed'
-              : isFailed
-                ? 'Refund Failed'
-              : result?.status === 'succeeded'
-                ? 'Refund Reconciliation Pending'
-                : 'Refund Submitted';
-            await logPayment(activity, order.id, order.tracking_number, {
-              details: `${formatMoney(amount)} PayMongo refund ${result?.refundId || 'submitted'} (${result?.status || 'processing'}; ledger ${result?.ledgerReconciled === true ? 'reconciled' : 'pending'})`,
-            });
             if (isCompleted) {
               toast.success('Refund confirmed. PayMongo confirmed success and the order’s financial totals were updated.');
             } else if (isFailed) {

@@ -519,6 +519,106 @@ ok('the 5th failed password attempt locks re-authentication for this admin', fif
 const afterSuccess = await value(`SELECT record_manual_refund_reauth_attempt($1, true) AS payload`, [ADMIN2]);
 ok('a successful verification resets the lockout counter', afterSuccess.payload.locked === false && afterSuccess.payload.failed_count === 0, afterSuccess.payload);
 
+// Refund activity regression: real migration, real refund RPCs, no browser.
+const auditMigration = readFileSync(path.join(REPO, 'supabase/migrations/20261002100000_atomic_refund_activity_history.sql'), 'utf8');
+const refundKey = n => `40000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
+const prepare = (n, amount) => value(`SELECT prepare_paymongo_refund($1,$2,'others',NULL,$3,$4) AS payload`, [paymongoPayment.id, amount, refundKey(n), ADMIN]);
+const reconcile = (n, amount, status) => value(`SELECT reconcile_paymongo_refund($1,'pay_manual_guard_001',$2,$3,'others',NULL,false,NULL,NULL,NOW(),$4) AS payload`, [`ref_activity_${n}`, amount, status, refundKey(n)]);
+const auditRows = n => rows(`SELECT * FROM activity_logs WHERE new_value->>'refund_ledger_id' = (SELECT id::text FROM payment_refunds WHERE idempotency_key=$1) ORDER BY created_at, action`, [refundKey(n)]);
+
+await prepare(1, 100);
+await reconcile(1, 100, 'succeeded');
+const originalTime = await value(`SELECT succeeded_at FROM payment_refunds WHERE idempotency_key=$1`, [refundKey(1)]);
+await prepare(2, 50);
+await reconcile(2, 50, 'succeeded');
+await query(`UPDATE payment_refunds SET succeeded_at=NOW()-INTERVAL '8 days' WHERE idempotency_key=$1`, [refundKey(2)]);
+await prepare(3, 25);
+await reconcile(3, 25, 'succeeded');
+await query(`INSERT INTO activity_logs(admin_id,admin_name,module,action,record_type,record_id,record_ref,details)
+ VALUES($1,'Admin One','Payments','Refund Confirmed','order',$2,'MANUAL-PAYMONGO-001','PayMongo refund ref_activity_3')`, [ADMIN, paymongoOrder.id]);
+
+await db.exec(auditMigration);
+await db.exec(`CREATE TRIGGER activity_logs_guard_insert BEFORE INSERT ON activity_logs FOR EACH ROW EXECUTE FUNCTION guard_activity_log_insert()`);
+let audit = await auditRows(1);
+ok('missing confirmed refund is restored with its original timestamp and initiating admin', audit.length === 1 && audit[0].action === 'Refund Confirmed' && audit[0].admin_id === ADMIN && +new Date(audit[0].created_at) === +new Date(originalTime.succeeded_at), audit);
+ok('backfill does not resurrect history older than seven days', (await auditRows(2)).length === 0);
+ok('backfill preserves an existing legacy confirmation without duplicating it', (await auditRows(3)).length === 0);
+await db.exec(auditMigration);
+ok('migration rerun does not duplicate the repaired confirmation', (await auditRows(1)).length === 1);
+
+await prepare(4, 100);
+await prepare(4, 100);
+audit = await auditRows(4);
+ok('request and idempotent retry produce one server audit before any provider response', audit.length === 1 && audit[0].action === 'Refund Requested', audit);
+let auditTotals = await value(`SELECT amount_paid FROM orders WHERE id=$1`, [paymongoOrder.id]);
+ok('request auditing does not reduce financial totals', Number(auditTotals.amount_paid) === 525, auditTotals);
+await reconcile(4, 100, 'pending');
+await reconcile(4, 100, 'pending');
+await reconcile(4, 100, 'processing');
+auditTotals = await value(`SELECT amount_paid FROM orders WHERE id=$1`, [paymongoOrder.id]);
+ok('pending/processing audit states do not reduce financial totals', Number(auditTotals.amount_paid) === 525, auditTotals);
+await reconcile(4, 100, 'succeeded');
+await reconcile(4, 100, 'succeeded');
+await reconcile(4, 100, 'pending');
+audit = await auditRows(4);
+ok('webhook lifecycle records each state once and ignores stale/redelivered events', audit.length === 4 && ['Refund Requested','Refund Submitted','Refund Processing','Refund Confirmed'].every(action => audit.some(row => row.action === action)), audit);
+auditTotals = await value(`SELECT amount_paid FROM orders WHERE id=$1`, [paymongoOrder.id]);
+ok('confirmed refund auditing leaves the existing ledger deduction correct', Number(auditTotals.amount_paid) === 425, auditTotals);
+
+await prepare(5, 30);
+await query(`SELECT mark_paymongo_refund_uncertain($1,'private provider diagnostic')`, [refundKey(5)]);
+await query(`SELECT mark_paymongo_refund_uncertain($1,'private provider diagnostic')`, [refundKey(5)]);
+audit = await auditRows(5);
+ok('uncertain response is logged once without claiming success or leaking provider diagnostics', audit.length === 2 && audit.some(row => row.action === 'Refund Confirmation Pending') && audit.every(row => !row.details.includes('private provider diagnostic')), audit);
+await reconcile(5, 30, 'succeeded');
+ok('recovery after an uncertain response creates a confirmed activity', (await auditRows(5)).some(row => row.action === 'Refund Confirmed'));
+
+await prepare(6, 20);
+await query(`SELECT mark_paymongo_refund_failed($1,'private failure','Refund failed')`, [refundKey(6)]);
+await query(`SELECT mark_paymongo_refund_failed($1,'private failure','Refund failed')`, [refundKey(6)]);
+audit = await auditRows(6);
+ok('failed request and retries produce exactly one failure activity', audit.length === 2 && audit.some(row => row.action === 'Refund Failed'), audit);
+auditTotals = await value(`SELECT amount_paid FROM orders WHERE id=$1`, [paymongoOrder.id]);
+ok('failed refund auditing leaves collected totals unchanged', Number(auditTotals.amount_paid) === 395, auditTotals);
+await value(`SELECT reconcile_paymongo_refund('ref_activity_external','pay_manual_guard_001',10,'succeeded')`);
+const externalAudit = await value(`SELECT admin_id,admin_name FROM activity_logs WHERE new_value->>'refund_id'='ref_activity_external'`);
+ok('provider-created refund has truthful system attribution', externalAudit.admin_id === null && externalAudit.admin_name === 'System (PayMongo)', externalAudit);
+
+await asRole('authenticated', ADMIN);
+const oldBrowser = await query(`INSERT INTO activity_logs(module,action,record_type,record_id,record_ref,details)
+ VALUES('Payments','Refund Confirmed','order',$1,'MANUAL-PAYMONGO-001','100 PayMongo refund ref_activity_4') RETURNING id`, [paymongoOrder.id]);
+ok('old open browser callback cannot duplicate a server refund confirmation', oldBrowser.rows.length === 0);
+const unrelatedRefund = await query(`INSERT INTO activity_logs(module,action,record_type,record_id,record_ref,details)
+ VALUES('Payments','Refund Confirmed','order',$1,'MANUAL-PAYMONGO-001','100 PayMongo refund ref_activity_40') RETURNING id`, [paymongoOrder.id]);
+ok('legacy deduplication does not confuse refunds with a shared ID prefix', unrelatedRefund.rows.length === 1);
+await query(`INSERT INTO activity_logs(module,action,record_type,record_id,record_ref) VALUES('Payments','Payment Completed','payment',$1,'MANUAL-PAYMONGO-001')`, [paymongoPayment.id]);
+const manualActivity = await query(`INSERT INTO activity_logs(module,action,record_type,record_id,record_ref) VALUES('Payments','Manual Refund Recorded','order',$1,'MANUAL-PAYMONGO-001') RETURNING id`, [paymongoOrder.id]);
+ok('nearby payment entry no longer suppresses a distinct manual refund action', manualActivity.rows.length === 1);
+const duplicatePayment = await query(`INSERT INTO activity_logs(module,action,record_type,record_id,record_ref) VALUES('Payments','Payment Completed','order',$1,'MANUAL-PAYMONGO-001') RETURNING id`, [paymongoOrder.id]);
+ok('ordinary duplicate payment callbacks are still suppressed', duplicatePayment.rows.length === 0);
+await asRole('authenticated', CUSTOMER);
+let customerRejected = false;
+try { await query(`INSERT INTO activity_logs(module,action,record_type,record_id) VALUES('Payments','Refund Confirmed','order',$1)`, [paymongoOrder.id]); }
+catch (error) { customerRejected = /Not allowed/.test(error.message); }
+ok('customers still cannot write payment/refund audit entries', customerRejected);
+const helperGrants = await value(`SELECT has_function_privilege('authenticated','private.record_paymongo_refund_activity(public.payment_refunds,timestamp with time zone,text)','EXECUTE') AS browser, has_function_privilege('service_role','private.record_paymongo_refund_activity(public.payment_refunds,timestamp with time zone,text)','EXECUTE') AS service`);
+ok('audit helper cannot be invoked directly by browser or service role', !helperGrants.browser && !helperGrants.service, helperGrants);
+
+await asRole('service_role', null);
+const newCashOrder = await value(`INSERT INTO orders(tracking_number,shipping_cost,user_id) VALUES('AUDIT-MANUAL-NEW',100,$1) RETURNING id`, [CUSTOMER]);
+const newCashPayment = await value(`INSERT INTO payment_transactions(order_id,amount,payment_method,payment_status) VALUES($1,100,'cash','paid') RETURNING id`, [newCashOrder.id]);
+await query(`SELECT record_manual_refund($1,20,'others','Cash returned to customer','cash',NULL,NOW(),$2,$3)`, [newCashPayment.id, refundKey(8), ADMIN]);
+await query(`SELECT record_manual_refund($1,20,'others','Cash returned to customer','cash',NULL,NOW(),$2,$3)`, [newCashPayment.id, refundKey(8), ADMIN]);
+const newManualLogs = await value(`SELECT count(*)::int AS count FROM activity_logs WHERE record_id=$1 AND action='Manual Refund Recorded'`, [newCashOrder.id]);
+ok('manual refund RPC and retry still log exactly once after installing the PayMongo trigger', newManualLogs.count === 1, newManualLogs);
+await db.exec(`CREATE FUNCTION reject_refund_audit_for_test() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW.action='Refund Requested' THEN RAISE EXCEPTION 'test audit unavailable'; END IF; RETURN NEW; END $$;
+ CREATE TRIGGER reject_refund_audit_for_test BEFORE INSERT ON activity_logs FOR EACH ROW EXECUTE FUNCTION reject_refund_audit_for_test()`);
+let auditFailure = false;
+try { await prepare(7, 10); } catch (error) { auditFailure = /test audit unavailable/.test(error.message); }
+const failedReservation = await value(`SELECT count(*)::int AS count FROM payment_refunds WHERE idempotency_key=$1`, [refundKey(7)]);
+ok('audit failure rolls back the reservation atomically before sending money', auditFailure && failedReservation.count === 0);
+await db.exec(`DROP TRIGGER reject_refund_audit_for_test ON activity_logs; DROP FUNCTION reject_refund_audit_for_test()`);
+
 console.log(`\n${passed} passed, ${failed} failed`);
 await db.close();
 if (failed) process.exit(1);
