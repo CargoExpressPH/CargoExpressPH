@@ -7,6 +7,8 @@ import { phDayRangeISO, formatPhDate, phDateKey } from '../utils/datetime';
 import { buildPerTripSalesReport, aggregateMonthlySalesReports, tripMonthKey } from './perTripSalesReport';
 import { selectEarliestCapacityTrip, selectNextDepartureTrip, isScheduledTripOverdue } from './tripCapacitySelection';
 import { ORDER_PARTY_NAME_COLUMNS } from './orderParties';
+import { containsFilter } from './queryFilters';
+import { fetchAllOrderedRows } from './queryPagination';
 
 // ==================== HELPER ====================
 // Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
@@ -299,44 +301,56 @@ export const createOrder = async (orderData) => {
 export const getOrders = async (userId, isAdmin = false, options = {}) => {
   const { page, perPage, limit, statusFilter, search } = options;
 
-  let query = supabase
-    .from('orders')
-    .select(`
+  const buildQuery = () => {
+    let query = supabase
+      .from('orders')
+      .select(`
       *,
       profiles:user_id (name, phone, email),
       trips:trip_id (origin, destination, trip_number)
-    `, { count: (page && perPage) ? 'exact' : null })
-    .order('created_at', { ascending: false });
+    `, { count: (page && perPage) ? 'exact' : null });
 
-  if (!isAdmin) {
-    query = query.eq('user_id', userId);
-  }
+    if (!isAdmin) {
+      query = query.eq('user_id', userId);
+    }
 
-  // A string matches one status; an array matches any of several, which is what
-  // the admin list's grouped filters ("Active", "Action Needed") need. The
-  // grouping has to happen in the query, not on the returned page: the rows are
-  // paginated server-side, so filtering the 15 rows that came back would show a
-  // part of a page and report a count for a different population.
-  if (Array.isArray(statusFilter)) {
-    if (statusFilter.length > 0) query = query.in('status', statusFilter);
-  } else if (statusFilter && statusFilter !== 'All') {
-    query = query.eq('status', statusFilter);
-  }
+    // A string matches one status; an array matches any of several, which is
+    // what the admin list's grouped filters need. Filter before pagination so
+    // the rows and total count describe the same population.
+    if (Array.isArray(statusFilter)) {
+      if (statusFilter.length > 0) query = query.in('status', statusFilter);
+    } else if (statusFilter && statusFilter !== 'All') {
+      query = query.eq('status', statusFilter);
+    }
+    return query;
+  };
 
+  let searchFilter = '';
   if (search) {
     // Names are matched on the stored parts (full names are derived, not
     // stored). A multi-word query also matches "first + last" together, so
     // "Juan Dela Cruz" finds first_name Juan / last_name Dela Cruz.
     const nameFilters = ['sender', 'receiver'].flatMap((side) => {
-      const filters = [`${side}_first_name.ilike.%${search}%`, `${side}_last_name.ilike.%${search}%`];
+      const filters = [containsFilter(`${side}_first_name`, search), containsFilter(`${side}_last_name`, search)];
       const words = String(search).trim().split(/\s+/);
       if (words.length > 1) {
-        filters.push(`and(${side}_first_name.ilike.%${words[0]}%,${side}_last_name.ilike.%${words.slice(1).join(' ')}%)`);
+        filters.push(`and(${containsFilter(`${side}_first_name`, words[0])},${containsFilter(`${side}_last_name`, words.slice(1).join(' '))})`);
       }
       return filters;
     });
-    query = query.or([`tracking_number.ilike.%${search}%`, ...nameFilters].join(','));
+    searchFilter = [containsFilter('tracking_number', search), ...nameFilters].join(',');
   }
+
+  // Unbounded callers require the full history, not just the server's first
+  // batch. Keep explicit page/limit callers and their return shapes unchanged.
+  if (!(page && perPage) && !limit) {
+    return fetchAllOrderedRows(buildQuery, { searchFilter });
+  }
+
+  let query = buildQuery()
+    .order('created_at', { ascending: false })
+    .order('id', { ascending: false });
+  if (searchFilter) query = query.or(searchFilter);
 
   if (page && perPage) {
     const from = (page - 1) * perPage;
@@ -1171,7 +1185,7 @@ export const getTripById = async (tripId) => {
   });
   if (gateError) throw gateError;
 
-  const { data: orders } = await supabase
+  const orders = await fetchAllOrderedRows(() => supabase
     .from('orders')
     // shipping_cost + amount_paid are what outstandingBalance() derives from —
     // the trip-completion guard reads that, not the stored remaining_balance,
@@ -1181,8 +1195,7 @@ export const getTripById = async (tripId) => {
     // each row. The trip's order table shows addresses, not the booker, so
     // without the embed there is no name to put on the control.
     .select(`id, tracking_number, ${ORDER_PARTY_NAME_COLUMNS}, user_id, status, actual_weight, sender_province, sender_city, receiver_province, receiver_city, created_at, shipping_cost, discount_amount, amount_paid, remaining_balance, payment_status, promised_payment_date, profiles:user_id (name)`)
-    .eq('trip_id', tripId)
-    .order('created_at', { ascending: true });
+    .eq('trip_id', tripId), { ascending: true });
 
   // Weight still comes from get_trips_load (see getTrips above), not a
   // reduce() over `orders`, even though this caller is admin-only today and
@@ -1647,11 +1660,10 @@ export const getCustomerById = async (customerId) => {
     .single();
   if (error) throw error;
 
-  const { data: orders } = await supabase
+  const orders = await fetchAllOrderedRows(() => supabase
     .from('orders')
     .select(`*, trips:trip_id (trip_number)`)
-    .eq('user_id', customerId)
-    .order('created_at', { ascending: false });
+    .eq('user_id', customerId));
 
   const totalOrders = orders?.length || 0;
   const completedOrders = orders?.filter(o => o.status === 'Delivered').length || 0;
@@ -2872,7 +2884,7 @@ const applyActivityLogFilters = (query, {
   if (dateFrom) query = query.gte('created_at', dateFrom);
   if (dateTo) query = query.lte('created_at', dateTo);
   if (hideLogins) query = query.not('action', 'ilike', '%Logged%');
-  if (search) query = query.or(`action.ilike.%${search}%,record_ref.ilike.%${search}%,admin_name.ilike.%${search}%,details.ilike.%${search}%`);
+  if (search) query = query.or(['action', 'record_ref', 'admin_name', 'details'].map(column => containsFilter(column, search)).join(','));
   return query;
 };
 
@@ -3375,8 +3387,8 @@ export const getPaymentTransactionsBatch = async (orderIds) => {
       if (error) throw error;
       const page = data || [];
       rows.push(...page);
-      if (page.length < pageSize) break;
-      from += pageSize;
+      if (page.length === 0) break;
+      from += page.length;
     }
     return rows;
   };
@@ -3384,11 +3396,7 @@ export const getPaymentTransactionsBatch = async (orderIds) => {
   const [paymentResponses, refundResponses, attemptResponses] = await Promise.all([
     Promise.all(chunks.map(ids => fetchHistoryChunk('get_payment_transaction_history', ids))),
     Promise.all(chunks.map(ids => fetchHistoryChunk('get_payment_refund_history', ids))),
-    Promise.all(chunks.map(async ids => {
-      const { data, error } = await supabase.rpc('get_payment_attempt_history', { p_order_ids: ids });
-      if (error) throw error;
-      return data || [];
-    })),
+    Promise.all(chunks.map(ids => fetchHistoryChunk('get_payment_attempt_history', ids))),
   ]);
   const payments = paymentResponses.flat();
   const refunds = refundResponses.flat();

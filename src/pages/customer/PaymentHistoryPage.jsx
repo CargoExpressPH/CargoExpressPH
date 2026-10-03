@@ -15,6 +15,7 @@ import useScrollLock from '../../hooks/useScrollLock';
 import { useToast } from '../../hooks/useToast';
 import usePageTitle from '../../hooks/usePageTitle';
 import { outstandingBalance } from '../../constants/status';
+import { formatPhDate, formatPhDateTime, phMonthKey } from '../../utils/datetime';
 import {
   formatPaymentType, formatPaymentMethod as fmtMethod, formatRecordedBy, formatRefundRecordedBy,
   getOrderPaymentStatusDisplay, getPaymentActivityStatusDisplay, getCustomerVisibleRef, getCustomerFriendlyNotes,
@@ -35,7 +36,7 @@ const formatMoney = (value) => {
 
 const formatDate = (value) => {
   if (!value) return 'Not set';
-  return new Date(value).toLocaleDateString('en-PH', {
+  return formatPhDate(value, {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
@@ -45,12 +46,12 @@ const formatDate = (value) => {
 /** "Aug 12" — the row is already grouped under a month, so the year is noise. */
 const formatRowDate = (value) => {
   if (!value) return '—';
-  return new Date(value).toLocaleDateString('en-PH', { month: 'short', day: 'numeric' });
+  return formatPhDate(value, { month: 'short', day: 'numeric', year: undefined });
 };
 
 const formatDateTime = (value) => {
   if (!value) return 'Not recorded';
-  return new Date(value).toLocaleString('en-PH', {
+  return formatPhDateTime(value, {
     month: 'short', day: 'numeric', year: 'numeric',
     hour: 'numeric', minute: '2-digit',
   });
@@ -64,16 +65,11 @@ const methodLabel = (method) => {
 };
 
 /** A payment's month bucket, as a sortable `YYYY-MM` key. */
-const monthKey = (value) => {
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return '';
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-};
+const monthKey = phMonthKey;
 
 const monthLabel = (key) => {
   const [year, month] = key.split('-');
-  return new Date(Number(year), Number(month) - 1, 1)
-    .toLocaleDateString('en-PH', { month: 'long', year: 'numeric' });
+  return formatPhDate(`${year}-${month}-01T00:00:00+08:00`, { month: 'long', year: 'numeric', day: undefined });
 };
 
 const paymentOptions = [
@@ -200,6 +196,7 @@ const PaymentHistoryPage = () => {
   const [error, setError] = useState('');
   const [selectedMonth, setSelectedMonth] = useState(() => monthKey(new Date()));
   const [openTx, setOpenTx] = useState(null);
+  const [reloadVersion, setReloadVersion] = useState(0);
 
   useEffect(() => {
     let isMounted = true;
@@ -249,7 +246,7 @@ const PaymentHistoryPage = () => {
 
     loadPayments();
     return () => { isMounted = false; };
-  }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [user?.id, reloadVersion]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const summary = useMemo(() => {
     const activeOrders = orders.filter(order => order.status !== 'Cancelled');
@@ -329,6 +326,7 @@ const PaymentHistoryPage = () => {
           <div className="alert-banner alert-banner-error">
             <AlertTriangle size={16} /> {error}
           </div>
+          <button type="button" className="btn btn-primary" onClick={() => setReloadVersion(value => value + 1)}>Retry</button>
         </div>
       ) : (
         <>

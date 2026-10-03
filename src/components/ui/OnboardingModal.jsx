@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Package, MapPin, Bell, Truck, ArrowRight, X, CheckCircle } from 'lucide-react';
 import FocusTrap from './FocusTrap';
 import useScrollLock from '../../hooks/useScrollLock';
+import { getLocalStorageItem, setLocalStorageItem } from '../../utils/safeStorage';
 
 const ONBOARDING_KEY = 'cargoexpress_onboarding_done';
 
@@ -42,7 +43,7 @@ const OnboardingModal = () => {
   const [exiting, setExiting] = useState(false);
 
   useEffect(() => {
-    const done = localStorage.getItem(ONBOARDING_KEY);
+    const done = getLocalStorageItem(ONBOARDING_KEY);
     if (!done) {
       const timer = setTimeout(() => setShow(true), 800);
       return () => clearTimeout(timer);
@@ -64,7 +65,7 @@ const OnboardingModal = () => {
   const handleFinish = () => {
     setExiting(true);
     setTimeout(() => {
-      localStorage.setItem(ONBOARDING_KEY, 'true');
+      setLocalStorageItem(ONBOARDING_KEY, 'true');
       setShow(false);
     }, 300);
   };

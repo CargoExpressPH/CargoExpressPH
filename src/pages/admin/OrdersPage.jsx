@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { getOrders, getOrderStatusCounts, withTimeout } from '../../lib/database';
 import useNetworkRecovery from '../../hooks/useNetworkRecovery';
 import useRealtimeOrders from '../../hooks/useRealtimeOrders';
+import useLatestRequest from '../../hooks/useLatestRequest';
 import { useAuth } from '../../contexts/AuthContext';
 import StatusBadge from '../../components/ui/StatusBadge';
 import { CenteredSpinner } from '../../components/ui/Loader';
@@ -76,8 +77,11 @@ const AdminOrdersPage = () => {
   // Only the debounced value reaches the query; `search` drives the input.
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const debounceTimer = useRef(null);
+  const beginRequest = useLatestRequest(`${user?.id || ''}:${currentPage}:${perPage}:${activeTab}:${debouncedSearch}`);
 
   const loadOrders = async () => {
+    const isCurrent = beginRequest();
+    if (!isCurrent()) return;
     setError(null);
     setLoading(true);
     try {
@@ -91,12 +95,13 @@ const AdminOrdersPage = () => {
           search: debouncedSearch.trim(),
         })
       );
+      if (!isCurrent()) return;
       setOrders(data || []);
       setTotalOrders(count || 0);
     } catch (e) {
-      setError(e.message || 'Failed to load bookings.');
+      if (isCurrent()) setError(e.message || 'Failed to load bookings.');
     } finally {
-      setLoading(false);
+      if (isCurrent()) setLoading(false);
     }
   };
 
@@ -107,7 +112,7 @@ const AdminOrdersPage = () => {
   const loadOrdersRef = useRef(loadOrders);
   loadOrdersRef.current = loadOrders;
 
-  useEffect(() => { loadOrders(); }, [currentPage, perPage, activeTab, debouncedSearch]);
+  useEffect(() => { loadOrders(); }, [currentPage, perPage, activeTab, debouncedSearch, user?.id]);
 
   // ── Filter badges ────────────────────────────────────────────────────────
   // Deliberately NOT part of loadOrders: the counts do not depend on the tab,

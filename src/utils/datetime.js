@@ -80,6 +80,23 @@ export const phDateKey = (value) => {
   }).format(d);
 };
 
+/** A financial month key in Manila, independent of the device timezone. */
+export const phMonthKey = (value) => {
+  if (!value) return '';
+  if (value instanceof Date) {
+    if (Number.isNaN(value.getTime())) return '';
+    value = value.toISOString();
+  }
+  const date = new Date(phLocalInputToISO(value));
+  if (Number.isNaN(date.getTime())) return '';
+  // Read named parts rather than assuming a locale's formatted date order.
+  // Locale data can differ across Safari/iOS and other browser versions.
+  const parts = new Intl.DateTimeFormat(PH_LOCALE, {
+    timeZone: PH_TIME_ZONE, year: 'numeric', month: '2-digit',
+  }).formatToParts(date);
+  return `${parts.find(part => part.type === 'year').value}-${parts.find(part => part.type === 'month').value}`;
+};
+
 /**
  * Timestamp → the half-open instant range covering that whole PH calendar day,
  * `[start, end)`, as offset-qualified ISO strings. Used to ask PostgREST

@@ -9,6 +9,7 @@ import { logAuth } from '../../lib/activityLog';
 import FieldError from '../../components/ui/FieldError';
 import { BrandLogo, BrandWordmark } from '../../components/ui/BrandLogo';
 import AuthHeroPanel from '../../components/auth/AuthHeroPanel';
+import { getLocalStorageItem, setLocalStorageItem, removeLocalStorageItem } from '../../utils/safeStorage';
 
 // ── Error mapper ─────────────────────────────────────────────────────────────
 const INVALID_CREDENTIALS_ERROR = 'Incorrect password or email.';
@@ -66,9 +67,9 @@ const getLoginErrorPlacement = (msg) => {
 const LoginPage = () => {
   usePageTitle('Login');
   // ── Login state ──────────────────────────────────────────────────────────
-  const [email, setEmail]               = useState(() => localStorage.getItem('remembered_email') || '');
+  const [email, setEmail]               = useState(() => getLocalStorageItem('remembered_email') || '');
   const [password, setPassword]         = useState('');
-  const [rememberMe, setRememberMe]     = useState(() => localStorage.getItem('remember_me') === 'true');
+  const [rememberMe, setRememberMe]     = useState(() => getLocalStorageItem('remember_me') === 'true');
   const [showPassword, setShowPassword] = useState(false);
   const [loginError, setLoginError]     = useState('');
   const [loginLoading, setLoginLoading] = useState(false);
@@ -174,11 +175,11 @@ const LoginPage = () => {
       const result = await login(email.trim(), password);
       if (result.success) {
         if (rememberMe) {
-          localStorage.setItem('remember_me', 'true');
-          localStorage.setItem('remembered_email', email.trim());
+          setLocalStorageItem('remember_me', 'true');
+          setLocalStorageItem('remembered_email', email.trim());
         } else {
-          localStorage.removeItem('remember_me');
-          localStorage.removeItem('remembered_email');
+          removeLocalStorageItem('remember_me');
+          removeLocalStorageItem('remembered_email');
         }
         await logAuth('User Logged In', {
           recordRef: result.profile?.name || 'Authenticated user',

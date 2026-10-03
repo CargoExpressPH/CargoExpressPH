@@ -10,6 +10,7 @@ import MessageCustomerButton from '../../components/ui/MessageCustomerButton';
 import Breadcrumb from '../../components/ui/Breadcrumb';
 import Pagination from '../../components/ui/Pagination';
 import usePageTitle from '../../hooks/usePageTitle';
+import useLatestRequest from '../../hooks/useLatestRequest';
 import { formatPhDate } from '../../utils/datetime';
 import { buildProfileAddress } from '../../lib/address';
 import { formatMoney } from '../../utils/currencyInput';
@@ -30,24 +31,26 @@ const CustomerDetailPage = () => {
   const [error, setError] = useState(null);
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(10);
+  const beginRequest = useLatestRequest(id);
 
   useEffect(() => {
-    let isMounted = true;
     setPage(1);
-    load(isMounted);
-    return () => { isMounted = false; };
+    setData(null);
+    load();
   }, [id]);
 
-  const load = async (isMounted = true) => {
+  const load = async () => {
+    const isCurrent = beginRequest();
+    if (!isCurrent()) return;
     setError(null);
     setLoading(true);
     try {
       const result = await getCustomerById(id);
-      if (isMounted) setData(result);
+      if (isCurrent()) setData(result);
     } catch(e) {
-      if (isMounted) setError(e.message || 'Failed to load customer.');
+      if (isCurrent()) setError(e.message || 'Failed to load customer.');
     } finally {
-      if (isMounted) setLoading(false);
+      if (isCurrent()) setLoading(false);
     }
   };
 

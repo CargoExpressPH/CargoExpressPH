@@ -13,6 +13,7 @@ import EmptyState from '../../components/ui/EmptyState';
 import MessageCustomerButton from '../../components/ui/MessageCustomerButton';
 import { useToast } from '../../hooks/useToast';
 import usePageTitle from '../../hooks/usePageTitle';
+import useLatestRequest from '../../hooks/useLatestRequest';
 import { outstandingBalance, isOrderPriced } from '../../constants/status';
 import { formatMoney } from '../../utils/currencyInput';
 import { formatPhDate, formatPhDateTime, phLocalInputToISO } from '../../utils/datetime';
@@ -32,11 +33,12 @@ const TripDetailPage = () => {
   const [estimatedArrivalInput, setEstimatedArrivalInput] = useState('');
   const [checkingStartGate, setCheckingStartGate] = useState(false);
   const toast = useToast();
+  const beginRequest = useLatestRequest(id);
 
   useEffect(() => {
-    let isMounted = true;
-    load(isMounted);
-    return () => { isMounted = false; };
+    setData(null);
+    setActivityHistory([]);
+    load();
   }, [id]);
 
   // Keep the displayed Manila-date gate current if an admin leaves this page
@@ -47,9 +49,9 @@ const TripDetailPage = () => {
     const refreshGate = async () => {
       try {
         const gates = await getTripStartDateGates([id]);
-        if (isMounted) setData((current) => current ? { ...current, start_gate: gates[id] || null } : current);
+        if (isMounted) setData((current) => current?.trip?.id === id ? { ...current, start_gate: gates[id] || null } : current);
       } catch {
-        if (isMounted) setData((current) => current ? { ...current, start_gate: null } : current);
+        if (isMounted) setData((current) => current?.trip?.id === id ? { ...current, start_gate: null } : current);
       }
     };
     const onFocus = () => { refreshGate(); };
@@ -65,17 +67,20 @@ const TripDetailPage = () => {
     };
   }, [id, data?.trip?.status]);
 
-  const load = async (isMounted = true) => {
+  const load = async () => {
+    const isCurrent = beginRequest();
+    if (!isCurrent()) return;
     setError(null); setLoading(true);
     try {
       const result = await getTripById(id);
-      if (isMounted) setData(result);
+      if (!isCurrent()) return;
+      setData(result);
       const actLogs = await getActivityLogsByRecord(id, result?.trip?.trip_number);
-      if (isMounted) setActivityHistory(actLogs);
+      if (isCurrent()) setActivityHistory(actLogs);
     } catch(e) {
-      if (isMounted) setError(e.message || 'Failed to load trip.');
+      if (isCurrent()) setError(e.message || 'Failed to load trip.');
     } finally {
-      if (isMounted) setLoading(false);
+      if (isCurrent()) setLoading(false);
     }
   };
 

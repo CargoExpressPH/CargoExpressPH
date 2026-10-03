@@ -4,6 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { getOrders } from '../../lib/database';
 import useNetworkRecovery from '../../hooks/useNetworkRecovery';
 import useRealtimeOrders from '../../hooks/useRealtimeOrders';
+import useLatestRequest from '../../hooks/useLatestRequest';
 import StatusBadge from '../../components/ui/StatusBadge';
 import RouteProgressLine from '../../components/ui/RouteProgressLine';
 import { CenteredSpinner } from '../../components/ui/Loader';
@@ -40,20 +41,19 @@ const OrdersPage = () => {
   const [activeTab, setActiveTab] = useState('all');
   const [search, setSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const beginRequest = useLatestRequest(user?.id);
 
   const refreshOrders = useCallback(() => {
     if (!user) return;
-    loadOrders(true);
+    loadOrders();
   }, [user]);
 
   useNetworkRecovery(refreshOrders);
 
   useEffect(() => {
     if (!user) return;
-    let isMounted = true;
-    loadOrders(isMounted);
-    return () => { isMounted = false; };
-  }, [user]);
+    loadOrders();
+  }, [user?.id]);
 
   // Live updates: an admin advancing a status, assigning a trip, or a payment
   // webhook landing all change rows in `orders` out from under whatever the
@@ -68,16 +68,19 @@ const OrdersPage = () => {
     onBatch: refreshOrders,
   });
 
-  const loadOrders = async (isMounted = true) => {
+  const loadOrders = async () => {
+    if (!user?.id) return;
+    const isCurrent = beginRequest();
+    if (!isCurrent()) return;
     setError(null);
     setLoading(true);
     try {
       const data = await getOrders(user.id, false);
-      if (isMounted) setOrders(data || []);
+      if (isCurrent()) setOrders(data || []);
     } catch (err) {
-      if (isMounted) setError(err.message || 'Failed to load orders.');
+      if (isCurrent()) setError(err.message || 'Failed to load orders.');
     } finally {
-      if (isMounted) setLoading(false);
+      if (isCurrent()) setLoading(false);
     }
   };
 
@@ -122,7 +125,7 @@ const OrdersPage = () => {
   );
 
   return (
-    <PullToRefresh onRefresh={() => loadOrders(true)}>
+    <PullToRefresh onRefresh={() => loadOrders()}>
       <PageTransition className="customer-orders-page">
       <div className="customer-page-heading">
         <div>
