@@ -6,6 +6,10 @@ export const INVALID_RECOVERY_LINK_MESSAGE =
 // can distinguish an unfinished recovery session from a normal login after a
 // browser/PWA restart. Never store the access token or any URL fragment here.
 export const PASSWORD_RECOVERY_PENDING_KEY = 'cargoexpress:password-recovery-pending';
+export const USED_PASSWORD_RECOVERY_LINKS_KEY = 'cargoexpress:used-password-recovery-links';
+
+const USED_LINK_RETENTION_MS = 24 * 60 * 60 * 1000;
+const MAX_USED_LINKS = 20;
 
 const getStorage = () => {
   try {
@@ -65,6 +69,57 @@ export const parsePasswordRecoveryUrl = (hash = '', search = '') => {
     tokenHash,
     errorMessage: hasError ? INVALID_RECOVERY_LINK_MESSAGE : '',
   };
+};
+
+const recoveryLinkFingerprint = async (tokenHash) => {
+  try {
+    if (!tokenHash || !globalThis.crypto?.subtle) return null;
+    const digest = await globalThis.crypto.subtle.digest(
+      'SHA-256',
+      new TextEncoder().encode(tokenHash),
+    );
+    return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
+  } catch {
+    return null;
+  }
+};
+
+const readUsedLinks = (storage) => {
+  try {
+    const entries = JSON.parse(storage.getItem(USED_PASSWORD_RECOVERY_LINKS_KEY) || '[]');
+    return Array.isArray(entries)
+      ? entries.filter(entry =>
+        typeof entry?.fingerprint === 'string' &&
+        Number.isFinite(entry.expiresAt) && entry.expiresAt > Date.now()
+      ).slice(-MAX_USED_LINKS)
+      : [];
+  } catch {
+    return [];
+  }
+};
+
+// A digest of the one-time token lets this browser/PWA recognize a reopened
+// link without keeping the credential itself. The server remains authoritative
+// on a different device or after this small local cache expires.
+export const hasUsedPasswordRecoveryLink = async (tokenHash) => {
+  const storage = getStorage();
+  const fingerprint = await recoveryLinkFingerprint(tokenHash);
+  return Boolean(storage && fingerprint &&
+    readUsedLinks(storage).some(entry => entry.fingerprint === fingerprint));
+};
+
+export const rememberUsedPasswordRecoveryLink = async (tokenHash) => {
+  const storage = getStorage();
+  const fingerprint = await recoveryLinkFingerprint(tokenHash);
+  if (!storage || !fingerprint) return false;
+  try {
+    const entries = readUsedLinks(storage).filter(entry => entry.fingerprint !== fingerprint);
+    entries.push({ fingerprint, expiresAt: Date.now() + USED_LINK_RETENTION_MS });
+    storage.setItem(USED_PASSWORD_RECOVERY_LINKS_KEY, JSON.stringify(entries.slice(-MAX_USED_LINKS)));
+    return true;
+  } catch {
+    return false;
+  }
 };
 
 export const stripPasswordRecoveryParams = (search = '') => {

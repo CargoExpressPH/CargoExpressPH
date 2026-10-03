@@ -3,11 +3,14 @@ import { readFileSync } from 'node:fs';
 import {
   INVALID_RECOVERY_LINK_MESSAGE,
   PASSWORD_RECOVERY_PENDING_KEY,
+  USED_PASSWORD_RECOVERY_LINKS_KEY,
   clearPasswordRecoveryPending,
   hasPendingPasswordRecovery,
+  hasUsedPasswordRecoveryLink,
   isUsableRecoverySession,
   markPasswordRecoveryPending,
   parsePasswordRecoveryUrl,
+  rememberUsedPasswordRecoveryLink,
   stripPasswordRecoveryParams,
 } from '../src/lib/passwordRecovery.js';
 
@@ -28,6 +31,15 @@ assert.equal(values.get(PASSWORD_RECOVERY_PENDING_KEY), '1');
 assert.equal(hasPendingPasswordRecovery(), true, 'The pending recovery marker must survive app restarts.');
 assert.equal(clearPasswordRecoveryPending(), true, 'Recovery cleanup must remove the marker.');
 assert.equal(hasPendingPasswordRecovery(), false, 'A completed or abandoned recovery must not remain marked.');
+assert.equal(await hasUsedPasswordRecoveryLink('one-time-token'), false);
+assert.equal(await rememberUsedPasswordRecoveryLink('one-time-token'), true);
+assert.equal(await hasUsedPasswordRecoveryLink('one-time-token'), true);
+assert.equal(await hasUsedPasswordRecoveryLink('another-token'), false);
+assert.doesNotMatch(values.get(USED_PASSWORD_RECOVERY_LINKS_KEY), /one-time-token/);
+const usedLinks = JSON.parse(values.get(USED_PASSWORD_RECOVERY_LINKS_KEY));
+usedLinks[0].expiresAt = Date.now() - 1;
+values.set(USED_PASSWORD_RECOVERY_LINKS_KEY, JSON.stringify(usedLinks));
+assert.equal(await hasUsedPasswordRecoveryLink('one-time-token'), false, 'Old local markers must expire.');
 
 if (previousLocalStorage) {
   Object.defineProperty(globalThis, 'localStorage', previousLocalStorage);
@@ -43,7 +55,7 @@ assert.deepEqual(
 assert.deepEqual(
   parsePasswordRecoveryUrl('', '?token_hash=hash&type=recovery'),
   { hasRecoveryIntent: true, accessToken: '', tokenHash: 'hash', errorMessage: '' },
-  'A token-hash email URL must remain available for verification on form submit.',
+  'A token-hash email URL must remain available until the customer confirms it.',
 );
 assert.equal(stripPasswordRecoveryParams('?token_hash=secret&type=recovery&campaign=email'), '?campaign=email');
 
@@ -90,6 +102,8 @@ assert.match(resetPage, /expectedAccessToken: initialUrlState\.accessToken/);
 assert.match(resetPage, /initialAuthRedirectHash/);
 assert.match(resetPage, /verifyOtp\(\{[\s\S]*token_hash: tokenHash,[\s\S]*type: 'recovery'/);
 assert.ok(resetPage.indexOf('verifyOtp({') < resetPage.indexOf('const result = await changePassword(password)'));
+assert.match(resetPage, /hasUsedPasswordRecoveryLink\(initialUrlState\.tokenHash\)/);
+assert.match(resetPage, /onClick=\{confirmRecoveryLink\}/);
 assert.match(resetPage, /window\.history\.replaceState/);
 assert.match(
   resetPage,
@@ -103,8 +117,8 @@ assert.match(resetPage, /leaveRecovery\(discardEstablishedRecovery, '\/forgot-pa
 assert.match(resetPage, /onClick=\{requestNewLink\}/);
 assert.equal(
   (resetPage.match(/onClick=\{cancelRecovery\}/g) || []).length,
-  2,
-  'Both valid and invalid recovery states must sign out before returning to login.',
+  3,
+  'Confirmation, valid, and invalid recovery states must clean up before returning to login.',
 );
 assert.doesNotMatch(
   resetPage,
@@ -136,6 +150,7 @@ assert.match(
 );
 assert.match(serviceWorker, /isRecoveryNavigation[\s\S]*!isRecoveryNavigation[\s\S]*isRecoveryNavigation \? null : await caches\.match\(request\)/);
 assert.match(recoveryTemplate, /\{\{ \.RedirectTo \}\}\?token_hash=\{\{ \.TokenHash \}\}&amp;type=recovery/);
+assert.match(recoveryTemplate, /Continue to Reset Password/);
 assert.doesNotMatch(recoveryTemplate, /\.ConfirmationURL/);
 
 console.log('Password recovery contract tests passed.');

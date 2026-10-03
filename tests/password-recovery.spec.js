@@ -20,7 +20,7 @@ const enterNewPassword = async (page) => {
   await page.getByRole('button', { name: 'Update Password' }).click();
 };
 
-test('a token-hash link survives refresh and is verified only on submit', async ({ page }) => {
+test('a token-hash link verifies on Continue and a used link is rejected on reopening', async ({ page }) => {
   let verifications = 0;
   let updates = 0;
   await page.route('**/auth/v1/**', async (route) => {
@@ -48,17 +48,27 @@ test('a token-hash link survives refresh and is verified only on submit', async 
   });
 
   await page.goto(recoveryUrl);
-  await expect(page.getByRole('heading', { name: 'Set New Password' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Confirm Password Reset' })).toBeVisible();
   expect(verifications).toBe(0);
   await page.reload();
-  await expect(page.getByRole('heading', { name: 'Set New Password' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Confirm Password Reset' })).toBeVisible();
+  expect(verifications).toBe(0);
+  await page.goto(recoveryUrl);
+  await expect(page.getByRole('heading', { name: 'Confirm Password Reset' })).toBeVisible();
   expect(verifications).toBe(0);
 
+  await page.getByRole('button', { name: 'Continue', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Set New Password' })).toBeVisible();
+  expect(verifications).toBe(1);
   await enterNewPassword(page);
   await expect(page.getByRole('heading', { name: 'Password Updated!' })).toBeVisible();
   expect(verifications).toBe(1);
   expect(updates).toBe(1);
-  await expect(page).toHaveURL(/\/reset-password$/);
+  await expect(page).toHaveURL(/\/login$/, { timeout: 10_000 });
+
+  await page.goto(recoveryUrl);
+  await expect(page.getByRole('heading', { name: 'Link Expired or Invalid' })).toBeVisible();
+  expect(verifications).toBe(1);
 });
 
 test('an expired token never calls the password update endpoint', async ({ page }) => {
@@ -76,7 +86,8 @@ test('an expired token never calls the password update endpoint', async ({ page 
   });
 
   await page.goto(recoveryUrl);
-  await enterNewPassword(page);
+  await expect(page.getByRole('heading', { name: 'Confirm Password Reset' })).toBeVisible();
+  await page.getByRole('button', { name: 'Continue', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Link Expired or Invalid' })).toBeVisible();
   expect(updates).toBe(0);
 });
@@ -99,7 +110,7 @@ test.describe('installed PWA', () => {
     await page.goto('/');
     await page.waitForFunction(() => Boolean(navigator.serviceWorker?.controller));
     await page.goto(recoveryUrl);
-    await expect(page.getByRole('heading', { name: 'Set New Password' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Confirm Password Reset' })).toBeVisible();
 
     const cachedUrls = await page.evaluate(async () => {
       const urls = [];
@@ -113,7 +124,7 @@ test.describe('installed PWA', () => {
 
     await context.setOffline(true);
     await page.reload();
-    await expect(page.getByRole('heading', { name: 'Set New Password' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Confirm Password Reset' })).toBeVisible();
     await expect(page).toHaveURL(/token_hash=one-time-test-token/);
   });
 });

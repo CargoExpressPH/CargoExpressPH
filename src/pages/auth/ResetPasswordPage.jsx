@@ -15,9 +15,11 @@ import { BrandLogo, BrandWordmark } from '../../components/ui/BrandLogo';
 import {
   INVALID_RECOVERY_LINK_MESSAGE,
   clearPasswordRecoveryPending,
+  hasUsedPasswordRecoveryLink,
   isUsableRecoverySession,
   markPasswordRecoveryPending,
   parsePasswordRecoveryUrl,
+  rememberUsedPasswordRecoveryLink,
   stripPasswordRecoveryParams,
 } from '../../lib/passwordRecovery';
 
@@ -56,15 +58,15 @@ const ResetPasswordPage = () => {
       typeof window === 'undefined' ? '' : window.location.search,
     );
   }
-  const [ready,           setReady]           = useState(Boolean(
-    initialUrlStateRef.current.errorMessage || initialUrlStateRef.current.tokenHash,
-  ));
+  const [ready,           setReady]           = useState(Boolean(initialUrlStateRef.current.errorMessage));
+  const [confirmationRequired, setConfirmationRequired] = useState(false);
   // Set once verification finishes with no usable session — the link is
   // missing, malformed, expired, or already used. Distinct from `ready`,
   // which only means "we're done checking," not "the link was good."
   const [linkInvalid,     setLinkInvalid]     = useState(Boolean(initialUrlStateRef.current.errorMessage));
   const [linkError,       setLinkError]       = useState(initialUrlStateRef.current.errorMessage);
   const recoverySessionEstablishedRef = useRef(false);
+  const verificationInFlightRef = useRef(false);
   const { changePassword, completePasswordRecovery, discardPasswordRecovery } = useAuth();
   const navigate = useNavigate();
 
@@ -117,8 +119,8 @@ const ResetPasswordPage = () => {
 
   // The legacy implicit link is valid only when Supabase accepts the access
   // token from this URL. A previous login session must not validate a bad
-  // link. New token-hash links are verified only when the form is submitted,
-  // so an email scanner opening the page cannot consume the one-time token.
+  // link. Token-hash links require a human click before verification, so an
+  // email scanner opening the page cannot consume the one-time token.
   useEffect(() => {
     let cancelled = false;
     let settled = false;
@@ -139,9 +141,28 @@ const ResetPasswordPage = () => {
       return () => { cancelled = true; };
     }
 
-    // Keep an unverified token-hash link in the URL until submit. A PWA update,
-    // manual refresh, or offline retry must still be able to recover it.
-    if (initialUrlState.tokenHash) return () => { cancelled = true; };
+    // Keep an unverified token-hash link in the URL until the customer clicks
+    // Continue. A PWA update, manual refresh, or offline retry can recover it.
+    if (initialUrlState.tokenHash) {
+      hasUsedPasswordRecoveryLink(initialUrlState.tokenHash)
+        .then(used => {
+          if (cancelled) return;
+          if (used) {
+            setLinkInvalid(true);
+            setLinkError(INVALID_RECOVERY_LINK_MESSAGE);
+            clearRecoveryQuery();
+          } else {
+            setConfirmationRequired(true);
+          }
+          setReady(true);
+        })
+        .catch(() => {
+          if (cancelled) return;
+          setConfirmationRequired(true);
+          setReady(true);
+        });
+      return () => { cancelled = true; };
+    }
 
     if (!initialUrlState.accessToken) {
       settle(false);
@@ -190,9 +211,55 @@ const ResetPasswordPage = () => {
     ...errors,
   };
 
+  const confirmRecoveryLink = async () => {
+    const tokenHash = initialUrlStateRef.current.tokenHash;
+    if (verificationInFlightRef.current || !tokenHash || linkInvalid) return;
+    verificationInFlightRef.current = true;
+    setError('');
+    setLoading(true);
+    try {
+      const { data, error: verifyError } = await supabase.auth.verifyOtp({
+        token_hash: tokenHash,
+        type: 'recovery',
+      });
+      if (verifyError || !data?.session?.user) {
+        const invalid = !verifyError || /invalid|expired|already used|otp/i.test(
+          `${verifyError.code || ''} ${verifyError.message || ''}`,
+        );
+        if (invalid) {
+          await rememberUsedPasswordRecoveryLink(tokenHash);
+          setLinkInvalid(true);
+          setLinkError(INVALID_RECOVERY_LINK_MESSAGE);
+          setConfirmationRequired(false);
+          clearRecoveryQuery();
+        } else {
+          setError('Could not verify the reset link right now. Please check your connection and try again.');
+        }
+        return;
+      }
+
+      // verifyOtp consumes the one-time token and stores a temporary session.
+      // Remember the used link locally so reopening this email on the same
+      // browser/PWA reports its status before asking for a new password.
+      await rememberUsedPasswordRecoveryLink(tokenHash);
+      recoverySessionEstablishedRef.current = true;
+      initialUrlStateRef.current.tokenHash = '';
+      markPasswordRecoveryPending();
+      clearRecoveryQuery();
+      setConfirmationRequired(false);
+      setReady(true);
+    } catch {
+      setError('Could not verify the reset link right now. Please check your connection and try again.');
+    } finally {
+      verificationInFlightRef.current = false;
+      setLoading(false);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (loading || !ready || linkInvalid || success) return;
+    if (loading || !ready || linkInvalid || confirmationRequired || success ||
+        !recoverySessionEstablishedRef.current) return;
     setError('');
 
     const ok = validate({
@@ -211,31 +278,6 @@ const ResetPasswordPage = () => {
 
     setLoading(true);
     try {
-      const tokenHash = initialUrlStateRef.current.tokenHash;
-      if (tokenHash && !recoverySessionEstablishedRef.current) {
-        const { data, error: verifyError } = await supabase.auth.verifyOtp({
-          token_hash: tokenHash,
-          type: 'recovery',
-        });
-        if (verifyError || !data?.session?.user) {
-          if (!verifyError || /invalid|expired|already used|otp/i.test(verifyError.message || '')) {
-            setLinkInvalid(true);
-            setLinkError(INVALID_RECOVERY_LINK_MESSAGE);
-            clearRecoveryQuery();
-          } else {
-            setError('Could not verify the reset link right now. Please check your connection and try again.');
-          }
-          setLoading(false);
-          return;
-        }
-        // verifyOtp stores the temporary recovery session. If the password
-        // update fails, keep it so a corrected password can be submitted
-        // without trying to consume the one-time link again.
-        recoverySessionEstablishedRef.current = true;
-        initialUrlStateRef.current.tokenHash = '';
-        markPasswordRecoveryPending();
-        clearRecoveryQuery();
-      }
       const result = await changePassword(password);
       if (result?.error) {
         setError(result.error);
@@ -249,9 +291,7 @@ const ResetPasswordPage = () => {
         setTimeout(goToSignIn, 3000);
       }
     } catch (err) {
-      setError(recoverySessionEstablishedRef.current
-        ? (err.message || 'Failed to update password. Please try again.')
-        : 'Could not verify the reset link right now. Please check your connection and try again.');
+      setError(err.message || 'Failed to update password. Please try again.');
       setLoading(false);
     }
   };
@@ -273,6 +313,52 @@ const ResetPasswordPage = () => {
             </div>
             <p className="rp-verifying-text">Verifying your reset link…</p>
             <p className="rp-verifying-sub">This only takes a moment</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (confirmationRequired) {
+    return (
+      <div className="auth-page">
+        <div className="auth-orb auth-orb-1" aria-hidden="true" />
+        <div className="auth-orb auth-orb-2" aria-hidden="true" />
+        <div className="auth-card fp-card">
+          <div className="auth-brand flex flex-row items-center justify-center" style={{ gap: 8 }}>
+            <BrandLogo size={34} decorative />
+            <div className="auth-brand-text"><BrandWordmark /></div>
+          </div>
+          <div className="fp-hero">
+            <div className="fp-hero-icon fp-hero-icon-lock"><ShieldCheck size={26} /></div>
+            <h1 className="fp-title">Confirm Password Reset</h1>
+            <p className="fp-subtitle">Continue to verify this link, then set your new password.</p>
+          </div>
+          {error && (
+            <div className="auth-error-banner" role="alert">
+              <AlertTriangle size={15} />
+              <span>{error}</span>
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={confirmRecoveryLink}
+            className="auth-submit-btn text-no-underline mt-12"
+            disabled={loading}
+            aria-busy={loading}
+          >
+            {loading ? <><Loader size={16} className="animate-spin" /> Verifying…</> : 'Continue'}
+          </button>
+          <div className="auth-card-footer">
+            <button
+              type="button"
+              onClick={cancelRecovery}
+              className="auth-link bg-none border-none cursor-pointer p-0"
+              style={{ font: 'inherit' }}
+            >
+              <ArrowLeft size={12} style={{ verticalAlign: 'middle', marginRight: 2 }} />
+              Back to Sign In
+            </button>
           </div>
         </div>
       </div>
