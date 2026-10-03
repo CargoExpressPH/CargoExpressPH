@@ -17,6 +17,7 @@ import {
   isUsableRecoverySession,
   markPasswordRecoveryPending,
   parsePasswordRecoveryUrl,
+  stripPasswordRecoveryParams,
 } from '../../lib/passwordRecovery';
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -35,9 +36,14 @@ const ResetPasswordPage = () => {
   if (initialUrlStateRef.current === null) {
     initialUrlStateRef.current = parsePasswordRecoveryUrl(
       typeof window === 'undefined' ? '' : window.location.hash,
+      typeof window === 'undefined' ? '' : window.location.search,
     );
   }
-  const [ready,           setReady]           = useState(Boolean(initialUrlStateRef.current.errorMessage));
+  const [ready,           setReady]           = useState(Boolean(
+    initialUrlStateRef.current.errorMessage || initialUrlStateRef.current.tokenHash,
+  ));
+  const [confirmationRequired, setConfirmationRequired] = useState(Boolean(initialUrlStateRef.current.tokenHash));
+  const [recoverySessionEstablished, setRecoverySessionEstablished] = useState(false);
   // Set once verification finishes with no usable session — the link is
   // missing, malformed, expired, or already used. Distinct from `ready`,
   // which only means "we're done checking," not "the link was good."
@@ -46,11 +52,20 @@ const ResetPasswordPage = () => {
   const { changePassword, logout, discardPasswordRecovery } = useAuth();
   const navigate = useNavigate();
 
+  const clearRecoveryUrl = useCallback(() => {
+    if (typeof window === 'undefined') return;
+    window.history.replaceState(
+      window.history.state,
+      '',
+      `${window.location.pathname}${stripPasswordRecoveryParams(window.location.search)}`,
+    );
+  }, []);
+
   // Keep the recovery-session marker even if Supabase has already consumed the
   // hash before this page mounts. If the user closes the app now, AuthContext
   // will clear the persisted recovery session on the next launch.
   useEffect(() => {
-    if (initialUrlStateRef.current.hasRecoveryIntent) {
+    if (initialUrlStateRef.current.hasRecoveryIntent && !initialUrlStateRef.current.tokenHash) {
       markPasswordRecoveryPending();
     }
   }, []);
@@ -79,13 +94,18 @@ const ResetPasswordPage = () => {
     flashMessage: 'Password updated successfully. Please sign in with your new password.',
   }), [leaveRecovery, logout]);
 
+  const clearRecoverySessionIfEstablished = useCallback(async () => {
+    if (!recoverySessionEstablished) return { success: true };
+    return discardPasswordRecovery();
+  }, [discardPasswordRecovery, recoverySessionEstablished]);
+
   const cancelRecovery = useCallback(
-    () => leaveRecovery(discardPasswordRecovery, '/login'),
-    [discardPasswordRecovery, leaveRecovery],
+    () => leaveRecovery(clearRecoverySessionIfEstablished, '/login'),
+    [clearRecoverySessionIfEstablished, leaveRecovery],
   );
   const requestNewLink = useCallback(
-    () => leaveRecovery(discardPasswordRecovery, '/forgot-password'),
-    [discardPasswordRecovery, leaveRecovery],
+    () => leaveRecovery(clearRecoverySessionIfEstablished, '/forgot-password'),
+    [clearRecoverySessionIfEstablished, leaveRecovery],
   );
 
   // Verify there is an actual recovery session instead of treating the normal
@@ -112,19 +132,29 @@ const ResetPasswordPage = () => {
       settled = true;
       setReady(true);
       setLinkInvalid(!valid);
+      setRecoverySessionEstablished(valid);
       setLinkError(valid ? '' : (message || INVALID_RECOVERY_LINK_MESSAGE));
     };
 
     if (initialUrlState.errorMessage) {
-      if (typeof window !== 'undefined') {
-        window.history.replaceState(
-          window.history.state,
-          '',
-          `${window.location.pathname}${window.location.search}`,
-        );
-      }
+      clearRecoveryUrl();
       return () => { cancelled = true; };
     }
+
+    // TokenHash links are intentionally not exchanged on page load. Gmail and
+    // other mail security scanners may visit links automatically; requiring a
+    // real button press keeps that GET from consuming the one-time token. The
+    // token stays in this component's ref while it is removed from the URL.
+    if (initialUrlState.tokenHash) {
+      clearRecoveryUrl();
+      return () => { cancelled = true; };
+    }
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (isUsableRecoverySession({ event, session })) {
+        settle(true);
+      }
+    });
 
     supabase.auth.getSession()
       .then(({ data }) => {
@@ -137,20 +167,50 @@ const ResetPasswordPage = () => {
       })
       .catch(() => {});
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (isUsableRecoverySession({ event, session })) {
-        settle(true);
-      }
-    });
-
-    const timer = setTimeout(() => settle(false, INVALID_RECOVERY_LINK_MESSAGE), 4000);
+    const timer = setTimeout(() => settle(false, INVALID_RECOVERY_LINK_MESSAGE), 15000);
 
     return () => {
       cancelled = true;
       clearTimeout(timer);
       subscription.unsubscribe();
     };
-  }, []);
+  }, [clearRecoveryUrl]);
+
+  const confirmRecoveryLink = async () => {
+    if (!initialUrlStateRef.current.tokenHash || loading) return;
+    setLoading(true);
+    setLinkError('');
+    try {
+      const { data, error: verifyError } = await supabase.auth.verifyOtp({
+        token_hash: initialUrlStateRef.current.tokenHash,
+        type: 'recovery',
+      });
+      if (verifyError || !data?.session?.user) {
+        clearRecoveryUrl();
+        setConfirmationRequired(false);
+        setReady(true);
+        setLinkInvalid(true);
+        setLinkError(INVALID_RECOVERY_LINK_MESSAGE);
+        return;
+      }
+
+      markPasswordRecoveryPending();
+      clearRecoveryUrl();
+      setLinkInvalid(false);
+      setLinkError('');
+      setRecoverySessionEstablished(true);
+      setConfirmationRequired(false);
+      setReady(true);
+    } catch {
+      clearRecoveryUrl();
+      setConfirmationRequired(false);
+      setReady(true);
+      setLinkInvalid(true);
+      setLinkError(INVALID_RECOVERY_LINK_MESSAGE);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const pwStrength = getPasswordStrength(password);
 
@@ -228,6 +288,55 @@ const ResetPasswordPage = () => {
             </div>
             <p className="rp-verifying-text">Verifying your reset link…</p>
             <p className="rp-verifying-sub">This only takes a moment</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  /* ── Explicit TokenHash confirmation ── */
+  if (confirmationRequired) {
+    return (
+      <div className="auth-page">
+        <div className="auth-orb auth-orb-1" aria-hidden="true" />
+        <div className="auth-orb auth-orb-2" aria-hidden="true" />
+        <div className="auth-card fp-card">
+          <div className="auth-brand flex flex-row items-center justify-center" style={{ gap: 8 }}>
+            <BrandLogo size={34} decorative />
+            <div className="auth-brand-text"><BrandWordmark /></div>
+          </div>
+          <div className="fp-hero">
+            <div className="fp-hero-icon fp-hero-icon-lock">
+              <ShieldCheck size={26} />
+            </div>
+            <h1 className="fp-title">Confirm Password Reset</h1>
+            <p className="fp-subtitle">
+              Press below to verify this link and continue. This extra step keeps email scanners from using your reset link before you do.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={confirmRecoveryLink}
+            className="auth-submit-btn text-no-underline mt-12"
+            disabled={loading}
+            aria-busy={loading}
+          >
+            {loading
+              ? <><Loader size={16} className="animate-spin" /> Verifying…</>
+              : 'Continue to Reset Password'
+            }
+          </button>
+          <div className="auth-card-footer">
+            <p>
+              <button
+                type="button"
+                onClick={requestNewLink}
+                className="auth-link bg-none border-none cursor-pointer p-0"
+                style={{ font: 'inherit' }}
+              >
+                Request a different link
+              </button>
+            </p>
           </div>
         </div>
       </div>

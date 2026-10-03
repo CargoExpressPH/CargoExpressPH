@@ -8,6 +8,7 @@ import {
   isUsableRecoverySession,
   markPasswordRecoveryPending,
   parsePasswordRecoveryUrl,
+  stripPasswordRecoveryParams,
 } from '../src/lib/passwordRecovery.js';
 
 const previousLocalStorage = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
@@ -36,8 +37,22 @@ if (previousLocalStorage) {
 
 assert.deepEqual(
   parsePasswordRecoveryUrl('#access_token=token&type=recovery'),
-  { hasRecoveryIntent: true, errorMessage: '' },
+  { hasRecoveryIntent: true, tokenHash: '', errorMessage: '' },
   'A recovery URL must be recognized without exposing its token.',
+);
+
+const tokenHashUrl = parsePasswordRecoveryUrl('', '?token_hash=one-time-token&type=recovery');
+assert.equal(tokenHashUrl.hasRecoveryIntent, true, 'A query TokenHash recovery link must be recognized.');
+assert.equal(tokenHashUrl.tokenHash, 'one-time-token', 'A TokenHash link must be available for explicit verification.');
+assert.equal(
+  parsePasswordRecoveryUrl('', '?token_hash=not-recovery&type=signup').hasRecoveryIntent,
+  false,
+  'A non-recovery email token must not be treated as a password reset.',
+);
+assert.equal(
+  parsePasswordRecoveryUrl('#type=recovery').hasRecoveryIntent,
+  false,
+  'A recovery marker without a token must not count as a valid recovery URL.',
 );
 
 for (const hash of [
@@ -72,10 +87,16 @@ assert.equal(
   false,
   'Recovery intent without a session must never unlock the form.',
 );
+assert.equal(
+  stripPasswordRecoveryParams('?token_hash=secret&type=recovery&keep=1'),
+  '?keep=1',
+  'Removing recovery credentials must preserve unrelated safe query parameters.',
+);
 
 const resetPage = readFileSync('src/pages/auth/ResetPasswordPage.jsx', 'utf8');
 const forgotPage = readFileSync('src/pages/auth/ForgotPasswordPage.jsx', 'utf8');
 const authContext = readFileSync('src/contexts/AuthContext.jsx', 'utf8');
+const recoveryEmailTemplate = readFileSync('supabase/templates/recovery.html', 'utf8');
 
 assert.doesNotMatch(
   resetPage,
@@ -84,14 +105,27 @@ assert.doesNotMatch(
 );
 assert.match(resetPage, /event, session[\s\S]*isUsableRecoverySession/);
 assert.match(resetPage, /window\.history\.replaceState/);
+assert.match(resetPage, /supabase\.auth\.verifyOtp\([\s\S]*token_hash:[\s\S]*type: 'recovery'/);
+assert.match(
+  resetPage,
+  /if \(initialUrlState\.tokenHash\)[\s\S]*return \(\) => \{ cancelled = true; \};/,
+  'A TokenHash must not be verified automatically when an email scanner opens the link.',
+);
+assert.match(recoveryEmailTemplate, /href="\{\{ \.RedirectTo \}\}\?token_hash=\{\{ \.TokenHash \}\}&amp;type=recovery"/);
+assert.doesNotMatch(recoveryEmailTemplate, /\.ConfirmationURL/);
 assert.match(
   resetPage,
   /const leaveRecovery[\s\S]*await endSession\(\)[\s\S]*navigate\(destination/,
   'Every recovery-page exit must destroy the temporary session before navigating.',
 );
 assert.match(resetPage, /leaveRecovery\(logout, '\/login'/);
-assert.match(resetPage, /leaveRecovery\(discardPasswordRecovery, '\/login'/);
-assert.match(resetPage, /leaveRecovery\(discardPasswordRecovery, '\/forgot-password'/);
+assert.match(resetPage, /leaveRecovery\(clearRecoverySessionIfEstablished, '\/login'/);
+assert.match(resetPage, /leaveRecovery\(clearRecoverySessionIfEstablished, '\/forgot-password'/);
+assert.match(
+  resetPage,
+  /const clearRecoverySessionIfEstablished[\s\S]*if \(!recoverySessionEstablished\) return \{ success: true \};/,
+  'An unverified email link must not sign out an existing ordinary app session when leaving the reset page.',
+);
 assert.match(resetPage, /onClick=\{requestNewLink\}/);
 assert.equal(
   (resetPage.match(/onClick=\{cancelRecovery\}/g) || []).length,
