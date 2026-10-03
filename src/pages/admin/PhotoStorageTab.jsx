@@ -1055,6 +1055,7 @@ const PhotoStorageTab = () => {
 
   const liveStorage = health?.supabase_storage;
   const usedBytes = liveStorage?.total_size_bytes == null ? null : Number(liveStorage.total_size_bytes);
+  const storageBuckets = Array.isArray(liveStorage?.buckets) ? liveStorage.buckets : [];
   const quotaBytes = liveStorage?.included_storage_bytes == null ? null : Number(liveStorage.included_storage_bytes);
   const usagePercent = usedBytes != null && quotaBytes > 0 ? (usedBytes / quotaBytes) * 100 : null;
   const boundedPercent = usagePercent == null ? 0 : Math.max(0, Math.min(usagePercent, 100));
@@ -1083,7 +1084,7 @@ const PhotoStorageTab = () => {
 
       {/* ── Storage Usage: compact card ── */}
       <section className="card admin-section-card mb-24">
-        <div className="card-header"><h3><HardDrive size={17} className="inline mr-8" />Storage Usage</h3></div>
+        <div className="card-header"><h3><HardDrive size={17} className="inline mr-8" />Current Storage Files</h3></div>
         <div className="card-body">
           {usedBytes != null ? (
             <>
@@ -1097,6 +1098,13 @@ const PhotoStorageTab = () => {
                   <div style={{ width: `${Math.max(boundedPercent, usagePercent > 0 ? 1 : 0)}%`, height: '100%', background: usageTone, borderRadius: 999, transition: 'width 300ms ease' }} />
                 </div>
               )}
+              {storageBuckets.length > 0 && (
+                <ul className="text-xs text-secondary mt-12 mb-0">
+                  {storageBuckets.map((item) => (
+                    <li key={item.bucket_id}>{item.bucket_id}: {formatBytes(item.size_bytes)} across {number(item.object_count)} file{Number(item.object_count) === 1 ? '' : 's'}</li>
+                  ))}
+                </ul>
+              )}
             </>
           ) : (
             <p className="text-sm text-secondary" style={{ margin: 0 }}>
@@ -1104,7 +1112,7 @@ const PhotoStorageTab = () => {
             </p>
           )}
           <p className="text-xs text-secondary" style={{ margin: '10px 0 0' }}>
-            Space used is measured live across all files (cargo photos and website images); the allowance shown is the published plan limit, not a number read from your account.
+            This is the current total of files in this project's buckets. Supabase Usage can differ because its Storage Size metric is averaged over the billing period. The allowance shown is the published plan limit, not a number read from your account.
             {firebasePhotoCount > 0 && ` Backup storage separately holds ${number(firebasePhotoCount)} photo${firebasePhotoCount === 1 ? '' : 's'} — not included above.`}
           </p>
           {failuresLast24h > 0 && (
@@ -1117,7 +1125,7 @@ const PhotoStorageTab = () => {
       </section>
 
       <section className="card admin-section-card mb-24">
-        <div className="card-header"><h3><Database size={17} className="inline mr-8" />Database Size</h3></div>
+        <div className="card-header"><h3><Database size={17} className="inline mr-8" />Current Database Size</h3></div>
         <div className="card-body">
           {Number.isFinite(databaseBytes) ? (
             <>
@@ -1131,7 +1139,7 @@ const PhotoStorageTab = () => {
               {databasePercent >= 80 && <p className="text-sm mt-12" role="status"><AlertTriangle size={16} className="inline mr-8" />Database space is approaching the Free plan limit.</p>}
             </>
           ) : <p className="text-sm text-secondary">Database size could not be checked just now.</p>}
-          <p className="text-xs text-secondary mt-12">Measured from this project's Postgres database. The Free plan limit is 500 MB per project; a plan limit is shown above only when Supabase confirms this project is on Free.</p>
+          <p className="text-xs text-secondary mt-12">Measured from this project's Postgres database at the last check. Supabase's disk usage also includes other files, and its organization Usage figure can reflect a billing-period average. The Free plan limit is 500 MB per project; a plan limit is shown above only when Supabase confirms this project is on Free.</p>
         </div>
       </section>
 
