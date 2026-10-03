@@ -105,12 +105,20 @@ assert.doesNotMatch(
 );
 assert.match(resetPage, /event, session[\s\S]*isUsableRecoverySession/);
 assert.match(resetPage, /window\.history\.replaceState/);
-assert.match(resetPage, /supabase\.auth\.verifyOtp\([\s\S]*token_hash:[\s\S]*type: 'recovery'/);
+const submitHandlerStart = resetPage.indexOf('const handleSubmit');
+const submitHandlerEnd = resetPage.indexOf('/* ── Verifying token state ── */', submitHandlerStart);
+const submitHandler = resetPage.slice(submitHandlerStart, submitHandlerEnd);
+assert.match(submitHandler, /supabase\.auth\.verifyOtp\([\s\S]*token_hash:[\s\S]*type: 'recovery'/);
+assert.ok(
+  submitHandler.indexOf('verifyOtp') < submitHandler.indexOf('changePassword'),
+  'The recovery token must be verified before attempting the password update.',
+);
 assert.match(
   resetPage,
   /if \(initialUrlState\.tokenHash\)[\s\S]*return \(\) => \{ cancelled = true; \};/,
   'A TokenHash must not be verified automatically when an email scanner opens the link.',
 );
+assert.doesNotMatch(resetPage, /Confirm Password Reset|Continue to Reset Password/);
 assert.match(recoveryEmailTemplate, /href="\{\{ \.RedirectTo \}\}\?token_hash=\{\{ \.TokenHash \}\}&amp;type=recovery"/);
 assert.doesNotMatch(recoveryEmailTemplate, /\.ConfirmationURL/);
 assert.match(

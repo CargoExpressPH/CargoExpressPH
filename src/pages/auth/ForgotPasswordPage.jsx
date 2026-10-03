@@ -185,7 +185,7 @@ const ForgotPasswordPage = () => {
                 </div>
                 <div className="fp-tip-item">
                   <div className="fp-tip-dot">2</div>
-                  <span>Open the link, then confirm it on the reset page</span>
+                  <span>Click the link to set a new password</span>
                 </div>
                 <div className="fp-tip-item">
                   <div className="fp-tip-dot">3</div>
@@ -216,7 +216,7 @@ const ForgotPasswordPage = () => {
               <p className="fp-subtitle">
                 We've sent a reset link to{' '}
                 <strong className="fp-email-highlight">{email}</strong>
-                . Check your spam folder if you don't see it. If you request another email, use the newest link.
+                . Check your spam folder if you don't see it.
               </p>
             </div>
 

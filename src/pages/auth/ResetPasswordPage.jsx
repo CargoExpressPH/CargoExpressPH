@@ -42,8 +42,8 @@ const ResetPasswordPage = () => {
   const [ready,           setReady]           = useState(Boolean(
     initialUrlStateRef.current.errorMessage || initialUrlStateRef.current.tokenHash,
   ));
-  const [confirmationRequired, setConfirmationRequired] = useState(Boolean(initialUrlStateRef.current.tokenHash));
   const [recoverySessionEstablished, setRecoverySessionEstablished] = useState(false);
+  const [tokenHashVerified, setTokenHashVerified] = useState(false);
   // Set once verification finishes with no usable session — the link is
   // missing, malformed, expired, or already used. Distinct from `ready`,
   // which only means "we're done checking," not "the link was good."
@@ -141,10 +141,9 @@ const ResetPasswordPage = () => {
       return () => { cancelled = true; };
     }
 
-    // TokenHash links are intentionally not exchanged on page load. Gmail and
-    // other mail security scanners may visit links automatically; requiring a
-    // real button press keeps that GET from consuming the one-time token. The
-    // token stays in this component's ref while it is removed from the URL.
+    // TokenHash links are intentionally not exchanged on page load. Email
+    // security scanners may visit links automatically; verification happens
+    // only when the customer submits the existing password form.
     if (initialUrlState.tokenHash) {
       clearRecoveryUrl();
       return () => { cancelled = true; };
@@ -175,42 +174,6 @@ const ResetPasswordPage = () => {
       subscription.unsubscribe();
     };
   }, [clearRecoveryUrl]);
-
-  const confirmRecoveryLink = async () => {
-    if (!initialUrlStateRef.current.tokenHash || loading) return;
-    setLoading(true);
-    setLinkError('');
-    try {
-      const { data, error: verifyError } = await supabase.auth.verifyOtp({
-        token_hash: initialUrlStateRef.current.tokenHash,
-        type: 'recovery',
-      });
-      if (verifyError || !data?.session?.user) {
-        clearRecoveryUrl();
-        setConfirmationRequired(false);
-        setReady(true);
-        setLinkInvalid(true);
-        setLinkError(INVALID_RECOVERY_LINK_MESSAGE);
-        return;
-      }
-
-      markPasswordRecoveryPending();
-      clearRecoveryUrl();
-      setLinkInvalid(false);
-      setLinkError('');
-      setRecoverySessionEstablished(true);
-      setConfirmationRequired(false);
-      setReady(true);
-    } catch {
-      clearRecoveryUrl();
-      setConfirmationRequired(false);
-      setReady(true);
-      setLinkInvalid(true);
-      setLinkError(INVALID_RECOVERY_LINK_MESSAGE);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const pwStrength = getPasswordStrength(password);
 
@@ -251,8 +214,28 @@ const ResetPasswordPage = () => {
     });
     if (!ok) return;
 
+    let recoveryVerified = tokenHashVerified;
     setLoading(true);
     try {
+      if (initialUrlStateRef.current.tokenHash && !recoveryVerified) {
+        const { data, error: verifyError } = await supabase.auth.verifyOtp({
+          token_hash: initialUrlStateRef.current.tokenHash,
+          type: 'recovery',
+        });
+        if (verifyError || !data?.session?.user) {
+          clearRecoveryUrl();
+          setLinkInvalid(true);
+          setLinkError(INVALID_RECOVERY_LINK_MESSAGE);
+          setLoading(false);
+          return;
+        }
+
+        markPasswordRecoveryPending();
+        setRecoverySessionEstablished(true);
+        setTokenHashVerified(true);
+        recoveryVerified = true;
+      }
+
       const result = await changePassword(password);
       if (result?.error) {
         setError(result.error);
@@ -266,7 +249,9 @@ const ResetPasswordPage = () => {
         setTimeout(goToSignIn, 3000);
       }
     } catch (err) {
-      setError(err.message || 'Failed to update password. Please try again.');
+      setError(!recoveryVerified && initialUrlStateRef.current.tokenHash
+        ? 'We could not verify the reset link. Check your connection and try again.'
+        : (err.message || 'Failed to update password. Please try again.'));
       setLoading(false);
     }
   };
@@ -288,55 +273,6 @@ const ResetPasswordPage = () => {
             </div>
             <p className="rp-verifying-text">Verifying your reset link…</p>
             <p className="rp-verifying-sub">This only takes a moment</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  /* ── Explicit TokenHash confirmation ── */
-  if (confirmationRequired) {
-    return (
-      <div className="auth-page">
-        <div className="auth-orb auth-orb-1" aria-hidden="true" />
-        <div className="auth-orb auth-orb-2" aria-hidden="true" />
-        <div className="auth-card fp-card">
-          <div className="auth-brand flex flex-row items-center justify-center" style={{ gap: 8 }}>
-            <BrandLogo size={34} decorative />
-            <div className="auth-brand-text"><BrandWordmark /></div>
-          </div>
-          <div className="fp-hero">
-            <div className="fp-hero-icon fp-hero-icon-lock">
-              <ShieldCheck size={26} />
-            </div>
-            <h1 className="fp-title">Confirm Password Reset</h1>
-            <p className="fp-subtitle">
-              Press below to verify this link and continue. This extra step keeps email scanners from using your reset link before you do.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={confirmRecoveryLink}
-            className="auth-submit-btn text-no-underline mt-12"
-            disabled={loading}
-            aria-busy={loading}
-          >
-            {loading
-              ? <><Loader size={16} className="animate-spin" /> Verifying…</>
-              : 'Continue to Reset Password'
-            }
-          </button>
-          <div className="auth-card-footer">
-            <p>
-              <button
-                type="button"
-                onClick={requestNewLink}
-                className="auth-link bg-none border-none cursor-pointer p-0"
-                style={{ font: 'inherit' }}
-              >
-                Request a different link
-              </button>
-            </p>
           </div>
         </div>
       </div>
