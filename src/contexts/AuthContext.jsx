@@ -12,7 +12,6 @@ import {
   clearPasswordRecoveryPending,
   hasPendingPasswordRecovery,
   markPasswordRecoveryPending,
-  parsePasswordRecoveryUrl,
 } from '../lib/passwordRecovery';
 
 const AuthContext = createContext({});
@@ -65,9 +64,7 @@ export const AuthProvider = ({ children }) => {
   // Supabase shares auth events across tabs. Remember whether this particular
   // tab opened the recovery URL so another tab is not unexpectedly hijacked.
   const recoveryLinkDetected = useRef(
-    typeof window !== 'undefined' && parsePasswordRecoveryUrl(
-      window.location.hash,
-    ).hasRecoveryIntent,
+    typeof window !== 'undefined' && window.location.hash.includes('type=recovery'),
   );
 
   // Supabase removes the recovery hash after exchanging it for a session. The
@@ -94,18 +91,20 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     let isMounted = true;
 
-    // Legacy recovery links use the implicit flow. Check for their access
-    // token synchronously because the Supabase singleton may process it before
-    // this effect subscribes. TokenHash links do not create a session until
-    // the user presses the confirmation button, so they stay on the public
-    // reset route without interrupting any existing signed-in session.
+    // Recovery links use the implicit flow: GoTrue appends
+    // `#access_token=...&type=recovery&...` to whichever URL it redirects to,
+    // and the Supabase client — a module-level singleton created well before
+    // this component mounts — can parse that hash and fire PASSWORD_RECOVERY
+    // (below) before this effect's listener even subscribes. Checking the
+    // hash directly, synchronously, on mount closes that race outright rather
+    // than hoping the event is still in flight when we ask.
     if (recoveryLinkDetected.current && window.location.pathname !== '/reset-password') {
       // replace(), not assign(): this carries the raw recovery token in the
       // URL hash, and assign() would push it into browser history as its own
       // entry — a Back navigation later would return to a URL containing
       // that (now-consumed, but still sensitive-looking) token. replace()
       // swaps the current entry instead of adding one.
-      window.location.replace(`/reset-password${window.location.search}${window.location.hash}`);
+      window.location.replace(`/reset-password${window.location.hash}`);
       return () => { isMounted = false; };
     }
 
@@ -178,7 +177,7 @@ export const AuthProvider = ({ children }) => {
             // the tab that opened the recovery URL to /reset-password without
             // adding a history entry the customer could Back into. Other tabs
             // receive the shared event but must not be hijacked.
-            window.location.replace(`/reset-password${window.location.search}${window.location.hash}`);
+            window.location.replace('/reset-password');
           }
           return;
         }

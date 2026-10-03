@@ -49,37 +49,18 @@ export const hasPendingPasswordRecovery = () => {
   }
 };
 
-export const parsePasswordRecoveryUrl = (hash = '', search = '') => {
-  const hashParams = new URLSearchParams(String(hash).replace(/^#/, ''));
-  const queryParams = new URLSearchParams(String(search).replace(/^\?/, ''));
-  const hasImplicitRecoveryToken = (
-    hashParams.get('type') === 'recovery' && Boolean(hashParams.get('access_token'))
-  );
-  const tokenHash = queryParams.get('type') === 'recovery'
-    ? (queryParams.get('token_hash') || '')
-    : '';
-  const hasRecoveryIntent = hasImplicitRecoveryToken || Boolean(tokenHash);
+export const parsePasswordRecoveryUrl = (hash = '') => {
+  const params = new URLSearchParams(String(hash).replace(/^#/, ''));
   const hasError = Boolean(
-    ['error', 'error_code', 'error_description'].some(key => (
-      hashParams.get(key) || queryParams.get(key)
-    ))
+    params.get('error') ||
+    params.get('error_code') ||
+    params.get('error_description')
   );
 
   return {
-    hasRecoveryIntent,
-    tokenHash,
+    hasRecoveryIntent: params.get('type') === 'recovery',
     errorMessage: hasError ? INVALID_RECOVERY_LINK_MESSAGE : '',
   };
-};
-
-export const stripPasswordRecoveryParams = (search = '') => {
-  const params = new URLSearchParams(String(search).replace(/^\?/, ''));
-  [
-    'token_hash', 'type', 'error', 'error_code', 'error_description', 'error_uri',
-    'access_token', 'refresh_token', 'expires_at', 'expires_in', 'token_type',
-  ].forEach(key => params.delete(key));
-  const safeSearch = params.toString();
-  return safeSearch ? `?${safeSearch}` : '';
 };
 
 export const isUsableRecoverySession = ({ event, session, initialRecoveryIntent = false }) => (

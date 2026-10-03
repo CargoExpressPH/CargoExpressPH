@@ -78,7 +78,3 @@ verify_jwt = true
 # authenticated with the service role key as its bearer token — same shape
 # and same reasoning as process-daily-reminders above.
 verify_jwt = true
-
-[auth.email.template.recovery]
-subject = "Reset your CargoExpress PH password"
-content_path = "./supabase/templates/recovery.html"
