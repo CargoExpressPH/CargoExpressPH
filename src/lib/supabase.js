@@ -11,6 +11,7 @@ const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 // client can clear a successful link's hash before React first renders, so a
 // component that reads window.location.hash on mount can miss the outcome.
 export const initialAuthRedirectHash = typeof window === 'undefined' ? '' : window.location.hash;
+export const initialAuthRedirectPathname = typeof window === 'undefined' ? '' : window.location.pathname;
 
 if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
   throw new Error('Missing Supabase env variables. Check your .env file.');

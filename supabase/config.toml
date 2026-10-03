@@ -1,3 +1,7 @@
+[auth.email.template.recovery]
+subject = "Reset your password"
+content_path = "./supabase/templates/recovery.html"
+
 [functions.paymongo-create-payment]
 verify_jwt = true
 

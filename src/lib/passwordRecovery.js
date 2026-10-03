@@ -49,20 +49,34 @@ export const hasPendingPasswordRecovery = () => {
   }
 };
 
-export const parsePasswordRecoveryUrl = (hash = '') => {
-  const params = new URLSearchParams(String(hash).replace(/^#/, ''));
+export const parsePasswordRecoveryUrl = (hash = '', search = '') => {
+  const fragment = new URLSearchParams(String(hash).replace(/^#/, ''));
+  const query = new URLSearchParams(String(search).replace(/^\?/, ''));
   const hasError = Boolean(
-    params.get('error') ||
-    params.get('error_code') ||
-    params.get('error_description')
+    fragment.get('error') || fragment.get('error_code') || fragment.get('error_description') ||
+    query.get('error') || query.get('error_code') || query.get('error_description')
   );
+  const accessToken = fragment.get('type') === 'recovery' ? fragment.get('access_token') || '' : '';
+  const tokenHash = query.get('type') === 'recovery' ? query.get('token_hash') || '' : '';
 
   return {
-    hasRecoveryIntent: params.get('type') === 'recovery',
+    hasRecoveryIntent: Boolean(accessToken || tokenHash),
+    accessToken,
+    tokenHash,
     errorMessage: hasError ? INVALID_RECOVERY_LINK_MESSAGE : '',
   };
 };
 
-export const isUsableRecoverySession = ({ event, session, initialRecoveryIntent = false }) => (
-  Boolean(session) && (event === 'PASSWORD_RECOVERY' || initialRecoveryIntent)
+export const stripPasswordRecoveryParams = (search = '') => {
+  const params = new URLSearchParams(String(search).replace(/^\?/, ''));
+  ['token_hash', 'type', 'error', 'error_code', 'error_description'].forEach(key => params.delete(key));
+  const safeSearch = params.toString();
+  return safeSearch ? `?${safeSearch}` : '';
+};
+
+// A session left by a different login must never make a failed recovery link
+// appear valid. The implicit link's access token identifies the session that
+// Supabase actually accepted from this URL.
+export const isUsableRecoverySession = ({ session, expectedAccessToken }) => (
+  Boolean(expectedAccessToken && session?.user && session.access_token === expectedAccessToken)
 );

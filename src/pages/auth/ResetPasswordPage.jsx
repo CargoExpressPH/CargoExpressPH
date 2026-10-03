@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { supabase } from '../../lib/supabase';
+import { supabase, initialAuthRedirectHash, initialAuthRedirectPathname } from '../../lib/supabase';
 import {
   Lock, Loader, CheckCircle2,
   Eye, EyeOff, ShieldCheck, AlertTriangle, Check,
@@ -14,10 +14,25 @@ import FieldError, { fieldAttrs, invalidClass } from '../../components/ui/FieldE
 import { BrandLogo, BrandWordmark } from '../../components/ui/BrandLogo';
 import {
   INVALID_RECOVERY_LINK_MESSAGE,
+  clearPasswordRecoveryPending,
   isUsableRecoverySession,
   markPasswordRecoveryPending,
   parsePasswordRecoveryUrl,
+  stripPasswordRecoveryParams,
 } from '../../lib/passwordRecovery';
+
+const clearRecoveryQuery = () => {
+  try {
+    window.history.replaceState(
+      window.history.state,
+      '',
+      `${window.location.pathname}${stripPasswordRecoveryParams(window.location.search)}`,
+    );
+  } catch {
+    // History can be unavailable in an embedded browser. Verification and
+    // password update must still work even if the address bar cannot change.
+  }
+};
 
 /* ══════════════════════════════════════════════════════════════════════════
    ResetPasswordPage — World-Class Premium Redesign
@@ -33,24 +48,31 @@ const ResetPasswordPage = () => {
   const [success,         setSuccess]         = useState(false);
   const initialUrlStateRef = useRef(null);
   if (initialUrlStateRef.current === null) {
+    const initialHash = typeof window === 'undefined' ? '' : (
+      window.location.hash || (initialAuthRedirectPathname === '/reset-password' ? initialAuthRedirectHash : '')
+    );
     initialUrlStateRef.current = parsePasswordRecoveryUrl(
-      typeof window === 'undefined' ? '' : window.location.hash,
+      initialHash,
+      typeof window === 'undefined' ? '' : window.location.search,
     );
   }
-  const [ready,           setReady]           = useState(Boolean(initialUrlStateRef.current.errorMessage));
+  const [ready,           setReady]           = useState(Boolean(
+    initialUrlStateRef.current.errorMessage || initialUrlStateRef.current.tokenHash,
+  ));
   // Set once verification finishes with no usable session — the link is
   // missing, malformed, expired, or already used. Distinct from `ready`,
   // which only means "we're done checking," not "the link was good."
   const [linkInvalid,     setLinkInvalid]     = useState(Boolean(initialUrlStateRef.current.errorMessage));
   const [linkError,       setLinkError]       = useState(initialUrlStateRef.current.errorMessage);
-  const { changePassword, logout, discardPasswordRecovery } = useAuth();
+  const recoverySessionEstablishedRef = useRef(false);
+  const { changePassword, completePasswordRecovery, discardPasswordRecovery } = useAuth();
   const navigate = useNavigate();
 
   // Keep the recovery-session marker even if Supabase has already consumed the
   // hash before this page mounts. If the user closes the app now, AuthContext
   // will clear the persisted recovery session on the next launch.
   useEffect(() => {
-    if (initialUrlStateRef.current.hasRecoveryIntent) {
+    if (initialUrlStateRef.current.accessToken) {
       markPasswordRecoveryPending();
     }
   }, []);
@@ -72,36 +94,31 @@ const ResetPasswordPage = () => {
     }
   }, [navigate]);
 
-  // A completed password change intentionally uses the full logout path,
-  // revoking the recovery session. Cancelling uses local-only cleanup so it
-  // does not sign the customer out on unrelated devices.
-  const goToSignIn = useCallback(() => leaveRecovery(logout, '/login', {
+  // Completing the reset revokes the recovery account's sessions. Cancelling
+  // clears only this browser's recovery session.
+  const goToSignIn = useCallback(() => leaveRecovery(completePasswordRecovery, '/login', {
     flashMessage: 'Password updated successfully. Please sign in with your new password.',
-  }), [leaveRecovery, logout]);
+  }), [completePasswordRecovery, leaveRecovery]);
+
+  const discardEstablishedRecovery = useCallback(() => (
+    recoverySessionEstablishedRef.current
+      ? discardPasswordRecovery()
+      : Promise.resolve({ success: true })
+  ), [discardPasswordRecovery]);
 
   const cancelRecovery = useCallback(
-    () => leaveRecovery(discardPasswordRecovery, '/login'),
-    [discardPasswordRecovery, leaveRecovery],
+    () => leaveRecovery(discardEstablishedRecovery, '/login'),
+    [discardEstablishedRecovery, leaveRecovery],
   );
   const requestNewLink = useCallback(
-    () => leaveRecovery(discardPasswordRecovery, '/forgot-password'),
-    [discardPasswordRecovery, leaveRecovery],
+    () => leaveRecovery(discardEstablishedRecovery, '/forgot-password'),
+    [discardEstablishedRecovery, leaveRecovery],
   );
 
-  // Verify there is an actual recovery session instead of treating the normal
-  // application `user` state (or any ordinary signed-in session) as proof.
-  // Two things can produce one here:
-  //   1. `getSession()` already reflects it — the GoTrue client parses a
-  //      recovery link's token out of the URL hash at construction time
-  //      (detectSessionInUrl), which on this route usually finishes before
-  //      this page even mounts (the client is a module-level singleton
-  //      created well before routing).
-  //   2. It hasn't finished yet — PASSWORD_RECOVERY (or any event carrying a
-  //      session) fires once processing completes, covering the case where
-  //      this effect subscribed just ahead of it.
-  // If neither ever produces a session, the link itself is bad (expired,
-  // already used, or the hash never had one), and the customer is told that
-  // immediately instead of being handed a form that can only fail at submit.
+  // The legacy implicit link is valid only when Supabase accepts the access
+  // token from this URL. A previous login session must not validate a bad
+  // link. New token-hash links are verified only when the form is submitted,
+  // so an email scanner opening the page cannot consume the one-time token.
   useEffect(() => {
     let cancelled = false;
     let settled = false;
@@ -110,44 +127,44 @@ const ResetPasswordPage = () => {
     const settle = (valid, message = '') => {
       if (cancelled || settled) return;
       settled = true;
+      if (!valid) clearPasswordRecoveryPending();
+      recoverySessionEstablishedRef.current = valid;
       setReady(true);
       setLinkInvalid(!valid);
       setLinkError(valid ? '' : (message || INVALID_RECOVERY_LINK_MESSAGE));
     };
 
     if (initialUrlState.errorMessage) {
-      if (typeof window !== 'undefined') {
-        window.history.replaceState(
-          window.history.state,
-          '',
-          `${window.location.pathname}${window.location.search}`,
-        );
-      }
+      clearRecoveryQuery();
       return () => { cancelled = true; };
     }
 
-    supabase.auth.getSession()
-      .then(({ data }) => {
-        if (isUsableRecoverySession({
-          session: data?.session,
-          initialRecoveryIntent: initialUrlState.hasRecoveryIntent,
-        })) {
-          settle(true);
-        }
-      })
-      .catch(() => {});
+    // Keep an unverified token-hash link in the URL until submit. A PWA update,
+    // manual refresh, or offline retry must still be able to recover it.
+    if (initialUrlState.tokenHash) return () => { cancelled = true; };
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (isUsableRecoverySession({ event, session })) {
+    if (!initialUrlState.accessToken) {
+      settle(false);
+      return () => { cancelled = true; };
+    }
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (isUsableRecoverySession({ session, expectedAccessToken: initialUrlState.accessToken })) {
         settle(true);
       }
     });
 
-    const timer = setTimeout(() => settle(false, INVALID_RECOVERY_LINK_MESSAGE), 4000);
+    supabase.auth.getSession()
+      .then(({ data, error: sessionError }) => {
+        settle(!sessionError && isUsableRecoverySession({
+          session: data?.session,
+          expectedAccessToken: initialUrlState.accessToken,
+        }));
+      })
+      .catch(() => settle(false));
 
     return () => {
       cancelled = true;
-      clearTimeout(timer);
       subscription.unsubscribe();
     };
   }, []);
@@ -175,6 +192,7 @@ const ResetPasswordPage = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (loading || !ready || linkInvalid || success) return;
     setError('');
 
     const ok = validate({
@@ -193,6 +211,31 @@ const ResetPasswordPage = () => {
 
     setLoading(true);
     try {
+      const tokenHash = initialUrlStateRef.current.tokenHash;
+      if (tokenHash && !recoverySessionEstablishedRef.current) {
+        const { data, error: verifyError } = await supabase.auth.verifyOtp({
+          token_hash: tokenHash,
+          type: 'recovery',
+        });
+        if (verifyError || !data?.session?.user) {
+          if (!verifyError || /invalid|expired|already used|otp/i.test(verifyError.message || '')) {
+            setLinkInvalid(true);
+            setLinkError(INVALID_RECOVERY_LINK_MESSAGE);
+            clearRecoveryQuery();
+          } else {
+            setError('Could not verify the reset link right now. Please check your connection and try again.');
+          }
+          setLoading(false);
+          return;
+        }
+        // verifyOtp stores the temporary recovery session. If the password
+        // update fails, keep it so a corrected password can be submitted
+        // without trying to consume the one-time link again.
+        recoverySessionEstablishedRef.current = true;
+        initialUrlStateRef.current.tokenHash = '';
+        markPasswordRecoveryPending();
+        clearRecoveryQuery();
+      }
       const result = await changePassword(password);
       if (result?.error) {
         setError(result.error);
@@ -206,7 +249,9 @@ const ResetPasswordPage = () => {
         setTimeout(goToSignIn, 3000);
       }
     } catch (err) {
-      setError(err.message || 'Failed to update password. Please try again.');
+      setError(recoverySessionEstablishedRef.current
+        ? (err.message || 'Failed to update password. Please try again.')
+        : 'Could not verify the reset link right now. Please check your connection and try again.');
       setLoading(false);
     }
   };

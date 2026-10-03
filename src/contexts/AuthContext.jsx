@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { supabase } from '../lib/supabase';
+import { supabase, initialAuthRedirectHash } from '../lib/supabase';
 import { normalizeProfileAddressFields } from '../lib/address';
 import { LEGAL_DOCUMENTS } from '../constants/legalDocuments';
 import { getProfile, createProfile } from '../lib/database';
@@ -12,6 +12,7 @@ import {
   clearPasswordRecoveryPending,
   hasPendingPasswordRecovery,
   markPasswordRecoveryPending,
+  parsePasswordRecoveryUrl,
 } from '../lib/passwordRecovery';
 
 const AuthContext = createContext({});
@@ -64,7 +65,9 @@ export const AuthProvider = ({ children }) => {
   // Supabase shares auth events across tabs. Remember whether this particular
   // tab opened the recovery URL so another tab is not unexpectedly hijacked.
   const recoveryLinkDetected = useRef(
-    typeof window !== 'undefined' && window.location.hash.includes('type=recovery'),
+    typeof window !== 'undefined' && parsePasswordRecoveryUrl(
+      window.location.hash || initialAuthRedirectHash,
+    ).hasRecoveryIntent,
   );
 
   // Supabase removes the recovery hash after exchanging it for a session. The
@@ -104,7 +107,7 @@ export const AuthProvider = ({ children }) => {
       // entry — a Back navigation later would return to a URL containing
       // that (now-consumed, but still sensitive-looking) token. replace()
       // swaps the current entry instead of adding one.
-      window.location.replace(`/reset-password${window.location.hash}`);
+      window.location.replace(`/reset-password${window.location.hash || initialAuthRedirectHash}`);
       return () => { isMounted = false; };
     }
 
@@ -168,6 +171,9 @@ export const AuthProvider = ({ children }) => {
         // nothing is lost by replacing the location.
         if (event === 'PASSWORD_RECOVERY') {
           markPasswordRecoveryPending();
+          lastProfileUserId.current = null;
+          setUser(null);
+          setUserProfile(null);
           setAuthTransition(null);
           setLoading(false);
           if (recoveryLinkDetected.current && window.location.pathname !== '/reset-password') {
@@ -177,8 +183,16 @@ export const AuthProvider = ({ children }) => {
             // the tab that opened the recovery URL to /reset-password without
             // adding a history entry the customer could Back into. Other tabs
             // receive the shared event but must not be hijacked.
-            window.location.replace('/reset-password');
+            window.location.replace(`/reset-password${window.location.hash || initialAuthRedirectHash}`);
           }
+          return;
+        }
+
+        // updateUser({ password }) emits USER_UPDATED while the recovery
+        // session is still active. Do not load a profile or expose that
+        // temporary session as a signed-in app user before final sign-out.
+        if (hasPendingPasswordRecovery() && !isAuthAction.current) {
+          setLoading(false);
           return;
         }
 
@@ -547,6 +561,26 @@ export const AuthProvider = ({ children }) => {
     return { success: true };
   }, []);
 
+  // Finishing a password reset revokes the recovery session (and any other
+  // sessions for that account) without treating the temporary auth session
+  // as an ordinary app logout. In particular, there may still be stale user
+  // state from a different account when the link was opened in an active tab.
+  const completePasswordRecovery = useCallback(async () => {
+    try {
+      await supabase.auth.signOut();
+    } catch {
+      // Always clear this browser's temporary session below.
+    }
+    clearSupabaseAuthStorage();
+    clearPasswordRecoveryPending();
+    lastProfileUserId.current = null;
+    setAuthTransition(null);
+    setUser(null);
+    setUserProfile(null);
+    setLoading(false);
+    return { success: true };
+  }, []);
+
   const resetPassword = useCallback(async (email) => {
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
@@ -660,12 +694,13 @@ export const AuthProvider = ({ children }) => {
     completeRegistrationTransition,
     logout,
     discardPasswordRecovery,
+    completePasswordRecovery,
     resetPassword,
     resendSignupConfirmation,
     changePassword,
     changeEmail,
     refreshProfile,
-  }), [user, userProfile, loading, authTransition, logout, discardPasswordRecovery, resetPassword, resendSignupConfirmation, changePassword, changeEmail, refreshProfile, completeRegistrationTransition]);
+  }), [user, userProfile, loading, authTransition, logout, discardPasswordRecovery, completePasswordRecovery, resetPassword, resendSignupConfirmation, changePassword, changeEmail, refreshProfile, completeRegistrationTransition]);
 
   return (
     <AuthContext.Provider value={value}>

@@ -396,9 +396,13 @@ self.addEventListener('fetch', (event) => {
   if (isNavigationRequest(request)) {
     event.respondWith(
       (async () => {
+        // A token-hash recovery link carries a one-time credential in its
+        // query string. Never store that URL as a Cache API key in the PWA.
+        const isRecoveryNavigation = urlObj.origin === self.location.origin &&
+          urlObj.pathname === '/reset-password';
         try {
           const response = await fetch(request);
-          if (response && response.ok) {
+          if (response && response.ok && !isRecoveryNavigation) {
             const responseClone = response.clone();
             caches.open(DYNAMIC_CACHE).then((cache) => {
               cache.put(request, responseClone);
@@ -407,7 +411,7 @@ self.addEventListener('fetch', (event) => {
           return response;
         } catch (err) {
           // 1. Try exact cached navigation response
-          const cached = await caches.match(request);
+          const cached = isRecoveryNavigation ? null : await caches.match(request);
           if (cached) return cached;
 
           // 2. Try cached index.html or root SPA app shell

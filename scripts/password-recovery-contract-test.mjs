@@ -8,6 +8,7 @@ import {
   isUsableRecoverySession,
   markPasswordRecoveryPending,
   parsePasswordRecoveryUrl,
+  stripPasswordRecoveryParams,
 } from '../src/lib/passwordRecovery.js';
 
 const previousLocalStorage = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
@@ -36,9 +37,15 @@ if (previousLocalStorage) {
 
 assert.deepEqual(
   parsePasswordRecoveryUrl('#access_token=token&type=recovery'),
-  { hasRecoveryIntent: true, errorMessage: '' },
+  { hasRecoveryIntent: true, accessToken: 'token', tokenHash: '', errorMessage: '' },
   'A recovery URL must be recognized without exposing its token.',
 );
+assert.deepEqual(
+  parsePasswordRecoveryUrl('', '?token_hash=hash&type=recovery'),
+  { hasRecoveryIntent: true, accessToken: '', tokenHash: 'hash', errorMessage: '' },
+  'A token-hash email URL must remain available for verification on form submit.',
+);
+assert.equal(stripPasswordRecoveryParams('?token_hash=secret&type=recovery&campaign=email'), '?campaign=email');
 
 for (const hash of [
   '#error=access_denied&error_code=otp_expired&error_description=Email+link+is+invalid',
@@ -53,22 +60,17 @@ for (const hash of [
 }
 
 assert.equal(
-  isUsableRecoverySession({ event: 'PASSWORD_RECOVERY', session: { user: { id: 'user-1' } } }),
+  isUsableRecoverySession({ session: { user: { id: 'user-1' }, access_token: 'link-token' }, expectedAccessToken: 'link-token' }),
   true,
-  'PASSWORD_RECOVERY with a session must unlock the reset form.',
+  'Only the session created by this recovery link may unlock the form.',
 );
 assert.equal(
-  isUsableRecoverySession({ event: 'SIGNED_IN', session: { user: { id: 'user-1' } } }),
+  isUsableRecoverySession({ session: { user: { id: 'user-1' }, access_token: 'other-token' }, expectedAccessToken: 'link-token' }),
   false,
-  'An ordinary signed-in session must not unlock the public recovery form.',
+  'An unrelated signed-in session must not unlock the public recovery form.',
 );
 assert.equal(
-  isUsableRecoverySession({ session: { user: { id: 'user-1' } }, initialRecoveryIntent: true }),
-  true,
-  'A session parsed from the initial recovery URL must survive an early event race.',
-);
-assert.equal(
-  isUsableRecoverySession({ session: null, initialRecoveryIntent: true }),
+  isUsableRecoverySession({ session: null, expectedAccessToken: 'link-token' }),
   false,
   'Recovery intent without a session must never unlock the form.',
 );
@@ -76,22 +78,28 @@ assert.equal(
 const resetPage = readFileSync('src/pages/auth/ResetPasswordPage.jsx', 'utf8');
 const forgotPage = readFileSync('src/pages/auth/ForgotPasswordPage.jsx', 'utf8');
 const authContext = readFileSync('src/contexts/AuthContext.jsx', 'utf8');
+const serviceWorker = readFileSync('public/sw.js', 'utf8');
+const recoveryTemplate = readFileSync('supabase/templates/recovery.html', 'utf8');
 
 assert.doesNotMatch(
   resetPage,
   /!authLoading\s*&&\s*!user[\s\S]{0,300}navigate\('\/login'\)/,
   'Missing normal app user state must not eject a valid recovery session.',
 );
-assert.match(resetPage, /event, session[\s\S]*isUsableRecoverySession/);
+assert.match(resetPage, /expectedAccessToken: initialUrlState\.accessToken/);
+assert.match(resetPage, /initialAuthRedirectHash/);
+assert.match(resetPage, /verifyOtp\(\{[\s\S]*token_hash: tokenHash,[\s\S]*type: 'recovery'/);
+assert.ok(resetPage.indexOf('verifyOtp({') < resetPage.indexOf('const result = await changePassword(password)'));
 assert.match(resetPage, /window\.history\.replaceState/);
 assert.match(
   resetPage,
   /const leaveRecovery[\s\S]*await endSession\(\)[\s\S]*navigate\(destination/,
   'Every recovery-page exit must destroy the temporary session before navigating.',
 );
-assert.match(resetPage, /leaveRecovery\(logout, '\/login'/);
-assert.match(resetPage, /leaveRecovery\(discardPasswordRecovery, '\/login'/);
-assert.match(resetPage, /leaveRecovery\(discardPasswordRecovery, '\/forgot-password'/);
+assert.match(resetPage, /leaveRecovery\(completePasswordRecovery, '\/login'/);
+assert.match(resetPage, /recoverySessionEstablishedRef\.current\s*\? discardPasswordRecovery\(\)/);
+assert.match(resetPage, /leaveRecovery\(discardEstablishedRecovery, '\/login'/);
+assert.match(resetPage, /leaveRecovery\(discardEstablishedRecovery, '\/forgot-password'/);
 assert.match(resetPage, /onClick=\{requestNewLink\}/);
 assert.equal(
   (resetPage.match(/onClick=\{cancelRecovery\}/g) || []).length,
@@ -104,12 +112,13 @@ assert.doesNotMatch(
   'Recovery exits must not bypass session cleanup with a plain route link.',
 );
 assert.match(forgotPage, /const handleResend[\s\S]*setError\(''\)/);
-assert.match(authContext, /recoveryLinkDetected\.current && window\.location\.pathname !== '\/reset-password'/);
+assert.match(authContext, /window\.location\.hash \|\| initialAuthRedirectHash/);
 assert.match(
   authContext,
   /const discardPasswordRecovery[\s\S]*signOut\(\{ scope: 'local' \}\)/,
   'Abandoning recovery must clear only the browser recovery session, not other device sessions.',
 );
+assert.match(authContext, /const completePasswordRecovery[\s\S]*await supabase\.auth\.signOut\(\)/);
 assert.match(
   authContext,
   /pendingRecoveryCleanup[\s\S]*clearPersistedRecoverySession/,
@@ -125,5 +134,8 @@ assert.match(
   /markPasswordRecoveryPending\(\)/,
   'The reset page must preserve the recovery marker even if the SDK consumed the URL hash first.',
 );
+assert.match(serviceWorker, /isRecoveryNavigation[\s\S]*!isRecoveryNavigation[\s\S]*isRecoveryNavigation \? null : await caches\.match\(request\)/);
+assert.match(recoveryTemplate, /\{\{ \.RedirectTo \}\}\?token_hash=\{\{ \.TokenHash \}\}&amp;type=recovery/);
+assert.doesNotMatch(recoveryTemplate, /\.ConfirmationURL/);
 
 console.log('Password recovery contract tests passed.');
