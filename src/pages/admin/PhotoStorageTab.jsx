@@ -6,13 +6,13 @@ import {
 } from 'lucide-react';
 import {
   checkCompanyAssetDeletable, checkPhotoStorageHealth, deleteEvidencePhotos,
-  getPhotoStorageSummary, listEvidenceFolders, listFolderPhotos,
+  getAdminDatabaseUsage, getPhotoStorageSummary, listEvidenceFolders, listFolderPhotos,
 } from '../../lib/database';
 import { resolvePhotoUrl } from '../../lib/storage';
 import { supabase } from '../../lib/supabase';
 import { useToast } from '../../hooks/useToast';
 import usePageTitle from '../../hooks/usePageTitle';
-import { formatPhDate } from '../../utils/datetime';
+import { formatPhDate, formatPhDateTime } from '../../utils/datetime';
 import { CenteredSpinner } from '../../components/ui/Loader';
 import ConfirmModal from '../../components/ui/ConfirmModal';
 import Pagination from '../../components/ui/Pagination';
@@ -25,6 +25,9 @@ const UNBOOKED = '__unbooked__';
 // resolving "everything in this folder" before showing the delete
 // confirmation loops pages rather than assuming one call is complete.
 const FOLDER_RESOLVE_PAGE_SIZE = 200;
+const RESOURCE_REFRESH_MS = 5 * 60 * 1000;
+const FREE_DATABASE_LIMIT_BYTES = 500 * 1024 * 1024;
+const EGRESS_QUOTA_GB_BY_PLAN = { free: 5, pro: 250, team: 250 };
 
 const number = (value) => Number(value || 0).toLocaleString('en-PH');
 
@@ -984,26 +987,51 @@ const CompanyImagesBrowser = ({ onFilesChanged }) => {
  * Top level — storage usage card + bucket selector + chosen browser
  * ==========================================================================*/
 const PhotoStorageTab = () => {
-  usePageTitle('Photo Storage');
+  usePageTitle('Storage & Usage');
 
   const [overviewLoading, setOverviewLoading] = useState(true);
   const [health, setHealth] = useState(null);
   const [summary, setSummary] = useState(null);
+  const [databaseUsage, setDatabaseUsage] = useState(null);
+  const [lastCheckedAt, setLastCheckedAt] = useState(null);
   const [bucket, setBucket] = useState('cargo'); // 'cargo' | 'company'
+  const overviewRequestId = useRef(0);
 
   // Reusable so a deletion (single, bulk, or folder-menu, in either browser)
   // can refresh the usage card without a full-page reload — the "Storage
   // totals refresh now" copy on the delete-result banner only became true
   // once this was wired up as a callback the browsers can call.
   const loadOverview = useCallback(async ({ quiet = false } = {}) => {
+    const requestId = ++overviewRequestId.current;
     if (!quiet) setOverviewLoading(true);
-    const [healthResult, summaryResult] = await Promise.allSettled([checkPhotoStorageHealth(), getPhotoStorageSummary()]);
-    if (healthResult.status === 'fulfilled') setHealth(healthResult.value);
-    if (summaryResult.status === 'fulfilled') setSummary(summaryResult.value);
+    const [healthResult, summaryResult, databaseResult] = await Promise.allSettled([
+      checkPhotoStorageHealth(),
+      getPhotoStorageSummary(),
+      getAdminDatabaseUsage(),
+    ]);
+    if (requestId !== overviewRequestId.current) return;
+    setHealth(healthResult.status === 'fulfilled' ? healthResult.value : null);
+    setSummary(summaryResult.status === 'fulfilled' ? summaryResult.value : null);
+    setDatabaseUsage(databaseResult.status === 'fulfilled' ? databaseResult.value : null);
+    setLastCheckedAt(new Date().toISOString());
     if (!quiet) setOverviewLoading(false);
   }, []);
 
-  useEffect(() => { void loadOverview(); }, [loadOverview]);
+  useEffect(() => {
+    void loadOverview();
+    const intervalId = window.setInterval(() => {
+      if (!document.hidden) void loadOverview({ quiet: true });
+    }, RESOURCE_REFRESH_MS);
+    const onVisible = () => {
+      if (!document.hidden) void loadOverview({ quiet: true });
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      window.clearInterval(intervalId);
+      document.removeEventListener('visibilitychange', onVisible);
+      overviewRequestId.current += 1;
+    };
+  }, [loadOverview]);
 
   if (overviewLoading) return <CenteredSpinner />;
 
@@ -1014,6 +1042,11 @@ const PhotoStorageTab = () => {
   const boundedPercent = usagePercent == null ? 0 : Math.max(0, Math.min(usagePercent, 100));
   const availableBytes = usedBytes != null && quotaBytes > 0 ? Math.max(0, quotaBytes - usedBytes) : null;
   const usageTone = usagePercent >= 95 ? 'var(--error)' : usagePercent >= 80 ? 'var(--warning)' : 'var(--success)';
+  const databaseBytes = databaseUsage?.size_bytes == null ? null : Number(databaseUsage.size_bytes);
+  const databaseLimitBytes = liveStorage?.plan === 'free' ? FREE_DATABASE_LIMIT_BYTES : null;
+  const databasePercent = Number.isFinite(databaseBytes) && databaseLimitBytes
+    ? (databaseBytes / databaseLimitBytes) * 100 : null;
+  const egressQuotaGb = EGRESS_QUOTA_GB_BY_PLAN[liveStorage?.plan] ?? null;
 
   const firebasePhotoCount = Number(summary?.firebase_photo_count || 0);
   const failuresLast24h = Number(summary?.failures_last_24h || 0);
@@ -1022,29 +1055,34 @@ const PhotoStorageTab = () => {
     <div>
       <div className="admin-page-header">
         <div>
-          <h1 className="admin-page-title"><Database size={24} color="var(--primary)" aria-hidden="true" />Photo Storage</h1>
-          <p className="admin-page-subtitle">See how much space is used, open a folder, and delete photos that are no longer needed.</p>
+          <h1 className="admin-page-title"><Database size={24} color="var(--primary)" aria-hidden="true" />Storage &amp; Usage</h1>
+          <p className="admin-page-subtitle">Monitor Supabase capacity and manage stored photos.</p>
         </div>
+        <button type="button" className="btn btn-outline btn-sm" onClick={() => void loadOverview({ quiet: true })}>Refresh usage</button>
       </div>
+
+      {lastCheckedAt && <p className="text-xs text-secondary mb-16">Last checked {formatPhDateTime(lastCheckedAt)}. Storage and database figures refresh every 5 minutes while this page is open.</p>}
 
       {/* ── Storage Usage: compact card ── */}
       <section className="card admin-section-card mb-24">
         <div className="card-header"><h3><HardDrive size={17} className="inline mr-8" />Storage Usage</h3></div>
         <div className="card-body">
-          {usagePercent != null ? (
+          {usedBytes != null ? (
             <>
               <div className="flex items-center justify-between text-sm mb-8">
-                <span>{formatPercent(usagePercent)} used · {formatBytes(usedBytes)} of {formatBytes(quotaBytes)}</span>
+                <span>{usagePercent != null ? `${formatPercent(usagePercent)} used · ${formatBytes(usedBytes)} of ${formatBytes(quotaBytes)}` : `${formatBytes(usedBytes)} used · Storage allowance unavailable`}</span>
                 {availableBytes != null && <span className="text-secondary">{formatBytes(availableBytes)} available</span>}
               </div>
-              <div role="progressbar" aria-label="Photo storage used" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(boundedPercent)}
-                style={{ height: 10, borderRadius: 999, overflow: 'hidden', background: 'var(--bg-secondary)' }}>
-                <div style={{ width: `${Math.max(boundedPercent, usagePercent > 0 ? 1 : 0)}%`, height: '100%', background: usageTone, borderRadius: 999, transition: 'width 300ms ease' }} />
-              </div>
+              {usagePercent != null && (
+                <div role="progressbar" aria-label="Photo storage used" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(boundedPercent)}
+                  style={{ height: 10, borderRadius: 999, overflow: 'hidden', background: 'var(--bg-secondary)' }}>
+                  <div style={{ width: `${Math.max(boundedPercent, usagePercent > 0 ? 1 : 0)}%`, height: '100%', background: usageTone, borderRadius: 999, transition: 'width 300ms ease' }} />
+                </div>
+              )}
             </>
           ) : (
             <p className="text-sm text-secondary" style={{ margin: 0 }}>
-              {liveStorage?.live_usage_status === 'available' ? 'This plan does not have a fixed storage limit.' : 'Storage use could not be checked just now.'}
+              Storage use could not be checked just now.
             </p>
           )}
           <p className="text-xs text-secondary" style={{ margin: '10px 0 0' }}>
@@ -1057,6 +1095,34 @@ const PhotoStorageTab = () => {
               <span>{failuresLast24h} photo{failuresLast24h === 1 ? '' : 's'} failed to save in the last 24 hours.</span>
             </div>
           )}
+        </div>
+      </section>
+
+      <section className="card admin-section-card mb-24">
+        <div className="card-header"><h3><Database size={17} className="inline mr-8" />Database Size</h3></div>
+        <div className="card-body">
+          {Number.isFinite(databaseBytes) ? (
+            <>
+              <p className="mb-8">{formatBytes(databaseBytes)} used{databaseLimitBytes ? ` of ${formatBytes(databaseLimitBytes)} Free plan limit` : ''}</p>
+              {databasePercent != null && (
+                <div role="progressbar" aria-label="Database space used" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(Math.min(100, databasePercent))}
+                  style={{ height: 10, borderRadius: 999, overflow: 'hidden', background: 'var(--bg-secondary)' }}>
+                  <div style={{ width: `${Math.min(100, databasePercent)}%`, height: '100%', background: databasePercent >= 95 ? 'var(--error)' : databasePercent >= 80 ? 'var(--warning)' : 'var(--success)', borderRadius: 999 }} />
+                </div>
+              )}
+              {databasePercent >= 80 && <p className="text-sm mt-12" role="status"><AlertTriangle size={16} className="inline mr-8" />Database space is approaching the Free plan limit.</p>}
+            </>
+          ) : <p className="text-sm text-secondary">Database size could not be checked just now.</p>}
+          <p className="text-xs text-secondary mt-12">Measured from this project's Postgres database. The Free plan limit is 500 MB per project; a plan limit is shown above only when Supabase confirms this project is on Free.</p>
+        </div>
+      </section>
+
+      <section className="card admin-section-card mb-24">
+        <div className="card-header"><h3><HardDrive size={17} className="inline mr-8" />Egress</h3></div>
+        <div className="card-body">
+          {egressQuotaGb != null && <p className="mb-8">This plan includes {egressQuotaGb} GB uncached and {egressQuotaGb} GB cached egress per billing cycle.</p>}
+          <p className="text-sm text-secondary mb-12">Current billed egress is not available through a documented Supabase API. View the current totals and reset date in Supabase Usage. These allowances are shared by your organization, not just this project.</p>
+          <a className="btn btn-outline btn-sm" href="https://supabase.com/dashboard/org/_/usage" target="_blank" rel="noopener noreferrer">Open Supabase Usage</a>
         </div>
       </section>
 

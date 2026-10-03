@@ -30,7 +30,7 @@ const toolsNav = [
 
 const systemNav = [
   { to: '/admin/company-info', icon: Building, label: 'Company Information' },
-  { to: '/admin/storage-monitoring', icon: HardDrive, label: 'Photo Storage' },
+  { to: '/admin/storage-monitoring', icon: HardDrive, label: 'Storage & Usage' },
 ];
 
 // Pages reached from the account menu; the account button is highlighted on

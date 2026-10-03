@@ -3914,6 +3914,12 @@ export const checkPhotoStorageHealth = async () => {
   return data;
 };
 
+export const getAdminDatabaseUsage = async () => {
+  const { data, error } = await supabase.rpc('get_admin_database_usage');
+  if (error) throw error;
+  return data?.[0] || null;
+};
+
 // Ã¢â€â‚¬Ã¢â€â‚¬ Admin photo browser: booking folders, one folder's photos, select-and-delete Ã¢â€â‚¬Ã¢â€â‚¬
 // Both listing functions are read-only and share one eligibility
 // implementation (evidence_photo_rows(), not exposed directly); delete_
