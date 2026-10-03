@@ -6,7 +6,8 @@ import {
 } from 'lucide-react';
 import {
   checkCompanyAssetDeletable, checkPhotoStorageHealth, deleteEvidencePhotos,
-  getAdminDatabaseUsage, getPhotoStorageSummary, listEvidenceFolders, listFolderPhotos,
+  getAdminDatabaseUsage, getPhotoStorageSummary, getStorageEgressEstimate,
+  listEvidenceFolders, listFolderPhotos,
 } from '../../lib/database';
 import { resolvePhotoUrl } from '../../lib/storage';
 import { supabase } from '../../lib/supabase';
@@ -994,6 +995,9 @@ const PhotoStorageTab = () => {
   const [summary, setSummary] = useState(null);
   const [databaseUsage, setDatabaseUsage] = useState(null);
   const [lastCheckedAt, setLastCheckedAt] = useState(null);
+  const [egressEstimate, setEgressEstimate] = useState(null);
+  const [egressEstimateLoading, setEgressEstimateLoading] = useState(false);
+  const [egressEstimateError, setEgressEstimateError] = useState('');
   const [bucket, setBucket] = useState('cargo'); // 'cargo' | 'company'
   const overviewRequestId = useRef(0);
 
@@ -1032,6 +1036,20 @@ const PhotoStorageTab = () => {
       overviewRequestId.current += 1;
     };
   }, [loadOverview]);
+
+  const loadEgressEstimate = async () => {
+    if (egressEstimateLoading) return;
+    setEgressEstimateLoading(true);
+    setEgressEstimateError('');
+    try {
+      setEgressEstimate(await getStorageEgressEstimate());
+    } catch {
+      setEgressEstimate(null);
+      setEgressEstimateError('Storage file traffic could not be estimated right now.');
+    } finally {
+      setEgressEstimateLoading(false);
+    }
+  };
 
   if (overviewLoading) return <CenteredSpinner />;
 
@@ -1122,7 +1140,23 @@ const PhotoStorageTab = () => {
         <div className="card-body">
           {egressQuotaGb != null && <p className="mb-8">This plan includes {egressQuotaGb} GB uncached and {egressQuotaGb} GB cached egress per billing cycle.</p>}
           <p className="text-sm text-secondary mb-12">Current billed egress is not available through a documented Supabase API. View the current totals and reset date in Supabase Usage. These allowances are shared by your organization, not just this project.</p>
-          <a className="btn btn-outline btn-sm" href="https://supabase.com/dashboard/org/_/usage" target="_blank" rel="noopener noreferrer">Open Supabase Usage</a>
+          <div className="flex gap-8 flex-wrap">
+            <button type="button" className="btn btn-outline btn-sm" onClick={() => void loadEgressEstimate()} disabled={egressEstimateLoading}>
+              {egressEstimateLoading ? 'Estimating…' : 'Estimate last 24h storage traffic'}
+            </button>
+            <a className="btn btn-outline btn-sm" href="https://supabase.com/dashboard/org/_/usage" target="_blank" rel="noopener noreferrer">Open Supabase Usage</a>
+          </div>
+          {egressEstimateError && <p className="text-sm mt-12" role="alert">{egressEstimateError}</p>}
+          {egressEstimate && (
+            <div className="mt-12" role="status">
+              <p className="mb-8"><strong>Storage file estimate for the last 24 hours:</strong> {formatBytes(egressEstimate.uncached_estimated_bytes)} uncached · {formatBytes(egressEstimate.cached_estimated_bytes)} cached.</p>
+              <p className="text-xs text-secondary mb-8">Based on {number(egressEstimate.matched_requests)} successful file requests matched to current file sizes. Checked {formatPhDateTime(egressEstimate.measured_at)}.</p>
+              {(egressEstimate.unmatched_requests > 0 || egressEstimate.truncated) && (
+                <p className="text-xs text-secondary mb-8">Some requests could not be counted{egressEstimate.truncated ? `; only the ${number(egressEstimate.sample_limit)} busiest file paths were checked` : ''}.</p>
+              )}
+              <p className="text-xs text-secondary">This is a partial estimate for this project's original Storage files, not the monthly billed total. It excludes database, login, Realtime, Edge Functions, image transformations, and other traffic. Use Supabase Usage for the actual quota position.</p>
+            </div>
+          )}
         </div>
       </section>
 

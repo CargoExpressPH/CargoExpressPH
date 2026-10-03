@@ -40,6 +40,9 @@ verify_jwt = false
 [functions.photo-storage-health]
 verify_jwt = false
 
+[functions.storage-egress-estimate]
+verify_jwt = false
+
 [functions.delete-storage-photos]
 # Same family as record-photo-storage-event / photo-storage-health above:
 # self-authenticates via requireAdmin() inside the function, and re-verifies

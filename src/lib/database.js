@@ -3920,6 +3920,13 @@ export const getAdminDatabaseUsage = async () => {
   return data?.[0] || null;
 };
 
+export const getStorageEgressEstimate = async () => {
+  const { data, error } = await supabase.functions.invoke('storage-egress-estimate');
+  if (error) throw await photoFunctionError(error, 'Could not estimate storage egress.');
+  if (data?.error) throw new Error(data.error);
+  return data;
+};
+
 // Ã¢â€â‚¬Ã¢â€â‚¬ Admin photo browser: booking folders, one folder's photos, select-and-delete Ã¢â€â‚¬Ã¢â€â‚¬
 // Both listing functions are read-only and share one eligibility
 // implementation (evidence_photo_rows(), not exposed directly); delete_
