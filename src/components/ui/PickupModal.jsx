@@ -661,7 +661,7 @@ const PickupModal = ({ order, onClose, onSave, onPreparePayment, pricePerKilo = 
               )}
             </div>
             <FieldError name="pickup_photos" errors={errors} />
-            <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={handlePhotoAdd} style={{ display: 'none' }} />
+            <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" capture="environment" multiple onChange={handlePhotoAdd} style={{ display: 'none' }} />
           </div>
         </div>
 

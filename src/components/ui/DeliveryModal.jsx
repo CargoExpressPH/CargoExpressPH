@@ -309,7 +309,7 @@ const DeliveryModal = ({ order, onClose, onSave }) => {
               )}
             </div>
             <FieldError name="delivery_photos" errors={errors} />
-            <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={handlePhotoAdd} style={{ display: 'none' }} />
+            <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" capture="environment" multiple onChange={handlePhotoAdd} style={{ display: 'none' }} />
           </div>
         </div>
 

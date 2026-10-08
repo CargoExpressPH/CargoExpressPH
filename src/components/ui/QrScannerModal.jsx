@@ -554,6 +554,7 @@ const QrScannerModal = ({ onClose }) => {
               ref={fileInputRef}
               type="file"
               accept="image/*"
+              capture="environment"
               className="qr-scanner-file-input"
               onChange={handlePhoto}
               tabIndex={-1}
