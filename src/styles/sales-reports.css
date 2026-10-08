@@ -79,6 +79,56 @@
   text-overflow: ellipsis;
 }
 
+.per-trip-disclosure {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+
+.per-trip-disclosure-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 16px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.per-trip-disclosure-summary::-webkit-details-marker {
+  display: none;
+}
+
+.per-trip-disclosure-summary:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+  border-radius: var(--radius-md);
+}
+
+.per-trip-disclosure-title {
+  font-weight: 700;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.per-trip-disclosure-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  color: var(--text-secondary);
+  font-size: var(--text-13);
+}
+
+.per-trip-disclosure-meta > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.per-trip-disclosure-body {
+  padding: 0 12px 12px;
+}
+
 .per-trip-range-field {
   flex: 1 1 520px;
   min-width: min(300px, 100%);

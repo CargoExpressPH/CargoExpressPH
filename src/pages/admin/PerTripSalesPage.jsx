@@ -256,6 +256,9 @@ const PerTripSalesPage = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
+  // Desktop starts with every trip expanded; phones start collapsed so the
+  // page reads as a list of trips rather than a wall of booking cards.
+  const [isDesktopLayout] = useState(() => window.matchMedia('(min-width: 901px)').matches);
   const mountedRef = useRef(true);
   const requestSequenceRef = useRef(0);
 
@@ -563,16 +566,21 @@ const PerTripSalesPage = () => {
             monthlyReport.tripBreakdown.map((tripReport) => {
               const { trip, summary: tripSummary, activeRows, cancelledRows } = tripReport;
               return (
-                <div key={trip.id} className="mt-24">
-                  <div className="flex items-center justify-between gap-16 flex-wrap">
-                    <h3 className="mb-0">
-                      {trip.trip_number || 'Trip'} ({trip.origin || 'Origin not set'} → {trip.destination || 'Destination not set'})
-                    </h3>
-                    <div className="per-trip-detail-list">
-                      <span><CalendarDays size={15} aria-hidden="true" /> {tripDate(trip.departure_date)}</span>
+                <details key={trip.id} className="per-trip-disclosure mt-16" open={isDesktopLayout}>
+                  <summary className="per-trip-disclosure-summary">
+                    <span className="per-trip-disclosure-title">
+                      {trip.trip_number || 'Trip'} · {trip.origin || 'Origin not set'} → {trip.destination || 'Destination not set'}
+                    </span>
+                    <span className="per-trip-disclosure-meta">
+                      <span><CalendarDays size={14} aria-hidden="true" /> {tripDate(trip.departure_date)}</span>
                       <StatusBadge status={trip.status} size="sm" />
-                      <Link className="btn btn-outline btn-sm" to={`/admin/trips/${trip.id}`}>Open trip</Link>
-                    </div>
+                      <span>{tripSummary.activeBookingCount} active · {tripSummary.cancelledBookingCount} cancelled</span>
+                    </span>
+                  </summary>
+
+                  <div className="per-trip-disclosure-body">
+                  <div className="flex justify-end">
+                    <Link className="btn btn-outline btn-sm" to={`/admin/trips/${trip.id}`}>Open trip</Link>
                   </div>
 
                   <div className="card admin-section-card admin-table-card mt-12">
@@ -600,7 +608,8 @@ const PerTripSalesPage = () => {
                   ) : (
                     <p className="per-trip-empty-note mt-12">No cancelled bookings on this trip.</p>
                   )}
-                </div>
+                  </div>
+                </details>
               );
             })
           )}
