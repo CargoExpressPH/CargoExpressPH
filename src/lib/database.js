@@ -848,7 +848,7 @@ export const duplicateTripMessage = (origin, destination, departureDate) =>
   `A trip from ${origin} to ${destination} is already scheduled for ${formatPhDate(departureDate)}.`;
 
 /**
- * The existing non-cancelled trip on the same route and the same *Philippine*
+ * The existing open (not cancelled or completed) trip on the same route and the same *Philippine*
  * calendar day, or null. The window is computed as an instant range rather than
  * a DATE() cast because departure_date is TIMESTAMPTZ: a 6:00 AM Manila
  * departure is stored as 22:00 UTC the previous day, so comparing UTC dates
@@ -871,7 +871,7 @@ export const findDuplicateTrip = async ({ origin, destination, departure_date, e
     .eq('destination', destination)
     .gte('departure_date', start)
     .lt('departure_date', end)
-    .neq('status', 'cancelled')
+    .not('status', 'in', '(cancelled,completed)')
     .limit(1);
   if (excludeTripId) query = query.neq('id', excludeTripId);
 
