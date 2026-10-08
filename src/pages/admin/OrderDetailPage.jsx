@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { getOrderById, updateOrder, updateOrderContactDetails, getTripReassignments, reassignTrip, getActivityLogsByRecord, getPaymentTransactions, recordAdditionalPayment, recordPickupPayment, recordDeliveryPayment, getOrderStatusEvents, reviewOrderCancellation, cancelOrderAsAdmin, assignOrderToCustomer, getLatestPaymentAttemptByOrder, clearPaymentReceiptUrls, getCancellationSettlementSummary } from '../../lib/database';
+import { getOrderById, updateOrder, updateOrderContactDetails, getTripReassignments, reassignTrip, getActivityLogsByRecord, getPaymentTransactions, recordAdditionalPayment, recordPickupPayment, recordDeliveryPayment, recordBoxVerification, getOrderStatusEvents, reviewOrderCancellation, cancelOrderAsAdmin, assignOrderToCustomer, getLatestPaymentAttemptByOrder, clearPaymentReceiptUrls, getCancellationSettlementSummary } from '../../lib/database';
 import { pollPaymentStatus } from '../../lib/paymongo';
 import { clearPendingPayment, getPendingPayment } from '../../lib/pendingPayment';
 import { isPaymentPollReconciled } from '../../utils/paymentReconciliation';
@@ -217,6 +217,22 @@ const AdminOrderDetailPage = () => {
     return Number.isFinite(n) && n >= 1 ? n : null;
   })();
 
+  const recordedScanRef = useRef(null);
+  useEffect(() => {
+    if (scannedBox === null || !order || order.status !== ORDER_STATUS.OUT_FOR_DELIVERY) return;
+    if ((order.verified_boxes || []).includes(scannedBox)) return;
+    const scanKey = `${order.id}:${scannedBox}`;
+    if (recordedScanRef.current === scanKey) return;
+    recordedScanRef.current = scanKey;
+    recordBoxVerification(order.id, scannedBox)
+      .then(() => loadOrder(true, { silent: true }))
+      .then(() => toast.success(`Box ${scannedBox} verified`))
+      .catch((e) => {
+        recordedScanRef.current = null;
+        toast.error(e.message || 'Could not verify this box');
+      });
+  }, [scannedBox, order]);
+
   const checkedReturnRef = useRef(false);
   useEffect(() => {
     const paymentResult = searchParams.get('payment');
@@ -431,6 +447,13 @@ const AdminOrderDetailPage = () => {
       return; 
     }
     if (next === ORDER_STATUS.DELIVERED) {
+      const verifiedBoxes = order.verified_boxes || [];
+      const unverifiedBoxes = Array.from({ length: order.package_quantity || 1 }, (_, i) => i + 1)
+        .filter((box) => !verifiedBoxes.includes(box));
+      if (unverifiedBoxes.length > 0) {
+        toast.error(`Scan the QR code on every box before delivering. Not yet verified: Box ${unverifiedBoxes.join(', ')}.`);
+        return;
+      }
       setShowDeliveryModal(true);
       return;
     }
@@ -955,6 +978,14 @@ const AdminOrderDetailPage = () => {
         <div className="alert-banner alert-banner-info mb-16" role="status">
           <Package size={18} aria-hidden="true" />
           <span>You scanned <strong>Box {scannedBox} of {order.package_quantity || 1}</strong> for this booking.</span>
+        </div>
+      )}
+
+      {order.status === ORDER_STATUS.OUT_FOR_DELIVERY && (
+        <div className="text-sm mb-16" role="status">
+          <strong>Boxes verified:</strong>{' '}
+          {(order.verified_boxes || []).length} of {order.package_quantity || 1}
+          {' '}— scan every box QR code before marking this booking as delivered.
         </div>
       )}
 

@@ -3211,6 +3211,15 @@ export const recordDeliveryPayment = async (orderId, payload) => {
   return data;
 };
 
+export const recordBoxVerification = async (orderId, box) => {
+  const { data, error } = await supabase.rpc('record_box_verification', {
+    p_order_id: orderId,
+    p_box: box,
+  });
+  if (error) throw error;
+  return data;
+};
+
 /**
  * Record a counter payment (balance settlement / "Record Additional
  * Payment") against an existing balance — always a POST-pickup collection,
