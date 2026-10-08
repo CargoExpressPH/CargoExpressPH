@@ -449,27 +449,29 @@ const PerTripSalesPage = () => {
             </div>
           </div>
 
-          <div className="per-trip-month-field">
-            <label className="per-trip-selector-label fw-600" htmlFor="per-trip-range-start">
-              <CalendarDays size={16} aria-hidden="true" /> Or a date range
-            </label>
-            <div className="flex gap-8">
-              <DatePicker
-                id="per-trip-range-start"
-                value={rangeStart}
-                max={rangeEnd || undefined}
-                onChange={val => { setError(null); setRangeStart(val); }}
-              />
-              <DatePicker
-                id="per-trip-range-end"
-                value={rangeEnd}
-                min={rangeStart || undefined}
-                onChange={val => { setError(null); setRangeEnd(val); }}
-              />
+          <div className="per-trip-range-field">
+            <div className="per-trip-range-row">
+              <span className="per-trip-selector-label fw-600">
+                <CalendarDays size={16} aria-hidden="true" /> Or a date range
+              </span>
+              <div className="per-trip-range-pickers">
+                <DatePicker
+                  id="per-trip-range-start"
+                  aria-label="Range start date"
+                  value={rangeStart}
+                  max={rangeEnd || undefined}
+                  onChange={val => { setError(null); setRangeStart(val); }}
+                />
+                <DatePicker
+                  id="per-trip-range-end"
+                  aria-label="Range end date"
+                  value={rangeEnd}
+                  min={rangeStart || undefined}
+                  onChange={val => { setError(null); setRangeEnd(val); }}
+                />
+              </div>
             </div>
-            {rangeError
-              ? <p className="form-error mb-0">{rangeError}</p>
-              : <p className="text-secondary text-xs mb-0">A complete date range replaces the month. Trips are matched by departure date.</p>}
+            {rangeError && <p className="form-error mb-0" role="alert">{rangeError}</p>}
           </div>
 
           <div className="per-trip-actions">

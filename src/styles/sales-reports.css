@@ -79,6 +79,32 @@
   text-overflow: ellipsis;
 }
 
+.per-trip-range-field {
+  flex: 1 1 520px;
+  min-width: min(300px, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.per-trip-range-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.per-trip-range-pickers {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  gap: 8px;
+}
+
+.per-trip-range-pickers > * {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
 .per-trip-actions {
   display: flex;
   align-items: center;
