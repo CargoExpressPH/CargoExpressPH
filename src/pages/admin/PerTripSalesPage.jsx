@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AlertTriangle, CalendarDays, MapPin, RefreshCw, WalletCards, FileText, Printer } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { rowLinkProps } from '../../utils/rowLink';
 import { getAllTripsForReport, getMonthlySalesReport } from '../../lib/database';
-import { aggregateMonthlySalesReports, tripMonthKey } from '../../lib/perTripSalesReport';
+import { aggregateMonthlySalesReports } from '../../lib/perTripSalesReport';
 import { logActivity } from '../../lib/activityLog';
 import { useAuth } from '../../contexts/AuthContext';
 import usePageTitle from '../../hooks/usePageTitle';
@@ -14,6 +14,7 @@ import { CenteredSpinner } from '../../components/ui/Loader';
 import EmptyState from '../../components/ui/EmptyState';
 import StatusBadge from '../../components/ui/StatusBadge';
 import PrintDocument from '../../components/ui/PrintDocument';
+import DatePicker from '../../components/ui/DatePicker';
 import { exportPrintDocumentToPdf } from '../../lib/exportPdf';
 const tripDate = (value) => {
   if (!value) return 'Date not set';
@@ -207,7 +208,39 @@ const PerTripSalesPage = () => {
   const [exporting, setExporting] = useState(false);
   const [trips, setTrips] = useState([]);
   const [selectedMonth, setSelectedMonth] = useState(currentMonthValue());
+  const [rangeStart, setRangeStart] = useState('');
+  const [rangeEnd, setRangeEnd] = useState('');
   const [monthlyReport, setMonthlyReport] = useState(null);
+  const [reportScope, setReportScope] = useState(null);
+  const rangeError = (rangeStart || rangeEnd)
+    ? (!rangeStart || !rangeEnd
+      ? 'Pick both a start and an end date.'
+      : rangeEnd < rangeStart ? 'The end date must be the same as or after the start date.' : null)
+    : null;
+  // A complete date range replaces the month filter. A half-filled or
+  // reversed range yields no scope at all, so nothing is generated silently
+  // from the month underneath it.
+  const activeScope = useMemo(() => {
+    if (rangeError) return null;
+    if (rangeStart && rangeEnd) {
+      return {
+        start: rangeStart,
+        end: rangeEnd,
+        key: `${rangeStart}|${rangeEnd}`,
+        label: `${formatPhDate(`${rangeStart}T00:00:00+08:00`)} – ${formatPhDate(`${rangeEnd}T00:00:00+08:00`)}`,
+      };
+    }
+    if (!selectedMonth) return null;
+    const [year, month] = selectedMonth.split('-').map(Number);
+    const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
+    return {
+      start: `${selectedMonth}-01`,
+      end: `${selectedMonth}-${String(lastDay).padStart(2, '0')}`,
+      key: selectedMonth,
+      isMonth: true,
+      label: monthLabel(selectedMonth),
+    };
+  }, [rangeStart, rangeEnd, rangeError, selectedMonth]);
   // Gates the dashboard AND the Print button — set only after a successful
   // "Generate Report" click (or a background refresh of one already shown).
   // Changing the month never sits on screen next to filters it no longer
@@ -245,22 +278,28 @@ const PerTripSalesPage = () => {
   // `monthValue`, reusing getPerTripSalesReport per trip (via
   // getMonthlySalesReport) so the grand total and each per-trip breakdown
   // share the exact same calculation as a single-trip report.
-  const loadMonthlyReport = useCallback(async (monthValue, { background = false } = {}) => {
-    if (!monthValue) return;
+  const loadMonthlyReport = useCallback(async (scope, { background = false } = {}) => {
+    if (!scope) return;
     const sequence = ++requestSequenceRef.current;
     if (background) setRefreshing(true);
     else setLoadingReport(true);
     setError(null);
 
     try {
-      const tripIds = trips.filter(trip => tripMonthKey(trip) === monthValue).map(trip => trip.id);
-      // A month with no departures is a valid, all-zero report (the page
+      const tripIds = trips
+        .filter(trip => {
+          const departure = phDateKey(trip.departure_date);
+          return departure >= scope.start && departure <= scope.end;
+        })
+        .map(trip => trip.id);
+      // A period with no departures is a valid, all-zero report (the page
       // renders "No trips this month"), not an error.
       const result = tripIds.length
         ? await getMonthlySalesReport(tripIds)
         : aggregateMonthlySalesReports([]);
       if (!mountedRef.current || sequence !== requestSequenceRef.current) return;
       setMonthlyReport(result);
+      setReportScope(scope);
       setHasGenerated(true);
       setLastUpdated(new Date());
     } catch (loadError) {
@@ -284,36 +323,38 @@ const PerTripSalesPage = () => {
     };
   }, [loadTrips]);
 
-  // Selecting a month never fetches by itself — it only clears whatever
-  // report was on screen so it can't be mistaken for a match to the new
-  // month. Fetching happens only from handleGenerate (the "Generate Report"
-  // click) below.
+  // Changing the month or the date range never fetches by itself — it only
+  // clears whatever report was on screen so it can't be mistaken for a match
+  // to the new filter. Fetching happens only from handleGenerate (the
+  // "Generate Report" click) below.
+  const scopeKey = activeScope?.key ?? '';
   useEffect(() => {
     setHasGenerated(false);
     setMonthlyReport(null);
+    setReportScope(null);
     setError(null);
-  }, [selectedMonth]);
+  }, [scopeKey]);
 
   const handleGenerate = useCallback(() => {
-    if (selectedMonth) void loadMonthlyReport(selectedMonth);
-  }, [selectedMonth, loadMonthlyReport]);
+    if (activeScope) void loadMonthlyReport(activeScope);
+  }, [activeScope, loadMonthlyReport]);
 
   // Open on the current month's numbers instead of an empty page. Runs once,
-  // after the trip list is in; picking a different month afterwards still
-  // waits for "Generate Report", as described above.
+  // after the trip list is in; changing the filter afterwards still waits for
+  // "Generate Report", as described above.
   useEffect(() => {
-    if (!tripsReady || autoGeneratedRef.current || !selectedMonth) return;
+    if (!tripsReady || autoGeneratedRef.current || !activeScope) return;
     autoGeneratedRef.current = true;
-    void loadMonthlyReport(selectedMonth);
-  }, [tripsReady, selectedMonth, loadMonthlyReport]);
+    void loadMonthlyReport(activeScope);
+  }, [tripsReady, activeScope, loadMonthlyReport]);
 
   // Background refresh of an ALREADY-generated report (realtime order
   // changes, tab refocus, coming back online) is not gated behind another
-  // Generate click — only the initial load on a month change is.
+  // Generate click — only the initial load on a filter change is.
   useEffect(() => {
     const refresh = () => {
-      if (!hasGenerated || !selectedMonth) return;
-      void loadMonthlyReport(selectedMonth, { background: true });
+      if (!hasGenerated || !activeScope) return;
+      void loadMonthlyReport(activeScope, { background: true });
     };
     window.addEventListener('focus', refresh);
     window.addEventListener('pageshow', refresh);
@@ -323,16 +364,16 @@ const PerTripSalesPage = () => {
       window.removeEventListener('pageshow', refresh);
       window.removeEventListener('online', refresh);
     };
-  }, [hasGenerated, selectedMonth, loadMonthlyReport]);
+  }, [hasGenerated, activeScope, loadMonthlyReport]);
 
   const handleOrderChanges = useCallback(() => {
-    if (!hasGenerated || !selectedMonth) return;
-    void loadMonthlyReport(selectedMonth, { background: true });
-  }, [hasGenerated, selectedMonth, loadMonthlyReport]);
+    if (!hasGenerated || !activeScope) return;
+    void loadMonthlyReport(activeScope, { background: true });
+  }, [hasGenerated, activeScope, loadMonthlyReport]);
 
   const handlePrint = () => {
-    if (!hasGenerated || !monthlyReport) return;
-    const reportLabel = monthLabel(selectedMonth);
+    if (!hasGenerated || !monthlyReport || !reportScope) return;
+    const reportLabel = reportScope.label;
     logActivity({
       module: 'Sales & Reports',
       action: 'Report Printed',
@@ -356,7 +397,7 @@ const PerTripSalesPage = () => {
     onBatch: handleOrderChanges,
   });
 
-  const canGenerate = Boolean(selectedMonth);
+  const canGenerate = Boolean(activeScope);
 
   return (
     <div className="page-transition per-trip-report">
@@ -406,6 +447,29 @@ const PerTripSalesPage = () => {
                 }}
               />
             </div>
+          </div>
+
+          <div className="per-trip-month-field">
+            <label className="per-trip-selector-label fw-600" htmlFor="per-trip-range-start">
+              <CalendarDays size={16} aria-hidden="true" /> Or a date range
+            </label>
+            <div className="flex gap-8">
+              <DatePicker
+                id="per-trip-range-start"
+                value={rangeStart}
+                max={rangeEnd || undefined}
+                onChange={val => { setError(null); setRangeStart(val); }}
+              />
+              <DatePicker
+                id="per-trip-range-end"
+                value={rangeEnd}
+                min={rangeStart || undefined}
+                onChange={val => { setError(null); setRangeEnd(val); }}
+              />
+            </div>
+            {rangeError
+              ? <p className="form-error mb-0">{rangeError}</p>
+              : <p className="text-secondary text-xs mb-0">A complete date range replaces the month. Trips are matched by departure date.</p>}
           </div>
 
           <div className="per-trip-actions">
@@ -459,7 +523,7 @@ const PerTripSalesPage = () => {
             <WalletCards size={18} aria-hidden="true" />
             <div>
               <strong>Report basis</strong>
-              <p>Grand total across every trip departing in {monthLabel(selectedMonth)} ({monthlyReport.grandTotal.tripCount} trip{monthlyReport.grandTotal.tripCount === 1 ? '' : 's'}), each computed the same way as a single-trip report.</p>
+              <p>Grand total across every trip departing in {reportScope?.label} ({monthlyReport.grandTotal.tripCount} trip{monthlyReport.grandTotal.tripCount === 1 ? '' : 's'}), each computed the same way as a single-trip report.</p>
             </div>
           </div>
 
@@ -544,8 +608,8 @@ const PerTripSalesPage = () => {
           </p>
 
           <PrintDocument
-            title={`Monthly Sales Report: ${monthLabel(selectedMonth)}`}
-            subtitle={`${monthlyReport.grandTotal.tripCount} trip${monthlyReport.grandTotal.tripCount === 1 ? '' : 's'} departing in ${monthLabel(selectedMonth)}`}
+            title={`${reportScope?.isMonth ? 'Monthly Sales Report' : 'Sales Report'}: ${reportScope?.label}`}
+            subtitle={`${monthlyReport.grandTotal.tripCount} trip${monthlyReport.grandTotal.tripCount === 1 ? '' : 's'} departing in ${reportScope?.label}`}
             generatedAt={lastUpdated ? formatPhDateTime(lastUpdated) : ''}
             preparedBy={userProfile?.name}
           >
