@@ -273,6 +273,10 @@ const TripDetailPage = () => {
   const notYetPickedUp = orders.filter(o => o.status === 'Pending' || o.status === 'Assigned');
   const eligibleOrders = orders.filter(o => !['Cancelled', 'Pending Cancellation', 'Pending', 'Assigned'].includes(o.status));
   const eligibleWeight = eligibleOrders.reduce((sum, o) => sum + (Number(o.actual_weight) || 0), 0);
+  const unscannedBoxOrders = eligibleOrders.filter(o => {
+    const verified = o.verified_boxes || [];
+    return Array.from({ length: o.package_quantity || 1 }, (_, i) => i + 1).some(b => !verified.includes(b));
+  });
   const startGate = data.start_gate;
 
   const startTripBlockReason =
@@ -294,7 +298,9 @@ const TripDetailPage = () => {
                   ? 'Cannot start trip: no active shipments are ready for departure.'
                   : eligibleWeight <= 0
                     ? 'Cannot start trip: record pickup and actual cargo weight first.'
-                    : null;
+                    : unscannedBoxOrders.length > 0
+                      ? `${unscannedBoxOrders.length} booking${unscannedBoxOrders.length === 1 ? '' : 's'} with unscanned package QR codes: ${unscannedBoxOrders.slice(0, 3).map(o => o.tracking_number).join(', ')}${unscannedBoxOrders.length > 3 ? '…' : ''}. Scan every box before starting.`
+                      : null;
   const canStartTrip = !startTripBlockReason;
 
   return (

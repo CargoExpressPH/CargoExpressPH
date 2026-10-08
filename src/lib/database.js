@@ -1195,7 +1195,7 @@ export const getTripById = async (tripId) => {
     // user_id + the profiles embed back the "Message customer" shortcut on
     // each row. The trip's order table shows addresses, not the booker, so
     // without the embed there is no name to put on the control.
-    .select(`id, tracking_number, ${ORDER_PARTY_NAME_COLUMNS}, user_id, status, actual_weight, sender_province, sender_city, receiver_province, receiver_city, created_at, shipping_cost, discount_amount, amount_paid, remaining_balance, payment_status, promised_payment_date, profiles:user_id (name)`)
+    .select(`id, tracking_number, ${ORDER_PARTY_NAME_COLUMNS}, user_id, status, actual_weight, package_quantity, verified_boxes, sender_province, sender_city, receiver_province, receiver_city, created_at, shipping_cost, discount_amount, amount_paid, remaining_balance, payment_status, promised_payment_date, profiles:user_id (name)`)
     .eq('trip_id', tripId), { ascending: true });
 
   // Weight still comes from get_trips_load (see getTrips above), not a

@@ -219,7 +219,8 @@ const AdminOrderDetailPage = () => {
 
   const recordedScanRef = useRef(null);
   useEffect(() => {
-    if (scannedBox === null || !order || order.status !== ORDER_STATUS.OUT_FOR_DELIVERY) return;
+    const verifiableStatus = order?.status === ORDER_STATUS.PICKED_UP || order?.status === ORDER_STATUS.OUT_FOR_DELIVERY;
+    if (scannedBox === null || !order || !verifiableStatus) return;
     if ((order.verified_boxes || []).includes(scannedBox)) return;
     const scanKey = `${order.id}:${scannedBox}`;
     if (recordedScanRef.current === scanKey) return;
@@ -981,11 +982,11 @@ const AdminOrderDetailPage = () => {
         </div>
       )}
 
-      {order.status === ORDER_STATUS.OUT_FOR_DELIVERY && (
+      {(order.status === ORDER_STATUS.PICKED_UP || order.status === ORDER_STATUS.OUT_FOR_DELIVERY) && (
         <div className="text-sm mb-16" role="status">
           <strong>Boxes verified:</strong>{' '}
           {(order.verified_boxes || []).length} of {order.package_quantity || 1}
-          {' '}— scan every box QR code before marking this booking as delivered.
+          {' '}— every box QR code must be scanned before the trip starts.
         </div>
       )}
 
