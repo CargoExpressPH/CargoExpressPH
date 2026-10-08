@@ -83,10 +83,10 @@ const formatKg = (value) => {
 
 const emptyBookingForm = ({ route = '', tripId = '' } = {}) => ({
   route, trip_id: tripId,
-  sender_first_name: '', sender_last_name: '', sender_phone: '', sender_facebook: '',
+  sender_last_name: '', sender_first_name: '', sender_middle_name: '', sender_phone: '', sender_facebook: '',
   sender_lot_block: '', sender_street: '', sender_barangay: '',
   sender_city: '', sender_province: '', sender_landmark: '',
-  receiver_first_name: '', receiver_last_name: '', receiver_phone: '', receiver_facebook: '',
+  receiver_last_name: '', receiver_first_name: '', receiver_middle_name: '', receiver_phone: '', receiver_facebook: '',
   receiver_lot_block: '', receiver_street: '', receiver_barangay: '',
   receiver_city: '', receiver_province: '', receiver_landmark: '',
   package_description: '', payer_type: 'sender',
@@ -399,7 +399,7 @@ const BookShipmentPage = () => {
       const { firstName, lastName } = splitFullName(userProfile.name);
       setForm(p => ({
         ...p,
-        sender_first_name: firstName, sender_last_name: lastName, sender_phone: userProfile.phone || '', sender_facebook: userProfile.facebook_name || '',
+        sender_last_name: lastName, sender_first_name: firstName, sender_middle_name: '', sender_phone: userProfile.phone || '', sender_facebook: userProfile.facebook_name || '',
         sender_lot_block: userProfile.address_lot_block || '', sender_street: userProfile.address_street || '',
         sender_barangay: userProfile.address_barangay || '', sender_city: userProfile.address_city || '',
         sender_province: userProfile.address_province || '', sender_other_province: '', sender_landmark: userProfile.address_landmark || '',
@@ -407,7 +407,7 @@ const BookShipmentPage = () => {
     } else {
       setForm(p => ({
         ...p,
-        sender_first_name: '', sender_last_name: '', sender_phone: '', sender_facebook: '',
+        sender_last_name: '', sender_first_name: '', sender_middle_name: '', sender_phone: '', sender_facebook: '',
         sender_lot_block: '', sender_street: '', sender_barangay: '',
         sender_city: '', sender_province: '', sender_other_province: '', sender_landmark: '',
       }));
@@ -422,7 +422,7 @@ const BookShipmentPage = () => {
       const { firstName, lastName } = splitFullName(userProfile.name);
       setForm(p => ({
         ...p,
-        receiver_first_name: firstName, receiver_last_name: lastName, receiver_phone: userProfile.phone || '', receiver_facebook: userProfile.facebook_name || '',
+        receiver_last_name: lastName, receiver_first_name: firstName, receiver_middle_name: '', receiver_phone: userProfile.phone || '', receiver_facebook: userProfile.facebook_name || '',
         receiver_lot_block: userProfile.address_lot_block || '', receiver_street: userProfile.address_street || '',
         receiver_barangay: userProfile.address_barangay || '', receiver_city: userProfile.address_city || '',
         receiver_province: userProfile.address_province || '', receiver_landmark: userProfile.address_landmark || '',
@@ -430,7 +430,7 @@ const BookShipmentPage = () => {
     } else {
       setForm(p => ({
         ...p,
-        receiver_first_name: '', receiver_last_name: '', receiver_phone: '', receiver_facebook: '',
+        receiver_last_name: '', receiver_first_name: '', receiver_middle_name: '', receiver_phone: '', receiver_facebook: '',
         receiver_lot_block: '', receiver_street: '', receiver_barangay: '',
         receiver_city: '', receiver_province: '', receiver_landmark: '',
       }));
@@ -448,8 +448,9 @@ const BookShipmentPage = () => {
       && contact.province !== 'Bohol' && !PH_LOCATIONS[contact.province];
     setForm(p => ({
       ...p,
-      [`${prefix}_first_name`]: contact.first_name,
       [`${prefix}_last_name`]: contact.last_name,
+      [`${prefix}_first_name`]: contact.first_name,
+      [`${prefix}_middle_name`]: contact.middle_name || '',
       [`${prefix}_phone`]: contact.phone,
       [`${prefix}_facebook`]: contact.facebook,
       [`${prefix}_province`]: otherSenderProvince ? 'Other Area' : contact.province,
@@ -611,10 +612,10 @@ const BookShipmentPage = () => {
       const payload = {
         user_id: user.id,
         origin: selectedRoute.origin, destination: selectedRoute.destination, trip_id: form.trip_id || null,
-        sender_first_name: normalizeName(form.sender_first_name), sender_last_name: normalizeName(form.sender_last_name), sender_phone: form.sender_phone,
+        sender_last_name: normalizeName(form.sender_last_name), sender_first_name: normalizeName(form.sender_first_name), sender_middle_name: normalizeName(form.sender_middle_name) || null, sender_phone: form.sender_phone,
         sender_facebook: normalizeName(form.sender_facebook), sender_city: form.sender_city, sender_province: form.sender_province === 'Other Area' ? form.sender_other_province : form.sender_province,
         sender_barangay: form.sender_barangay, sender_street: form.sender_street, sender_lot_block: form.sender_lot_block, sender_landmark: form.sender_landmark,
-        receiver_first_name: normalizeName(form.receiver_first_name), receiver_last_name: normalizeName(form.receiver_last_name), receiver_phone: form.receiver_phone,
+        receiver_last_name: normalizeName(form.receiver_last_name), receiver_first_name: normalizeName(form.receiver_first_name), receiver_middle_name: normalizeName(form.receiver_middle_name) || null, receiver_phone: form.receiver_phone,
         receiver_facebook: normalizeName(form.receiver_facebook), receiver_city: form.receiver_city, receiver_province: form.receiver_province,
         receiver_barangay: form.receiver_barangay, receiver_street: form.receiver_street, receiver_lot_block: form.receiver_lot_block, receiver_landmark: form.receiver_landmark,
         package_description: form.package_description,
@@ -710,21 +711,6 @@ const BookShipmentPage = () => {
           <div className="recent-contacts-wrap">
             <div className="grid grid-2 gap-12 mt-4">
               <div>
-                <label className="form-label sr-only" htmlFor={id('first_name')}>First Name</label>
-                <input
-                  id={id('first_name')}
-                  className={`form-input ${fc('first_name')}`}
-                  value={form[`${prefix}_first_name`]}
-                  onChange={handleTextChange(`${prefix}_first_name`)}
-                  placeholder="First Name"
-                  autoComplete={isSender ? 'given-name' : 'shipping given-name'}
-                  autoCapitalize="words"
-                  required
-                  {...a11y('first_name')}
-                />
-                {errEl('first_name')}
-              </div>
-              <div>
                 <label className="form-label sr-only" htmlFor={id('last_name')}>Last Name</label>
                 <input
                   id={id('last_name')}
@@ -739,13 +725,40 @@ const BookShipmentPage = () => {
                 />
                 {errEl('last_name')}
               </div>
+              <div>
+                <label className="form-label sr-only" htmlFor={id('first_name')}>First Name</label>
+                <input
+                  id={id('first_name')}
+                  className={`form-input ${fc('first_name')}`}
+                  value={form[`${prefix}_first_name`]}
+                  onChange={handleTextChange(`${prefix}_first_name`)}
+                  placeholder="First Name"
+                  autoComplete={isSender ? 'given-name' : 'shipping given-name'}
+                  autoCapitalize="words"
+                  required
+                  {...a11y('first_name')}
+                />
+                {errEl('first_name')}
+              </div>
+            </div>
+            <div className="mt-8">
+              <label className="form-label sr-only" htmlFor={id('middle_name')}>Middle Name</label>
+              <input
+                id={id('middle_name')}
+                className="form-input"
+                value={form[`${prefix}_middle_name`]}
+                onChange={handleTextChange(`${prefix}_middle_name`)}
+                placeholder="Middle Name (optional)"
+                autoComplete={isSender ? 'additional-name' : 'shipping additional-name'}
+                autoCapitalize="words"
+              />
             </div>
             {dropdownOpen && contacts.length > 0 && (
               <div className="custom-select-menu recent-contacts-menu" role="listbox" aria-label={`Recent ${prefix} contacts`}>
                 {contacts.map((contact, i) => (
                   <button
                     type="button"
-                    key={`${contact.first_name}-${contact.last_name}-${contact.phone}-${i}`}
+                    key={`${contact.last_name}-${contact.first_name}-${contact.middle_name}-${contact.phone}-${i}`}
                     role="option"
                     aria-selected="false"
                     className="custom-select-option recent-contact-option"
@@ -754,7 +767,7 @@ const BookShipmentPage = () => {
                     <span className="recent-contact-address">
                       {buildFullAddress({ lotBlock: contact.lot_block, street: contact.street, barangay: contact.barangay, city: contact.city, province: contact.province, landmark: contact.landmark })}
                     </span>
-                    <span className="recent-contact-meta">{contact.first_name} {contact.last_name} | {contact.phone}</span>
+                    <span className="recent-contact-meta">{contact.last_name}, {contact.first_name}{contact.middle_name ? ` ${contact.middle_name}` : ''} | {contact.phone}</span>
                   </button>
                 ))}
               </div>
@@ -1031,10 +1044,10 @@ const BookShipmentPage = () => {
                 setForm(prev => ({
                   ...prev,
                   route: '', trip_id: '',
-                  sender_first_name: '', sender_last_name: '', sender_phone: '', sender_facebook: '',
+                  sender_last_name: '', sender_first_name: '', sender_middle_name: '', sender_phone: '', sender_facebook: '',
                   sender_lot_block: '', sender_street: '', sender_barangay: '',
                   sender_city: '', sender_province: '', sender_landmark: '',
-                  receiver_first_name: '', receiver_last_name: '', receiver_phone: '', receiver_facebook: '',
+                  receiver_last_name: '', receiver_first_name: '', receiver_middle_name: '', receiver_phone: '', receiver_facebook: '',
                   receiver_lot_block: '', receiver_street: '', receiver_barangay: '',
                   receiver_city: '', receiver_province: '', receiver_landmark: '',
                   package_description: '',
@@ -1359,7 +1372,7 @@ const BookShipmentPage = () => {
                     <div className="booking-summary-label">{title}</div>
                     <button type="button" className="booking-summary-edit" onClick={() => setStep(editStep)} aria-label={`Edit ${title.toLowerCase()} details`}>Edit</button>
                   </div>
-                  <div className="text-sm font-bold">{form[`${p}_first_name`]} {form[`${p}_last_name`]}</div>
+                  <div className="text-sm font-bold">{form[`${p}_last_name`]}, {form[`${p}_first_name`]}{form[`${p}_middle_name`] ? ` ${form[`${p}_middle_name`]}` : ''}</div>
                   <div className="text-xs text-secondary">{form[`${p}_phone`]}</div>
                   <div className="text-xs text-secondary mt-4">
                     {buildFullAddress({
