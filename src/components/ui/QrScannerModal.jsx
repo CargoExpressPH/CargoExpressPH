@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { CameraOff, ImagePlus, Loader, RotateCcw, X } from 'lucide-react';
+import { CameraOff, ImagePlus, Loader, PackageCheck, RotateCcw, X } from 'lucide-react';
 import FocusTrap from './FocusTrap';
 import useScrollLock from '../../hooks/useScrollLock';
 import { findOrderIdByTrackingNumber } from '../../lib/database';
+import { supabase } from '../../lib/supabase';
+import { logActivity } from '../../lib/activityLog';
+import { ORDER_STATUS } from '../../constants/status';
 import { normalizeTrackingNumber, orderRouteForScan, parseScanPayload } from '../../utils/scanPayload';
 
 /**
@@ -173,6 +176,9 @@ const QrScannerModal = ({ onClose }) => {
   const [pageHidden, setPageHidden] = useState(() => typeof document !== 'undefined' && document.hidden);
   const [manualValue, setManualValue] = useState('');
   const [manualError, setManualError] = useState('');
+  // Set when a scanned package label belongs to an order that is Out for
+  // Delivery: the admin picks whether to open the delivery flow or the order.
+  const [deliveryPrompt, setDeliveryPrompt] = useState(null);
 
   useScrollLock(true);
 
@@ -233,6 +239,25 @@ const QrScannerModal = ({ onClose }) => {
     const payload = parseScanPayload(text);
     if (payload.kind === 'order') {
       resolvingRef.current = true;
+      setBusy(true);
+      setNotice('');
+      // Only Out for Delivery orders get the prompt. If the lookup fails, fall
+      // back to the plain order page, which is what this scan did before.
+      const { data: order, error } = await supabase
+        .from('orders')
+        .select('id, status, tracking_number')
+        .eq('id', payload.orderId)
+        .single();
+      if (!mountedRef.current) return;
+      if (!error && order?.status === ORDER_STATUS.OUT_FOR_DELIVERY) {
+        setBusy(false);
+        setDeliveryPrompt({
+          orderId: payload.orderId,
+          box: payload.box,
+          trackingNumber: order.tracking_number,
+        });
+        return;
+      }
       goTo(orderRouteForScan(payload));
       return;
     }
@@ -246,6 +271,37 @@ const QrScannerModal = ({ onClose }) => {
     }
     reject(text, 'This QR code is not a CargoExpress package label.');
   }, [goTo, openTrackingNumber, reject]);
+
+  // "Open Delivery" hands off to OrderDetailPage with ?deliver=1, which opens
+  // the existing delivery flow (box verification, proof photos, payment).
+  // Nothing is written as Delivered from here.
+  const openDeliveryFlow = useCallback(() => {
+    if (!deliveryPrompt) return;
+    const { orderId, box, trackingNumber } = deliveryPrompt;
+    logActivity({
+      module: 'Deliveries',
+      action: 'Delivery initiated via QR scan',
+      recordType: 'order',
+      recordId: orderId,
+      recordRef: trackingNumber || null,
+      details: `Scanned package ${trackingNumber || orderId}, opening delivery flow.`,
+    });
+    const params = new URLSearchParams();
+    if (box) params.set('box', String(box));
+    params.set('deliver', '1');
+    goTo(`/admin/orders/${orderId}?${params.toString()}`);
+  }, [deliveryPrompt, goTo]);
+
+  const viewOrderFromPrompt = useCallback(() => {
+    if (!deliveryPrompt) return;
+    goTo(orderRouteForScan(deliveryPrompt));
+  }, [deliveryPrompt, goTo]);
+
+  const dismissDeliveryPrompt = useCallback(() => {
+    setDeliveryPrompt(null);
+    resolvingRef.current = false;
+    lastRejectRef.current = { text: '', at: 0 };
+  }, []);
 
   // The decode loop reads the latest handler through a ref, so a new parent
   // render (e.g. an unread-count update in the topbar) never restarts the
@@ -486,7 +542,32 @@ const QrScannerModal = ({ onClose }) => {
             </button>
           </div>
 
-          <div className="qr-scanner-viewfinder">
+          {deliveryPrompt && (
+            <div className="qr-scanner-delivery" role="alertdialog" aria-labelledby={`${titleId}-delivery`}>
+              <PackageCheck size={40} color="var(--primary)" aria-hidden="true" />
+              <h3 id={`${titleId}-delivery`} className="qr-scanner-delivery-title">Deliver this package?</h3>
+              <p className="qr-scanner-delivery-tracking">
+                <span className="qr-scanner-delivery-label">Tracking</span>
+                <strong className="report-mono">{deliveryPrompt.trackingNumber || '—'}</strong>
+              </p>
+              <div className="qr-scanner-delivery-actions">
+                <button type="button" className="btn btn-primary" onClick={openDeliveryFlow}>
+                  Open Delivery
+                </button>
+                <button type="button" className="btn btn-ghost" onClick={viewOrderFromPrompt}>
+                  View Order
+                </button>
+              </div>
+              <button type="button" className="btn btn-ghost btn-sm qr-scanner-delivery-dismiss" onClick={dismissDeliveryPrompt}>
+                Scan another
+              </button>
+            </div>
+          )}
+
+          <div
+            className="qr-scanner-viewfinder"
+            style={deliveryPrompt ? { display: 'none' } : undefined}
+          >
             <div className="qr-scanner-viewfinder-inner">
               <video
                 ref={videoRef}
@@ -540,7 +621,7 @@ const QrScannerModal = ({ onClose }) => {
             {notice}
           </p>
 
-          <div className="qr-scanner-actions">
+          <div className="qr-scanner-actions" style={deliveryPrompt ? { display: 'none' } : undefined}>
             <button
               type="button"
               className="btn btn-outline qr-scanner-photo-btn"
@@ -562,7 +643,7 @@ const QrScannerModal = ({ onClose }) => {
             />
           </div>
 
-          <form className="qr-scanner-manual" onSubmit={handleManualSubmit} noValidate>
+          <form className="qr-scanner-manual" onSubmit={handleManualSubmit} noValidate style={deliveryPrompt ? { display: 'none' } : undefined}>
             <label htmlFor={manualInputId} className="qr-scanner-manual-label">
               Or enter a tracking number
             </label>

@@ -108,5 +108,8 @@
 
 @import './print-document.css' layer(print);
 
+/* Sales & Reports accounting print layout (Per-Trip Sales page only) */
+@import './per-trip-sales-print.css' layer(print);
+
 /* Package QR label sheets (Order Details — cut-and-stick box stickers) */
 @import './print-labels.css' layer(print);

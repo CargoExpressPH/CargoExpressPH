@@ -1,0 +1,79 @@
+/* ============================================================================
+   PER-TRIP SALES — accounting-style print additions
+   Extends the shared .print-doc / .pd-* bond-paper system in
+   print-document.css for the Sales & Reports document only. Screen: nothing
+   here applies (every rule sits inside @media print).
+   ============================================================================ */
+
+@media print {
+  .print-doc .pd-table td.num,
+  .print-doc .pd-table th.num {
+    text-align: right;
+  }
+
+  /* Accounting summary: label left, amount right, no boxes. */
+  .print-doc .pd-accounting {
+    width: 60%;
+    margin-left: auto;
+    border-collapse: collapse;
+  }
+
+  .print-doc .pd-accounting td {
+    border: none;
+    padding: 2pt 4pt;
+  }
+
+  .print-doc .pd-accounting td.num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .print-doc .pd-accounting tr.pd-accounting-total td {
+    font-weight: 700;
+    border-top: 1px solid #000;
+    padding-top: 4pt;
+  }
+
+  /* Trip header: Trip Number | Route | Departure Date, in bold. */
+  .print-doc .pd-trip-header th {
+    background: none;
+    border-bottom: 1.5px solid #000;
+    font-weight: 700;
+  }
+
+  .print-doc .pd-trip-header td {
+    font-weight: 400;
+  }
+
+  /* Per-trip subtotal: bold, with a top border. */
+  .print-doc .pd-table tr.pd-subtotal td {
+    background: none;
+    font-weight: 700;
+    border-top: 1.5px solid #000;
+  }
+
+  /* Grand total: bold, closed with an accounting double rule. */
+  .print-doc .pd-grand-total {
+    margin-top: 10pt;
+  }
+
+  .print-doc .pd-grand-total td {
+    background: none;
+    font-weight: 700;
+    border: none;
+    border-top: 3px double #000;
+    padding-top: 4pt;
+  }
+
+  .print-doc .pd-printed-on {
+    margin-top: 10pt;
+    font-size: 9pt;
+    text-align: right;
+  }
+
+  /* One trip never splits across pages. */
+  .print-doc .pd-trip-section {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+}

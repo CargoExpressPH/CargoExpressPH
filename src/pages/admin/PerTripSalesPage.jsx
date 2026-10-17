@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AlertTriangle, CalendarDays, MapPin, RefreshCw, WalletCards, FileText, Printer } from 'lucide-react';
+import { AlertTriangle, CalendarDays, MapPin, RefreshCw, WalletCards, FileText, Printer, Search } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { rowLinkProps } from '../../utils/rowLink';
 import { getAllTripsForReport, getMonthlySalesReport } from '../../lib/database';
@@ -148,16 +148,20 @@ const CancelledBookingsTable = ({ rows }) => {
 // Print-only variants of the two tables above — plain pd-table markup
 // instead of the data-table component, matching the rest of PrintDocument's
 // content (see the printed section below).
+// Sum of one numeric column for a subtotal row. Unpriced bookings have a null
+// fee and count as zero here, the same as the on-screen totals.
+const sumOf = (rows, pick) => rows.reduce((total, row) => total + (Number(pick(row)) || 0), 0);
+
 const PrintActiveBookingsTable = ({ rows }) => (
-  <table className="pd-table" style={{ fontSize: '11px' }}>
+  <table className="pd-table">
     <thead>
       <tr>
         <th scope="col">Tracking #</th>
         <th scope="col">Customer</th>
-        <th scope="col" style={{ textAlign: 'right' }}>Final Cargo Fee</th>
-        <th scope="col" style={{ textAlign: 'right' }}>Payments</th>
-        <th scope="col" style={{ textAlign: 'right' }}>Returned</th>
-        <th scope="col" style={{ textAlign: 'right' }}>Balance</th>
+        <th scope="col" className="num">Final Cargo Fee</th>
+        <th scope="col" className="num">Payments</th>
+        <th scope="col" className="num">Returned</th>
+        <th scope="col" className="num">Balance</th>
       </tr>
     </thead>
     <tbody>
@@ -165,26 +169,35 @@ const PrintActiveBookingsTable = ({ rows }) => (
         <tr key={row.id}>
           <td>{row.trackingNumber || '—'}</td>
           <td>{row.customerName}</td>
-          <td style={{ textAlign: 'right' }}>{money(row.shippingFee)}</td>
-          <td style={{ textAlign: 'right' }}>{money(row.paymentsReceived)}</td>
-          <td style={{ textAlign: 'right' }}>{money(row.moneyReturned)}</td>
-          <td style={{ textAlign: 'right' }}>{money(row.amountStillToPay)}</td>
+          <td className="num">{money(row.shippingFee)}</td>
+          <td className="num">{money(row.paymentsReceived)}</td>
+          <td className="num">{money(row.moneyReturned)}</td>
+          <td className="num">{money(row.amountStillToPay)}</td>
         </tr>
       ))}
     </tbody>
+    <tfoot>
+      <tr className="pd-subtotal">
+        <td colSpan={2}>Subtotal ({rows.length})</td>
+        <td className="num">{money(sumOf(rows, row => row.shippingFee))}</td>
+        <td className="num">{money(sumOf(rows, row => row.paymentsReceived))}</td>
+        <td className="num">{money(sumOf(rows, row => row.moneyReturned))}</td>
+        <td className="num">{money(sumOf(rows, row => row.amountStillToPay))}</td>
+      </tr>
+    </tfoot>
   </table>
 );
 
 const PrintCancelledBookingsTable = ({ rows }) => (
-  <table className="pd-table" style={{ fontSize: '11px' }}>
+  <table className="pd-table">
     <thead>
       <tr>
         <th scope="col">Tracking #</th>
         <th scope="col">Customer</th>
-        <th scope="col" style={{ textAlign: 'right' }}>Payments</th>
-        <th scope="col" style={{ textAlign: 'right' }}>Returned</th>
-        <th scope="col" style={{ textAlign: 'right' }}>Retained Fee</th>
-        <th scope="col" style={{ textAlign: 'right' }}>To Refund</th>
+        <th scope="col" className="num">Payments</th>
+        <th scope="col" className="num">Returned</th>
+        <th scope="col" className="num">Retained Fee</th>
+        <th scope="col" className="num">To Refund</th>
       </tr>
     </thead>
     <tbody>
@@ -192,13 +205,22 @@ const PrintCancelledBookingsTable = ({ rows }) => (
         <tr key={row.id}>
           <td>{row.trackingNumber || '—'}</td>
           <td>{row.customerName}</td>
-          <td style={{ textAlign: 'right' }}>{money(row.paymentsReceived)}</td>
-          <td style={{ textAlign: 'right' }}>{money(row.moneyReturned)}</td>
-          <td style={{ textAlign: 'right' }}>{money(row.cancellation?.retainedFee)}</td>
-          <td style={{ textAlign: 'right' }}>{money(row.cancellation?.amountStillToRefund)}</td>
+          <td className="num">{money(row.paymentsReceived)}</td>
+          <td className="num">{money(row.moneyReturned)}</td>
+          <td className="num">{money(row.cancellation?.retainedFee)}</td>
+          <td className="num">{money(row.cancellation?.amountStillToRefund)}</td>
         </tr>
       ))}
     </tbody>
+    <tfoot>
+      <tr className="pd-subtotal">
+        <td colSpan={2}>Subtotal ({rows.length})</td>
+        <td className="num">{money(sumOf(rows, row => row.paymentsReceived))}</td>
+        <td className="num">{money(sumOf(rows, row => row.moneyReturned))}</td>
+        <td className="num">{money(sumOf(rows, row => row.cancellation?.retainedFee))}</td>
+        <td className="num">{money(sumOf(rows, row => row.cancellation?.amountStillToRefund))}</td>
+      </tr>
+    </tfoot>
   </table>
 );
 
@@ -212,6 +234,11 @@ const PerTripSalesPage = () => {
   const [rangeEnd, setRangeEnd] = useState('');
   const [monthlyReport, setMonthlyReport] = useState(null);
   const [reportScope, setReportScope] = useState(null);
+  // Long date shown on the printed document; set when a report is generated.
+  const [printDate, setPrintDate] = useState('');
+  // Client-side filter over the generated report's per-trip list only. Grand
+  // totals and the printed report always cover every trip in the period.
+  const [tripSearch, setTripSearch] = useState('');
   const rangeError = (rangeStart || rangeEnd)
     ? (!rangeStart || !rangeEnd
       ? 'Pick both a start and an end date.'
@@ -303,6 +330,7 @@ const PerTripSalesPage = () => {
       if (!mountedRef.current || sequence !== requestSequenceRef.current) return;
       setMonthlyReport(result);
       setReportScope(scope);
+      setPrintDate(new Date().toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' }));
       setHasGenerated(true);
       setLastUpdated(new Date());
     } catch (loadError) {
@@ -339,8 +367,20 @@ const PerTripSalesPage = () => {
   }, [scopeKey]);
 
   const handleGenerate = useCallback(() => {
-    if (activeScope) void loadMonthlyReport(activeScope);
+    if (!activeScope) return;
+    setTripSearch('');
+    void loadMonthlyReport(activeScope);
   }, [activeScope, loadMonthlyReport]);
+
+  const normalizedTripSearch = tripSearch.trim().toLowerCase();
+  const filteredTripReport = useMemo(() => {
+    if (!monthlyReport) return [];
+    if (!normalizedTripSearch) return monthlyReport.tripBreakdown;
+    return monthlyReport.tripBreakdown.filter(({ trip }) =>
+      [trip.trip_number, trip.origin, trip.destination]
+        .some(value => String(value || '').toLowerCase().includes(normalizedTripSearch))
+    );
+  }, [monthlyReport, normalizedTripSearch]);
 
   // Open on the current month's numbers instead of an empty page. Runs once,
   // after the trip list is in; changing the filter afterwards still waits for
@@ -510,6 +550,27 @@ const PerTripSalesPage = () => {
             )}
           </div>
         </div>
+
+        {hasGenerated && monthlyReport && (
+          <div className="no-print mt-12">
+            <label className="per-trip-selector-label fw-600" htmlFor="per-trip-search">
+              <Search size={16} aria-hidden="true" /> Search trips
+            </label>
+            <input
+              id="per-trip-search"
+              type="search"
+              className="form-input"
+              placeholder="Search trips…"
+              value={tripSearch}
+              onChange={event => setTripSearch(event.target.value)}
+            />
+            {normalizedTripSearch && (
+              <p className="text-xs text-secondary mt-8 mb-0" role="status">
+                {filteredTripReport.length} trip{filteredTripReport.length === 1 ? '' : 's'} shown
+              </p>
+            )}
+          </div>
+        )}
       </div>
 
       {error && (
@@ -562,8 +623,10 @@ const PerTripSalesPage = () => {
           <h3 className="mt-24 mb-8">Per-trip detail</h3>
           {monthlyReport.tripBreakdown.length === 0 ? (
             <EmptyState title="No trips this month" description="No trip departed in this month." />
+          ) : filteredTripReport.length === 0 ? (
+            <EmptyState title="No matching trips" description={`No trip in ${reportScope?.label} matches “${tripSearch.trim()}”.`} />
           ) : (
-            monthlyReport.tripBreakdown.map((tripReport) => {
+            filteredTripReport.map((tripReport) => {
               const { trip, summary: tripSummary, activeRows, cancelledRows } = tripReport;
               return (
                 <details key={trip.id} className="per-trip-disclosure mt-16" open={isDesktopLayout}>
@@ -624,58 +687,73 @@ const PerTripSalesPage = () => {
             generatedAt={lastUpdated ? formatPhDateTime(lastUpdated) : ''}
             preparedBy={userProfile?.name}
           >
-            <div className="pd-section">
-              <div className="pd-summary-grid" style={{ display: 'flex', gap: '16px', marginBottom: '24px' }}>
-                <div style={{ flex: 1, border: '1px solid #ddd', padding: '12px', borderRadius: '4px' }}>
-                  <div style={{ fontSize: '12px', color: '#000' }}>Cargo Fees</div>
-                  <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#000' }}>{formatMoney(monthlyReport.grandTotal.shippingFees)}</div>
-                </div>
-                <div style={{ flex: 1, border: '1px solid #ddd', padding: '12px', borderRadius: '4px' }}>
-                  <div style={{ fontSize: '12px', color: '#000' }}>Payments Received</div>
-                  <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#000' }}>{formatMoney(monthlyReport.grandTotal.paymentsReceived)}</div>
-                </div>
-                <div style={{ flex: 1, border: '1px solid #ddd', padding: '12px', borderRadius: '4px' }}>
-                  <div style={{ fontSize: '12px', color: '#000' }}>Money Returned</div>
-                  <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#000' }}>{formatMoney(monthlyReport.grandTotal.moneyReturned)}</div>
-                </div>
-                <div style={{ flex: 1, border: '1px solid #ddd', padding: '12px', borderRadius: '4px' }}>
-                  <div style={{ fontSize: '12px', color: '#000' }}>Amount Still to Collect</div>
-                  <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#000' }}>{formatMoney(monthlyReport.grandTotal.amountStillToCollect)}</div>
-                </div>
-              </div>
+            <div className="pd-section" data-print-date={printDate}>
+              <table className="pd-table pd-accounting">
+                <tbody>
+                  <tr><td>Cargo fees</td><td className="num">{money(monthlyReport.grandTotal.shippingFees)}</td></tr>
+                  <tr><td>Payments received</td><td className="num">{money(monthlyReport.grandTotal.paymentsReceived)}</td></tr>
+                  <tr><td>Money returned</td><td className="num">{money(monthlyReport.grandTotal.moneyReturned)}</td></tr>
+                  <tr className="pd-accounting-total"><td>Payments after refunds</td><td className="num">{money(monthlyReport.grandTotal.paymentsAfterRefunds)}</td></tr>
+                  <tr className="pd-accounting-total"><td>Amount still to collect</td><td className="num">{money(monthlyReport.grandTotal.amountStillToCollect)}</td></tr>
+                </tbody>
+              </table>
             </div>
 
             {monthlyReport.tripBreakdown.map((tripReport) => {
               const { trip, summary: tripSummary, activeRows, cancelledRows } = tripReport;
               return (
-                <div className="pd-section" key={trip.id}>
-                  <h4 className="pd-section-title">
-                    {trip.trip_number || 'Trip'} ({trip.origin || 'Origin not set'} → {trip.destination || 'Destination not set'})
-                  </h4>
-                  <p style={{ fontSize: '11px', color: '#000', margin: '0 0 8px' }}>
-                    Scheduled {tripDate(trip.departure_date)} · {money(tripSummary.shippingFees)} cargo fees · {money(tripSummary.amountStillToCollect)} still to collect
-                  </p>
+                <div className="pd-section pd-trip-section" key={trip.id}>
+                  <table className="pd-table pd-trip-header">
+                    <thead>
+                      <tr>
+                        <th scope="col">Trip Number</th>
+                        <th scope="col">Route</th>
+                        <th scope="col">Departure Date</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td>{trip.trip_number || 'Trip'}</td>
+                        <td>{trip.origin || 'Origin not set'} → {trip.destination || 'Destination not set'}</td>
+                        <td>{tripDate(trip.departure_date)}</td>
+                      </tr>
+                    </tbody>
+                  </table>
 
                   {activeRows.length > 0 && (
                     <>
-                      <p style={{ fontSize: '11px', fontWeight: 'bold', color: '#000', margin: '8px 0 4px' }}>Active & Completed Bookings ({tripSummary.activeBookingCount})</p>
+                      <p style={{ fontSize: '9pt', fontWeight: 'bold', color: '#000', margin: '8px 0 4px' }}>Active & Completed Bookings ({tripSummary.activeBookingCount})</p>
                       <PrintActiveBookingsTable rows={activeRows} />
                     </>
                   )}
 
                   {cancelledRows.length > 0 && (
                     <>
-                      <p style={{ fontSize: '11px', fontWeight: 'bold', color: '#000', margin: '8px 0 4px' }}>Cancelled Bookings ({tripSummary.cancelledBookingCount})</p>
+                      <p style={{ fontSize: '9pt', fontWeight: 'bold', color: '#000', margin: '8px 0 4px' }}>Cancelled Bookings ({tripSummary.cancelledBookingCount})</p>
                       <PrintCancelledBookingsTable rows={cancelledRows} />
                     </>
                   )}
 
                   {activeRows.length === 0 && cancelledRows.length === 0 && (
-                    <p style={{ fontSize: '11px', color: '#000' }}>No bookings assigned to this trip.</p>
+                    <p style={{ fontSize: '9pt', color: '#000' }}>No bookings assigned to this trip.</p>
                   )}
                 </div>
               );
             })}
+
+            <table className="pd-table pd-grand-total">
+              <tbody>
+                <tr>
+                  <td>Grand Total ({monthlyReport.grandTotal.tripCount} trip{monthlyReport.grandTotal.tripCount === 1 ? '' : 's'})</td>
+                  <td className="num">{money(monthlyReport.grandTotal.shippingFees)}</td>
+                  <td className="num">{money(monthlyReport.grandTotal.paymentsReceived)}</td>
+                  <td className="num">{money(monthlyReport.grandTotal.moneyReturned)}</td>
+                  <td className="num">{money(monthlyReport.grandTotal.amountStillToCollect)}</td>
+                </tr>
+              </tbody>
+            </table>
+
+            <p className="pd-printed-on">Prepared by: CargoExpress PH Admin · Printed on: {printDate || '—'}</p>
           </PrintDocument>
         </>
       )}
