@@ -302,6 +302,9 @@ const TripDetailPage = () => {
                       ? `${unscannedBoxOrders.length} booking${unscannedBoxOrders.length === 1 ? '' : 's'} with unscanned package QR codes: ${unscannedBoxOrders.slice(0, 3).map(o => o.tracking_number).join(', ')}${unscannedBoxOrders.length > 3 ? '…' : ''}. Scan every box before starting.`
                       : null;
   const canStartTrip = !startTripBlockReason;
+  // Once the trip has reached the hub, the planned estimate is outdated —
+  // the recorded actual arrival replaces it.
+  const hasArrived = Boolean(trip.arrived_at) || ['arrived', 'completed'].includes(trip.status);
 
   return (
     <div className="page-transition">
@@ -338,7 +341,7 @@ const TripDetailPage = () => {
         )}
         {trip.status==='in_progress' && <button type="button" className="btn btn-success" onClick={()=>openConfirm('arrived', 'Mark Arrived', `Mark trip ${trip.trip_number} as arrived at destination?`, 'success')} disabled={saving}><Flag size={16}/> Mark Arrived</button>}
         {trip.status==='arrived' && <button type="button" className="btn btn-primary" onClick={handleCompleteClick} disabled={saving}><CheckCircle size={16}/> Complete</button>}
-        {!['completed','cancelled'].includes(trip.status) && <button type="button" className="btn btn-danger-outline btn-sm" onClick={()=>openConfirm('cancelled', 'Cancel Trip', `Cancel trip ${trip.trip_number}? This action cannot be undone.`, 'danger')} disabled={saving}><XCircle size={16}/> Cancel Trip</button>}
+        {trip.status==='scheduled' && <button type="button" className="btn btn-danger-outline btn-sm" onClick={()=>openConfirm('cancelled', 'Cancel Trip', `Cancel trip ${trip.trip_number}? This action cannot be undone.`, 'danger')} disabled={saving}><XCircle size={16}/> Cancel Trip</button>}
         {saving && <Loader size={18} className="animate-spin"/>}
         </div>
         {/* A disabled button alone doesn't explain itself — especially on
@@ -402,7 +405,7 @@ const TripDetailPage = () => {
             {(trip.departure_at || trip.estimated_arrival_at || trip.arrived_at) && (
               <div className="grid grid-3 gap-16" style={{ gridColumn: '1 / -1', borderTop: '1px solid var(--border)', paddingTop: 12 }}>
                 {trip.departure_at && <div><div className="text-xs text-tertiary">Actual Departure</div><div className="fw-700">{formatPhDateTime(trip.departure_at)}</div></div>}
-                <div><div className="text-xs text-tertiary">Estimated Arrival at Destination Hub</div><div className="fw-700">{trip.estimated_arrival_at ? formatPhDateTime(trip.estimated_arrival_at) : 'To be confirmed'}</div></div>
+                {!hasArrived && <div><div className="text-xs text-tertiary">Estimated Arrival at Destination Hub</div><div className="fw-700">{trip.estimated_arrival_at ? formatPhDateTime(trip.estimated_arrival_at) : 'To be confirmed'}</div></div>}
                 <div><div className="text-xs text-tertiary">Actual Arrival at Destination Hub</div><div className="fw-700">{trip.arrived_at ? formatPhDateTime(trip.arrived_at) : 'Not arrived'}</div></div>
               </div>
             )}
