@@ -4,10 +4,13 @@ import { useNavigate } from 'react-router-dom';
 import { CameraOff, ImagePlus, Loader, PackageCheck, RotateCcw, X } from 'lucide-react';
 import FocusTrap from './FocusTrap';
 import useScrollLock from '../../hooks/useScrollLock';
-import { findOrderIdByTrackingNumber } from '../../lib/database';
+import DeliveryModal from './DeliveryModal';
+import { findOrderIdByTrackingNumber, getOrderById, recordBoxVerification, recordDeliveryPayment } from '../../lib/database';
 import { supabase } from '../../lib/supabase';
-import { logActivity } from '../../lib/activityLog';
+import { logActivity, logOrder } from '../../lib/activityLog';
 import { ORDER_STATUS } from '../../constants/status';
+import { ORDER_PARTY_NAME_COLUMNS, orderPartyName } from '../../lib/orderParties';
+import { useToast } from '../../hooks/useToast';
 import { normalizeTrackingNumber, orderRouteForScan, parseScanPayload } from '../../utils/scanPayload';
 
 /**
@@ -27,11 +30,22 @@ import { normalizeTrackingNumber, orderRouteForScan, parseScanPayload } from '..
  */
 
 const SCAN_INTERVAL_MS = 150;
-// A rejected code stays in frame while the admin reads why; without this the
-// same message would be re-announced on every frame.
-const REJECT_COOLDOWN_MS = 3000;
+// A handled code stays in frame while the admin reads the result (or moves to
+// the next box); without this the same message would be re-announced on every
+// frame.
+const SCAN_COOLDOWN_MS = 3000;
 const LIVE_MAX_SIDE = 720;
 const PHOTO_MAX_SIDES = [1024, 2048];
+
+const SCAN_ORDER_COLUMNS = `id, status, tracking_number, package_quantity, verified_boxes, ${ORDER_PARTY_NAME_COLUMNS}`;
+
+const boxNumbersFor = (quantity) => Array.from({ length: quantity }, (_, i) => i + 1);
+
+/** Box numbers of the active session that have not been verified yet. */
+const missingBoxes = (session) => boxNumbersFor(session.packageQuantity)
+  .filter((box) => !session.verified.includes(box));
+
+const boxCount = (count) => `${count} box${count === 1 ? '' : 'es'}`;
 
 const cameraErrorFor = (error) => {
   const name = error?.name || '';
@@ -163,22 +177,37 @@ const QrScannerModal = ({ onClose }) => {
   const fileInputRef = useRef(null);
   const decoderRef = useRef(null);
   const resolvingRef = useRef(false);
-  const lastRejectRef = useRef({ text: '', at: 0 });
+  const lastScanRef = useRef({ text: '', at: 0 });
   const mountedRef = useRef(true);
+  const toast = useToast();
 
   // Live camera: 'starting' → 'live', or 'error' when it cannot be used.
-  // `busy` is separate — a lookup or photo decode can run in any of them.
+  // `busy` is separate — a lookup, box verification or photo decode can run in
+  // any of them.
   const [cameraState, setCameraState] = useState('starting');
   const [busy, setBusy] = useState(false);
   const [cameraError, setCameraError] = useState(null);
   const [notice, setNotice] = useState('');
+  const [noticeTone, setNoticeTone] = useState('warning');
   const [attempt, setAttempt] = useState(0);
   const [pageHidden, setPageHidden] = useState(() => typeof document !== 'undefined' && document.hidden);
   const [manualValue, setManualValue] = useState('');
   const [manualError, setManualError] = useState('');
-  // Set when a scanned package label belongs to an order that is Out for
-  // Delivery: the admin picks whether to open the delivery flow or the order.
-  const [deliveryPrompt, setDeliveryPrompt] = useState(null);
+
+  // Delivery session: set by the first box of an Out for Delivery package and
+  // kept until its proof of delivery is saved. `sessionRef` mirrors it for the
+  // async handlers, which would otherwise read a stale closure.
+  const [session, setSession] = useState(null);
+  const sessionRef = useRef(null);
+  const updateSession = useCallback((next) => {
+    sessionRef.current = next;
+    setSession(next);
+  }, []);
+
+  // Proof of delivery runs in place of the camera, so the session survives a
+  // cancelled POD and the camera restarts once the delivery is saved.
+  const [podOrder, setPodOrder] = useState(null);
+  const [podOpen, setPodOpen] = useState(false);
 
   useScrollLock(true);
 
@@ -205,15 +234,19 @@ const QrScannerModal = ({ onClose }) => {
     onClose();
   }, [navigate, onClose]);
 
-  const reject = useCallback((text, message) => {
-    lastRejectRef.current = { text, at: Date.now() };
+  // Ends one scan: releases the decode lock and shows the result. `tone` picks
+  // the notice colour — warnings for anything the admin must act on.
+  const settle = useCallback((message, tone) => {
     resolvingRef.current = false;
     if (!mountedRef.current) return;
+    setNoticeTone(tone);
     setNotice(message);
     setBusy(false);
   }, []);
 
-  const openTrackingNumber = useCallback(async (trackingNumber, sourceText) => {
+  const reject = useCallback((message) => settle(message, 'warning'), [settle]);
+
+  const openTrackingNumber = useCallback(async (trackingNumber) => {
     resolvingRef.current = true;
     setBusy(true);
     setNotice('');
@@ -224,84 +257,214 @@ const QrScannerModal = ({ onClose }) => {
         goTo(`/admin/orders/${orderId}`);
         return;
       }
-      reject(sourceText, `No booking found for ${trackingNumber}.`);
+      reject(`No booking found for ${trackingNumber}.`);
     } catch {
-      reject(sourceText, `Could not look up ${trackingNumber}. Check your connection and try again.`);
+      reject(`Could not look up ${trackingNumber}. Check your connection and try again.`);
     }
   }, [goTo, reject]);
 
-  /** Acts on decoded QR text. Returns once the result has been handled. */
-  const handleScan = useCallback(async (text) => {
-    if (resolvingRef.current) return;
-    const last = lastRejectRef.current;
-    if (text === last.text && Date.now() - last.at < REJECT_COOLDOWN_MS) return;
-
-    const payload = parseScanPayload(text);
-    if (payload.kind === 'order') {
-      resolvingRef.current = true;
-      setBusy(true);
-      setNotice('');
-      // Only Out for Delivery orders get the prompt. If the lookup fails, fall
-      // back to the plain order page, which is what this scan did before.
-      const { data: order, error } = await supabase
-        .from('orders')
-        .select('id, status, tracking_number')
-        .eq('id', payload.orderId)
-        .single();
-      if (!mountedRef.current) return;
-      if (!error && order?.status === ORDER_STATUS.OUT_FOR_DELIVERY) {
-        setBusy(false);
-        setDeliveryPrompt({
-          orderId: payload.orderId,
-          box: payload.box,
-          trackingNumber: order.tracking_number,
-        });
-        return;
-      }
-      goTo(orderRouteForScan(payload));
-      return;
-    }
-    if (payload.kind === 'tracking') {
-      await openTrackingNumber(payload.trackingNumber, text);
-      return;
-    }
-    if (payload.kind === 'payment') {
-      reject(text, 'That is a GCash payment QR, not a package label.');
-      return;
-    }
-    reject(text, 'This QR code is not a CargoExpress package label.');
-  }, [goTo, openTrackingNumber, reject]);
-
-  // "Open Delivery" hands off to OrderDetailPage with ?deliver=1, which opens
-  // the existing delivery flow (box verification, proof photos, payment).
-  // Nothing is written as Delivered from here.
-  const openDeliveryFlow = useCallback(() => {
-    if (!deliveryPrompt) return;
-    const { orderId, box, trackingNumber } = deliveryPrompt;
+  // Starts a delivery session on the first box of an Out for Delivery package.
+  // Only the first scan of a package is logged as "initiated", as before.
+  const startSession = useCallback((order) => {
     logActivity({
       module: 'Deliveries',
       action: 'Delivery initiated via QR scan',
       recordType: 'order',
-      recordId: orderId,
-      recordRef: trackingNumber || null,
-      details: `Scanned package ${trackingNumber || orderId}, opening delivery flow.`,
+      recordId: order.id,
+      recordRef: order.tracking_number || null,
+      details: `Scanned package ${order.tracking_number || order.id}, opening delivery flow.`,
     });
-    const params = new URLSearchParams();
-    if (box) params.set('box', String(box));
-    params.set('deliver', '1');
-    goTo(`/admin/orders/${orderId}?${params.toString()}`);
-  }, [deliveryPrompt, goTo]);
+    const next = {
+      orderId: order.id,
+      trackingNumber: order.tracking_number,
+      customerName: orderPartyName(order, 'receiver'),
+      packageQuantity: order.package_quantity || 1,
+      verified: [...(order.verified_boxes || [])],
+    };
+    updateSession(next);
+    return next;
+  }, [updateSession]);
 
-  const viewOrderFromPrompt = useCallback(() => {
-    if (!deliveryPrompt) return;
-    goTo(orderRouteForScan(deliveryPrompt));
-  }, [deliveryPrompt, goTo]);
+  /**
+   * Acts on decoded QR text. Label scans of Out for Delivery packages are
+   * counted against the active delivery session, so the camera stays on one
+   * screen and no page is navigated. Everything else opens the booking as before.
+   */
+  const handleScan = useCallback(async (text) => {
+    if (resolvingRef.current) return;
+    const last = lastScanRef.current;
+    if (text === last.text && Date.now() - last.at < SCAN_COOLDOWN_MS) return;
+    lastScanRef.current = { text, at: Date.now() };
 
-  const dismissDeliveryPrompt = useCallback(() => {
-    setDeliveryPrompt(null);
-    resolvingRef.current = false;
-    lastRejectRef.current = { text: '', at: 0 };
+    const payload = parseScanPayload(text);
+    if (payload.kind === 'payment') {
+      reject('That is a GCash payment QR, not a package label.');
+      return;
+    }
+    if (payload.kind === 'unknown') {
+      reject('This QR code is not a CargoExpress package label.');
+      return;
+    }
+    if (payload.kind === 'tracking' && !sessionRef.current) {
+      await openTrackingNumber(payload.trackingNumber);
+      return;
+    }
+
+    resolvingRef.current = true;
+    setBusy(true);
+    setNotice('');
+    try {
+      const orderId = payload.kind === 'order'
+        ? payload.orderId
+        : await findOrderIdByTrackingNumber(payload.trackingNumber);
+      if (!mountedRef.current) return;
+      if (!orderId) {
+        reject(`No booking found for ${payload.trackingNumber}.`);
+        return;
+      }
+
+      const { data: order, error } = await supabase
+        .from('orders')
+        .select(SCAN_ORDER_COLUMNS)
+        .eq('id', orderId)
+        .single();
+      if (!mountedRef.current) return;
+      if (error || !order) {
+        // No session and the lookup failed: open the plain order page, which is
+        // what a scan did before deliveries had a session.
+        if (!sessionRef.current && payload.kind === 'order') {
+          goTo(orderRouteForScan(payload));
+          return;
+        }
+        reject('Could not look up this package. Check your connection and try again.');
+        return;
+      }
+
+      let active = sessionRef.current;
+      if (!active) {
+        if (order.status !== ORDER_STATUS.OUT_FOR_DELIVERY) {
+          goTo(orderRouteForScan(payload));
+          return;
+        }
+        active = startSession(order);
+      }
+
+      // A different package never resets the session; the admin keeps scanning
+      // the current one.
+      if (order.id !== active.orderId) {
+        const customer = orderPartyName(order, 'receiver') || 'another customer';
+        const message = `Wrong package: ${order.tracking_number} belongs to ${customer}. Still scanning ${active.trackingNumber} (${active.customerName}).`;
+        toast.warning(`Wrong package: ${order.tracking_number} belongs to ${customer}.`);
+        reject(message);
+        return;
+      }
+
+      if (order.status !== ORDER_STATUS.OUT_FOR_DELIVERY) {
+        reject(`This package is no longer Out for Delivery (now "${order.status}").`);
+        return;
+      }
+      if (payload.kind !== 'order') {
+        reject('Scan the QR label on a box to count it. A tracking number does not identify a box.');
+        return;
+      }
+      const box = payload.box;
+      if (!box) {
+        reject('This label has no box number. Scan the label printed on the box itself.');
+        return;
+      }
+      if (box > active.packageQuantity) {
+        reject(`Box ${box} does not belong to this booking. It has ${boxCount(active.packageQuantity)}.`);
+        return;
+      }
+      if (active.verified.includes(box)) {
+        reject(`Box ${box} of ${active.packageQuantity} is already scanned for ${active.trackingNumber}. Scan the next box.`);
+        return;
+      }
+
+      // Each box is recorded on its own. The RPC is idempotent and returns the
+      // full verified set, which becomes the session's source of truth.
+      const verifiedBoxes = await recordBoxVerification(order.id, box);
+      if (!mountedRef.current) return;
+      const next = {
+        ...active,
+        verified: Array.isArray(verifiedBoxes) ? verifiedBoxes : [...active.verified, box],
+      };
+      updateSession(next);
+      logActivity({
+        module: 'Deliveries',
+        action: 'Package box verified via QR scan',
+        recordType: 'order',
+        recordId: order.id,
+        recordRef: order.tracking_number || null,
+        details: `Box ${box} of ${active.packageQuantity} verified.`,
+      });
+
+      const remaining = missingBoxes(next);
+      settle(
+        remaining.length
+          ? `Box ${box} verified. ${boxCount(remaining.length)} left.`
+          : 'All boxes scanned. Proceed to proof of delivery.',
+        'success',
+      );
+    } catch (error) {
+      if (!mountedRef.current) return;
+      reject(error?.message || 'Could not verify this box. Check your connection and try again.');
+    }
+  }, [goTo, openTrackingNumber, reject, settle, startSession, toast, updateSession]);
+
+  // Opens proof of delivery for a complete session. The order is re-read first,
+  // so the boxes checked here are the ones the server has recorded.
+  const openPod = async () => {
+    const active = sessionRef.current;
+    if (!active || busy) return;
+    resolvingRef.current = true;
+    setBusy(true);
+    setNotice('');
+    try {
+      const full = await getOrderById(active.orderId);
+      if (!mountedRef.current) return;
+      const next = { ...active, verified: [...(full.verified_boxes || [])] };
+      updateSession(next);
+      const remaining = missingBoxes(next);
+      if (remaining.length > 0) {
+        reject(`Scan the remaining boxes first: ${remaining.map((box) => `Box ${box}`).join(', ')}.`);
+        return;
+      }
+      if (full.status !== ORDER_STATUS.OUT_FOR_DELIVERY) {
+        reject(`This package is no longer Out for Delivery (now "${full.status}").`);
+        return;
+      }
+      setPodOrder(full);
+      setPodOpen(true);
+      settle('', 'success');
+    } catch {
+      reject('Could not load this booking for proof of delivery. Check your connection and try again.');
+    }
+  };
+
+  const closePod = useCallback(() => {
+    setPodOpen(false);
+    setPodOrder(null);
   }, []);
+
+  // Saves the proof of delivery with the same RPC the order page uses, then
+  // clears the session. Closing the POD clears the session, so the scanner
+  // is ready for the next parcel without a page change.
+  const handleDeliverySubmit = async (payload) => {
+    if (!podOrder) return;
+    await recordDeliveryPayment(podOrder.id, payload);
+    logOrder('Delivery Proof Uploaded', podOrder.id, podOrder.tracking_number, {
+      details: `Delivery processed. Photos uploaded: ${payload.delivery_photos.length}`,
+    });
+    toast.success(`Delivered ${podOrder.tracking_number}. Scan the next parcel.`);
+    lastScanRef.current = { text: '', at: 0 };
+    resolvingRef.current = false;
+    setBusy(false);
+    setNotice('');
+    setPodOpen(false);
+    setPodOrder(null);
+    updateSession(null);
+  };
 
   // The decode loop reads the latest handler through a ref, so a new parent
   // render (e.g. an unread-count update in the topbar) never restarts the
@@ -320,7 +483,9 @@ const QrScannerModal = ({ onClose }) => {
 
   // ── Live camera + decode loop ────────────────────────────────────────────
   useEffect(() => {
-    if (pageHidden) return undefined;
+    // Off while the proof of delivery is open: its photos and payment do not
+    // need the camera, and the stream is released until the POD closes.
+    if (pageHidden || podOpen) return undefined;
 
     let cancelled = false;
     let stream = null;
@@ -445,16 +610,18 @@ const QrScannerModal = ({ onClose }) => {
         video.srcObject = null;
       }
     };
-  }, [attempt, pageHidden, getDecoder]);
+  }, [attempt, pageHidden, podOpen, getDecoder]);
 
   // ── Escape closes ────────────────────────────────────────────────────────
+  // While the POD is open, Escape belongs to DeliveryModal (it cancels the
+  // POD and keeps the session).
   useEffect(() => {
     const onKeyDown = (e) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape' && !podOpen) onClose();
     };
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
-  }, [onClose]);
+  }, [onClose, podOpen]);
 
   const handlePhoto = async (event) => {
     const file = event.target.files && event.target.files[0];
@@ -481,15 +648,15 @@ const QrScannerModal = ({ onClose }) => {
     if (!mountedRef.current) return;
     setBusy(false);
     if (unreadable) {
-      setNotice('That photo could not be read. Try another one.');
+      reject('That photo could not be read. Try another one.');
       return;
     }
     if (!text) {
-      setNotice('No QR code found in that photo. Try again with the label filling more of the picture.');
+      reject('No QR code found in that photo. Try again with the label filling more of the picture.');
       return;
     }
     // A photo is a deliberate choice, so its result is never cooled down.
-    lastRejectRef.current = { text: '', at: 0 };
+    lastScanRef.current = { text: '', at: 0 };
     await handleScan(text);
   };
 
@@ -502,13 +669,25 @@ const QrScannerModal = ({ onClose }) => {
       return;
     }
     setManualError('');
-    lastRejectRef.current = { text: '', at: 0 };
-    openTrackingNumber(trackingNumber, trackingNumber);
+    lastScanRef.current = { text: '', at: 0 };
+    handleScan(trackingNumber);
   };
 
   const handleOverlayClick = (e) => {
     if (e.target === e.currentTarget) onClose();
   };
+
+  // The proof of delivery replaces the camera view in place. Its own overlay
+  // sits above this one, and the session is untouched until it is saved.
+  if (podOpen && podOrder) {
+    return (
+      <DeliveryModal order={podOrder} onClose={closePod} onSave={handleDeliverySubmit} />
+    );
+  }
+
+  const boxes = session ? boxNumbersFor(session.packageQuantity) : [];
+  const remaining = session ? missingBoxes(session) : [];
+  const verifiedCount = boxes.length - remaining.length;
 
   // Portalled to <body> for the same reason ConfirmModal is: the admin page
   // sits inside a transformed <PageTransition>, which would trap a fixed
@@ -528,7 +707,9 @@ const QrScannerModal = ({ onClose }) => {
             <div className="qr-scanner-heading">
               <h2 id={titleId} className="qr-scanner-title">Scan package QR</h2>
               <p id={descriptionId} className="qr-scanner-subtitle">
-                Point the camera at the QR label on a box.
+                {session
+                  ? 'Keep the camera on each box label in turn. No need to tap between boxes.'
+                  : 'Point the camera at the QR label on a box.'}
               </p>
             </div>
             <button
@@ -542,32 +723,42 @@ const QrScannerModal = ({ onClose }) => {
             </button>
           </div>
 
-          {deliveryPrompt && (
-            <div className="qr-scanner-delivery" role="alertdialog" aria-labelledby={`${titleId}-delivery`}>
-              <PackageCheck size={40} color="var(--primary)" aria-hidden="true" />
-              <h3 id={`${titleId}-delivery`} className="qr-scanner-delivery-title">Deliver this package?</h3>
-              <p className="qr-scanner-delivery-tracking">
-                <span className="qr-scanner-delivery-label">Tracking</span>
-                <strong className="report-mono">{deliveryPrompt.trackingNumber || '—'}</strong>
-              </p>
-              <div className="qr-scanner-delivery-actions">
-                <button type="button" className="btn btn-primary" onClick={openDeliveryFlow}>
-                  Open Delivery
-                </button>
-                <button type="button" className="btn btn-ghost" onClick={viewOrderFromPrompt}>
-                  View Order
-                </button>
+          {session && (
+            <section className="qr-scanner-session" aria-label="Active delivery">
+              <div className="qr-scanner-session-head">
+                <div className="qr-scanner-session-who">
+                  <span className="qr-scanner-session-label">Delivering to</span>
+                  <strong className="qr-scanner-session-name">{session.customerName || 'Receiver'}</strong>
+                  <span className="report-mono qr-scanner-session-tracking">{session.trackingNumber}</span>
+                </div>
+                <span className="qr-scanner-session-count">
+                  {verifiedCount} / {boxes.length} Boxes Scanned
+                </span>
               </div>
-              <button type="button" className="btn btn-ghost btn-sm qr-scanner-delivery-dismiss" onClick={dismissDeliveryPrompt}>
-                Scan another
-              </button>
-            </div>
+              <div
+                className="qr-scanner-session-bar"
+                role="progressbar"
+                aria-label="Boxes scanned"
+                aria-valuemin={0}
+                aria-valuemax={boxes.length}
+                aria-valuenow={verifiedCount}
+              >
+                <span style={{ width: `${(verifiedCount / boxes.length) * 100}%` }} />
+              </div>
+              <ul className="qr-scanner-session-boxes" aria-label="Box checklist">
+                {boxes.map((box) => {
+                  const done = session.verified.includes(box);
+                  return (
+                    <li key={box} className={`qr-scanner-session-box${done ? ' is-done' : ''}`}>
+                      {done ? '✓ ' : ''}Box {box}
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
           )}
 
-          <div
-            className="qr-scanner-viewfinder"
-            style={deliveryPrompt ? { display: 'none' } : undefined}
-          >
+          <div className="qr-scanner-viewfinder">
             <div className="qr-scanner-viewfinder-inner">
               <video
                 ref={videoRef}
@@ -592,7 +783,7 @@ const QrScannerModal = ({ onClose }) => {
                 <div className="qr-scanner-state">
                   <Loader size={28} className="animate-spin" aria-hidden="true" />
                   <span className="qr-scanner-state-text">
-                    {busy ? 'Opening booking…' : 'Starting camera…'}
+                    {busy ? (session ? 'Verifying box…' : 'Opening booking…') : 'Starting camera…'}
                   </span>
                 </div>
               )}
@@ -617,11 +808,24 @@ const QrScannerModal = ({ onClose }) => {
             </div>
           </div>
 
-          <p className="qr-scanner-notice" role="status" aria-live="polite">
+          <p className={`qr-scanner-notice qr-scanner-notice-${noticeTone}`} role="status" aria-live="polite">
             {notice}
           </p>
 
-          <div className="qr-scanner-actions" style={deliveryPrompt ? { display: 'none' } : undefined}>
+          <div className="qr-scanner-actions">
+            {session && (
+              <button
+                type="button"
+                className="btn btn-primary qr-scanner-pod-btn"
+                onClick={openPod}
+                disabled={busy || remaining.length > 0}
+              >
+                <PackageCheck size={17} aria-hidden="true" />
+                {remaining.length > 0
+                  ? `Scan ${boxCount(remaining.length)} more to continue`
+                  : 'Proceed to POD'}
+              </button>
+            )}
             <button
               type="button"
               className="btn btn-outline qr-scanner-photo-btn"
@@ -643,7 +847,7 @@ const QrScannerModal = ({ onClose }) => {
             />
           </div>
 
-          <form className="qr-scanner-manual" onSubmit={handleManualSubmit} noValidate style={deliveryPrompt ? { display: 'none' } : undefined}>
+          <form className="qr-scanner-manual" onSubmit={handleManualSubmit} noValidate>
             <label htmlFor={manualInputId} className="qr-scanner-manual-label">
               Or enter a tracking number
             </label>

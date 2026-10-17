@@ -338,48 +338,100 @@
   .qr-scanner-header { margin-bottom: 8px; }
 }
 
-/* Out for Delivery prompt: shown in place of the camera after a package
-   label scan (QrScannerModal deliveryPrompt). */
-.qr-scanner-delivery {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-  padding: 24px 16px;
-  text-align: center;
+/* ── Delivery session: the active package, its progress and box checklist.
+   Sits above the viewfinder while the camera keeps scanning. ── */
+.qr-scanner-session {
+  box-sizing: border-box;
+  margin: 0 0 12px;
+  padding: 12px;
   border: 1.5px solid var(--border);
   border-radius: var(--radius-md);
   background: var(--surface);
+  text-align: left;
 }
 
-.qr-scanner-delivery-title {
-  margin: 0;
-  font-size: var(--text-18);
-  font-weight: 700;
+.qr-scanner-session-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
 }
 
-.qr-scanner-delivery-tracking {
+.qr-scanner-session-who {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  margin: 0;
+  min-width: 0;
 }
 
-.qr-scanner-delivery-label {
+.qr-scanner-session-label {
   font-size: var(--text-12);
   color: var(--text-tertiary);
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
 
-.qr-scanner-delivery-actions {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 8px;
-  width: 100%;
+.qr-scanner-session-name {
+  font-size: var(--text-16);
+  font-weight: 700;
+  overflow-wrap: break-word;
 }
 
-.qr-scanner-delivery-dismiss {
+.qr-scanner-session-tracking {
+  font-size: var(--text-12);
+  color: var(--text-secondary);
+}
+
+.qr-scanner-session-count {
   margin-top: 4px;
+  font-size: var(--text-13);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.qr-scanner-session-bar {
+  height: 6px;
+  margin-top: 10px;
+  overflow: hidden;
+  border-radius: 3px;
+  background: var(--bg-secondary);
+}
+
+.qr-scanner-session-bar > span {
+  display: block;
+  height: 100%;
+  background: var(--success);
+  transition: width 200ms ease;
+}
+
+.qr-scanner-session-boxes {
+  display: flex;
+  flex-wrap: wrap;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.qr-scanner-session-box {
+  margin: 0 6px 6px 0;
+  padding: 4px 10px;
+  font-size: var(--text-12);
+  font-weight: 600;
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+}
+
+.qr-scanner-session-box.is-done {
+  color: var(--success-text);
+  border-color: var(--success);
+  background: var(--success-bg);
+}
+
+.qr-scanner-pod-btn {
+  width: 100%;
+  margin-bottom: 10px;
+}
+
+.qr-scanner-notice-success {
+  color: var(--success-text);
 }

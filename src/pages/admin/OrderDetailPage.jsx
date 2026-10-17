@@ -203,7 +203,7 @@ const AdminOrderDetailPage = () => {
    * authorizes. Same-window navigation is used everywhere — browser, desktop
    * and installed PWA alike — so this is where the payment gets reconciled.
    */
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
 
   // Set when this page was reached by scanning a package QR label
   // (?box=<n> — see PackageQrLabels.jsx). Those links point straight at this
@@ -511,31 +511,9 @@ const AdminOrderDetailPage = () => {
     await updateOrder(id, pickupData);
   };
 
-  // Arrived from the scanner's "Open Delivery" (?deliver=1). Runs the same
-  // handleStatusAdvance() the Delivered button uses, so box verification,
-  // proof photos and payment are still required. Waits for the scanned box to
-  // be verified first, or the box check would reject the open.
-  const deliverRequestedRef = useRef(false);
-  useEffect(() => {
-    if (searchParams.get('deliver') !== '1' || deliverRequestedRef.current || !order) return;
-    const boxPending = scannedBox !== null
-      && order.status === ORDER_STATUS.OUT_FOR_DELIVERY
-      && !(order.verified_boxes || []).includes(scannedBox);
-    if (boxPending) return;
-    deliverRequestedRef.current = true;
-    // Drop only the deliver flag; ?box stays so the box banner still shows.
-    setSearchParams(prev => {
-      const next = new URLSearchParams(prev);
-      next.delete('deliver');
-      return next;
-    }, { replace: true });
-    if (order.status === ORDER_STATUS.OUT_FOR_DELIVERY) {
-      void handleStatusAdvance();
-    } else {
-      toast.error(`This package is no longer Out for Delivery (now "${order.status}").`);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [order, scannedBox, searchParams]);
+  // Delivery from a package label runs in the scanner's delivery session
+  // (QrScannerModal), so this page no longer auto-opens delivery from a
+  // ?deliver flag. The Delivered button still goes through handleStatusAdvance().
 
   const handleDeliverySave = async (deliveryData) => {
     try {
