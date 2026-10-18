@@ -22,6 +22,7 @@ import AdditionalPaymentModal from '../../components/ui/AdditionalPaymentModal';
 import RefundPaymentModal from '../../components/ui/RefundPaymentModal';
 import ManualRefundModal from '../../components/ui/ManualRefundModal';
 import DeliveryModal from '../../components/ui/DeliveryModal';
+import QrScannerModal from '../../components/ui/QrScannerModal';
 import ConfirmModal from '../../components/ui/ConfirmModal';
 import PaymentResultModal from '../../components/ui/PaymentResultModal';
 import ImageLightbox from '../../components/ui/ImageLightbox';
@@ -143,6 +144,7 @@ const AdminOrderDetailPage = () => {
   const [activityCollapsed, setActivityCollapsed] = useState(true);
 
   const [showDeliveryModal, setShowDeliveryModal] = useState(false);
+  const [showScannerModal, setShowScannerModal] = useState(false);
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [showDeclineCancelModal, setShowDeclineCancelModal] = useState(false);
   const [showApproveCancellationModal, setShowApproveCancellationModal] = useState(false);
@@ -453,6 +455,7 @@ const AdminOrderDetailPage = () => {
         .filter((box) => !verifiedBoxes.includes(box));
       if (unverifiedBoxes.length > 0) {
         toast.error(`Scan the QR code on every box before delivering. Not yet verified: Box ${unverifiedBoxes.join(', ')}.`);
+        setShowScannerModal(true);
         return;
       }
       setShowDeliveryModal(true);
@@ -462,11 +465,13 @@ const AdminOrderDetailPage = () => {
     if (!validation.valid) { toast.error(validation.error); return; }
     setSaving(true);
     try {
-      // No createNotification() anywhere in this file on purpose: the
-      // orders_notify_customer_of_change trigger writes the customer's
-      // notification inside the same transaction as the order write, so it
-      // survives a closed tab or a dropped connection between two round trips.
-      await updateOrder(id, { status: next });
+      const updates = { status: next };
+      // When dispatching to Out for Delivery, reset verified_boxes so that
+      // all boxes must be scanned at the customer's doorstep before marking as Delivered.
+      if (next === ORDER_STATUS.OUT_FOR_DELIVERY) {
+        updates.verified_boxes = [];
+      }
+      await updateOrder(id, updates);
       logOrder(`Status Changed to ${next}`, id, order.tracking_number, { previousValue: { status: order.status }, newValue: { status: next }, details: `Status advanced from ${order.status} to ${next}` });
       await loadOrder();
       toast.success(`Status updated to "${next}"`);
@@ -995,11 +1000,53 @@ const AdminOrderDetailPage = () => {
         </div>
       )}
 
-      {(order.status === ORDER_STATUS.PICKED_UP || order.status === ORDER_STATUS.OUT_FOR_DELIVERY) && (
+      {order.status === ORDER_STATUS.PICKED_UP && (
         <div className="text-sm mb-16" role="status">
-          <strong>Boxes verified:</strong>{' '}
+          <strong>Boxes verified for trip loading:</strong>{' '}
           {(order.verified_boxes || []).length} of {order.package_quantity || 1}
-          {' '}— every box QR code must be scanned before the trip starts.
+          {' '}— every box QR code must be scanned before departure.
+        </div>
+      )}
+
+      {order.status === ORDER_STATUS.OUT_FOR_DELIVERY && (
+        <div className="alert-banner alert-banner-info mb-16 flex items-center justify-between flex-wrap gap-12" role="status">
+          <div>
+            <div className="fw-700 mb-4 flex items-center gap-6">
+              <Camera size={16} /> Doorstep Delivery Handover Scan
+            </div>
+            <div className="text-sm">
+              <strong>{(order.verified_boxes || []).length} of {order.package_quantity || 1}</strong> boxes scanned for delivery.
+              {' '}Scan each physical box with the customer using the scanner before completing delivery.
+            </div>
+          </div>
+          <div className="flex items-center gap-8">
+            <button
+              type="button"
+              className="btn btn-primary btn-sm"
+              onClick={() => setShowScannerModal(true)}
+            >
+              <Camera size={14} className="inline mr-6" /> Open Scanner to Deliver
+            </button>
+            {(order.verified_boxes || []).length > 0 && (
+              <button
+                type="button"
+                className="btn btn-outline btn-sm text-xs"
+                title="Reset delivery checklist to scan all boxes again"
+                onClick={async () => {
+                  try {
+                    await updateOrder(order.id, { verified_boxes: [] });
+                    await loadOrder(true, { silent: true });
+                    toast.success('Checklist reset. You can now scan each box fresh.');
+                    setShowScannerModal(true);
+                  } catch (e) {
+                    toast.error(e.message || 'Failed to reset scan.');
+                  }
+                }}
+              >
+                <RotateCcw size={12} className="inline mr-4" /> Reset Scan
+              </button>
+            )}
+          </div>
         </div>
       )}
 
@@ -1859,6 +1906,14 @@ const AdminOrderDetailPage = () => {
       )}
       {showDeliveryModal && (
         <DeliveryModal order={order} onClose={() => setShowDeliveryModal(false)} onSave={handleDeliverySave} />
+      )}
+      {showScannerModal && (
+        <QrScannerModal
+          onClose={() => {
+            setShowScannerModal(false);
+            void loadOrder(true, { silent: true });
+          }}
+        />
       )}
       {showCancelConfirm && (
         <ReasonModal
