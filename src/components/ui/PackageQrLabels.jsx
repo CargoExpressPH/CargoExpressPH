@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import QRCode from 'react-qr-code';
-import { Minus, Plus, Printer, QrCode } from 'lucide-react';
+import { Minus, Plus, Printer, QrCode, CheckCircle, AlertCircle } from 'lucide-react';
 import { updateOrder } from '../../lib/database';
 import { logOrder } from '../../lib/activityLog';
 import { useToast } from '../../hooks/useToast';
@@ -65,9 +65,13 @@ const PackageQrLabels = ({ order, onOrderUpdate }) => {
       const previous = savedCountRef.current;
       setSaving(true);
       try {
-        await updateOrder(order.id, { package_quantity: next });
+        const filteredVerified = (order.verified_boxes || []).filter(b => b <= next);
+        await updateOrder(order.id, {
+          package_quantity: next,
+          verified_boxes: filteredVerified,
+        });
         savedCountRef.current = next;
-        onOrderUpdate?.({ package_quantity: next });
+        onOrderUpdate?.({ package_quantity: next, verified_boxes: filteredVerified });
         logOrder('Package Count Updated', order.id, order.tracking_number, {
           previousValue: { package_quantity: previous },
           newValue: { package_quantity: next },
@@ -100,7 +104,7 @@ const PackageQrLabels = ({ order, onOrderUpdate }) => {
   };
 
   return (
-    <div className="card admin-section-card stagger-item mb-16" style={{ animationDelay: '330ms' }}>
+    <div id="package-qr-section" className="card admin-section-card stagger-item mb-16" style={{ animationDelay: '330ms' }}>
       <div className="card-header">
         <h3><QrCode size={16} className="inline mr-8" />Package QR Labels</h3>
       </div>
@@ -142,14 +146,34 @@ const PackageQrLabels = ({ order, onOrderUpdate }) => {
         </div>
 
         <div className="qr-label-preview-grid">
-          {labels.map(label => (
-            <div className="qr-label-preview" key={label.box}>
-              <QRCode value={label.url} size={112} style={{ height: 'auto', maxWidth: '100%', width: '100%' }} viewBox="0 0 112 112" />
-              <div className="qr-label-preview-caption">Box {label.box} of {label.total}</div>
-              <div className="qr-label-preview-tracking" style={{ fontSize: '11px', textTransform: 'uppercase', marginTop: '4px' }}>{label.receiverName}</div>
-            </div>
-          ))}
+          {labels.map(label => {
+            const isVerified = (order.verified_boxes || []).includes(label.box);
+            return (
+              <div className="qr-label-preview" key={label.box} style={{ position: 'relative' }}>
+                <QRCode value={label.url} size={112} style={{ height: 'auto', maxWidth: '100%', width: '100%' }} viewBox="0 0 112 112" />
+                <div className="qr-label-preview-caption">Box {label.box} of {label.total}</div>
+                <div className="qr-label-preview-tracking" style={{ fontSize: '11px', textTransform: 'uppercase', marginTop: '4px' }}>{label.receiverName}</div>
+                <div style={{ marginTop: 6 }}>
+                  {isVerified ? (
+                    <span className="badge badge-success text-xs" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                      <CheckCircle size={11} /> Scanned
+                    </span>
+                  ) : (
+                    <span className="badge badge-warning text-xs" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                      <AlertCircle size={11} /> Unscanned
+                    </span>
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </div>
+
+        {!locked && (
+          <div className="text-xs text-secondary mt-16 pt-12" style={{ borderTop: '1px dashed var(--border)' }}>
+            💡 <strong>Box count adjustment:</strong> If the customer brought more or fewer boxes than originally booked, adjust the count above using <strong>-</strong> or <strong>+</strong> before the trip starts. Print and attach individual QR stickers to every box.
+          </div>
+        )}
       </div>
 
       <PrintLabelsSheet trackingNumber={order.tracking_number} labels={labels} />

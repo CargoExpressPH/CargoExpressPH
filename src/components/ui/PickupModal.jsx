@@ -48,6 +48,7 @@ const PickupModal = ({ order, onClose, onSave, onPreparePayment, pricePerKilo = 
 
   const [form, setForm] = useState({
     actual_weight: order?.actual_weight || '',
+    package_quantity: order?.package_quantity || 1,
     payer_type: order?.payer_type || 'sender',
   });
 
@@ -175,6 +176,7 @@ const PickupModal = ({ order, onClose, onSave, onPreparePayment, pricePerKilo = 
       if (hasRecordedPayment || !onPreparePayment) return;
       await onPreparePayment({
         actual_weight: parseFloat(form.actual_weight),
+        package_quantity: parseInt(form.package_quantity, 10) || 1,
         payer_type: form.payer_type,
         discount_amount: discount.enabled ? discountAmountValue : 0,
         discount_reason: discount.enabled ? discount.reason : null,
@@ -244,15 +246,16 @@ const PickupModal = ({ order, onClose, onSave, onPreparePayment, pricePerKilo = 
     setError('');
     setPayment(p => ({ ...p, shortfallBlocked: false }));
 
-    // Every rule is evaluated before anything is reported, so a submit that is
-    // wrong in three places says so once. The old sequence returned on the
-    // first failure, which walked the admin through the same modal three times.
+    const parsedQty = parseInt(form.package_quantity, 10);
     const rules = {
       actual_weight: (!form.actual_weight || parseFloat(form.actual_weight) <= 0)
         ? 'Enter the weight from the scale. The price is computed from it, so the parcel cannot be priced without it.'
         : capacityExceeded
           ? tripCapacityRefusal(order.trips, tripLoad, incomingWeight)
           : null,
+      package_quantity: (!Number.isInteger(parsedQty) || parsedQty < 1 || parsedQty > 50)
+        ? 'Enter the confirmed number of packages/boxes (between 1 and 50).'
+        : null,
       pickup_photos: photos.length === 0
         ? 'Attach at least 1 photo of the parcel as pickup proof.'
         : null,
@@ -323,6 +326,7 @@ const PickupModal = ({ order, onClose, onSave, onPreparePayment, pricePerKilo = 
       // record_pickup_payment lets the trigger derive them.
       const payload = {
         actual_weight: parseFloat(form.actual_weight),
+        package_quantity: parsedQty || 1,
         payer_type: form.payer_type,
         pickup_photos: photoUrls,
         // Freight Collect — nothing is collected at pickup. The order leaves
@@ -440,6 +444,34 @@ const PickupModal = ({ order, onClose, onSave, onPreparePayment, pricePerKilo = 
                 {' '}({tripCapacityRefusal(order.trips, tripLoad, incomingWeight)})
               </div>
             )}
+          </div>
+
+          {/* Actual Package Quantity / Box Count */}
+          <div className="form-group">
+            <label className="form-label" htmlFor="pickup-package-quantity">
+              <Package size={14} className="inline mr-6" />
+              Actual Package / Box Count *
+            </label>
+            <input
+              id="pickup-package-quantity"
+              type="number"
+              min="1"
+              max="50"
+              className={`form-input ${invalidClass('package_quantity', errors)}`}
+              placeholder="e.g. 1"
+              value={form.package_quantity}
+              disabled={hasRecordedPayment}
+              onChange={e => {
+                const val = e.target.value === '' ? '' : parseInt(e.target.value, 10);
+                setForm(p => ({ ...p, package_quantity: val }));
+                clearError('package_quantity');
+              }}
+              {...fieldAttrs('package_quantity', errors)}
+            />
+            <FieldError name="package_quantity" errors={errors} />
+            <div className="text-xs text-secondary mt-4">
+              Confirmed physical count of boxes/baggage received. Each box will require an individual QR label before trip departure.
+            </div>
           </div>
 
           {/* ── Shipping discount — OFF by default; admin-only, fixed peso ── */}

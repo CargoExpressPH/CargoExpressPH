@@ -480,6 +480,9 @@ const AdminOrderDetailPage = () => {
       // never writes amount_paid/payment_status — update_order_payment_totals
       // derives them from the ledger. See P0-1 in the architecture review.
       await recordPickupPayment(id, pickupData);
+      if (pickupData.package_quantity) {
+        await updateOrder(id, { package_quantity: pickupData.package_quantity });
+      }
 
       // pickupData.payment is null when a PayMongo QR is still pending — the
       // webhook records that payment into the ledger, not this save.
@@ -495,11 +498,17 @@ const AdminOrderDetailPage = () => {
       const discountNote = pickupData.discount_amount > 0
         ? ` Discount: ₱${pickupData.discount_amount} (${pickupData.discount_reason}).`
         : '';
-      logOrder('Pickup Processed', id, order.tracking_number, { details: `Pickup processed. Weight: ${pickupData.actual_weight}kg, Payment: ${pickupData.payment_method}, Amount: ${collected}.${discountNote}` });
+      const qtyNote = pickupData.package_quantity
+        ? ` Quantity: ${pickupData.package_quantity} box(es).`
+        : '';
+      logOrder('Pickup Processed', id, order.tracking_number, { details: `Pickup processed. Weight: ${pickupData.actual_weight}kg,${qtyNote} Payment: ${pickupData.payment_method}, Amount: ${collected}.${discountNote}` });
 
       setShowPickupModal(false);
       await loadOrder();
-      toast.success('Pickup processed successfully!');
+      toast.success(`Pickup processed! ${pickupData.package_quantity || 1} box(es) recorded. Please print and attach QR labels.`);
+      setTimeout(() => {
+        document.getElementById('package-qr-section')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 350);
     } catch (e) { throw e; }
   };
 

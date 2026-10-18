@@ -277,6 +277,11 @@ const TripDetailPage = () => {
     const verified = o.verified_boxes || [];
     return Array.from({ length: o.package_quantity || 1 }, (_, i) => i + 1).some(b => !verified.includes(b));
   });
+  const totalTripBoxes = eligibleOrders.reduce((sum, o) => sum + (o.package_quantity || 1), 0);
+  const totalScannedBoxes = eligibleOrders.reduce((sum, o) => {
+    const qty = o.package_quantity || 1;
+    return sum + (o.verified_boxes || []).filter(b => b <= qty).length;
+  }, 0);
   const startGate = data.start_gate;
 
   const startTripBlockReason =
@@ -433,7 +438,22 @@ const TripDetailPage = () => {
 
       {/* Orders */}
       <div className="card admin-section-card admin-table-card stagger-item" style={{ animationDelay: '180ms' }}>
-        <div className="card-header"><h3>Assigned Orders ({orders.length})</h3></div>
+        <div className="card-header flex items-center justify-between flex-wrap gap-8">
+          <h3>Assigned Orders ({orders.length})</h3>
+          {eligibleOrders.length > 0 && (
+            <span className="text-xs text-secondary">
+              Manifest: <strong>{totalScannedBoxes}</strong> of <strong>{totalTripBoxes}</strong> boxes scanned {totalScannedBoxes === totalTripBoxes ? '✓' : ''}
+            </span>
+          )}
+        </div>
+        {unscannedBoxOrders.length > 0 && trip.status === 'scheduled' && (
+          <div className="alert-banner alert-banner-warning" role="alert" style={{ margin: '12px 16px 0 16px' }}>
+            <AlertTriangle size={16} aria-hidden="true" />
+            <div>
+              <strong>Unscanned Cargo Alert:</strong> {unscannedBoxOrders.length} booking{unscannedBoxOrders.length === 1 ? '' : 's'} ({unscannedBoxOrders.slice(0, 3).map(o => o.tracking_number).join(', ')}{unscannedBoxOrders.length > 3 ? '…' : ''}) have unverified boxes. Scan every physical QR label before starting the trip.
+            </div>
+          </div>
+        )}
         <div className="table-container">
           {orders.length === 0 ? (
             <EmptyState
@@ -449,6 +469,7 @@ const TripDetailPage = () => {
                   <th scope="col">Customer</th>
                   <th scope="col">Route</th>
                   <th scope="col">Weight</th>
+                  <th scope="col">Boxes</th>
                   <th scope="col">Cost</th>
                   <th scope="col">Status</th>
                   <th scope="col"><span className="sr-only">Message</span></th>
@@ -467,6 +488,34 @@ const TripDetailPage = () => {
                       {[o.receiver_city, o.receiver_province].filter(Boolean).join(', ') || '—'}
                     </td>
                     <td data-label="Weight">{o.actual_weight ? `${o.actual_weight} kg` : '—'}</td>
+                    <td data-label="Boxes">
+                      {(() => {
+                        const qty = o.package_quantity || 1;
+                        const verified = (o.verified_boxes || []).filter(b => b <= qty);
+                        const isEligible = !['Cancelled', 'Pending Cancellation', 'Pending', 'Assigned'].includes(o.status);
+                        if (!isEligible) {
+                          return <span className="text-secondary text-xs">{qty} box{qty > 1 ? 'es' : ''}</span>;
+                        }
+                        const allScanned = verified.length === qty;
+                        return (
+                          <span
+                            className={`badge ${allScanned ? 'badge-success' : 'badge-warning'} text-xs`}
+                            title={allScanned ? `All ${qty} boxes scanned` : `${verified.length} of ${qty} boxes scanned`}
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                          >
+                            {allScanned ? (
+                              <>
+                                <CheckCircle size={11} aria-hidden="true" /> {qty}/{qty}
+                              </>
+                            ) : (
+                              <>
+                                <AlertTriangle size={11} aria-hidden="true" /> {verified.length}/{qty}
+                              </>
+                            )}
+                          </span>
+                        );
+                      })()}
+                    </td>
                     <td data-label="Cost" className="fw-600">{isOrderPriced(o) ? formatMoney(parseFloat(o.shipping_cost || 0)) : '—'}</td>
                     <td data-label="Status">
                       <StatusBadge status={o.status} size="sm" />
