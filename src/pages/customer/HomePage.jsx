@@ -495,7 +495,11 @@ const HomePage = () => {
                   </div>
                   <div className="customer-list-card-footer flex items-center justify-between gap-8 flex-wrap">
                     <span className="inline-flex items-center gap-6 text-sm">To: {orderPartyName(order, 'receiver') || 'Receiver'}</span>
-                    <span className="flex items-center gap-6">
+                    <span className="flex items-center gap-6 flex-wrap">
+                      <span className="chip chip-secondary inline-flex items-center gap-4">
+                        <Package size={12} aria-hidden="true" />
+                        {order.package_quantity || 1} {(order.package_quantity || 1) === 1 ? 'box' : 'boxes'}
+                      </span>
                       {order.actual_weight && <span className="chip chip-info inline-flex items-center gap-4"><Weight size={12} aria-hidden="true" />{order.actual_weight}kg</span>}
                       <span className="chip chip-success">{isOrderPriced(order) ? formatMoney(parseFloat(order.shipping_cost || 0)) : 'Priced at pickup'}</span>
                     </span>

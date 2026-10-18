@@ -848,10 +848,16 @@ const TrackingPage = ({ embedded = false }) => {
                     <p className="trk-detail-value">{order.package_description || 'No description'}</p>
                     {/* A booking has no weight until it is put on the scale at
                         pickup — say so instead of showing "— kg". */}
-                    <p className="trk-detail-meta">
-                      <Weight size={12} aria-hidden="true" />
-                      {order.actual_weight ? `${order.actual_weight} kg` : isCancelled ? 'Not weighed' : 'Weighed at pickup'}
-                    </p>
+                    <div className="trk-detail-meta" style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                      <span className="inline-flex items-center gap-4">
+                        <Package size={12} aria-hidden="true" />
+                        {order.package_quantity || 1} {(order.package_quantity || 1) === 1 ? 'box / item' : 'boxes / items'}
+                      </span>
+                      <span className="inline-flex items-center gap-4">
+                        <Weight size={12} aria-hidden="true" />
+                        {order.actual_weight ? `${order.actual_weight} kg` : isCancelled ? 'Not weighed' : 'Weighed at pickup'}
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>

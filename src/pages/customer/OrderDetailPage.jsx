@@ -24,7 +24,7 @@ import ResolvedPhotoLink from '../../components/ui/ResolvedPhotoLink';
 import { CenteredSpinner } from '../../components/ui/Loader';
 import AmountInput from '../../components/ui/AmountInput';
 import CancellationSettlementSummary from '../../components/ui/CancellationSettlementSummary';
-import { ArrowLeft, MapPin, User, Phone, Package, CreditCard, Truck, Camera, Image, XCircle, Loader, AlertTriangle, Check } from 'lucide-react';
+import { ArrowLeft, MapPin, User, Phone, Package, CreditCard, Truck, Camera, Image, XCircle, Loader, AlertTriangle, Check, Info } from 'lucide-react';
 import { useToast } from '../../hooks/useToast';
 import usePageTitle from '../../hooks/usePageTitle';
 import { formatPhDate, formatPhDateTime, formatPhTime } from '../../utils/datetime';
@@ -749,10 +749,14 @@ const OrderDetailPage = () => {
               <ShareButton trackingNumber={order.tracking_number} />
             </span>
           </div>
-          <div className="flex items-center gap-8 mt-4 text-sm">
+          <div className="flex items-center gap-8 mt-4 text-sm flex-wrap">
             <span className="fw-700" style={{ color: 'var(--text)' }}>{order.origin}</span>
             <span className="fw-700" style={{ color: 'var(--primary-text)' }}>➔</span>
             <span className="fw-700 text-secondary">{order.destination}</span>
+            <span className="chip chip-secondary inline-flex items-center gap-4 text-xs font-semibold" style={{ padding: '2px 8px' }}>
+              <Package size={12} aria-hidden="true" />
+              {order.package_quantity || 1} {(order.package_quantity || 1) === 1 ? 'box' : 'boxes'}
+            </span>
           </div>
         </div>
         <StatusBadge status={order.status} />
@@ -952,9 +956,26 @@ const OrderDetailPage = () => {
       {/* Package Details */}
       <div className="customer-detail-card customer-package-card card stagger-item mb-16" style={{ animationDelay: '180ms' }}>
         <div className="card-body p-16">
-          <h4 className="fw-700 mb-12 flex items-center gap-8"><Package size={16} aria-hidden="true" />Package Details</h4>
-          <div className="grid grid-2 gap-12">
-            <div><span className="text-xs text-tertiary">Description</span><div className="text-sm">{order.package_description || '—'}</div></div>
+          <div className="flex items-center justify-between mb-12 flex-wrap gap-8">
+            <h4 className="fw-700 m-0 flex items-center gap-8"><Package size={16} aria-hidden="true" />Package Details</h4>
+            <span className="chip chip-secondary inline-flex items-center gap-4 text-xs font-semibold">
+              <Package size={12} aria-hidden="true" />
+              {order.package_quantity || 1} {(order.package_quantity || 1) === 1 ? 'Box / Package' : 'Boxes / Packages'}
+            </span>
+          </div>
+          <div className="grid grid-3 gap-12">
+            <div>
+              <span className="text-xs text-tertiary">Total Packages / Boxes</span>
+              <div className="text-sm fw-700 text-primary flex items-center gap-4">
+                <Package size={14} className="text-tertiary" aria-hidden="true" />
+                {order.package_quantity || 1} {(order.package_quantity || 1) === 1 ? 'box' : 'boxes'}
+              </div>
+            </div>
+
+            <div>
+              <span className="text-xs text-tertiary">Description</span>
+              <div className="text-sm">{order.package_description || '—'}</div>
+            </div>
 
             <div>
               <span className="text-xs text-tertiary">Actual Weight</span>
@@ -963,6 +984,12 @@ const OrderDetailPage = () => {
               </div>
             </div>
           </div>
+          {(order.package_quantity || 1) > 1 && (
+            <div className="mt-12 p-8 rounded text-xs flex items-center gap-8" style={{ background: 'var(--surface-sunken, #F8FAFC)', border: '1px solid var(--border-light, #E2E8F0)' }}>
+              <Info size={14} className="text-primary flex-shrink-0" aria-hidden="true" />
+              <span>This shipment has <strong>{order.package_quantity} separate boxes/packages</strong>. Each box has its own tracking QR label. Please make sure all {order.package_quantity} boxes are received upon delivery.</span>
+            </div>
+          )}
           {order.notes && (
             <div className="mt-12 pt-12" style={{ borderTop: '1px dashed var(--customer-line, #E2E8F0)' }}>
               <span className="text-xs text-tertiary">Special Instructions / Notes</span>

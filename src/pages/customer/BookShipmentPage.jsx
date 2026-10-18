@@ -89,7 +89,7 @@ const emptyBookingForm = ({ route = '', tripId = '' } = {}) => ({
   receiver_last_name: '', receiver_first_name: '', receiver_middle_name: '', receiver_phone: '', receiver_facebook: '',
   receiver_lot_block: '', receiver_street: '', receiver_barangay: '',
   receiver_city: '', receiver_province: '', receiver_landmark: '',
-  package_description: '', payer_type: 'sender',
+  package_description: '', package_quantity: 1, payer_type: 'sender',
   payment_preference: 'unspecified', notes: '', sender_other_province: '',
 });
 
@@ -619,6 +619,7 @@ const BookShipmentPage = () => {
         receiver_facebook: normalizeName(form.receiver_facebook), receiver_city: form.receiver_city, receiver_province: form.receiver_province,
         receiver_barangay: form.receiver_barangay, receiver_street: form.receiver_street, receiver_lot_block: form.receiver_lot_block, receiver_landmark: form.receiver_landmark,
         package_description: form.package_description,
+        package_quantity: Math.max(1, Math.min(50, parseInt(form.package_quantity || 1, 10) || 1)),
         payer_type: form.payer_type, payment_preference: form.payment_preference, notes: form.notes,
       };
       
@@ -1009,6 +1010,7 @@ const BookShipmentPage = () => {
             <dl className="booking-success-details">
               <div><dt>Sender</dt><dd>{orderPartyName(success, 'sender')}</dd></div>
               <div><dt>Receiver</dt><dd>{orderPartyName(success, 'receiver')}</dd></div>
+              <div><dt>Boxes</dt><dd>{success.package_quantity || 1} {(success.package_quantity || 1) === 1 ? 'box' : 'boxes'}</dd></div>
               {success.package_description && (
                 <div className="booking-success-package"><dt>Package</dt><dd>{success.package_description}</dd></div>
               )}
@@ -1051,6 +1053,7 @@ const BookShipmentPage = () => {
                   receiver_lot_block: '', receiver_street: '', receiver_barangay: '',
                   receiver_city: '', receiver_province: '', receiver_landmark: '',
                   package_description: '',
+                  package_quantity: 1,
                   payer_type: 'sender', payment_preference: 'unspecified', notes: '', sender_other_province: '',
                 }));
               }}
@@ -1280,6 +1283,61 @@ const BookShipmentPage = () => {
             {fieldErrors.package_description && <div className="field-error-inline" id="package-description-error" role="alert"><AlertTriangle size={12} aria-hidden="true" />Package description is required.</div>}
             <p id="package-description-helper" className="text-xs text-secondary mt-4">Describe your items. We weigh the parcel at pickup and the exact cost is confirmed then.</p>
           </div>
+          <div className="form-group">
+            <label className="form-label" htmlFor="package-quantity">
+              Estimated Number of Boxes / Packages <span className="required">*</span>
+            </label>
+            <div className="flex items-center gap-12" style={{ maxWidth: 240 }}>
+              <button
+                type="button"
+                className="btn btn-outline flex items-center justify-center"
+                style={{ width: 40, height: 40, padding: 0, fontSize: '18px', fontWeight: 600 }}
+                onClick={() => u('package_quantity', Math.max(1, (parseInt(form.package_quantity || 1, 10) || 1) - 1))}
+                disabled={(form.package_quantity || 1) <= 1}
+                aria-label="Decrease box count"
+              >
+                −
+              </button>
+              <input
+                id="package-quantity"
+                type="number"
+                min="1"
+                max="50"
+                className="form-input text-center fw-700"
+                style={{ width: 70, height: 40 }}
+                value={form.package_quantity ?? 1}
+                onChange={e => {
+                  const val = parseInt(e.target.value, 10);
+                  if (isNaN(val)) {
+                    u('package_quantity', '');
+                  } else {
+                    u('package_quantity', Math.max(1, Math.min(50, val)));
+                  }
+                }}
+                onBlur={() => {
+                  if (!form.package_quantity || form.package_quantity < 1) {
+                    u('package_quantity', 1);
+                  }
+                }}
+              />
+              <button
+                type="button"
+                className="btn btn-outline flex items-center justify-center"
+                style={{ width: 40, height: 40, padding: 0, fontSize: '18px', fontWeight: 600 }}
+                onClick={() => u('package_quantity', Math.min(50, (parseInt(form.package_quantity || 1, 10) || 1) + 1))}
+                disabled={(form.package_quantity || 1) >= 50}
+                aria-label="Increase box count"
+              >
+                +
+              </button>
+              <span className="text-sm text-secondary">
+                {(form.package_quantity || 1) === 1 ? 'box / item' : 'boxes / items'}
+              </span>
+            </div>
+            <p className="text-xs text-secondary mt-4">
+              Indicate how many separate boxes or cargo packages you are sending. Each box will have its own tracking QR label.
+            </p>
+          </div>
           {/* Side by side on wide screens, stacked on phones (.grid-2). */}
           <div className="grid grid-2 gap-16 booking-pay-row">
           <div className="form-group"><label className="form-label" htmlFor="payer-type">Who Pays?</label>
@@ -1390,7 +1448,11 @@ const BookShipmentPage = () => {
               <button type="button" className="booking-summary-edit" onClick={() => setStep(4)} aria-label="Edit package details">Edit</button>
             </div>
             <div className="text-sm font-bold">{form.package_description}</div>
-            <dl className="booking-summary-facts">
+            <div className="text-xs text-secondary mt-4 flex items-center gap-4">
+              <Package size={13} aria-hidden="true" />
+              <span><strong>{form.package_quantity || 1}</strong> {(form.package_quantity || 1) === 1 ? 'box / item' : 'boxes / items'}</span>
+            </div>
+            <dl className="booking-summary-facts mt-8">
               <div><dt>Who pays</dt><dd>{form.payer_type === 'receiver' ? 'Receiver' : 'Sender'}</dd></div>
               <div><dt>Payment</dt><dd>{{ cash: 'Cash', gcash: 'GCash' }[form.payment_preference] || 'Decide later'}</dd></div>
             </dl>
