@@ -1000,53 +1000,13 @@ const AdminOrderDetailPage = () => {
         </div>
       )}
 
-      {order.status === ORDER_STATUS.PICKED_UP && (
+      {(order.status === ORDER_STATUS.PICKED_UP || order.status === ORDER_STATUS.OUT_FOR_DELIVERY) && (
         <div className="text-sm mb-16" role="status">
-          <strong>Boxes verified for trip loading:</strong>{' '}
+          <strong>Boxes verified:</strong>{' '}
           {(order.verified_boxes || []).length} of {order.package_quantity || 1}
-          {' '}— every box QR code must be scanned before departure.
-        </div>
-      )}
-
-      {order.status === ORDER_STATUS.OUT_FOR_DELIVERY && (
-        <div className="alert-banner alert-banner-info mb-16 flex items-center justify-between flex-wrap gap-12" role="status">
-          <div>
-            <div className="fw-700 mb-4 flex items-center gap-6">
-              <Camera size={16} /> Doorstep Delivery Handover Scan
-            </div>
-            <div className="text-sm">
-              <strong>{(order.verified_boxes || []).length} of {order.package_quantity || 1}</strong> boxes scanned for delivery.
-              {' '}Scan each physical box with the customer using the scanner before completing delivery.
-            </div>
-          </div>
-          <div className="flex items-center gap-8">
-            <button
-              type="button"
-              className="btn btn-primary btn-sm"
-              onClick={() => setShowScannerModal(true)}
-            >
-              <Camera size={14} className="inline mr-6" /> Open Scanner to Deliver
-            </button>
-            {(order.verified_boxes || []).length > 0 && (
-              <button
-                type="button"
-                className="btn btn-outline btn-sm text-xs"
-                title="Reset delivery checklist to scan all boxes again"
-                onClick={async () => {
-                  try {
-                    await updateOrder(order.id, { verified_boxes: [] });
-                    await loadOrder(true, { silent: true });
-                    toast.success('Checklist reset. You can now scan each box fresh.');
-                    setShowScannerModal(true);
-                  } catch (e) {
-                    toast.error(e.message || 'Failed to reset scan.');
-                  }
-                }}
-              >
-                <RotateCcw size={12} className="inline mr-4" /> Reset Scan
-              </button>
-            )}
-          </div>
+          {order.status === ORDER_STATUS.PICKED_UP
+            ? ' — every box QR code must be scanned before departure.'
+            : ' — scan each box using the scanner to complete delivery.'}
         </div>
       )}
 
@@ -1260,10 +1220,21 @@ const AdminOrderDetailPage = () => {
               </button>
             )}
             {showAdvanceButton && (
-              <button type="button" className="btn btn-primary" onClick={handleStatusAdvance} disabled={saving}>
-                {saving ? <Loader size={16} className="animate-spin" /> : <Check size={16} />}
-                {nextStatus === 'Picked Up' ? 'Process Pickup' : `Advance to "${nextStatus}"`}
-              </button>
+              order.status === ORDER_STATUS.OUT_FOR_DELIVERY ? (
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={() => setShowScannerModal(true)}
+                  disabled={saving}
+                >
+                  <Camera size={16} /> Open Scanner to Deliver
+                </button>
+              ) : (
+                <button type="button" className="btn btn-primary" onClick={handleStatusAdvance} disabled={saving}>
+                  {saving ? <Loader size={16} className="animate-spin" /> : <Check size={16} />}
+                  {nextStatus === 'Picked Up' ? 'Process Pickup' : `Advance to "${nextStatus}"`}
+                </button>
+              )
             )}
             {showCancelButton && (
               <button type="button" className="btn btn-danger-outline btn-sm" onClick={() => setShowCancelConfirm(true)} disabled={saving}>
