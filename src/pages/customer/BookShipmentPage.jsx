@@ -1374,11 +1374,11 @@ const BookShipmentPage = () => {
             <label className="form-label" htmlFor="package-quantity">
               Estimated Number of Boxes / Packages <span className="required">*</span>
             </label>
-            <div className="flex items-center gap-12" style={{ maxWidth: 240 }}>
+            <div className="flex items-center gap-12" style={{ flexWrap: 'nowrap' }}>
               <button
                 type="button"
                 className="btn btn-outline flex items-center justify-center"
-                style={{ width: 40, height: 40, padding: 0, fontSize: '18px', fontWeight: 600 }}
+                style={{ width: 40, height: 40, padding: 0, fontSize: '18px', fontWeight: 600, flexShrink: 0 }}
                 onClick={() => u('package_quantity', Math.max(1, (parseInt(form.package_quantity || 1, 10) || 1) - 1))}
                 disabled={(form.package_quantity || 1) <= 1}
                 aria-label="Decrease box count"
@@ -1391,7 +1391,7 @@ const BookShipmentPage = () => {
                 min="1"
                 max="50"
                 className="form-input text-center fw-700"
-                style={{ width: 70, height: 40 }}
+                style={{ width: 64, height: 40, flexShrink: 0 }}
                 value={form.package_quantity ?? 1}
                 onChange={e => {
                   const val = parseInt(e.target.value, 10);
@@ -1410,14 +1410,14 @@ const BookShipmentPage = () => {
               <button
                 type="button"
                 className="btn btn-outline flex items-center justify-center"
-                style={{ width: 40, height: 40, padding: 0, fontSize: '18px', fontWeight: 600 }}
+                style={{ width: 40, height: 40, padding: 0, fontSize: '18px', fontWeight: 600, flexShrink: 0 }}
                 onClick={() => u('package_quantity', Math.min(50, (parseInt(form.package_quantity || 1, 10) || 1) + 1))}
                 disabled={(form.package_quantity || 1) >= 50}
                 aria-label="Increase box count"
               >
                 +
               </button>
-              <span className="text-sm text-secondary">
+              <span className="text-sm text-secondary" style={{ whiteSpace: 'nowrap', userSelect: 'none' }}>
                 {(form.package_quantity || 1) === 1 ? 'box / item' : 'boxes / items'}
               </span>
             </div>
