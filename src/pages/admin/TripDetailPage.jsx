@@ -6,7 +6,8 @@ import StatusBadge from '../../components/ui/StatusBadge';
 import ConfirmModal from '../../components/ui/ConfirmModal';
 import RescheduleTripModal from '../../components/ui/RescheduleTripModal';
 import { CenteredSpinner } from '../../components/ui/Loader';
-import { ArrowLeft, Play, Flag, CheckCircle, XCircle, Loader, Clock, ArrowRight, Package, AlertTriangle, Calendar, Pencil } from 'lucide-react';
+import { ArrowLeft, Play, Flag, CheckCircle, XCircle, Loader, Clock, ArrowRight, Package, AlertTriangle, Calendar, Pencil, ScanQrCode } from 'lucide-react';
+import TripScannerModal from '../../components/ui/TripScannerModal';
 import CapacityTracker from '../../components/ui/CapacityTracker';
 import Breadcrumb from '../../components/ui/Breadcrumb';
 import EmptyState from '../../components/ui/EmptyState';
@@ -28,6 +29,7 @@ const TripDetailPage = () => {
   const [saving, setSaving] = useState(false);
   const [confirmAction, setConfirmAction] = useState(null);
   const [showRescheduleModal, setShowRescheduleModal] = useState(false);
+  const [showScannerModal, setShowScannerModal] = useState(false);
   const [pendingRescheduleNotice, setPendingRescheduleNotice] = useState(null);
   const [retryingNotice, setRetryingNotice] = useState(false);
   const [estimatedArrivalInput, setEstimatedArrivalInput] = useState('');
@@ -344,7 +346,27 @@ const TripDetailPage = () => {
             {checkingStartGate ? <Loader size={16} className="animate-spin" /> : <Play size={16}/>} Start Trip
           </button>
         )}
+        {trip.status==='scheduled' && (
+          <button
+            type="button"
+            className="btn btn-outline"
+            onClick={() => setShowScannerModal(true)}
+            title="Scan physical QR labels to verify cargo loaded onto van"
+          >
+            <ScanQrCode size={16} /> Scan Cargo to Load ({totalScannedBoxes}/{totalTripBoxes})
+          </button>
+        )}
         {trip.status==='in_progress' && <button type="button" className="btn btn-success" onClick={()=>openConfirm('arrived', 'Mark Arrived', `Mark trip ${trip.trip_number} as arrived at destination?`, 'success')} disabled={saving}><Flag size={16}/> Mark Arrived</button>}
+        {(trip.status==='in_progress' || trip.status==='arrived') && (
+          <button
+            type="button"
+            className="btn btn-outline"
+            onClick={() => setShowScannerModal(true)}
+            title="Scan packages for handover and proof of delivery"
+          >
+            <ScanQrCode size={16} /> Delivery Scanner
+          </button>
+        )}
         {trip.status==='arrived' && <button type="button" className="btn btn-primary" onClick={handleCompleteClick} disabled={saving}><CheckCircle size={16}/> Complete</button>}
         {trip.status==='scheduled' && <button type="button" className="btn btn-danger-outline btn-sm" onClick={()=>openConfirm('cancelled', 'Cancel Trip', `Cancel trip ${trip.trip_number}? This action cannot be undone.`, 'danger')} disabled={saving}><XCircle size={16}/> Cancel Trip</button>}
         {saving && <Loader size={18} className="animate-spin"/>}
@@ -440,18 +462,37 @@ const TripDetailPage = () => {
       <div className="card admin-section-card admin-table-card stagger-item" style={{ animationDelay: '180ms' }}>
         <div className="card-header flex items-center justify-between flex-wrap gap-8">
           <h3>Assigned Orders ({orders.length})</h3>
-          {eligibleOrders.length > 0 && (
-            <span className="text-xs text-secondary">
-              Manifest: <strong>{totalScannedBoxes}</strong> of <strong>{totalTripBoxes}</strong> boxes scanned {totalScannedBoxes === totalTripBoxes ? '✓' : ''}
-            </span>
-          )}
+          <div className="flex items-center gap-10 flex-wrap">
+            {eligibleOrders.length > 0 && (
+              <span className="text-xs text-secondary">
+                Manifest: <strong>{totalScannedBoxes}</strong> of <strong>{totalTripBoxes}</strong> boxes scanned {totalScannedBoxes === totalTripBoxes ? '✓' : ''}
+              </span>
+            )}
+            <button
+              type="button"
+              className="btn btn-outline btn-sm"
+              onClick={() => setShowScannerModal(true)}
+              title="Open continuous trip cargo scanner"
+            >
+              <ScanQrCode size={14} className="inline mr-4" /> Scan Cargo
+            </button>
+          </div>
         </div>
         {unscannedBoxOrders.length > 0 && trip.status === 'scheduled' && (
-          <div className="alert-banner alert-banner-warning" role="alert" style={{ margin: '12px 16px 0 16px' }}>
-            <AlertTriangle size={16} aria-hidden="true" />
-            <div>
-              <strong>Unscanned Cargo Alert:</strong> {unscannedBoxOrders.length} booking{unscannedBoxOrders.length === 1 ? '' : 's'} ({unscannedBoxOrders.slice(0, 3).map(o => o.tracking_number).join(', ')}{unscannedBoxOrders.length > 3 ? '…' : ''}) have unverified boxes. Scan every physical QR label before starting the trip.
+          <div className="alert-banner alert-banner-warning flex items-center justify-between flex-wrap gap-8" role="alert" style={{ margin: '12px 16px 0 16px' }}>
+            <div className="flex items-center gap-8">
+              <AlertTriangle size={16} aria-hidden="true" />
+              <div>
+                <strong>Unscanned Cargo Alert:</strong> {unscannedBoxOrders.length} booking{unscannedBoxOrders.length === 1 ? '' : 's'} ({unscannedBoxOrders.slice(0, 3).map(o => o.tracking_number).join(', ')}{unscannedBoxOrders.length > 3 ? '…' : ''}) have unverified boxes. Scan every physical QR label before starting the trip.
+              </div>
             </div>
+            <button
+              type="button"
+              className="btn btn-primary btn-sm"
+              onClick={() => setShowScannerModal(true)}
+            >
+              <ScanQrCode size={14} className="inline mr-4" /> Open Loading Scanner
+            </button>
           </div>
         )}
         <div className="table-container">
@@ -605,6 +646,21 @@ const TripDetailPage = () => {
           serverToday={startGate?.ph_today}
           onClose={() => setShowRescheduleModal(false)}
           onReschedule={handleReschedule}
+        />
+      )}
+
+      {/* Dedicated Trip Cargo & Delivery Continuous Scanner */}
+      {showScannerModal && (
+        <TripScannerModal
+          trip={trip}
+          orders={orders}
+          onOrdersUpdate={(updatedOrders) => {
+            setData((prev) => (prev ? { ...prev, orders: updatedOrders } : prev));
+          }}
+          onClose={() => {
+            setShowScannerModal(false);
+            void load();
+          }}
         />
       )}
     </div>

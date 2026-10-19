@@ -343,6 +343,27 @@ const QrScannerModal = ({ onClose }) => {
       let active = sessionRef.current;
       if (!active) {
         if (order.status !== ORDER_STATUS.OUT_FOR_DELIVERY) {
+          // If this is a specific box scan on a Picked Up order (loading onto a trip),
+          // verify the box in-place so the operator can keep scanning smoothly without full page reload.
+          if (payload.box && order.status === ORDER_STATUS.PICKED_UP) {
+            const currentVerified = order.verified_boxes || [];
+            if (currentVerified.includes(payload.box)) {
+              settle(`Box ${payload.box} of ${order.package_quantity || 1} is already verified for ${order.tracking_number}.`, 'info');
+              return;
+            }
+            await recordBoxVerification(order.id, payload.box);
+            logActivity({
+              module: 'Deliveries',
+              action: 'Package box verified via QR scan',
+              recordType: 'order',
+              recordId: order.id,
+              recordRef: order.tracking_number || null,
+              details: `Box ${payload.box} of ${order.package_quantity || 1} verified.`,
+            });
+            settle(`✓ Box ${payload.box} of ${order.package_quantity || 1} verified for ${order.tracking_number}! Continue scanning next box.`, 'success');
+            return;
+          }
+
           goTo(orderRouteForScan(payload));
           return;
         }

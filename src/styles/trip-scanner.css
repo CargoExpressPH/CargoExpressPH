@@ -1,0 +1,518 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   Trip Continuous Cargo Scanner — Modal & Manifest Checklist Styles
+   (TripScannerModal.jsx)
+
+   Cross-device rules (targets Safari 14+):
+   - margins instead of flex gap for iOS < 14.5
+   - square viewfinder uses padding-top box, not aspect-ratio
+   - dvh units always follow a plain vh fallback
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.trip-scanner-overlay {
+  z-index: var(--z-modal);
+  background: rgba(10, 16, 26, 0.82);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+.trip-scanner-modal {
+  position: relative;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 680px;
+  max-height: calc(100vh - 24px);
+  max-height: calc(100dvh - 24px);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  padding: 20px;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-2xl);
+  animation: scaleIn 0.22s ease;
+}
+
+/* ── Modal Header ── */
+.trip-scanner-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.trip-scanner-heading {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.trip-scanner-title {
+  margin: 0;
+  font-size: var(--text-18);
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+}
+
+.trip-scanner-title-icon {
+  margin-right: 8px;
+  color: var(--primary);
+  flex-shrink: 0;
+}
+
+.trip-scanner-meta {
+  margin: 4px 0 0;
+  font-size: var(--text-13);
+  line-height: 1.45;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.trip-scanner-meta-item {
+  margin-right: 10px;
+}
+
+.trip-scanner-controls {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  margin-left: 12px;
+}
+
+.trip-scanner-control-btn {
+  margin-left: 6px;
+  border-radius: var(--radius-full);
+}
+
+/* ── Progress Bar & Summary ── */
+.trip-scanner-progress-card {
+  padding: 12px 14px;
+  background: var(--surface-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  margin-bottom: 14px;
+}
+
+.trip-scanner-progress-stats {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.trip-scanner-progress-count {
+  font-size: var(--text-14);
+  font-weight: 700;
+  color: var(--text);
+}
+
+.trip-scanner-progress-pct {
+  font-size: var(--text-13);
+  font-weight: 700;
+  color: var(--primary);
+}
+
+.trip-scanner-progress-track {
+  width: 100%;
+  height: 8px;
+  background: var(--surface-subtle);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.trip-scanner-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--primary) 0%, #10b981 100%);
+  border-radius: 999px;
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.trip-scanner-complete-banner {
+  margin-top: 10px;
+  padding: 8px 12px;
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  border-radius: var(--radius-sm);
+  color: #10b981;
+  font-size: var(--text-13);
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+}
+
+.trip-scanner-complete-icon {
+  margin-right: 8px;
+  flex-shrink: 0;
+}
+
+/* ── Viewfinder Camera Area ── */
+.trip-scanner-camera-section {
+  position: relative;
+  margin-bottom: 14px;
+}
+
+.trip-scanner-viewfinder {
+  position: relative;
+  width: 100%;
+  max-width: 320px;
+  margin: 0 auto;
+}
+
+.trip-scanner-viewfinder-inner {
+  position: relative;
+  width: 100%;
+  height: 0;
+  padding-top: 75%; /* 4:3 box ratio for wide camera view */
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  background: #0b1220;
+  border: 2px solid var(--border);
+  -webkit-mask-image: -webkit-radial-gradient(white, black);
+  isolation: isolate;
+  transition: border-color 0.25s ease;
+}
+
+.trip-scanner-viewfinder-inner.is-success-pulse {
+  border-color: #10b981;
+  box-shadow: 0 0 16px rgba(16, 185, 129, 0.5);
+}
+
+.trip-scanner-viewfinder-inner.is-error-pulse {
+  border-color: #ef4444;
+  box-shadow: 0 0 16px rgba(239, 68, 68, 0.5);
+}
+
+.trip-scanner-video {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* Laser sweep frame */
+.trip-scanner-frame {
+  position: absolute;
+  top: 12%;
+  left: 12%;
+  right: 12%;
+  bottom: 12%;
+  pointer-events: none;
+}
+
+.trip-scanner-corner {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  border-color: var(--primary);
+  border-style: solid;
+}
+
+.trip-scanner-corner-tl { top: 0; left: 0; border-width: 3px 0 0 3px; border-top-left-radius: 4px; }
+.trip-scanner-corner-tr { top: 0; right: 0; border-width: 3px 3px 0 0; border-top-right-radius: 4px; }
+.trip-scanner-corner-bl { bottom: 0; left: 0; border-width: 0 0 3px 3px; border-bottom-left-radius: 4px; }
+.trip-scanner-corner-br { bottom: 0; right: 0; border-width: 0 3px 3px 0; border-bottom-right-radius: 4px; }
+
+.trip-scanner-line {
+  position: absolute;
+  top: 10%;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent 0%, var(--primary) 50%, transparent 100%);
+  box-shadow: 0 0 8px var(--primary);
+  animation: tripScannerSweep 1.8s ease-in-out infinite alternate;
+}
+
+@keyframes tripScannerSweep {
+  0% { top: 10%; opacity: 0.3; }
+  50% { opacity: 1; }
+  100% { top: 90%; opacity: 0.3; }
+}
+
+.trip-scanner-camera-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 10px;
+}
+
+.trip-scanner-camera-btn {
+  margin: 0 4px;
+}
+
+/* ── Live Scanner Status Banner ── */
+.trip-scanner-notice {
+  margin: 0 0 14px 0;
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  font-size: var(--text-13);
+  line-height: 1.4;
+  font-weight: 600;
+  text-align: center;
+  animation: fadeIn 0.18s ease;
+}
+
+.trip-scanner-notice-success {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.4);
+}
+
+.trip-scanner-notice-warning {
+  background: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+  border: 1px solid rgba(245, 158, 11, 0.4);
+}
+
+.trip-scanner-notice-danger {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+}
+
+.trip-scanner-notice-info {
+  background: rgba(59, 130, 246, 0.15);
+  color: #3b82f6;
+  border: 1px solid rgba(59, 130, 246, 0.4);
+}
+
+/* ── Manifest Checklist Section ── */
+.trip-scanner-manifest {
+  border-top: 1px solid var(--border);
+  padding-top: 14px;
+}
+
+.trip-scanner-manifest-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.trip-scanner-manifest-title {
+  margin: 0;
+  font-size: var(--text-15);
+  font-weight: 700;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+}
+
+.trip-scanner-manifest-title svg {
+  margin-right: 6px;
+  color: var(--primary);
+}
+
+/* Filter tabs */
+.trip-scanner-tabs {
+  display: flex;
+  align-items: center;
+  background: var(--surface-subtle);
+  padding: 2px;
+  border-radius: var(--radius-md);
+  margin-top: 6px;
+}
+
+.trip-scanner-tab-btn {
+  padding: 5px 10px;
+  font-size: var(--text-12);
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.trip-scanner-tab-btn.is-active {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Search input */
+.trip-scanner-search-wrap {
+  position: relative;
+  width: 100%;
+  margin-bottom: 12px;
+}
+
+.trip-scanner-search-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 12px 8px 34px;
+  font-size: var(--text-13);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-subtle);
+  color: var(--text);
+}
+
+.trip-scanner-search-icon {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-tertiary);
+  pointer-events: none;
+}
+
+/* Manifest Card List */
+.trip-scanner-list {
+  display: flex;
+  flex-direction: column;
+  max-height: 280px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-right: 4px;
+}
+
+.trip-scanner-card {
+  box-sizing: border-box;
+  background: var(--surface-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  margin-bottom: 8px;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.trip-scanner-card.is-complete {
+  border-color: rgba(16, 185, 129, 0.4);
+  background: rgba(16, 185, 129, 0.04);
+}
+
+.trip-scanner-card.is-just-scanned {
+  border-color: var(--primary);
+  background: rgba(59, 130, 246, 0.08);
+  animation: pulseCard 1s ease;
+}
+
+@keyframes pulseCard {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.01); }
+  100% { transform: scale(1); }
+}
+
+.trip-scanner-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.trip-scanner-tracking {
+  font-weight: 700;
+  font-size: var(--text-13);
+  color: var(--primary);
+  font-family: monospace;
+}
+
+.trip-scanner-card-meta {
+  font-size: var(--text-12);
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* Box pills */
+.trip-scanner-box-pills {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.trip-scanner-box-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  font-size: var(--text-11);
+  font-weight: 700;
+  border-radius: var(--radius-sm);
+  margin-right: 6px;
+  margin-bottom: 4px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.trip-scanner-box-pill.is-verified {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+  border-color: rgba(16, 185, 129, 0.4);
+  cursor: default;
+}
+
+.trip-scanner-box-pill.is-unverified {
+  background: var(--surface-subtle);
+  color: var(--text-secondary);
+  border-color: var(--border);
+}
+
+.trip-scanner-box-pill.is-unverified:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: rgba(59, 130, 246, 0.08);
+}
+
+.trip-scanner-pill-icon {
+  margin-right: 4px;
+}
+
+/* POD action in delivery mode */
+.trip-scanner-pod-action {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+/* Manual tracking entry */
+.trip-scanner-manual-wrap {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.trip-scanner-manual-form {
+  display: flex;
+  align-items: center;
+}
+
+.trip-scanner-manual-input {
+  flex: 1 1 auto;
+  padding: 8px 12px;
+  font-size: var(--text-13);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-subtle);
+  color: var(--text);
+  margin-right: 8px;
+}
+
+.trip-scanner-manual-btn {
+  flex: 0 0 auto;
+}
+
+/* Responsive tweaks */
+@media (min-width: 640px) {
+  .trip-scanner-viewfinder {
+    max-width: 380px;
+  }
+}
