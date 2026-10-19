@@ -8,7 +8,7 @@ import { logOrder } from '../../lib/activityLog';
 import { buildFullAddress } from '../../lib/address';
 import { ROUTES, PH_LOCATIONS, VALID_PROVINCES, detectPickupLocation, validateRouteProvinces } from '../../constants/phLocations';
 import { isTripBookable } from '../../constants/status';
-import { ArrowLeft, ArrowRight, Loader, CheckCircle, Copy, Check, Package, MapPin, User, Truck, AlertTriangle, Info, Clock, Headset } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Loader, CheckCircle, Copy, Check, Package, MapPin, User, Truck, AlertTriangle, Info, Clock, Headset, Phone, RotateCcw, ChevronDown, ChevronUp } from 'lucide-react';
 import { useToast } from '../../hooks/useToast';
 import CustomSelect from '../../components/ui/CustomSelect';
 import BarangaySelect from '../../components/ui/BarangaySelect';
@@ -181,6 +181,8 @@ const BookShipmentPage = () => {
   // Recent Addresses / Address Book — independent of the "use registered
   // address" checkboxes above; see handleSelectRecentContact.
   const [recentContacts, setRecentContacts] = useState({ senders: [], receivers: [] });
+  const [collapsedRecent, setCollapsedRecent] = useState({ sender: false, receiver: false });
+  const [expandedRecent, setExpandedRecent] = useState({ sender: false, receiver: false });
   const [openContactDropdown, setOpenContactDropdown] = useState(null); // 'sender' | 'receiver' | null
   const contactWrapRefs = useRef({});
   // Set when a step change should leave the scroll to a field focus instead.
@@ -452,7 +454,7 @@ const BookShipmentPage = () => {
       [`${prefix}_first_name`]: contact.first_name,
       [`${prefix}_middle_name`]: contact.middle_name || '',
       [`${prefix}_phone`]: contact.phone,
-      [`${prefix}_facebook`]: contact.facebook,
+      [`${prefix}_facebook`]: contact.facebook || '',
       [`${prefix}_province`]: otherSenderProvince ? 'Other Area' : contact.province,
       ...(prefix === 'sender' ? { sender_other_province: otherSenderProvince ? contact.province : '' } : {}),
       [`${prefix}_city`]: contact.city,
@@ -465,6 +467,52 @@ const BookShipmentPage = () => {
     if (prefix === 'sender') setUseRegisteredSender(false);
     else setUseRegisteredReceiver(false);
     setOpenContactDropdown(null);
+    toast.success(`Autofilled details for ${contact.first_name} ${contact.last_name}`);
+  };
+
+  const handleClearPrefix = (prefix) => {
+    setForm(p => ({
+      ...p,
+      [`${prefix}_last_name`]: '',
+      [`${prefix}_first_name`]: '',
+      [`${prefix}_middle_name`]: '',
+      [`${prefix}_phone`]: '',
+      [`${prefix}_facebook`]: '',
+      [`${prefix}_province`]: '',
+      ...(prefix === 'sender' ? { sender_other_province: '' } : {}),
+      [`${prefix}_city`]: '',
+      [`${prefix}_barangay`]: '',
+      [`${prefix}_street`]: '',
+      [`${prefix}_lot_block`]: '',
+      [`${prefix}_landmark`]: '',
+    }));
+    clearPrefixFieldErrors(prefix);
+    if (prefix === 'sender') setUseRegisteredSender(false);
+    else setUseRegisteredReceiver(false);
+    toast.info(`${prefix === 'sender' ? 'Sender' : 'Receiver'} fields cleared.`);
+  };
+
+  const formatContactAddress = (c) => {
+    const parts = [c.lot_block, c.street, c.barangay, c.city, c.province]
+      .map(p => (p || '').trim())
+      .filter(p => p && !['na', 'n/a', 'none', 'n.a.', 'n / a'].includes(p.toLowerCase()));
+    const addr = parts.join(', ');
+    const lm = (c.landmark || '').trim();
+    return lm && !['na', 'n/a', 'none', 'n.a.', 'n / a'].includes(lm.toLowerCase())
+      ? `${addr} (Landmark: ${lm})`
+      : addr || 'No full address specified';
+  };
+
+  const isContactFilled = (prefix, contact) => {
+    const fName = (form[`${prefix}_first_name`] || '').trim().toLowerCase();
+    const lName = (form[`${prefix}_last_name`] || '').trim().toLowerCase();
+    const phone = (form[`${prefix}_phone`] || '').trim();
+    return (
+      Boolean(fName && lName && phone) &&
+      fName === (contact.first_name || '').trim().toLowerCase() &&
+      lName === (contact.last_name || '').trim().toLowerCase() &&
+      phone === (contact.phone || '').trim()
+    );
   };
 
   const validateSender = () => {
@@ -691,88 +739,181 @@ const BookShipmentPage = () => {
         ? c.province === 'Bohol'
         : c.province && (isSender || ['Metro Manila', 'Cavite', 'Batangas', 'Laguna', 'Bulacan'].includes(c.province)) && c.province !== 'Bohol'))
       : allContacts;
-    const dropdownOpen = openContactDropdown === prefix;
     return (
       <div className="grid grid-2 gap-16">
-        <div className="form-group col-full" ref={el => { contactWrapRefs.current[prefix] = el; }}>
-          <div className="flex items-center justify-between">
-            <span className="form-label mb-0">Full Name <span className="required">*</span></span>
-            {contacts.length > 0 && (
-              <button
-                type="button"
-                className="recent-contacts-trigger"
-                aria-haspopup="listbox"
-                aria-expanded={dropdownOpen}
-                onClick={() => setOpenContactDropdown(prev => (prev === prefix ? null : prefix))}
-              >
-                <Clock size={12} aria-hidden="true" /> Recent Contacts
-              </button>
-            )}
-          </div>
-          <div className="recent-contacts-wrap">
-            <div className="grid grid-2 gap-12 mt-4">
-              <div>
-                <label className="form-label sr-only" htmlFor={id('last_name')}>Last Name</label>
-                <input
-                  id={id('last_name')}
-                  className={`form-input ${fc('last_name')}`}
-                  value={form[`${prefix}_last_name`]}
-                  onChange={handleTextChange(`${prefix}_last_name`)}
-                  placeholder="Last Name"
-                  autoComplete={isSender ? 'family-name' : 'shipping family-name'}
-                  autoCapitalize="words"
-                  required
-                  {...a11y('last_name')}
-                />
-                {errEl('last_name')}
+        {/* RECENT CONTACTS / REPEAT ORDER QUICK-FILL AT THE TOP */}
+        {contacts.length > 0 && (
+          <div className="col-full recent-contacts-container">
+            <div className="recent-contacts-header">
+              <div className="recent-contacts-header-left">
+                <div className="recent-contacts-icon-badge">
+                  <Clock size={15} aria-hidden="true" />
+                </div>
+                <div>
+                  <div className="recent-contacts-title-row">
+                    <span className="recent-contacts-title">
+                      Recent {isSender ? 'Senders' : 'Receivers'}
+                    </span>
+                    <span className="recent-contacts-badge">
+                      Repeat Order
+                    </span>
+                  </div>
+                  <p className="recent-contacts-desc">
+                    Click a saved contact below to automatically fill in this form.
+                  </p>
+                </div>
               </div>
-              <div>
-                <label className="form-label sr-only" htmlFor={id('first_name')}>First Name</label>
-                <input
-                  id={id('first_name')}
-                  className={`form-input ${fc('first_name')}`}
-                  value={form[`${prefix}_first_name`]}
-                  onChange={handleTextChange(`${prefix}_first_name`)}
-                  placeholder="First Name"
-                  autoComplete={isSender ? 'given-name' : 'shipping given-name'}
-                  autoCapitalize="words"
-                  required
-                  {...a11y('first_name')}
-                />
-                {errEl('first_name')}
-              </div>
-            </div>
-            <div className="mt-8">
-              <label className="form-label sr-only" htmlFor={id('middle_name')}>Middle Name</label>
-              <input
-                id={id('middle_name')}
-                className="form-input"
-                value={form[`${prefix}_middle_name`]}
-                onChange={handleTextChange(`${prefix}_middle_name`)}
-                placeholder="Middle Name (optional)"
-                autoComplete={isSender ? 'additional-name' : 'shipping additional-name'}
-                autoCapitalize="words"
-              />
-            </div>
-            {dropdownOpen && contacts.length > 0 && (
-              <div className="custom-select-menu recent-contacts-menu" role="listbox" aria-label={`Recent ${prefix} contacts`}>
-                {contacts.map((contact, i) => (
+              <div className="recent-contacts-header-right">
+                {contacts.some(c => isContactFilled(prefix, c)) && (
                   <button
                     type="button"
-                    key={`${contact.last_name}-${contact.first_name}-${contact.middle_name}-${contact.phone}-${i}`}
-                    role="option"
-                    aria-selected="false"
-                    className="custom-select-option recent-contact-option"
-                    onClick={() => handleSelectRecentContact(prefix, contact)}
+                    className="recent-contacts-clear-btn"
+                    onClick={() => handleClearPrefix(prefix)}
+                    title="Clear auto-filled fields"
                   >
-                    <span className="recent-contact-address">
-                      {buildFullAddress({ lotBlock: contact.lot_block, street: contact.street, barangay: contact.barangay, city: contact.city, province: contact.province, landmark: contact.landmark })}
-                    </span>
-                    <span className="recent-contact-meta">{contact.last_name}, {contact.first_name}{contact.middle_name ? ` ${contact.middle_name}` : ''} | {contact.phone}</span>
+                    <RotateCcw size={12} aria-hidden="true" /> Clear Form
                   </button>
-                ))}
+                )}
+                <button
+                  type="button"
+                  className="recent-contacts-collapse-toggle"
+                  onClick={() => setCollapsedRecent(p => ({ ...p, [prefix]: !p[prefix] }))}
+                  aria-expanded={!collapsedRecent[prefix]}
+                  title={collapsedRecent[prefix] ? 'Show recent contacts' : 'Hide recent contacts'}
+                >
+                  {collapsedRecent[prefix] ? (
+                    <>Show ({contacts.length}) <ChevronDown size={13} aria-hidden="true" /></>
+                  ) : (
+                    <>Hide <ChevronUp size={13} aria-hidden="true" /></>
+                  )}
+                </button>
               </div>
+            </div>
+
+            {!collapsedRecent[prefix] && (
+              <>
+                <div className="recent-contacts-grid">
+                  {(expandedRecent[prefix] ? contacts : contacts.slice(0, 2)).map((contact, i) => {
+                    const isSelected = isContactFilled(prefix, contact);
+                    return (
+                      <button
+                        type="button"
+                        key={`${contact.last_name}-${contact.first_name}-${contact.middle_name}-${contact.phone}-${i}`}
+                        className={`recent-contact-card ${isSelected ? 'is-selected' : ''}`}
+                        onClick={() => handleSelectRecentContact(prefix, contact)}
+                      >
+                        {/* TOP: Contact Details (Name, Phone, FB) */}
+                        <div className="recent-contact-card-top">
+                          <div className="recent-contact-person">
+                            <div className={`recent-contact-avatar ${isSelected ? 'is-selected' : ''}`}>
+                              {isSelected ? <Check size={13} aria-hidden="true" /> : <User size={13} aria-hidden="true" />}
+                            </div>
+                            <div className="recent-contact-names">
+                              <span className="recent-contact-fullname">
+                                {contact.last_name}, {contact.first_name}{contact.middle_name ? ` ${contact.middle_name}` : ''}
+                              </span>
+                              {contact.facebook && (
+                                <span className="recent-contact-fb">FB: {contact.facebook}</span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="recent-contact-phone">
+                            <Phone size={11} aria-hidden="true" />
+                            <span>{contact.phone}</span>
+                          </div>
+                        </div>
+
+                        {/* BOTTOM: Address */}
+                        <div className="recent-contact-card-bottom">
+                          <MapPin size={13} className="recent-contact-pin" aria-hidden="true" />
+                          <span className="recent-contact-address-text">
+                            {formatContactAddress(contact)}
+                          </span>
+                        </div>
+
+                        {/* Card Action Hint */}
+                        <div className="recent-contact-card-action">
+                          {isSelected ? (
+                            <span className="recent-contact-badge-selected">
+                              <Check size={12} aria-hidden="true" /> Autofilled
+                            </span>
+                          ) : (
+                            <span className="recent-contact-badge-action">
+                              Use this contact <ArrowRight size={11} aria-hidden="true" />
+                            </span>
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {contacts.length > 2 && (
+                  <button
+                    type="button"
+                    className="recent-contacts-expand-btn"
+                    onClick={() => setExpandedRecent(p => ({ ...p, [prefix]: !p[prefix] }))}
+                  >
+                    {expandedRecent[prefix] ? (
+                      <>Show fewer contacts <ChevronUp size={13} aria-hidden="true" /></>
+                    ) : (
+                      <>View all {contacts.length} recent {isSender ? 'senders' : 'receivers'} <ChevronDown size={13} aria-hidden="true" /></>
+                    )}
+                  </button>
+                )}
+              </>
             )}
+          </div>
+        )}
+
+        {/* FULL NAME FIELDS */}
+        <div className="form-group col-full">
+          <label className="form-label mb-4" htmlFor={id('last_name')}>
+            Full Name <span className="required">*</span>
+          </label>
+          <div className="grid grid-2 gap-12">
+            <div>
+              <label className="form-label sr-only" htmlFor={id('last_name')}>Last Name</label>
+              <input
+                id={id('last_name')}
+                className={`form-input ${fc('last_name')}`}
+                value={form[`${prefix}_last_name`]}
+                onChange={handleTextChange(`${prefix}_last_name`)}
+                placeholder="Last Name"
+                autoComplete={isSender ? 'family-name' : 'shipping family-name'}
+                autoCapitalize="words"
+                required
+                {...a11y('last_name')}
+              />
+              {errEl('last_name')}
+            </div>
+            <div>
+              <label className="form-label sr-only" htmlFor={id('first_name')}>First Name</label>
+              <input
+                id={id('first_name')}
+                className={`form-input ${fc('first_name')}`}
+                value={form[`${prefix}_first_name`]}
+                onChange={handleTextChange(`${prefix}_first_name`)}
+                placeholder="First Name"
+                autoComplete={isSender ? 'given-name' : 'shipping given-name'}
+                autoCapitalize="words"
+                required
+                {...a11y('first_name')}
+              />
+              {errEl('first_name')}
+            </div>
+          </div>
+          <div className="mt-8">
+            <label className="form-label sr-only" htmlFor={id('middle_name')}>Middle Name</label>
+            <input
+              id={id('middle_name')}
+              className="form-input"
+              value={form[`${prefix}_middle_name`]}
+              onChange={handleTextChange(`${prefix}_middle_name`)}
+              placeholder="Middle Name (optional)"
+              autoComplete={isSender ? 'additional-name' : 'shipping additional-name'}
+              autoCapitalize="words"
+            />
           </div>
         </div>
         <div className="form-group"><label className="form-label" htmlFor={id('phone')}>Mobile Number <span className="required">*</span></label><input id={id('phone')} className={`form-input ${fc('phone')}`} value={form[`${prefix}_phone`]} onChange={handlePhoneChange(`${prefix}_phone`)} inputMode="numeric" maxLength={11} placeholder="09xxxxxxxxx" autoComplete="tel" required {...a11y('phone')} />{errEl('phone')}</div>

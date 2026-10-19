@@ -503,57 +503,341 @@ input[type="datetime-local"]:hover::-webkit-calendar-picker-indicator {
   cursor: not-allowed;
 }
 
-/* --- RECENT ADDRESSES (BookShipmentPage) --------------------------------
-   Lalamove-style autocomplete: a scrollable card floating below the Full
-   Name input, two lines per row (address, then "Name | Phone"). It reuses
-   .custom-select-menu / .custom-select-option so it inherits that dropdown's
-   overflow/stacking-context escapes above (:has(.custom-select-menu)) for
-   free instead of duplicating them under a new class name. */
-.recent-contacts-trigger {
+/* --- RECENT CONTACTS / REPEAT ORDER QUICK-FILL (BookShipmentPage) --------
+   World-class repeat order experience: placed at the TOP of Sender/Receiver steps.
+   Features prominent person details (Name & Phone) on top, address below,
+   and clean 1-click autofill without overlapping any form inputs. */
+.recent-contacts-container {
+  background: var(--customer-panel-solid, #ffffff);
+  border: 1.5px solid var(--customer-line, #e2e8f0);
+  border-radius: 16px;
+  padding: 14px 16px;
+  margin-bottom: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.recent-contacts-container:hover {
+  border-color: color-mix(in srgb, var(--primary) 35%, var(--customer-line, #e2e8f0));
+}
+
+.recent-contacts-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.recent-contacts-header-left {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.recent-contacts-icon-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: var(--primary-bg, #f0fdf4);
+  color: var(--primary, #16a34a);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.recent-contacts-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.recent-contacts-title {
+  font-size: var(--text-14, 14px);
+  font-weight: 700;
+  color: var(--customer-ink, var(--text, #0f172a));
+}
+
+.recent-contacts-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 2px 7px;
+  border-radius: 9999px;
+  background: var(--primary-lighter, #dcfce7);
+  color: var(--primary-dark, #15803d);
+}
+
+.recent-contacts-desc {
+  font-size: var(--text-12, 12px);
+  color: var(--customer-muted, var(--text-secondary, #64748b));
+  margin: 3px 0 0 0;
+  line-height: 1.4;
+}
+
+.recent-contacts-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.recent-contacts-clear-btn {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  border: 0;
   background: transparent;
-  color: var(--primary);
-  font-size: var(--text-12);
+  border: 1px solid var(--customer-line, #e2e8f0);
+  border-radius: 8px;
+  padding: 4px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--customer-muted, #64748b);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.recent-contacts-clear-btn:hover {
+  background: var(--error-bg, #fef2f2);
+  border-color: var(--error, #ef4444);
+  color: var(--error, #ef4444);
+}
+
+.recent-contacts-collapse-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: transparent;
+  border: 0;
+  color: var(--primary, #16a34a);
+  font-size: 12px;
   font-weight: 600;
   cursor: pointer;
-  padding: 2px 4px;
-  border-radius: var(--radius-xs);
-}
-.recent-contacts-trigger:hover,
-.recent-contacts-trigger:focus-visible {
-  background: var(--primary-bg);
-  outline: none;
+  padding: 4px 6px;
+  border-radius: 6px;
+  transition: background 0.15s ease;
 }
 
-.recent-contacts-wrap {
-  position: relative;
+.recent-contacts-collapse-toggle:hover {
+  background: var(--primary-bg, #f0fdf4);
 }
 
-.recent-contacts-menu {
-  padding: 4px;
+/* Grid of cards */
+.recent-contacts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 10px;
+  margin-top: 12px;
 }
 
-.recent-contact-option {
+/* Individual Contact Card */
+.recent-contact-card {
+  display: flex;
   flex-direction: column;
+  text-align: left;
+  background: var(--surface-card, var(--customer-panel-solid, #ffffff));
+  border: 1.5px solid var(--customer-line, #e2e8f0);
+  border-radius: 12px;
+  padding: 12px 14px;
+  cursor: pointer;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  width: 100%;
+  position: relative;
+  font-family: inherit;
+}
+
+.recent-contact-card:hover {
+  border-color: var(--primary, #16a34a);
+  background: var(--customer-green-soft, #f0fdf4);
+  transform: translateY(-1.5px);
+  box-shadow: 0 4px 12px rgba(22, 163, 74, 0.12);
+}
+
+.recent-contact-card:focus-visible {
+  outline: 3px solid var(--primary-light, #22c55e);
+  outline-offset: 2px;
+}
+
+.recent-contact-card.is-selected {
+  border-color: var(--primary, #16a34a);
+  background: var(--customer-green-soft, #f0fdf4);
+  box-shadow: 0 0 0 1.5px var(--primary, #16a34a);
+}
+
+/* Details on top */
+.recent-contact-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.recent-contact-person {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.recent-contact-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #e0f2fe;
+  color: #0284c7;
+  flex-shrink: 0;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.recent-contact-avatar.is-selected {
+  background: var(--primary, #16a34a);
+  color: #ffffff;
+}
+
+.recent-contact-names {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.recent-contact-fullname {
+  font-size: var(--text-13, 13px);
+  font-weight: 700;
+  color: var(--customer-ink, var(--text, #0f172a));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.recent-contact-fb {
+  font-size: 11px;
+  color: var(--customer-muted, #64748b);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.recent-contact-phone {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--primary-dark, #15803d);
+  background: var(--primary-lighter, #dcfce7);
+  padding: 3px 8px;
+  border-radius: 6px;
+  flex-shrink: 0;
+  letter-spacing: 0.02em;
+}
+
+/* Address on bottom */
+.recent-contact-card-bottom {
+  display: flex;
   align-items: flex-start;
-  gap: 2px;
-  min-height: 0;
-  padding: 8px 10px;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--customer-muted, var(--text-secondary, #64748b));
+  line-height: 1.4;
+  margin-bottom: 8px;
 }
 
-.recent-contact-address {
-  font-size: var(--text-13);
+.recent-contact-pin {
+  color: var(--primary, #16a34a);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.recent-contact-address-text {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Action hint footer */
+.recent-contact-card-action {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-top: 6px;
+  border-top: 1px dashed var(--customer-line, rgba(0, 0, 0, 0.08));
+  margin-top: auto;
+}
+
+.recent-contact-badge-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
   font-weight: 600;
-  color: var(--text);
-  line-height: 1.3;
+  color: var(--primary, #16a34a);
 }
 
-.recent-contact-meta {
-  font-size: var(--text-12);
-  color: var(--text-secondary);
+.recent-contact-badge-selected {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--primary-dark, #15803d);
+}
+
+.recent-contacts-expand-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  margin-top: 10px;
+  padding: 8px 12px;
+  border: 1px dashed var(--customer-line, #cbd5e1);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--primary, #16a34a);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.recent-contacts-expand-btn:hover {
+  background: var(--primary-bg, #f0fdf4);
+  border-color: var(--primary, #16a34a);
+}
+
+/* Dark mode overrides */
+[data-theme="dark"] .recent-contacts-container {
+  background: var(--customer-panel-solid, #1e293b);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .recent-contact-card {
+  background: rgba(30, 41, 59, 0.6);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .recent-contact-card:hover {
+  background: rgba(22, 163, 74, 0.12);
+  border-color: var(--primary);
+}
+
+[data-theme="dark"] .recent-contact-card.is-selected {
+  background: rgba(22, 163, 74, 0.18);
+  border-color: var(--primary);
+}
+
+[data-theme="dark"] .recent-contact-card-action {
+  border-top-color: rgba(255, 255, 255, 0.08);
 }
 
 .card:has(.custom-select-menu),
