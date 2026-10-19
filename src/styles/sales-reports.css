@@ -31,52 +31,223 @@
    is scoped to this page — no global .btn rules are touched.
    --------------------------------------------------------------------- */
 
+/* ── Modern Report Filter Bar & Controls ─────────────────────────────── */
+.per-trip-filter-card,
 .per-trip-selector-card {
-  padding: 16px 20px;
+  padding: 14px 18px;
+  background: var(--surface-card, #ffffff);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: var(--radius-lg, 16px);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
-.per-trip-controls {
+.per-trip-filter-bar {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 16px;
   flex-wrap: wrap;
 }
 
-/* Desktop keeps the original arrangement: the label sits INLINE to the left
-   of the month input, with the two on one line. Only the narrow-screen rules
-   in sales-reports-controls.css stack them. */
-.per-trip-month-field {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  /* Basis wide enough for the label and a long month value, and a real
-     floor so shrinking stops before the value is clipped. When the actions
-     no longer fit beside it the row wraps — it never squeezes this. */
-  flex: 1 1 420px;
-  min-width: min(300px, 100%);
-}
-
-.per-trip-selector-label {
+/* Segmented Pill Toggle for Mode */
+.report-segmented-control {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  color: var(--text-secondary);
-  font-size: var(--text-13);
-  font-weight: 700;
+  background: var(--bg-secondary, #f1f5f9);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 9999px;
+  padding: 3px;
+  gap: 3px;
+  flex-shrink: 0;
+}
+
+.report-segmented-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 9999px;
+  border: 0;
+  background: transparent;
+  color: var(--text-secondary, #64748b);
+  font-size: var(--text-12, 12px);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.16s ease;
   white-space: nowrap;
 }
 
-.per-trip-selector {
-  flex: 1 1 auto;
-  min-width: 170px;
-  max-width: 100%;
+.report-segmented-item:hover {
+  color: var(--text, #0f172a);
 }
 
-/* The month input must never be the thing that gives way. */
-.per-trip-selector .form-input {
+.report-segmented-item.is-active {
+  background: var(--surface, #ffffff);
+  color: var(--primary-dark, #15803d);
+  font-weight: 700;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="dark"] .report-segmented-item.is-active {
+  background: var(--surface-elevated, #334155);
+  color: var(--primary-light, #4ade80);
+}
+
+.per-trip-filter-inputs-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  flex: 1 1 auto;
+  justify-content: flex-end;
+}
+
+.per-trip-input-inline {
+  flex: 0 1 200px;
+}
+
+.report-month-input {
   width: 100%;
-  min-width: 0;
-  text-overflow: ellipsis;
+  height: 38px;
+  border-radius: var(--radius-md, 10px);
+  font-weight: 500;
+}
+
+.per-trip-range-pickers-inline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1 1 320px;
+}
+
+.range-separator {
+  color: var(--text-muted, #94a3b8);
+  font-size: var(--text-12, 12px);
+  font-weight: 600;
+}
+
+.per-trip-generate-btn {
+  height: 38px;
+  padding-inline: 16px;
+  border-radius: var(--radius-md, 10px);
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.per-trip-print-btn,
+.per-trip-header-print-btn {
+  height: 38px;
+  padding-inline: 14px;
+  border-radius: var(--radius-md, 10px);
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+/* Modern Scope Strip (replaces bulky report basis card) */
+.per-trip-scope-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  background: color-mix(in srgb, var(--primary-bg) 55%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--primary) 20%, var(--border));
+  border-radius: var(--radius-md, 12px);
+  font-size: var(--text-12, 12px);
+  color: var(--text-secondary);
+}
+
+.scope-strip-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.scope-period-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: 700;
+  color: var(--text);
+  background: var(--surface);
+  padding: 3px 9px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+}
+
+.scope-trips-tag {
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.scope-trips-tag strong {
+  color: var(--primary-dark);
+  font-weight: 700;
+}
+
+.scope-note-tag {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* Per-Trip Section Header with Inline Search */
+.per-trip-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.per-trip-search-wrap {
+  position: relative;
+  width: min(300px, 100%);
+}
+
+.per-trip-search-wrap .search-icon {
+  position: absolute;
+  left: 11px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.per-trip-search-input {
+  padding-left: 32px;
+  padding-right: 30px;
+  height: 38px;
+  border-radius: var(--radius-md, 10px);
+  font-size: var(--text-13, 13px);
+  width: 100%;
+}
+
+.search-clear-btn {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: 0;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.search-clear-btn:hover {
+  color: var(--text);
+  background: var(--bg-secondary);
 }
 
 .per-trip-disclosure {

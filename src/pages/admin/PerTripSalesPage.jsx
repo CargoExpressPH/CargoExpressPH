@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AlertTriangle, Calendar, CalendarDays, MapPin, RefreshCw, WalletCards, FileText, Printer, Search } from 'lucide-react';
+import { AlertTriangle, Calendar, CalendarDays, MapPin, RefreshCw, WalletCards, FileText, Printer, Search, X } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { rowLinkProps } from '../../utils/rowLink';
 import { getAllTripsForReport, getMonthlySalesReport } from '../../lib/database';
@@ -451,7 +451,19 @@ const PerTripSalesPage = () => {
           <h1 className="admin-page-title"><FileText size={24} color="var(--primary)" aria-hidden="true" /> Sales & Reports</h1>
           <p className="admin-page-subtitle">Review shipping fees, payments, refunds, and balances for every trip in a month.</p>
         </div>
-        <div className="flex gap-8">
+        <div className="flex items-center gap-8">
+          {hasGenerated && (
+            <button
+              type="button"
+              className="btn btn-outline btn-sm per-trip-header-print-btn"
+              onClick={handlePrint}
+              disabled={loadingReport || refreshing}
+              title="Print official report"
+            >
+              <Printer size={15} aria-hidden="true" />
+              <span className="per-trip-btn-text">Print Report</span>
+            </button>
+          )}
           <button
             type="button"
             className="btn btn-ghost btn-sm per-trip-icon-btn"
@@ -460,89 +472,79 @@ const PerTripSalesPage = () => {
             aria-label="Refresh report"
             title="Refresh report"
           >
-            <RefreshCw size={16} className={refreshing ? 'animate-spin' : ''} aria-hidden="true" />
+            <RefreshCw size={15} className={refreshing ? 'animate-spin' : ''} aria-hidden="true" />
             <span className="per-trip-btn-text">{refreshing ? 'Refreshing…' : 'Refresh'}</span>
           </button>
-          </div>
+        </div>
       </div>
 
-      <div className="card per-trip-selector-card no-print">
-        {/* Toggle Date Feature: switch between Month mode and Custom Date Range */}
-        <div className="flex items-center justify-between flex-wrap gap-8 mb-16 pb-12" style={{ borderBottom: '1px solid var(--border)' }}>
-          <div className="text-xs fw-700 text-secondary uppercase tracking-wider flex items-center gap-6">
-            <CalendarDays size={14} className="text-primary" /> Date Filter Mode:
-          </div>
-          <div className="flex items-center gap-6" role="group" aria-label="Toggle date filter mode">
+      {/* ── Modern Streamlined Filter Card ──────────────────────── */}
+      <div className="card per-trip-filter-card no-print">
+        <div className="per-trip-filter-bar">
+          {/* Segmented Filter Mode Pill */}
+          <div className="report-segmented-control" role="group" aria-label="Date filter mode">
             <button
               type="button"
-              className={`btn btn-sm ${dateMode === 'month' ? 'btn-primary' : 'btn-outline'}`}
+              className={`report-segmented-item ${dateMode === 'month' ? 'is-active' : ''}`}
               onClick={() => {
                 setDateMode('month');
                 setError(null);
               }}
             >
-              <CalendarDays size={14} className="inline mr-4" /> By Month
+              <CalendarDays size={14} aria-hidden="true" />
+              <span>By Month</span>
             </button>
             <button
               type="button"
-              className={`btn btn-sm ${dateMode === 'range' ? 'btn-primary' : 'btn-outline'}`}
+              className={`report-segmented-item ${dateMode === 'range' ? 'is-active' : ''}`}
               onClick={() => {
                 setDateMode('range');
                 setError(null);
               }}
             >
-              <Calendar size={14} className="inline mr-4" /> Custom Date Range
+              <Calendar size={14} aria-hidden="true" />
+              <span>Custom Range</span>
             </button>
           </div>
-        </div>
 
-        <div className="per-trip-controls">
-          {dateMode === 'month' ? (
-            <div className="per-trip-month-field">
-              <label className="per-trip-selector-label fw-600" htmlFor="per-trip-month">
-                <CalendarDays size={16} aria-hidden="true" /> Choose a month
-              </label>
-              <div className="form-group mb-0 per-trip-selector">
+          {/* Filter Pickers & Action */}
+          <div className="per-trip-filter-inputs-group">
+            {dateMode === 'month' ? (
+              <div className="per-trip-input-inline">
                 <input
                   id="per-trip-month"
                   type="month"
-                  className="form-input"
+                  className="form-input report-month-input"
                   value={selectedMonth}
+                  aria-label="Choose report month"
                   onChange={event => {
                     setError(null);
                     setSelectedMonth(event.target.value);
                   }}
                 />
               </div>
-            </div>
-          ) : (
-            <div className="per-trip-range-field">
-              <div className="per-trip-range-row">
-                <span className="per-trip-selector-label fw-600">
-                  <Calendar size={16} aria-hidden="true" /> Custom date range
-                </span>
-                <div className="per-trip-range-pickers">
-                  <DatePicker
-                    id="per-trip-range-start"
-                    aria-label="Range start date"
-                    value={rangeStart}
-                    max={rangeEnd || undefined}
-                    onChange={val => { setError(null); setRangeStart(val); }}
-                  />
-                  <DatePicker
-                    id="per-trip-range-end"
-                    aria-label="Range end date"
-                    value={rangeEnd}
-                    min={rangeStart || undefined}
-                    onChange={val => { setError(null); setRangeEnd(val); }}
-                  />
-                </div>
+            ) : (
+              <div className="per-trip-range-pickers-inline">
+                <DatePicker
+                  id="per-trip-range-start"
+                  aria-label="Range start date"
+                  placeholder="Start date"
+                  value={rangeStart}
+                  max={rangeEnd || undefined}
+                  onChange={val => { setError(null); setRangeStart(val); }}
+                />
+                <span className="range-separator">to</span>
+                <DatePicker
+                  id="per-trip-range-end"
+                  aria-label="Range end date"
+                  placeholder="End date"
+                  value={rangeEnd}
+                  min={rangeStart || undefined}
+                  onChange={val => { setError(null); setRangeEnd(val); }}
+                />
               </div>
-              {rangeError && <p className="form-error mb-0" role="alert">{rangeError}</p>}
-            </div>
-          )}
+            )}
 
-          <div className="per-trip-actions">
             <button
               type="button"
               className="btn btn-primary btn-sm per-trip-generate-btn"
@@ -551,50 +553,15 @@ const PerTripSalesPage = () => {
               title="Generate report"
             >
               {loadingReport
-                ? <RefreshCw size={16} className="animate-spin" aria-hidden="true" />
-                : <FileText size={16} aria-hidden="true" />}
-              {/* One flex item, so the label reads "Generate Report" rather
-                  than becoming two separately-gapped items. The " Report"
-                  half is dropped on narrow screens. */}
-              <span className="per-trip-generate-label">
-                Generate<span className="per-trip-btn-text-rest"> Report</span>
-              </span>
+                ? <RefreshCw size={15} className="animate-spin" aria-hidden="true" />
+                : <FileText size={15} aria-hidden="true" />}
+              <span>Generate Report</span>
             </button>
-            {hasGenerated && (
-              <button
-                type="button"
-                className="btn btn-primary btn-sm per-trip-icon-btn"
-                onClick={handlePrint}
-                disabled={loadingReport || refreshing}
-                aria-label="Print report"
-                title="Print report"
-              >
-                <Printer size={16} aria-hidden="true" />
-                <span className="per-trip-btn-text">Print Report</span>
-              </button>
-            )}
           </div>
         </div>
 
-        {hasGenerated && monthlyReport && (
-          <div className="no-print mt-12">
-            <label className="per-trip-selector-label fw-600" htmlFor="per-trip-search">
-              <Search size={16} aria-hidden="true" /> Search trips
-            </label>
-            <input
-              id="per-trip-search"
-              type="search"
-              className="form-input"
-              placeholder="Search trips…"
-              value={tripSearch}
-              onChange={event => setTripSearch(event.target.value)}
-            />
-            {normalizedTripSearch && (
-              <p className="text-xs text-secondary mt-8 mb-0" role="status">
-                {filteredTripReport.length} trip{filteredTripReport.length === 1 ? '' : 's'} shown
-              </p>
-            )}
-          </div>
+        {dateMode === 'range' && rangeError && (
+          <p className="form-error mt-8 mb-0" role="alert">{rangeError}</p>
         )}
       </div>
 
@@ -610,12 +577,18 @@ const PerTripSalesPage = () => {
 
       {hasGenerated && monthlyReport && (
         <>
-          <div className="per-trip-basis-card mt-16">
-            <WalletCards size={18} aria-hidden="true" />
-            <div>
-              <strong>Report basis</strong>
-              <p>Grand total across every trip departing in {reportScope?.label} ({monthlyReport.grandTotal.tripCount} trip{monthlyReport.grandTotal.tripCount === 1 ? '' : 's'}), each computed the same way as a single-trip report.</p>
+          <div className="per-trip-scope-strip mt-16 mb-16">
+            <div className="scope-strip-main">
+              <span className="scope-period-tag">
+                <CalendarDays size={13} aria-hidden="true" /> {reportScope?.label}
+              </span>
+              <span className="scope-trips-tag">
+                <strong>{monthlyReport.grandTotal.tripCount}</strong> trip{monthlyReport.grandTotal.tripCount === 1 ? '' : 's'} included
+              </span>
             </div>
+            <span className="scope-note-tag">
+              Computed per single-trip report calculation
+            </span>
           </div>
 
           <div className="grid grid-4 report-summary-cards per-trip-summary-grid mt-16">
@@ -645,7 +618,40 @@ const PerTripSalesPage = () => {
             </div>
           )}
 
-          <h3 className="mt-24 mb-8">Per-trip detail</h3>
+          <div className="per-trip-section-header no-print mt-24 mb-16">
+            <div>
+              <h3 className="mb-2">Per-trip Breakdown</h3>
+              <p className="text-secondary text-xs mb-0">
+                Individual booking fees and settlement records for trips departing in {reportScope?.label}
+              </p>
+            </div>
+            <div className="per-trip-search-wrap">
+              <Search size={14} className="search-icon" aria-hidden="true" />
+              <input
+                id="per-trip-search"
+                type="search"
+                className="form-input per-trip-search-input"
+                placeholder="Search trip number, route..."
+                value={tripSearch}
+                onChange={event => setTripSearch(event.target.value)}
+              />
+              {tripSearch && (
+                <button
+                  type="button"
+                  className="search-clear-btn"
+                  onClick={() => setTripSearch('')}
+                  title="Clear search"
+                >
+                  <X size={12} aria-hidden="true" />
+                </button>
+              )}
+            </div>
+          </div>
+          {normalizedTripSearch && (
+            <p className="text-xs text-secondary mt-n8 mb-12" role="status">
+              Showing {filteredTripReport.length} of {monthlyReport.tripBreakdown.length} trip{monthlyReport.tripBreakdown.length === 1 ? '' : 's'}
+            </p>
+          )}
           {monthlyReport.tripBreakdown.length === 0 ? (
             <EmptyState title="No trips this month" description="No trip departed in this month." />
           ) : filteredTripReport.length === 0 ? (

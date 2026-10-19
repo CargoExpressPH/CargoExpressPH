@@ -21,51 +21,97 @@
    --------------------------------------------------------------------- */
 
 @media (max-width: 640px) {
-  /* ── Month field: label above a full-width selector ─────────────────── */
-  .per-trip-report .per-trip-month-field {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 7px;
+  /* ── Filter Card & Segmented Control ────────────────────────────── */
+  .per-trip-report .per-trip-filter-card,
+  .per-trip-report .per-trip-selector-card {
+    padding: 12px 14px;
   }
 
-  .per-trip-report .per-trip-selector {
-    flex: 1 1 auto;
-    min-width: 0;
+  .per-trip-report .per-trip-filter-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .per-trip-report .report-segmented-control {
     width: 100%;
+    display: flex;
   }
 
-  .per-trip-report .per-trip-range-row {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 7px;
-  }
-
-  /* ── Report actions: own row, never squeezing the month field ───────── */
-  .per-trip-report .per-trip-actions .btn {
-    flex: 0 0 auto;
+  .per-trip-report .report-segmented-item {
+    flex: 1 1 50%;
     justify-content: center;
-    min-height: 46px;
+    padding-block: 8px;
+    font-size: var(--text-12);
   }
 
-  .per-trip-report .per-trip-actions .per-trip-generate-btn {
+  /* ── Input row: Month input and Generate button in a clean row ────── */
+  .per-trip-report .per-trip-filter-inputs-group {
+    width: 100%;
+    display: flex;
+    align-items: stretch;
+    gap: 8px;
+    flex-wrap: nowrap;
+  }
+
+  .per-trip-report .per-trip-input-inline {
     flex: 1 1 auto;
     min-width: 0;
   }
 
-  /* Icon-only buttons. The accessible name comes from aria-label, which is
-     present at every width, so hiding the text never leaves them unnamed. */
-  .per-trip-report .per-trip-icon-btn .per-trip-btn-text,
-  .per-trip-report .per-trip-generate-btn .per-trip-btn-text-rest {
+  .per-trip-report .report-month-input {
+    width: 100%;
+    height: 44px;
+    font-size: var(--text-14);
+  }
+
+  .per-trip-report .per-trip-range-pickers-inline {
+    width: 100%;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .per-trip-report .range-separator {
     display: none;
   }
 
-  /* 46px, not a bare 44: it matches the app's natural .btn height and keeps
-     the rendered box clear of the 44px floor after sub-pixel rounding. */
-  .per-trip-report .per-trip-icon-btn {
+  .per-trip-report .per-trip-generate-btn {
     flex: 0 0 auto;
-    min-width: 46px;
-    min-height: 46px;
+    min-height: 44px;
+    padding-inline: 16px;
+    justify-content: center;
+  }
+
+  .per-trip-report .per-trip-print-btn {
+    min-height: 44px;
     padding-inline: 12px;
+  }
+
+  /* ── Scope Strip ─────────────────────────────────────────────────── */
+  .per-trip-report .per-trip-scope-strip {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    padding: 8px 12px;
+  }
+
+  .per-trip-report .scope-note-tag {
+    display: none;
+  }
+
+  /* ── Per-Trip Section Header & Search on Mobile ─────────────────── */
+  .per-trip-report .per-trip-section-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .per-trip-report .per-trip-search-wrap {
+    width: 100%;
+  }
+
+  .per-trip-report .per-trip-search-input {
+    height: 42px;
   }
 
   /* ── Header: Refresh as an icon button beside the heading, instead of
