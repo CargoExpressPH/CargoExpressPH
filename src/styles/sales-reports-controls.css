@@ -76,23 +76,32 @@
     flex: 0 0 auto;
     width: auto;
     min-width: 110px;
+    border: 1px solid var(--border);
+    background: var(--surface);
   }
 
   /* ── Filter Card & Segmented Control ────────────────────────────── */
   .per-trip-report .per-trip-filter-card,
   .per-trip-report .per-trip-selector-card {
-    padding: 12px 14px;
+    padding: 14px 16px;
+    height: auto;
+    min-height: 0;
   }
 
   .per-trip-report .per-trip-filter-bar {
+    display: flex;
     flex-direction: column;
     align-items: stretch;
-    gap: 12px;
+    justify-content: flex-start;
+    gap: 14px;
+    height: auto;
+    min-height: 0;
   }
 
   .per-trip-report .report-segmented-control {
     width: 100%;
     display: flex;
+    flex: none;
   }
 
   .per-trip-report .report-segmented-item {
@@ -108,12 +117,16 @@
     display: flex;
     flex-direction: column;
     align-items: stretch;
-    gap: 10px;
+    justify-content: flex-start;
+    gap: 12px;
+    flex: none;
+    height: auto;
+    min-height: 0;
   }
 
   .per-trip-report .per-trip-input-inline {
     width: 100%;
-    flex: 1 1 auto;
+    flex: none;
   }
 
   .per-trip-report .report-month-input {
@@ -129,6 +142,9 @@
     grid-template-columns: 1fr 1fr;
     gap: 8px;
     align-items: center;
+    flex: none;
+    height: auto;
+    min-height: 0;
   }
 
   .per-trip-report .per-trip-range-pickers-inline .date-picker-trigger {
@@ -151,12 +167,14 @@
     font-size: var(--text-14, 14px);
     font-weight: 600;
     border-radius: var(--radius-md, 10px);
+    flex: none;
   }
 
   .per-trip-report .per-trip-print-btn {
     width: 100%;
     min-height: 42px;
     padding-inline: 12px;
+    flex: none;
   }
 
   /* ── Scope Strip ─────────────────────────────────────────────────── */
