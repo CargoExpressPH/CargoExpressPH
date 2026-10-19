@@ -869,10 +869,13 @@ const TripScannerModal = ({
                 filteredOrders.map((o) => {
                   const qty = o.package_quantity || 1;
                   const verified = o.verified_boxes || [];
-                  const isComplete = verified.filter((b) => b <= qty).length === qty;
+                  const verifiedCount = verified.filter((b) => b <= qty).length;
+                  const isComplete = verifiedCount === qty;
                   const isJustScanned = o.id === lastScannedOrderId;
                   const receiver = orderPartyName(o, 'receiver') || 'Receiver';
                   const destination = [o.receiver_city, o.receiver_province].filter(Boolean).join(', ') || 'No destination set';
+                  const nextBoxToVerify = Array.from({ length: qty }, (_, idx) => idx + 1).find((b) => !verified.includes(b));
+                  const progressPct = Math.round((verifiedCount / qty) * 100);
 
                   return (
                     <div
@@ -885,54 +888,47 @@ const TripScannerModal = ({
                           <span className="trip-scanner-tracking">{o.tracking_number}</span>
                           <span className="trip-scanner-receiver-name">{receiver}</span>
                         </div>
-                        {isComplete ? (
-                          <span className="trip-scanner-verified-badge is-complete">
-                            <Check size={11} strokeWidth={3} /> {qty}/{qty} Verified
-                          </span>
-                        ) : (
-                          <span className="trip-scanner-verified-badge is-pending">
-                            {verified.length}/{qty} Verified
-                          </span>
-                        )}
+                        <span className={`trip-scanner-status-pill ${isComplete ? 'is-complete' : 'is-pending'}`}>
+                          {isComplete ? 'Completed' : 'Pending'}
+                        </span>
                       </div>
 
                       <div className="trip-scanner-card-dest">
-                        <MapPin size={12} className="trip-scanner-dest-icon" aria-hidden="true" />
+                        <MapPin size={11} className="trip-scanner-dest-icon" aria-hidden="true" />
                         <span>{destination}</span>
                       </div>
 
-                      {/* Package Checklist Row */}
-                      <div className="trip-scanner-packages-wrap">
-                        <div className="trip-scanner-packages-title">
-                          <span>Boxes to load ({qty})</span>
-                          <span className="trip-scanner-packages-hint">
-                            Tap to manually verify
-                          </span>
+                      {/* Box Counting & Progress Row */}
+                      <div className="trip-scanner-counter-row">
+                        <div className="trip-scanner-count-group">
+                          <span className="trip-scanner-count-label">Boxes:</span>
+                          <span className="trip-scanner-count-val">{verifiedCount}/{qty}</span>
                         </div>
-                        <div className="trip-scanner-box-grid">
-                          {Array.from({ length: qty }, (_, idx) => {
-                            const boxNum = idx + 1;
-                            const isBoxDone = verified.includes(boxNum);
-                            return (
-                              <button
-                                key={boxNum}
-                                type="button"
-                                className={`trip-scanner-box-item ${isBoxDone ? 'is-verified' : 'is-unverified'}`}
-                                onClick={() => !isBoxDone && handleManualVerifyBox(o, boxNum)}
-                                disabled={isBoxDone || busy}
-                                title={isBoxDone ? `Box ${boxNum} of ${qty} verified` : `Tap to manually verify Box ${boxNum}`}
-                              >
-                                <span className="trip-scanner-box-icon">
-                                  {isBoxDone ? <Check size={11} strokeWidth={3} /> : boxNum}
-                                </span>
-                                <span className="trip-scanner-box-label">Box {boxNum}</span>
-                                <span className="trip-scanner-box-tag">
-                                  {isBoxDone ? 'Loaded' : 'Verify'}
-                                </span>
-                              </button>
-                            );
-                          })}
+
+                        <div className="trip-scanner-mini-bar-wrap">
+                          <div
+                            className="trip-scanner-mini-bar"
+                            role="progressbar"
+                            aria-valuenow={verifiedCount}
+                            aria-valuemin={0}
+                            aria-valuemax={qty}
+                          >
+                            <div className="trip-scanner-mini-bar-fill" style={{ width: `${progressPct}%` }} />
+                          </div>
+                          <span className="trip-scanner-mini-pct">{progressPct}%</span>
                         </div>
+
+                        {!isComplete && nextBoxToVerify && (
+                          <button
+                            type="button"
+                            className="trip-scanner-manual-box-btn"
+                            onClick={() => handleManualVerifyBox(o, nextBoxToVerify)}
+                            disabled={busy}
+                            title={`Manually verify Box ${nextBoxToVerify} if label is unreadable`}
+                          >
+                            + Verify Box {nextBoxToVerify}
+                          </button>
+                        )}
                       </div>
 
                       {/* POD button if all boxes scanned during delivery phase */}

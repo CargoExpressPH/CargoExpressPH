@@ -410,8 +410,8 @@
   background: var(--surface-card);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  padding: 12px 14px;
-  margin-bottom: 10px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
   transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
 }
 
@@ -437,33 +437,33 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 8px;
-  margin-bottom: 4px;
+  margin-bottom: 2px;
 }
 
 .trip-scanner-card-id-block {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
 }
 
 .trip-scanner-tracking {
   font-weight: 700;
-  font-size: var(--text-13);
+  font-size: 12.5px;
   color: var(--primary);
   font-family: monospace;
   letter-spacing: -0.2px;
 }
 
 .trip-scanner-receiver-name {
-  font-size: var(--text-12);
+  font-size: 11.5px;
   font-weight: 600;
   color: var(--text);
 }
 
 .trip-scanner-card-dest {
-  font-size: var(--text-11);
+  font-size: 10.5px;
   color: var(--text-secondary);
-  margin-bottom: 8px;
+  margin-bottom: 6px;
   display: flex;
   align-items: center;
   gap: 4px;
@@ -474,125 +474,107 @@
   flex-shrink: 0;
 }
 
-.trip-scanner-verified-badge {
+/* Status pill: Completed or Pending only (no numbers) */
+.trip-scanner-status-pill {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
   padding: 2px 8px;
   border-radius: 999px;
-  font-size: var(--text-11);
+  font-size: 10.5px;
   font-weight: 600;
   white-space: nowrap;
 }
 
-.trip-scanner-verified-badge.is-complete {
+.trip-scanner-status-pill.is-complete {
   background: rgba(16, 185, 129, 0.12);
   color: #059669;
   border: 1px solid rgba(16, 185, 129, 0.3);
 }
 
-.trip-scanner-verified-badge.is-pending {
+.trip-scanner-status-pill.is-pending {
   background: var(--surface-subtle);
-  color: var(--text-secondary);
+  color: var(--text-tertiary);
   border: 1px solid var(--border);
 }
 
-/* Package Checklist Row */
-.trip-scanner-packages-wrap {
-  background: var(--surface-subtle);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  padding: 8px 10px;
-}
-
-.trip-scanner-packages-title {
+/* ── Box Counter Row (clean single-row layout instead of 20+ buttons) ── */
+.trip-scanner-counter-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 10.5px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.4px;
-  color: var(--text-tertiary);
-  margin-bottom: 6px;
+  gap: 8px;
+  background: var(--surface-subtle);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 5px 9px;
 }
 
-.trip-scanner-packages-hint {
-  font-size: 10px;
-  color: var(--text-tertiary);
-  text-transform: none;
-  font-weight: 500;
-  letter-spacing: 0;
-}
-
-.trip-scanner-box-grid {
+.trip-scanner-count-group {
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
+  align-items: center;
+  gap: 4px;
+  font-size: 11.5px;
+  white-space: nowrap;
 }
 
-.trip-scanner-box-item {
-  display: inline-flex;
+.trip-scanner-count-label {
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.trip-scanner-count-val {
+  font-weight: 700;
+  color: var(--text);
+  font-family: monospace;
+}
+
+.trip-scanner-mini-bar-wrap {
+  flex: 1 1 auto;
+  display: flex;
   align-items: center;
   gap: 6px;
-  padding: 3px 8px;
-  font-size: var(--text-11);
+  max-width: 120px;
+}
+
+.trip-scanner-mini-bar {
+  flex: 1;
+  height: 5px;
+  background: var(--border);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.trip-scanner-mini-bar-fill {
+  height: 100%;
+  background: #10b981;
+  border-radius: 999px;
+  transition: width 0.25s ease;
+}
+
+.trip-scanner-mini-pct {
+  font-size: 10px;
   font-weight: 600;
-  border-radius: 6px;
+  color: var(--text-tertiary);
+  width: 26px;
+  text-align: right;
+}
+
+.trip-scanner-manual-box-btn {
+  font-size: 10.5px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 5px;
   border: 1px solid var(--border);
   background: var(--surface);
-  color: var(--text);
+  color: var(--primary);
   cursor: pointer;
+  white-space: nowrap;
   transition: all 0.15s ease;
 }
 
-.trip-scanner-box-item.is-verified {
-  background: rgba(16, 185, 129, 0.1);
-  border-color: rgba(16, 185, 129, 0.35);
-  color: #059669;
-  cursor: default;
-}
-
-.trip-scanner-box-item.is-unverified:hover:not(:disabled) {
+.trip-scanner-manual-box-btn:hover:not(:disabled) {
   border-color: var(--primary);
   background: rgba(59, 130, 246, 0.08);
-  color: var(--primary);
-}
-
-.trip-scanner-box-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 15px;
-  height: 15px;
-  border-radius: 3px;
-  font-size: 9.5px;
-  font-weight: 700;
-}
-
-.is-verified .trip-scanner-box-icon {
-  background: #10b981;
-  color: #ffffff;
-}
-
-.is-unverified .trip-scanner-box-icon {
-  background: var(--surface-subtle);
-  color: var(--text-secondary);
-  border: 1px solid var(--border);
-}
-
-.trip-scanner-box-label {
-  font-weight: 600;
-}
-
-.trip-scanner-box-tag {
-  font-size: 9.5px;
-  font-weight: 500;
-  color: var(--text-tertiary);
-}
-
-.is-verified .trip-scanner-box-tag {
-  color: #059669;
 }
 
 /* POD action in delivery mode */
