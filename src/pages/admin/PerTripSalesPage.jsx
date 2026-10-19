@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AlertTriangle, CalendarDays, MapPin, RefreshCw, WalletCards, FileText, Printer, Search } from 'lucide-react';
+import { AlertTriangle, Calendar, CalendarDays, MapPin, RefreshCw, WalletCards, FileText, Printer, Search } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { rowLinkProps } from '../../utils/rowLink';
 import { getAllTripsForReport, getMonthlySalesReport } from '../../lib/database';
@@ -229,6 +229,7 @@ const PerTripSalesPage = () => {
   const { user, userProfile } = useAuth();
   const [exporting, setExporting] = useState(false);
   const [trips, setTrips] = useState([]);
+  const [dateMode, setDateMode] = useState('month'); // 'month' | 'range'
   const [selectedMonth, setSelectedMonth] = useState(currentMonthValue());
   const [rangeStart, setRangeStart] = useState('');
   const [rangeEnd, setRangeEnd] = useState('');
@@ -244,18 +245,19 @@ const PerTripSalesPage = () => {
       ? 'Pick both a start and an end date.'
       : rangeEnd < rangeStart ? 'The end date must be the same as or after the start date.' : null)
     : null;
-  // A complete date range replaces the month filter. A half-filled or
-  // reversed range yields no scope at all, so nothing is generated silently
-  // from the month underneath it.
+  // An explicit toggle determines whether the month or the custom range supplies the scope.
   const activeScope = useMemo(() => {
-    if (rangeError) return null;
-    if (rangeStart && rangeEnd) {
-      return {
-        start: rangeStart,
-        end: rangeEnd,
-        key: `${rangeStart}|${rangeEnd}`,
-        label: `${formatPhDate(`${rangeStart}T00:00:00+08:00`)} – ${formatPhDate(`${rangeEnd}T00:00:00+08:00`)}`,
-      };
+    if (dateMode === 'range') {
+      if (rangeError) return null;
+      if (rangeStart && rangeEnd) {
+        return {
+          start: rangeStart,
+          end: rangeEnd,
+          key: `range:${rangeStart}|${rangeEnd}`,
+          label: `${formatPhDate(`${rangeStart}T00:00:00+08:00`)} – ${formatPhDate(`${rangeEnd}T00:00:00+08:00`)}`,
+        };
+      }
+      return null;
     }
     if (!selectedMonth) return null;
     const [year, month] = selectedMonth.split('-').map(Number);
@@ -263,11 +265,11 @@ const PerTripSalesPage = () => {
     return {
       start: `${selectedMonth}-01`,
       end: `${selectedMonth}-${String(lastDay).padStart(2, '0')}`,
-      key: selectedMonth,
+      key: `month:${selectedMonth}`,
       isMonth: true,
       label: monthLabel(selectedMonth),
     };
-  }, [rangeStart, rangeEnd, rangeError, selectedMonth]);
+  }, [dateMode, rangeStart, rangeEnd, rangeError, selectedMonth]);
   // Gates the dashboard AND the Print button — set only after a successful
   // "Generate Report" click (or a background refresh of one already shown).
   // Changing the month never sits on screen next to filters it no longer
@@ -465,57 +467,80 @@ const PerTripSalesPage = () => {
       </div>
 
       <div className="card per-trip-selector-card no-print">
-        {/* Two named groups, not one undifferentiated flex row. The month
-            field and the actions can then be stacked independently on narrow
-            screens instead of the field absorbing every pixel the buttons
-            need — which is what collapsed the selected month to a bare
-            dropdown arrow once Print Report appeared. */}
-        <div className="per-trip-controls">
-          <div className="per-trip-month-field">
-            <label className="per-trip-selector-label fw-600" htmlFor="per-trip-month">
-              <CalendarDays size={16} aria-hidden="true" /> Choose a month
-            </label>
-            {/* No inline flex/min-width here: the stylesheet owns the sizing,
-                including the floor that keeps a long value like
-                "September 2026" readable. */}
-            <div className="form-group mb-0 per-trip-selector">
-              <input
-                id="per-trip-month"
-                type="month"
-                className="form-input"
-                value={selectedMonth}
-                onChange={event => {
-                  setError(null);
-                  setSelectedMonth(event.target.value);
-                }}
-              />
-            </div>
+        {/* Toggle Date Feature: switch between Month mode and Custom Date Range */}
+        <div className="flex items-center justify-between flex-wrap gap-8 mb-16 pb-12" style={{ borderBottom: '1px solid var(--border)' }}>
+          <div className="text-xs fw-700 text-secondary uppercase tracking-wider flex items-center gap-6">
+            <CalendarDays size={14} className="text-primary" /> Date Filter Mode:
           </div>
+          <div className="flex items-center gap-6" role="group" aria-label="Toggle date filter mode">
+            <button
+              type="button"
+              className={`btn btn-sm ${dateMode === 'month' ? 'btn-primary' : 'btn-outline'}`}
+              onClick={() => {
+                setDateMode('month');
+                setError(null);
+              }}
+            >
+              <CalendarDays size={14} className="inline mr-4" /> By Month
+            </button>
+            <button
+              type="button"
+              className={`btn btn-sm ${dateMode === 'range' ? 'btn-primary' : 'btn-outline'}`}
+              onClick={() => {
+                setDateMode('range');
+                setError(null);
+              }}
+            >
+              <Calendar size={14} className="inline mr-4" /> Custom Date Range
+            </button>
+          </div>
+        </div>
 
-          <div className="per-trip-range-field">
-            <div className="per-trip-range-row">
-              <span className="per-trip-selector-label fw-600">
-                <CalendarDays size={16} aria-hidden="true" /> Or a date range
-              </span>
-              <div className="per-trip-range-pickers">
-                <DatePicker
-                  id="per-trip-range-start"
-                  aria-label="Range start date"
-                  value={rangeStart}
-                  max={rangeEnd || undefined}
-                  onChange={val => { setError(null); setRangeStart(val); }}
-                />
-                <DatePicker
-                  id="per-trip-range-end"
-                  aria-label="Range end date"
-                  value={rangeEnd}
-                  min={rangeStart || undefined}
-                  onChange={val => { setError(null); setRangeEnd(val); }}
+        <div className="per-trip-controls">
+          {dateMode === 'month' ? (
+            <div className="per-trip-month-field">
+              <label className="per-trip-selector-label fw-600" htmlFor="per-trip-month">
+                <CalendarDays size={16} aria-hidden="true" /> Choose a month
+              </label>
+              <div className="form-group mb-0 per-trip-selector">
+                <input
+                  id="per-trip-month"
+                  type="month"
+                  className="form-input"
+                  value={selectedMonth}
+                  onChange={event => {
+                    setError(null);
+                    setSelectedMonth(event.target.value);
+                  }}
                 />
               </div>
             </div>
-            {rangeError && <p className="form-error mb-0" role="alert">{rangeError}</p>}
-          </div>
+          ) : (
+            <div className="per-trip-range-field">
+              <div className="per-trip-range-row">
+                <span className="per-trip-selector-label fw-600">
+                  <Calendar size={16} aria-hidden="true" /> Custom date range
+                </span>
+                <div className="per-trip-range-pickers">
+                  <DatePicker
+                    id="per-trip-range-start"
+                    aria-label="Range start date"
+                    value={rangeStart}
+                    max={rangeEnd || undefined}
+                    onChange={val => { setError(null); setRangeStart(val); }}
+                  />
+                  <DatePicker
+                    id="per-trip-range-end"
+                    aria-label="Range end date"
+                    value={rangeEnd}
+                    min={rangeStart || undefined}
+                    onChange={val => { setError(null); setRangeEnd(val); }}
+                  />
+                </div>
+              </div>
+              {rangeError && <p className="form-error mb-0" role="alert">{rangeError}</p>}
+            </div>
+          )}
 
           <div className="per-trip-actions">
             <button
