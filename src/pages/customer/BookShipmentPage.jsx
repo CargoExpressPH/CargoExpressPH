@@ -8,7 +8,7 @@ import { logOrder } from '../../lib/activityLog';
 import { buildFullAddress } from '../../lib/address';
 import { ROUTES, PH_LOCATIONS, VALID_PROVINCES, detectPickupLocation, validateRouteProvinces } from '../../constants/phLocations';
 import { isTripBookable } from '../../constants/status';
-import { ArrowLeft, ArrowRight, Loader, CheckCircle, Copy, Check, Package, MapPin, User, Truck, AlertTriangle, Info, Clock, Headset, Phone, RotateCcw, ChevronDown, ChevronUp } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Loader, CheckCircle, Copy, Check, Package, MapPin, User, Truck, AlertTriangle, Info, Clock, Headset, Phone, ChevronDown, X } from 'lucide-react';
 import { useToast } from '../../hooks/useToast';
 import CustomSelect from '../../components/ui/CustomSelect';
 import BarangaySelect from '../../components/ui/BarangaySelect';
@@ -181,8 +181,6 @@ const BookShipmentPage = () => {
   // Recent Addresses / Address Book — independent of the "use registered
   // address" checkboxes above; see handleSelectRecentContact.
   const [recentContacts, setRecentContacts] = useState({ senders: [], receivers: [] });
-  const [collapsedRecent, setCollapsedRecent] = useState({ sender: false, receiver: false });
-  const [expandedRecent, setExpandedRecent] = useState({ sender: false, receiver: false });
   const [openContactDropdown, setOpenContactDropdown] = useState(null); // 'sender' | 'receiver' | null
   const contactWrapRefs = useRef({});
   // Set when a step change should leave the scroll to a field focus instead.
@@ -739,130 +737,78 @@ const BookShipmentPage = () => {
         ? c.province === 'Bohol'
         : c.province && (isSender || ['Metro Manila', 'Cavite', 'Batangas', 'Laguna', 'Bulacan'].includes(c.province)) && c.province !== 'Bohol'))
       : allContacts;
+    const filledContact = contacts.find(c => isContactFilled(prefix, c));
     return (
       <div className="grid grid-2 gap-16">
-        {/* RECENT CONTACTS / REPEAT ORDER QUICK-FILL AT THE TOP */}
+        {/* Lalamove-style Recent Contacts Autocomplete Dropdown */}
         {contacts.length > 0 && (
-          <div className="col-full recent-contacts-container">
-            <div className="recent-contacts-header">
-              <div className="recent-contacts-header-left">
-                <div className="recent-contacts-icon-badge">
-                  <Clock size={15} aria-hidden="true" />
+          <div className="col-full lalamove-recent-group" ref={el => { contactWrapRefs.current[prefix] = el; }}>
+            <div className="lalamove-trigger-wrapper">
+              <button
+                type="button"
+                className={`lalamove-trigger-btn ${openContactDropdown === prefix ? 'is-active' : ''}`}
+                onClick={() => setOpenContactDropdown(prev => prev === prefix ? null : prefix)}
+                aria-haspopup="listbox"
+                aria-expanded={openContactDropdown === prefix}
+              >
+                <div className="lalamove-trigger-left">
+                  <Clock size={16} className="lalamove-clock-orange" aria-hidden="true" />
+                  <span className={`lalamove-trigger-text ${filledContact ? 'is-filled' : ''}`}>
+                    {filledContact
+                      ? `${formatContactAddress(filledContact)} (${filledContact.first_name} ${filledContact.last_name})`
+                      : `Select from recent addresses (${Math.min(contacts.length, 5)} saved)...`}
+                  </span>
                 </div>
-                <div>
-                  <div className="recent-contacts-title-row">
-                    <span className="recent-contacts-title">
-                      Recent {isSender ? 'Senders' : 'Receivers'}
+                <div className="lalamove-trigger-actions">
+                  {filledContact && (
+                    <span
+                      role="button"
+                      tabIndex={0}
+                      className="lalamove-trigger-clear"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleClearPrefix(prefix);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.stopPropagation();
+                          handleClearPrefix(prefix);
+                        }
+                      }}
+                      title="Clear autofilled contact"
+                      aria-label="Clear autofilled contact"
+                    >
+                      <X size={14} aria-hidden="true" />
                     </span>
-                    <span className="recent-contacts-badge">
-                      Repeat Order
-                    </span>
-                  </div>
-                  <p className="recent-contacts-desc">
-                    Click a saved contact below to automatically fill in this form.
-                  </p>
-                </div>
-              </div>
-              <div className="recent-contacts-header-right">
-                {contacts.some(c => isContactFilled(prefix, c)) && (
-                  <button
-                    type="button"
-                    className="recent-contacts-clear-btn"
-                    onClick={() => handleClearPrefix(prefix)}
-                    title="Clear auto-filled fields"
-                  >
-                    <RotateCcw size={12} aria-hidden="true" /> Clear Form
-                  </button>
-                )}
-                <button
-                  type="button"
-                  className="recent-contacts-collapse-toggle"
-                  onClick={() => setCollapsedRecent(p => ({ ...p, [prefix]: !p[prefix] }))}
-                  aria-expanded={!collapsedRecent[prefix]}
-                  title={collapsedRecent[prefix] ? 'Show recent contacts' : 'Hide recent contacts'}
-                >
-                  {collapsedRecent[prefix] ? (
-                    <>Show ({contacts.length}) <ChevronDown size={13} aria-hidden="true" /></>
-                  ) : (
-                    <>Hide <ChevronUp size={13} aria-hidden="true" /></>
                   )}
-                </button>
-              </div>
-            </div>
-
-            {!collapsedRecent[prefix] && (
-              <>
-                <div className="recent-contacts-grid">
-                  {(expandedRecent[prefix] ? contacts : contacts.slice(0, 2)).map((contact, i) => {
-                    const isSelected = isContactFilled(prefix, contact);
-                    return (
-                      <button
-                        type="button"
-                        key={`${contact.last_name}-${contact.first_name}-${contact.middle_name}-${contact.phone}-${i}`}
-                        className={`recent-contact-card ${isSelected ? 'is-selected' : ''}`}
-                        onClick={() => handleSelectRecentContact(prefix, contact)}
-                      >
-                        {/* TOP: Contact Details (Name, Phone, FB) */}
-                        <div className="recent-contact-card-top">
-                          <div className="recent-contact-person">
-                            <div className={`recent-contact-avatar ${isSelected ? 'is-selected' : ''}`}>
-                              {isSelected ? <Check size={13} aria-hidden="true" /> : <User size={13} aria-hidden="true" />}
-                            </div>
-                            <div className="recent-contact-names">
-                              <span className="recent-contact-fullname">
-                                {contact.last_name}, {contact.first_name}{contact.middle_name ? ` ${contact.middle_name}` : ''}
-                              </span>
-                              {contact.facebook && (
-                                <span className="recent-contact-fb">FB: {contact.facebook}</span>
-                              )}
-                            </div>
-                          </div>
-                          <div className="recent-contact-phone">
-                            <Phone size={11} aria-hidden="true" />
-                            <span>{contact.phone}</span>
-                          </div>
-                        </div>
-
-                        {/* BOTTOM: Address */}
-                        <div className="recent-contact-card-bottom">
-                          <MapPin size={13} className="recent-contact-pin" aria-hidden="true" />
-                          <span className="recent-contact-address-text">
-                            {formatContactAddress(contact)}
-                          </span>
-                        </div>
-
-                        {/* Card Action Hint */}
-                        <div className="recent-contact-card-action">
-                          {isSelected ? (
-                            <span className="recent-contact-badge-selected">
-                              <Check size={12} aria-hidden="true" /> Autofilled
-                            </span>
-                          ) : (
-                            <span className="recent-contact-badge-action">
-                              Use this contact <ArrowRight size={11} aria-hidden="true" />
-                            </span>
-                          )}
-                        </div>
-                      </button>
-                    );
-                  })}
+                  <ChevronDown size={15} className={`lalamove-arrow ${openContactDropdown === prefix ? 'is-rotated' : ''}`} aria-hidden="true" />
                 </div>
+              </button>
 
-                {contacts.length > 2 && (
-                  <button
-                    type="button"
-                    className="recent-contacts-expand-btn"
-                    onClick={() => setExpandedRecent(p => ({ ...p, [prefix]: !p[prefix] }))}
-                  >
-                    {expandedRecent[prefix] ? (
-                      <>Show fewer contacts <ChevronUp size={13} aria-hidden="true" /></>
-                    ) : (
-                      <>View all {contacts.length} recent {isSender ? 'senders' : 'receivers'} <ChevronDown size={13} aria-hidden="true" /></>
-                    )}
-                  </button>
-                )}
-              </>
-            )}
+              {openContactDropdown === prefix && (
+                <div className="lalamove-dropdown-list" role="listbox" aria-label={`Recent ${prefix} contacts`}>
+                  {contacts.slice(0, 5).map((contact, i) => (
+                    <button
+                      key={`${contact.last_name}-${contact.first_name}-${contact.phone}-${i}`}
+                      type="button"
+                      className="lalamove-dropdown-row"
+                      role="option"
+                      onClick={() => handleSelectRecentContact(prefix, contact)}
+                    >
+                      <Clock size={16} className="lalamove-row-clock" aria-hidden="true" />
+                      <div className="lalamove-row-content">
+                        <span className="lalamove-row-address">
+                          {formatContactAddress(contact)}
+                        </span>
+                        <span className="lalamove-row-meta">
+                          {contact.last_name}, {contact.first_name}{contact.middle_name ? ` ${contact.middle_name}` : ''} | {contact.phone}
+                        </span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         )}
 
