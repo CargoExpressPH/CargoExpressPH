@@ -1,9 +1,9 @@
 import { useState, useRef, useEffect, useCallback, useId, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import {
-  X, CameraOff, RotateCcw, ImagePlus, Loader, CheckCircle, AlertTriangle,
+  X, CameraOff, RotateCcw, Loader, CheckCircle, AlertTriangle,
   Package, Search, Volume2, VolumeX, Zap, ZapOff, Check, ArrowRight,
-  Truck, ShieldCheck, CheckSquare, Sparkles
+  Truck, ShieldCheck, MapPin, Camera
 } from 'lucide-react';
 import FocusTrap from './FocusTrap';
 import useScrollLock from '../../hooks/useScrollLock';
@@ -125,7 +125,6 @@ const TripScannerModal = ({
 
   // Scanner state
   const videoRef = useRef(null);
-  const fileInputRef = useRef(null);
   const decoderRef = useRef(null);
   const streamRef = useRef(null);
   const resolvingRef = useRef(false);
@@ -248,7 +247,7 @@ const TripScannerModal = ({
       playScanErrorSound();
       triggerPulse('is-error-pulse');
       setNoticeTone('danger');
-      setNotice('⚠️ QR code is not recognized as a CargoExpress package label.');
+      setNotice('QR code is not recognized as a CargoExpress package label.');
       return;
     }
 
@@ -270,7 +269,7 @@ const TripScannerModal = ({
       triggerPulse('is-error-pulse');
       setNoticeTone('danger');
       const identifier = payload.trackingNumber || 'This package';
-      setNotice(`🛑 Warning: ${identifier} is NOT assigned to Trip ${trip.trip_number}! Do not load.`);
+      setNotice(`Warning: ${identifier} is not assigned to Trip ${trip.trip_number}. Do not load.`);
       return;
     }
 
@@ -298,7 +297,7 @@ const TripScannerModal = ({
       playScanErrorSound();
       triggerPulse('is-error-pulse');
       setNoticeTone('warning');
-      setNotice(`⚠️ Box ${boxNumber} is outside the booking limit (${packageQty} boxes total).`);
+      setNotice(`Box ${boxNumber} is outside the booking limit (${packageQty} boxes total).`);
       return;
     }
 
@@ -309,7 +308,7 @@ const TripScannerModal = ({
       playScanDuplicateSound();
       setNoticeTone('warning');
       setLastScannedOrderId(targetOrder.id);
-      setNotice(`ℹ️ Box ${boxNumber} of ${packageQty} for ${targetOrder.tracking_number} is already verified.`);
+      setNotice(`Box ${boxNumber} of ${packageQty} for ${targetOrder.tracking_number} is already verified.`);
       return;
     }
 
@@ -360,11 +359,11 @@ const TripScannerModal = ({
       if (newTotalScanned >= totalTripBoxes && totalTripBoxes > 0) {
         playScanCompleteSound();
         setNoticeTone('success');
-        setNotice(`🎉 All ${totalTripBoxes} trip boxes verified! Van is ready for departure.`);
+        setNotice(`All ${totalTripBoxes} trip boxes verified! Van is ready for departure.`);
       } else {
         playScanSuccessSound();
         setNoticeTone('success');
-        setNotice(`✓ Verified: Box ${boxNumber}/${packageQty} for ${targetOrder.tracking_number} (${receiver})`);
+        setNotice(`Verified: Box ${boxNumber}/${packageQty} for ${targetOrder.tracking_number} (${receiver})`);
       }
     } catch (err) {
       if (!mountedRef.current) return;
@@ -405,7 +404,7 @@ const TripScannerModal = ({
       setLastScannedOrderId(order.id);
       playScanSuccessSound();
       setNoticeTone('success');
-      setNotice(`✓ Manually verified: Box ${boxNum} of ${order.tracking_number}`);
+      setNotice(`Manually verified: Box ${boxNum} of ${order.tracking_number}`);
     } catch (e) {
       playScanErrorSound();
       toast.error(e.message || 'Failed to verify box');
@@ -421,44 +420,6 @@ const TripScannerModal = ({
     if (!clean) return;
     setManualCode('');
     void handleScan(clean);
-  };
-
-  // ── Photo Upload Scan ────────────────────────────────────────────────────
-  const handlePhotoScan = async (e) => {
-    const file = e.target.files && e.target.files[0];
-    e.target.value = '';
-    if (!file || resolvingRef.current) return;
-
-    resolvingRef.current = true;
-    setBusy(true);
-    setNoticeTone('info');
-    setNotice('Reading photo barcode…');
-
-    let loaded = null;
-    let text = null;
-    try {
-      loaded = await loadImage(file);
-      const decode = await getDecoder();
-      text = await decode(loaded.img, { photo: true });
-    } catch {
-      text = null;
-    } finally {
-      if (loaded) URL.revokeObjectURL(loaded.url);
-      resolvingRef.current = false;
-      setBusy(false);
-    }
-
-    if (!mountedRef.current) return;
-
-    if (!text) {
-      playScanErrorSound();
-      setNoticeTone('warning');
-      setNotice('Could not find a clear QR code in that photo. Try again with good lighting.');
-      return;
-    }
-
-    lastScanRef.current = { text: '', at: 0 };
-    await handleScan(text);
   };
 
   // ── Delivery / POD flow ──────────────────────────────────────────────────
@@ -749,8 +710,9 @@ const TripScannerModal = ({
           {/* Progress Tracker Card */}
           <div className="trip-scanner-progress-card">
             <div className="trip-scanner-progress-stats">
-              <span className="trip-scanner-progress-count">
-                📦 {totalScannedBoxes} of {totalTripBoxes} Boxes Verified
+              <span className="trip-scanner-progress-count" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                <Package size={15} className="text-secondary" aria-hidden="true" />
+                <span>{totalScannedBoxes} of {totalTripBoxes} Packages Verified</span>
               </span>
               <span className="trip-scanner-progress-pct">{completionPercent}%</span>
             </div>
@@ -827,44 +789,31 @@ const TripScannerModal = ({
                 )}
               </div>
             </div>
-
-            {/* Quick camera actions */}
-            <div className="trip-scanner-camera-actions">
-              <button
-                type="button"
-                className="btn btn-outline btn-sm trip-scanner-camera-btn"
-                onClick={() => fileInputRef.current && fileInputRef.current.click()}
-                disabled={busy}
-              >
-                <ImagePlus size={14} className="inline mr-4" /> Scan Photo
-              </button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                capture="environment"
-                className="qr-scanner-file-input"
-                onChange={handlePhotoScan}
-                tabIndex={-1}
-                aria-label="Upload label photo"
-              />
-            </div>
           </div>
 
           {/* Live Notice Banner */}
           {notice && (
             <div className={`trip-scanner-notice trip-scanner-notice-${noticeTone}`} role="status">
-              {notice}
+              {noticeTone === 'success' && <CheckCircle size={15} className="trip-scanner-notice-icon" aria-hidden="true" />}
+              {noticeTone === 'danger' && <AlertTriangle size={15} className="trip-scanner-notice-icon" aria-hidden="true" />}
+              {noticeTone === 'warning' && <AlertTriangle size={15} className="trip-scanner-notice-icon" aria-hidden="true" />}
+              {noticeTone === 'info' && <Package size={15} className="trip-scanner-notice-icon" aria-hidden="true" />}
+              <span>{notice}</span>
             </div>
           )}
 
           {/* Manifest Live Checklist */}
           <div className="trip-scanner-manifest">
             <div className="trip-scanner-manifest-header">
-              <h3 className="trip-scanner-manifest-title">
-                <CheckSquare size={17} aria-hidden="true" />
-                Assigned Cargo Checklist ({filteredOrders.length})
-              </h3>
+              <div className="trip-scanner-manifest-heading">
+                <h3 className="trip-scanner-manifest-title">
+                  Trip Manifest
+                  <span className="trip-scanner-manifest-count">{filteredOrders.length}</span>
+                </h3>
+                <span className="trip-scanner-manifest-subtitle">
+                  Scan QR or tap damaged boxes to verify
+                </span>
+              </div>
 
               <div className="trip-scanner-tabs">
                 <button
@@ -889,7 +838,7 @@ const TripScannerModal = ({
                   className={`trip-scanner-tab-btn ${filterTab === 'verified' ? 'is-active' : ''}`}
                   onClick={() => setFilterTab('verified')}
                 >
-                  Completed ({orders.filter(o => {
+                  Verified ({orders.filter(o => {
                     const q = o.package_quantity || 1;
                     return (o.verified_boxes || []).filter(b => b <= q).length === q;
                   }).length})
@@ -923,6 +872,7 @@ const TripScannerModal = ({
                   const isComplete = verified.filter((b) => b <= qty).length === qty;
                   const isJustScanned = o.id === lastScannedOrderId;
                   const receiver = orderPartyName(o, 'receiver') || 'Receiver';
+                  const destination = [o.receiver_city, o.receiver_province].filter(Boolean).join(', ') || 'No destination set';
 
                   return (
                     <div
@@ -931,48 +881,58 @@ const TripScannerModal = ({
                       role="listitem"
                     >
                       <div className="trip-scanner-card-head">
-                        <span className="trip-scanner-tracking">{o.tracking_number}</span>
+                        <div className="trip-scanner-card-id-block">
+                          <span className="trip-scanner-tracking">{o.tracking_number}</span>
+                          <span className="trip-scanner-receiver-name">{receiver}</span>
+                        </div>
                         {isComplete ? (
-                          <span className="badge badge-success text-xs" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                            <CheckCircle size={11} /> All Scanned ({qty}/{qty})
+                          <span className="trip-scanner-verified-badge is-complete">
+                            <Check size={11} strokeWidth={3} /> {qty}/{qty} Verified
                           </span>
                         ) : (
-                          <span className="badge badge-warning text-xs">
-                            {verified.length}/{qty} Scanned
+                          <span className="trip-scanner-verified-badge is-pending">
+                            {verified.length}/{qty} Verified
                           </span>
                         )}
                       </div>
 
-                      <div className="trip-scanner-card-meta">
-                        <span>👤 {receiver}</span>
-                        <span>📍 {[o.receiver_city, o.receiver_province].filter(Boolean).join(', ') || '—'}</span>
+                      <div className="trip-scanner-card-dest">
+                        <MapPin size={12} className="trip-scanner-dest-icon" aria-hidden="true" />
+                        <span>{destination}</span>
                       </div>
 
-                      {/* Box Pills */}
-                      <div className="trip-scanner-box-pills">
-                        {Array.from({ length: qty }, (_, idx) => {
-                          const boxNum = idx + 1;
-                          const isBoxDone = verified.includes(boxNum);
-                          return (
-                            <button
-                              key={boxNum}
-                              type="button"
-                              className={`trip-scanner-box-pill ${isBoxDone ? 'is-verified' : 'is-unverified'}`}
-                              onClick={() => !isBoxDone && handleManualVerifyBox(o, boxNum)}
-                              disabled={isBoxDone || busy}
-                              title={isBoxDone ? `Box ${boxNum} verified` : `Click to manually verify Box ${boxNum}`}
-                            >
-                              {isBoxDone ? (
-                                <>
-                                  <Check size={11} className="trip-scanner-pill-icon" aria-hidden="true" />
-                                  Box {boxNum}
-                                </>
-                              ) : (
-                                <>○ Box {boxNum}</>
-                              )}
-                            </button>
-                          );
-                        })}
+                      {/* Package Checklist Row */}
+                      <div className="trip-scanner-packages-wrap">
+                        <div className="trip-scanner-packages-title">
+                          <span>Boxes to load ({qty})</span>
+                          <span className="trip-scanner-packages-hint">
+                            Tap to manually verify
+                          </span>
+                        </div>
+                        <div className="trip-scanner-box-grid">
+                          {Array.from({ length: qty }, (_, idx) => {
+                            const boxNum = idx + 1;
+                            const isBoxDone = verified.includes(boxNum);
+                            return (
+                              <button
+                                key={boxNum}
+                                type="button"
+                                className={`trip-scanner-box-item ${isBoxDone ? 'is-verified' : 'is-unverified'}`}
+                                onClick={() => !isBoxDone && handleManualVerifyBox(o, boxNum)}
+                                disabled={isBoxDone || busy}
+                                title={isBoxDone ? `Box ${boxNum} of ${qty} verified` : `Tap to manually verify Box ${boxNum}`}
+                              >
+                                <span className="trip-scanner-box-icon">
+                                  {isBoxDone ? <Check size={11} strokeWidth={3} /> : boxNum}
+                                </span>
+                                <span className="trip-scanner-box-label">Box {boxNum}</span>
+                                <span className="trip-scanner-box-tag">
+                                  {isBoxDone ? 'Loaded' : 'Verify'}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
                       </div>
 
                       {/* POD button if all boxes scanned during delivery phase */}
@@ -983,7 +943,7 @@ const TripScannerModal = ({
                             className="btn btn-primary btn-sm"
                             onClick={() => handleOpenDelivery(o)}
                           >
-                            📷 Complete Proof of Delivery
+                            <Camera size={14} className="inline mr-4" /> Complete Proof of Delivery
                           </button>
                         </div>
                       )}

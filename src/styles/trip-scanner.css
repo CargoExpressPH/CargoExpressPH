@@ -240,14 +240,7 @@
 }
 
 .trip-scanner-camera-actions {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-top: 10px;
-}
-
-.trip-scanner-camera-btn {
-  margin: 0 4px;
+  display: none;
 }
 
 /* ── Live Scanner Status Banner ── */
@@ -258,32 +251,39 @@
   font-size: var(--text-13);
   line-height: 1.4;
   font-weight: 600;
-  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   animation: fadeIn 0.18s ease;
 }
 
+.trip-scanner-notice-icon {
+  flex-shrink: 0;
+}
+
 .trip-scanner-notice-success {
-  background: rgba(16, 185, 129, 0.15);
-  color: #10b981;
-  border: 1px solid rgba(16, 185, 129, 0.4);
+  background: rgba(16, 185, 129, 0.12);
+  color: #059669;
+  border: 1px solid rgba(16, 185, 129, 0.35);
 }
 
 .trip-scanner-notice-warning {
-  background: rgba(245, 158, 11, 0.15);
-  color: #f59e0b;
-  border: 1px solid rgba(245, 158, 11, 0.4);
+  background: rgba(245, 158, 11, 0.12);
+  color: #d97706;
+  border: 1px solid rgba(245, 158, 11, 0.35);
 }
 
 .trip-scanner-notice-danger {
-  background: rgba(239, 68, 68, 0.15);
-  color: #ef4444;
-  border: 1px solid rgba(239, 68, 68, 0.4);
+  background: rgba(239, 68, 68, 0.12);
+  color: #dc2626;
+  border: 1px solid rgba(239, 68, 68, 0.35);
 }
 
 .trip-scanner-notice-info {
-  background: rgba(59, 130, 246, 0.15);
-  color: #3b82f6;
-  border: 1px solid rgba(59, 130, 246, 0.4);
+  background: rgba(59, 130, 246, 0.12);
+  color: #2563eb;
+  border: 1px solid rgba(59, 130, 246, 0.35);
 }
 
 /* ── Manifest Checklist Section ── */
@@ -294,10 +294,17 @@
 
 .trip-scanner-manifest-header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   flex-wrap: wrap;
+  gap: 10px;
   margin-bottom: 12px;
+}
+
+.trip-scanner-manifest-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
 .trip-scanner-manifest-title {
@@ -307,25 +314,37 @@
   color: var(--text);
   display: flex;
   align-items: center;
+  gap: 6px;
 }
 
-.trip-scanner-manifest-title svg {
-  margin-right: 6px;
-  color: var(--primary);
+.trip-scanner-manifest-count {
+  font-size: var(--text-11);
+  font-weight: 700;
+  background: var(--surface-subtle);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  padding: 1px 7px;
+  border-radius: 999px;
+}
+
+.trip-scanner-manifest-subtitle {
+  font-size: var(--text-11);
+  color: var(--text-tertiary);
+  font-weight: 500;
 }
 
 /* Filter tabs */
 .trip-scanner-tabs {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   background: var(--surface-subtle);
   padding: 2px;
   border-radius: var(--radius-md);
-  margin-top: 6px;
+  border: 1px solid var(--border);
 }
 
 .trip-scanner-tab-btn {
-  padding: 5px 10px;
+  padding: 4px 10px;
   font-size: var(--text-12);
   font-weight: 600;
   color: var(--text-secondary);
@@ -358,6 +377,13 @@
   border-radius: var(--radius-md);
   background: var(--surface-subtle);
   color: var(--text);
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.trip-scanner-search-input:focus {
+  outline: none;
+  border-color: var(--primary);
+  background: var(--surface);
 }
 
 .trip-scanner-search-icon {
@@ -385,19 +411,19 @@
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   padding: 12px 14px;
-  margin-bottom: 8px;
-  transition: border-color 0.2s ease, background 0.2s ease;
+  margin-bottom: 10px;
+  transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
 }
 
 .trip-scanner-card.is-complete {
-  border-color: rgba(16, 185, 129, 0.4);
-  background: rgba(16, 185, 129, 0.04);
+  border-color: rgba(16, 185, 129, 0.35);
+  background: rgba(16, 185, 129, 0.02);
 }
 
 .trip-scanner-card.is-just-scanned {
   border-color: var(--primary);
-  background: rgba(59, 130, 246, 0.08);
-  animation: pulseCard 1s ease;
+  background: rgba(59, 130, 246, 0.06);
+  animation: pulseCard 0.9s ease;
 }
 
 @keyframes pulseCard {
@@ -408,9 +434,16 @@
 
 .trip-scanner-card-head {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  margin-bottom: 6px;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.trip-scanner-card-id-block {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
 .trip-scanner-tracking {
@@ -418,59 +451,148 @@
   font-size: var(--text-13);
   color: var(--primary);
   font-family: monospace;
+  letter-spacing: -0.2px;
 }
 
-.trip-scanner-card-meta {
+.trip-scanner-receiver-name {
   font-size: var(--text-12);
+  font-weight: 600;
+  color: var(--text);
+}
+
+.trip-scanner-card-dest {
+  font-size: var(--text-11);
   color: var(--text-secondary);
   margin-bottom: 8px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 4px;
 }
 
-/* Box pills */
-.trip-scanner-box-pills {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
+.trip-scanner-dest-icon {
+  color: var(--text-tertiary);
+  flex-shrink: 0;
 }
 
-.trip-scanner-box-pill {
+.trip-scanner-verified-badge {
   display: inline-flex;
   align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: var(--text-11);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.trip-scanner-verified-badge.is-complete {
+  background: rgba(16, 185, 129, 0.12);
+  color: #059669;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.trip-scanner-verified-badge.is-pending {
+  background: var(--surface-subtle);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+}
+
+/* Package Checklist Row */
+.trip-scanner-packages-wrap {
+  background: var(--surface-subtle);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+}
+
+.trip-scanner-packages-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 10.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--text-tertiary);
+  margin-bottom: 6px;
+}
+
+.trip-scanner-packages-hint {
+  font-size: 10px;
+  color: var(--text-tertiary);
+  text-transform: none;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+.trip-scanner-box-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.trip-scanner-box-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   padding: 3px 8px;
   font-size: var(--text-11);
-  font-weight: 700;
-  border-radius: var(--radius-sm);
-  margin-right: 6px;
-  margin-bottom: 4px;
-  border: 1px solid transparent;
+  font-weight: 600;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
   cursor: pointer;
   transition: all 0.15s ease;
 }
 
-.trip-scanner-box-pill.is-verified {
-  background: rgba(16, 185, 129, 0.15);
-  color: #10b981;
-  border-color: rgba(16, 185, 129, 0.4);
+.trip-scanner-box-item.is-verified {
+  background: rgba(16, 185, 129, 0.1);
+  border-color: rgba(16, 185, 129, 0.35);
+  color: #059669;
   cursor: default;
 }
 
-.trip-scanner-box-pill.is-unverified {
+.trip-scanner-box-item.is-unverified:hover:not(:disabled) {
+  border-color: var(--primary);
+  background: rgba(59, 130, 246, 0.08);
+  color: var(--primary);
+}
+
+.trip-scanner-box-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  height: 15px;
+  border-radius: 3px;
+  font-size: 9.5px;
+  font-weight: 700;
+}
+
+.is-verified .trip-scanner-box-icon {
+  background: #10b981;
+  color: #ffffff;
+}
+
+.is-unverified .trip-scanner-box-icon {
   background: var(--surface-subtle);
   color: var(--text-secondary);
-  border-color: var(--border);
+  border: 1px solid var(--border);
 }
 
-.trip-scanner-box-pill.is-unverified:hover {
-  border-color: var(--primary);
-  color: var(--primary);
-  background: rgba(59, 130, 246, 0.08);
+.trip-scanner-box-label {
+  font-weight: 600;
 }
 
-.trip-scanner-pill-icon {
-  margin-right: 4px;
+.trip-scanner-box-tag {
+  font-size: 9.5px;
+  font-weight: 500;
+  color: var(--text-tertiary);
+}
+
+.is-verified .trip-scanner-box-tag {
+  color: #059669;
 }
 
 /* POD action in delivery mode */
