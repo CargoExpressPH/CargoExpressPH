@@ -346,7 +346,7 @@ const TripDetailPage = () => {
             {checkingStartGate ? <Loader size={16} className="animate-spin" /> : <Play size={16}/>} Start Trip
           </button>
         )}
-        {trip.status==='scheduled' && (
+        {trip.status==='scheduled' && eligibleOrders.length > 0 && (
           <button
             type="button"
             className="btn btn-outline"
@@ -463,19 +463,25 @@ const TripDetailPage = () => {
         <div className="card-header flex items-center justify-between flex-wrap gap-8">
           <h3>Assigned Orders ({orders.length})</h3>
           <div className="flex items-center gap-10 flex-wrap">
-            {eligibleOrders.length > 0 && (
+            {eligibleOrders.length > 0 ? (
+              <>
+                <span className="text-xs text-secondary">
+                  Manifest: <strong>{totalScannedBoxes}</strong> of <strong>{totalTripBoxes}</strong> boxes scanned {totalScannedBoxes === totalTripBoxes ? '✓' : ''}
+                </span>
+                <button
+                  type="button"
+                  className="btn btn-outline btn-sm"
+                  onClick={() => setShowScannerModal(true)}
+                  title="Open continuous trip cargo scanner"
+                >
+                  <ScanQrCode size={14} className="inline mr-4" /> Scan Cargo
+                </button>
+              </>
+            ) : notYetPickedUp.length > 0 ? (
               <span className="text-xs text-secondary">
-                Manifest: <strong>{totalScannedBoxes}</strong> of <strong>{totalTripBoxes}</strong> boxes scanned {totalScannedBoxes === totalTripBoxes ? '✓' : ''}
+                {notYetPickedUp.length} booking{notYetPickedUp.length === 1 ? '' : 's'} awaiting pickup before loading
               </span>
-            )}
-            <button
-              type="button"
-              className="btn btn-outline btn-sm"
-              onClick={() => setShowScannerModal(true)}
-              title="Open continuous trip cargo scanner"
-            >
-              <ScanQrCode size={14} className="inline mr-4" /> Scan Cargo
-            </button>
+            ) : null}
           </div>
         </div>
         {unscannedBoxOrders.length > 0 && trip.status === 'scheduled' && (
