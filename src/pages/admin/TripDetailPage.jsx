@@ -353,7 +353,7 @@ const TripDetailPage = () => {
             onClick={() => setShowScannerModal(true)}
             title="Scan physical QR labels to verify cargo loaded onto van"
           >
-            <ScanQrCode size={16} /> Scan Cargo to Load ({totalScannedBoxes}/{totalTripBoxes})
+            <ScanQrCode size={16} /> Scan Cargo ({totalScannedBoxes}/{totalTripBoxes})
           </button>
         )}
         {trip.status==='in_progress' && <button type="button" className="btn btn-success" onClick={()=>openConfirm('arrived', 'Mark Arrived', `Mark trip ${trip.trip_number} as arrived at destination?`, 'success')} disabled={saving}><Flag size={16}/> Mark Arrived</button>}
@@ -464,19 +464,9 @@ const TripDetailPage = () => {
           <h3>Assigned Orders ({orders.length})</h3>
           <div className="flex items-center gap-10 flex-wrap">
             {eligibleOrders.length > 0 ? (
-              <>
-                <span className="text-xs text-secondary">
-                  Manifest: <strong>{totalScannedBoxes}</strong> of <strong>{totalTripBoxes}</strong> boxes scanned {totalScannedBoxes === totalTripBoxes ? '✓' : ''}
-                </span>
-                <button
-                  type="button"
-                  className="btn btn-outline btn-sm"
-                  onClick={() => setShowScannerModal(true)}
-                  title="Open continuous trip cargo scanner"
-                >
-                  <ScanQrCode size={14} className="inline mr-4" /> Scan Cargo
-                </button>
-              </>
+              <span className="text-xs text-secondary">
+                Manifest: <strong>{totalScannedBoxes}</strong> of <strong>{totalTripBoxes}</strong> boxes scanned {totalScannedBoxes === totalTripBoxes ? '✓' : ''}
+              </span>
             ) : notYetPickedUp.length > 0 ? (
               <span className="text-xs text-secondary">
                 {notYetPickedUp.length} booking{notYetPickedUp.length === 1 ? '' : 's'} awaiting pickup before loading
@@ -484,23 +474,6 @@ const TripDetailPage = () => {
             ) : null}
           </div>
         </div>
-        {unscannedBoxOrders.length > 0 && trip.status === 'scheduled' && (
-          <div className="alert-banner alert-banner-warning flex items-center justify-between flex-wrap gap-8" role="alert" style={{ margin: '12px 16px 0 16px' }}>
-            <div className="flex items-center gap-8">
-              <AlertTriangle size={16} aria-hidden="true" />
-              <div>
-                <strong>Unscanned Cargo Alert:</strong> {unscannedBoxOrders.length} booking{unscannedBoxOrders.length === 1 ? '' : 's'} ({unscannedBoxOrders.slice(0, 3).map(o => o.tracking_number).join(', ')}{unscannedBoxOrders.length > 3 ? '…' : ''}) have unverified boxes. Scan every physical QR label before starting the trip.
-              </div>
-            </div>
-            <button
-              type="button"
-              className="btn btn-primary btn-sm"
-              onClick={() => setShowScannerModal(true)}
-            >
-              <ScanQrCode size={14} className="inline mr-4" /> Open Loading Scanner
-            </button>
-          </div>
-        )}
         <div className="table-container">
           {orders.length === 0 ? (
             <EmptyState
