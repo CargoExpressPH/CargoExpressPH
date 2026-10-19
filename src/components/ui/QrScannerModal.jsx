@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { CameraOff, ImagePlus, Loader, PackageCheck, RotateCcw, X } from 'lucide-react';
+import { CameraOff, Loader, PackageCheck, RotateCcw, X } from 'lucide-react';
 import FocusTrap from './FocusTrap';
 import useScrollLock from '../../hooks/useScrollLock';
 import DeliveryModal from './DeliveryModal';
@@ -477,7 +477,7 @@ const QrScannerModal = ({ onClose }) => {
     logOrder('Delivery Proof Uploaded', podOrder.id, podOrder.tracking_number, {
       details: `Delivery processed. Photos uploaded: ${payload.delivery_photos.length}`,
     });
-    toast.success(`Delivered ${podOrder.tracking_number}. Scan the next parcel.`);
+    toast.success(`Delivered ${podOrder.tracking_number}.`);
     lastScanRef.current = { text: '', at: 0 };
     resolvingRef.current = false;
     setBusy(false);
@@ -485,6 +485,7 @@ const QrScannerModal = ({ onClose }) => {
     setPodOpen(false);
     setPodOrder(null);
     updateSession(null);
+    onClose?.();
   };
 
   // The decode loop reads the latest handler through a ref, so a new parent
@@ -766,16 +767,6 @@ const QrScannerModal = ({ onClose }) => {
               >
                 <span style={{ width: `${(verifiedCount / boxes.length) * 100}%` }} />
               </div>
-              <ul className="qr-scanner-session-boxes" aria-label="Box checklist">
-                {boxes.map((box) => {
-                  const done = session.verified.includes(box);
-                  return (
-                    <li key={box} className={`qr-scanner-session-box${done ? ' is-done' : ''}`}>
-                      {done ? '✓ ' : ''}Box {box}
-                    </li>
-                  );
-                })}
-              </ul>
             </section>
           )}
 
@@ -833,8 +824,8 @@ const QrScannerModal = ({ onClose }) => {
             {notice}
           </p>
 
-          <div className="qr-scanner-actions">
-            {session && (
+          {session && (
+            <div className="qr-scanner-actions">
               <button
                 type="button"
                 className="btn btn-primary qr-scanner-pod-btn"
@@ -846,57 +837,8 @@ const QrScannerModal = ({ onClose }) => {
                   ? `Scan ${boxCount(remaining.length)} more to continue`
                   : 'Proceed to POD'}
               </button>
-            )}
-            <button
-              type="button"
-              className="btn btn-outline qr-scanner-photo-btn"
-              onClick={() => fileInputRef.current && fileInputRef.current.click()}
-              disabled={busy}
-            >
-              <ImagePlus size={17} aria-hidden="true" />
-              Scan from a photo
-            </button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              capture="environment"
-              className="qr-scanner-file-input"
-              onChange={handlePhoto}
-              tabIndex={-1}
-              aria-label="Choose a photo of a package QR label"
-            />
-          </div>
-
-          <form className="qr-scanner-manual" onSubmit={handleManualSubmit} noValidate>
-            <label htmlFor={manualInputId} className="qr-scanner-manual-label">
-              Or enter a tracking number
-            </label>
-            <div className="qr-scanner-manual-row">
-              <input
-                id={manualInputId}
-                className="form-input qr-scanner-manual-input"
-                type="text"
-                inputMode="text"
-                autoCapitalize="characters"
-                autoComplete="off"
-                autoCorrect="off"
-                spellCheck={false}
-                placeholder="CE-20260801-3261"
-                value={manualValue}
-                onChange={(e) => { setManualValue(e.target.value); if (manualError) setManualError(''); }}
-                aria-invalid={manualError ? 'true' : undefined}
-                aria-describedby={manualError ? manualErrorId : undefined}
-                maxLength={40}
-              />
-              <button type="submit" className="btn btn-primary qr-scanner-manual-submit" disabled={busy}>
-                Find
-              </button>
             </div>
-            {manualError && (
-              <p id={manualErrorId} className="qr-scanner-manual-error" role="alert">{manualError}</p>
-            )}
-          </form>
+          )}
         </div>
       </div>
     </FocusTrap>,
