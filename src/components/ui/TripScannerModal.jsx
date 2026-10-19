@@ -121,7 +121,7 @@ const TripScannerModal = ({
     setOrders(initialOrders);
   }, [initialOrders]);
 
-  const isDeliveryMode = trip.status === 'in_progress' || trip.status === 'arrived';
+  const isDeliveryMode = trip.status === 'arrived';
 
   // Scanner state
   const videoRef = useRef(null);

@@ -357,7 +357,7 @@ const TripDetailPage = () => {
           </button>
         )}
         {trip.status==='in_progress' && <button type="button" className="btn btn-success" onClick={()=>openConfirm('arrived', 'Mark Arrived', `Mark trip ${trip.trip_number} as arrived at destination?`, 'success')} disabled={saving}><Flag size={16}/> Mark Arrived</button>}
-        {(trip.status==='in_progress' || trip.status==='arrived') && (
+        {trip.status==='arrived' && (
           <button
             type="button"
             className="btn btn-outline"
