@@ -322,6 +322,21 @@ $function$;
 REVOKE ALL ON FUNCTION public.record_box_verification(UUID, INTEGER, TEXT, TEXT) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.record_box_verification(UUID, INTEGER, TEXT, TEXT) TO authenticated;
 
+-- I-publish ang box_scan_events sa Realtime para sa live multi-device badges
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+      FROM pg_publication_tables
+     WHERE pubname = 'supabase_realtime'
+       AND schemaname = 'public'
+       AND tablename = 'box_scan_events'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.box_scan_events;
+  END IF;
+END;
+$$;
+
 
 -- ==============================================================================
 -- SEKSYON 3: AUTOMATIC TRIP COMPLETION TRIGGER
