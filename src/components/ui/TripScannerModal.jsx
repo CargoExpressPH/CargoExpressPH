@@ -6,6 +6,7 @@ import {
   Truck, ShieldCheck, MapPin, Camera, Keyboard, CloudOff, RefreshCw, Flag, Ban
 } from 'lucide-react';
 import FocusTrap from './FocusTrap';
+import { supabase } from '../../lib/supabase';
 import useScrollLock from '../../hooks/useScrollLock';
 import { useToast } from '../../hooks/useToast';
 import { parseScanPayload, normalizeTrackingNumber } from '../../utils/scanPayload';
@@ -156,6 +157,25 @@ const TripScannerModal = ({
   useEffect(() => {
     setOrders(initialOrders);
   }, [initialOrders]);
+
+  // Live multi-device sync: another phone scanning on this trip updates our list.
+  useEffect(() => {
+    if (!trip?.id) return undefined;
+    const channel = supabase
+      .channel(`trip_scanner_orders_${trip.id}_${Date.now()}`)
+      .on('postgres_changes', {
+        event: 'UPDATE', schema: 'public', table: 'orders', filter: `trip_id=eq.${trip.id}`,
+      }, (payload) => {
+        const updated = payload.new;
+        if (!updated?.id) return;
+        // A scan is never un-done by another device: keep boxes this phone already verified.
+        setOrders((prev) => prev.map((o) => (o.id === updated.id
+          ? { ...o, ...updated, verified_boxes: [...new Set([...(o.verified_boxes || []), ...(updated.verified_boxes || [])])].sort((a, b) => a - b) }
+          : o)));
+      })
+      .subscribe();
+    return () => { void supabase.removeChannel(channel); };
+  }, [trip?.id]);
 
   const isDeliveryMode = trip.status === 'arrived';
   const eventType = isDeliveryMode ? SCAN_EVENT_TYPES.DELIVERY_VERIFY : SCAN_EVENT_TYPES.LOAD_VERIFY;

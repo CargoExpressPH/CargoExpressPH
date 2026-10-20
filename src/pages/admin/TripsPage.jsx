@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { supabase } from '../../lib/supabase';
 import { tripCapacityState } from '../../constants/status';
 import { Link, useNavigate } from 'react-router-dom';
 import { getTrips, getTripStartDateGates, withTimeout } from '../../lib/database';
@@ -42,9 +43,8 @@ const AdminTripsPage = () => {
   const navigate = useNavigate();
 
   useEffect(() => { loadTrips(); }, []);
-  const loadTrips = async () => {
-    setError(null);
-    setLoading(true);
+  const loadTrips = async ({ silent = false } = {}) => {
+    if (!silent) { setError(null); setLoading(true); }
     try {
       const data = await withTimeout(getTrips());
       const rows = data || [];
@@ -52,11 +52,27 @@ const AdminTripsPage = () => {
       setTrips(rows);
       setStartGates(gates);
     } catch (e) {
-      setError(e.message || 'Failed to load trips.');
+      if (!silent) setError(e.message || 'Failed to load trips.');
     } finally {
-      setLoading(false); 
+      if (!silent) setLoading(false);
     }
   };
+
+  // Live status changes (started, arrived, auto-completed) without a reload.
+  const loadTripsRef = useRef(loadTrips);
+  loadTripsRef.current = loadTrips;
+  useEffect(() => {
+    let timer = null;
+    const refresh = () => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => { void loadTripsRef.current({ silent: true }); }, 700);
+    };
+    const channel = supabase
+      .channel(`admin_trips_list_${Date.now()}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'trips' }, refresh)
+      .subscribe();
+    return () => { window.clearTimeout(timer); void supabase.removeChannel(channel); };
+  }, []);
 
   const filtered = activeTab === 'All' ? trips : trips.filter(t => t.status === activeTab);
   const filterOptions = tabs.map(t => ({

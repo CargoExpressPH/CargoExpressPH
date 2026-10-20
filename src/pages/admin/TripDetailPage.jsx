@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { supabase } from '../../lib/supabase';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { rowLinkProps } from '../../utils/rowLink';
 import { getTripById, getTripStartDateGates, listLoadingShortfalls, listBoxScanEvents, updateTrip, getActivityLogsByRecord, rescheduleTrip, retryTripReschedulePublicNotice } from '../../lib/database';
@@ -75,10 +76,10 @@ const TripDetailPage = () => {
     };
   }, [id, data?.trip?.status]);
 
-  const load = async () => {
+  const load = async ({ silent = false } = {}) => {
     const isCurrent = beginRequest();
     if (!isCurrent()) return;
-    setError(null); setLoading(true);
+    if (!silent) { setError(null); setLoading(true); }
     try {
       const result = await getTripById(id);
       if (!isCurrent()) return;
@@ -94,11 +95,30 @@ const TripDetailPage = () => {
       const actLogs = await getActivityLogsByRecord(id, result?.trip?.trip_number);
       if (isCurrent()) setActivityHistory(actLogs);
     } catch(e) {
-      if (isCurrent()) setError(e.message || 'Failed to load trip.');
+      if (isCurrent() && !silent) setError(e.message || 'Failed to load trip.');
     } finally {
-      if (isCurrent()) setLoading(false);
+      if (isCurrent() && !silent) setLoading(false);
     }
   };
+
+  // Live updates from scanners in the field; debounced so a burst of scans reloads once.
+  const loadRef = useRef(load);
+  loadRef.current = load;
+  useEffect(() => {
+    if (!id) return undefined;
+    let timer = null;
+    const refresh = () => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => { void loadRef.current({ silent: true }); }, 700);
+    };
+    const channel = supabase
+      .channel(`admin_trip_detail_${id}_${Date.now()}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders', filter: `trip_id=eq.${id}` }, refresh)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'trips', filter: `id=eq.${id}` }, refresh)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'box_scan_events', filter: `trip_id=eq.${id}` }, refresh)
+      .subscribe();
+    return () => { window.clearTimeout(timer); void supabase.removeChannel(channel); };
+  }, [id]);
 
   const handleStatus = async (status) => {
     // Validations
