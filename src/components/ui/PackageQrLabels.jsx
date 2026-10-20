@@ -105,8 +105,11 @@ const PackageQrLabels = ({ order, onOrderUpdate }) => {
 
   return (
     <div id="package-qr-section" className="card admin-section-card stagger-item mb-16" style={{ animationDelay: '330ms' }}>
-      <div className="card-header">
+      <div className="card-header flex items-center justify-between flex-wrap gap-8">
         <h3><QrCode size={16} className="inline mr-8" />Package QR Labels</h3>
+        <span className="badge badge-info text-xs" title="Reed-Solomon Level Q enables up to 25% error correction against scratches, dirt, and tears">
+          Reed-Solomon ECC (Level Q · 25% Resilience)
+        </span>
       </div>
       <div className="card-body p-16">
         <div className="flex items-center justify-between gap-16 flex-wrap mb-16">
@@ -150,7 +153,13 @@ const PackageQrLabels = ({ order, onOrderUpdate }) => {
             const isVerified = (order.verified_boxes || []).includes(label.box);
             return (
               <div className="qr-label-preview" key={label.box} style={{ position: 'relative' }}>
-                <QRCode value={label.url} size={112} style={{ height: 'auto', maxWidth: '100%', width: '100%' }} viewBox="0 0 112 112" />
+                <QRCode
+                  value={label.url}
+                  size={112}
+                  level="Q"
+                  style={{ height: 'auto', maxWidth: '100%', width: '100%' }}
+                  viewBox="0 0 112 112"
+                />
                 <div className="qr-label-preview-caption">Box {label.box} of {label.total}</div>
                 <div className="qr-label-preview-tracking" style={{ fontSize: '11px', textTransform: 'uppercase', marginTop: '4px' }}>{label.receiverName}</div>
                 <div style={{ marginTop: 6 }}>

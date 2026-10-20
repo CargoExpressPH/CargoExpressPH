@@ -524,7 +524,13 @@ const PaymentCollectionPanel = ({
 
               <div className="flex flex-col items-center gap-8 mb-16">
                 <div className="paymongo-qr-wrap">
-                  <QRCode value={value.checkoutUrl} size={256} style={{ height: 'auto', maxWidth: '100%', width: '100%' }} viewBox="0 0 256 256" />
+                  <QRCode
+                    value={value.checkoutUrl}
+                    size={256}
+                    level="M"
+                    style={{ height: 'auto', maxWidth: '100%', width: '100%' }}
+                    viewBox="0 0 256 256"
+                  />
                 </div>
               </div>
 

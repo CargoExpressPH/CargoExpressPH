@@ -22,7 +22,13 @@ const PrintLabelsSheet = ({ trackingNumber, labels = [] }) => {
         {labels.map(label => (
           <div className="pl-label" key={label.box}>
             <div className="pl-qr">
-              <QRCode value={label.url} size={128} style={{ height: 'auto', maxWidth: '100%', width: '100%' }} viewBox="0 0 128 128" />
+              <QRCode
+                value={label.url}
+                size={128}
+                level="Q"
+                style={{ height: 'auto', maxWidth: '100%', width: '100%' }}
+                viewBox="0 0 128 128"
+              />
             </div>
             <div className="pl-caption">Box {label.box} of {label.total}</div>
             <div className="pl-tracking" style={{ fontSize: '11px', textTransform: 'uppercase' }}>{label.receiverName}</div>
