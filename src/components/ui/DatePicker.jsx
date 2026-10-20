@@ -62,26 +62,51 @@ const DatePicker = ({
   const [open, setOpen] = useState(false);
   const [viewDate, setViewDate] = useState(selected || today);
   const [menuPlacement, setMenuPlacement] = useState('bottom');
+  const [horizontalPlacement, setHorizontalPlacement] = useState('left');
+  const [panelShift, setPanelShift] = useState(null);
   const rootRef = useRef(null);
+
+  const calculatePlacement = () => {
+    if (!rootRef.current || typeof window === 'undefined') return;
+    const rect = rootRef.current.getBoundingClientRect();
+    const viewportHeight = window.visualViewport?.height || window.innerHeight;
+    const viewportWidth = window.visualViewport?.width || window.innerWidth;
+    const spaceBelow = viewportHeight - rect.bottom - 8;
+    const spaceAbove = rect.top - 8;
+    const panelHeight = 340;
+    setMenuPlacement(spaceBelow < panelHeight && spaceAbove > spaceBelow ? 'top' : 'bottom');
+
+    const panelWidth = 280;
+    const gutter = 12;
+
+    // Check if expanding to the right from rect.left overflows the viewport
+    if (rect.left + panelWidth > viewportWidth - gutter) {
+      if (rect.right - panelWidth >= gutter) {
+        // Fits cleanly by aligning to the right edge of the trigger
+        setHorizontalPlacement('right');
+        setPanelShift(null);
+      } else {
+        // Mobile screen is narrow; clamp panel within viewport margins
+        setHorizontalPlacement('custom');
+        const idealLeftInViewport = Math.max(gutter, viewportWidth - gutter - panelWidth);
+        setPanelShift(idealLeftInViewport - rect.left);
+      }
+    } else {
+      setHorizontalPlacement('left');
+      setPanelShift(null);
+    }
+  };
 
   const openPanel = () => {
     setViewDate(selected || today);
+    calculatePlacement();
     setOpen(true);
   };
 
   useEffect(() => {
     if (!open) return undefined;
 
-    const updatePlacement = () => {
-      if (!rootRef.current) return;
-      const rect = rootRef.current.getBoundingClientRect();
-      const viewportHeight = window.visualViewport?.height || window.innerHeight;
-      const spaceBelow = viewportHeight - rect.bottom - 8;
-      const spaceAbove = rect.top - 8;
-      const panelHeight = 340;
-      setMenuPlacement(spaceBelow < panelHeight && spaceAbove > spaceBelow ? 'top' : 'bottom');
-    };
-    updatePlacement();
+    calculatePlacement();
 
     const closeOnOutsidePointer = (event) => {
       if (!rootRef.current?.contains(event.target)) setOpen(false);
@@ -92,11 +117,13 @@ const DatePicker = ({
 
     document.addEventListener('pointerdown', closeOnOutsidePointer);
     document.addEventListener('keydown', closeOnEscape);
-    window.addEventListener('resize', updatePlacement);
+    window.addEventListener('resize', calculatePlacement);
+    window.addEventListener('scroll', calculatePlacement, true);
     return () => {
       document.removeEventListener('pointerdown', closeOnOutsidePointer);
       document.removeEventListener('keydown', closeOnEscape);
-      window.removeEventListener('resize', updatePlacement);
+      window.removeEventListener('resize', calculatePlacement);
+      window.removeEventListener('scroll', calculatePlacement, true);
     };
   }, [open]);
 
@@ -113,6 +140,16 @@ const DatePicker = ({
   };
 
   const cells = buildMonthGrid(viewDate);
+
+  const panelClasses = [
+    'date-picker-panel',
+    menuPlacement === 'top' ? 'open-up' : '',
+    horizontalPlacement === 'right' ? 'align-right' : '',
+  ].filter(Boolean).join(' ');
+
+  const panelStyle = horizontalPlacement === 'custom' && panelShift !== null
+    ? { left: `${panelShift}px`, right: 'auto' }
+    : undefined;
 
   return (
     <div className="date-picker-root" ref={rootRef}>
@@ -136,7 +173,8 @@ const DatePicker = ({
 
       {open && !disabled && (
         <div
-          className={`date-picker-panel ${menuPlacement === 'top' ? 'open-up' : ''}`.trim()}
+          className={panelClasses}
+          style={panelStyle}
           role="dialog"
           aria-label={ariaLabel || 'Choose date'}
         >

@@ -803,7 +803,8 @@ input[type="datetime-local"]:hover::-webkit-calendar-picker-indicator {
   top: calc(100% + 8px);
   z-index: var(--z-dropdown);
   width: 280px;
-  max-width: min(280px, 90vw);
+  max-width: min(280px, calc(100vw - 24px));
+  box-sizing: border-box;
   padding: 14px;
   border: 1px solid var(--border-light);
   border-radius: var(--radius-lg);
@@ -817,6 +818,11 @@ input[type="datetime-local"]:hover::-webkit-calendar-picker-indicator {
 .date-picker-panel.open-up {
   top: auto;
   bottom: calc(100% + 8px);
+}
+
+.date-picker-panel.align-right {
+  left: auto;
+  right: 0;
 }
 
 .date-picker-nav {
