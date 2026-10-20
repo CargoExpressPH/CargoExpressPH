@@ -10,6 +10,8 @@ import { MANUAL_SCAN_REASONS } from '../../constants/manualScan';
 // Fewest typed characters that search the cargo list; fewer would match half the van.
 const MIN_SEARCH_LENGTH = 3;
 
+const nameTokens = (value) => String(value || '').toLowerCase().split(/[^p{L}p{N}]+/u).filter(Boolean);
+
 const compactTracking = (trackingNumber) => String(trackingNumber || '').replace(/[^A-Z0-9]/gi, '').toUpperCase();
 
 /**
@@ -30,7 +32,15 @@ export const findManifestMatches = (orders, input) => {
   // fall back to the typed text appearing anywhere in it.
   const endsWithCode = orders.filter((o) => compactTracking(o.tracking_number).endsWith(code));
   if (endsWithCode.length > 0) return endsWithCode;
-  return orders.filter((o) => compactTracking(o.tracking_number).includes(code));
+  const containsCode = orders.filter((o) => compactTracking(o.tracking_number).includes(code));
+  if (containsCode.length > 0) return containsCode;
+  // Last resort: receiver or sender name ("Arjel", "Balaba", "Arjel Balaba").
+  const typed = nameTokens(value);
+  if (typed.length === 0) return [];
+  return orders.filter((o) => ['receiver', 'sender'].some((role) => {
+    const words = nameTokens(orderPartyName(o, role));
+    return typed.every((t) => words.some((w) => w.startsWith(t)));
+  }));
 };
 
 const ManualBoxMatchOverlay = ({
@@ -100,7 +110,7 @@ const ManualBoxMatchOverlay = ({
             </button>
           </div>
           <p className="trip-scanner-sheet-hint">
-            Type the tracking number printed on the label, or just its last few digits.
+            Type the tracking number printed on the label, its last few digits, or the customer's name.
             Then check the details below against the box in your hands.
           </p>
 
@@ -109,20 +119,20 @@ const ManualBoxMatchOverlay = ({
               id={inputId}
               type="text"
               className="trip-scanner-manual-input"
-              placeholder="Enter tracking number or code"
+              placeholder="Enter tracking number or customer name"
               value={input}
               onChange={(e) => { setInput(e.target.value); setSearched(false); }}
               autoCapitalize="characters"
               autoComplete="off"
               autoFocus
-              aria-label="Tracking number or its last digits"
+              aria-label="Tracking number, its last digits, or customer name"
             />
             <button type="submit" className="btn btn-outline btn-sm trip-scanner-manual-btn" disabled={!input.trim()}>
               <Search size={14} className="inline mr-4" /> Find
             </button>
           </form>
           <p className="trip-scanner-manual-hint-text">
-            Example: <strong>8591</strong> or <strong>CE-20261020-8036</strong>
+            Example: <strong>8036</strong>, <strong>CE-20261020-8036</strong>, or <strong>Arjel Balaba</strong>
           </p>
 
           {onUnidentified && (
