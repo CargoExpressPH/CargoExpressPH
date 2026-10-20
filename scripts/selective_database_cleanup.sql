@@ -24,10 +24,42 @@ WHERE COALESCE(amount_paid, 0) = 0
 -- Hakbang 3: Pansamantalang i-disable ang triggers sa trips para hindi mag-error ang status transition
 ALTER TABLE public.trips DISABLE TRIGGER USER;
 
--- Hakbang 4: I-update ang mga natirang trips na may sales/kargamento bilang 'completed'
-UPDATE public.trips
+-- Hakbang 4: I-update nang wasto ang status ng mga biyahe ayon sa tunay na estado ng mga kargamento
+-- 4a. Kung DELIVERED o CANCELLED na ang LAHAT ng kargamento sa biyahe: 'completed'
+UPDATE public.trips t
 SET status = 'completed'
-WHERE id IN (SELECT DISTINCT trip_id FROM public.orders WHERE trip_id IS NOT NULL);
+WHERE t.id IN (SELECT DISTINCT trip_id FROM public.orders WHERE trip_id IS NOT NULL)
+  AND NOT EXISTS (
+    SELECT 1 
+    FROM public.orders o 
+    WHERE o.trip_id = t.id 
+      AND o.status NOT IN ('Delivered', 'Cancelled')
+  );
+
+-- 4b. Kung may mga kargamento pang hindi pa Delivered (Out for Delivery / Arrived at Hub) at nakarating na sa hub: 'arrived' (aktibo sa hub!)
+UPDATE public.trips t
+SET status = 'arrived'
+WHERE t.id IN (SELECT DISTINCT trip_id FROM public.orders WHERE trip_id IS NOT NULL)
+  AND t.arrived_at IS NOT NULL
+  AND EXISTS (
+    SELECT 1 
+    FROM public.orders o 
+    WHERE o.trip_id = t.id 
+      AND o.status NOT IN ('Delivered', 'Cancelled')
+  );
+
+-- 4c. Kung nasa biyahe pa (In Transit) at may departure timestamp pero wala pang arrived timestamp: 'in_progress'
+UPDATE public.trips t
+SET status = 'in_progress'
+WHERE t.id IN (SELECT DISTINCT trip_id FROM public.orders WHERE trip_id IS NOT NULL)
+  AND t.departure_at IS NOT NULL
+  AND t.arrived_at IS NULL
+  AND EXISTS (
+    SELECT 1 
+    FROM public.orders o 
+    WHERE o.trip_id = t.id 
+      AND o.status NOT IN ('Delivered', 'Cancelled')
+  );
 
 -- Hakbang 5: Ibalik agad ang triggers sa trips
 ALTER TABLE public.trips ENABLE TRIGGER USER;
