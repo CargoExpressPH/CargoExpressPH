@@ -41,7 +41,7 @@ const ManualBoxMatchOverlay = ({
   onNotInManifest,
   onUnidentified,
   onClose,
-  notFoundMessage = 'Wala sa listahan ng kargamento sa biyaheng ito ang package na ito.',
+  notFoundMessage = "Package not found in this trip's cargo list.",
 }) => {
   const titleId = useId();
   const inputId = useId();
@@ -109,7 +109,7 @@ const ManualBoxMatchOverlay = ({
               id={inputId}
               type="text"
               className="trip-scanner-manual-input"
-              placeholder="Halimbawa: 8591 o CE-20261019-8591"
+              placeholder="Enter tracking number or code"
               value={input}
               onChange={(e) => { setInput(e.target.value); setSearched(false); }}
               autoCapitalize="characters"
@@ -121,10 +121,13 @@ const ManualBoxMatchOverlay = ({
               <Search size={14} className="inline mr-4" /> Find
             </button>
           </form>
+          <p className="trip-scanner-manual-hint-text">
+            Example: <strong>8591</strong> or <strong>CE-20261020-8036</strong>
+          </p>
 
           {onUnidentified && (
             <button type="button" className="btn btn-ghost btn-sm trip-scanner-unidentified-link" onClick={onUnidentified}>
-              Walang mabasa sa label? Hanapin gamit ang destinasyon at tatanggap
+              Can&apos;t read the label? Identify by destination and receiver
             </button>
           )}
 

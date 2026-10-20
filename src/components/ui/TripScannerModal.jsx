@@ -1128,7 +1128,7 @@ const TripScannerModal = ({
                   <span className="trip-scanner-manifest-count">{filteredOrders.length}</span>
                 </h3>
                 <span className="trip-scanner-manifest-subtitle">
-                  I-scan ang QR code ng bawat kahon para ma-verify
+                  Scan each package's QR code to verify
                 </span>
               </div>
             </div>

@@ -630,7 +630,8 @@
 /* Footer action row under the manifest */
 .trip-scanner-fallbacks {
   display: flex;
-  flex-wrap: wrap;
+  gap: 8px;
+  width: 100%;
   align-items: center;
   margin-top: 14px;
   padding-top: 12px;
@@ -638,11 +639,15 @@
 }
 
 .trip-scanner-fallbacks .btn {
-  margin: 0 8px 8px 0;
+  flex: 1 1 0;
+  margin: 0;
+  justify-content: center;
+  text-align: center;
+  white-space: nowrap;
 }
 
 .trip-scanner-finish-btn {
-  margin-left: auto;
+  margin-left: 0;
 }
 
 .trip-scanner-sync-btn {
@@ -910,4 +915,10 @@
   text-align: left;
   text-decoration: underline;
   color: var(--text-secondary, inherit);
+}
+
+.trip-scanner-manual-hint-text {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin: 6px 0 10px;
 }
