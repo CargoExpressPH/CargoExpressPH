@@ -1880,6 +1880,7 @@ const AdminOrderDetailPage = () => {
       )}
       {showScannerModal && (
         <QrScannerModal
+          initialOrder={order}
           onClose={() => {
             setShowScannerModal(false);
             void loadOrder(true, { silent: true });

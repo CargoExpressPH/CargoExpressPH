@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { CameraOff, Loader, PackageCheck, RotateCcw, X } from 'lucide-react';
+import { CameraOff, Keyboard, Loader, PackageCheck, RotateCcw, X } from 'lucide-react';
 import FocusTrap from './FocusTrap';
 import useScrollLock from '../../hooks/useScrollLock';
 import DeliveryModal from './DeliveryModal';
+import ManualBoxMatchOverlay from './ManualBoxMatchOverlay';
 import { findOrderIdByTrackingNumber, getOrderById, recordBoxVerification, recordDeliveryPayment } from '../../lib/database';
 import { supabase } from '../../lib/supabase';
 import { logActivity, logOrder } from '../../lib/activityLog';
@@ -12,7 +13,7 @@ import { ORDER_STATUS } from '../../constants/status';
 import { ORDER_PARTY_NAME_COLUMNS, orderPartyName } from '../../lib/orderParties';
 import { useToast } from '../../hooks/useToast';
 import { normalizeTrackingNumber, orderRouteForScan, parseScanPayload } from '../../utils/scanPayload';
-import { playWrongRouteSound } from '../../utils/scanAudio';
+import { playScanErrorSound, playScanSuccessSound, playWrongRouteSound } from '../../utils/scanAudio';
 
 /**
  * QrScannerModal — the admin topbar's "Scan package QR" camera.
@@ -167,7 +168,7 @@ const loadImage = (file) => new Promise((resolve, reject) => {
   img.src = url;
 });
 
-const QrScannerModal = ({ onClose }) => {
+const QrScannerModal = ({ onClose, initialOrder = null }) => {
   const navigate = useNavigate();
   const titleId = useId();
   const descriptionId = useId();
@@ -192,18 +193,44 @@ const QrScannerModal = ({ onClose }) => {
   const [noticeTone, setNoticeTone] = useState('warning');
   const [attempt, setAttempt] = useState(0);
   const [pageHidden, setPageHidden] = useState(() => typeof document !== 'undefined' && document.hidden);
-  const [manualValue, setManualValue] = useState('');
-  const [manualError, setManualError] = useState('');
 
-  // Delivery session: set by the first box of an Out for Delivery package and
-  // kept until its proof of delivery is saved. `sessionRef` mirrors it for the
-  // async handlers, which would otherwise read a stale closure.
-  const [session, setSession] = useState(null);
-  const sessionRef = useRef(null);
+  // Delivery session: set by initialOrder if passed, or by the first box scan
+  // of an Out for Delivery package.
+  const [session, setSession] = useState(() => {
+    if (initialOrder && (initialOrder.status === ORDER_STATUS.OUT_FOR_DELIVERY || initialOrder.tracking_number)) {
+      return {
+        orderId: initialOrder.id,
+        trackingNumber: initialOrder.tracking_number,
+        customerName: orderPartyName(initialOrder, 'receiver'),
+        packageQuantity: initialOrder.package_quantity || 1,
+        verified: [...(initialOrder.verified_boxes || [])],
+        order: initialOrder,
+      };
+    }
+    return null;
+  });
+  const sessionRef = useRef(session);
   const updateSession = useCallback((next) => {
     sessionRef.current = next;
     setSession(next);
   }, []);
+
+  // Field fallback: Manual Box Match overlay ("Can't Scan QR?")
+  const [manualOpen, setManualOpen] = useState(false);
+  const [candidateOrders, setCandidateOrders] = useState(() => (initialOrder ? [initialOrder] : []));
+
+  useEffect(() => {
+    if (!initialOrder) {
+      supabase
+        .from('orders')
+        .select(`id, status, tracking_number, package_quantity, verified_boxes, receiver_city, receiver_province, actual_weight, ${ORDER_PARTY_NAME_COLUMNS}`)
+        .in('status', ['Out for Delivery', 'Picked Up', 'Arrived at Hub'])
+        .limit(100)
+        .then(({ data }) => {
+          if (data && mountedRef.current) setCandidateOrders(data);
+        });
+    }
+  }, [initialOrder]);
 
   // Proof of delivery runs in place of the camera, so the session survives a
   // cancelled POD and the camera restarts once the delivery is saved.
@@ -489,6 +516,60 @@ const QrScannerModal = ({ onClose }) => {
     setPodOrder(null);
     updateSession(null);
     onClose?.();
+  };
+
+  const handleManualMatchConfirm = async (order, box) => {
+    try {
+      setBusy(true);
+      const verifiedBoxes = await recordBoxVerification(order.id, box);
+      logActivity({
+        module: 'Deliveries',
+        action: 'Package box verified via manual match',
+        recordType: 'order',
+        recordId: order.id,
+        recordRef: order.tracking_number || null,
+        details: `Box ${box} of ${order.package_quantity || 1} verified via manual match.`,
+      });
+      logOrder('Box Verified (Manual Match)', order.id, order.tracking_number, {
+        details: `Box ${box} of ${order.package_quantity || 1} manually verified (unreadable QR fallback).`,
+      });
+
+      const nextVerified = Array.isArray(verifiedBoxes)
+        ? verifiedBoxes
+        : [...(session?.verified || order.verified_boxes || []), box];
+
+      const updatedOrder = {
+        ...order,
+        verified_boxes: nextVerified,
+      };
+
+      const nextSession = {
+        orderId: order.id,
+        trackingNumber: order.tracking_number,
+        customerName: orderPartyName(order, 'receiver'),
+        packageQuantity: order.package_quantity || 1,
+        verified: nextVerified,
+        order: updatedOrder,
+      };
+      updateSession(nextSession);
+      setManualOpen(false);
+
+      const rem = boxNumbersFor(nextSession.packageQuantity).filter((b) => !nextVerified.includes(b));
+      settle(
+        rem.length
+          ? `Box ${box} verified. ${boxCount(rem.length)} left.`
+          : 'All boxes verified. Proceed to proof of delivery.',
+        'success',
+      );
+      playScanSuccessSound();
+      toast.success(`Box ${box} of ${nextSession.packageQuantity} verified!`);
+    } catch (err) {
+      playScanErrorSound();
+      toast.error(err?.message || 'Could not verify box.');
+      reject(err?.message || 'Could not verify box.');
+    } finally {
+      if (mountedRef.current) setBusy(false);
+    }
   };
 
   // The decode loop reads the latest handler through a ref, so a new parent
@@ -827,8 +908,18 @@ const QrScannerModal = ({ onClose }) => {
             {notice}
           </p>
 
-          {session && (
-            <div className="qr-scanner-actions">
+          <div className="qr-scanner-actions">
+            <button
+              type="button"
+              className="btn btn-outline qr-scanner-manual-btn"
+              onClick={() => setManualOpen(true)}
+              disabled={busy}
+            >
+              <Keyboard size={16} aria-hidden="true" />
+              Can&apos;t Scan QR?
+            </button>
+
+            {session && (
               <button
                 type="button"
                 className="btn btn-primary qr-scanner-pod-btn"
@@ -840,7 +931,18 @@ const QrScannerModal = ({ onClose }) => {
                   ? `Scan ${boxCount(remaining.length)} more to continue`
                   : 'Proceed to POD'}
               </button>
-            </div>
+            )}
+          </div>
+
+          {manualOpen && (
+            <ManualBoxMatchOverlay
+              orders={session?.order ? [session.order] : (initialOrder ? [initialOrder] : candidateOrders)}
+              heldKeys={new Set()}
+              busy={busy}
+              onConfirm={handleManualMatchConfirm}
+              onClose={() => setManualOpen(false)}
+              notFoundMessage={initialOrder ? `Not matching ${initialOrder.tracking_number}.` : "No matching booking found. Check the tracking number and try again."}
+            />
           )}
         </div>
       </div>

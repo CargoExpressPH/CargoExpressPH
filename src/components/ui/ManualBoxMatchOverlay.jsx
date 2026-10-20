@@ -27,29 +27,33 @@ export const findManifestMatches = (orders, input) => {
 };
 
 const ManualBoxMatchOverlay = ({
-  orders,
-  heldKeys,
+  orders = [],
+  heldKeys = new Set(),
   busy,
   onConfirm,
   onNotInManifest,
   onClose,
+  notFoundMessage = "Not on this trip's manifest. Do not load it.",
 }) => {
   const titleId = useId();
   const inputId = useId();
-  const [input, setInput] = useState('');
-  const [searched, setSearched] = useState(false);
-  const [matches, setMatches] = useState([]);
-  const [selectedId, setSelectedId] = useState(null);
-  const [box, setBox] = useState(null);
-
-  const selected = useMemo(() => matches.find((o) => o.id === selectedId) || null, [matches, selectedId]);
+  const initialSingle = orders?.length === 1 ? orders[0] : null;
 
   const openBoxesFor = (order) => {
+    if (!order) return [];
     const qty = order.package_quantity || 1;
     const verified = order.verified_boxes || [];
     return Array.from({ length: qty }, (_, i) => i + 1)
       .filter((b) => !verified.includes(b) && !heldKeys.has(`${order.id}:${b}`));
   };
+
+  const [input, setInput] = useState(initialSingle ? initialSingle.tracking_number : '');
+  const [searched, setSearched] = useState(Boolean(initialSingle));
+  const [matches, setMatches] = useState(initialSingle ? [initialSingle] : []);
+  const [selectedId, setSelectedId] = useState(initialSingle ? initialSingle.id : null);
+  const [box, setBox] = useState(() => (initialSingle ? openBoxesFor(initialSingle)[0] || null : null));
+
+  const selected = useMemo(() => matches.find((o) => o.id === selectedId) || null, [matches, selectedId]);
 
   const select = (order) => {
     setSelectedId(order.id);
@@ -112,7 +116,7 @@ const ManualBoxMatchOverlay = ({
           {searched && matches.length === 0 && (
             <div className="trip-scanner-notice trip-scanner-notice-danger" role="alert">
               <AlertTriangle size={15} className="trip-scanner-notice-icon" aria-hidden="true" />
-              <span>Not on this trip&apos;s manifest. Do not load it.</span>
+              <span>{notFoundMessage}</span>
             </div>
           )}
 
