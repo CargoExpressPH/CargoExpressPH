@@ -47,7 +47,17 @@ import {
 } from '../../utils/scanAudio';
 
 // Replays a scan that was queued offline. record_box_verification() is idempotent, so a retry is always safe.
-const sendQueuedScan = (event) => recordBoxVerification(event.order_id, event.box_number);
+const sendQueuedScan = (event) => recordBoxVerification(event.order_id, event.box_number, {
+  method: event.method || 'qr',
+  reason: event.reason || null,
+});
+
+// Every non-camera path is a 'manual_fallback' on the server; the app-side method picks the reason.
+const serverVerification = (method, reason) => {
+  if (method === 'qr') return { method: 'qr', reason: null };
+  if (method === 'strict_proof') return { method: 'manual_fallback', reason: 'unidentified_label' };
+  return { method: 'manual_fallback', reason: method === 'manual_match' && reason ? reason : 'other' };
+};
 
 const SCAN_INTERVAL_MS = 120;
 const SAME_CODE_COOLDOWN_MS = 1500;
@@ -345,7 +355,7 @@ const TripScannerModal = ({
    * Resolves { status: 'verified' | 'queued' | 'duplicate', ... } or throws a
    * server rejection (network failures are queued, never thrown).
    */
-  const commitBox = useCallback(async (targetOrder, boxNumber, { method = 'qr', evidence = null } = {}) => {
+  const commitBox = useCallback(async (targetOrder, boxNumber, { method = 'qr', reason = null, evidence = null } = {}) => {
     const current = ordersRef.current.find((o) => o.id === targetOrder.id) || targetOrder;
     const packageQty = current.package_quantity || 1;
     const currentVerified = current.verified_boxes || [];
@@ -358,11 +368,12 @@ const TripScannerModal = ({
       return { status: 'duplicate', at: earlier ? formatScanTime(earlier.scanned_at) : '', packageQty };
     }
 
+    const verification = serverVerification(method, reason);
     let newVerified = null;
     let queued = typeof navigator !== 'undefined' && navigator.onLine === false;
     if (!queued) {
       try {
-        const list = await recordBoxVerification(current.id, boxNumber);
+        const list = await recordBoxVerification(current.id, boxNumber, verification);
         newVerified = Array.isArray(list) ? list : null;
         await recordSyncedScan(scan).catch(() => { /* local cache only */ });
       } catch (err) {
@@ -371,7 +382,7 @@ const TripScannerModal = ({
       }
     }
     if (queued) {
-      await queueScanEvent(scan);
+      await queueScanEvent(scan, verification);
       refreshPending();
     }
     if (!newVerified) {
@@ -614,9 +625,9 @@ const TripScannerModal = ({
   };
 
   // Case A: the driver typed the AWB / short code and confirmed the masked details match the box.
-  const handleManualMatchConfirm = async (order, box) => {
+  const handleManualMatchConfirm = async (order, box, reason) => {
     try {
-      await runFallbackCommit(order, box, { method: 'manual_match' });
+      await runFallbackCommit(order, box, { method: 'manual_match', reason });
       setManualOpen(false);
     } catch (e) {
       playScanErrorSound();

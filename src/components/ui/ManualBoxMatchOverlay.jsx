@@ -5,6 +5,7 @@ import FocusTrap from './FocusTrap';
 import { orderPartyName } from '../../lib/orderParties';
 import { maskPersonName } from '../../utils/maskName';
 import { normalizeTrackingNumber } from '../../utils/scanPayload';
+import { MANUAL_SCAN_REASONS } from '../../constants/manualScan';
 
 const SHORT_CODE_LENGTH = 6;
 
@@ -52,6 +53,7 @@ const ManualBoxMatchOverlay = ({
   const [matches, setMatches] = useState(initialSingle ? [initialSingle] : []);
   const [selectedId, setSelectedId] = useState(initialSingle ? initialSingle.id : null);
   const [box, setBox] = useState(() => (initialSingle ? openBoxesFor(initialSingle)[0] || null : null));
+  const [reason, setReason] = useState(null);
 
   const selected = useMemo(() => matches.find((o) => o.id === selectedId) || null, [matches, selectedId]);
 
@@ -184,11 +186,25 @@ const ManualBoxMatchOverlay = ({
                       </button>
                     ))}
                   </div>
+                  <div className="trip-scanner-verify-label mt-8">Why can&apos;t it be scanned?</div>
+                  <div className="trip-scanner-box-chips" role="group" aria-label="Reason the QR could not be scanned">
+                    {MANUAL_SCAN_REASONS.map((r) => (
+                      <button
+                        key={r.value}
+                        type="button"
+                        className={`trip-scanner-box-chip ${r.value === reason ? 'is-selected' : ''}`}
+                        aria-pressed={r.value === reason}
+                        onClick={() => setReason(r.value)}
+                      >
+                        {r.label}
+                      </button>
+                    ))}
+                  </div>
                   <button
                     type="button"
                     className="btn btn-primary trip-scanner-sheet-confirm"
-                    disabled={!box || busy}
-                    onClick={() => onConfirm(selected, box)}
+                    disabled={!box || !reason || busy}
+                    onClick={() => onConfirm(selected, box, reason)}
                   >
                     <CheckCircle size={15} className="inline mr-4" /> Confirm Match
                   </button>

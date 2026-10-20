@@ -3211,13 +3211,32 @@ export const recordDeliveryPayment = async (orderId, payload) => {
   return data;
 };
 
-export const recordBoxVerification = async (orderId, box) => {
-  const { data, error } = await supabase.rpc('record_box_verification', {
-    p_order_id: orderId,
-    p_box: box,
-  });
+/**
+ * Count one box. `method` is 'qr' (camera) or 'manual_fallback'; a manual
+ * verification must carry a `reason` (see constants/manualScan.js). The method
+ * is only sent when it is manual, so a plain camera scan keeps working against a
+ * database that predates the audit table.
+ */
+export const recordBoxVerification = async (orderId, box, { method = 'qr', reason = null } = {}) => {
+  const params = { p_order_id: orderId, p_box: box };
+  if (method !== 'qr') {
+    params.p_method = method;
+    params.p_reason = reason;
+  }
+  const { data, error } = await supabase.rpc('record_box_verification', params);
   if (error) throw error;
   return data;
+};
+
+/** Verification audit rows for one trip (admin only), oldest first. */
+export const listBoxScanEvents = async (tripId) => {
+  const { data, error } = await supabase
+    .from('box_scan_events')
+    .select('id, order_id, box_number, phase, method, reason, scanned_at')
+    .eq('trip_id', tripId)
+    .order('scanned_at', { ascending: true });
+  if (error) throw error;
+  return data || [];
 };
 
 /**

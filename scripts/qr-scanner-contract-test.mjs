@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { normalizeTrackingNumber, orderRouteForScan, parseScanPayload } from '../src/utils/scanPayload.js';
 import { maskPersonName, maskPhone } from '../src/utils/maskName.js';
+import { summarizeManualScans } from '../src/utils/manualScanFlags.js';
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 
@@ -110,5 +111,18 @@ const caseB = read('src/components/ui/UnidentifiedBoxModal.jsx');
 assert.match(caseB, /href=\{`tel:/, 'call-the-customer button');
 assert.match(caseB, /capture="environment"/, 'damaged-box photo input');
 assert.match(caseB, /Boolean\(pick && photo && signatureCanvas\)/, 'photo AND signature are both required');
+
+// ── Manual-fallback audit flags ─────────────────────────────────────────────
+const at = (sec) => new Date(Date.UTC(2026, 9, 20, 8, 0, sec)).toISOString();
+const manual = (sec) => ({ method: 'manual_fallback', scanned_at: at(sec) });
+const camera = (sec) => ({ method: 'qr', scanned_at: at(sec) });
+assert.deepEqual(summarizeManualScans([camera(0), camera(5), manual(60)], 10).flags, [], 'one manual box in ten is normal');
+assert.equal(summarizeManualScans([manual(0), manual(120), camera(5)], 4).flags[0].code, 'high_manual_rate');
+assert.equal(summarizeManualScans([manual(0), manual(10), manual(20), camera(1)], 40).flags[0].code, 'manual_burst');
+assert.deepEqual(summarizeManualScans([manual(0), manual(100), manual(200)], 40).flags, [], 'spread-out manual boxes are not a burst');
+assert.equal(summarizeManualScans([], 0).manualCount, 0);
+
+const overlay = read('src/components/ui/ManualBoxMatchOverlay.jsx');
+assert.match(overlay, /disabled={!box || !reason || busy}/, 'Confirm Match is locked until a reason is chosen');
 
 console.log('QR scanner contract tests passed.');

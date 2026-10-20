@@ -518,10 +518,10 @@ const QrScannerModal = ({ onClose, initialOrder = null }) => {
     onClose?.();
   };
 
-  const handleManualMatchConfirm = async (order, box) => {
+  const handleManualMatchConfirm = async (order, box, reason) => {
     try {
       setBusy(true);
-      const verifiedBoxes = await recordBoxVerification(order.id, box);
+      const verifiedBoxes = await recordBoxVerification(order.id, box, { method: 'manual_fallback', reason });
       logActivity({
         module: 'Deliveries',
         action: 'Package box verified via manual match',

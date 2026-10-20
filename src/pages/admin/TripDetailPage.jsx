@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { rowLinkProps } from '../../utils/rowLink';
-import { getTripById, getTripStartDateGates, listLoadingShortfalls, updateTrip, getActivityLogsByRecord, rescheduleTrip, retryTripReschedulePublicNotice } from '../../lib/database';
+import { getTripById, getTripStartDateGates, listLoadingShortfalls, listBoxScanEvents, updateTrip, getActivityLogsByRecord, rescheduleTrip, retryTripReschedulePublicNotice } from '../../lib/database';
 import StatusBadge from '../../components/ui/StatusBadge';
 import ConfirmModal from '../../components/ui/ConfirmModal';
 import RescheduleTripModal from '../../components/ui/RescheduleTripModal';
@@ -17,6 +17,8 @@ import usePageTitle from '../../hooks/usePageTitle';
 import useLatestRequest from '../../hooks/useLatestRequest';
 import { outstandingBalance, isOrderPriced } from '../../constants/status';
 import { formatMoney } from '../../utils/currencyInput';
+import { summarizeManualScans } from '../../utils/manualScanFlags';
+import { MANUAL_SCAN_REASON_LABELS } from '../../constants/manualScan';
 import { formatPhDate, formatPhDateTime, phLocalInputToISO } from '../../utils/datetime';
 import { orderPartyName } from '../../lib/orderParties';
 
@@ -31,6 +33,7 @@ const TripDetailPage = () => {
   const [showRescheduleModal, setShowRescheduleModal] = useState(false);
   const [showScannerModal, setShowScannerModal] = useState(false);
   const [shortfalls, setShortfalls] = useState([]);
+  const [scanEvents, setScanEvents] = useState([]);
   const [pendingRescheduleNotice, setPendingRescheduleNotice] = useState(null);
   const [retryingNotice, setRetryingNotice] = useState(false);
   const [estimatedArrivalInput, setEstimatedArrivalInput] = useState('');
@@ -42,6 +45,7 @@ const TripDetailPage = () => {
     setData(null);
     setActivityHistory([]);
     setShortfalls([]);
+    setScanEvents([]);
     load();
   }, [id]);
 
@@ -83,6 +87,10 @@ const TripDetailPage = () => {
       listLoadingShortfalls(id)
         .then((rows) => { if (isCurrent()) setShortfalls(rows); })
         .catch(() => { if (isCurrent()) setShortfalls([]); });
+      // Verification audit trail (manual fallbacks are badged below); absent before the migration, so never fatal.
+      listBoxScanEvents(id)
+        .then((rows) => { if (isCurrent()) setScanEvents(rows); })
+        .catch(() => { if (isCurrent()) setScanEvents([]); });
       const actLogs = await getActivityLogsByRecord(id, result?.trip?.trip_number);
       if (isCurrent()) setActivityHistory(actLogs);
     } catch(e) {
@@ -292,6 +300,13 @@ const TripDetailPage = () => {
     const qty = o.package_quantity || 1;
     return sum + (o.verified_boxes || []).filter(b => b <= qty).length;
   }, 0);
+  const manualSummary = summarizeManualScans(scanEvents.filter(e => e.phase === 'load'), totalTripBoxes);
+  const manualReasonsByOrder = scanEvents.reduce((acc, e) => {
+    if (e.method === 'manual_fallback') {
+      (acc[e.order_id] = acc[e.order_id] || []).push(`Box ${e.box_number}: ${MANUAL_SCAN_REASON_LABELS[e.reason] || e.reason}`);
+    }
+    return acc;
+  }, {});
   const startGate = data.start_gate;
 
   const startTripBlockReason =
@@ -488,6 +503,9 @@ const TripDetailPage = () => {
             {eligibleOrders.length > 0 ? (
               <span className="text-xs text-secondary">
                 Manifest: <strong>{totalScannedBoxes}</strong> of <strong>{totalTripBoxes}</strong> boxes scanned {totalScannedBoxes === totalTripBoxes ? '✓' : ''}
+                {manualSummary.manualCount > 0 && (
+                  <> · <strong>{manualSummary.manualCount}</strong> verified manually</>
+                )}
               </span>
             ) : notYetPickedUp.length > 0 ? (
               <span className="text-xs text-secondary">
@@ -496,6 +514,12 @@ const TripDetailPage = () => {
             ) : null}
           </div>
         </div>
+        {manualSummary.flags.length > 0 && (
+          <div className="trip-scanner-notice trip-scanner-notice-warning" role="status" style={{ margin: '12px 16px 0' }}>
+            <AlertTriangle size={15} className="trip-scanner-notice-icon" aria-hidden="true" />
+            <span>Worth a look: {manualSummary.flags.map(f => f.message).join(' ')}</span>
+          </div>
+        )}
         <div className="table-container">
           {orders.length === 0 ? (
             <EmptyState
@@ -539,7 +563,9 @@ const TripDetailPage = () => {
                           return <span className="text-secondary text-xs">{qty} box{qty > 1 ? 'es' : ''}</span>;
                         }
                         const allScanned = verified.length === qty;
+                        const manualNotes = manualReasonsByOrder[o.id];
                         return (
+                          <>
                           <span
                             className={`badge ${allScanned ? 'badge-success' : 'badge-warning'} text-xs`}
                             title={allScanned ? `All ${qty} boxes scanned` : `${verified.length} of ${qty} boxes scanned`}
@@ -555,6 +581,16 @@ const TripDetailPage = () => {
                               </>
                             )}
                           </span>
+                          {manualNotes && (
+                            <span
+                              className="badge badge-warning text-xs"
+                              style={{ marginLeft: 6 }}
+                              title={'Verified without a camera scan. ' + manualNotes.join('; ')}
+                            >
+                              Manual ×{manualNotes.length}
+                            </span>
+                          )}
+                          </>
                         );
                       })()}
                     </td>

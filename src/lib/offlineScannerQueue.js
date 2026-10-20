@@ -169,8 +169,8 @@ const saveEvent = ({ orderId, box, eventType, tripId }, status, extra = {}) => {
   });
 };
 
-/** Records a scan that could not reach the server yet. */
-export const queueScanEvent = (scan) => saveEvent(scan, SCAN_STATUS.PENDING);
+/** Records a scan that could not reach the server yet. `extra` carries the manual method/reason so they survive the wait. */
+export const queueScanEvent = (scan, extra = {}) => saveEvent(scan, SCAN_STATUS.PENDING, extra);
 
 /** Records a scan the server already accepted, so a re-scan is caught instantly. */
 export const recordSyncedScan = (scan) => saveEvent(scan, SCAN_STATUS.SYNCED, {
