@@ -125,4 +125,12 @@ assert.equal(summarizeManualScans([], 0).manualCount, 0);
 const overlay = read('src/components/ui/ManualBoxMatchOverlay.jsx');
 assert.match(overlay, /disabled={!box || !reason || busy}/, 'Confirm Match is locked until a reason is chosen');
 
+// ── No tap-to-verify shortcut; search accepts partial tracking numbers ──────
+assert.doesNotMatch(tripScanner, /handleManualVerifyBox|\+ Verify Box/, 'boxes verify by camera or the reasoned fallback only');
+assert.doesNotMatch(tripScanner, /Trip Manifest/);
+assert.match(tripScanner, /Trip Cargo List/);
+assert.doesNotMatch(overlay, /SHORT_CODE_LENGTH/, 'a typed code is not limited to exactly 6 characters');
+assert.match(overlay, /code\.length < MIN_SEARCH_LENGTH/);
+assert.match(overlay, /\.includes\(code\)/);
+
 console.log('QR scanner contract tests passed.');

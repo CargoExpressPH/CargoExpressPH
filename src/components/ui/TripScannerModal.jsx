@@ -226,7 +226,7 @@ const TripScannerModal = ({
       .catch(() => { /* offline or not migrated yet: the trip simply has no exceptions to show */ });
   }, [trip.id, isDeliveryMode]);
 
-  // Keep a copy of the manifest on the device so labels still resolve with no signal,
+  // Keep a copy of the cargo list on the device so labels still resolve with no signal,
   // and fall back to that copy if the modal opens before the page has any orders.
   useEffect(() => {
     if (orders.length > 0) saveTripManifest(trip.id, orders).catch(() => { /* cache is best-effort */ });
@@ -397,7 +397,6 @@ const TripScannerModal = ({
       const labels = {
         qr: 'Cargo Box Verified via Trip Scanner',
         manual_match: 'Cargo Box Verified by Manual Match (QR unreadable)',
-        manual_button: 'Cargo Box Verified Manually via Trip Scanner',
         strict_proof: 'Cargo Box Verified by Strict Proof (label unreadable)',
       };
       logOrder(labels[method] || labels.qr, current.id, current.tracking_number, {
@@ -475,7 +474,7 @@ const TripScannerModal = ({
       triggerPulse('is-error-pulse');
       setNoticeTone('danger');
       setNotice(found
-        ? `${found.trackingNumber} is not on this trip's manifest. Do not load.`
+        ? `${found.trackingNumber} is not in this trip's cargo list. Do not load.`
         : `No booking found for ${fallbackLabel}.`);
     } catch {
       if (!mountedRef.current) return;
@@ -611,16 +610,6 @@ const TripScannerModal = ({
         setBusy(false);
         resolvingRef.current = false;
       }
-    }
-  };
-
-  // Per-box "+ Verify Box N" button on a manifest card.
-  const handleManualVerifyBox = async (order, boxNum) => {
-    try {
-      await runFallbackCommit(order, boxNum, { method: 'manual_button' });
-    } catch (e) {
-      playScanErrorSound();
-      toast.error(e.message || 'Failed to verify box');
     }
   };
 
@@ -1149,11 +1138,11 @@ const TripScannerModal = ({
             <div className="trip-scanner-manifest-header">
               <div className="trip-scanner-manifest-heading">
                 <h3 className="trip-scanner-manifest-title">
-                  Trip Manifest
+                  Trip Cargo List
                   <span className="trip-scanner-manifest-count">{filteredOrders.length}</span>
                 </h3>
                 <span className="trip-scanner-manifest-subtitle">
-                  Scan QR or tap damaged boxes to verify
+                  I-scan ang QR code ng bawat kahon para ma-verify
                 </span>
               </div>
 
@@ -1219,7 +1208,6 @@ const TripScannerModal = ({
                   const isJustScanned = o.id === lastScannedOrderId;
                   const receiver = orderPartyName(o, 'receiver') || 'Receiver';
                   const destination = [o.receiver_city, o.receiver_province].filter(Boolean).join(', ') || 'No destination set';
-                  const nextBoxToVerify = Array.from({ length: qty }, (_, idx) => idx + 1).find((b) => !verified.includes(b) && !heldKeys.has(o.id + ':' + b));
                   const progressPct = Math.round((verifiedCount / qty) * 100);
 
                   return (
@@ -1263,17 +1251,6 @@ const TripScannerModal = ({
                           <span className="trip-scanner-mini-pct">{progressPct}%</span>
                         </div>
 
-                        {!isComplete && !isReleased && nextBoxToVerify && (
-                          <button
-                            type="button"
-                            className="trip-scanner-manual-box-btn"
-                            onClick={() => handleManualVerifyBox(o, nextBoxToVerify)}
-                            disabled={busy}
-                            title={`Manually verify Box ${nextBoxToVerify} if label is unreadable`}
-                          >
-                            + Verify Box {nextBoxToVerify}
-                          </button>
-                        )}
                       </div>
 
                       {/* POD button if all boxes scanned during delivery phase */}

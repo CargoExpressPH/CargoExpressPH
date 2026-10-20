@@ -7,15 +7,17 @@ import { maskPersonName } from '../../utils/maskName';
 import { normalizeTrackingNumber } from '../../utils/scanPayload';
 import { MANUAL_SCAN_REASONS } from '../../constants/manualScan';
 
-const SHORT_CODE_LENGTH = 6;
+// Fewest typed characters that search the cargo list; fewer would match half the van.
+const MIN_SEARCH_LENGTH = 3;
 
 const compactTracking = (trackingNumber) => String(trackingNumber || '').replace(/[^A-Z0-9]/gi, '').toUpperCase();
 
 /**
  * Case A of the field fallbacks: the QR is unreadable but the printed tracking
  * number (or its 6-character short code, the last six characters of it) is
- * not. Matches only against the active trip's own manifest, so a typed code
- * can never pull in a box that is not on this van.
+ * not. The driver may type the whole tracking number or just part of it
+ * (typically the last digits). Matches only against the active trip's own
+ * cargo list, so a typed code can never pull in a box that is not on this van.
  */
 export const findManifestMatches = (orders, input) => {
   const value = String(input || '').trim();
@@ -23,8 +25,12 @@ export const findManifestMatches = (orders, input) => {
   const tracking = normalizeTrackingNumber(value);
   if (tracking) return orders.filter((o) => o.tracking_number?.toUpperCase() === tracking);
   const code = compactTracking(value);
-  if (code.length !== SHORT_CODE_LENGTH) return [];
-  return orders.filter((o) => compactTracking(o.tracking_number).endsWith(code));
+  if (code.length < MIN_SEARCH_LENGTH) return [];
+  // A tracking number ending in what was typed is the best match; only if none does,
+  // fall back to the typed text appearing anywhere in it.
+  const endsWithCode = orders.filter((o) => compactTracking(o.tracking_number).endsWith(code));
+  if (endsWithCode.length > 0) return endsWithCode;
+  return orders.filter((o) => compactTracking(o.tracking_number).includes(code));
 };
 
 const ManualBoxMatchOverlay = ({
@@ -34,7 +40,7 @@ const ManualBoxMatchOverlay = ({
   onConfirm,
   onNotInManifest,
   onClose,
-  notFoundMessage = "Not on this trip's manifest. Do not load it.",
+  notFoundMessage = 'Wala sa listahan ng kargamento sa biyaheng ito ang package na ito.',
 }) => {
   const titleId = useId();
   const inputId = useId();
@@ -93,7 +99,7 @@ const ManualBoxMatchOverlay = ({
             </button>
           </div>
           <p className="trip-scanner-sheet-hint">
-            Type the tracking number printed on the label, or its last 6 characters.
+            Type the tracking number printed on the label, or just its last few digits.
             Then check the details below against the box in your hands.
           </p>
 
@@ -102,13 +108,13 @@ const ManualBoxMatchOverlay = ({
               id={inputId}
               type="text"
               className="trip-scanner-manual-input"
-              placeholder="CE-20261019-1234 or 191234"
+              placeholder="Halimbawa: 8591 o CE-20261019-8591"
               value={input}
               onChange={(e) => { setInput(e.target.value); setSearched(false); }}
               autoCapitalize="characters"
               autoComplete="off"
               autoFocus
-              aria-label="Tracking number or 6-character code"
+              aria-label="Tracking number or its last digits"
             />
             <button type="submit" className="btn btn-outline btn-sm trip-scanner-manual-btn" disabled={!input.trim()}>
               <Search size={14} className="inline mr-4" /> Find
