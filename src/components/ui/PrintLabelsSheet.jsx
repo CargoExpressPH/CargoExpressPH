@@ -31,7 +31,7 @@ const PrintLabelsSheet = ({ trackingNumber, labels = [] }) => {
               />
             </div>
             <div className="pl-caption">Box {label.box} of {label.total}</div>
-            <div className="pl-tracking" style={{ fontSize: '11px', fontWeight: 700 }}>{label.trackingNumber}</div>
+            <div className="qr-label-tracking-no">{label.trackingNumber}</div>
             <div className="pl-tracking" style={{ fontSize: '11px', textTransform: 'uppercase' }}>{label.receiverName}</div>
           </div>
         ))}

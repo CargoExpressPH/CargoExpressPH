@@ -161,7 +161,7 @@ const PackageQrLabels = ({ order, onOrderUpdate }) => {
                   viewBox="0 0 112 112"
                 />
                 <div className="qr-label-preview-caption">Box {label.box} of {label.total}</div>
-                <div className="qr-label-preview-tracking" style={{ fontSize: '11px', fontWeight: 700, marginTop: '2px' }}>{label.trackingNumber}</div>
+                <div className="qr-label-tracking-no">{label.trackingNumber}</div>
                 <div className="qr-label-preview-tracking" style={{ fontSize: '11px', textTransform: 'uppercase', marginTop: '4px' }}>{label.receiverName}</div>
                 <div style={{ marginTop: 6 }}>
                   {isVerified ? (

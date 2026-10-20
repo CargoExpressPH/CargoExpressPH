@@ -132,7 +132,7 @@ const ManualBoxMatchOverlay = ({
             </button>
           </form>
           <p className="trip-scanner-manual-hint-text">
-            Example: <strong>8036</strong>, <strong>CE-20261020-8036</strong>, or <strong>Arjel Balaba</strong>
+            Example: <strong>8036</strong>, <strong>CE-20261020-8036</strong>, or <strong>customer name</strong>
           </p>
 
           {onUnidentified && (

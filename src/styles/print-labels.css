@@ -81,3 +81,12 @@
     letter-spacing: 0.02em;
   }
 }
+
+/* Bold tracking number printed on every package sticker (and its preview) */
+.qr-label-tracking-no {
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  font-weight: 700;
+  margin-top: 2px;
+  word-break: break-all;
+}
