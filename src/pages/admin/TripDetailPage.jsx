@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { rowLinkProps } from '../../utils/rowLink';
-import { getTripById, getTripStartDateGates, updateTrip, getActivityLogsByRecord, rescheduleTrip, retryTripReschedulePublicNotice } from '../../lib/database';
+import { getTripById, getTripStartDateGates, listLoadingShortfalls, updateTrip, getActivityLogsByRecord, rescheduleTrip, retryTripReschedulePublicNotice } from '../../lib/database';
 import StatusBadge from '../../components/ui/StatusBadge';
 import ConfirmModal from '../../components/ui/ConfirmModal';
 import RescheduleTripModal from '../../components/ui/RescheduleTripModal';
@@ -30,6 +30,7 @@ const TripDetailPage = () => {
   const [confirmAction, setConfirmAction] = useState(null);
   const [showRescheduleModal, setShowRescheduleModal] = useState(false);
   const [showScannerModal, setShowScannerModal] = useState(false);
+  const [shortfalls, setShortfalls] = useState([]);
   const [pendingRescheduleNotice, setPendingRescheduleNotice] = useState(null);
   const [retryingNotice, setRetryingNotice] = useState(false);
   const [estimatedArrivalInput, setEstimatedArrivalInput] = useState('');
@@ -40,6 +41,7 @@ const TripDetailPage = () => {
   useEffect(() => {
     setData(null);
     setActivityHistory([]);
+    setShortfalls([]);
     load();
   }, [id]);
 
@@ -77,6 +79,10 @@ const TripDetailPage = () => {
       const result = await getTripById(id);
       if (!isCurrent()) return;
       setData(result);
+      // Supervisor-approved loading shortfalls count as resolved boxes for the Start Trip gate.
+      listLoadingShortfalls(id)
+        .then((rows) => { if (isCurrent()) setShortfalls(rows); })
+        .catch(() => { if (isCurrent()) setShortfalls([]); });
       const actLogs = await getActivityLogsByRecord(id, result?.trip?.trip_number);
       if (isCurrent()) setActivityHistory(actLogs);
     } catch(e) {
@@ -275,9 +281,11 @@ const TripDetailPage = () => {
   const notYetPickedUp = orders.filter(o => o.status === 'Pending' || o.status === 'Assigned');
   const eligibleOrders = orders.filter(o => !['Cancelled', 'Pending Cancellation', 'Pending', 'Assigned'].includes(o.status));
   const eligibleWeight = eligibleOrders.reduce((sum, o) => sum + (Number(o.actual_weight) || 0), 0);
+  const heldBoxKeys = new Set(shortfalls.map(s => s.order_id + ':' + s.box_number));
   const unscannedBoxOrders = eligibleOrders.filter(o => {
     const verified = o.verified_boxes || [];
-    return Array.from({ length: o.package_quantity || 1 }, (_, i) => i + 1).some(b => !verified.includes(b));
+    return Array.from({ length: o.package_quantity || 1 }, (_, i) => i + 1)
+      .some(b => !verified.includes(b) && !heldBoxKeys.has(o.id + ':' + b));
   });
   const totalTripBoxes = eligibleOrders.reduce((sum, o) => sum + (o.package_quantity || 1), 0);
   const totalScannedBoxes = eligibleOrders.reduce((sum, o) => {

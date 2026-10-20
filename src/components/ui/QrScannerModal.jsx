@@ -12,6 +12,7 @@ import { ORDER_STATUS } from '../../constants/status';
 import { ORDER_PARTY_NAME_COLUMNS, orderPartyName } from '../../lib/orderParties';
 import { useToast } from '../../hooks/useToast';
 import { normalizeTrackingNumber, orderRouteForScan, parseScanPayload } from '../../utils/scanPayload';
+import { playWrongRouteSound } from '../../utils/scanAudio';
 
 /**
  * QrScannerModal — the admin topbar's "Scan package QR" camera.
@@ -375,6 +376,8 @@ const QrScannerModal = ({ onClose }) => {
       if (order.id !== active.orderId) {
         const customer = orderPartyName(order, 'receiver') || 'another customer';
         const message = `Wrong package: ${order.tracking_number} belongs to ${customer}. Still scanning ${active.trackingNumber} (${active.customerName}).`;
+        // Same hard-block cue as the trip scanner: a different box at this stop must be unmistakable.
+        playWrongRouteSound();
         toast.warning(`Wrong package: ${order.tracking_number} belongs to ${customer}.`);
         reject(message);
         return;

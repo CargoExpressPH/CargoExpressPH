@@ -3,15 +3,37 @@ import { createPortal } from 'react-dom';
 import {
   X, CameraOff, RotateCcw, Loader, CheckCircle, AlertTriangle,
   Package, Search, Volume2, VolumeX, Zap, ZapOff, Check, ArrowRight,
-  Truck, ShieldCheck, MapPin, Camera
+  Truck, ShieldCheck, MapPin, Camera, Keyboard, CloudOff, RefreshCw, Flag, Ban
 } from 'lucide-react';
 import FocusTrap from './FocusTrap';
 import useScrollLock from '../../hooks/useScrollLock';
 import { useToast } from '../../hooks/useToast';
 import { parseScanPayload, normalizeTrackingNumber } from '../../utils/scanPayload';
-import { recordBoxVerification, recordDeliveryPayment } from '../../lib/database';
+import {
+  findOrderTripForScan,
+  listLoadingShortfalls,
+  recordBoxVerification,
+  recordDeliveryPayment,
+  reportAndApproveShortfall,
+} from '../../lib/database';
+import {
+  SCAN_EVENT_TYPES,
+  countPendingScans,
+  findDuplicateScan,
+  flushPendingScans,
+  formatScanTime,
+  getTripManifest,
+  isNetworkError,
+  queueScanEvent,
+  recordSyncedScan,
+  saveTripManifest,
+  startOnlineSync,
+} from '../../lib/offlineScannerQueue';
+import ManualBoxMatchOverlay from './ManualBoxMatchOverlay';
+import UnidentifiedBoxModal from './UnidentifiedBoxModal';
+import ShortfallModal from './ShortfallModal';
 import { orderPartyName } from '../../lib/orderParties';
-import { logOrder } from '../../lib/activityLog';
+import { logOrder, logTrip } from '../../lib/activityLog';
 import { ORDER_STATUS } from '../../constants/status';
 import DeliveryModal from './DeliveryModal';
 import {
@@ -19,9 +41,13 @@ import {
   playScanErrorSound,
   playScanDuplicateSound,
   playScanCompleteSound,
+  playWrongRouteSound,
   setScanAudioMuted,
   isScanAudioMuted,
 } from '../../utils/scanAudio';
+
+// Replays a scan that was queued offline. record_box_verification() is idempotent, so a retry is always safe.
+const sendQueuedScan = (event) => recordBoxVerification(event.order_id, event.box_number);
 
 const SCAN_INTERVAL_MS = 120;
 const SAME_CODE_COOLDOWN_MS = 1500;
@@ -122,6 +148,15 @@ const TripScannerModal = ({
   }, [initialOrders]);
 
   const isDeliveryMode = trip.status === 'arrived';
+  const eventType = isDeliveryMode ? SCAN_EVENT_TYPES.DELIVERY_VERIFY : SCAN_EVENT_TYPES.LOAD_VERIFY;
+
+  // Supervisor-approved loading shortfalls. They only release the trip's
+  // departure: a held box is still missing at the door, so they are ignored
+  // once the trip is unloading.
+  const [shortfalls, setShortfalls] = useState([]);
+  const heldKeys = useMemo(() => (
+    isDeliveryMode ? new Set() : new Set(shortfalls.map((s) => `${s.order_id}:${s.box_number}`))
+  ), [shortfalls, isDeliveryMode]);
 
   // Scanner state
   const videoRef = useRef(null);
@@ -152,7 +187,17 @@ const TripScannerModal = ({
   // Manifest checklist filter & search
   const [filterTab, setFilterTab] = useState('all'); // 'all' | 'pending' | 'verified'
   const [searchQuery, setSearchQuery] = useState('');
-  const [manualCode, setManualCode] = useState('');
+
+  // Field fallbacks & exceptions
+  const [manualOpen, setManualOpen] = useState(false);       // Case A: QR unreadable
+  const [unidentifiedOpen, setUnidentifiedOpen] = useState(false); // Case B: nothing readable
+  const [shortfallMissing, setShortfallMissing] = useState(null);  // boxes for the Report Shortfall modal
+  const [wrongRoute, setWrongRoute] = useState(null);        // hard-block: { label, tripNumber }
+  const wrongRouteRef = useRef(null);
+
+  // Offline queue
+  const [pendingCount, setPendingCount] = useState(0);
+  const [online, setOnline] = useState(() => typeof navigator === 'undefined' || navigator.onLine !== false);
 
   // Proof of delivery in-place modal
   const [podOrder, setPodOrder] = useState(null);
@@ -162,6 +207,27 @@ const TripScannerModal = ({
     mountedRef.current = true;
     return () => { mountedRef.current = false; };
   }, []);
+
+  // Approved loading shortfalls for this trip (loading phase only).
+  useEffect(() => {
+    if (isDeliveryMode) return;
+    listLoadingShortfalls(trip.id)
+      .then((rows) => { if (mountedRef.current) setShortfalls(rows); })
+      .catch(() => { /* offline or not migrated yet: the trip simply has no exceptions to show */ });
+  }, [trip.id, isDeliveryMode]);
+
+  // Keep a copy of the manifest on the device so labels still resolve with no signal,
+  // and fall back to that copy if the modal opens before the page has any orders.
+  useEffect(() => {
+    if (orders.length > 0) saveTripManifest(trip.id, orders).catch(() => { /* cache is best-effort */ });
+  }, [orders, trip.id]);
+
+  useEffect(() => {
+    if (initialOrders.length > 0) return;
+    getTripManifest(trip.id)
+      .then((cached) => { if (cached?.orders?.length && mountedRef.current) setOrders(cached.orders); })
+      .catch(() => { /* nothing cached */ });
+  }, [trip.id, initialOrders.length]);
 
   const toggleMute = () => {
     const next = !muted;
@@ -208,7 +274,27 @@ const TripScannerModal = ({
     }, 0)
   ), [eligibleOrders]);
 
+  // Held boxes: approved shortfalls whose box has not turned up since.
+  const totalHeldBoxes = useMemo(() => (
+    eligibleOrders.reduce((sum, o) => {
+      const qty = o.package_quantity || 1;
+      const verified = o.verified_boxes || [];
+      return sum + Array.from({ length: qty }, (_, i) => i + 1)
+        .filter((b) => !verified.includes(b) && heldKeys.has(`${o.id}:${b}`)).length;
+    }, 0)
+  ), [eligibleOrders, heldKeys]);
+
   const allCargoVerified = totalTripBoxes > 0 && totalScannedBoxes === totalTripBoxes;
+  const allCargoAccountedFor = totalTripBoxes > 0 && totalScannedBoxes + totalHeldBoxes === totalTripBoxes;
+
+  /** Boxes neither scanned nor held — what "Finish loading" has to explain. */
+  const missingBoxes = useMemo(() => eligibleOrders.flatMap((o) => {
+    const qty = o.package_quantity || 1;
+    const verified = o.verified_boxes || [];
+    return Array.from({ length: qty }, (_, i) => i + 1)
+      .filter((b) => !verified.includes(b) && !heldKeys.has(`${o.id}:${b}`))
+      .map((b) => ({ order: o, box: b }));
+  }), [eligibleOrders, heldKeys]);
 
   // Flash visual feedback
   const triggerPulse = (type) => {
@@ -218,9 +304,186 @@ const TripScannerModal = ({
     }, 600);
   };
 
+  // ── Shared plumbing ──────────────────────────────────────────────────────
+  const overlayOpenRef = useRef(false);
+  overlayOpenRef.current = manualOpen || unidentifiedOpen || Boolean(shortfallMissing);
+
+  const applyVerified = useCallback((orderId, boxes) => {
+    const nextOrders = ordersRef.current.map((o) => (
+      o.id === orderId ? { ...o, verified_boxes: boxes } : o
+    ));
+    setOrders(nextOrders);
+    ordersRef.current = nextOrders;
+    onOrdersUpdate?.(nextOrders);
+    return nextOrders;
+  }, [onOrdersUpdate]);
+
+  const refreshPending = useCallback(() => {
+    countPendingScans(trip.id)
+      .then((n) => { if (mountedRef.current) setPendingCount(n); })
+      .catch(() => { /* storage unavailable: the badge just stays at its last value */ });
+  }, [trip.id]);
+
+  const showWrongRoute = useCallback((info) => {
+    playWrongRouteSound();
+    triggerPulse('is-error-pulse');
+    wrongRouteRef.current = info;
+    setWrongRoute(info);
+  }, []);
+
+  const dismissWrongRoute = () => {
+    wrongRouteRef.current = null;
+    // The bad label is usually still in frame; don't re-fire the moment the block lifts.
+    lastScanRef.current = { text: lastScanRef.current.text, at: Date.now() };
+    setWrongRoute(null);
+  };
+
+  /**
+   * Counts one box. QR scans, the Case A match, the Case B proof and the
+   * per-box fallback button all go through here so they share the duplicate
+   * check, the offline queue and the optimistic update.
+   * Resolves { status: 'verified' | 'queued' | 'duplicate', ... } or throws a
+   * server rejection (network failures are queued, never thrown).
+   */
+  const commitBox = useCallback(async (targetOrder, boxNumber, { method = 'qr', evidence = null } = {}) => {
+    const current = ordersRef.current.find((o) => o.id === targetOrder.id) || targetOrder;
+    const packageQty = current.package_quantity || 1;
+    const currentVerified = current.verified_boxes || [];
+    const scan = { orderId: current.id, box: boxNumber, eventType, tripId: trip.id };
+
+    // A synced event only counts as a duplicate while the order still shows the
+    // box as verified; the server may have reset it since (e.g. Out for Delivery).
+    const earlier = await findDuplicateScan(scan).catch(() => null);
+    if (currentVerified.includes(boxNumber) || earlier?.status === 'pending') {
+      return { status: 'duplicate', at: earlier ? formatScanTime(earlier.scanned_at) : '', packageQty };
+    }
+
+    let newVerified = null;
+    let queued = typeof navigator !== 'undefined' && navigator.onLine === false;
+    if (!queued) {
+      try {
+        const list = await recordBoxVerification(current.id, boxNumber);
+        newVerified = Array.isArray(list) ? list : null;
+        await recordSyncedScan(scan).catch(() => { /* local cache only */ });
+      } catch (err) {
+        if (!isNetworkError(err)) throw err;
+        queued = true;
+      }
+    }
+    if (queued) {
+      await queueScanEvent(scan);
+      refreshPending();
+    }
+    if (!newVerified) {
+      newVerified = Array.from(new Set([...currentVerified, boxNumber])).sort((a, b) => a - b);
+    }
+    if (!mountedRef.current) return { status: queued ? 'queued' : 'verified', packageQty, nextOrders: ordersRef.current };
+
+    const nextOrders = applyVerified(current.id, newVerified);
+
+    // A queued scan is logged when it syncs, so the log never claims a verification the server has not seen.
+    if (!queued) {
+      const labels = {
+        qr: 'Cargo Box Verified via Trip Scanner',
+        manual_match: 'Cargo Box Verified by Manual Match (QR unreadable)',
+        manual_button: 'Cargo Box Verified Manually via Trip Scanner',
+        strict_proof: 'Cargo Box Verified by Strict Proof (label unreadable)',
+      };
+      logOrder(labels[method] || labels.qr, current.id, current.tracking_number, {
+        tripNumber: trip.trip_number,
+        box: boxNumber,
+        totalBoxes: packageQty,
+        method,
+        details: `Verified box ${boxNumber} of ${packageQty} in trip ${trip.trip_number} (${method}).${
+          evidence ? ` Evidence: photo ${evidence.photoRef}; signature ${evidence.signatureRef}.` : ''
+        }`,
+      });
+    }
+
+    return { status: queued ? 'queued' : 'verified', packageQty, nextOrders };
+  }, [applyVerified, eventType, refreshPending, trip.id, trip.trip_number]);
+
+  /** Turns a commitBox() result into the notice, sound and pulse the driver sees. */
+  const announceResult = useCallback((result, order, boxNumber) => {
+    setLastScannedOrderId(order.id);
+    const qty = result.packageQty;
+
+    if (result.status === 'duplicate') {
+      playScanDuplicateSound();
+      setNoticeTone('warning');
+      setNotice(`Box ${boxNumber} of ${qty} for ${order.tracking_number} is already scanned${result.at ? ` at ${result.at}` : ''}.`);
+      return;
+    }
+
+    triggerPulse('is-success-pulse');
+    const nextOrders = result.nextOrders || ordersRef.current;
+    const scanned = nextOrders
+      .filter((o) => !['Cancelled', 'Pending Cancellation', 'Pending', 'Assigned'].includes(o.status))
+      .reduce((sum, o) => {
+        const q = o.package_quantity || 1;
+        return sum + (o.verified_boxes || []).filter((b) => b <= q).length;
+      }, 0);
+    const receiver = orderPartyName(order, 'receiver') || 'Receiver';
+
+    if (result.status === 'queued') {
+      playScanSuccessSound();
+      setNoticeTone('warning');
+      setNotice(`Saved offline: Box ${boxNumber}/${qty} for ${order.tracking_number}. It will sync when you are back online.`);
+    } else if (scanned + totalHeldBoxes >= totalTripBoxes && totalTripBoxes > 0) {
+      playScanCompleteSound();
+      setNoticeTone('success');
+      setNotice(`All ${totalTripBoxes} trip boxes verified! Van is ready for departure.`);
+    } else {
+      playScanSuccessSound();
+      setNoticeTone('success');
+      setNotice(`Verified: Box ${boxNumber}/${qty} for ${order.tracking_number} (${receiver})`);
+    }
+  }, [totalHeldBoxes, totalTripBoxes]);
+
+  /**
+   * A scan or typed code that is not on this trip. Asks the database which
+   * trip it does belong to so the driver gets a hard "Wrong Route" block rather
+   * than a generic warning; if that lookup is impossible (offline), it falls
+   * back to the plain "do not load" notice.
+   */
+  const rejectForeign = useCallback(async (payload) => {
+    resolvingRef.current = true;
+    setBusy(true);
+    const fallbackLabel = payload.trackingNumber || 'This package';
+    try {
+      const found = await findOrderTripForScan({
+        orderId: payload.kind === 'order' ? payload.orderId : null,
+        trackingNumber: payload.kind === 'tracking' ? payload.trackingNumber : null,
+      });
+      if (!mountedRef.current) return;
+      if (found && found.tripId !== trip.id) {
+        showWrongRoute({ label: found.trackingNumber, tripNumber: found.tripNumber });
+        return;
+      }
+      playScanErrorSound();
+      triggerPulse('is-error-pulse');
+      setNoticeTone('danger');
+      setNotice(found
+        ? `${found.trackingNumber} is not on this trip's manifest. Do not load.`
+        : `No booking found for ${fallbackLabel}.`);
+    } catch {
+      if (!mountedRef.current) return;
+      playScanErrorSound();
+      triggerPulse('is-error-pulse');
+      setNoticeTone('danger');
+      setNotice(`Warning: ${fallbackLabel} is not assigned to Trip ${trip.trip_number}. Do not load. (Could not check which trip it belongs to.)`);
+    } finally {
+      if (mountedRef.current) {
+        setBusy(false);
+        resolvingRef.current = false;
+      }
+    }
+  }, [showWrongRoute, trip.id, trip.trip_number]);
+
   // ── Core QR Scan Handler ─────────────────────────────────────────────────
   const handleScan = useCallback(async (text) => {
-    if (resolvingRef.current || busy) return;
+    // A wrong-route block or an open fallback sheet owns the screen: ignore the camera until it is dismissed.
+    if (resolvingRef.current || busy || wrongRouteRef.current || overlayOpenRef.current) return;
 
     const trimmed = String(text || '').trim();
     if (!trimmed) return;
@@ -239,7 +502,7 @@ const TripScannerModal = ({
       playScanErrorSound();
       triggerPulse('is-error-pulse');
       setNoticeTone('warning');
-      setNotice('⚠️ Scanned a GCash payment QR, not a package barcode label.');
+      setNotice('Scanned a GCash payment QR, not a package barcode label.');
       return;
     }
 
@@ -263,13 +526,9 @@ const TripScannerModal = ({
       ));
     }
 
-    // ── Foreign Cargo Check ──
+    // ── Wrong-route / foreign cargo check ──
     if (!targetOrder) {
-      playScanErrorSound();
-      triggerPulse('is-error-pulse');
-      setNoticeTone('danger');
-      const identifier = payload.trackingNumber || 'This package';
-      setNotice(`Warning: ${identifier} is not assigned to Trip ${trip.trip_number}. Do not load.`);
+      await rejectForeign(payload);
       return;
     }
 
@@ -301,70 +560,14 @@ const TripScannerModal = ({
       return;
     }
 
-    const currentVerified = targetOrder.verified_boxes || [];
-    const alreadyVerified = currentVerified.includes(boxNumber);
-
-    if (alreadyVerified) {
-      playScanDuplicateSound();
-      setNoticeTone('warning');
-      setLastScannedOrderId(targetOrder.id);
-      setNotice(`Box ${boxNumber} of ${packageQty} for ${targetOrder.tracking_number} is already verified.`);
-      return;
-    }
-
     // ── Execute verification ──
     resolvingRef.current = true;
     setBusy(true);
 
     try {
-      const updatedVerifiedList = await recordBoxVerification(targetOrder.id, boxNumber);
+      const result = await commitBox(targetOrder, boxNumber, { method: 'qr' });
       if (!mountedRef.current) return;
-
-      const newVerified = Array.isArray(updatedVerifiedList)
-        ? updatedVerifiedList
-        : [...currentVerified, boxNumber];
-
-      // Optimistically update local orders list
-      const nextOrders = currentOrders.map((o) => {
-        if (o.id === targetOrder.id) {
-          return { ...o, verified_boxes: newVerified };
-        }
-        return o;
-      });
-
-      setOrders(nextOrders);
-      ordersRef.current = nextOrders;
-      onOrdersUpdate?.(nextOrders);
-
-      setLastScannedOrderId(targetOrder.id);
-      triggerPulse('is-success-pulse');
-
-      logOrder('Cargo Box Verified via Trip Scanner', targetOrder.id, targetOrder.tracking_number, {
-        tripNumber: trip.trip_number,
-        box: boxNumber,
-        totalBoxes: packageQty,
-        details: `Verified box ${boxNumber} of ${packageQty} in trip ${trip.trip_number}.`,
-      });
-
-      // Check if all boxes for the entire trip are verified
-      const newTotalScanned = nextOrders
-        .filter((o) => !['Cancelled', 'Pending Cancellation', 'Pending', 'Assigned'].includes(o.status))
-        .reduce((sum, o) => {
-          const qty = o.package_quantity || 1;
-          return sum + (o.verified_boxes || []).filter((b) => b <= qty).length;
-        }, 0);
-
-      const receiver = orderPartyName(targetOrder, 'receiver') || 'Receiver';
-
-      if (newTotalScanned >= totalTripBoxes && totalTripBoxes > 0) {
-        playScanCompleteSound();
-        setNoticeTone('success');
-        setNotice(`All ${totalTripBoxes} trip boxes verified! Van is ready for departure.`);
-      } else {
-        playScanSuccessSound();
-        setNoticeTone('success');
-        setNotice(`Verified: Box ${boxNumber}/${packageQty} for ${targetOrder.tracking_number} (${receiver})`);
-      }
+      announceResult(result, targetOrder, boxNumber);
     } catch (err) {
       if (!mountedRef.current) return;
       playScanErrorSound();
@@ -377,49 +580,136 @@ const TripScannerModal = ({
         resolvingRef.current = false;
       }
     }
-  }, [busy, onOrdersUpdate, totalTripBoxes, trip.trip_number]);
+  }, [announceResult, busy, commitBox, rejectForeign]);
 
   // Keep ref up to date
   const handleScanRef = useRef(handleScan);
   handleScanRef.current = handleScan;
 
-  // ── Manual Box Click Verify (e.g. damaged sticker) ───────────────────────
-  const handleManualVerifyBox = async (order, boxNum) => {
-    if ((order.verified_boxes || []).includes(boxNum) || busy) return;
+  // ── Fallback handlers ────────────────────────────────────────────────────
+  // Runs a commit for a non-camera path and reports the outcome the same way a scan does.
+  const runFallbackCommit = async (order, box, options) => {
+    if (busy || resolvingRef.current) return;
+    resolvingRef.current = true;
     setBusy(true);
     try {
-      const updatedVerifiedList = await recordBoxVerification(order.id, boxNum);
-      const newVerified = Array.isArray(updatedVerifiedList)
-        ? updatedVerifiedList
-        : [...(order.verified_boxes || []), boxNum];
-
-      const nextOrders = ordersRef.current.map((o) => (
-        o.id === order.id ? { ...o, verified_boxes: newVerified } : o
-      ));
-
-      setOrders(nextOrders);
-      ordersRef.current = nextOrders;
-      onOrdersUpdate?.(nextOrders);
-
-      setLastScannedOrderId(order.id);
-      playScanSuccessSound();
-      setNoticeTone('success');
-      setNotice(`Manually verified: Box ${boxNum} of ${order.tracking_number}`);
-    } catch (e) {
-      playScanErrorSound();
-      toast.error(e.message || 'Failed to verify box');
+      const result = await commitBox(order, box, options);
+      if (mountedRef.current) announceResult(result, order, box);
     } finally {
-      setBusy(false);
+      if (mountedRef.current) {
+        setBusy(false);
+        resolvingRef.current = false;
+      }
     }
   };
 
-  // ── Manual Input Form ────────────────────────────────────────────────────
-  const handleManualSubmit = (e) => {
-    e.preventDefault();
-    const clean = manualCode.trim();
-    if (!clean) return;
-    setManualCode('');
-    void handleScan(clean);
+  // Per-box "+ Verify Box N" button on a manifest card.
+  const handleManualVerifyBox = async (order, boxNum) => {
+    try {
+      await runFallbackCommit(order, boxNum, { method: 'manual_button' });
+    } catch (e) {
+      playScanErrorSound();
+      toast.error(e.message || 'Failed to verify box');
+    }
+  };
+
+  // Case A: the driver typed the AWB / short code and confirmed the masked details match the box.
+  const handleManualMatchConfirm = async (order, box) => {
+    try {
+      await runFallbackCommit(order, box, { method: 'manual_match' });
+      setManualOpen(false);
+    } catch (e) {
+      playScanErrorSound();
+      toast.error(e.message || 'Failed to verify box');
+    }
+  };
+
+  // Case A, no match on this trip: ask the database whether it belongs elsewhere.
+  const handleManualNotInManifest = (value) => {
+    const payload = parseScanPayload(value);
+    if (payload.kind === 'tracking') {
+      setManualOpen(false);
+      void rejectForeign(payload);
+    } else {
+      playScanErrorSound();
+    }
+  };
+
+  // Case B: strict proof (photo + signature) was saved by the modal; count the box.
+  const handleUnidentifiedMatch = async (order, box, evidence) => {
+    await runFallbackCommit(order, box, { method: 'strict_proof', evidence });
+    setUnidentifiedOpen(false);
+  };
+
+  // ── Offline queue sync ───────────────────────────────────────────────────
+  const handleFlushed = useCallback((summary) => {
+    refreshPending();
+    summary.synced.forEach((event) => {
+      const order = ordersRef.current.find((o) => o.id === event.order_id);
+      if (!order) return;
+      logOrder('Cargo Box Verified via Trip Scanner (synced from offline)', order.id, order.tracking_number, {
+        tripNumber: trip.trip_number,
+        box: event.box_number,
+        details: `Box ${event.box_number} scanned offline at ${formatScanTime(event.scanned_at)} and synced.`,
+      });
+    });
+    if (summary.synced.length) {
+      toast.success(`${summary.synced.length} offline scan${summary.synced.length === 1 ? '' : 's'} synced.`);
+    }
+    if (summary.failed.length) {
+      // The server refused these, so take the optimistic tick back.
+      summary.failed.forEach((event) => {
+        const order = ordersRef.current.find((o) => o.id === event.order_id);
+        if (order) applyVerified(order.id, (order.verified_boxes || []).filter((b) => b !== event.box_number));
+      });
+      toast.error(`${summary.failed.length} offline scan${summary.failed.length === 1 ? ' was' : 's were'} rejected: ${summary.failed[0].last_error}. Scan again.`);
+    }
+  }, [applyVerified, refreshPending, toast, trip.trip_number]);
+
+  const syncNow = () => {
+    flushPendingScans(sendQueuedScan, { tripId: trip.id })
+      .then((summary) => {
+        if (summary.synced.length || summary.failed.length) handleFlushed(summary);
+        else if (summary.remaining) toast.warning('Still offline — scans stay saved on this device.');
+      })
+      .catch(() => toast.error('Could not read the offline queue.'));
+  };
+
+  // ── Finish loading / shortfall ───────────────────────────────────────────
+  const handleFinishLoading = () => {
+    if (pendingCount > 0) {
+      toast.warning(`${pendingCount} scan${pendingCount === 1 ? ' is' : 's are'} still waiting to sync. Reconnect before finishing.`);
+      return;
+    }
+    if (missingBoxes.length === 0) {
+      toast.success(allCargoVerified ? 'All cargo loaded.' : 'Loading finished with supervisor-approved shortfalls.');
+      onClose();
+      return;
+    }
+    setShortfallMissing(missingBoxes);
+  };
+
+  const handleShortfallSubmit = async ({ reason, supervisorCode }) => {
+    const items = shortfallMissing || [];
+    // Sequential: a wrong code must fail on the first box, not be counted once per box.
+    for (let i = 0; i < items.length; i += 1) {
+      // eslint-disable-next-line no-await-in-loop
+      await reportAndApproveShortfall({
+        tripId: trip.id,
+        orderId: items[i].order.id,
+        box: items[i].box,
+        reason,
+        supervisorCode,
+      });
+    }
+    logTrip('Loading Shortfall Approved', trip.id, trip.trip_number, {
+      details: `${items.length} box(es) released by supervisor approval (${reason}): ${
+        items.map((m) => `${m.order.tracking_number} box ${m.box}`).join(', ')
+      }.`,
+    });
+    toast.success('Shortfall approved. The trip can now start.');
+    setShortfallMissing(null);
+    onClose();
   };
 
   // ── Delivery / POD flow ──────────────────────────────────────────────────
@@ -587,10 +877,26 @@ const TripScannerModal = ({
     };
   }, [attempt, podOpen, getDecoder]);
 
+  // Offline queue: show the count, and flush it whenever connectivity returns.
+  useEffect(() => {
+    refreshPending();
+    const markOnline = () => setOnline(true);
+    const markOffline = () => setOnline(false);
+    window.addEventListener('online', markOnline);
+    window.addEventListener('offline', markOffline);
+    const stopSync = startOnlineSync(sendQueuedScan, handleFlushed, { tripId: trip.id });
+    return () => {
+      window.removeEventListener('online', markOnline);
+      window.removeEventListener('offline', markOffline);
+      stopSync();
+    };
+  }, [handleFlushed, refreshPending, trip.id]);
+
   // Escape key closes modal
   useEffect(() => {
     const onKeyDown = (e) => {
-      if (e.key === 'Escape' && !podOpen) onClose();
+      // A fallback sheet or the wrong-route block handles its own dismissal.
+      if (e.key === 'Escape' && !podOpen && !overlayOpenRef.current && !wrongRouteRef.current) onClose();
     };
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
@@ -637,7 +943,7 @@ const TripScannerModal = ({
     : 0;
 
   return createPortal(
-    <FocusTrap active>
+    <FocusTrap active={!manualOpen && !unidentifiedOpen && !shortfallMissing && !wrongRoute}>
       <div
         className="modal-overlay trip-scanner-overlay"
         onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
@@ -712,7 +1018,7 @@ const TripScannerModal = ({
             <div className="trip-scanner-progress-stats">
               <span className="trip-scanner-progress-count" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                 <Package size={15} className="text-secondary" aria-hidden="true" />
-                <span>{totalScannedBoxes} of {totalTripBoxes} Packages Verified</span>
+                <span>{totalScannedBoxes} of {totalTripBoxes} Packages Verified{totalHeldBoxes > 0 ? ' (' + totalHeldBoxes + ' held)' : ''}</span>
               </span>
               <span className="trip-scanner-progress-pct">{completionPercent}%</span>
             </div>
@@ -734,7 +1040,32 @@ const TripScannerModal = ({
                 </span>
               </div>
             )}
+            {!allCargoVerified && allCargoAccountedFor && (
+              <div className="trip-scanner-complete-banner">
+                <Flag size={16} className="trip-scanner-complete-icon" aria-hidden="true" />
+                <span>
+                  {totalHeldBoxes} box{totalHeldBoxes === 1 ? '' : 'es'} held with supervisor approval. Van is ready for departure.
+                </span>
+              </div>
+            )}
           </div>
+
+          {(!online || pendingCount > 0) && (
+            <div className="trip-scanner-notice trip-scanner-notice-warning" role="status">
+              <CloudOff size={15} className="trip-scanner-notice-icon" aria-hidden="true" />
+              <span>
+                {!online ? 'Offline. ' : ''}
+                {pendingCount > 0
+                  ? pendingCount + ' scan' + (pendingCount === 1 ? '' : 's') + ' saved on this device and waiting to sync.'
+                  : 'Scans will be saved on this device and synced automatically.'}
+              </span>
+              {pendingCount > 0 && online && (
+                <button type="button" className="trip-scanner-manual-box-btn trip-scanner-sync-btn" onClick={syncNow}>
+                  <RefreshCw size={11} className="inline mr-4" aria-hidden="true" /> Sync now
+                </button>
+              )}
+            </div>
+          )}
 
           {/* Camera Viewfinder */}
           <div className="trip-scanner-camera-section">
@@ -871,10 +1202,13 @@ const TripScannerModal = ({
                   const verified = o.verified_boxes || [];
                   const verifiedCount = verified.filter((b) => b <= qty).length;
                   const isComplete = verifiedCount === qty;
+                  const heldCount = Array.from({ length: qty }, (_, idx) => idx + 1)
+                    .filter((b) => !verified.includes(b) && heldKeys.has(o.id + ':' + b)).length;
+                  const isReleased = !isComplete && verifiedCount + heldCount === qty;
                   const isJustScanned = o.id === lastScannedOrderId;
                   const receiver = orderPartyName(o, 'receiver') || 'Receiver';
                   const destination = [o.receiver_city, o.receiver_province].filter(Boolean).join(', ') || 'No destination set';
-                  const nextBoxToVerify = Array.from({ length: qty }, (_, idx) => idx + 1).find((b) => !verified.includes(b));
+                  const nextBoxToVerify = Array.from({ length: qty }, (_, idx) => idx + 1).find((b) => !verified.includes(b) && !heldKeys.has(o.id + ':' + b));
                   const progressPct = Math.round((verifiedCount / qty) * 100);
 
                   return (
@@ -889,7 +1223,7 @@ const TripScannerModal = ({
                           <span className="trip-scanner-receiver-name">{receiver}</span>
                         </div>
                         <span className={`trip-scanner-status-pill ${isComplete ? 'is-complete' : 'is-pending'}`}>
-                          {isComplete ? 'Completed' : 'Pending'}
+                          {isComplete ? 'Completed' : isReleased ? 'Held' : 'Pending'}
                         </span>
                       </div>
 
@@ -918,7 +1252,7 @@ const TripScannerModal = ({
                           <span className="trip-scanner-mini-pct">{progressPct}%</span>
                         </div>
 
-                        {!isComplete && nextBoxToVerify && (
+                        {!isComplete && !isReleased && nextBoxToVerify && (
                           <button
                             type="button"
                             className="trip-scanner-manual-box-btn"
@@ -950,26 +1284,83 @@ const TripScannerModal = ({
             </div>
           </div>
 
-          {/* Manual Barcode Entry Fallback */}
-          <div className="trip-scanner-manual-wrap">
-            <form className="trip-scanner-manual-form" onSubmit={handleManualSubmit}>
-              <input
-                type="text"
-                className="trip-scanner-manual-input"
-                placeholder="Type tracking number (e.g. CE-20261019-1234)…"
-                value={manualCode}
-                onChange={(e) => setManualCode(e.target.value)}
-                aria-label="Manual barcode or tracking number input"
-              />
+          {/* Field fallbacks */}
+          <div className="trip-scanner-fallbacks">
+            <button
+              type="button"
+              className="btn btn-outline btn-sm"
+              onClick={() => setManualOpen(true)}
+              disabled={busy}
+            >
+              <Keyboard size={14} className="inline mr-4" aria-hidden="true" /> Can&apos;t Scan QR?
+            </button>
+            <button
+              type="button"
+              className="btn btn-outline btn-sm"
+              onClick={() => setUnidentifiedOpen(true)}
+              disabled={busy}
+            >
+              <AlertTriangle size={14} className="inline mr-4" aria-hidden="true" /> Damaged / Unidentified Label
+            </button>
+            {!isDeliveryMode && (
               <button
-                type="submit"
-                className="btn btn-outline btn-sm trip-scanner-manual-btn"
-                disabled={!manualCode.trim() || busy}
+                type="button"
+                className="btn btn-primary btn-sm trip-scanner-finish-btn"
+                onClick={handleFinishLoading}
+                disabled={busy}
               >
-                Verify
+                <Flag size={14} className="inline mr-4" aria-hidden="true" /> Finish Loading
               </button>
-            </form>
+            )}
           </div>
+
+          {manualOpen && (
+            <ManualBoxMatchOverlay
+              orders={eligibleOrders}
+              heldKeys={heldKeys}
+              busy={busy}
+              onConfirm={handleManualMatchConfirm}
+              onNotInManifest={handleManualNotInManifest}
+              onClose={() => setManualOpen(false)}
+            />
+          )}
+
+          {unidentifiedOpen && (
+            <UnidentifiedBoxModal
+              orders={orders}
+              heldKeys={heldKeys}
+              isDeliveryMode={isDeliveryMode}
+              onMatch={handleUnidentifiedMatch}
+              onClose={() => setUnidentifiedOpen(false)}
+            />
+          )}
+
+          {shortfallMissing && (
+            <ShortfallModal
+              tripNumber={trip.trip_number}
+              missing={shortfallMissing}
+              onSubmit={handleShortfallSubmit}
+              onClose={() => setShortfallMissing(null)}
+            />
+          )}
+
+          {wrongRoute && createPortal(
+            <div className="trip-scanner-block" role="alertdialog" aria-modal="true" aria-labelledby={titleId + '-wrong'}>
+              <Ban size={56} aria-hidden="true" />
+              <h2 id={titleId + '-wrong'} className="trip-scanner-block-title">Wrong Route</h2>
+              <p className="trip-scanner-block-text">
+                {wrongRoute.tripNumber
+                  ? <>This box belongs to <strong>Trip {wrongRoute.tripNumber}</strong>.</>
+                  : <>{wrongRoute.label} is not assigned to any trip.</>}
+                {' '}Do not load it on this van.
+              </p>
+              <p className="trip-scanner-block-ref">{wrongRoute.label}</p>
+              <button type="button" className="btn btn-lg trip-scanner-block-btn" onClick={dismissWrongRoute} autoFocus>
+                Set it aside
+              </button>
+            </div>,
+            document.body,
+          )}
         </div>
       </div>
     </FocusTrap>,

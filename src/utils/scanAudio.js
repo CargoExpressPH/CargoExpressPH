@@ -115,6 +115,36 @@ export const playScanErrorSound = () => {
 };
 
 /**
+ * Plays a harsh descending triple-buzz for a box that belongs to a different
+ * trip. Deliberately longer and lower than the plain error tone so a driver
+ * can tell "wrong route" from "bad QR" without looking at the screen.
+ */
+export const playWrongRouteSound = () => {
+  triggerHaptic([200, 80, 200, 80, 320]);
+  if (isMuted) return;
+  const ctx = getAudioContext();
+  if (!ctx) return;
+
+  try {
+    const now = ctx.currentTime;
+    [0, 0.22, 0.44].forEach((offset, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(196 - i * 22, now + offset);
+      gain.gain.setValueAtTime(0.18, now + offset);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + offset + 0.18);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now + offset);
+      osc.stop(now + offset + 0.18);
+    });
+  } catch {
+    /* audio failure is never fatal */
+  }
+};
+
+/**
  * Plays a gentle double-pip for an already-scanned box.
  * 587Hz (D5) -> 587Hz.
  */

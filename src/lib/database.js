@@ -3221,6 +3221,62 @@ export const recordBoxVerification = async (orderId, box) => {
 };
 
 /**
+ * Which trip a scanned package belongs to, so the trip scanner can say
+ * "Wrong Route: this box belongs to Trip X" instead of a generic rejection.
+ * Pass either the order id (from a label QR) or a tracking number. Returns
+ * null when the booking does not exist.
+ */
+export const findOrderTripForScan = async ({ orderId = null, trackingNumber = null }) => {
+  let query = supabase
+    .from('orders')
+    .select('id, tracking_number, trip_id, trips:trip_id (trip_number)');
+  query = orderId ? query.eq('id', orderId) : query.eq('tracking_number', trackingNumber);
+  const { data, error } = await query.limit(1).maybeSingle();
+  if (error) throw error;
+  if (!data) return null;
+  return {
+    orderId: data.id,
+    trackingNumber: data.tracking_number,
+    tripId: data.trip_id,
+    tripNumber: data.trips?.trip_number || null,
+  };
+};
+
+/** Approved loading-shortfall exceptions for a trip (boxes held back, supervisor-approved). */
+export const listLoadingShortfalls = async (tripId) => {
+  const { data, error } = await supabase
+    .from('loading_shortfall_exceptions')
+    .select('id, trip_id, order_id, box_number, reason, status, created_at')
+    .eq('trip_id', tripId)
+    .eq('status', 'approved');
+  if (error) throw error;
+  return data || [];
+};
+
+/**
+ * Report a box that cannot be loaded and release it with a supervisor code.
+ * The code is checked server-side against a different admin's hashed code; a
+ * wrong code comes back as `{ ok: false }` (so repeated guesses are counted),
+ * which is surfaced here as an Error carrying `code: 'invalid_supervisor_code'`.
+ */
+export const reportAndApproveShortfall = async ({ tripId, orderId, box, reason, supervisorCode }) => {
+  const { data, error } = await supabase.rpc('report_and_approve_shortfall', {
+    p_trip_id: tripId,
+    p_order_id: orderId,
+    p_box: box,
+    p_reason: reason,
+    p_supervisor_code: supervisorCode,
+  });
+  if (error) throw error;
+  if (!data?.ok) {
+    const failure = new Error('That supervisor code is not valid. Ask a different admin to enter their code.');
+    failure.code = data?.error || 'shortfall_rejected';
+    throw failure;
+  }
+  return data;
+};
+
+/**
  * Record a counter payment (balance settlement / "Record Additional
  * Payment") against an existing balance — always a POST-pickup collection,
  * so the record_additional_payment() RPC rejects cash unconditionally.

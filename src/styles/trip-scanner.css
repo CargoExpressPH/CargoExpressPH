@@ -620,3 +620,284 @@
     max-width: 380px;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Field fallbacks, shortfall release and the wrong-route block
+   (ManualBoxMatchOverlay, UnidentifiedBoxModal, ShortfallModal)
+   Margins instead of flex gap; dvh always follows a vh fallback.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* Footer action row under the manifest */
+.trip-scanner-fallbacks {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.trip-scanner-fallbacks .btn {
+  margin: 0 8px 8px 0;
+}
+
+.trip-scanner-finish-btn {
+  margin-left: auto;
+}
+
+.trip-scanner-sync-btn {
+  margin-left: 8px;
+}
+
+/* Sheets stack above the scanner modal */
+.trip-scanner-sheet-overlay {
+  z-index: calc(var(--z-modal) + 1);
+  background: rgba(10, 16, 26, 0.7);
+  align-items: center;
+  justify-content: center;
+}
+
+.trip-scanner-sheet {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 460px;
+  max-height: calc(100vh - 24px);
+  max-height: calc(100dvh - 24px);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  padding: 18px;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-2xl);
+  animation: scaleIn 0.2s ease;
+}
+
+.trip-scanner-sheet-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.trip-scanner-sheet-title {
+  margin: 0;
+  font-size: var(--text-16);
+  font-weight: 700;
+  color: var(--text);
+}
+
+.trip-scanner-sheet-hint {
+  margin: 0 0 12px 0;
+  font-size: var(--text-13);
+  line-height: 1.45;
+  color: var(--text-secondary);
+}
+
+.trip-scanner-sheet-confirm {
+  width: 100%;
+  margin-top: 12px;
+}
+
+.trip-scanner-sheet .trip-scanner-manual-form {
+  margin-bottom: 12px;
+}
+
+/* Candidate lists (Case A with several matches, Case B) */
+.trip-scanner-candidates {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 12px;
+}
+
+.trip-scanner-candidate {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+  padding: 10px 12px;
+  font-size: var(--text-13);
+  color: var(--text);
+  text-align: left;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+
+.trip-scanner-candidate.is-selected {
+  border-color: var(--primary);
+  background: rgba(59, 130, 246, 0.08);
+}
+
+.trip-scanner-candidate-card {
+  margin-bottom: 8px;
+  padding: 10px 12px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.trip-scanner-candidate-main {
+  display: flex;
+  flex-direction: column;
+  font-size: var(--text-13);
+  margin-bottom: 8px;
+}
+
+.trip-scanner-candidate-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.trip-scanner-candidate-actions > .btn {
+  margin: 0 8px 4px 0;
+}
+
+/* Masked verification card */
+.trip-scanner-verify-card {
+  margin-bottom: 4px;
+  padding: 12px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.trip-scanner-verify-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 3px 0;
+  font-size: var(--text-13);
+}
+
+.trip-scanner-verify-label {
+  display: block;
+  font-size: var(--text-12);
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.trip-scanner-verify-value {
+  font-weight: 600;
+  color: var(--text);
+  text-align: right;
+}
+
+.trip-scanner-box-chips {
+  display: flex;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+
+.trip-scanner-box-chip {
+  margin: 0 6px 6px 0;
+  padding: 6px 12px;
+  font-size: var(--text-12);
+  font-weight: 600;
+  color: var(--primary);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  cursor: pointer;
+}
+
+.trip-scanner-box-chip.is-selected {
+  color: #fff;
+  background: var(--primary);
+  border-color: var(--primary);
+}
+
+/* Strict proof (Case B) */
+.trip-scanner-proof-step {
+  margin-top: 14px;
+}
+
+.trip-scanner-proof-step .btn {
+  margin-top: 6px;
+}
+
+.trip-scanner-proof-photo {
+  display: block;
+  width: 100%;
+  max-height: 180px;
+  margin-top: 6px;
+  object-fit: cover;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.trip-scanner-signature {
+  margin-top: 6px;
+}
+
+.trip-scanner-signature-canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  touch-action: none;
+  background: #fff;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-md);
+  cursor: crosshair;
+}
+
+/* Shortfall list */
+.trip-scanner-shortfall-list {
+  margin: 10px 0 12px 0;
+  padding: 0 0 0 18px;
+  font-size: var(--text-13);
+  color: var(--text);
+}
+
+/* Wrong-route hard block: full screen, unmistakable, must be acknowledged */
+.trip-scanner-block {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: calc(var(--z-modal) + 3);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  text-align: center;
+  color: #fff;
+  background: var(--error-dark);
+  animation: fadeIn 0.12s ease;
+}
+
+.trip-scanner-block-title {
+  margin: 16px 0 8px 0;
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.trip-scanner-block-text {
+  max-width: 360px;
+  margin: 0 0 8px 0;
+  font-size: var(--text-16);
+  line-height: 1.4;
+}
+
+.trip-scanner-block-ref {
+  margin: 0 0 24px 0;
+  font-size: var(--text-13);
+  font-weight: 700;
+  opacity: 0.85;
+}
+
+.trip-scanner-block-btn {
+  min-width: 200px;
+  color: var(--error-dark);
+  background: #fff;
+  border: 0;
+  font-weight: 700;
+}

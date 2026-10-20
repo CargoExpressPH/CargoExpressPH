@@ -5,6 +5,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { normalizeTrackingNumber, orderRouteForScan, parseScanPayload } from '../src/utils/scanPayload.js';
+import { maskPersonName, maskPhone } from '../src/utils/maskName.js';
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 
@@ -84,5 +85,30 @@ for (const match of css.matchAll(/max-height:\s*calc\(100dvh[^;]*;/g)) {
   const before = css.slice(Math.max(0, match.index - 80), match.index);
   assert.match(before, /max-height:\s*calc\(100vh[^;]*;\s*$/, 'every dvh needs a vh fallback first');
 }
+
+// ── Trip scanner field fallbacks ────────────────────────────────────────────
+assert.equal(maskPersonName('Bea Sarong'), 'B*a S****g');
+assert.equal(maskPersonName('Al'), 'A*');
+assert.equal(maskPersonName(''), '');
+assert.equal(maskPhone('09171234567'), '0917•••4567');
+
+const tripScanner = read('src/components/ui/TripScannerModal.jsx');
+assert.match(tripScanner, /Can&apos;t Scan QR\?/, 'Case A entry point');
+assert.match(tripScanner, /Damaged \/ Unidentified Label/, 'Case B entry point');
+assert.match(tripScanner, /playWrongRouteSound\(\)/, 'wrong-route hard block');
+assert.match(tripScanner, /findOrderTripForScan/, 'wrong-route names the other trip');
+assert.match(tripScanner, /reportAndApproveShortfall/, 'shortfall release');
+assert.match(tripScanner, /findDuplicateScan/, 'duplicate scans are caught locally');
+assert.match(tripScanner, /startOnlineSync/, 'offline queue flushes when back online');
+assert.doesNotMatch(tripScanner, /SUP-\d{4}/, 'no supervisor code may ship in the client');
+
+const caseA = read('src/components/ui/ManualBoxMatchOverlay.jsx');
+assert.match(caseA, /Confirm Match/);
+assert.match(caseA, /maskPersonName/, 'recipient is masked on screen');
+
+const caseB = read('src/components/ui/UnidentifiedBoxModal.jsx');
+assert.match(caseB, /href=\{`tel:/, 'call-the-customer button');
+assert.match(caseB, /capture="environment"/, 'damaged-box photo input');
+assert.match(caseB, /Boolean\(pick && photo && signatureCanvas\)/, 'photo AND signature are both required');
 
 console.log('QR scanner contract tests passed.');
