@@ -340,53 +340,57 @@ const TripDetailPage = () => {
         <StatusBadge status={trip.status}/>
       </div>
 
-      {/* Actions */}
-      <div className="card admin-section-card admin-action-card stagger-item mb-16" style={{ animationDelay: '60ms'}}><div className="card-body">
-        <div className="admin-action-group">
-        {trip.status==='scheduled' && (
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={handleStartTripClick}
-            disabled={saving || checkingStartGate || !canStartTrip}
-            title={startTripBlockReason || undefined}
-          >
-            {checkingStartGate ? <Loader size={16} className="animate-spin" /> : <Play size={16}/>} Start Trip
-          </button>
-        )}
-        {trip.status==='scheduled' && eligibleOrders.length > 0 && (
-          <button
-            type="button"
-            className="btn btn-outline"
-            onClick={() => setShowScannerModal(true)}
-            title="Scan physical QR labels to verify cargo loaded onto van"
-          >
-            <ScanQrCode size={16} /> Scan Cargo ({totalScannedBoxes}/{totalTripBoxes})
-          </button>
-        )}
-        {trip.status==='in_progress' && <button type="button" className="btn btn-success" onClick={()=>openConfirm('arrived', 'Mark Arrived', `Mark trip ${trip.trip_number} as arrived at destination?`, 'success')} disabled={saving}><Flag size={16}/> Mark Arrived</button>}
-        {trip.status==='arrived' && (
-          <button
-            type="button"
-            className="btn btn-outline"
-            onClick={() => setShowScannerModal(true)}
-            title="Scan packages for handover and proof of delivery"
-          >
-            <ScanQrCode size={16} /> Delivery Scanner
-          </button>
-        )}
-        {trip.status==='arrived' && <button type="button" className="btn btn-primary" onClick={handleCompleteClick} disabled={saving}><CheckCircle size={16}/> Complete</button>}
-        {trip.status==='scheduled' && <button type="button" className="btn btn-danger-outline btn-sm" onClick={()=>openConfirm('cancelled', 'Cancel Trip', `Cancel trip ${trip.trip_number}? This action cannot be undone.`, 'danger')} disabled={saving}><XCircle size={16}/> Cancel Trip</button>}
-        {saving && <Loader size={18} className="animate-spin"/>}
-        </div>
-        {/* A disabled button alone doesn't explain itself — especially on
-            touch, where there's no hover to reveal the title tooltip. */}
-        {trip.status==='scheduled' && startTripBlockReason && (
-          <div className="text-xs text-tertiary mt-8 flex items-center gap-6">
-            <AlertTriangle size={12} aria-hidden="true" /> {startTripBlockReason}
+      {/* Actions (Only render if there are actionable buttons) */}
+      {(['scheduled', 'in_progress', 'arrived'].includes(trip.status) || saving) && (
+        <div className="card admin-section-card admin-action-card stagger-item mb-16" style={{ animationDelay: '60ms'}}>
+          <div className="card-body">
+            <div className="admin-action-group">
+            {trip.status==='scheduled' && (
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={handleStartTripClick}
+                disabled={saving || checkingStartGate || !canStartTrip}
+                title={startTripBlockReason || undefined}
+              >
+                {checkingStartGate ? <Loader size={16} className="animate-spin" /> : <Play size={16}/>} Start Trip
+              </button>
+            )}
+            {trip.status==='scheduled' && eligibleOrders.length > 0 && (
+              <button
+                type="button"
+                className="btn btn-outline"
+                onClick={() => setShowScannerModal(true)}
+                title="Scan physical QR labels to verify cargo loaded onto van"
+              >
+                <ScanQrCode size={16} /> Scan Cargo ({totalScannedBoxes}/{totalTripBoxes})
+              </button>
+            )}
+            {trip.status==='in_progress' && <button type="button" className="btn btn-success" onClick={()=>openConfirm('arrived', 'Mark Arrived', `Mark trip ${trip.trip_number} as arrived at destination?`, 'success')} disabled={saving}><Flag size={16}/> Mark Arrived</button>}
+            {trip.status==='arrived' && (
+              <button
+                type="button"
+                className="btn btn-outline"
+                onClick={() => setShowScannerModal(true)}
+                title="Scan packages for handover and proof of delivery"
+              >
+                <ScanQrCode size={16} /> Delivery Scanner
+              </button>
+            )}
+            {trip.status==='arrived' && <button type="button" className="btn btn-primary" onClick={handleCompleteClick} disabled={saving}><CheckCircle size={16}/> Complete</button>}
+            {trip.status==='scheduled' && <button type="button" className="btn btn-danger-outline btn-sm" onClick={()=>openConfirm('cancelled', 'Cancel Trip', `Cancel trip ${trip.trip_number}? This action cannot be undone.`, 'danger')} disabled={saving}><XCircle size={16}/> Cancel Trip</button>}
+            {saving && <Loader size={18} className="animate-spin"/>}
+            </div>
+            {/* A disabled button alone doesn't explain itself — especially on
+                touch, where there's no hover to reveal the title tooltip. */}
+            {trip.status==='scheduled' && startTripBlockReason && (
+              <div className="text-xs text-tertiary mt-8 flex items-center gap-6">
+                <AlertTriangle size={12} aria-hidden="true" /> {startTripBlockReason}
+              </div>
+            )}
           </div>
-        )}
-      </div></div>
+        </div>
+      )}
 
       {/* Schedule */}
       <div className="card admin-section-card stagger-item mb-16" style={{ animationDelay: '90ms'}}>
@@ -426,23 +430,33 @@ const TripDetailPage = () => {
               )}
             </div>
           )}
-          <div className="grid grid-2 gap-16">
-            <div>
+          <div className="trip-schedule-grid">
+            <div className="trip-schedule-item">
               <div className="text-xs text-tertiary">Scheduled Departure</div>
               <div className="fw-700">{formatPhDate(trip.departure_date)}</div>
-              {/* Stamped by the database the moment Start Trip fires — see
-                  guard_trip_status_transition() — never client-supplied. */}
             </div>
-            <div>
+            <div className="trip-schedule-item">
               <div className="text-xs text-tertiary">Planned Shipment Arrival Date</div>
               <div className="fw-700">{trip.arrival_date ? formatPhDate(trip.arrival_date) : 'Not set'}</div>
             </div>
             {(trip.departure_at || trip.estimated_arrival_at || trip.arrived_at) && (
-              <div className="grid grid-3 gap-16" style={{ gridColumn: '1 / -1', borderTop: '1px solid var(--border)', paddingTop: 12 }}>
-                {trip.departure_at && <div><div className="text-xs text-tertiary">Actual Departure</div><div className="fw-700">{formatPhDateTime(trip.departure_at)}</div></div>}
-                {!hasArrived && <div><div className="text-xs text-tertiary">Estimated Arrival at Destination Hub</div><div className="fw-700">{trip.estimated_arrival_at ? formatPhDateTime(trip.estimated_arrival_at) : 'To be confirmed'}</div></div>}
-                <div><div className="text-xs text-tertiary">Actual Arrival at Destination Hub</div><div className="fw-700">{trip.arrived_at ? formatPhDateTime(trip.arrived_at) : 'Not arrived'}</div></div>
-              </div>
+              <>
+                <div className="trip-schedule-divider" aria-hidden="true" />
+                <div className="trip-schedule-item">
+                  <div className="text-xs text-tertiary">Actual Departure</div>
+                  <div className="fw-700">{trip.departure_at ? formatPhDateTime(trip.departure_at) : '—'}</div>
+                </div>
+                <div className="trip-schedule-item">
+                  <div className="text-xs text-tertiary">
+                    {hasArrived ? 'Actual Arrival at Destination Hub' : 'Estimated Arrival at Destination Hub'}
+                  </div>
+                  <div className="fw-700">
+                    {hasArrived
+                      ? (trip.arrived_at ? formatPhDateTime(trip.arrived_at) : 'Not arrived')
+                      : (trip.estimated_arrival_at ? formatPhDateTime(trip.estimated_arrival_at) : 'To be confirmed')}
+                  </div>
+                </div>
+              </>
             )}
           </div>
         </div>
