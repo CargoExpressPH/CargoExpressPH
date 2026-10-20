@@ -95,7 +95,8 @@ assert.equal(maskPhone('09171234567'), '0917•••4567');
 
 const tripScanner = read('src/components/ui/TripScannerModal.jsx');
 assert.match(tripScanner, /Can&apos;t Scan QR\?/, 'Case A entry point');
-assert.match(tripScanner, /Damaged \/ Unidentified Label/, 'Case B entry point');
+assert.match(tripScanner, /onUnidentified=\{/, 'Case B is reached from the manual overlay');
+assert.doesNotMatch(tripScanner, /Damaged \/ Unidentified Label/, 'single fallback button');
 assert.match(tripScanner, /playWrongRouteSound\(\)/, 'wrong-route hard block');
 assert.match(tripScanner, /findOrderTripForScan/, 'wrong-route names the other trip');
 assert.match(tripScanner, /reportAndApproveShortfall/, 'shortfall release');

@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback, useId, useMemo } from 'react'
 import { createPortal } from 'react-dom';
 import {
   X, CameraOff, RotateCcw, Loader, CheckCircle, AlertTriangle,
-  Package, Search, Volume2, VolumeX, Zap, ZapOff, Check, ArrowRight,
+  Package, Volume2, VolumeX, Zap, ZapOff, Check, ArrowRight,
   Truck, ShieldCheck, MapPin, Camera, Keyboard, CloudOff, RefreshCw, Flag, Ban
 } from 'lucide-react';
 import FocusTrap from './FocusTrap';
@@ -195,8 +195,6 @@ const TripScannerModal = ({
   const [lastScannedOrderId, setLastScannedOrderId] = useState(null);
 
   // Manifest checklist filter & search
-  const [filterTab, setFilterTab] = useState('all'); // 'all' | 'pending' | 'verified'
-  const [searchQuery, setSearchQuery] = useState('');
 
   // Field fallbacks & exceptions
   const [manualOpen, setManualOpen] = useState(false);       // Case A: QR unreadable
@@ -902,30 +900,18 @@ const TripScannerModal = ({
     return () => document.removeEventListener('keydown', onKeyDown);
   }, [onClose, podOpen]);
 
-  // ── Filtered Manifest List ──
+  // ── Manifest List: unfinished cargo first, completed sink to the bottom ──
   const filteredOrders = useMemo(() => {
-    const q = searchQuery.toLowerCase().trim();
-    return orders.filter((o) => {
-      // Exclude cancelled/pending
-      if (['Cancelled', 'Pending Cancellation'].includes(o.status)) return false;
-
+    const isDone = (o) => {
       const qty = o.package_quantity || 1;
-      const verifiedCount = (o.verified_boxes || []).filter((b) => b <= qty).length;
-      const isComplete = verifiedCount === qty;
-
-      if (filterTab === 'pending' && isComplete) return false;
-      if (filterTab === 'verified' && !isComplete) return false;
-
-      if (!q) return true;
-
-      const trackingMatch = o.tracking_number?.toLowerCase().includes(q);
-      const receiverMatch = orderPartyName(o, 'receiver')?.toLowerCase().includes(q);
-      const senderMatch = orderPartyName(o, 'sender')?.toLowerCase().includes(q);
-      const cityMatch = o.receiver_city?.toLowerCase().includes(q);
-
-      return trackingMatch || receiverMatch || senderMatch || cityMatch;
-    });
-  }, [orders, filterTab, searchQuery]);
+      return (o.verified_boxes || []).filter((b) => b <= qty).length >= qty;
+    };
+    return orders
+      .filter((o) => !['Cancelled', 'Pending Cancellation'].includes(o.status))
+      .map((o, i) => ({ o, i, done: isDone(o) }))
+      .sort((x, y) => (x.done - y.done) || (x.i - y.i))
+      .map((x) => x.o);
+  }, [orders]);
 
   // If POD modal is active, display it in place
   if (podOpen && podOrder) {
@@ -1145,49 +1131,6 @@ const TripScannerModal = ({
                   I-scan ang QR code ng bawat kahon para ma-verify
                 </span>
               </div>
-
-              <div className="trip-scanner-tabs">
-                <button
-                  type="button"
-                  className={`trip-scanner-tab-btn ${filterTab === 'all' ? 'is-active' : ''}`}
-                  onClick={() => setFilterTab('all')}
-                >
-                  All ({orders.length})
-                </button>
-                <button
-                  type="button"
-                  className={`trip-scanner-tab-btn ${filterTab === 'pending' ? 'is-active' : ''}`}
-                  onClick={() => setFilterTab('pending')}
-                >
-                  Pending ({orders.filter(o => {
-                    const q = o.package_quantity || 1;
-                    return (o.verified_boxes || []).filter(b => b <= q).length < q;
-                  }).length})
-                </button>
-                <button
-                  type="button"
-                  className={`trip-scanner-tab-btn ${filterTab === 'verified' ? 'is-active' : ''}`}
-                  onClick={() => setFilterTab('verified')}
-                >
-                  Verified ({orders.filter(o => {
-                    const q = o.package_quantity || 1;
-                    return (o.verified_boxes || []).filter(b => b <= q).length === q;
-                  }).length})
-                </button>
-              </div>
-            </div>
-
-            {/* Search filter */}
-            <div className="trip-scanner-search-wrap">
-              <Search size={15} className="trip-scanner-search-icon" aria-hidden="true" />
-              <input
-                type="search"
-                className="trip-scanner-search-input"
-                placeholder="Search by tracking number, customer, or city…"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                aria-label="Filter assigned cargo checklist"
-              />
             </div>
 
             {/* Card list */}
@@ -1282,14 +1225,6 @@ const TripScannerModal = ({
             >
               <Keyboard size={14} className="inline mr-4" aria-hidden="true" /> Can&apos;t Scan QR?
             </button>
-            <button
-              type="button"
-              className="btn btn-outline btn-sm"
-              onClick={() => setUnidentifiedOpen(true)}
-              disabled={busy}
-            >
-              <AlertTriangle size={14} className="inline mr-4" aria-hidden="true" /> Damaged / Unidentified Label
-            </button>
             {!isDeliveryMode && (
               <button
                 type="button"
@@ -1309,6 +1244,7 @@ const TripScannerModal = ({
               busy={busy}
               onConfirm={handleManualMatchConfirm}
               onNotInManifest={handleManualNotInManifest}
+              onUnidentified={() => { setManualOpen(false); setUnidentifiedOpen(true); }}
               onClose={() => setManualOpen(false)}
             />
           )}

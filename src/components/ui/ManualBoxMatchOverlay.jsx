@@ -39,6 +39,7 @@ const ManualBoxMatchOverlay = ({
   busy,
   onConfirm,
   onNotInManifest,
+  onUnidentified,
   onClose,
   notFoundMessage = 'Wala sa listahan ng kargamento sa biyaheng ito ang package na ito.',
 }) => {
@@ -120,6 +121,12 @@ const ManualBoxMatchOverlay = ({
               <Search size={14} className="inline mr-4" /> Find
             </button>
           </form>
+
+          {onUnidentified && (
+            <button type="button" className="btn btn-ghost btn-sm trip-scanner-unidentified-link" onClick={onUnidentified}>
+              Walang mabasa sa label? Hanapin gamit ang destinasyon at tatanggap
+            </button>
+          )}
 
           {searched && matches.length === 0 && (
             <div className="trip-scanner-notice trip-scanner-notice-danger" role="alert">
