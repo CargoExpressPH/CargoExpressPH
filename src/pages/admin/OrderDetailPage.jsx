@@ -52,6 +52,7 @@ import { useToast } from '../../hooks/useToast';
 import { useAuth } from '../../contexts/AuthContext';
 import usePageTitle from '../../hooks/usePageTitle';
 import useOrderPaymentRealtime from '../../hooks/useOrderPaymentRealtime';
+import useLatestRequest from '../../hooks/useLatestRequest';
 import { formatPhDate, formatPhDateTime } from '../../utils/datetime';
 import { formatMoney } from '../../utils/currencyInput';
 import { getOrderPaymentStatusDisplay, truncateRef, isSystemGenerated, getPaymentActivityStatusDisplay, formatRecordedBy as fmtRecordedBy } from '../../utils/paymentDisplay';
@@ -163,7 +164,7 @@ const AdminOrderDetailPage = () => {
   const [photoLoadState, setPhotoLoadState] = useState({});
   const [resolvedDeliveryPhotos, setResolvedDeliveryPhotos] = useState([]);
   const [deliveryPhotoLoadState, setDeliveryPhotoLoadState] = useState({});
-  const orderLoadSequenceRef = useRef(0);
+  const beginRequest = useLatestRequest(id);
 
   // savingFeature: owned by parent so the modal button disables correctly
   // while the updateOrder() call is in-flight.
@@ -194,7 +195,7 @@ const AdminOrderDetailPage = () => {
       const podsCount = summary.pods?.synced?.length || 0;
       if (scansCount || podsCount) {
         toast.success(`Synced offline delivery actions!`);
-        void loadOrder(true, { silent: true });
+        void loadOrder({ silent: true });
       }
     };
     const stopSync = startOnlineSync(sendQueuedScan, handleFlushed, {
@@ -232,9 +233,7 @@ const AdminOrderDetailPage = () => {
   );
 
   useEffect(() => {
-    let isMounted = true;
-    loadOrder(isMounted);
-    return () => { isMounted = false; };
+    loadOrder();
   }, [id]);
 
   /**
@@ -266,7 +265,7 @@ const AdminOrderDetailPage = () => {
     if (recordedScanRef.current === scanKey) return;
     recordedScanRef.current = scanKey;
     recordBoxVerification(order.id, scannedBox)
-      .then(() => loadOrder(true, { silent: true }))
+      .then(() => loadOrder({ silent: true }))
       .then(() => toast.success(`Box ${scannedBox} verified`))
       .catch((e) => {
         recordedScanRef.current = null;
@@ -418,74 +417,88 @@ const AdminOrderDetailPage = () => {
   // `silent` refreshes without the full-page spinner. The spinner replaces the
   // whole page — any open modal included — so a refresh that runs around a
   // modal must not go through it.
-  const loadOrder = async (isMounted = true, { silent = false } = {}) => {
-    const requestSequence = ++orderLoadSequenceRef.current;
-    const isCurrent = () => isMounted && requestSequence === orderLoadSequenceRef.current;
-    if (!silent) { setError(null); setLoading(true); }
+  // Stale-While-Revalidate: Hydrate from IndexedDB cache first so the screen
+  // renders INSTANTLY (0ms) even offline, then fetch fresh data if online.
+  const loadOrder = async (opts = {}) => {
+    const silent = typeof opts === 'boolean' ? opts : (opts?.silent || false);
+    const isCurrent = beginRequest();
+    if (!isCurrent()) return;
+    if (!silent && !order) { setError(null); setLoading(true); }
+
+    let currentOrderData = null;
+
+    // 1. FAST PATH: Check IndexedDB cache FIRST (instant hydration)
     try {
-      const data = await getOrderById(id);
-      if (!isCurrent()) return;
-      setOrder(data);
-
-      try {
-        const history = await getTripReassignments(id);
-        if (isCurrent()) setTripHistory(history || []);
-      } catch (err) {
-        if (!isNetworkError(err)) console.warn('Could not load trip history:', err);
+      const cached = await getCachedOrder(id);
+      if (cached && isCurrent()) {
+        currentOrderData = { ...cached, _fromCache: true };
+        setOrder(currentOrderData);
+        // Instantly unblock the loading spinner!
+        setLoading(false);
       }
+    } catch {
+      // Best-effort cache read
+    }
 
+    // 2. NETWORK PATH: If online, fetch fresh server data in background
+    const isOffline = typeof navigator !== 'undefined' && navigator.onLine === false;
+    if (!isOffline) {
       try {
-        const actLogs = await getActivityLogsByRecord(id, data.tracking_number);
-        if (isCurrent()) setActivityHistory(actLogs || []);
-      } catch (err) {
-        if (!isNetworkError(err)) console.warn('Could not load activity history:', err);
-      }
-
-      try {
-        const events = await getOrderStatusEvents(id);
-        if (isCurrent()) setStatusEvents(events || []);
-      } catch (err) {
-        if (!isNetworkError(err)) console.warn('Could not load status events:', err);
-      }
-
-      try {
-        const pmts = await getPaymentTransactions(id);
-        if (isCurrent()) setPaymentTransactions(pmts || []);
-      } catch (err) {
-        if (!isNetworkError(err)) console.warn('Could not load payment transactions:', err);
-      }
-
-      if (data.status === ORDER_STATUS.CANCELLED) {
-        try {
-          const settlement = await getCancellationSettlementSummary(id);
-          if (isCurrent()) setCancellationSettlement(settlement);
-        } catch (err) {
-          if (!isNetworkError(err)) console.warn('Could not load cancellation settlement:', err);
+        const data = await getOrderById(id);
+        if (isCurrent()) {
+          currentOrderData = data;
+          setOrder(data);
+          setError(null);
         }
-      }
-    } catch (e) {
-      if (!isCurrent()) return;
-      if (isNetworkError(e)) {
-        try {
-          const cached = await getCachedOrder(id);
-          if (cached && isCurrent()) {
-            setOrder({ ...cached, _fromCache: true });
-            return;
+      } catch (e) {
+        if (!isCurrent()) return;
+        // If we don't even have cached data, surface the error
+        if (!currentOrderData && !silent) {
+          if (isNetworkError(e)) {
+            setError('You are offline and this booking has not been cached yet.');
+          } else {
+            setError(e.message || 'Failed to load order.');
           }
-        } catch {}
-        if (!silent) {
-          setError('You are offline and this booking has not been cached yet.');
         }
-      } else {
-        if (silent) toast.error(e.message || 'Failed to refresh order.');
-        else setError(e.message || 'Failed to load order.');
       }
-    } finally {
-      if (isCurrent()) setLoading(false);
+    } else if (!currentOrderData && !silent && isCurrent()) {
+      setError('You are offline and this booking has not been cached yet.');
+    }
+
+    if (isCurrent()) setLoading(false);
+
+    // 3. SECONDARY DATA (Non-blocking): audit trail, events, and transactions
+    // Dispatched in parallel without blocking the page display
+    if (!isOffline && currentOrderData) {
+      const trackingNumber = currentOrderData.tracking_number;
+
+      getTripReassignments(id)
+        .then((history) => { if (isCurrent()) setTripHistory(history || []); })
+        .catch(() => {});
+
+      if (trackingNumber) {
+        getActivityLogsByRecord(id, trackingNumber)
+          .then((actLogs) => { if (isCurrent()) setActivityHistory(actLogs || []); })
+          .catch(() => {});
+      }
+
+      getOrderStatusEvents(id)
+        .then((events) => { if (isCurrent()) setStatusEvents(events || []); })
+        .catch(() => {});
+
+      getPaymentTransactions(id)
+        .then((pmts) => { if (isCurrent()) setPaymentTransactions(pmts || []); })
+        .catch(() => {});
+
+      if (currentOrderData.status === ORDER_STATUS.CANCELLED) {
+        getCancellationSettlementSummary(id)
+          .then((settlement) => { if (isCurrent()) setCancellationSettlement(settlement); })
+          .catch(() => {});
+      }
     }
   };
 
-  useOrderPaymentRealtime(id, () => loadOrder(true, { silent: true }));
+  useOrderPaymentRealtime(id, () => loadOrder({ silent: true }));
 
   // Pending/failed refunds can change history without changing order totals.
   useEffect(() => {
@@ -495,7 +508,7 @@ const AdminOrderDetailPage = () => {
       .on('postgres_changes', {
         event: 'INSERT', schema: 'public', table: 'activity_logs',
         filter: `record_id=eq.${id}`,
-      }, () => { void loadOrder(true, { silent: true }); })
+      }, () => { void loadOrder({ silent: true }); })
       .subscribe();
     return () => { void supabase.removeChannel(channel); };
   }, [id, user?.id]);

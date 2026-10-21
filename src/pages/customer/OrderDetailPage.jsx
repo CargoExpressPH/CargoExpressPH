@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { getOrderById, updateOrderContactDetails, requestOrderCancellation, getPaymentTransactions, submitFeedback, checkIfFeedbackExists, getOrderStatusEvents, getLatestPaymentAttemptByOrder, getCancellationSettlementSummary } from '../../lib/database';
+import { getCachedOrder } from '../../lib/offlineScannerQueue';
 import { buildStatusTimestamps } from '../../utils/statusTimestamps';
 import { resolvePhotoUrls } from '../../lib/storage';
 import { supabase } from '../../lib/supabase';
@@ -241,8 +242,19 @@ const OrderDetailPage = () => {
 
     const requestSequence = ++orderLoadSequenceRef.current;
     setError(null);
-    setLoading(true);
+    if (!order) setLoading(true);
     startLoadTimeout();
+
+    // Fast-path: Hydrate from cache immediately so offline navigation is instant
+    try {
+      const cached = await getCachedOrder(id);
+      if (cached && isMountedRef.current && requestSequence === orderLoadSequenceRef.current) {
+        applyOrderData({ ...cached, _fromCache: true }, [], []);
+        setLoading(false);
+      }
+    } catch {
+      // Best-effort cache lookup
+    }
 
     try {
       const { data, pmts, events, settlement } = await fetchOrderData();
