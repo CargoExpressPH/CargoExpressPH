@@ -345,7 +345,25 @@ export const getOrders = async (userId, isAdmin = false, options = {}) => {
   // Unbounded callers require the full history, not just the server's first
   // batch. Keep explicit page/limit callers and their return shapes unchanged.
   if (!(page && perPage) && !limit) {
-    return fetchAllOrderedRows(buildQuery, { searchFilter });
+    const unboundedCacheKey = `unbounded:${isAdmin ? 'admin' : (userId || 'guest')}`;
+    if (!searchFilter && typeof navigator !== 'undefined' && navigator.onLine === false) {
+      const cached = await getCachedOrdersList(unboundedCacheKey, 1, 0).catch(() => null);
+      if (cached?.data) return cached.data;
+    }
+    try {
+      const rows = await fetchAllOrderedRows(buildQuery, { searchFilter });
+      if (!searchFilter && Array.isArray(rows)) {
+        saveCachedOrdersList(unboundedCacheKey, 1, 0, rows, rows.length).catch(() => {});
+        rows.forEach((r) => { if (r?.id) saveCachedOrder(r).catch(() => {}); });
+      }
+      return rows;
+    } catch (fetchErr) {
+      if (!searchFilter && isNetworkError(fetchErr)) {
+        const cached = await getCachedOrdersList(unboundedCacheKey, 1, 0).catch(() => null);
+        if (cached?.data) return cached.data;
+      }
+      throw fetchErr;
+    }
   }
 
   // ── Offline fast-path (paginated queries only) ──────────────────────────

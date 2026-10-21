@@ -177,6 +177,12 @@ export const saveCachedTripDetail = (tripId, data) => {
     data.orders.forEach((o) => {
       saveCachedOrder(o).catch(() => {});
     });
+    // Keep STORE_MANIFESTS in sync so manifest queries also have the orders
+    putRecord(STORE_MANIFESTS, {
+      trip_id: tripId,
+      saved_at: new Date().toISOString(),
+      orders: data.orders,
+    }).catch(() => {});
   }
   return putRecord(STORE_TRIP_DETAILS, {
     trip_id: tripId,

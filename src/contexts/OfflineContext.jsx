@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { countAllPending } from '../lib/offlineScannerQueue';
+import { preloadOfflineData } from '../lib/offlinePreloader';
 
 const OfflineContext = createContext(null);
 
@@ -19,10 +20,15 @@ export function OfflineProvider({ children }) {
     }
   }, []);
 
+  const triggerPreload = useCallback((options = {}) => {
+    return preloadOfflineData(options);
+  }, []);
+
   useEffect(() => {
     const handleOnline = () => {
       setIsOnline(true);
       refreshPendingCount();
+      preloadOfflineData();
     };
     const handleOffline = () => setIsOnline(false);
 
@@ -40,7 +46,7 @@ export function OfflineProvider({ children }) {
   }, [refreshPendingCount]);
 
   return (
-    <OfflineContext.Provider value={{ isOnline, pendingCount, refreshPendingCount }}>
+    <OfflineContext.Provider value={{ isOnline, pendingCount, refreshPendingCount, triggerPreload }}>
       {children}
     </OfflineContext.Provider>
   );

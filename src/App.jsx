@@ -12,7 +12,7 @@ import { createBrowserRouter, RouterProvider, Navigate, Outlet, useLocation, use
 import useKeyboardInset, { scrollFocusedFieldIntoView } from './hooks/useKeyboardInset';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
-import { OfflineProvider } from './contexts/OfflineContext';
+import { OfflineProvider, useNetworkState } from './contexts/OfflineContext';
 import { ToastProvider } from './hooks/useToast';
 import { resolveAuthRouteState } from './lib/authRouteState';
 import { loadCustomerHomePage } from './lib/routePreloads';
@@ -345,6 +345,31 @@ const handleKeyboardInset = (inset) => {
   requestAnimationFrame(scrollFocusedFieldIntoView);
 };
 
+function OfflineSyncManager() {
+  const { user, userProfile, isAdmin } = useAuth();
+  const { isOnline, triggerPreload } = useNetworkState();
+
+  useEffect(() => {
+    if (!isOnline) return;
+    const role = isAdmin ? 'admin' : (userProfile?.role || 'customer');
+    const userId = user?.id || null;
+
+    // Run background pre-cache on mount or when auth state updates
+    triggerPreload({ role, userId });
+
+    // Periodic background sync every 5 minutes while online
+    const interval = setInterval(() => {
+      if (typeof navigator !== 'undefined' && navigator.onLine) {
+        triggerPreload({ role, userId, force: true });
+      }
+    }, 5 * 60 * 1000);
+
+    return () => clearInterval(interval);
+  }, [isOnline, isAdmin, userProfile?.role, user?.id, triggerPreload]);
+
+  return null;
+}
+
 function App() {
   // Mounted once, at the root, so `--keyboard-inset` and `body.keyboard-open`
   // are published on EVERY page — auth, customer and admin alike — rather than
@@ -384,6 +409,7 @@ function App() {
     <ToastProvider>
       <OfflineProvider>
         <AuthProvider>
+          <OfflineSyncManager />
           <RouterProvider router={router} />
         </AuthProvider>
       </OfflineProvider>
