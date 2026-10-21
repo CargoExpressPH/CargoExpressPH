@@ -179,6 +179,7 @@ const QrScannerModal = ({ onClose, initialOrder = null, mode = 'delivery', onDis
   const videoRef = useRef(null);
   const fileInputRef = useRef(null);
   const decoderRef = useRef(null);
+  const streamRef = useRef(null);
   const resolvingRef = useRef(false);
   const lastScanRef = useRef({ text: '', at: 0 });
   const mountedRef = useRef(true);
@@ -711,20 +712,35 @@ const QrScannerModal = ({ onClose, initialOrder = null, mode = 'delivery', onDis
   useEffect(() => { handleScanRef.current = handleScan; }, [handleScan]);
 
   // ── Resume camera after ManualBoxMatchOverlay closes ────────────────────
-  // The overlay's autoFocused input and virtual keyboard pause the background
-  // <video>. When manualOpen flips to false, resume or restart the stream.
+  // When manualOpen flips from true to false, wake up the camera rendering pipeline.
+  // Re-assert srcObject and call play(), falling back to setAttempt if stalled.
+  const hadOverlayRef = useRef(false);
   useEffect(() => {
-    if (manualOpen) return undefined;
+    if (manualOpen) {
+      hadOverlayRef.current = true;
+      return undefined;
+    }
+    if (!hadOverlayRef.current) return undefined;
+    hadOverlayRef.current = false;
+
     const id = requestAnimationFrame(() => {
       const video = videoRef.current;
-      const stream = video?.srcObject;
-      if (!stream) return;
-      const track = stream.getVideoTracks()[0];
-      if (!track || track.readyState === 'ended') {
+      const stream = streamRef.current || video?.srcObject;
+      const track = stream?.getVideoTracks?.()[0];
+      if (!video || !stream || !track || track.readyState === 'ended' || !track.enabled) {
         setAttempt((n) => n + 1);
         return;
       }
-      if (video.paused) video.play().catch(() => {});
+      try {
+        if (video.srcObject !== stream) {
+          video.srcObject = stream;
+        }
+        video.play().catch(() => {
+          setAttempt((n) => n + 1);
+        });
+      } catch {
+        setAttempt((n) => n + 1);
+      }
     });
     return () => cancelAnimationFrame(id);
   }, [manualOpen]);
@@ -829,6 +845,7 @@ const QrScannerModal = ({ onClose, initialOrder = null, mode = 'delivery', onDis
         stopStream(stream);
         return;
       }
+      streamRef.current = stream;
 
       stream.getVideoTracks().forEach((track) => {
         track.addEventListener('ended', () => {
@@ -874,6 +891,7 @@ const QrScannerModal = ({ onClose, initialOrder = null, mode = 'delivery', onDis
       cancelled = true;
       cancelAnimationFrame(rafId);
       stopStream(stream);
+      streamRef.current = null;
       if (video) {
         try { video.pause(); } catch { /* not playing */ }
         video.srcObject = null;

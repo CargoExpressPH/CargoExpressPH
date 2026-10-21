@@ -952,21 +952,36 @@ const TripScannerModal = ({
   }, [attempt, podOpen, getDecoder]);
 
   // ── Resume camera after overlays close ──────────────────────────────────
-  // Mobile browsers pause background <video> elements when a full-screen
-  // overlay (and its virtual keyboard) covers them. When every overlay closes,
-  // give the browser one rAF to unblock the element, then resume or restart.
+  // When an overlay closes, wake up the Chromium/WebKit video rendering pipeline.
+  // Re-assert srcObject and call play() unconditionally, falling back to setAttempt if stalled.
+  const hadOverlayRef = useRef(false);
   useEffect(() => {
-    if (manualOpen || unidentifiedOpen || shortfallMissing) return undefined;
+    const isOverlayOpen = manualOpen || unidentifiedOpen || Boolean(shortfallMissing);
+    if (isOverlayOpen) {
+      hadOverlayRef.current = true;
+      return undefined;
+    }
+    if (!hadOverlayRef.current) return undefined;
+    hadOverlayRef.current = false;
+
     const id = requestAnimationFrame(() => {
       const video = videoRef.current;
       const stream = streamRef.current;
-      if (!video || !stream) return;
-      const track = stream.getVideoTracks()[0];
-      if (!track || track.readyState === 'ended') {
+      const track = stream?.getVideoTracks?.()[0];
+      if (!video || !stream || !track || track.readyState === 'ended' || !track.enabled) {
         setAttempt((n) => n + 1);
         return;
       }
-      if (video.paused) video.play().catch(() => {});
+      try {
+        if (video.srcObject !== stream) {
+          video.srcObject = stream;
+        }
+        video.play().catch(() => {
+          setAttempt((n) => n + 1);
+        });
+      } catch {
+        setAttempt((n) => n + 1);
+      }
     });
     return () => cancelAnimationFrame(id);
   }, [manualOpen, unidentifiedOpen, shortfallMissing]);
