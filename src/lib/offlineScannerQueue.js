@@ -16,11 +16,12 @@
 import { md5 } from '../utils/md5.js';
 
 const DB_NAME = 'cargoexpress-scanner';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 const STORE_MANIFESTS = 'trip_manifests';
 const STORE_EVENTS = 'scan_events';
 const STORE_TRIP_DETAILS = 'trip_details';
 const STORE_POD_EVENTS = 'pod_events';
+const STORE_ORDERS = 'orders_cache';
 
 export const SCAN_EVENT_TYPES = {
   LOAD_VERIFY: 'load_verify',
@@ -63,12 +64,14 @@ const memory = {
   [STORE_EVENTS]: new Map(),
   [STORE_TRIP_DETAILS]: new Map(),
   [STORE_POD_EVENTS]: new Map(),
+  [STORE_ORDERS]: new Map(),
 };
 const keyPathOf = {
   [STORE_MANIFESTS]: 'trip_id',
   [STORE_EVENTS]: 'idempotency_key',
   [STORE_TRIP_DETAILS]: 'trip_id',
   [STORE_POD_EVENTS]: 'idempotency_key',
+  [STORE_ORDERS]: 'id',
 };
 
 let dbPromise = null;
@@ -102,6 +105,10 @@ const openDb = () => {
         pods.createIndex('trip_id', 'trip_id', { unique: false });
         pods.createIndex('order_id', 'order_id', { unique: false });
         pods.createIndex('status', 'status', { unique: false });
+      }
+      if (!db.objectStoreNames.contains(STORE_ORDERS)) {
+        const orders = db.createObjectStore(STORE_ORDERS, { keyPath: 'id' });
+        orders.createIndex('tracking_number', 'tracking_number', { unique: false });
       }
     };
     request.onsuccess = () => resolve(request.result);
@@ -149,20 +156,34 @@ const allRecords = (storeName) => withStore(storeName, 'readonly', (store) => {
 });
 
 // ── Trip manifests ──────────────────────────────────────────────────────────
-export const saveTripManifest = (tripId, orders) => putRecord(STORE_MANIFESTS, {
-  trip_id: tripId,
-  saved_at: new Date().toISOString(),
-  orders: Array.isArray(orders) ? orders : [],
-});
+export const saveTripManifest = (tripId, orders) => {
+  if (Array.isArray(orders)) {
+    orders.forEach((o) => {
+      saveCachedOrder(o).catch(() => {});
+    });
+  }
+  return putRecord(STORE_MANIFESTS, {
+    trip_id: tripId,
+    saved_at: new Date().toISOString(),
+    orders: Array.isArray(orders) ? orders : [],
+  });
+};
 
 export const getTripManifest = (tripId) => getRecord(STORE_MANIFESTS, tripId);
 
 // ── Trip details cache (for TripDetailPage offline viewing) ─────────────────
-export const saveCachedTripDetail = (tripId, data) => putRecord(STORE_TRIP_DETAILS, {
-  trip_id: tripId,
-  saved_at: new Date().toISOString(),
-  data,
-});
+export const saveCachedTripDetail = (tripId, data) => {
+  if (data?.orders && Array.isArray(data.orders)) {
+    data.orders.forEach((o) => {
+      saveCachedOrder(o).catch(() => {});
+    });
+  }
+  return putRecord(STORE_TRIP_DETAILS, {
+    trip_id: tripId,
+    saved_at: new Date().toISOString(),
+    data,
+  });
+};
 
 export const getCachedTripDetail = async (tripId) => {
   const record = await getRecord(STORE_TRIP_DETAILS, tripId);
@@ -188,6 +209,51 @@ export const saveCachedTripsList = (trips) => putRecord(STORE_TRIP_DETAILS, {
 export const getCachedTripsList = async () => {
   const record = await getRecord(STORE_TRIP_DETAILS, '__trips_list__');
   return record?.data || [];
+};
+
+// ── Order details cache (for OrderDetailPage & QrScannerModal offline use) ──
+export const saveCachedOrder = async (order) => {
+  if (!order || !order.id) return null;
+  return putRecord(STORE_ORDERS, {
+    ...order,
+    _saved_at: new Date().toISOString(),
+  });
+};
+
+export const getCachedOrder = async (idOrTracking) => {
+  if (!idOrTracking) return null;
+  const direct = await getRecord(STORE_ORDERS, idOrTracking);
+  if (direct) return direct;
+
+  const all = await allRecords(STORE_ORDERS);
+  const matched = all.find((o) => o.id === idOrTracking || o.tracking_number === idOrTracking);
+  if (matched) return matched;
+
+  // Fallback 1: check trip_manifests
+  const manifests = await allRecords(STORE_MANIFESTS);
+  for (const m of manifests) {
+    if (Array.isArray(m.orders)) {
+      const found = m.orders.find((o) => o.id === idOrTracking || o.tracking_number === idOrTracking);
+      if (found) {
+        saveCachedOrder(found).catch(() => {});
+        return found;
+      }
+    }
+  }
+
+  // Fallback 2: check trip_details
+  const tripDetails = await allRecords(STORE_TRIP_DETAILS);
+  for (const td of tripDetails) {
+    if (Array.isArray(td.data?.orders)) {
+      const found = td.data.orders.find((o) => o.id === idOrTracking || o.tracking_number === idOrTracking);
+      if (found) {
+        saveCachedOrder(found).catch(() => {});
+        return found;
+      }
+    }
+  }
+
+  return null;
 };
 
 // ── Scan events ─────────────────────────────────────────────────────────────

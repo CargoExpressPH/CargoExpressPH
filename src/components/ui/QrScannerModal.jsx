@@ -7,6 +7,7 @@ import useScrollLock from '../../hooks/useScrollLock';
 import DeliveryModal from './DeliveryModal';
 import ManualBoxMatchOverlay from './ManualBoxMatchOverlay';
 import { findOrderIdByTrackingNumber, getOrderById, recordBoxVerification, recordDeliveryPayment } from '../../lib/database';
+import { isNetworkError, queuePodEvent, saveCachedOrder, getCachedOrder, startOnlineSync, sendQueuedPod } from '../../lib/offlineScannerQueue';
 import { supabase } from '../../lib/supabase';
 import { logActivity, logOrder } from '../../lib/activityLog';
 import { ORDER_STATUS } from '../../constants/status';
@@ -342,22 +343,55 @@ const QrScannerModal = ({ onClose, initialOrder = null }) => {
     setBusy(true);
     setNotice('');
     try {
-      const orderId = payload.kind === 'order'
-        ? payload.orderId
-        : await findOrderIdByTrackingNumber(payload.trackingNumber);
-      if (!mountedRef.current) return;
-      if (!orderId) {
-        reject(`No booking found for ${payload.trackingNumber}.`);
-        return;
+      let order = null;
+      let orderId = payload.kind === 'order' ? payload.orderId : null;
+
+      // 1. FAST PATH: If an active session matches this scan, reuse its order directly without network calls!
+      const activeSession = sessionRef.current;
+      if (activeSession) {
+        if (
+          (orderId && activeSession.orderId === orderId) ||
+          (payload.trackingNumber && activeSession.trackingNumber === payload.trackingNumber)
+        ) {
+          order = activeSession.order || (await getCachedOrder(activeSession.orderId));
+          orderId = activeSession.orderId;
+        }
       }
 
-      const { data: order, error } = await supabase
-        .from('orders')
-        .select(SCAN_ORDER_COLUMNS)
-        .eq('id', orderId)
-        .single();
+      // 2. If order not yet resolved, look up orderId and order object
+      if (!order) {
+        if (!orderId && payload.trackingNumber) {
+          orderId = await findOrderIdByTrackingNumber(payload.trackingNumber);
+        }
+        if (!mountedRef.current) return;
+        if (!orderId) {
+          reject(`No booking found for ${payload.trackingNumber}.`);
+          return;
+        }
+
+        if (navigator.onLine) {
+          try {
+            const { data, error } = await supabase
+              .from('orders')
+              .select(SCAN_ORDER_COLUMNS)
+              .eq('id', orderId)
+              .single();
+            if (!error && data) {
+              order = data;
+              saveCachedOrder(data).catch(() => {});
+            }
+          } catch (e) {
+            if (!isNetworkError(e)) throw e;
+          }
+        }
+
+        if (!order) {
+          order = await getCachedOrder(orderId);
+        }
+      }
+
       if (!mountedRef.current) return;
-      if (error || !order) {
+      if (!order) {
         // No session and the lookup failed: open the plain order page, which is
         // what a scan did before deliveries had a session.
         if (!sessionRef.current && payload.kind === 'order') {
@@ -380,6 +414,7 @@ const QrScannerModal = ({ onClose, initialOrder = null }) => {
               return;
             }
             await recordBoxVerification(order.id, payload.box);
+            try { playScanSuccessSound(); } catch {}
             logActivity({
               module: 'Deliveries',
               action: 'Package box verified via QR scan',
@@ -432,15 +467,22 @@ const QrScannerModal = ({ onClose, initialOrder = null }) => {
         return;
       }
 
-      // Each box is recorded on its own. The RPC is idempotent and returns the
-      // full verified set, which becomes the session's source of truth.
+      // Each box is recorded on its own. recordBoxVerification handles offline queueing and local cache automatically.
       const verifiedBoxes = await recordBoxVerification(order.id, box);
       if (!mountedRef.current) return;
+      const nextVerified = Array.isArray(verifiedBoxes) ? verifiedBoxes : [...new Set([...active.verified, box])];
+      const updatedOrder = {
+        ...order,
+        verified_boxes: nextVerified,
+      };
       const next = {
         ...active,
-        verified: Array.isArray(verifiedBoxes) ? verifiedBoxes : [...active.verified, box],
+        verified: nextVerified,
+        order: updatedOrder,
       };
       updateSession(next);
+      saveCachedOrder(updatedOrder).catch(() => {});
+      try { playScanSuccessSound(); } catch {}
       logActivity({
         module: 'Deliveries',
         action: 'Package box verified via QR scan',
@@ -463,8 +505,7 @@ const QrScannerModal = ({ onClose, initialOrder = null }) => {
     }
   }, [goTo, openTrackingNumber, reject, settle, startSession, toast, updateSession]);
 
-  // Opens proof of delivery for a complete session. The order is re-read first,
-  // so the boxes checked here are the ones the server has recorded.
+  // Opens proof of delivery for a complete session.
   const openPod = async () => {
     const active = sessionRef.current;
     if (!active || busy) return;
@@ -472,9 +513,23 @@ const QrScannerModal = ({ onClose, initialOrder = null }) => {
     setBusy(true);
     setNotice('');
     try {
-      const full = await getOrderById(active.orderId);
-      if (!mountedRef.current) return;
-      const next = { ...active, verified: [...(full.verified_boxes || [])] };
+      let full = null;
+      if (navigator.onLine) {
+        try {
+          full = await getOrderById(active.orderId);
+        } catch (err) {
+          if (!isNetworkError(err)) throw err;
+        }
+      }
+      if (!full) {
+        full = active.order || (await getCachedOrder(active.orderId));
+      }
+      if (!full) {
+        reject('Could not load this booking for proof of delivery. Check your connection and try again.');
+        return;
+      }
+      const verified = active.verified || full.verified_boxes || [];
+      const next = { ...active, verified };
       updateSession(next);
       const remaining = missingBoxes(next);
       if (remaining.length > 0) {
@@ -485,7 +540,7 @@ const QrScannerModal = ({ onClose, initialOrder = null }) => {
         reject(`This package is no longer Out for Delivery (now "${full.status}").`);
         return;
       }
-      setPodOrder(full);
+      setPodOrder({ ...full, verified_boxes: verified });
       setPodOpen(true);
       settle('', 'success');
     } catch {
@@ -498,16 +553,52 @@ const QrScannerModal = ({ onClose, initialOrder = null }) => {
     setPodOrder(null);
   }, []);
 
-  // Saves the proof of delivery with the same RPC the order page uses, then
-  // clears the session. Closing the POD clears the session, so the scanner
-  // is ready for the next parcel without a page change.
+  // Saves the proof of delivery (supports offline queuing).
   const handleDeliverySubmit = async (payload) => {
     if (!podOrder) return;
-    await recordDeliveryPayment(podOrder.id, payload);
-    logOrder('Delivery Proof Uploaded', podOrder.id, podOrder.tracking_number, {
-      details: `Delivery processed. Photos uploaded: ${payload.delivery_photos.length}`,
-    });
-    toast.success(`Delivered ${podOrder.tracking_number}.`);
+    const isOffline = (typeof navigator !== 'undefined' && navigator.onLine === false) || Boolean(payload._isOffline);
+
+    if (isOffline) {
+      await queuePodEvent({
+        orderId: podOrder.id,
+        tripId: podOrder.trip_id || 'delivery',
+        trackingNumber: podOrder.tracking_number,
+        deliveryData: payload,
+      });
+      const updatedOrder = {
+        ...podOrder,
+        status: ORDER_STATUS.DELIVERED,
+      };
+      saveCachedOrder(updatedOrder).catch(() => {});
+      toast.success(`Delivery completed offline for ${podOrder.tracking_number}! Proof will sync automatically when back online.`);
+    } else {
+      try {
+        await recordDeliveryPayment(podOrder.id, payload);
+        logOrder('Delivery Proof Uploaded', podOrder.id, podOrder.tracking_number, {
+          details: `Delivery processed. Photos uploaded: ${payload.delivery_photos?.length || 0}`,
+        });
+        toast.success(`Delivered ${podOrder.tracking_number}.`);
+      } catch (err) {
+        if (isNetworkError(err)) {
+          await queuePodEvent({
+            orderId: podOrder.id,
+            tripId: podOrder.trip_id || 'delivery',
+            trackingNumber: podOrder.tracking_number,
+            deliveryData: payload,
+          });
+          const updatedOrder = {
+            ...podOrder,
+            status: ORDER_STATUS.DELIVERED,
+          };
+          saveCachedOrder(updatedOrder).catch(() => {});
+          toast.success(`Connection dropped. Delivery proof saved offline for ${podOrder.tracking_number}!`);
+        } else {
+          toast.error(err?.message || 'Could not complete delivery');
+          return;
+        }
+      }
+    }
+
     lastScanRef.current = { text: '', at: 0 };
     resolvingRef.current = false;
     setBusy(false);

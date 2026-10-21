@@ -9,7 +9,7 @@ import { selectEarliestCapacityTrip, selectNextDepartureTrip, isScheduledTripOve
 import { ORDER_PARTY_NAME_COLUMNS } from './orderParties';
 import { containsFilter } from './queryFilters';
 import { fetchAllOrderedRows } from './queryPagination';
-import { saveCachedTripDetail, getCachedTripDetail, saveCachedTripsList, getCachedTripsList, isNetworkError } from './offlineScannerQueue';
+import { saveCachedTripDetail, getCachedTripDetail, saveCachedTripsList, getCachedTripsList, isNetworkError, saveCachedOrder, getCachedOrder, queueScanEvent, SCAN_EVENT_TYPES } from './offlineScannerQueue';
 
 // ==================== HELPER ====================
 // Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
@@ -447,33 +447,69 @@ export const getOrderStatusCounts = async () => {
 };
 
 export const getOrderById = async (orderId) => {
-  const { data, error } = await supabase
-    .from('orders')
-    .select(`
-      *,
-      profiles:user_id (name, phone, email, role),
-      trips:trip_id (origin, destination, trip_number, departure_date, departure_at, estimated_arrival_at, arrived_at, arrival_date, status)
-    `)
-    .eq('id', orderId)
-    .single();
-  if (error) throw error;
-  await attachCompanyTripDefaults(data?.trips);
-  return data;
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+    const cached = await getCachedOrder(orderId).catch(() => null);
+    if (cached) return { ...cached, _fromCache: true };
+    throw new Error('You are currently offline and this booking is not cached yet.');
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('orders')
+      .select(`
+        *,
+        profiles:user_id (name, phone, email, role),
+        trips:trip_id (origin, destination, trip_number, departure_date, departure_at, estimated_arrival_at, arrived_at, arrival_date, status)
+      `)
+      .eq('id', orderId)
+      .single();
+    if (error) throw error;
+    await attachCompanyTripDefaults(data?.trips);
+    saveCachedOrder(data).catch(() => {});
+    return data;
+  } catch (err) {
+    if (isNetworkError(err)) {
+      const cached = await getCachedOrder(orderId).catch(() => null);
+      if (cached) return { ...cached, _fromCache: true };
+    }
+    throw err;
+  }
 };
 
 /** Order id for an exact tracking number, or null when none matches. Used by the admin QR scanner. */
 export const findOrderIdByTrackingNumber = async (trackingNumber) => {
-  const { data, error } = await supabase
-    .from('orders')
-    .select('id')
-    .eq('tracking_number', trackingNumber)
-    .limit(1)
-    .maybeSingle();
-  if (error) throw error;
-  return data?.id || null;
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+    const cached = await getCachedOrder(trackingNumber).catch(() => null);
+    return cached?.id || null;
+  }
+  try {
+    const { data, error } = await supabase
+      .from('orders')
+      .select('id')
+      .eq('tracking_number', trackingNumber)
+      .limit(1)
+      .maybeSingle();
+    if (error) throw error;
+    return data?.id || null;
+  } catch (err) {
+    if (isNetworkError(err)) {
+      const cached = await getCachedOrder(trackingNumber).catch(() => null);
+      return cached?.id || null;
+    }
+    throw err;
+  }
 };
 
 export const updateOrder = async (orderId, updates) => {
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+    const cached = await getCachedOrder(orderId).catch(() => null);
+    if (cached) {
+      const updated = { ...cached, ...updates };
+      await saveCachedOrder(updated).catch(() => {});
+      return updated;
+    }
+  }
+
   // Status transition validation
   let currentOrder = null;
   if (updates.status) {
@@ -545,14 +581,27 @@ export const updateOrder = async (orderId, updates) => {
   // docs/archive/database-architecture-review.md.
   // Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
-  const { data, error } = await supabase
-    .from('orders')
-    .update(updates)
-    .eq('id', orderId)
-    .select()
-    .single();
-  if (error) throw error;
-  return data;
+  try {
+    const { data, error } = await supabase
+      .from('orders')
+      .update(updates)
+      .eq('id', orderId)
+      .select()
+      .single();
+    if (error) throw error;
+    saveCachedOrder(data).catch(() => {});
+    return data;
+  } catch (err) {
+    if (isNetworkError(err)) {
+      const cached = await getCachedOrder(orderId).catch(() => null);
+      if (cached) {
+        const updated = { ...cached, ...updates };
+        await saveCachedOrder(updated).catch(() => {});
+        return updated;
+      }
+    }
+    throw err;
+  }
 };
 
 /**
@@ -3269,14 +3318,51 @@ export const recordDeliveryPayment = async (orderId, payload) => {
  * database that predates the audit table.
  */
 export const recordBoxVerification = async (orderId, box, { method = 'qr', reason = null } = {}) => {
-  const params = { p_order_id: orderId, p_box: box };
-  if (method !== 'qr') {
-    params.p_method = method;
-    params.p_reason = reason;
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+    await queueScanEvent({
+      orderId,
+      box,
+      eventType: SCAN_EVENT_TYPES.DELIVERY_VERIFY,
+      tripId: 'offline',
+    }, { method, reason });
+
+    const cached = await getCachedOrder(orderId).catch(() => null);
+    if (cached) {
+      const verified = Array.from(new Set([...(cached.verified_boxes || []), box]));
+      await saveCachedOrder({ ...cached, verified_boxes: verified }).catch(() => {});
+      return verified;
+    }
+    return [box];
   }
-  const { data, error } = await supabase.rpc('record_box_verification', params);
-  if (error) throw error;
-  return data;
+
+  try {
+    const params = { p_order_id: orderId, p_box: box };
+    if (method !== 'qr') {
+      params.p_method = method;
+      params.p_reason = reason;
+    }
+    const { data, error } = await supabase.rpc('record_box_verification', params);
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    if (isNetworkError(err)) {
+      await queueScanEvent({
+        orderId,
+        box,
+        eventType: SCAN_EVENT_TYPES.DELIVERY_VERIFY,
+        tripId: 'offline',
+      }, { method, reason });
+
+      const cached = await getCachedOrder(orderId).catch(() => null);
+      if (cached) {
+        const verified = Array.from(new Set([...(cached.verified_boxes || []), box]));
+        await saveCachedOrder({ ...cached, verified_boxes: verified }).catch(() => {});
+        return verified;
+      }
+      return [box];
+    }
+    throw err;
+  }
 };
 
 /** Verification audit rows for one trip (admin only), oldest first. */
