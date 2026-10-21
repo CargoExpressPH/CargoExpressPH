@@ -17,6 +17,8 @@ import { ToastProvider } from './hooks/useToast';
 import { resolveAuthRouteState } from './lib/authRouteState';
 import { loadCustomerHomePage } from './lib/routePreloads';
 import { isStandaloneWebApp } from './lib/apple-platform';
+import { startOnlineSync, sendQueuedPod, sendQueuedPickup } from './lib/offlineScannerQueue';
+import { recordBoxVerification } from './lib/database';
 
 // Account layouts are only needed after entering their protected routes.
 import PublicShell from './components/layout/PublicShell';
@@ -348,6 +350,21 @@ const handleKeyboardInset = (inset) => {
 function OfflineSyncManager() {
   const { user, userProfile, isAdmin } = useAuth();
   const { isOnline, triggerPreload } = useNetworkState();
+
+  // Global background sync for offline scans, PODs, and pickups
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    const sendQueuedScan = (event) => recordBoxVerification(event.order_id, event.box_number, {
+      method: event.method || 'qr',
+      reason: event.reason || null,
+      throwOnNetworkError: true,
+    });
+    const stopSync = startOnlineSync(sendQueuedScan, () => {}, {
+      sendPod: sendQueuedPod,
+      sendPickup: sendQueuedPickup,
+    });
+    return () => stopSync();
+  }, []);
 
   useEffect(() => {
     if (!isOnline) return;

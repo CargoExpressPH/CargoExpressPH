@@ -16,12 +16,13 @@
 import { md5 } from '../utils/md5.js';
 
 const DB_NAME = 'cargoexpress-scanner';
-const DB_VERSION = 3;
+const DB_VERSION = 4;
 const STORE_MANIFESTS = 'trip_manifests';
 const STORE_EVENTS = 'scan_events';
 const STORE_TRIP_DETAILS = 'trip_details';
 const STORE_POD_EVENTS = 'pod_events';
 const STORE_ORDERS = 'orders_cache';
+const STORE_PICKUP_EVENTS = 'pickup_events';
 
 export const SCAN_EVENT_TYPES = {
   LOAD_VERIFY: 'load_verify',
@@ -65,6 +66,7 @@ const memory = {
   [STORE_TRIP_DETAILS]: new Map(),
   [STORE_POD_EVENTS]: new Map(),
   [STORE_ORDERS]: new Map(),
+  [STORE_PICKUP_EVENTS]: new Map(),
 };
 const keyPathOf = {
   [STORE_MANIFESTS]: 'trip_id',
@@ -72,6 +74,7 @@ const keyPathOf = {
   [STORE_TRIP_DETAILS]: 'trip_id',
   [STORE_POD_EVENTS]: 'idempotency_key',
   [STORE_ORDERS]: 'id',
+  [STORE_PICKUP_EVENTS]: 'idempotency_key',
 };
 
 let dbPromise = null;
@@ -109,6 +112,11 @@ const openDb = () => {
       if (!db.objectStoreNames.contains(STORE_ORDERS)) {
         const orders = db.createObjectStore(STORE_ORDERS, { keyPath: 'id' });
         orders.createIndex('tracking_number', 'tracking_number', { unique: false });
+      }
+      if (!db.objectStoreNames.contains(STORE_PICKUP_EVENTS)) {
+        const pickups = db.createObjectStore(STORE_PICKUP_EVENTS, { keyPath: 'idempotency_key' });
+        pickups.createIndex('order_id', 'order_id', { unique: false });
+        pickups.createIndex('status', 'status', { unique: false });
       }
     };
     request.onsuccess = () => resolve(request.result);
@@ -214,7 +222,19 @@ export const saveCachedTripsList = (trips) => putRecord(STORE_TRIP_DETAILS, {
 
 export const getCachedTripsList = async () => {
   const record = await getRecord(STORE_TRIP_DETAILS, '__trips_list__');
-  return record?.data || [];
+  if (record?.data && Array.isArray(record.data) && record.data.length > 0) {
+    return record.data;
+  }
+  const all = await allRecords(STORE_TRIP_DETAILS);
+  const fallbackTrips = [];
+  for (const item of all) {
+    if (item.trip_id === '__trips_list__') continue;
+    const t = item.data?.trip || item.data;
+    if (t?.id && !fallbackTrips.some((existing) => existing.id === t.id)) {
+      fallbackTrips.push(t);
+    }
+  }
+  return fallbackTrips;
 };
 
 // ── Orders list cache (for AdminOrdersPage offline hydration) ───────────────
@@ -314,6 +334,7 @@ export const purgeCompletedCache = async () => {
   try {
     const allScans = await allRecords(STORE_EVENTS);
     const allPods = await allRecords(STORE_POD_EVENTS);
+    const allPickups = await allRecords(STORE_PICKUP_EVENTS);
     const pendingOrderIds = new Set();
     const pendingTripIds = new Set();
 
@@ -327,6 +348,11 @@ export const purgeCompletedCache = async () => {
       if (e.status === SCAN_STATUS.PENDING) {
         if (e.order_id) pendingOrderIds.add(e.order_id);
         if (e.trip_id) pendingTripIds.add(e.trip_id);
+      }
+    }
+    for (const e of allPickups) {
+      if (e.status === SCAN_STATUS.PENDING) {
+        if (e.order_id) pendingOrderIds.add(e.order_id);
       }
     }
 
@@ -364,6 +390,13 @@ export const purgeCompletedCache = async () => {
       if (pod.status === SCAN_STATUS.SYNCED && pod.synced_at) {
         if (new Date(pod.synced_at).getTime() < sevenDaysAgo) {
           await deleteRecord(STORE_POD_EVENTS, pod.idempotency_key);
+        }
+      }
+    }
+    for (const pickup of allPickups) {
+      if (pickup.status === SCAN_STATUS.SYNCED && pickup.synced_at) {
+        if (new Date(pickup.synced_at).getTime() < sevenDaysAgo) {
+          await deleteRecord(STORE_PICKUP_EVENTS, pickup.idempotency_key);
         }
       }
     }
@@ -450,15 +483,49 @@ export const countTotalPending = async (tripId) => (
   (await countPendingScans(tripId)) + (await countPendingPods(tripId))
 );
 
-/** Total pending scan events + POD events across ALL trips. Used by global sync indicator. */
+// ── Pickup queue ────────────────────────────────────────────────────────────
+export const pickupEventKey = ({ orderId }) => (
+  md5(`pickup_${orderId}`)
+);
+
+export const getPickupEvent = (key) => getRecord(STORE_PICKUP_EVENTS, key);
+
+export const listPickupEvents = async (status = null) => {
+  const events = await allRecords(STORE_PICKUP_EVENTS);
+  return events
+    .filter((event) => !status || event.status === status)
+    .sort((a, b) => String(a.created_at).localeCompare(String(b.created_at)));
+};
+
+export const queuePickupEvent = ({ orderId, trackingNumber = '', pickupData }) => {
+  const key = pickupEventKey({ orderId });
+  return putRecord(STORE_PICKUP_EVENTS, {
+    idempotency_key: key,
+    order_id: orderId,
+    tracking_number: trackingNumber,
+    pickup_data: pickupData,
+    status: SCAN_STATUS.PENDING,
+    created_at: new Date().toISOString(),
+    attempts: 0,
+    last_error: null,
+  });
+};
+
+export const countPendingPickups = async () => (
+  await listPickupEvents(SCAN_STATUS.PENDING)
+).length;
+
+/** Total pending scan events + POD events + pickup events across ALL trips/orders. Used by global sync indicator. */
 export const countAllPending = async () => {
-  const [events, pods] = await Promise.all([
+  const [events, pods, pickups] = await Promise.all([
     allRecords(STORE_EVENTS),
     allRecords(STORE_POD_EVENTS),
+    allRecords(STORE_PICKUP_EVENTS),
   ]);
   return (
     events.filter((e) => e.status === SCAN_STATUS.PENDING).length +
-    pods.filter((e) => e.status === SCAN_STATUS.PENDING).length
+    pods.filter((e) => e.status === SCAN_STATUS.PENDING).length +
+    pickups.filter((e) => e.status === SCAN_STATUS.PENDING).length
   );
 };
 
@@ -634,12 +701,108 @@ export const flushPendingPods = (sendPod, { tripId = null } = {}) => {
   return podFlushing;
 };
 
+/** Replays a queued pickup event when online, uploading offline photos to Storage first. */
+export const sendQueuedPickup = async (pickupEvent) => {
+  const { order_id, tracking_number, pickup_data } = pickupEvent;
+  const payload = { ...pickup_data };
+
+  // If there are offline photos that need uploading:
+  if (payload._offlinePhotos && payload._offlinePhotos.length > 0) {
+    const files = payload._offlinePhotos.map(offlinePhotoToFile).filter(Boolean);
+    if (files.length > 0) {
+      const { uploadMultiplePhotos } = await import('./storage.js');
+      const photoUrls = await uploadMultiplePhotos(
+        files,
+        'pickup-proofs',
+        tracking_number || 'PICKUP',
+        null,
+        order_id
+      );
+      payload.pickup_photos = photoUrls;
+    }
+    delete payload._offlinePhotos;
+  }
+
+  // If there is an offline receipt that needs uploading:
+  if (payload._offlineReceipt) {
+    const file = offlinePhotoToFile(payload._offlineReceipt);
+    if (file) {
+      const { uploadPhoto } = await import('./storage.js');
+      const { serializePhotoReference } = await import('./photoReference.js');
+      const rResult = await uploadPhoto(
+        file,
+        'receipts',
+        tracking_number || 'RECEIPT',
+        1,
+        order_id
+      );
+      const receiptUrl = serializePhotoReference(rResult);
+      if (payload.payment) {
+        payload.payment.receipt_url = receiptUrl;
+      }
+    }
+    delete payload._offlineReceipt;
+  }
+
+  const packageQty = payload.package_quantity;
+  delete payload._isOffline;
+
+  const { recordPickupPayment, updateOrder } = await import('./database.js');
+  const result = await recordPickupPayment(order_id, payload);
+  if (packageQty) {
+    await updateOrder(order_id, { package_quantity: packageQty }).catch(() => {});
+  }
+  return result;
+};
+
+let pickupFlushing = null;
+
+/**
+ * Sends pending pickups oldest-first, one at a time, through `sendPickup(event)`.
+ * Stops at the first network failure (the rest stay pending).
+ */
+export const flushPendingPickups = (sendPickup) => {
+  if (pickupFlushing) return pickupFlushing;
+  pickupFlushing = (async () => {
+    const summary = { synced: [], failed: [], remaining: 0 };
+    const all = await allRecords(STORE_PICKUP_EVENTS);
+    const pending = all
+      .filter((event) => event.status === SCAN_STATUS.PENDING)
+      .sort((a, b) => String(a.created_at).localeCompare(String(b.created_at)));
+
+    for (let i = 0; i < pending.length; i += 1) {
+      const event = pending[i];
+      try {
+        await sendPickup(event);
+        const done = { ...event, status: SCAN_STATUS.SYNCED, synced_at: new Date().toISOString(), last_error: null };
+        await putRecord(STORE_PICKUP_EVENTS, done);
+        summary.synced.push(done);
+      } catch (error) {
+        if (isNetworkError(error)) {
+          summary.remaining = pending.length - i;
+          break;
+        }
+        const failed = {
+          ...event,
+          status: SCAN_STATUS.FAILED,
+          attempts: (event.attempts || 0) + 1,
+          last_error: error?.message || 'Rejected by the server',
+        };
+        await putRecord(STORE_PICKUP_EVENTS, failed);
+        summary.failed.push(failed);
+      }
+    }
+    return summary;
+  })().finally(() => { pickupFlushing = null; });
+  return pickupFlushing;
+};
+
 /**
  * Flushes the queue whenever the browser reports connectivity again, and once
  * right away if it is already online (covers a reload with scans left over).
  * Returns the cleanup function.
  */
-export const startOnlineSync = (send, onFlushed, { tripId = null, sendPod = null } = {}) => {
+export const startOnlineSync = (send, onFlushed, { tripId = null, sendPod = null, sendPickup = null } = {}) => {
   const run = async () => {
     try {
       const scanSummary = await flushPendingScans(send, { tripId });
@@ -647,11 +810,16 @@ export const startOnlineSync = (send, onFlushed, { tripId = null, sendPod = null
       if (sendPod) {
         podSummary = await flushPendingPods(sendPod, { tripId });
       }
+      let pickupSummary = null;
+      const pickupSender = sendPickup || sendQueuedPickup;
+      pickupSummary = await flushPendingPickups(pickupSender);
+
       if (
         scanSummary.synced.length || scanSummary.failed.length ||
-        (podSummary && (podSummary.synced.length || podSummary.failed.length))
+        (podSummary && (podSummary.synced.length || podSummary.failed.length)) ||
+        (pickupSummary && (pickupSummary.synced.length || pickupSummary.failed.length))
       ) {
-        onFlushed?.({ scans: scanSummary, pods: podSummary });
+        onFlushed?.({ scans: scanSummary, pods: podSummary, pickups: pickupSummary });
       }
       // Purge delivered orders and completed trips now that sync has processed
       purgeCompletedCache().catch(() => {});

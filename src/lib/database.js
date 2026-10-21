@@ -9,7 +9,7 @@ import { selectEarliestCapacityTrip, selectNextDepartureTrip, isScheduledTripOve
 import { ORDER_PARTY_NAME_COLUMNS } from './orderParties';
 import { containsFilter } from './queryFilters';
 import { fetchAllOrderedRows } from './queryPagination';
-import { saveCachedTripDetail, getCachedTripDetail, saveCachedTripsList, getCachedTripsList, isNetworkError, saveCachedOrder, getCachedOrder, queueScanEvent, SCAN_EVENT_TYPES, saveCachedOrdersList, getCachedOrdersList, deleteCachedOrder, deleteCachedTrip } from './offlineScannerQueue';
+import { saveCachedTripDetail, getCachedTripDetail, saveCachedTripsList, getCachedTripsList, isNetworkError, saveCachedOrder, getCachedOrder, queueScanEvent, SCAN_EVENT_TYPES, saveCachedOrdersList, getCachedOrdersList, deleteCachedOrder, deleteCachedTrip, queuePickupEvent, queuePodEvent } from './offlineScannerQueue';
 
 // ==================== HELPER ====================
 // Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
@@ -70,24 +70,47 @@ const getGlobalPricePerKilo = async () => {
 export const getTripCurrentWeight = async (tripId, excludeOrderId = null) => {
   if (!tripId) return 0;
 
-  const { data, error } = await supabase.rpc('get_trips_load', { trip_ids: [tripId] });
-  if (error) throw error;
-
-  let total = parseFloat(data?.[0]?.current_weight || 0);
-
-  if (excludeOrderId) {
-    const { data: excluded, error: excludedError } = await supabase
-      .from('orders')
-      .select('actual_weight, status')
-      .eq('id', excludeOrderId)
-      .maybeSingle();
-    if (excludedError) throw excludedError;
-    if (excluded && excluded.status !== 'Cancelled') {
-      total -= parseFloat(excluded.actual_weight || 0);
+  const calculateFromCachedTrip = async () => {
+    const cachedTrip = await getCachedTripDetail(tripId).catch(() => null);
+    if (cachedTrip?.data?.orders && Array.isArray(cachedTrip.data.orders)) {
+      const total = cachedTrip.data.orders.reduce((sum, o) => {
+        if (o.id === excludeOrderId || o.status === 'Cancelled') return sum;
+        return sum + (parseFloat(o.actual_weight) || 0);
+      }, 0);
+      return Math.max(total, 0);
     }
+    return 0;
+  };
+
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+    return calculateFromCachedTrip();
   }
 
-  return Math.max(total, 0);
+  try {
+    const { data, error } = await supabase.rpc('get_trips_load', { trip_ids: [tripId] });
+    if (error) throw error;
+
+    let total = parseFloat(data?.[0]?.current_weight || 0);
+
+    if (excludeOrderId) {
+      const { data: excluded, error: excludedError } = await supabase
+        .from('orders')
+        .select('actual_weight, status')
+        .eq('id', excludeOrderId)
+        .maybeSingle();
+      if (excludedError) throw excludedError;
+      if (excluded && excluded.status !== 'Cancelled') {
+        total -= parseFloat(excluded.actual_weight || 0);
+      }
+    }
+
+    return Math.max(total, 0);
+  } catch (err) {
+    if (isNetworkError(err)) {
+      return calculateFromCachedTrip();
+    }
+    throw err;
+  }
 };
 
 /**
@@ -558,7 +581,26 @@ export const updateOrder = async (orderId, updates) => {
   if (typeof navigator !== 'undefined' && navigator.onLine === false) {
     const cached = await getCachedOrder(orderId).catch(() => null);
     if (cached) {
-      const updated = { ...cached, ...updates };
+      let tripsObj = cached.trips;
+      if (updates.trip_id) {
+        const cachedTrip = await getCachedTripDetail(updates.trip_id).catch(() => null);
+        const tripData = cachedTrip?.data?.trip || cachedTrip?.data;
+        if (tripData) {
+          tripsObj = {
+            id: tripData.id,
+            origin: tripData.origin,
+            destination: tripData.destination,
+            trip_number: tripData.trip_number,
+            departure_date: tripData.departure_date,
+            status: tripData.status,
+          };
+        }
+      }
+      const updated = {
+        ...cached,
+        ...updates,
+        ...(tripsObj ? { trips: tripsObj } : {}),
+      };
       await saveCachedOrder(updated).catch(() => {});
       return updated;
     }
@@ -3314,6 +3356,45 @@ export const recordPaymentTransaction = async (orderId, amount, method, ref, sta
  * @returns {Object} the fresh order row, totals already recomputed
  */
 export const recordPickupPayment = async (orderId, payload) => {
+  const isOffline = payload?._isOffline || (typeof navigator !== 'undefined' && navigator.onLine === false);
+
+  const saveOfflinePickup = async () => {
+    const cached = await getCachedOrder(orderId).catch(() => null);
+    await queuePickupEvent({
+      orderId,
+      trackingNumber: cached?.tracking_number || '',
+      pickupData: payload,
+    });
+    if (cached) {
+      const collectedAmount = Number(payload.payment?.amount || 0);
+      const newAmountPaid = (Number(cached.amount_paid) || 0) + collectedAmount;
+      const originalCost = (Number(payload.actual_weight) || Number(cached.actual_weight) || 0) * 70;
+      const discountVal = Number(payload.discount_amount || cached.discount_amount || 0);
+      const fee = Math.max(0, (Number(cached.shipping_cost) || originalCost) - discountVal);
+      const remainingBalance = Math.max(0, fee - newAmountPaid);
+      const updated = {
+        ...cached,
+        status: 'Picked Up',
+        actual_weight: payload.actual_weight ?? cached.actual_weight,
+        package_quantity: payload.package_quantity || cached.package_quantity || 1,
+        payment_method: payload.payment_method || cached.payment_method,
+        payer_type: payload.payer_type || cached.payer_type || 'sender',
+        amount_paid: newAmountPaid,
+        remaining_balance: remainingBalance,
+        payment_status: remainingBalance <= 0 ? 'paid' : (newAmountPaid > 0 ? 'partial' : 'unpaid'),
+        pickup_photos: payload.pickup_photos || (payload._offlinePhotos ? payload._offlinePhotos.map((p) => p.dataUrl) : (cached.pickup_photos || [])),
+        _queuedPickup: true,
+      };
+      await saveCachedOrder(updated).catch(() => {});
+      return updated;
+    }
+    return { success: true, _queued: true };
+  };
+
+  if (isOffline) {
+    return saveOfflinePickup();
+  }
+
   const rpcPayload = {
     p_order_id: orderId,
     p_actual_weight: payload.actual_weight,
@@ -3340,9 +3421,16 @@ export const recordPickupPayment = async (orderId, payload) => {
     rpcPayload.p_discount_notes = payload.discount_notes || null;
   }
 
-  const { data, error } = await supabase.rpc('record_pickup_payment', rpcPayload);
-  if (error) throw error;
-  return data;
+  try {
+    const { data, error } = await supabase.rpc('record_pickup_payment', rpcPayload);
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    if (isNetworkError(err)) {
+      return saveOfflinePickup();
+    }
+    throw err;
+  }
 };
 
 /**
@@ -3355,23 +3443,55 @@ export const recordPickupPayment = async (orderId, payload) => {
  * instead, which stays GCash-only.
  */
 export const recordDeliveryPayment = async (orderId, payload) => {
-  const { data, error } = await supabase.rpc('record_delivery_payment', {
-    p_order_id: orderId,
-    p_delivery_photos: payload.delivery_photos || [],
-    p_payment_method: payload.payment_method || null,
-    p_amount: payload.payment?.amount ?? null,
-    p_reference: payload.payment_reference || null,
-    p_payment_date: payload.payment?.payment_date || null,
-    p_receipt_url: payload.payment?.receipt_url || null,
-    // Required by the business rule when cargo is handed over with a balance
-    // still owing — see 20260804100000_settlement_guards.sql.
-    p_promised_payment_date: payload.promised_payment_date || null,
-    p_idempotency_key: payload.idempotency_key || null,
-    p_admin_verified_receipt: payload.admin_verified_receipt || false,
-  });
-  if (error) throw error;
-  deleteCachedOrder(orderId).catch(() => {});
-  return data;
+  const isOffline = payload?._isOffline || (typeof navigator !== 'undefined' && navigator.onLine === false);
+
+  const saveOfflineDelivery = async () => {
+    const cached = await getCachedOrder(orderId).catch(() => null);
+    await queuePodEvent({
+      orderId,
+      tripId: cached?.trip_id || null,
+      trackingNumber: cached?.tracking_number || '',
+      deliveryData: payload,
+    });
+    if (cached) {
+      const updated = {
+        ...cached,
+        status: 'Delivered',
+        delivery_photos: payload.delivery_photos || (payload._offlinePhotos ? payload._offlinePhotos.map((p) => p.dataUrl) : (cached.delivery_photos || [])),
+        _queuedDelivery: true,
+      };
+      await saveCachedOrder(updated).catch(() => {});
+      return updated;
+    }
+    return { success: true, _queued: true };
+  };
+
+  if (isOffline) {
+    return saveOfflineDelivery();
+  }
+
+  try {
+    const { data, error } = await supabase.rpc('record_delivery_payment', {
+      p_order_id: orderId,
+      p_delivery_photos: payload.delivery_photos || [],
+      p_payment_method: payload.payment_method || null,
+      p_amount: payload.payment?.amount ?? null,
+      p_reference: payload.payment_reference || null,
+      p_payment_date: payload.payment?.payment_date || null,
+      p_receipt_url: payload.payment?.receipt_url || null,
+      p_promised_payment_date: payload.promised_payment_date || null,
+      p_idempotency_key: payload.idempotency_key || null,
+      p_admin_verified_receipt: payload.admin_verified_receipt || false,
+    });
+    if (error) throw error;
+    deleteCachedOrder(orderId).catch(() => {});
+    return data;
+  } catch (err) {
+    if (isNetworkError(err)) {
+      return saveOfflineDelivery();
+    }
+    throw err;
+  }
 };
 
 /**

@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { getOrderById, updateOrder, updateOrderContactDetails, getTripReassignments, reassignTrip, getActivityLogsByRecord, getPaymentTransactions, recordAdditionalPayment, recordPickupPayment, recordDeliveryPayment, recordBoxVerification, getOrderStatusEvents, reviewOrderCancellation, cancelOrderAsAdmin, assignOrderToCustomer, getLatestPaymentAttemptByOrder, clearPaymentReceiptUrls, getCancellationSettlementSummary } from '../../lib/database';
-import { isNetworkError, getCachedOrder, saveCachedOrder, startOnlineSync, sendQueuedPod } from '../../lib/offlineScannerQueue';
+import { isNetworkError, getCachedOrder, saveCachedOrder, startOnlineSync, sendQueuedPod, sendQueuedPickup } from '../../lib/offlineScannerQueue';
 import { pollPaymentStatus } from '../../lib/paymongo';
 import { clearPendingPayment, getPendingPayment } from '../../lib/pendingPayment';
 import { isPaymentPollReconciled } from '../../utils/paymentReconciliation';
@@ -193,13 +193,15 @@ const AdminOrderDetailPage = () => {
     const handleFlushed = (summary) => {
       const scansCount = summary.scans?.synced?.length || 0;
       const podsCount = summary.pods?.synced?.length || 0;
-      if (scansCount || podsCount) {
-        toast.success(`Synced offline delivery actions!`);
+      const pickupsCount = summary.pickups?.synced?.length || 0;
+      if (scansCount || podsCount || pickupsCount) {
+        toast.success(`Synced offline actions!`);
         void loadOrder({ silent: true });
       }
     };
     const stopSync = startOnlineSync(sendQueuedScan, handleFlushed, {
       sendPod: sendQueuedPod,
+      sendPickup: sendQueuedPickup,
     });
     return () => {
       stopSync();
@@ -537,8 +539,9 @@ const AdminOrderDetailPage = () => {
       return;
     }
     if (next === ORDER_STATUS.PICKED_UP) {
-      if (!order.trip_id) {
+      if (!order.trip_id && !order.trips?.id) {
         toast.error("This booking must be assigned to a trip before pickup can be processed.");
+        setShowTripModal(true);
         return;
       }
       setShowPickupModal(true); 
@@ -605,7 +608,11 @@ const AdminOrderDetailPage = () => {
 
       setShowPickupModal(false);
       await loadOrder();
-      toast.success(`Pickup processed! ${pickupData.package_quantity || 1} box(es) recorded. Please print and attach QR labels.`);
+      if (pickupData._isOffline || (typeof navigator !== 'undefined' && navigator.onLine === false)) {
+        toast.success(`Pickup saved offline! It will automatically sync once you are back online.`);
+      } else {
+        toast.success(`Pickup processed! ${pickupData.package_quantity || 1} box(es) recorded. Please print and attach QR labels.`);
+      }
       setTimeout(() => {
         document.getElementById('package-qr-section')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }, 350);

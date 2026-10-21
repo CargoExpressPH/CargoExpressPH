@@ -12,6 +12,7 @@ import { formatPaymentMethod } from '../../utils/paymentDisplay';
 import { uploadMultiplePhotos, uploadPhoto, deletePhoto } from '../../lib/storage';
 import { serializePhotoReference } from '../../lib/photoReference';
 import { getTripCurrentWeight } from '../../lib/database';
+import { isNetworkError, fileToOfflinePhoto } from '../../lib/offlineScannerQueue';
 import { tripCapacityState, tripCapacityRefusal } from '../../constants/status';
 import PaymentCollectionPanel, {
   createPaymentCollectionState,
@@ -295,6 +296,45 @@ const PickupModal = ({ order, onClose, onSave, onPreparePayment, pricePerKilo = 
 
     setSaving(true);
 
+    const isOffline = typeof navigator !== 'undefined' && navigator.onLine === false;
+    if (isOffline) {
+      try {
+        setUploadProgress('Saving pickup data offline...');
+        const offlinePhotos = await Promise.all(photos.map(fileToOfflinePhoto));
+        let offlineReceipt = null;
+        if (payment.receiptFile) {
+          offlineReceipt = await fileToOfflinePhoto(payment.receiptFile);
+        }
+
+        const payload = {
+          actual_weight: parseFloat(form.actual_weight),
+          package_quantity: parsedQty || 1,
+          payer_type: form.payer_type,
+          pickup_photos: photoPreviews,
+          _offlinePhotos: offlinePhotos.filter(Boolean),
+          _offlineReceipt: offlineReceipt,
+          _isOffline: true,
+          ...(isPrepaid
+            ? buildPaymentSubmission(payment, paymentConfig, null)
+            : { payment_method: null, payment_reference: null, promised_payment_date: null, payment: null }),
+          ...(!hasRecordedPayment && {
+            discount_amount: discount.enabled ? discountAmountValue : 0,
+            discount_reason: discount.enabled ? discount.reason : null,
+            discount_notes: (discount.enabled && discount.reason === 'Other')
+              ? discount.otherReason.trim()
+              : null,
+          }),
+        };
+
+        await onSave(payload);
+        return;
+      } catch (offlineErr) {
+        setError(offlineErr.message || 'Could not save pickup offline.');
+        setSaving(false);
+        return;
+      }
+    }
+
     try {
       setUploadProgress('Uploading pickup proofs...');
       const photoUrls = await uploadMultiplePhotos(
@@ -350,6 +390,39 @@ const PickupModal = ({ order, onClose, onSave, onPreparePayment, pricePerKilo = 
 
       await onSave(payload);
     } catch (err) {
+      if (isNetworkError(err)) {
+        try {
+          setUploadProgress('Network dropped. Saving pickup offline...');
+          const offlinePhotos = await Promise.all(photos.map(fileToOfflinePhoto));
+          let offlineReceipt = null;
+          if (payment.receiptFile) {
+            offlineReceipt = await fileToOfflinePhoto(payment.receiptFile);
+          }
+          const payload = {
+            actual_weight: parseFloat(form.actual_weight),
+            package_quantity: parsedQty || 1,
+            payer_type: form.payer_type,
+            pickup_photos: photoPreviews,
+            _offlinePhotos: offlinePhotos.filter(Boolean),
+            _offlineReceipt: offlineReceipt,
+            _isOffline: true,
+            ...(isPrepaid
+              ? buildPaymentSubmission(payment, paymentConfig, null)
+              : { payment_method: null, payment_reference: null, promised_payment_date: null, payment: null }),
+            ...(!hasRecordedPayment && {
+              discount_amount: discount.enabled ? discountAmountValue : 0,
+              discount_reason: discount.enabled ? discount.reason : null,
+              discount_notes: (discount.enabled && discount.reason === 'Other')
+                ? discount.otherReason.trim()
+                : null,
+            }),
+          };
+          await onSave(payload);
+          return;
+        } catch {
+          // fall through to setError
+        }
+      }
       setError(err.message);
       setSaving(false);
     }

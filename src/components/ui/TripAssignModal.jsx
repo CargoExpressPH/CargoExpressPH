@@ -34,10 +34,21 @@ const TripAssignModal = ({ order, onClose, onAssign }) => {
   const loadTrips = async () => {
     try {
       const data = await getTrips('active');
-      // Filter trips matching this order's route
-      const matching = (data || []).filter(t =>
-        t.origin === order.origin && t.destination === order.destination
-      );
+      const orderOrigin = String(order?.origin || '').trim().toLowerCase();
+      const orderDestination = String(order?.destination || '').trim().toLowerCase();
+
+      // Filter trips matching this order's route (case-insensitive & trimmed)
+      let matching = (data || []).filter((t) => {
+        const tOrigin = String(t.origin || '').trim().toLowerCase();
+        const tDest = String(t.destination || '').trim().toLowerCase();
+        return (!orderOrigin || tOrigin === orderOrigin) && (!orderDestination || tDest === orderDestination);
+      });
+
+      // If no exact origin/destination match found, show all active/scheduled trips
+      if (matching.length === 0 && Array.isArray(data) && data.length > 0) {
+        matching = data.filter((t) => t.status === 'scheduled' || t.status === 'in_progress');
+      }
+
       setTrips(matching);
     } catch (err) {
       // Trip loading failed silently — empty list shown
