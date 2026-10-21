@@ -211,6 +211,27 @@ export const getCachedTripsList = async () => {
   return record?.data || [];
 };
 
+// ── Orders list cache (for AdminOrdersPage offline hydration) ───────────────
+// Uses synthetic keys inside STORE_ORDERS so no DB version bump is needed.
+// Keys look like "__orders_list__:All:1:15" — never conflict with real UUIDs.
+const ordersListKey = (tab, page, perPage) =>
+  `__orders_list__:${tab}:${page}:${perPage}`;
+
+export const saveCachedOrdersList = (tab, page, perPage, data, count) =>
+  putRecord(STORE_ORDERS, {
+    id: ordersListKey(tab, page, perPage),
+    _is_list_cache: true,
+    _saved_at: new Date().toISOString(),
+    _data: data,
+    _count: count,
+  });
+
+export const getCachedOrdersList = async (tab, page, perPage) => {
+  const record = await getRecord(STORE_ORDERS, ordersListKey(tab, page, perPage));
+  if (!record?._is_list_cache) return null;
+  return { data: record._data || [], count: record._count || 0 };
+};
+
 // ── Order details cache (for OrderDetailPage & QrScannerModal offline use) ──
 export const saveCachedOrder = async (order) => {
   if (!order || !order.id) return null;

@@ -9,7 +9,7 @@ import { selectEarliestCapacityTrip, selectNextDepartureTrip, isScheduledTripOve
 import { ORDER_PARTY_NAME_COLUMNS } from './orderParties';
 import { containsFilter } from './queryFilters';
 import { fetchAllOrderedRows } from './queryPagination';
-import { saveCachedTripDetail, getCachedTripDetail, saveCachedTripsList, getCachedTripsList, isNetworkError, saveCachedOrder, getCachedOrder, queueScanEvent, SCAN_EVENT_TYPES } from './offlineScannerQueue';
+import { saveCachedTripDetail, getCachedTripDetail, saveCachedTripsList, getCachedTripsList, isNetworkError, saveCachedOrder, getCachedOrder, queueScanEvent, SCAN_EVENT_TYPES, saveCachedOrdersList, getCachedOrdersList } from './offlineScannerQueue';
 
 // ==================== HELPER ====================
 // Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
@@ -348,6 +348,20 @@ export const getOrders = async (userId, isAdmin = false, options = {}) => {
     return fetchAllOrderedRows(buildQuery, { searchFilter });
   }
 
+  // ── Offline fast-path (paginated queries only) ──────────────────────────
+  // Return cached data immediately when offline, same as getTrips. Only
+  // non-search queries are cached — search results are ephemeral.
+  const cacheTab = (() => {
+    if (Array.isArray(statusFilter)) return [...statusFilter].sort().join(',');
+    return statusFilter || 'All';
+  })();
+  const isCacheable = page && perPage && !search?.trim();
+
+  if (isCacheable && typeof navigator !== 'undefined' && navigator.onLine === false) {
+    const cached = await getCachedOrdersList(cacheTab, page, perPage).catch(() => null);
+    if (cached) return cached;
+  }
+
   let query = buildQuery()
     .order('created_at', { ascending: false })
     .order('id', { ascending: false });
@@ -361,10 +375,29 @@ export const getOrders = async (userId, isAdmin = false, options = {}) => {
     query = query.limit(limit);
   }
 
-  const { data, error, count } = await query;
-  if (error) throw error;
-  
+  let data, error, count;
+  try {
+    ({ data, error, count } = await query);
+  } catch (fetchErr) {
+    if (isCacheable && isNetworkError(fetchErr)) {
+      const cached = await getCachedOrdersList(cacheTab, page, perPage).catch(() => null);
+      if (cached) return cached;
+    }
+    throw fetchErr;
+  }
+  if (error) {
+    if (isCacheable && isNetworkError(error)) {
+      const cached = await getCachedOrdersList(cacheTab, page, perPage).catch(() => null);
+      if (cached) return cached;
+    }
+    throw error;
+  }
+
   if (page && perPage) {
+    // Save to IndexedDB for offline use (non-search paginated results only)
+    if (isCacheable) {
+      saveCachedOrdersList(cacheTab, page, perPage, data || [], count || 0).catch(() => {});
+    }
     return { data: data || [], count: count || 0 };
   }
   return data || [];

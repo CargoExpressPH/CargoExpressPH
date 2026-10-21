@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { getOrders, getOrderStatusCounts, withTimeout } from '../../lib/database';
+import { isNetworkError } from '../../lib/offlineScannerQueue';
 import useNetworkRecovery from '../../hooks/useNetworkRecovery';
 import useRealtimeOrders from '../../hooks/useRealtimeOrders';
 import useLatestRequest from '../../hooks/useLatestRequest';
@@ -11,7 +12,7 @@ import EmptyState from '../../components/ui/EmptyState';
 import PageTransition from '../../components/ui/PageTransition';
 import ResponsiveFilterControls from '../../components/ui/ResponsiveFilterControls';
 import Pagination from '../../components/ui/Pagination';
-import { Search, Package, Plus } from 'lucide-react';
+import { Search, Package, Plus, CloudOff } from 'lucide-react';
 import usePageTitle from '../../hooks/usePageTitle';
 import { formatMoney } from '../../utils/currencyInput';
 import { isOrderPriced, ORDER_STATUS } from '../../constants/status';
@@ -61,6 +62,9 @@ const AdminOrdersPage = () => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [isOnline, setIsOnline] = useState(() =>
+    typeof navigator !== 'undefined' ? navigator.onLine !== false : true
+  );
   // ?tab=<group> lets other screens (the dashboard's "Needs attention" list)
   // open this list already filtered. Unknown values fall back to All.
   const [searchParams, setSearchParams] = useSearchParams();
@@ -99,7 +103,17 @@ const AdminOrdersPage = () => {
       setOrders(data || []);
       setTotalOrders(count || 0);
     } catch (e) {
-      if (isCurrent()) setError(e.message || 'Failed to load bookings.');
+      // Network errors are handled silently: the data layer falls back to
+      // IndexedDB cache, so a throw here means there was no cache either.
+      // Show an empty list with the offline banner rather than an error card.
+      if (isCurrent()) {
+        if (isNetworkError(e)) {
+          setOrders([]);
+          setTotalOrders(0);
+        } else {
+          setError(e.message || 'Failed to load bookings.');
+        }
+      }
     } finally {
       if (isCurrent()) setLoading(false);
     }
@@ -138,6 +152,18 @@ const AdminOrdersPage = () => {
 
   // Cleanup debounce on unmount so a pending timer can't set state after teardown
   useEffect(() => () => clearTimeout(debounceTimer.current), []);
+
+  // Track online/offline transitions
+  useEffect(() => {
+    const handleOnline = () => { setIsOnline(true); loadOrdersRef.current(); };
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   const handleRecovery = useCallback(() => {
     loadOrdersRef.current();
@@ -215,6 +241,23 @@ const AdminOrdersPage = () => {
           </button>
         </div>
       </div>
+      {!isOnline && (
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10,
+          background: 'rgba(234, 179, 8, 0.12)',
+          border: '1px solid rgba(234, 179, 8, 0.35)',
+          color: 'var(--text-muted, #ca8a04)',
+          borderRadius: 8,
+          padding: '10px 14px',
+          marginBottom: 16,
+          fontSize: '0.875rem',
+        }}>
+          <CloudOff size={18} color="#eab308" />
+          <span><strong>Offline Mode</strong> &mdash; Showing locally cached bookings. Changes you make here will sync automatically when back online.</span>
+        </div>
+      )}
       <div className="admin-toolbar">
         <div className="search-box" role="search">
           <Search size={16} className="search-icon" aria-hidden="true" />
@@ -246,11 +289,17 @@ const AdminOrdersPage = () => {
       ) : paginated.length === 0 ? (
         <div className="card animate-fade-in">
           <EmptyState
-            icon={Package}
-            title="No orders found"
-            description={search ? "Try adjusting your search or filter criteria." : "There are no bookings here yet. Create one manually or wait for customers to book."}
-            actionLabel={!search && activeTab === 'All' ? 'Add Booking' : undefined}
-            onAction={!search && activeTab === 'All' ? () => navigate('/admin/create-booking') : undefined}
+            icon={isOnline ? Package : CloudOff}
+            title={!isOnline && !search ? 'No cached bookings' : 'No orders found'}
+            description={
+              !isOnline && !search
+                ? 'No bookings were found in the local cache. Connect to the internet to load your bookings.'
+                : search
+                  ? 'Try adjusting your search or filter criteria.'
+                  : 'There are no bookings here yet. Create one manually or wait for customers to book.'
+            }
+            actionLabel={!search && activeTab === 'All' && isOnline ? 'Add Booking' : undefined}
+            onAction={!search && activeTab === 'All' && isOnline ? () => navigate('/admin/create-booking') : undefined}
           />
         </div>
       ) : (
