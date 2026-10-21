@@ -397,6 +397,9 @@ export const getOrders = async (userId, isAdmin = false, options = {}) => {
     // Save to IndexedDB for offline use (non-search paginated results only)
     if (isCacheable) {
       saveCachedOrdersList(cacheTab, page, perPage, data || [], count || 0).catch(() => {});
+      // Also persist each row under its own id so getOrderById can serve it
+      // offline even when the user has never opened that booking individually.
+      (data || []).forEach((row) => { if (row?.id) saveCachedOrder(row).catch(() => {}); });
     }
     return { data: data || [], count: count || 0 };
   }
