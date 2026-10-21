@@ -269,7 +269,9 @@ const AdminOrderDetailPage = () => {
       .then(() => toast.success(`Box ${scannedBox} verified`))
       .catch((e) => {
         recordedScanRef.current = null;
-        toast.error(e.message || 'Could not verify this box');
+        if (!isNetworkError(e)) {
+          toast.error(e.message || 'Could not verify this box');
+        }
       });
   }, [scannedBox, order]);
 
@@ -423,22 +425,60 @@ const AdminOrderDetailPage = () => {
       const data = await getOrderById(id);
       if (!isCurrent()) return;
       setOrder(data);
-      const history = await getTripReassignments(id);
-      if (isCurrent()) setTripHistory(history);
-      const actLogs = await getActivityLogsByRecord(id, data.tracking_number);
-      if (isCurrent()) setActivityHistory(actLogs);
-      const events = await getOrderStatusEvents(id);
-      if (isCurrent()) setStatusEvents(events);
-      const pmts = await getPaymentTransactions(id);
-      if (isCurrent()) setPaymentTransactions(pmts);
-      const settlement = data.status === ORDER_STATUS.CANCELLED
-        ? await getCancellationSettlementSummary(id)
-        : null;
-      if (isCurrent()) setCancellationSettlement(settlement);
+
+      try {
+        const history = await getTripReassignments(id);
+        if (isCurrent()) setTripHistory(history || []);
+      } catch (err) {
+        if (!isNetworkError(err)) console.warn('Could not load trip history:', err);
+      }
+
+      try {
+        const actLogs = await getActivityLogsByRecord(id, data.tracking_number);
+        if (isCurrent()) setActivityHistory(actLogs || []);
+      } catch (err) {
+        if (!isNetworkError(err)) console.warn('Could not load activity history:', err);
+      }
+
+      try {
+        const events = await getOrderStatusEvents(id);
+        if (isCurrent()) setStatusEvents(events || []);
+      } catch (err) {
+        if (!isNetworkError(err)) console.warn('Could not load status events:', err);
+      }
+
+      try {
+        const pmts = await getPaymentTransactions(id);
+        if (isCurrent()) setPaymentTransactions(pmts || []);
+      } catch (err) {
+        if (!isNetworkError(err)) console.warn('Could not load payment transactions:', err);
+      }
+
+      if (data.status === ORDER_STATUS.CANCELLED) {
+        try {
+          const settlement = await getCancellationSettlementSummary(id);
+          if (isCurrent()) setCancellationSettlement(settlement);
+        } catch (err) {
+          if (!isNetworkError(err)) console.warn('Could not load cancellation settlement:', err);
+        }
+      }
     } catch (e) {
       if (!isCurrent()) return;
-      if (silent) toast.error(e.message || 'Failed to refresh order.');
-      else setError(e.message || 'Failed to load order.');
+      if (isNetworkError(e)) {
+        try {
+          const cached = await getCachedOrder(id);
+          if (cached && isCurrent()) {
+            setOrder({ ...cached, _fromCache: true });
+            return;
+          }
+        } catch {}
+        if (!silent) {
+          setError('You are offline and this booking has not been cached yet.');
+        }
+      } else {
+        if (silent) toast.error(e.message || 'Failed to refresh order.');
+        else setError(e.message || 'Failed to load order.');
+      }
     } finally {
       if (isCurrent()) setLoading(false);
     }
@@ -973,6 +1013,25 @@ const AdminOrderDetailPage = () => {
         { label: 'Bookings', to: '/admin/orders' },
         { label: order.tracking_number },
       ]} />
+
+      {(!isOnline || order?._fromCache) && (
+        <div style={{
+          background: 'rgba(234, 88, 12, 0.1)',
+          border: '1px solid rgba(234, 88, 12, 0.3)',
+          borderRadius: '8px',
+          padding: '10px 14px',
+          marginBottom: '16px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px',
+          color: '#ea580c',
+          fontSize: '13px',
+          fontWeight: '500',
+        }}>
+          <WifiOff size={16} style={{ flexShrink: 0 }} />
+          <span>Offline Mode (Cached Booking) — Scans and delivery confirmations will be saved on this device and synced automatically once you are back online.</span>
+        </div>
+      )}
 
       <ErrorBoundarySection message="Order info failed to load.">
       {/* Header */}
