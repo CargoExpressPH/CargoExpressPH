@@ -470,7 +470,7 @@ const TripDetailPage = () => {
             {trip.status==='arrived' && undeliveredOrders.length > 0 && (
               <div className="text-xs text-tertiary mt-8 flex items-center gap-6">
                 <AlertTriangle size={12} aria-hidden="true" />
-                {`${undeliveredOrders.length} booking${undeliveredOrders.length === 1 ? '' : 's'} remaining. Open each booking below to advance to "Out for Delivery" and scan to deliver.`}
+                {`${undeliveredOrders.length} booking${undeliveredOrders.length === 1 ? '' : 's'} remaining. Open each booking below, scan and load all boxes onto the delivery van, then advance to "Out for Delivery".`}
               </div>
             )}
           </div>

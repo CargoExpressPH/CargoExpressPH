@@ -46,7 +46,7 @@ import {
 } from '../../constants/status';
 import {
   ArrowLeft, Check, Package, CreditCard, User, Phone, MapPin,
-  Truck, Loader, Camera, AlertTriangle, X, Image, Clock, Trash2, Star, ChevronDown, UserPlus, Tag, RotateCcw, Lock, WifiOff
+  Truck, Loader, Camera, AlertTriangle, X, Image, Clock, Trash2, Star, ChevronDown, UserPlus, Tag, RotateCcw, Lock, WifiOff, ScanQrCode
 } from 'lucide-react';
 import { useToast } from '../../hooks/useToast';
 import { useAuth } from '../../contexts/AuthContext';
@@ -146,6 +146,7 @@ const AdminOrderDetailPage = () => {
 
   const [showDeliveryModal, setShowDeliveryModal] = useState(false);
   const [showScannerModal, setShowScannerModal] = useState(false);
+  const [showDispatchScannerModal, setShowDispatchScannerModal] = useState(false);
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [showDeclineCancelModal, setShowDeclineCancelModal] = useState(false);
   const [showApproveCancellationModal, setShowApproveCancellationModal] = useState(false);
@@ -509,6 +510,10 @@ const AdminOrderDetailPage = () => {
       toast.error(`"${next}" is set by the trip for every order aboard. Update the trip instead.`);
       return;
     }
+    if (order.status === ORDER_STATUS.ARRIVED_HUB && next === ORDER_STATUS.OUT_FOR_DELIVERY) {
+      setShowDispatchScannerModal(true);
+      return;
+    }
     // "Assigned" means assigned to a *trip*. Without one the status is a claim
     // about nothing, so the click is redirected to the thing that has to happen
     // first rather than refused — the admin wanted to move this order forward,
@@ -605,6 +610,31 @@ const AdminOrderDetailPage = () => {
   // Delivery from a package label runs in the scanner's delivery session
   // (QrScannerModal), so this page no longer auto-opens delivery from a
   // ?deliver flag. The Delivered button still goes through handleStatusAdvance().
+
+  const handleDispatchComplete = async () => {
+    const next = ORDER_STATUS.OUT_FOR_DELIVERY;
+    const validation = validateStatusTransition(order.status, next, order.trip_id, order);
+    if (!validation.valid) {
+      toast.error(validation.error);
+      return;
+    }
+    setSaving(true);
+    try {
+      await updateOrder(id, { status: next, verified_boxes: [] });
+      logOrder(`Status Changed to ${next}`, id, order.tracking_number, {
+        previousValue: { status: order.status },
+        newValue: { status: next },
+        details: `Status advanced from ${order.status} to ${next} after dispatch scan verification.`,
+      });
+      setShowDispatchScannerModal(false);
+      await loadOrder();
+      toast.success('All boxes loaded and verified. Status advanced to "Out for Delivery".');
+    } catch (e) {
+      toast.error(e.message || 'Failed to advance status');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const handleDeliverySave = async (deliveryData) => {
     try {
@@ -1096,13 +1126,15 @@ const AdminOrderDetailPage = () => {
         </div>
       )}
 
-      {(order.status === ORDER_STATUS.PICKED_UP || order.status === ORDER_STATUS.OUT_FOR_DELIVERY) && (
+      {(order.status === ORDER_STATUS.PICKED_UP || order.status === ORDER_STATUS.OUT_FOR_DELIVERY || order.status === ORDER_STATUS.ARRIVED_HUB) && (
         <div className="text-sm mb-16" role="status">
           <strong>Boxes verified:</strong>{' '}
           {(order.verified_boxes || []).length} of {order.package_quantity || 1}
           {order.status === ORDER_STATUS.PICKED_UP
             ? ' — every box QR code must be scanned before departure.'
-            : ' — scan each box using the scanner to complete delivery.'}
+            : order.status === ORDER_STATUS.ARRIVED_HUB
+              ? ' — scan every box QR code before dispatching for delivery.'
+              : ' — scan each box using the scanner to complete delivery.'}
         </div>
       )}
 
@@ -1324,6 +1356,16 @@ const AdminOrderDetailPage = () => {
                   disabled={saving}
                 >
                   <Camera size={16} /> Open Scanner to Deliver
+                </button>
+              ) : order.status === ORDER_STATUS.ARRIVED_HUB ? (
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={() => setShowDispatchScannerModal(true)}
+                  disabled={saving}
+                >
+                  {saving ? <Loader size={16} className="animate-spin" /> : <ScanQrCode size={16} />}
+                  Scan to Load for Delivery
                 </button>
               ) : (
                 <button type="button" className="btn btn-primary" onClick={handleStatusAdvance} disabled={saving}>
@@ -1979,6 +2021,17 @@ const AdminOrderDetailPage = () => {
           initialOrder={order}
           onClose={() => {
             setShowScannerModal(false);
+            void loadOrder(true, { silent: true });
+          }}
+        />
+      )}
+      {showDispatchScannerModal && (
+        <QrScannerModal
+          initialOrder={order}
+          mode="dispatch"
+          onDispatchComplete={handleDispatchComplete}
+          onClose={() => {
+            setShowDispatchScannerModal(false);
             void loadOrder(true, { silent: true });
           }}
         />

@@ -169,7 +169,7 @@ const loadImage = (file) => new Promise((resolve, reject) => {
   img.src = url;
 });
 
-const QrScannerModal = ({ onClose, initialOrder = null }) => {
+const QrScannerModal = ({ onClose, initialOrder = null, mode = 'delivery', onDispatchComplete = null }) => {
   const navigate = useNavigate();
   const titleId = useId();
   const descriptionId = useId();
@@ -182,6 +182,7 @@ const QrScannerModal = ({ onClose, initialOrder = null }) => {
   const resolvingRef = useRef(false);
   const lastScanRef = useRef({ text: '', at: 0 });
   const mountedRef = useRef(true);
+  const modeRef = useRef(mode);
   const toast = useToast();
 
   // Live camera: 'starting' → 'live', or 'error' when it cannot be used.
@@ -204,7 +205,7 @@ const QrScannerModal = ({ onClose, initialOrder = null }) => {
         trackingNumber: initialOrder.tracking_number,
         customerName: orderPartyName(initialOrder, 'receiver'),
         packageQuantity: initialOrder.package_quantity || 1,
-        verified: [...(initialOrder.verified_boxes || [])],
+        verified: mode === 'dispatch' ? [] : [...(initialOrder.verified_boxes || [])],
         order: initialOrder,
       };
     }
@@ -469,8 +470,11 @@ const QrScannerModal = ({ onClose, initialOrder = null }) => {
         return;
       }
 
-      if (order.status !== ORDER_STATUS.OUT_FOR_DELIVERY) {
-        reject(`This package is no longer Out for Delivery (now "${order.status}").`);
+      const expectedStatus = modeRef.current === 'dispatch' ? ORDER_STATUS.ARRIVED_HUB : ORDER_STATUS.OUT_FOR_DELIVERY;
+      if (order.status !== expectedStatus) {
+        reject(modeRef.current === 'dispatch'
+          ? `This package is no longer at the hub (now "${order.status}").`
+          : `This package is no longer Out for Delivery (now "${order.status}").`);
         return;
       }
       if (payload.kind !== 'order') {
@@ -577,6 +581,17 @@ const QrScannerModal = ({ onClose, initialOrder = null }) => {
     setPodOrder(null);
   }, []);
 
+  const handleDispatchConfirm = () => {
+    const active = sessionRef.current;
+    if (!active || busy) return;
+    const remaining = missingBoxes(active);
+    if (remaining.length > 0) {
+      reject(`Scan the remaining boxes first: ${remaining.map((b) => `Box ${b}`).join(', ')}.`);
+      return;
+    }
+    onDispatchComplete?.();
+  };
+
   // Saves the proof of delivery (supports offline queuing).
   const handleDeliverySubmit = async (payload) => {
     if (!podOrder) return;
@@ -673,7 +688,9 @@ const QrScannerModal = ({ onClose, initialOrder = null }) => {
       settle(
         rem.length
           ? `Box ${box} verified. ${boxCount(rem.length)} left.`
-          : 'All boxes verified. Proceed to proof of delivery.',
+          : modeRef.current === 'dispatch'
+            ? 'All boxes loaded. Confirm dispatch to continue.'
+            : 'All boxes verified. Proceed to proof of delivery.',
         'success',
       );
       playScanSuccessSound();
@@ -948,7 +965,7 @@ const QrScannerModal = ({ onClose, initialOrder = null }) => {
             <section className="qr-scanner-session" aria-label="Active delivery">
               <div className="qr-scanner-session-head">
                 <div className="qr-scanner-session-who">
-                  <span className="qr-scanner-session-label">Delivering to</span>
+                  <span className="qr-scanner-session-label">{mode === 'dispatch' ? 'Loading for delivery' : 'Delivering to'}</span>
                   <strong className="qr-scanner-session-name">{session.customerName || 'Receiver'}</strong>
                   <span className="report-mono qr-scanner-session-tracking">{session.trackingNumber}</span>
                 </div>
@@ -1038,13 +1055,13 @@ const QrScannerModal = ({ onClose, initialOrder = null }) => {
               <button
                 type="button"
                 className="btn btn-primary qr-scanner-pod-btn"
-                onClick={openPod}
+                onClick={mode === 'dispatch' ? handleDispatchConfirm : openPod}
                 disabled={busy || remaining.length > 0}
               >
                 <PackageCheck size={17} aria-hidden="true" />
                 {remaining.length > 0
                   ? `Scan ${boxCount(remaining.length)} more to continue`
-                  : 'Proceed to POD'}
+                  : mode === 'dispatch' ? 'Confirm Dispatch' : 'Proceed to POD'}
               </button>
             )}
           </div>
