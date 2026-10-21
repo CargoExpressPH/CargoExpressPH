@@ -337,6 +337,7 @@ const TripDetailPage = () => {
   const pendingCancellationOrders = orders.filter(o => o.status === 'Pending Cancellation');
   const notYetPickedUp = orders.filter(o => o.status === 'Pending' || o.status === 'Assigned');
   const eligibleOrders = orders.filter(o => !['Cancelled', 'Pending Cancellation', 'Pending', 'Assigned'].includes(o.status));
+  const undeliveredOrders = orders.filter(o => !['Delivered', 'Cancelled'].includes(o.status));
   const eligibleWeight = eligibleOrders.reduce((sum, o) => sum + (Number(o.actual_weight) || 0), 0);
   const heldBoxKeys = new Set(shortfalls.map(s => s.order_id + ':' + s.box_number));
   const unscannedBoxOrders = eligibleOrders.filter(o => {
@@ -455,16 +456,6 @@ const TripDetailPage = () => {
               </button>
             )}
             {trip.status==='in_progress' && <button type="button" className="btn btn-success" onClick={()=>openConfirm('arrived', 'Mark Arrived', `Mark trip ${trip.trip_number} as arrived at destination?`, 'success')} disabled={saving}><Flag size={16}/> Mark Arrived</button>}
-            {trip.status==='arrived' && (
-              <button
-                type="button"
-                className="btn btn-outline"
-                onClick={() => setShowScannerModal(true)}
-                title="Scan packages for handover and proof of delivery"
-              >
-                <ScanQrCode size={16} /> Delivery Scanner
-              </button>
-            )}
             {trip.status==='arrived' && <button type="button" className="btn btn-primary" onClick={handleCompleteClick} disabled={saving}><CheckCircle size={16}/> Complete</button>}
             {trip.status==='scheduled' && <button type="button" className="btn btn-danger-outline btn-sm" onClick={()=>openConfirm('cancelled', 'Cancel Trip', `Cancel trip ${trip.trip_number}? This action cannot be undone.`, 'danger')} disabled={saving}><XCircle size={16}/> Cancel Trip</button>}
             {saving && <Loader size={18} className="animate-spin"/>}
@@ -474,6 +465,12 @@ const TripDetailPage = () => {
             {trip.status==='scheduled' && startTripBlockReason && (
               <div className="text-xs text-tertiary mt-8 flex items-center gap-6">
                 <AlertTriangle size={12} aria-hidden="true" /> {startTripBlockReason}
+              </div>
+            )}
+            {trip.status==='arrived' && undeliveredOrders.length > 0 && (
+              <div className="text-xs text-tertiary mt-8 flex items-center gap-6">
+                <AlertTriangle size={12} aria-hidden="true" />
+                {`${undeliveredOrders.length} booking${undeliveredOrders.length === 1 ? '' : 's'} remaining. Open each booking below to advance to "Out for Delivery" and scan to deliver.`}
               </div>
             )}
           </div>
