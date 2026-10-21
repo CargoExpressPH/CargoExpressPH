@@ -1271,6 +1271,19 @@ export const updateTrip = async (tripId, updates) => {
     .single();
   if (error) throw error;
 
+  // Keep local IndexedDB cache in sync with the updated status
+  try {
+    const cached = await getCachedTripDetail(tripId);
+    if (cached) {
+      await saveCachedTripDetail(tripId, {
+        ...cached,
+        trip: { ...cached.trip, ...data },
+      });
+    }
+  } catch {
+    // Non-fatal cache sync
+  }
+
   // Status cascades, activity history, notifications, and durable delivery
   // jobs are committed atomically by the database trip trigger.
   return data;
@@ -1356,6 +1369,18 @@ export const rescheduleTrip = async (tripId, {
     } catch (err) {
       emailError = err?.message || 'Email notification could not be completed.';
     }
+  }
+
+  try {
+    const cached = await getCachedTripDetail(tripId);
+    if (cached) {
+      await saveCachedTripDetail(tripId, {
+        ...cached,
+        trip: { ...cached.trip, ...trip },
+      });
+    }
+  } catch {
+    // Non-fatal cache sync
   }
 
   return { trip, scheduleChanged, announcementId, emailQueued, emailError };

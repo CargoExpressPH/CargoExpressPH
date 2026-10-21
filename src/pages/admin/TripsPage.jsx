@@ -56,7 +56,7 @@ const AdminTripsPage = () => {
 
   useEffect(() => { loadTrips(); }, []);
   const loadTrips = async ({ silent = false } = {}) => {
-    if (!silent) { setError(null); setLoading(true); }
+    if (!silent && trips.length === 0) { setError(null); setLoading(true); }
     try {
       const data = await withTimeout(getTrips());
       const rows = data || [];
@@ -73,7 +73,7 @@ const AdminTripsPage = () => {
     } catch (e) {
       if (!silent) setError(e.message || 'Failed to load trips.');
     } finally {
-      if (!silent) setLoading(false);
+      setLoading(false);
     }
   };
 

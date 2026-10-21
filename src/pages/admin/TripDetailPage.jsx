@@ -90,7 +90,7 @@ const TripDetailPage = () => {
   const load = async ({ silent = false } = {}) => {
     const isCurrent = beginRequest();
     if (!isCurrent()) return;
-    if (!silent) { setError(null); setLoading(true); }
+    if (!silent && !data) { setError(null); setLoading(true); }
     try {
       const result = await getTripById(id);
       if (!isCurrent()) return;
@@ -112,7 +112,7 @@ const TripDetailPage = () => {
     } catch(e) {
       if (isCurrent() && !silent) setError(e.message || 'Failed to load trip.');
     } finally {
-      if (isCurrent() && !silent) setLoading(false);
+      if (isCurrent()) setLoading(false);
     }
   };
 
@@ -199,14 +199,21 @@ const TripDetailPage = () => {
 
     setSaving(true);
     try {
-      await updateTrip(id, updates);
-
-      await load();
+      const updatedTrip = await updateTrip(id, updates);
+      if (updatedTrip) {
+        setData((current) => current ? {
+          ...current,
+          trip: { ...current.trip, ...updatedTrip, ...updates },
+        } : current);
+      }
+      setConfirmAction(null);
+      await load({ silent: true });
       toast.success(`Trip updated to "${status}"`);
     } catch(e) {
       toast.error(e.message || 'Failed to update trip');
     } finally {
-      setSaving(false); setConfirmAction(null);
+      setSaving(false);
+      setConfirmAction(null);
     }
   };
 
@@ -263,7 +270,14 @@ const TripDetailPage = () => {
         departure_date, arrival_date, notify_all_subscribers, public_reason, change_reason,
       }, { origin: trip.origin, destination: trip.destination });
 
-      await load();
+      if (result?.trip) {
+        setData((current) => current ? {
+          ...current,
+          trip: { ...current.trip, ...result.trip },
+        } : current);
+      }
+
+      await load({ silent: true });
 
       if (!notify_all_subscribers || !result.scheduleChanged) {
         toast.success('Trip schedule updated.');
