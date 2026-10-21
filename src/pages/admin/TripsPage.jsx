@@ -7,7 +7,7 @@ import StatusBadge from '../../components/ui/StatusBadge';
 import { CenteredSpinner } from '../../components/ui/Loader';
 import EmptyState from '../../components/ui/EmptyState';
 import ResponsiveFilterControls from '../../components/ui/ResponsiveFilterControls';
-import { Plus, Truck, Calendar, MapPin } from 'lucide-react';
+import { Plus, Truck, Calendar, MapPin, CloudOff } from 'lucide-react';
 import usePageTitle from '../../hooks/usePageTitle';
 import { formatPhDate } from '../../utils/datetime';
 
@@ -40,7 +40,19 @@ const AdminTripsPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('All');
+  const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const handleOnline = () => { setIsOnline(true); loadTrips({ silent: true }); };
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   useEffect(() => { loadTrips(); }, []);
   const loadTrips = async ({ silent = false } = {}) => {
@@ -48,7 +60,14 @@ const AdminTripsPage = () => {
     try {
       const data = await withTimeout(getTrips());
       const rows = data || [];
-      const gates = await getTripStartDateGates(rows.filter(t => t.status === 'scheduled').map(t => t.id));
+      let gates = {};
+      try {
+        if (navigator.onLine) {
+          gates = await getTripStartDateGates(rows.filter(t => t.status === 'scheduled').map(t => t.id));
+        }
+      } catch (gateErr) {
+        console.warn('Unable to load trip start date gates (offline):', gateErr);
+      }
       setTrips(rows);
       setStartGates(gates);
     } catch (e) {
@@ -94,6 +113,23 @@ const AdminTripsPage = () => {
           <button type="button" className="btn btn-primary" onClick={() => navigate('/admin/trips/create')}><Plus size={16} /> Create Trip</button>
         </div>
       </div>
+      {!isOnline && (
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10,
+          background: 'rgba(234, 179, 8, 0.12)',
+          border: '1px solid rgba(234, 179, 8, 0.35)',
+          color: 'var(--text-muted, #ca8a04)',
+          borderRadius: 8,
+          padding: '10px 14px',
+          marginBottom: 16,
+          fontSize: '0.875rem',
+        }}>
+          <CloudOff size={18} color="#eab308" />
+          <span><strong>Offline Mode</strong> &mdash; Showing locally cached trips. You can open an active trip to scan cargo or record deliveries offline.</span>
+        </div>
+      )}
       <ResponsiveFilterControls
         options={filterOptions}
         value={activeTab}

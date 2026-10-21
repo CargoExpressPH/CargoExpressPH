@@ -7,7 +7,7 @@ import StatusBadge from '../../components/ui/StatusBadge';
 import ConfirmModal from '../../components/ui/ConfirmModal';
 import RescheduleTripModal from '../../components/ui/RescheduleTripModal';
 import { CenteredSpinner } from '../../components/ui/Loader';
-import { ArrowLeft, Play, Flag, CheckCircle, XCircle, Loader, Clock, ArrowRight, Package, AlertTriangle, Calendar, Pencil, ScanQrCode } from 'lucide-react';
+import { ArrowLeft, Play, Flag, CheckCircle, XCircle, Loader, Clock, ArrowRight, Package, AlertTriangle, Calendar, Pencil, ScanQrCode, CloudOff } from 'lucide-react';
 import TripScannerModal from '../../components/ui/TripScannerModal';
 import CapacityTracker from '../../components/ui/CapacityTracker';
 import Breadcrumb from '../../components/ui/Breadcrumb';
@@ -41,6 +41,17 @@ const TripDetailPage = () => {
   const [checkingStartGate, setCheckingStartGate] = useState(false);
   const toast = useToast();
   const beginRequest = useLatestRequest(id);
+  const [isOnline, setIsOnline] = useState(() => typeof navigator === 'undefined' || navigator.onLine !== false);
+  useEffect(() => {
+    const handleOnline = () => { setIsOnline(true); void load({ silent: true }); };
+    const handleOffline = () => { setIsOnline(false); };
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   useEffect(() => {
     setData(null);
@@ -92,8 +103,12 @@ const TripDetailPage = () => {
       listBoxScanEvents(id)
         .then((rows) => { if (isCurrent()) setScanEvents(rows); })
         .catch(() => { if (isCurrent()) setScanEvents([]); });
-      const actLogs = await getActivityLogsByRecord(id, result?.trip?.trip_number);
-      if (isCurrent()) setActivityHistory(actLogs);
+      try {
+        const actLogs = await getActivityLogsByRecord(id, result?.trip?.trip_number);
+        if (isCurrent()) setActivityHistory(actLogs);
+      } catch {
+        if (isCurrent()) setActivityHistory([]);
+      }
     } catch(e) {
       if (isCurrent() && !silent) setError(e.message || 'Failed to load trip.');
     } finally {
@@ -376,6 +391,30 @@ const TripDetailPage = () => {
       </div>
 
       {/* Actions (Only render if there are actionable buttons) */}
+      {/* Offline Mode Banner */}
+      {(!isOnline || data?._fromCache) && (
+        <div
+          className="card admin-section-card mb-16"
+          style={{
+            background: 'rgba(234, 179, 8, 0.08)',
+            border: '1px solid rgba(234, 179, 8, 0.3)',
+            padding: '12px 16px',
+            borderRadius: '12px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+          }}
+          role="status"
+        >
+          <CloudOff size={18} style={{ color: '#EAB308', flexShrink: 0 }} aria-hidden="true" />
+          <div style={{ fontSize: '0.875rem', lineHeight: '1.4' }}>
+            <strong style={{ color: 'var(--text-primary)' }}>Offline Mode (Local Cache):</strong>
+            <span style={{ color: 'var(--text-secondary)', marginLeft: '6px' }}>
+              Viewing trip offline. You can continue scanning packages and capturing delivery proofs. All scans and deliveries will sync automatically once reconnected.
+            </span>
+          </div>
+        </div>
+      )}
       {(['scheduled', 'in_progress', 'arrived'].includes(trip.status) || saving) && (
         <div className="card admin-section-card admin-action-card stagger-item mb-16" style={{ animationDelay: '60ms'}}>
           <div className="card-body">
@@ -716,7 +755,7 @@ const TripDetailPage = () => {
           }}
           onClose={() => {
             setShowScannerModal(false);
-            void load();
+            void load({ silent: true });
           }}
         />
       )}

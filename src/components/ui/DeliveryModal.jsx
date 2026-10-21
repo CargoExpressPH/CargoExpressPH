@@ -16,6 +16,7 @@ import PaymentCollectionPanel, {
   PAYMENT_FIELDS,
 } from './PaymentCollectionPanel';
 import { orderPartyName } from '../../lib/orderParties';
+import { isNetworkError, fileToOfflinePhoto } from '../../lib/offlineScannerQueue';
 
 /**
  * DeliveryModal — Admin delivery processing.
@@ -157,6 +158,36 @@ const DeliveryModal = ({ order, onClose, onSave }) => {
     }
 
     setSaving(true);
+
+    const isOffline = typeof navigator !== 'undefined' && navigator.onLine === false;
+    if (isOffline) {
+      try {
+        setUploadProgress('Saving delivery proof offline...');
+        const offlinePhotos = await Promise.all(photos.map(fileToOfflinePhoto));
+        let offlineReceipt = null;
+        if (payment.receiptFile) {
+          offlineReceipt = await fileToOfflinePhoto(payment.receiptFile);
+        }
+
+        const payload = {
+          delivery_photos: photoPreviews,
+          _offlinePhotos: offlinePhotos.filter(Boolean),
+          _offlineReceipt: offlineReceipt,
+          _isOffline: true,
+          ...(needsPayment
+            ? buildPaymentSubmission(payment, paymentConfig, null)
+            : { payment_method: null, payment_reference: null, promised_payment_date: null, payment: null }),
+        };
+
+        await onSave(payload);
+        return;
+      } catch (offlineErr) {
+        setError(offlineErr.message || 'Could not save proof of delivery offline.');
+        setSaving(false);
+        return;
+      }
+    }
+
     try {
       setUploadProgress('Uploading delivery proofs...');
       const photoUrls = await uploadMultiplePhotos(
@@ -195,6 +226,29 @@ const DeliveryModal = ({ order, onClose, onSave }) => {
 
       await onSave(payload);
     } catch (err) {
+      if (isNetworkError(err)) {
+        try {
+          setUploadProgress('Network dropped. Saving delivery proof offline...');
+          const offlinePhotos = await Promise.all(photos.map(fileToOfflinePhoto));
+          let offlineReceipt = null;
+          if (payment.receiptFile) {
+            offlineReceipt = await fileToOfflinePhoto(payment.receiptFile);
+          }
+          const payload = {
+            delivery_photos: photoPreviews,
+            _offlinePhotos: offlinePhotos.filter(Boolean),
+            _offlineReceipt: offlineReceipt,
+            _isOffline: true,
+            ...(needsPayment
+              ? buildPaymentSubmission(payment, paymentConfig, null)
+              : { payment_method: null, payment_reference: null, promised_payment_date: null, payment: null }),
+          };
+          await onSave(payload);
+          return;
+        } catch {
+          // fall through to setError
+        }
+      }
       setError(err.message);
       setSaving(false);
     }

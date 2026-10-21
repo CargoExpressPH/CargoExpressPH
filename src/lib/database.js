@@ -9,6 +9,7 @@ import { selectEarliestCapacityTrip, selectNextDepartureTrip, isScheduledTripOve
 import { ORDER_PARTY_NAME_COLUMNS } from './orderParties';
 import { containsFilter } from './queryFilters';
 import { fetchAllOrderedRows } from './queryPagination';
+import { saveCachedTripDetail, getCachedTripDetail, saveCachedTripsList, getCachedTripsList, isNetworkError } from './offlineScannerQueue';
 
 // ==================== HELPER ====================
 // Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
@@ -1012,70 +1013,77 @@ export const createTrip = async (tripData) => {
 };
 
 export const getTrips = async (statusFilter) => {
-  let query = supabase
-    .from('trips')
-    .select('*');
-
-  if (statusFilter === 'active') {
-    // Only 'scheduled' trips whose PH calendar day hasn't passed — mirrors
-    // guard_customer_order_insert()'s ph_calendar_day() cutoff exactly (see
-    // 20260829160000_trip_date_only_scheduling.sql), so a trip shown here is
-    // never one the database would then reject at booking time.
-    //
-    // phDayRangeISO's `start` is PH midnight of "today" as an offset-
-    // qualified ISO string. A bare "YYYY-MM-DD" string here would be read by
-    // PostgREST as UTC midnight — 8 hours ahead of PH midnight — which would
-    // wrongly exclude a trip scheduled for later TODAY (departure_date is
-    // now stored as PH midnight, i.e. before that UTC cutoff) until 8am PH.
-    const { start: todayStartPH } = phDayRangeISO(new Date().toISOString());
-    query = query
-      .in('status', ['scheduled'])
-      .gte('departure_date', todayStartPH)
-      .order('departure_date', { ascending: true }); // Earliest first
-  } else {
-    if (statusFilter) {
-      query = query.eq('status', statusFilter);
-    }
-    // For admins seeing all trips, order newest created first
-    query = query.order('created_at', { ascending: false });
-  }
-
-  const { data, error } = await query;
-  if (error) throw error;
-
-  const trips = data || [];
-  if (trips.length === 0) return trips;
-  await attachCompanyTripDefaults(trips);
-
-  // Ã¢â€â‚¬Ã¢â€â‚¬ Batch weight query (avoids N+1) Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
-  // get_trips_load (20260830000000_get_trips_load_rpc.sql) is a SECURITY
-  // DEFINER RPC, not a direct `.from('orders')` select: RLS ("Users can view
-  // own orders") only lets a customer read their own rows, so a direct query
-  // here would sum only that one customer's cargo per trip and report every
-  // trip as far emptier than it truly is. The RPC aggregates server-side
-  // across ALL orders on the trip and returns just trip_id + total weight —
-  // no per-order data.
-  const tripIds = trips.map(t => t.id);
-  if (tripIds.length > 0) {
-    const { data: allWeightData, error: weightError } = await supabase
-      .rpc('get_trips_load', { trip_ids: tripIds });
-    if (weightError) throw weightError;
-
-    const weightByTrip = new Map();
-    for (const row of allWeightData || []) {
-      weightByTrip.set(row.trip_id, parseFloat(row.current_weight || 0));
-    }
-
-    for (const trip of trips) {
-      trip.current_weight = weightByTrip.get(trip.id) || 0;
-    }
-  } else {
-    for (const trip of trips) {
-      trip.current_weight = 0;
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+    const cached = await getCachedTripsList().catch(() => []);
+    if (cached?.length) {
+      if (statusFilter && statusFilter !== 'active') {
+        return cached.filter((t) => t.status === statusFilter);
+      }
+      return cached;
     }
   }
 
-  return trips;
+  try {
+    let query = supabase
+      .from('trips')
+      .select('*');
+
+    if (statusFilter === 'active') {
+      const { start: todayStartPH } = phDayRangeISO(new Date().toISOString());
+      query = query
+        .in('status', ['scheduled'])
+        .gte('departure_date', todayStartPH)
+        .order('departure_date', { ascending: true });
+    } else {
+      if (statusFilter) {
+        query = query.eq('status', statusFilter);
+      }
+      query = query.order('created_at', { ascending: false });
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    const trips = data || [];
+    if (trips.length === 0) return trips;
+    await attachCompanyTripDefaults(trips);
+
+    const tripIds = trips.map((t) => t.id);
+    if (tripIds.length > 0) {
+      const { data: allWeightData, error: weightError } = await supabase
+        .rpc('get_trips_load', { trip_ids: tripIds });
+      if (weightError) throw weightError;
+
+      const weightByTrip = new Map();
+      for (const row of allWeightData || []) {
+        weightByTrip.set(row.trip_id, parseFloat(row.current_weight || 0));
+      }
+
+      for (const trip of trips) {
+        trip.current_weight = weightByTrip.get(trip.id) || 0;
+      }
+    } else {
+      for (const trip of trips) {
+        trip.current_weight = 0;
+      }
+    }
+
+    if (!statusFilter || statusFilter === 'All') {
+      saveCachedTripsList(trips).catch(() => {});
+    }
+    return trips;
+  } catch (err) {
+    if (isNetworkError(err)) {
+      const cached = await getCachedTripsList().catch(() => []);
+      if (cached?.length) {
+        if (statusFilter && statusFilter !== 'active') {
+          return cached.filter((t) => t.status === statusFilter);
+        }
+        return cached;
+      }
+    }
+    throw err;
+  }
 };
 
 /**
@@ -1173,43 +1181,61 @@ export const getMonthlySalesReport = async (tripIds = []) => {
 };
 
 export const getTripById = async (tripId) => {
-  const { data: trip, error } = await supabase
-    .from('trips')
-    .select('*')
-    .eq('id', tripId)
-    .single();
-  if (error) throw error;
-  await attachCompanyTripDefaults(trip);
+  // If the browser is definitely offline, immediately attempt to load from local cache
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+    const cached = await getCachedTripDetail(tripId).catch(() => null);
+    if (cached) return { ...cached, _fromCache: true };
+    throw new Error('You are currently offline and this trip is not cached yet.');
+  }
 
-  const { data: gateRows, error: gateError } = await supabase.rpc('get_trip_start_date_gates', {
-    p_trip_ids: [tripId],
-  });
-  if (gateError) throw gateError;
+  try {
+    const { data: trip, error } = await supabase
+      .from('trips')
+      .select('*')
+      .eq('id', tripId)
+      .single();
+    if (error) throw error;
+    await attachCompanyTripDefaults(trip);
 
-  const orders = await fetchAllOrderedRows(() => supabase
-    .from('orders')
-    // shipping_cost + amount_paid are what outstandingBalance() derives from —
-    // the trip-completion guard reads that, not the stored remaining_balance,
-    // so it agrees with the Unsettled tab. remaining_balance is still selected
-    // for the settlement column's stale-value annotation.
-    // user_id + the profiles embed back the "Message customer" shortcut on
-    // each row. The trip's order table shows addresses, not the booker, so
-    // without the embed there is no name to put on the control.
-    .select(`id, tracking_number, ${ORDER_PARTY_NAME_COLUMNS}, user_id, status, actual_weight, package_quantity, verified_boxes, sender_province, sender_city, receiver_province, receiver_city, created_at, shipping_cost, discount_amount, amount_paid, remaining_balance, payment_status, promised_payment_date, profiles:user_id (name)`)
-    .eq('trip_id', tripId), { ascending: true });
+    const { data: gateRows, error: gateError } = await supabase.rpc('get_trip_start_date_gates', {
+      p_trip_ids: [tripId],
+    });
+    if (gateError) throw gateError;
 
-  // Weight still comes from get_trips_load (see getTrips above), not a
-  // reduce() over `orders`, even though this caller is admin-only today and
-  // admin RLS already sees every row: keeping one aggregation path for all
-  // three call sites means current_weight can never silently drift out of
-  // sync with getTrips()/getTripCurrentWeight() if this function is ever
-  // reused from a customer-facing page.
-  const { data: loadData, error: loadError } = await supabase
-    .rpc('get_trips_load', { trip_ids: [tripId] });
-  if (loadError) throw loadError;
-  const currentWeight = parseFloat(loadData?.[0]?.current_weight || 0);
+    const orders = await fetchAllOrderedRows(() => supabase
+      .from('orders')
+      // shipping_cost + amount_paid are what outstandingBalance() derives from — 
+      // the trip-completion guard reads that, not the stored remaining_balance,
+      // so it agrees with the Unsettled tab. remaining_balance is still selected
+      // for the settlement column's stale-value annotation.
+      // user_id + the profiles embed back the "Message customer" shortcut on
+      // each row. The trip's order table shows addresses, not the booker, so
+      // without the embed there is no name to put on the control.
+      .select(`id, tracking_number, ${ORDER_PARTY_NAME_COLUMNS}, user_id, status, actual_weight, package_quantity, verified_boxes, sender_province, sender_city, receiver_province, receiver_city, created_at, shipping_cost, discount_amount, amount_paid, remaining_balance, payment_status, promised_payment_date, profiles:user_id (name)`)
+      .eq('trip_id', tripId), { ascending: true });
 
-  return { trip, orders: orders || [], current_weight: currentWeight, start_gate: gateRows?.[0] || null };
+    // Weight still comes from get_trips_load (see getTrips above), not a
+    // reduce() over `orders`, even though this caller is admin-only today and
+    // admin RLS already sees every row: keeping one aggregation path for all
+    // three call sites means current_weight can never silently drift out of
+    // sync with getTrips()/getTripCurrentWeight() if this function is ever
+    // reused from a customer-facing page.
+    const { data: loadData, error: loadError } = await supabase
+      .rpc('get_trips_load', { trip_ids: [tripId] });
+    if (loadError) throw loadError;
+    const currentWeight = parseFloat(loadData?.[0]?.current_weight || 0);
+
+    const result = { trip, orders: orders || [], current_weight: currentWeight, start_gate: gateRows?.[0] || null };
+    // Asynchronously update local cache so offline navigation always has fresh trip details
+    saveCachedTripDetail(tripId, result).catch(() => {});
+    return result;
+  } catch (err) {
+    if (isNetworkError(err)) {
+      const cached = await getCachedTripDetail(tripId).catch(() => null);
+      if (cached) return { ...cached, _fromCache: true };
+    }
+    throw err;
+  }
 };
 
 export const getTripStartDateGates = async (tripIds) => {

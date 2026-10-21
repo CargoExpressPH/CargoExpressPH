@@ -20,14 +20,18 @@ import {
 import {
   SCAN_EVENT_TYPES,
   countPendingScans,
+  countTotalPending,
   findDuplicateScan,
   flushPendingScans,
+  flushPendingPods,
   formatScanTime,
   getTripManifest,
   isNetworkError,
   queueScanEvent,
+  queuePodEvent,
   recordSyncedScan,
   saveTripManifest,
+  sendQueuedPod,
   startOnlineSync,
 } from '../../lib/offlineScannerQueue';
 import ManualBoxMatchOverlay from './ManualBoxMatchOverlay';
@@ -347,7 +351,7 @@ const TripScannerModal = ({
   }, [onOrdersUpdate]);
 
   const refreshPending = useCallback(() => {
-    countPendingScans(trip.id)
+    countTotalPending(trip.id)
       .then((n) => { if (mountedRef.current) setPendingCount(n); })
       .catch(() => { /* storage unavailable: the badge just stays at its last value */ });
   }, [trip.id]);
@@ -662,7 +666,10 @@ const TripScannerModal = ({
   // ── Offline queue sync ───────────────────────────────────────────────────
   const handleFlushed = useCallback((summary) => {
     refreshPending();
-    summary.synced.forEach((event) => {
+    const scanSummary = summary?.scans || (summary?.synced ? summary : { synced: [], failed: [] });
+    const podSummary = summary?.pods || { synced: [], failed: [] };
+
+    (scanSummary.synced || []).forEach((event) => {
       const order = ordersRef.current.find((o) => o.id === event.order_id);
       if (!order) return;
       logOrder('Cargo Box Verified via Trip Scanner (synced from offline)', order.id, order.tracking_number, {
@@ -671,24 +678,43 @@ const TripScannerModal = ({
         details: `Box ${event.box_number} scanned offline at ${formatScanTime(event.scanned_at)} and synced.`,
       });
     });
-    if (summary.synced.length) {
-      toast.success(`${summary.synced.length} offline scan${summary.synced.length === 1 ? '' : 's'} synced.`);
+
+    (podSummary.synced || []).forEach((pod) => {
+      logOrder('Delivery Proof Uploaded via Offline Sync', pod.order_id, pod.tracking_number, {
+        tripNumber: trip.trip_number,
+        details: `Delivery proof captured offline and synced.`,
+      });
+    });
+
+    const totalSynced = (scanSummary.synced?.length || 0) + (podSummary.synced?.length || 0);
+    if (totalSynced > 0) {
+      toast.success(`${totalSynced} offline item${totalSynced === 1 ? '' : 's'} synced.`);
     }
-    if (summary.failed.length) {
+
+    if (scanSummary.failed?.length) {
       // The server refused these, so take the optimistic tick back.
-      summary.failed.forEach((event) => {
+      scanSummary.failed.forEach((event) => {
         const order = ordersRef.current.find((o) => o.id === event.order_id);
         if (order) applyVerified(order.id, (order.verified_boxes || []).filter((b) => b !== event.box_number));
       });
-      toast.error(`${summary.failed.length} offline scan${summary.failed.length === 1 ? ' was' : 's were'} rejected: ${summary.failed[0].last_error}. Scan again.`);
+      toast.error(`${scanSummary.failed.length} offline scan${scanSummary.failed.length === 1 ? ' was' : 's were'} rejected: ${scanSummary.failed[0].last_error}. Scan again.`);
+    }
+
+    if (podSummary.failed?.length) {
+      toast.error(`${podSummary.failed.length} offline delivery proof upload${podSummary.failed.length === 1 ? '' : 's'} failed: ${podSummary.failed[0].last_error}.`);
     }
   }, [applyVerified, refreshPending, toast, trip.trip_number]);
 
   const syncNow = () => {
-    flushPendingScans(sendQueuedScan, { tripId: trip.id })
-      .then((summary) => {
-        if (summary.synced.length || summary.failed.length) handleFlushed(summary);
-        else if (summary.remaining) toast.warning('Still offline — scans stay saved on this device.');
+    Promise.all([
+      flushPendingScans(sendQueuedScan, { tripId: trip.id }),
+      flushPendingPods(sendQueuedPod, { tripId: trip.id }),
+    ])
+      .then(([scanSummary, podSummary]) => {
+        const totalSynced = scanSummary.synced.length + podSummary.synced.length;
+        const totalFailed = scanSummary.failed.length + podSummary.failed.length;
+        if (totalSynced || totalFailed) handleFlushed({ scans: scanSummary, pods: podSummary });
+        else if (scanSummary.remaining || podSummary.remaining) toast.warning('Still offline — items stay saved on this device.');
       })
       .catch(() => toast.error('Could not read the offline queue.'));
   };
@@ -696,7 +722,7 @@ const TripScannerModal = ({
   // ── Finish loading / shortfall ───────────────────────────────────────────
   const handleFinishLoading = () => {
     if (pendingCount > 0) {
-      toast.warning(`${pendingCount} scan${pendingCount === 1 ? ' is' : 's are'} still waiting to sync. Reconnect before finishing.`);
+      toast.warning(`${pendingCount} item${pendingCount === 1 ? ' is' : 's are'} still waiting to sync. Reconnect before finishing.`);
       return;
     }
     if (missingBoxes.length === 0) {
@@ -738,11 +764,40 @@ const TripScannerModal = ({
 
   const handleDeliverySubmit = async (deliveryData) => {
     if (!podOrder) return;
-    await recordDeliveryPayment(podOrder.id, deliveryData);
-    logOrder('Delivery Proof Uploaded via Trip Scanner', podOrder.id, podOrder.tracking_number, {
-      details: `Delivery processed in trip ${trip.trip_number}. Photos: ${deliveryData.delivery_photos.length}`,
-    });
-    toast.success(`Delivery completed for ${podOrder.tracking_number}!`);
+    const isOffline = (typeof navigator !== 'undefined' && navigator.onLine === false) || Boolean(deliveryData._isOffline);
+
+    if (isOffline) {
+      await queuePodEvent({
+        orderId: podOrder.id,
+        tripId: trip.id,
+        trackingNumber: podOrder.tracking_number,
+        deliveryData,
+      });
+      refreshPending();
+      toast.success(`Delivery completed offline for ${podOrder.tracking_number}! Proof will sync automatically when back online.`);
+    } else {
+      try {
+        await recordDeliveryPayment(podOrder.id, deliveryData);
+        logOrder('Delivery Proof Uploaded via Trip Scanner', podOrder.id, podOrder.tracking_number, {
+          details: `Delivery processed in trip ${trip.trip_number}. Photos: ${deliveryData.delivery_photos?.length || 0}`,
+        });
+        toast.success(`Delivery completed for ${podOrder.tracking_number}!`);
+      } catch (err) {
+        if (isNetworkError(err)) {
+          await queuePodEvent({
+            orderId: podOrder.id,
+            tripId: trip.id,
+            trackingNumber: podOrder.tracking_number,
+            deliveryData,
+          });
+          refreshPending();
+          toast.success(`Connection dropped. Delivery proof saved offline for ${podOrder.tracking_number}!`);
+        } else {
+          toast.error(err?.message || 'Could not complete delivery');
+          return;
+        }
+      }
+    }
 
     // Update order status locally to 'Delivered'
     const nextOrders = ordersRef.current.map((o) => (
@@ -751,6 +806,7 @@ const TripScannerModal = ({
     setOrders(nextOrders);
     ordersRef.current = nextOrders;
     onOrdersUpdate?.(nextOrders);
+    saveTripManifest(trip.id, nextOrders).catch(() => {});
 
     setPodOpen(false);
     setPodOrder(null);
@@ -902,7 +958,7 @@ const TripScannerModal = ({
     const markOffline = () => setOnline(false);
     window.addEventListener('online', markOnline);
     window.addEventListener('offline', markOffline);
-    const stopSync = startOnlineSync(sendQueuedScan, handleFlushed, { tripId: trip.id });
+    const stopSync = startOnlineSync(sendQueuedScan, handleFlushed, { tripId: trip.id, sendPod: sendQueuedPod });
     return () => {
       window.removeEventListener('online', markOnline);
       window.removeEventListener('offline', markOffline);
