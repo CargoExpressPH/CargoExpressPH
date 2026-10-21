@@ -182,13 +182,32 @@ export const attachCompanyTripDefaults = async (tripOrTrips) => {
 
 // ==================== PROFILES ====================
 export const getProfile = async (userId) => {
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', userId)
-    .single();
-  if (error) throw error;
-  return data;
+  const cacheKey = `user_profile_${userId}`;
+  try {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .single();
+    if (error) throw error;
+    if (data && typeof localStorage !== 'undefined') {
+      try {
+        localStorage.setItem(cacheKey, JSON.stringify(data));
+        localStorage.setItem('cargoexpress_cached_profile', JSON.stringify(data));
+      } catch {}
+    }
+    return data;
+  } catch (err) {
+    if (isNetworkError(err) || (typeof navigator !== 'undefined' && !navigator.onLine)) {
+      if (typeof localStorage !== 'undefined') {
+        try {
+          const cached = localStorage.getItem(cacheKey) || localStorage.getItem('cargoexpress_cached_profile');
+          if (cached) return JSON.parse(cached);
+        } catch {}
+      }
+    }
+    throw err;
+  }
 };
 
 export const getAdminProfile = async () => {

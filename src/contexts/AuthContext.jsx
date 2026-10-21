@@ -58,7 +58,15 @@ const clearPersistedRecoverySession = async () => {
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [userProfile, setUserProfile] = useState(null);
+  const [userProfile, setUserProfile] = useState(() => {
+    if (typeof localStorage === 'undefined') return null;
+    try {
+      const cached = localStorage.getItem('cargoexpress_cached_profile');
+      return cached ? JSON.parse(cached) : null;
+    } catch {
+      return null;
+    }
+  });
   const [loading, setLoading] = useState(true);
   const [authTransition, setAuthTransition] = useState(null);
 
@@ -277,12 +285,32 @@ export const AuthProvider = ({ children }) => {
       if (isMounted) {
         lastProfileUserId.current = userId;
         setUserProfile(profile);
+        if (profile && profile.role && typeof localStorage !== 'undefined') {
+          try {
+            localStorage.setItem('cargoexpress_cached_profile', JSON.stringify(profile));
+            localStorage.setItem(`user_profile_${userId}`, JSON.stringify(profile));
+          } catch {}
+        }
         setLoading(false);
       }
       return { success: true, profile };
     } catch (error) {
       if (timeoutId) clearTimeout(timeoutId);
       if (isMounted) {
+        // Check if there is a cached profile before clearing or downgrading to empty
+        let fallback = null;
+        try {
+          const cached = localStorage.getItem(`user_profile_${userId}`) || localStorage.getItem('cargoexpress_cached_profile');
+          if (cached) fallback = JSON.parse(cached);
+        } catch {}
+
+        if (fallback && fallback.role) {
+          lastProfileUserId.current = userId;
+          setUserProfile(fallback);
+          setLoading(false);
+          return { success: true, profile: fallback };
+        }
+
         setUserProfile(prev => {
           // If we already have a valid profile, preserve it during transient network errors
           if (prev && prev.id === userId && prev.role) {
@@ -523,6 +551,8 @@ export const AuthProvider = ({ children }) => {
       clearBookingDraftStorage(signedInUserId);
       clearSupabaseAuthStorage();
       clearPasswordRecoveryPending();
+      localStorage.removeItem('cargoexpress_cached_profile');
+      if (signedInUserId) localStorage.removeItem(`user_profile_${signedInUserId}`);
       sessionStorage.removeItem('fcm_asked');
       sessionStorage.removeItem('admin_fcm_asked');
     } catch (e) {
