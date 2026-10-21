@@ -9,7 +9,7 @@ import { selectEarliestCapacityTrip, selectNextDepartureTrip, isScheduledTripOve
 import { ORDER_PARTY_NAME_COLUMNS } from './orderParties';
 import { containsFilter } from './queryFilters';
 import { fetchAllOrderedRows } from './queryPagination';
-import { saveCachedTripDetail, getCachedTripDetail, saveCachedTripsList, getCachedTripsList, isNetworkError, saveCachedOrder, getCachedOrder, queueScanEvent, SCAN_EVENT_TYPES, saveCachedOrdersList, getCachedOrdersList } from './offlineScannerQueue';
+import { saveCachedTripDetail, getCachedTripDetail, saveCachedTripsList, getCachedTripsList, isNetworkError, saveCachedOrder, getCachedOrder, queueScanEvent, SCAN_EVENT_TYPES, saveCachedOrdersList, getCachedOrdersList, deleteCachedOrder, deleteCachedTrip } from './offlineScannerQueue';
 
 // ==================== HELPER ====================
 // Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
@@ -643,7 +643,11 @@ export const updateOrder = async (orderId, updates) => {
       .select()
       .single();
     if (error) throw error;
-    saveCachedOrder(data).catch(() => {});
+    if (data?.status === 'Delivered' || data?.status === 'Cancelled') {
+      deleteCachedOrder(orderId).catch(() => {});
+    } else {
+      saveCachedOrder(data).catch(() => {});
+    }
     return data;
   } catch (err) {
     if (isNetworkError(err)) {
@@ -1376,12 +1380,16 @@ export const updateTrip = async (tripId, updates) => {
 
   // Keep local IndexedDB cache in sync with the updated status
   try {
-    const cached = await getCachedTripDetail(tripId);
-    if (cached) {
-      await saveCachedTripDetail(tripId, {
-        ...cached,
-        trip: { ...cached.trip, ...data },
-      });
+    if (updates.status === 'completed' || updates.status === 'cancelled') {
+      deleteCachedTrip(tripId).catch(() => {});
+    } else {
+      const cached = await getCachedTripDetail(tripId);
+      if (cached) {
+        await saveCachedTripDetail(tripId, {
+          ...cached,
+          trip: { ...cached.trip, ...data },
+        });
+      }
     }
   } catch {
     // Non-fatal cache sync
@@ -3362,6 +3370,7 @@ export const recordDeliveryPayment = async (orderId, payload) => {
     p_admin_verified_receipt: payload.admin_verified_receipt || false,
   });
   if (error) throw error;
+  deleteCachedOrder(orderId).catch(() => {});
   return data;
 };
 

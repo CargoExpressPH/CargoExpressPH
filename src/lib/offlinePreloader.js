@@ -1,4 +1,5 @@
 import { getTrips, getTripById, getOrders } from './database';
+import { purgeCompletedCache } from './offlineScannerQueue';
 
 let isPreloading = false;
 let lastPreloadTime = 0;
@@ -93,5 +94,12 @@ const doPreload = async ({ role, userId }) => {
     } catch (custErr) {
       console.debug('[offlinePreload] Failed to prefetch customer orders:', custErr);
     }
+  }
+
+  // 3. Purge completed trips and delivered bookings from cache so local storage stays lean
+  try {
+    await purgeCompletedCache();
+  } catch (purgeErr) {
+    console.debug('[offlinePreload] Purge cache skipped on error:', purgeErr);
   }
 };

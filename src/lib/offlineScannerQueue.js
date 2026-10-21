@@ -283,6 +283,95 @@ export const getCachedOrder = async (idOrTracking) => {
   return null;
 };
 
+const deleteRecord = (storeName, key) => withStore(storeName, 'readwrite', (store) => {
+  if (!store) { memory[storeName].delete(key); return true; }
+  return requestToPromise(store.delete(key)).then(() => true);
+});
+
+export const deleteCachedOrder = (orderId) => {
+  if (!orderId) return Promise.resolve(false);
+  return deleteRecord(STORE_ORDERS, orderId);
+};
+
+export const deleteCachedTrip = async (tripId) => {
+  if (!tripId) return;
+  await deleteRecord(STORE_TRIP_DETAILS, tripId);
+  await deleteRecord(STORE_MANIFESTS, tripId);
+};
+
+// ── Cache Garbage Collection / Lifecycle Purging ───────────────────────────
+/**
+ * Purges delivered orders and completed trips from IndexedDB cache so storage
+ * does not bloat over time.
+ * 
+ * Safety Rules:
+ * 1. An order or trip is NEVER deleted if it still has pending offline scans or PODs.
+ * 2. Only terminal records ('Delivered', 'Cancelled', 'completed') that are confirmed
+ *    synced or already settled online are evicted.
+ * 3. Synced events older than 7 days are also pruned.
+ */
+export const purgeCompletedCache = async () => {
+  try {
+    const allScans = await allRecords(STORE_EVENTS);
+    const allPods = await allRecords(STORE_POD_EVENTS);
+    const pendingOrderIds = new Set();
+    const pendingTripIds = new Set();
+
+    for (const e of allScans) {
+      if (e.status === SCAN_STATUS.PENDING) {
+        if (e.order_id) pendingOrderIds.add(e.order_id);
+        if (e.trip_id) pendingTripIds.add(e.trip_id);
+      }
+    }
+    for (const e of allPods) {
+      if (e.status === SCAN_STATUS.PENDING) {
+        if (e.order_id) pendingOrderIds.add(e.order_id);
+        if (e.trip_id) pendingTripIds.add(e.trip_id);
+      }
+    }
+
+    // 1. Purge delivered or cancelled orders with no pending offline actions
+    const allOrders = await allRecords(STORE_ORDERS);
+    for (const order of allOrders) {
+      if (order._is_list_cache) continue; // Keep list cache pagination blobs
+      const isTerminal = order.status === 'Delivered' || order.status === 'Cancelled';
+      if (isTerminal && !pendingOrderIds.has(order.id)) {
+        await deleteCachedOrder(order.id);
+      }
+    }
+
+    // 2. Purge completed or cancelled trips with no pending offline actions
+    const allTrips = await allRecords(STORE_TRIP_DETAILS);
+    for (const record of allTrips) {
+      if (record.trip_id === '__trips_list__') continue;
+      const tripStatus = record.data?.trip?.status || record.data?.status;
+      const isTerminal = tripStatus === 'completed' || tripStatus === 'cancelled';
+      if (isTerminal && !pendingTripIds.has(record.trip_id)) {
+        await deleteCachedTrip(record.trip_id);
+      }
+    }
+
+    // 3. Clean up synced events older than 7 days
+    const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    for (const scan of allScans) {
+      if (scan.status === SCAN_STATUS.SYNCED && scan.synced_at) {
+        if (new Date(scan.synced_at).getTime() < sevenDaysAgo) {
+          await deleteRecord(STORE_EVENTS, scan.idempotency_key);
+        }
+      }
+    }
+    for (const pod of allPods) {
+      if (pod.status === SCAN_STATUS.SYNCED && pod.synced_at) {
+        if (new Date(pod.synced_at).getTime() < sevenDaysAgo) {
+          await deleteRecord(STORE_POD_EVENTS, pod.idempotency_key);
+        }
+      }
+    }
+  } catch (err) {
+    console.debug('[purgeCompletedCache] Cache cleanup skipped on error:', err);
+  }
+};
+
 // ── Scan events ─────────────────────────────────────────────────────────────
 export const getScanEvent = (key) => getRecord(STORE_EVENTS, key);
 
@@ -564,6 +653,8 @@ export const startOnlineSync = (send, onFlushed, { tripId = null, sendPod = null
       ) {
         onFlushed?.({ scans: scanSummary, pods: podSummary });
       }
+      // Purge delivered orders and completed trips now that sync has processed
+      purgeCompletedCache().catch(() => {});
     } catch {
       /* storage failure: events stay queued for the next attempt */
     }
