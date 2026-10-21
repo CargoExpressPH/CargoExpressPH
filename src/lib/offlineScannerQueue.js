@@ -334,6 +334,18 @@ export const countTotalPending = async (tripId) => (
   (await countPendingScans(tripId)) + (await countPendingPods(tripId))
 );
 
+/** Total pending scan events + POD events across ALL trips. Used by global sync indicator. */
+export const countAllPending = async () => {
+  const [events, pods] = await Promise.all([
+    allRecords(STORE_EVENTS),
+    allRecords(STORE_POD_EVENTS),
+  ]);
+  return (
+    events.filter((e) => e.status === SCAN_STATUS.PENDING).length +
+    pods.filter((e) => e.status === SCAN_STATUS.PENDING).length
+  );
+};
+
 // ── Offline photo converters ────────────────────────────────────────────────
 export const fileToOfflinePhoto = (file) => new Promise((resolve) => {
   if (!file) { resolve(null); return; }

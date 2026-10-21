@@ -7,10 +7,12 @@ import UpdateAvailableBanner from './components/ui/UpdateAvailableBanner';
 import RouteErrorBoundary from './components/ui/RouteErrorBoundary';
 import AuthLinkNotice from './components/ui/AuthLinkNotice';
 import PerformanceInsights from './components/ui/PerformanceInsights';
+import OfflineBoundary from './components/ui/OfflineBoundary';
 import { createBrowserRouter, RouterProvider, Navigate, Outlet, useLocation, useMatches } from 'react-router-dom';
 import useKeyboardInset, { scrollFocusedFieldIntoView } from './hooks/useKeyboardInset';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
+import { OfflineProvider } from './contexts/OfflineContext';
 import { ToastProvider } from './hooks/useToast';
 import { resolveAuthRouteState } from './lib/authRouteState';
 import { loadCustomerHomePage } from './lib/routePreloads';
@@ -179,6 +181,26 @@ const InstallPrompts = () => {
   </>;
 };
 
+// ─── Offline tier wrappers ───────────────────────────────────────────────────
+// Tier 1 — Full offline operational (Bookings, Trips + Scanner/POD)
+const T1 = ({ children }) => (
+  <OfflineBoundary tier={1}>
+    <Suspense fallback={<PageLoader />}>{children}</Suspense>
+  </OfflineBoundary>
+);
+// Tier 2 — Cached read-only (Dashboard, Customers, schedules)
+const T2 = ({ children, label }) => (
+  <OfflineBoundary tier={2} label={label}>
+    <Suspense fallback={<PageLoader />}>{children}</Suspense>
+  </OfflineBoundary>
+);
+// Tier 3 — Online-only admin / settings modules (graceful degradation)
+const T3 = ({ children, label }) => (
+  <OfflineBoundary tier={3} label={label}>
+    <Suspense fallback={<PageLoader />}>{children}</Suspense>
+  </OfflineBoundary>
+);
+
 // ─── Root Layout (provides Suspense boundary for the entire route tree) ─────
 const RootLayout = () => {
   const { pathname } = useLocation();
@@ -247,26 +269,29 @@ const router = createBrowserRouter([
         path: '/customer',
         element: <ProtectedRoute requiredRole="customer"><CustomerLayout /></ProtectedRoute>,
         children: [
-          { index: true, element: <Suspense fallback={<PageLoader />}><HomePage /></Suspense> },
-          { path: 'orders', element: <Suspense fallback={<PageLoader />}><CustOrdersPage /></Suspense> },
-          { path: 'orders/:id', element: <Suspense fallback={<PageLoader />}><CustOrderDetailPage /></Suspense> },
-          { path: 'book', element: <Suspense fallback={<PageLoader />}><BookShipmentPage /></Suspense> },
-          { path: 'track', element: <Suspense fallback={<PageLoader />}><TrackingPage embedded /></Suspense> },
-          { path: 'trips', element: <Suspense fallback={<PageLoader />}><CustTripsPage /></Suspense> },
-          { path: 'notifications', element: <Suspense fallback={<PageLoader />}><NotificationsPage /></Suspense> },
-          { path: 'profile', element: <Suspense fallback={<PageLoader />}><CustProfilePage /></Suspense> },
-          { path: 'personal-info', element: <Suspense fallback={<PageLoader />}><CustPersonalInfoPage /></Suspense> },
-          { path: 'change-password', element: <Suspense fallback={<PageLoader />}><ChangePasswordPage /></Suspense> },
-          { path: 'change-email', element: <Suspense fallback={<PageLoader />}><ChangeEmailPage /></Suspense> },
-          { path: 'support', element: <Suspense fallback={<PageLoader />}><SupportChatPage /></Suspense> },
-          { path: 'payments', element: <Suspense fallback={<PageLoader />}><PaymentHistoryPage /></Suspense> },
+          // Tier 2 — cached read-only
+          { index: true, element: <T2><HomePage /></T2> },
+          { path: 'trips', element: <T2><CustTripsPage /></T2> },
+          { path: 'track', element: <T2><TrackingPage embedded /></T2> },
+          { path: 'help-guidelines', element: <T2><HelpGuidelinesPage /></T2> },
+          { path: 'about-version', element: <T2><AboutVersionPage /></T2> },
+          // Tier 1 — full offline operational (Bookings)
+          { path: 'orders', element: <T1><CustOrdersPage /></T1> },
+          { path: 'orders/:id', element: <T1><CustOrderDetailPage /></T1> },
+          { path: 'book', element: <T1><BookShipmentPage /></T1> },
+          // Tier 3 — online-only (live data / settings)
+          { path: 'notifications', element: <T3 label="Notifications"><NotificationsPage /></T3> },
+          { path: 'profile', element: <T3 label="Profile"><CustProfilePage /></T3> },
+          { path: 'personal-info', element: <T3 label="Personal Info"><CustPersonalInfoPage /></T3> },
+          { path: 'change-password', element: <T3 label="Change Password"><ChangePasswordPage /></T3> },
+          { path: 'change-email', element: <T3 label="Change Email"><ChangeEmailPage /></T3> },
+          { path: 'support', element: <T3 label="Support Chat"><SupportChatPage /></T3> },
+          { path: 'payments', element: <T3 label="Payment History"><PaymentHistoryPage /></T3> },
           // The page was 'payment-methods' until it was renamed to Payment
           // History. Kept as a redirect because the old path is in browser
           // history, in the PWA's cached shell and in any link a customer
           // saved — dropping it would 404 them rather than move them.
           { path: 'payment-methods', element: <Navigate to="/customer/payments" replace /> },
-          { path: 'help-guidelines', element: <Suspense fallback={<PageLoader />}><HelpGuidelinesPage /></Suspense> },
-          { path: 'about-version', element: <Suspense fallback={<PageLoader />}><AboutVersionPage /></Suspense> },
         ],
       },
 
@@ -275,27 +300,30 @@ const router = createBrowserRouter([
         path: '/admin',
         element: <ProtectedRoute requiredRole="admin"><AdminLayout /></ProtectedRoute>,
         children: [
-          { index: true, element: <Suspense fallback={<PageLoader />}><DashboardPage /></Suspense> },
-          { path: 'orders', element: <Suspense fallback={<PageLoader />}><AdminOrdersPage /></Suspense> },
-          { path: 'orders/:id', element: <Suspense fallback={<PageLoader />}><AdminOrderDetailPage /></Suspense> },
-          { path: 'create-booking', element: <Suspense fallback={<PageLoader />}><AdminCreateBookingPage /></Suspense> },
-          { path: 'trips', element: <Suspense fallback={<PageLoader />}><AdminTripsPage /></Suspense> },
-          { path: 'trips/create', element: <Suspense fallback={<PageLoader />}><CreateTripPage /></Suspense> },
-          { path: 'trips/:id', element: <Suspense fallback={<PageLoader />}><TripDetailPage /></Suspense> },
-          { path: 'customers', element: <Suspense fallback={<PageLoader />}><CustomersPage /></Suspense> },
-          { path: 'customers/:id', element: <Suspense fallback={<PageLoader />}><CustomerDetailPage /></Suspense> },
-          { path: 'sales', element: <Suspense fallback={<PageLoader />}><SalesReportsPage initialSection="sales" /></Suspense> },
-          { path: 'reports', element: <Suspense fallback={<PageLoader />}><SalesReportsPage initialSection="reports" /></Suspense> },
-          { path: 'announcements', element: <Suspense fallback={<PageLoader />}><AnnouncementsPage /></Suspense> },
-          { path: 'inbox', element: <Suspense fallback={<PageLoader />}><InboxPage /></Suspense> },
-          { path: 'contact-inquiries', element: <Suspense fallback={<PageLoader />}><ContactInquiriesPage /></Suspense> },
-          { path: 'profile', element: <Suspense fallback={<PageLoader />}><AdminProfilePage /></Suspense> },
-          { path: 'change-email', element: <Suspense fallback={<PageLoader />}><ChangeEmailPage /></Suspense> },
-          { path: 'change-password', element: <Suspense fallback={<PageLoader />}><ChangePasswordPage /></Suspense> },
-          { path: 'activity-logs', element: <Suspense fallback={<PageLoader />}><ActivityLogsPage /></Suspense> },
-          { path: 'company-info', element: <Suspense fallback={<PageLoader />}><CompanyInformationPage /></Suspense> },
-          { path: 'storage-monitoring', element: <Suspense fallback={<PageLoader />}><StorageMonitoringPage /></Suspense> },
-          { path: 'feedback', element: <Suspense fallback={<PageLoader />}><FeedbackPage /></Suspense> },
+          // Tier 2 — cached read-only
+          { index: true, element: <T2><DashboardPage /></T2> },
+          { path: 'customers', element: <T2><CustomersPage /></T2> },
+          { path: 'customers/:id', element: <T2><CustomerDetailPage /></T2> },
+          // Tier 1 — full offline operational (Bookings + Trips)
+          { path: 'orders', element: <T1><AdminOrdersPage /></T1> },
+          { path: 'orders/:id', element: <T1><AdminOrderDetailPage /></T1> },
+          { path: 'create-booking', element: <T1><AdminCreateBookingPage /></T1> },
+          { path: 'trips', element: <T1><AdminTripsPage /></T1> },
+          { path: 'trips/create', element: <T1><CreateTripPage /></T1> },
+          { path: 'trips/:id', element: <T1><TripDetailPage /></T1> },
+          // Tier 3 — online-only admin modules
+          { path: 'sales', element: <T3 label="Sales"><SalesReportsPage initialSection="sales" /></T3> },
+          { path: 'reports', element: <T3 label="Reports"><SalesReportsPage initialSection="reports" /></T3> },
+          { path: 'announcements', element: <T3 label="Announcements"><AnnouncementsPage /></T3> },
+          { path: 'inbox', element: <T3 label="Inbox"><InboxPage /></T3> },
+          { path: 'contact-inquiries', element: <T3 label="Contact Inquiries"><ContactInquiriesPage /></T3> },
+          { path: 'profile', element: <T3 label="Profile Settings"><AdminProfilePage /></T3> },
+          { path: 'change-email', element: <T3 label="Change Email"><ChangeEmailPage /></T3> },
+          { path: 'change-password', element: <T3 label="Change Password"><ChangePasswordPage /></T3> },
+          { path: 'activity-logs', element: <T3 label="Activity Logs"><ActivityLogsPage /></T3> },
+          { path: 'company-info', element: <T3 label="Company Information"><CompanyInformationPage /></T3> },
+          { path: 'storage-monitoring', element: <T3 label="Storage & Usage"><StorageMonitoringPage /></T3> },
+          { path: 'feedback', element: <T3 label="Customer Feedback"><FeedbackPage /></T3> },
         ],
       },
 
@@ -354,9 +382,11 @@ function App() {
   return (
     <ThemeProvider>
     <ToastProvider>
-      <AuthProvider>
-        <RouterProvider router={router} />
-      </AuthProvider>
+      <OfflineProvider>
+        <AuthProvider>
+          <RouterProvider router={router} />
+        </AuthProvider>
+      </OfflineProvider>
     </ToastProvider>
     </ThemeProvider>
   );
