@@ -229,9 +229,33 @@ const QrScannerModal = ({ onClose, initialOrder = null }) => {
         .limit(100)
         .then(({ data }) => {
           if (data && mountedRef.current) setCandidateOrders(data);
-        });
+        })
+        .catch(() => {});
     }
   }, [initialOrder]);
+
+  // Online auto-sync: flush queued scan events and delivery proofs as soon as the device reconnects
+  useEffect(() => {
+    const sendQueuedScan = (event) => recordBoxVerification(event.order_id, event.box_number, {
+      method: event.method || 'qr',
+      reason: event.reason || null,
+      throwOnNetworkError: true,
+    });
+    const handleFlushed = (summary) => {
+      const scansCount = summary.scans?.synced?.length || 0;
+      const podsCount = summary.pods?.synced?.length || 0;
+      if (scansCount || podsCount) {
+        toast.success(`Synced ${scansCount ? `${scansCount} scan${scansCount > 1 ? 's' : ''}` : ''}${scansCount && podsCount ? ' and ' : ''}${podsCount ? `${podsCount} delivery proof${podsCount > 1 ? 's' : ''}` : ''}!`);
+      }
+    };
+    const stopSync = startOnlineSync(sendQueuedScan, handleFlushed, {
+      tripId: session?.order?.trip_id || null,
+      sendPod: sendQueuedPod,
+    });
+    return () => {
+      stopSync();
+    };
+  }, [session?.order?.trip_id, toast]);
 
   // Proof of delivery runs in place of the camera, so the session survives a
   // cancelled POD and the camera restarts once the delivery is saved.

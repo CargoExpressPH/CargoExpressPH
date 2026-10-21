@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { getOrderById, updateOrder, updateOrderContactDetails, getTripReassignments, reassignTrip, getActivityLogsByRecord, getPaymentTransactions, recordAdditionalPayment, recordPickupPayment, recordDeliveryPayment, recordBoxVerification, getOrderStatusEvents, reviewOrderCancellation, cancelOrderAsAdmin, assignOrderToCustomer, getLatestPaymentAttemptByOrder, clearPaymentReceiptUrls, getCancellationSettlementSummary } from '../../lib/database';
+import { isNetworkError, getCachedOrder, saveCachedOrder, startOnlineSync, sendQueuedPod } from '../../lib/offlineScannerQueue';
 import { pollPaymentStatus } from '../../lib/paymongo';
 import { clearPendingPayment, getPendingPayment } from '../../lib/pendingPayment';
 import { isPaymentPollReconciled } from '../../utils/paymentReconciliation';
@@ -45,7 +46,7 @@ import {
 } from '../../constants/status';
 import {
   ArrowLeft, Check, Package, CreditCard, User, Phone, MapPin,
-  Truck, Loader, Camera, AlertTriangle, X, Image, Clock, Trash2, Star, ChevronDown, UserPlus, Tag, RotateCcw, Lock
+  Truck, Loader, Camera, AlertTriangle, X, Image, Clock, Trash2, Star, ChevronDown, UserPlus, Tag, RotateCcw, Lock, WifiOff
 } from 'lucide-react';
 import { useToast } from '../../hooks/useToast';
 import { useAuth } from '../../contexts/AuthContext';
@@ -166,6 +167,42 @@ const AdminOrderDetailPage = () => {
   // savingFeature: owned by parent so the modal button disables correctly
   // while the updateOrder() call is in-flight.
   const [savingFeature, setSavingFeature] = useState(false);
+
+  const [isOnline, setIsOnline] = useState(() => typeof navigator !== 'undefined' ? navigator.onLine : true);
+
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  // Online auto-sync: flush queued scan events and delivery proofs as soon as the device reconnects
+  useEffect(() => {
+    const sendQueuedScan = (event) => recordBoxVerification(event.order_id, event.box_number, {
+      method: event.method || 'qr',
+      reason: event.reason || null,
+      throwOnNetworkError: true,
+    });
+    const handleFlushed = (summary) => {
+      const scansCount = summary.scans?.synced?.length || 0;
+      const podsCount = summary.pods?.synced?.length || 0;
+      if (scansCount || podsCount) {
+        toast.success(`Synced offline delivery actions!`);
+        void loadOrder(true, { silent: true });
+      }
+    };
+    const stopSync = startOnlineSync(sendQueuedScan, handleFlushed, {
+      sendPod: sendQueuedPod,
+    });
+    return () => {
+      stopSync();
+    };
+  }, []);
 
   /**
    * How this order was ACTUALLY paid, from the ledger.

@@ -3317,16 +3317,17 @@ export const recordDeliveryPayment = async (orderId, payload) => {
  * is only sent when it is manual, so a plain camera scan keeps working against a
  * database that predates the audit table.
  */
-export const recordBoxVerification = async (orderId, box, { method = 'qr', reason = null } = {}) => {
+export const recordBoxVerification = async (orderId, box, { method = 'qr', reason = null, throwOnNetworkError = false } = {}) => {
   if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+    if (throwOnNetworkError) throw new Error('Network offline');
+    const cached = await getCachedOrder(orderId).catch(() => null);
     await queueScanEvent({
       orderId,
       box,
       eventType: SCAN_EVENT_TYPES.DELIVERY_VERIFY,
-      tripId: 'offline',
+      tripId: cached?.trip_id || 'offline',
     }, { method, reason });
 
-    const cached = await getCachedOrder(orderId).catch(() => null);
     if (cached) {
       const verified = Array.from(new Set([...(cached.verified_boxes || []), box]));
       await saveCachedOrder({ ...cached, verified_boxes: verified }).catch(() => {});
@@ -3346,14 +3347,15 @@ export const recordBoxVerification = async (orderId, box, { method = 'qr', reaso
     return data;
   } catch (err) {
     if (isNetworkError(err)) {
+      if (throwOnNetworkError) throw err;
+      const cached = await getCachedOrder(orderId).catch(() => null);
       await queueScanEvent({
         orderId,
         box,
         eventType: SCAN_EVENT_TYPES.DELIVERY_VERIFY,
-        tripId: 'offline',
+        tripId: cached?.trip_id || 'offline',
       }, { method, reason });
 
-      const cached = await getCachedOrder(orderId).catch(() => null);
       if (cached) {
         const verified = Array.from(new Set([...(cached.verified_boxes || []), box]));
         await saveCachedOrder({ ...cached, verified_boxes: verified }).catch(() => {});
