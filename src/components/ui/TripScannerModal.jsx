@@ -951,6 +951,56 @@ const TripScannerModal = ({
     };
   }, [attempt, podOpen, getDecoder]);
 
+  // ── Resume camera after overlays close ──────────────────────────────────
+  // Mobile browsers pause background <video> elements when a full-screen
+  // overlay (and its virtual keyboard) covers them. When every overlay closes,
+  // give the browser one rAF to unblock the element, then resume or restart.
+  useEffect(() => {
+    if (manualOpen || unidentifiedOpen || shortfallMissing) return undefined;
+    const id = requestAnimationFrame(() => {
+      const video = videoRef.current;
+      const stream = streamRef.current;
+      if (!video || !stream) return;
+      const track = stream.getVideoTracks()[0];
+      if (!track || track.readyState === 'ended') {
+        setAttempt((n) => n + 1);
+        return;
+      }
+      if (video.paused) video.play().catch(() => {});
+    });
+    return () => cancelAnimationFrame(id);
+  }, [manualOpen, unidentifiedOpen, shortfallMissing]);
+
+  // ── Recover camera on tab / app visibility ───────────────────────────────
+  useEffect(() => {
+    const onVisibility = () => {
+      if (document.hidden) return;
+      const video = videoRef.current;
+      const stream = streamRef.current;
+      if (!stream) return;
+      const track = stream.getVideoTracks()[0];
+      if (!track || track.readyState === 'ended') {
+        setAttempt((n) => n + 1);
+        return;
+      }
+      if (video?.paused) video.play().catch(() => {});
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => document.removeEventListener('visibilitychange', onVisibility);
+  }, []);
+
+  // ── Prevent persistent black frame after a browser-triggered pause ───────
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return undefined;
+    const onPause = () => {
+      if (cameraState !== 'live' || overlayOpenRef.current) return;
+      video.play().catch(() => {});
+    };
+    video.addEventListener('pause', onPause);
+    return () => video.removeEventListener('pause', onPause);
+  }, [cameraState]);
+
   // Offline queue: show the count, and flush it whenever connectivity returns.
   useEffect(() => {
     refreshPending();

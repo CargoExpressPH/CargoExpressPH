@@ -710,6 +710,37 @@ const QrScannerModal = ({ onClose, initialOrder = null, mode = 'delivery', onDis
   const handleScanRef = useRef(handleScan);
   useEffect(() => { handleScanRef.current = handleScan; }, [handleScan]);
 
+  // ── Resume camera after ManualBoxMatchOverlay closes ────────────────────
+  // The overlay's autoFocused input and virtual keyboard pause the background
+  // <video>. When manualOpen flips to false, resume or restart the stream.
+  useEffect(() => {
+    if (manualOpen) return undefined;
+    const id = requestAnimationFrame(() => {
+      const video = videoRef.current;
+      const stream = video?.srcObject;
+      if (!stream) return;
+      const track = stream.getVideoTracks()[0];
+      if (!track || track.readyState === 'ended') {
+        setAttempt((n) => n + 1);
+        return;
+      }
+      if (video.paused) video.play().catch(() => {});
+    });
+    return () => cancelAnimationFrame(id);
+  }, [manualOpen]);
+
+  // ── Prevent persistent black frame after a browser-triggered pause ───────
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return undefined;
+    const onPause = () => {
+      if (cameraState !== 'live' || manualOpen || podOpen) return;
+      video.play().catch(() => {});
+    };
+    video.addEventListener('pause', onPause);
+    return () => video.removeEventListener('pause', onPause);
+  }, [cameraState, manualOpen, podOpen]);
+
   // ── Pause the camera while the app is in the background ──────────────────
   // Keeping the stream open there drains the battery, and iOS freezes the
   // video anyway; coming back restarts it cleanly.
