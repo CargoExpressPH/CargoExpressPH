@@ -56,8 +56,24 @@ const clearPersistedRecoverySession = async () => {
   clearPasswordRecoveryPending();
 };
 
+const getCachedUser = () => {
+  if (typeof localStorage === 'undefined') return null;
+  try {
+    const key = Object.keys(localStorage).find(
+      (k) => (k.startsWith('sb-') && k.endsWith('-auth-token')) || k === 'supabase.auth.token'
+    );
+    if (!key) return null;
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed?.user || null;
+  } catch {
+    return null;
+  }
+};
+
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(getCachedUser);
   const [userProfile, setUserProfile] = useState(() => {
     if (typeof localStorage === 'undefined') return null;
     try {
@@ -67,7 +83,11 @@ export const AuthProvider = ({ children }) => {
       return null;
     }
   });
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => {
+    const cachedUser = getCachedUser();
+    const cachedProfile = typeof localStorage !== 'undefined' ? localStorage.getItem('cargoexpress_cached_profile') : null;
+    return !(cachedUser && cachedProfile);
+  });
   const [authTransition, setAuthTransition] = useState(null);
 
   // Supabase shares auth events across tabs. Remember whether this particular
@@ -132,20 +152,39 @@ export const AuthProvider = ({ children }) => {
           return;
         }
 
-        const { data: { session }, error } = await supabase.auth.getSession();
-
-        if (error) {
-          if (isMounted) setLoading(false);
-          return;
-        }
+        // Fast-timeout getSession() (2.5 seconds max) so expired JWT or "cellular data on without load"
+        // never keeps the user staring at an endless loading screen
+        let session = null;
+        try {
+          const sessionPromise = supabase.auth.getSession();
+          const timeoutPromise = new Promise((resolve) => setTimeout(() => resolve({ timeout: true }), 2500));
+          const res = await Promise.race([sessionPromise, timeoutPromise]);
+          if (!res?.timeout && res?.data?.session) {
+            session = res.data.session;
+          }
+        } catch {}
 
         if (session?.user && !recoveryLinkDetected.current) {
           if (isMounted) setUser(session.user);
           fetchProfile(session.user.id, isMounted);
         } else {
-          if (isMounted) setLoading(false);
+          // If session is null or timed out (e.g. offline token refresh attempt hung), keep cached user
+          const cachedUser = getCachedUser();
+          if (cachedUser && !recoveryLinkDetected.current) {
+            if (isMounted) {
+              setUser(cachedUser);
+              setLoading(false);
+            }
+            fetchProfile(cachedUser.id, isMounted);
+          } else {
+            if (isMounted) setLoading(false);
+          }
         }
       } catch (err) {
+        const cachedUser = getCachedUser();
+        if (cachedUser && isMounted) {
+          setUser(cachedUser);
+        }
         if (isMounted) setLoading(false);
       }
     };
@@ -278,7 +317,7 @@ export const AuthProvider = ({ children }) => {
     try {
       const profilePromise = getProfile(userId);
       const timeoutPromise = new Promise((_, reject) => {
-        timeoutId = setTimeout(() => reject(new Error('Profile fetch timeout')), 15000);
+        timeoutId = setTimeout(() => reject(new Error('Profile fetch timeout')), 2500);
       });
       const profile = await Promise.race([profilePromise, timeoutPromise]);
       clearTimeout(timeoutId);

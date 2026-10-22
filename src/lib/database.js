@@ -198,13 +198,11 @@ export const getProfile = async (userId) => {
     }
     return data;
   } catch (err) {
-    if (isNetworkError(err) || (typeof navigator !== 'undefined' && !navigator.onLine)) {
-      if (typeof localStorage !== 'undefined') {
-        try {
-          const cached = localStorage.getItem(cacheKey) || localStorage.getItem('cargoexpress_cached_profile');
-          if (cached) return JSON.parse(cached);
-        } catch {}
-      }
+    if (typeof localStorage !== 'undefined') {
+      try {
+        const cached = localStorage.getItem(cacheKey) || localStorage.getItem('cargoexpress_cached_profile');
+        if (cached) return JSON.parse(cached);
+      } catch {}
     }
     throw err;
   }
@@ -1191,7 +1189,7 @@ export const getTrips = async (statusFilter) => {
     }
   }
 
-  try {
+  const fetchNetworkTrips = async () => {
     let query = supabase
       .from('trips')
       .select('*');
@@ -1240,15 +1238,34 @@ export const getTrips = async (statusFilter) => {
       saveCachedTripsList(trips).catch(() => {});
     }
     return trips;
-  } catch (err) {
-    if (isNetworkError(err)) {
-      const cached = await getCachedTripsList().catch(() => []);
-      if (cached?.length) {
+  };
+
+  try {
+    // If we have locally cached trips, do not let a hanging network (e.g. mobile data on without load)
+    // keep the user staring at an infinite loading spinner.
+    const cached = await getCachedTripsList().catch(() => []);
+    if (cached?.length) {
+      const networkPromise = fetchNetworkTrips();
+      const timeoutPromise = new Promise((resolve) => setTimeout(() => resolve({ isTimeout: true }), 3500));
+      const result = await Promise.race([networkPromise, timeoutPromise]);
+      if (result?.isTimeout) {
+        console.warn('Network slow/offline. Serving cached trips list.');
         if (statusFilter && statusFilter !== 'active') {
           return cached.filter((t) => t.status === statusFilter);
         }
         return cached;
       }
+      return result;
+    }
+
+    return await fetchNetworkTrips();
+  } catch (err) {
+    const cached = await getCachedTripsList().catch(() => []);
+    if (cached?.length) {
+      if (statusFilter && statusFilter !== 'active') {
+        return cached.filter((t) => t.status === statusFilter);
+      }
+      return cached;
     }
     throw err;
   }
