@@ -1,6 +1,8 @@
 import printDocCss from '../styles/print-document.css?inline';
+import perTripSalesPrintCss from '../styles/per-trip-sales-print.css?inline';
 
-const BOND_CSS = printDocCss.replace(/@media print \{([\s\S]*)\}\s*$/, '$1');
+const cleanMedia = (css) => (css || '').replace(/@media print \{([\s\S]*)\}\s*$/, '$1');
+const BOND_CSS = `${cleanMedia(printDocCss)}\n${cleanMedia(perTripSalesPrintCss)}`;
 
 let html2pdfModule = null;
 const getHtml2pdf = async () => {

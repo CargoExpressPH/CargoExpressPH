@@ -1,79 +1,218 @@
 /* ============================================================================
-   PER-TRIP SALES — accounting-style print additions
-   Extends the shared .print-doc / .pd-* bond-paper system in
-   print-document.css for the Sales & Reports document only. Screen: nothing
-   here applies (every rule sits inside @media print).
+   PER-TRIP SALES — Accounting-Grade Print & PDF Styles
+   Provides clean, formal, ledger-style tables for the Sales & Reports document.
    ============================================================================ */
 
 @media print {
   .print-doc .pd-table td.num,
   .print-doc .pd-table th.num {
     text-align: right;
-  }
-
-  /* Accounting summary: label left, amount right, no boxes. */
-  .print-doc .pd-accounting {
-    width: 60%;
-    margin-left: auto;
-    border-collapse: collapse;
-  }
-
-  .print-doc .pd-accounting td {
-    border: none;
-    padding: 2pt 4pt;
-  }
-
-  .print-doc .pd-accounting td.num {
-    text-align: right;
     font-variant-numeric: tabular-nums;
   }
 
-  .print-doc .pd-accounting tr.pd-accounting-total td {
+  /* ── General Table Formatting ── */
+  .print-doc .pd-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 8.5pt;
+    line-height: 1.35;
+  }
+
+  .print-doc .pd-table th,
+  .print-doc .pd-table td {
+    border: 1px solid #555;
+    padding: 3pt 5pt;
+    vertical-align: middle;
+  }
+
+  .print-doc .pd-mono {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 8pt;
+    font-weight: 600;
+  }
+
+  /* ── Executive Financial Summary Table (Top) ── */
+  .print-doc .pd-executive-summary {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 14pt;
+  }
+
+  .print-doc .pd-summary-table {
+    width: 62%;
+    margin-left: auto;
+    border: 1.5px solid #000;
+    border-collapse: collapse;
+    font-size: 8.5pt;
+  }
+
+  .print-doc .pd-summary-table th.pd-summary-th {
+    background: #2b3440 !important;
+    color: #ffffff !important;
+    font-size: 8.5pt;
     font-weight: 700;
-    border-top: 1px solid #000;
-    padding-top: 4pt;
+    letter-spacing: 0.5px;
+    padding: 4.5pt 8pt;
+    text-align: left;
+    border: 1px solid #000;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
   }
 
-  /* Trip header: Trip Number | Route | Departure Date, in bold. */
-  .print-doc .pd-trip-header th {
-    background: none;
-    border-bottom: 1.5px solid #000;
-    font-weight: 700;
+  .print-doc .pd-summary-table td {
+    padding: 2.5pt 8pt;
+    border: 1px solid #cbd5e1;
   }
 
-  .print-doc .pd-trip-header td {
-    font-weight: 400;
-  }
-
-  /* Per-trip subtotal: bold, with a top border. */
-  .print-doc .pd-table tr.pd-subtotal td {
-    background: none;
+  .print-doc .pd-summary-highlight td {
+    background: #f1f5f9 !important;
     font-weight: 700;
     border-top: 1.5px solid #000;
+    border-bottom: 1px solid #000;
+    padding-top: 3.5pt;
+    padding-bottom: 3.5pt;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
   }
 
-  /* Grand total: bold, closed with an accounting double rule. */
-  .print-doc .pd-grand-total {
-    margin-top: 10pt;
-  }
-
-  .print-doc .pd-grand-total td {
-    background: none;
-    font-weight: 700;
-    border: none;
-    border-top: 3px double #000;
-    padding-top: 4pt;
-  }
-
-  .print-doc .pd-printed-on {
-    margin-top: 10pt;
-    font-size: 9pt;
-    text-align: right;
-  }
-
-  /* One trip never splits across pages. */
+  /* ── Unified Trip Schedule Table ── */
   .print-doc .pd-trip-section {
     break-inside: avoid;
     page-break-inside: avoid;
+    margin-bottom: 12pt;
+  }
+
+  .print-doc .pd-trip-table {
+    border: 1.5px solid #000;
+    margin-bottom: 4pt;
+  }
+
+  .print-doc tr.pd-trip-banner-row th {
+    background: #e9eef5 !important;
+    color: #0f172a;
+    font-size: 9pt;
+    font-weight: 700;
+    padding: 4.5pt 6pt;
+    border: 1px solid #000;
+    border-bottom: 1.5px solid #000;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  .print-doc .pd-trip-banner-title {
+    text-align: left;
+  }
+
+  .print-doc .pd-trip-num {
+    font-weight: 800;
+    letter-spacing: 0.2px;
+  }
+
+  .print-doc .pd-trip-sep {
+    margin: 0 5pt;
+    color: #64748b;
+  }
+
+  .print-doc .pd-trip-route {
+    font-weight: 600;
+  }
+
+  .print-doc .pd-trip-banner-date {
+    text-align: right;
+    font-weight: 500;
+    font-size: 8.5pt;
+  }
+
+  .print-doc tr.pd-col-header-row th {
+    background: #f8fafc !important;
+    font-size: 7.5pt;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    border: 1px solid #64748b;
+    border-bottom: 1.5px solid #000;
+    padding: 3pt 5pt;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  .print-doc tr.pd-subtotal td {
+    background: #f1f5f9 !important;
+    font-weight: 700;
+    border-top: 1.5px solid #000;
+    border-bottom: 1.5px solid #000;
+    padding: 3.5pt 5pt;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  .print-doc .pd-empty-cell {
+    text-align: center;
+    color: #64748b;
+    font-style: italic;
+    padding: 8pt !important;
+    background: #fafafa;
+  }
+
+  /* ── Cancelled Bookings Sub-table (If present) ── */
+  .print-doc .pd-cancelled-section {
+    margin-top: 6pt;
+    margin-bottom: 6pt;
+  }
+
+  .print-doc .pd-cancelled-title {
+    font-size: 8pt;
+    font-weight: 700;
+    color: #991b1b;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    margin-bottom: 3pt;
+  }
+
+  /* ── Grand Total Summary Table (Bottom) ── */
+  .print-doc .pd-grand-total-section {
+    margin-top: 14pt;
+    margin-bottom: 10pt;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .print-doc .pd-grand-total-table {
+    width: 100%;
+    border: 1.5px solid #000;
+    border-collapse: collapse;
+    font-size: 9pt;
+  }
+
+  .print-doc .pd-grand-total-table thead th {
+    background: #2b3440 !important;
+    color: #ffffff !important;
+    font-size: 8.5pt;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    border: 1px solid #000;
+    padding: 4.5pt 6pt;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  .print-doc tr.pd-grand-total-row td {
+    background: #f1f5f9 !important;
+    font-weight: 800;
+    font-size: 9pt;
+    border: 1px solid #475569;
+    border-top: 2px solid #000;
+    border-bottom: 3px double #000;
+    padding: 5pt 6pt;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  .print-doc .pd-printed-on {
+    margin-top: 8pt;
+    font-size: 8pt;
+    color: #475569;
+    text-align: right;
   }
 }

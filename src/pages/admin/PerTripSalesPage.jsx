@@ -152,58 +152,83 @@ const CancelledBookingsTable = ({ rows }) => {
 // fee and count as zero here, the same as the on-screen totals.
 const sumOf = (rows, pick) => rows.reduce((total, row) => total + (Number(pick(row)) || 0), 0);
 
-const PrintActiveBookingsTable = ({ rows }) => (
-  <table className="pd-table">
-    <thead>
-      <tr>
-        <th scope="col">Tracking #</th>
-        <th scope="col">Customer</th>
-        <th scope="col" className="num">Final Cargo Fee</th>
-        <th scope="col" className="num">Payments</th>
-        <th scope="col" className="num">Returned</th>
-        <th scope="col" className="num">Balance</th>
-      </tr>
-    </thead>
-    <tbody>
-      {rows.map(row => (
-        <tr key={row.id}>
-          <td>{row.trackingNumber || '—'}</td>
-          <td>{row.customerName}</td>
-          <td className="num">{money(row.shippingFee)}</td>
-          <td className="num">{money(row.paymentsReceived)}</td>
-          <td className="num">{money(row.moneyReturned)}</td>
-          <td className="num">{money(row.amountStillToPay)}</td>
+const PrintTripTable = ({ trip, rows }) => {
+  const tripRoute = `${trip.origin || 'Origin not set'} → ${trip.destination || 'Destination not set'}`;
+  const departureText = tripDate(trip.departure_date);
+
+  return (
+    <table className="pd-table pd-trip-table">
+      <thead>
+        <tr className="pd-trip-banner-row">
+          <th colSpan={3} className="pd-trip-banner-title">
+            <span className="pd-trip-num">{trip.trip_number || 'Trip'}</span>
+            <span className="pd-trip-sep">•</span>
+            <span className="pd-trip-route">{tripRoute}</span>
+          </th>
+          <th colSpan={3} className="pd-trip-banner-date num">
+            Departure: <strong>{departureText}</strong>
+          </th>
         </tr>
-      ))}
-    </tbody>
-    <tfoot>
-      <tr className="pd-subtotal">
-        <td colSpan={2}>Subtotal ({rows.length})</td>
-        <td className="num">{money(sumOf(rows, row => row.shippingFee))}</td>
-        <td className="num">{money(sumOf(rows, row => row.paymentsReceived))}</td>
-        <td className="num">{money(sumOf(rows, row => row.moneyReturned))}</td>
-        <td className="num">{money(sumOf(rows, row => row.amountStillToPay))}</td>
-      </tr>
-    </tfoot>
-  </table>
-);
+        <tr className="pd-col-header-row">
+          <th scope="col" style={{ width: '22%' }}>Tracking No.</th>
+          <th scope="col" style={{ width: '28%' }}>Customer</th>
+          <th scope="col" className="num" style={{ width: '13%' }}>Cargo Fee</th>
+          <th scope="col" className="num" style={{ width: '13%' }}>Paid</th>
+          <th scope="col" className="num" style={{ width: '12%' }}>Refund</th>
+          <th scope="col" className="num" style={{ width: '12%' }}>Balance</th>
+        </tr>
+      </thead>
+      <tbody>
+        {rows.length > 0 ? (
+          rows.map(row => (
+            <tr key={row.id}>
+              <td className="pd-mono">{row.trackingNumber || '—'}</td>
+              <td>{row.customerName}</td>
+              <td className="num">{money(row.shippingFee)}</td>
+              <td className="num">{money(row.paymentsReceived)}</td>
+              <td className="num">{money(row.moneyReturned)}</td>
+              <td className="num">{money(row.amountStillToPay)}</td>
+            </tr>
+          ))
+        ) : (
+          <tr>
+            <td colSpan={6} className="pd-empty-cell">
+              No bookings assigned to this trip.
+            </td>
+          </tr>
+        )}
+      </tbody>
+      {rows.length > 0 && (
+        <tfoot>
+          <tr className="pd-subtotal">
+            <td colSpan={2}>Trip Subtotal ({rows.length} {rows.length === 1 ? 'booking' : 'bookings'})</td>
+            <td className="num">{money(sumOf(rows, row => row.shippingFee))}</td>
+            <td className="num">{money(sumOf(rows, row => row.paymentsReceived))}</td>
+            <td className="num">{money(sumOf(rows, row => row.moneyReturned))}</td>
+            <td className="num">{money(sumOf(rows, row => row.amountStillToPay))}</td>
+          </tr>
+        </tfoot>
+      )}
+    </table>
+  );
+};
 
 const PrintCancelledBookingsTable = ({ rows }) => (
-  <table className="pd-table">
+  <table className="pd-table pd-cancelled-table">
     <thead>
-      <tr>
-        <th scope="col">Tracking #</th>
-        <th scope="col">Customer</th>
-        <th scope="col" className="num">Payments</th>
-        <th scope="col" className="num">Returned</th>
-        <th scope="col" className="num">Retained Fee</th>
-        <th scope="col" className="num">To Refund</th>
+      <tr className="pd-col-header-row">
+        <th scope="col" style={{ width: '22%' }}>Tracking No.</th>
+        <th scope="col" style={{ width: '28%' }}>Customer</th>
+        <th scope="col" className="num" style={{ width: '13%' }}>Paid</th>
+        <th scope="col" className="num" style={{ width: '13%' }}>Refund</th>
+        <th scope="col" className="num" style={{ width: '12%' }}>Retained</th>
+        <th scope="col" className="num" style={{ width: '12%' }}>To Refund</th>
       </tr>
     </thead>
     <tbody>
       {rows.map(row => (
         <tr key={row.id}>
-          <td>{row.trackingNumber || '—'}</td>
+          <td className="pd-mono">{row.trackingNumber || '—'}</td>
           <td>{row.customerName}</td>
           <td className="num">{money(row.paymentsReceived)}</td>
           <td className="num">{money(row.moneyReturned)}</td>
@@ -214,7 +239,7 @@ const PrintCancelledBookingsTable = ({ rows }) => (
     </tbody>
     <tfoot>
       <tr className="pd-subtotal">
-        <td colSpan={2}>Subtotal ({rows.length})</td>
+        <td colSpan={2}>Cancelled Subtotal ({rows.length})</td>
         <td className="num">{money(sumOf(rows, row => row.paymentsReceived))}</td>
         <td className="num">{money(sumOf(rows, row => row.moneyReturned))}</td>
         <td className="num">{money(sumOf(rows, row => row.cancellation?.retainedFee))}</td>
@@ -718,71 +743,84 @@ const PerTripSalesPage = () => {
             generatedAt={lastUpdated ? formatPhDateTime(lastUpdated) : ''}
             preparedBy={userProfile?.name}
           >
-            <div className="pd-section" data-print-date={printDate}>
-              <table className="pd-table pd-accounting">
+            <div className="pd-section pd-executive-summary" data-print-date={printDate}>
+              <table className="pd-table pd-summary-table">
+                <thead>
+                  <tr>
+                    <th colSpan={2} className="pd-summary-th">
+                      FINANCIAL SUMMARY &mdash; {reportScope?.label?.toUpperCase()} ({monthlyReport.grandTotal.tripCount} {monthlyReport.grandTotal.tripCount === 1 ? 'TRIP' : 'TRIPS'})
+                    </th>
+                  </tr>
+                </thead>
                 <tbody>
-                  <tr><td>Cargo fees</td><td className="num">{money(monthlyReport.grandTotal.shippingFees)}</td></tr>
-                  <tr><td>Payments received</td><td className="num">{money(monthlyReport.grandTotal.paymentsReceived)}</td></tr>
-                  <tr><td>Money returned</td><td className="num">{money(monthlyReport.grandTotal.moneyReturned)}</td></tr>
-                  <tr className="pd-accounting-total"><td>Payments after refunds</td><td className="num">{money(monthlyReport.grandTotal.paymentsAfterRefunds)}</td></tr>
-                  <tr className="pd-accounting-total"><td>Amount still to collect</td><td className="num">{money(monthlyReport.grandTotal.amountStillToCollect)}</td></tr>
+                  <tr>
+                    <td>Total Cargo Fees (Gross Revenue)</td>
+                    <td className="num">{money(monthlyReport.grandTotal.shippingFees)}</td>
+                  </tr>
+                  <tr>
+                    <td>Total Payments Received</td>
+                    <td className="num">{money(monthlyReport.grandTotal.paymentsReceived)}</td>
+                  </tr>
+                  <tr>
+                    <td>Less: Refunds & Returns</td>
+                    <td className="num">
+                      {monthlyReport.grandTotal.moneyReturned > 0 ? `(${money(monthlyReport.grandTotal.moneyReturned)})` : '₱0.00'}
+                    </td>
+                  </tr>
+                  <tr className="pd-summary-highlight">
+                    <td><strong>Net Collections (Payments after Refunds)</strong></td>
+                    <td className="num"><strong>{money(monthlyReport.grandTotal.paymentsAfterRefunds)}</strong></td>
+                  </tr>
+                  <tr className="pd-summary-highlight">
+                    <td><strong>Total Outstanding Receivables (Balance to Collect)</strong></td>
+                    <td className="num"><strong>{money(monthlyReport.grandTotal.amountStillToCollect)}</strong></td>
+                  </tr>
                 </tbody>
               </table>
             </div>
 
             {monthlyReport.tripBreakdown.map((tripReport) => {
-              const { trip, summary: tripSummary, activeRows, cancelledRows } = tripReport;
+              const { trip, activeRows, cancelledRows } = tripReport;
               return (
                 <div className="pd-section pd-trip-section" key={trip.id}>
-                  <table className="pd-table pd-trip-header">
-                    <thead>
-                      <tr>
-                        <th scope="col">Trip Number</th>
-                        <th scope="col">Route</th>
-                        <th scope="col">Departure Date</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr>
-                        <td>{trip.trip_number || 'Trip'}</td>
-                        <td>{trip.origin || 'Origin not set'} → {trip.destination || 'Destination not set'}</td>
-                        <td>{tripDate(trip.departure_date)}</td>
-                      </tr>
-                    </tbody>
-                  </table>
-
-                  {activeRows.length > 0 && (
-                    <>
-                      <p style={{ fontSize: '9pt', fontWeight: 'bold', color: '#000', margin: '8px 0 4px' }}>Active & Completed Bookings ({tripSummary.activeBookingCount})</p>
-                      <PrintActiveBookingsTable rows={activeRows} />
-                    </>
-                  )}
+                  <PrintTripTable trip={trip} rows={activeRows} />
 
                   {cancelledRows.length > 0 && (
-                    <>
-                      <p style={{ fontSize: '9pt', fontWeight: 'bold', color: '#000', margin: '8px 0 4px' }}>Cancelled Bookings ({tripSummary.cancelledBookingCount})</p>
+                    <div className="pd-cancelled-section">
+                      <div className="pd-cancelled-title">Cancelled Bookings ({cancelledRows.length})</div>
                       <PrintCancelledBookingsTable rows={cancelledRows} />
-                    </>
-                  )}
-
-                  {activeRows.length === 0 && cancelledRows.length === 0 && (
-                    <p style={{ fontSize: '9pt', color: '#000' }}>No bookings assigned to this trip.</p>
+                    </div>
                   )}
                 </div>
               );
             })}
 
-            <table className="pd-table pd-grand-total">
-              <tbody>
-                <tr>
-                  <td>Grand Total ({monthlyReport.grandTotal.tripCount} trip{monthlyReport.grandTotal.tripCount === 1 ? '' : 's'})</td>
-                  <td className="num">{money(monthlyReport.grandTotal.shippingFees)}</td>
-                  <td className="num">{money(monthlyReport.grandTotal.paymentsReceived)}</td>
-                  <td className="num">{money(monthlyReport.grandTotal.moneyReturned)}</td>
-                  <td className="num">{money(monthlyReport.grandTotal.amountStillToCollect)}</td>
-                </tr>
-              </tbody>
-            </table>
+            <div className="pd-grand-total-section">
+              <table className="pd-table pd-grand-total-table">
+                <thead>
+                  <tr>
+                    <th colSpan={2} style={{ width: '50%' }}>
+                      GRAND TOTAL SUMMARY ({monthlyReport.grandTotal.tripCount} {monthlyReport.grandTotal.tripCount === 1 ? 'TRIP' : 'TRIPS'})
+                    </th>
+                    <th className="num" style={{ width: '13%' }}>Total Cargo Fees</th>
+                    <th className="num" style={{ width: '13%' }}>Total Paid</th>
+                    <th className="num" style={{ width: '12%' }}>Total Refund</th>
+                    <th className="num" style={{ width: '12%' }}>Total Balance</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr className="pd-grand-total-row">
+                    <td colSpan={2}>
+                      <strong>Total All Trips</strong>
+                    </td>
+                    <td className="num"><strong>{money(monthlyReport.grandTotal.shippingFees)}</strong></td>
+                    <td className="num"><strong>{money(monthlyReport.grandTotal.paymentsReceived)}</strong></td>
+                    <td className="num"><strong>{money(monthlyReport.grandTotal.moneyReturned)}</strong></td>
+                    <td className="num"><strong>{money(monthlyReport.grandTotal.amountStillToCollect)}</strong></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
 
             <p className="pd-printed-on">Prepared by: CargoExpress PH Admin · Printed on: {printDate || '—'}</p>
           </PrintDocument>
