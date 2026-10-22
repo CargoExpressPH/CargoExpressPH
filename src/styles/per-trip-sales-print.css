@@ -63,39 +63,73 @@
     padding-top: 3pt;
   }
 
+  /* When there is an amount still to collect, highlight the ENTIRE row as an unbroken accounting callout banner */
+  .print-doc .pd-accounting tr.pd-accounting-balance-due td {
+    background: #fef3c7 !important;
+    color: #92400e !important;
+    font-weight: 800 !important;
+    border-top: 1.5px solid #d97706 !important;
+    border-bottom: 1.5px solid #d97706 !important;
+    padding: 3.5pt 6pt !important;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  .print-doc .pd-accounting tr.pd-accounting-balance-due td:first-child {
+    border-left: 3.5px solid #b45309 !important;
+  }
+
+  .print-doc .pd-accounting tr.pd-accounting-balance-due td:last-child {
+    border-right: 1.5px solid #d97706 !important;
+  }
+
   /* ── Balance & Refund Highlights for Unpaid Receivables ── */
+  /* Entire row with an open balance gets a subtle tint across all columns */
   .print-doc tr.pd-row-has-balance td {
     background: #fffdf5 !important;
     print-color-adjust: exact;
     -webkit-print-color-adjust: exact;
   }
 
-  .print-doc .pd-balance-highlight {
+  /* Full-bleed table cell highlight: edge-to-edge cell fill, aligned with table grid */
+  .print-doc td.pd-cell-has-balance {
     background: #fef08a !important;
     color: #854d0e !important;
     font-weight: 700 !important;
-    padding: 1pt 5pt;
-    border-radius: 3px;
-    border: 1px solid #eab308;
-    display: inline-block;
+    border: 1px solid #ca8a04 !important;
     print-color-adjust: exact;
     -webkit-print-color-adjust: exact;
   }
 
+  /* Grand total balance cell (full-bleed accounting total) */
+  .print-doc tr.pd-grand-total-row td.pd-cell-has-balance {
+    background: #fef08a !important;
+    color: #854d0e !important;
+    font-weight: 800 !important;
+    border: 1.5px solid #ca8a04 !important;
+    border-top: 2px solid #000 !important;
+    border-bottom: 3px double #000 !important;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  /* Subtle muted style for zero balance cells to make open balances stand out cleanly */
+  .print-doc td.pd-cell-zero {
+    color: #64748b;
+  }
+
+  /* Refund due: full-bleed cell fill */
   .print-doc tr.pd-row-has-refund td {
     background: #fff9f9 !important;
     print-color-adjust: exact;
     -webkit-print-color-adjust: exact;
   }
 
-  .print-doc .pd-refund-highlight {
+  .print-doc td.pd-cell-has-refund {
     background: #fee2e2 !important;
     color: #991b1b !important;
     font-weight: 700 !important;
-    padding: 1pt 5pt;
-    border-radius: 3px;
-    border: 1px solid #f87171;
-    display: inline-block;
+    border: 1px solid #f87171 !important;
     print-color-adjust: exact;
     -webkit-print-color-adjust: exact;
   }

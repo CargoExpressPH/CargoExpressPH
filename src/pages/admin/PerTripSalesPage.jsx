@@ -195,12 +195,8 @@ const PrintTripTable = ({ trip, rows }) => {
                 <td className="num">{money(row.shippingFee)}</td>
                 <td className="num">{money(row.paymentsReceived)}</td>
                 <td className="num">{money(row.moneyReturned)}</td>
-                <td className="num">
-                  {hasBalance ? (
-                    <span className="pd-balance-highlight">{money(row.amountStillToPay)}</span>
-                  ) : (
-                    money(row.amountStillToPay)
-                  )}
+                <td className={`num ${hasBalance ? 'pd-cell-has-balance' : 'pd-cell-zero'}`}>
+                  {money(row.amountStillToPay)}
                 </td>
               </tr>
             );
@@ -223,12 +219,8 @@ const PrintTripTable = ({ trip, rows }) => {
               <td className="num">{money(sumOf(rows, row => row.shippingFee))}</td>
               <td className="num">{money(sumOf(rows, row => row.paymentsReceived))}</td>
               <td className="num">{money(sumOf(rows, row => row.moneyReturned))}</td>
-              <td className="num">
-                {hasSubtotalBalance ? (
-                  <span className="pd-balance-highlight">{money(subtotalBalance)}</span>
-                ) : (
-                  money(subtotalBalance)
-                )}
+              <td className={`num ${hasSubtotalBalance ? 'pd-cell-has-balance' : 'pd-cell-zero'}`}>
+                {money(subtotalBalance)}
               </td>
             </tr>
           </tfoot>
@@ -260,12 +252,8 @@ const PrintCancelledBookingsTable = ({ rows }) => (
             <td className="num">{money(row.paymentsReceived)}</td>
             <td className="num">{money(row.moneyReturned)}</td>
             <td className="num">{money(row.cancellation?.retainedFee)}</td>
-            <td className="num">
-              {hasRefundDue ? (
-                <span className="pd-refund-highlight">{money(row.cancellation?.amountStillToRefund)}</span>
-              ) : (
-                money(row.cancellation?.amountStillToRefund)
-              )}
+            <td className={`num ${hasRefundDue ? 'pd-cell-has-refund' : 'pd-cell-zero'}`}>
+              {money(row.cancellation?.amountStillToRefund)}
             </td>
           </tr>
         );
@@ -277,7 +265,9 @@ const PrintCancelledBookingsTable = ({ rows }) => (
         <td className="num">{money(sumOf(rows, row => row.paymentsReceived))}</td>
         <td className="num">{money(sumOf(rows, row => row.moneyReturned))}</td>
         <td className="num">{money(sumOf(rows, row => row.cancellation?.retainedFee))}</td>
-        <td className="num">{money(sumOf(rows, row => row.cancellation?.amountStillToRefund))}</td>
+        <td className={`num ${sumOf(rows, row => row.cancellation?.amountStillToRefund) > 0 ? 'pd-cell-has-refund' : 'pd-cell-zero'}`}>
+          {money(sumOf(rows, row => row.cancellation?.amountStillToRefund))}
+        </td>
       </tr>
     </tfoot>
   </table>
@@ -784,15 +774,9 @@ const PerTripSalesPage = () => {
                   <tr><td>Payments received</td><td className="num">{money(monthlyReport.grandTotal.paymentsReceived)}</td></tr>
                   <tr><td>Money returned</td><td className="num">{money(monthlyReport.grandTotal.moneyReturned)}</td></tr>
                   <tr className="pd-accounting-total"><td>Payments after refunds</td><td className="num">{money(monthlyReport.grandTotal.paymentsAfterRefunds)}</td></tr>
-                  <tr className="pd-accounting-balance">
+                  <tr className={`pd-accounting-balance ${(Number(monthlyReport.grandTotal.amountStillToCollect) || 0) > 0 ? 'pd-accounting-balance-due' : ''}`}>
                     <td>Amount still to collect</td>
-                    <td className="num">
-                      {(Number(monthlyReport.grandTotal.amountStillToCollect) || 0) > 0 ? (
-                        <span className="pd-balance-highlight">{money(monthlyReport.grandTotal.amountStillToCollect)}</span>
-                      ) : (
-                        money(monthlyReport.grandTotal.amountStillToCollect)
-                      )}
-                    </td>
+                    <td className="num">{money(monthlyReport.grandTotal.amountStillToCollect)}</td>
                   </tr>
                 </tbody>
               </table>
@@ -860,12 +844,8 @@ const PerTripSalesPage = () => {
                     <td className="num"><strong>{money(monthlyReport.grandTotal.shippingFees)}</strong></td>
                     <td className="num"><strong>{money(monthlyReport.grandTotal.paymentsReceived)}</strong></td>
                     <td className="num"><strong>{money(monthlyReport.grandTotal.moneyReturned)}</strong></td>
-                    <td className="num">
-                      {(Number(monthlyReport.grandTotal.amountStillToCollect) || 0) > 0 ? (
-                        <span className="pd-balance-highlight">{money(monthlyReport.grandTotal.amountStillToCollect)}</span>
-                      ) : (
-                        <strong>{money(monthlyReport.grandTotal.amountStillToCollect)}</strong>
-                      )}
+                    <td className={`num ${(Number(monthlyReport.grandTotal.amountStillToCollect) || 0) > 0 ? 'pd-cell-has-balance' : 'pd-cell-zero'}`}>
+                      <strong>{money(monthlyReport.grandTotal.amountStillToCollect)}</strong>
                     </td>
                   </tr>
                 </tbody>
