@@ -781,13 +781,38 @@ const PerTripSalesPage = () => {
 
             {monthlyReport.tripBreakdown.map((tripReport) => {
               const { trip, activeRows, cancelledRows } = tripReport;
+              const hasActive = activeRows && activeRows.length > 0;
+              const hasCancelled = cancelledRows && cancelledRows.length > 0;
+
               return (
                 <div className="pd-section pd-trip-section" key={trip.id}>
-                  <PrintTripTable trip={trip} rows={activeRows} />
+                  {hasActive && (
+                    <PrintTripTable trip={trip} rows={activeRows} />
+                  )}
 
-                  {cancelledRows.length > 0 && (
+                  {!hasActive && hasCancelled && (
+                    <table className="pd-table pd-trip-table" style={{ marginBottom: '4pt' }}>
+                      <thead>
+                        <tr className="pd-trip-banner-row">
+                          <th colSpan={3} className="pd-trip-banner-title">
+                            <span className="pd-trip-num">{trip.trip_number || 'Trip'}</span>
+                            <span className="pd-trip-sep">•</span>
+                            <span className="pd-trip-route">{trip.origin || 'Origin not set'} → {trip.destination || 'Destination not set'}</span>
+                            <span style={{ marginLeft: '6pt', fontSize: '7.5pt', color: '#991b1b', fontWeight: 'bold' }}>
+                              [CANCELLED TRIP — REFUNDS]
+                            </span>
+                          </th>
+                          <th colSpan={3} className="pd-trip-banner-date num">
+                            Departure: <strong>{tripDate(trip.departure_date)}</strong>
+                          </th>
+                        </tr>
+                      </thead>
+                    </table>
+                  )}
+
+                  {hasCancelled && (
                     <div className="pd-cancelled-section">
-                      <div className="pd-cancelled-title">Cancelled Bookings ({cancelledRows.length})</div>
+                      <div className="pd-cancelled-title">Cancelled Bookings & Refunds ({cancelledRows.length})</div>
                       <PrintCancelledBookingsTable rows={cancelledRows} />
                     </div>
                   )}

@@ -235,6 +235,43 @@ export const buildPerTripSalesReport = ({
 };
 
 /**
+ * Determines whether a trip report has zero bookings and zero financial activity.
+ * Cancelled trips with no bookings and no financial records / refunds are excluded
+ * from the sales report to prevent blank clutter. Cancelled trips with refunds/settlements
+ * are preserved for financial audit integrity.
+ */
+export const isTripReportEmpty = (tripReport) => {
+  if (!tripReport) return true;
+  const { trip, activeRows = [], cancelledRows = [], summary = {} } = tripReport;
+
+  // Has active non-cancelled cargo bookings
+  if (activeRows.length > 0) return false;
+
+  // Has any recorded monetary transactions (revenue, payments, refunds, balances)
+  const hasMoney = (
+    Math.abs(Number(summary.shippingFees) || 0) > 0 ||
+    Math.abs(Number(summary.paymentsReceived) || 0) > 0 ||
+    Math.abs(Number(summary.moneyReturned) || 0) > 0 ||
+    Math.abs(Number(summary.amountStillToCollect) || 0) > 0 ||
+    Math.abs(Number(summary.pendingRefundAmount) || 0) > 0 ||
+    Math.abs(Number(summary.cancelledMoneyAwaitingDecision) || 0) > 0
+  );
+  if (hasMoney) return false;
+
+  // Has cancelled bookings with financial activity (refunds to process, refunded amounts, or retained fees)
+  const hasCancelledFinancials = cancelledRows.some(row => (
+    Math.abs(Number(row.paymentsReceived) || 0) > 0 ||
+    Math.abs(Number(row.moneyReturned) || 0) > 0 ||
+    Math.abs(Number(row.cancellation?.retainedFee) || 0) > 0 ||
+    Math.abs(Number(row.cancellation?.amountStillToRefund) || 0) > 0
+  ));
+  if (hasCancelledFinancials) return false;
+
+  // Otherwise, the trip has no bookings and no financial records — it is completely empty/blank.
+  return true;
+};
+
+/**
  * Rolls up several already-built per-trip reports (see buildPerTripSalesReport)
  * into one Grand Total plus the unmodified per-trip breakdown. Pure and cents-
  * safe like buildPerTripSalesReport, so the grand total is guaranteed to equal
@@ -242,10 +279,14 @@ export const buildPerTripSalesReport = ({
  * to drift out of sync.
  */
 export const aggregateMonthlySalesReports = (tripReports = []) => {
+  // Exclude cancelled or empty trips that have no bookings and no financial transactions / refunds.
+  // Cancelled trips with refunds/settlements are preserved so financial audit integrity remains intact.
+  const activeReports = (tripReports || []).filter(report => !isTripReportEmpty(report));
+
   const sum = (field) => fromCents(
-    tripReports.reduce((total, report) => addCents(total, toCents(report.summary?.[field])), 0)
+    activeReports.reduce((total, report) => addCents(total, toCents(report.summary?.[field])), 0)
   );
-  const sumCount = (field) => tripReports.reduce((total, report) => total + Number(report.summary?.[field] || 0), 0);
+  const sumCount = (field) => activeReports.reduce((total, report) => total + Number(report.summary?.[field] || 0), 0);
 
   return {
     grandTotal: {
@@ -263,10 +304,10 @@ export const aggregateMonthlySalesReports = (tripReports = []) => {
       pendingRefundAmount: sum('pendingRefundAmount'),
       failedRefundAmount: sum('failedRefundAmount'),
       uncertainRefundAmount: sum('uncertainRefundAmount'),
-      dataInconsistent: tripReports.some(report => report.summary?.dataInconsistent),
-      tripCount: tripReports.length,
+      dataInconsistent: activeReports.some(report => report.summary?.dataInconsistent),
+      tripCount: activeReports.length,
     },
-    tripBreakdown: tripReports,
+    tripBreakdown: activeReports,
   };
 };
 
