@@ -743,38 +743,14 @@ const PerTripSalesPage = () => {
             generatedAt={lastUpdated ? formatPhDateTime(lastUpdated) : ''}
             preparedBy={userProfile?.name}
           >
-            <div className="pd-section pd-executive-summary" data-print-date={printDate}>
-              <table className="pd-table pd-summary-table">
-                <thead>
-                  <tr>
-                    <th colSpan={2} className="pd-summary-th">
-                      FINANCIAL SUMMARY &mdash; {reportScope?.label?.toUpperCase()} ({monthlyReport.grandTotal.tripCount} {monthlyReport.grandTotal.tripCount === 1 ? 'TRIP' : 'TRIPS'})
-                    </th>
-                  </tr>
-                </thead>
+            <div className="pd-section" data-print-date={printDate}>
+              <table className="pd-table pd-accounting">
                 <tbody>
-                  <tr>
-                    <td>Total Cargo Fees (Gross Revenue)</td>
-                    <td className="num">{money(monthlyReport.grandTotal.shippingFees)}</td>
-                  </tr>
-                  <tr>
-                    <td>Total Payments Received</td>
-                    <td className="num">{money(monthlyReport.grandTotal.paymentsReceived)}</td>
-                  </tr>
-                  <tr>
-                    <td>Less: Refunds & Returns</td>
-                    <td className="num">
-                      {monthlyReport.grandTotal.moneyReturned > 0 ? `(${money(monthlyReport.grandTotal.moneyReturned)})` : '₱0.00'}
-                    </td>
-                  </tr>
-                  <tr className="pd-summary-highlight">
-                    <td><strong>Net Collections (Payments after Refunds)</strong></td>
-                    <td className="num"><strong>{money(monthlyReport.grandTotal.paymentsAfterRefunds)}</strong></td>
-                  </tr>
-                  <tr className="pd-summary-highlight">
-                    <td><strong>Total Outstanding Receivables (Balance to Collect)</strong></td>
-                    <td className="num"><strong>{money(monthlyReport.grandTotal.amountStillToCollect)}</strong></td>
-                  </tr>
+                  <tr><td>Cargo fees</td><td className="num">{money(monthlyReport.grandTotal.shippingFees)}</td></tr>
+                  <tr><td>Payments received</td><td className="num">{money(monthlyReport.grandTotal.paymentsReceived)}</td></tr>
+                  <tr><td>Money returned</td><td className="num">{money(monthlyReport.grandTotal.moneyReturned)}</td></tr>
+                  <tr className="pd-accounting-total"><td>Payments after refunds</td><td className="num">{money(monthlyReport.grandTotal.paymentsAfterRefunds)}</td></tr>
+                  <tr className="pd-accounting-balance"><td>Amount still to collect</td><td className="num">{money(monthlyReport.grandTotal.amountStillToCollect)}</td></tr>
                 </tbody>
               </table>
             </div>

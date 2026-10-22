@@ -31,48 +31,36 @@
     font-weight: 600;
   }
 
-  /* ── Executive Financial Summary Table (Top) ── */
-  .print-doc .pd-executive-summary {
-    display: flex;
-    justify-content: flex-end;
-    margin-bottom: 14pt;
-  }
-
-  .print-doc .pd-summary-table {
-    width: 62%;
+  /* ── Financial Summary (Top): borderless, right-aligned, clean accounting style ── */
+  .print-doc .pd-accounting {
+    width: 60%;
     margin-left: auto;
-    border: 1.5px solid #000;
     border-collapse: collapse;
-    font-size: 8.5pt;
+    margin-bottom: 16pt;
+    border: none !important;
   }
 
-  .print-doc .pd-summary-table th.pd-summary-th {
-    background: #2b3440 !important;
-    color: #ffffff !important;
-    font-size: 8.5pt;
+  .print-doc .pd-accounting td {
+    border: none !important;
+    padding: 2pt 4pt;
+    font-size: 9.5pt;
+    background: transparent !important;
+  }
+
+  .print-doc .pd-accounting td.num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .print-doc .pd-accounting tr.pd-accounting-total td {
     font-weight: 700;
-    letter-spacing: 0.5px;
-    padding: 4.5pt 8pt;
-    text-align: left;
-    border: 1px solid #000;
-    print-color-adjust: exact;
-    -webkit-print-color-adjust: exact;
+    border-top: 1.5px solid #000 !important;
+    padding-top: 5pt;
   }
 
-  .print-doc .pd-summary-table td {
-    padding: 2.5pt 8pt;
-    border: 1px solid #cbd5e1;
-  }
-
-  .print-doc .pd-summary-highlight td {
-    background: #f1f5f9 !important;
+  .print-doc .pd-accounting tr.pd-accounting-balance td {
     font-weight: 700;
-    border-top: 1.5px solid #000;
-    border-bottom: 1px solid #000;
-    padding-top: 3.5pt;
-    padding-bottom: 3.5pt;
-    print-color-adjust: exact;
-    -webkit-print-color-adjust: exact;
+    padding-top: 3pt;
   }
 
   /* ── Unified Trip Schedule Table ── */
