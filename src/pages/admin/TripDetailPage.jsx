@@ -3,6 +3,7 @@ import { supabase } from '../../lib/supabase';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { rowLinkProps } from '../../utils/rowLink';
 import { getTripById, getTripStartDateGates, listLoadingShortfalls, listBoxScanEvents, updateTrip, getActivityLogsByRecord, rescheduleTrip, retryTripReschedulePublicNotice } from '../../lib/database';
+import { getCachedTripDetail } from '../../lib/offlineScannerQueue';
 import StatusBadge from '../../components/ui/StatusBadge';
 import ConfirmModal from '../../components/ui/ConfirmModal';
 import RescheduleTripModal from '../../components/ui/RescheduleTripModal';
@@ -54,7 +55,7 @@ const TripDetailPage = () => {
   }, []);
 
   useEffect(() => {
-    setData(null);
+    setData((prev) => prev?.trip?.id === id ? prev : null);
     setActivityHistory([]);
     setShortfalls([]);
     setScanEvents([]);
@@ -65,6 +66,7 @@ const TripDetailPage = () => {
   // open across midnight or returns after the tab was backgrounded.
   useEffect(() => {
     if (data?.trip?.status !== 'scheduled') return undefined;
+    if (typeof navigator !== 'undefined' && !navigator.onLine) return undefined;
     let isMounted = true;
     const refreshGate = async () => {
       try {
@@ -91,28 +93,58 @@ const TripDetailPage = () => {
     const isCurrent = beginRequest();
     if (!isCurrent()) return;
     if (!silent && !data) { setError(null); setLoading(true); }
+
+    let currentTripData = null;
+
+    // 1. FAST PATH: Check IndexedDB cache FIRST (instant 0ms hydration like OrderDetailPage)
     try {
-      const result = await getTripById(id);
-      if (!isCurrent()) return;
-      setData(result);
-      // Supervisor-approved loading shortfalls count as resolved boxes for the Start Trip gate.
+      const cached = await getCachedTripDetail(id);
+      if (cached && isCurrent()) {
+        currentTripData = { ...cached, _fromCache: true };
+        setData(currentTripData);
+        setLoading(false); // Instantly dismiss the loading spinner!
+      }
+    } catch {
+      // Best-effort cache read
+    }
+
+    // 2. NETWORK PATH: If online, fetch fresh server data in background
+    const isOffline = typeof navigator !== 'undefined' && navigator.onLine === false;
+    if (!isOffline) {
+      try {
+        const result = await getTripById(id);
+        if (isCurrent()) {
+          currentTripData = result;
+          setData(result);
+          setError(null);
+        }
+      } catch (e) {
+        if (!isCurrent()) return;
+        if (!currentTripData && !silent) {
+          setError(e.message || 'Failed to load trip.');
+        }
+      }
+    } else if (!currentTripData && !silent && isCurrent()) {
+      setError('You are offline and this trip has not been cached yet.');
+    }
+
+    if (isCurrent()) setLoading(false);
+
+    // 3. SECONDARY DATA (Non-blocking): shortfalls, scan events, and activity history
+    if (currentTripData) {
       listLoadingShortfalls(id)
         .then((rows) => { if (isCurrent()) setShortfalls(rows); })
         .catch(() => { if (isCurrent()) setShortfalls([]); });
-      // Verification audit trail (manual fallbacks are badged below); absent before the migration, so never fatal.
+
       listBoxScanEvents(id)
         .then((rows) => { if (isCurrent()) setScanEvents(rows); })
         .catch(() => { if (isCurrent()) setScanEvents([]); });
-      try {
-        const actLogs = await getActivityLogsByRecord(id, result?.trip?.trip_number);
-        if (isCurrent()) setActivityHistory(actLogs);
-      } catch {
-        if (isCurrent()) setActivityHistory([]);
+
+      if (!isOffline) {
+        getActivityLogsByRecord(id, currentTripData?.trip?.trip_number)
+          .then((actLogs) => { if (isCurrent()) setActivityHistory(actLogs); })
+          .catch(() => { if (isCurrent()) setActivityHistory([]); });
       }
-    } catch(e) {
-      if (isCurrent() && !silent) setError(e.message || 'Failed to load trip.');
-    } finally {
-      if (isCurrent()) setLoading(false);
     }
   };
 

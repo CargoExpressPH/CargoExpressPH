@@ -1373,7 +1373,7 @@ export const getTripById = async (tripId) => {
     throw new Error('You are currently offline and this trip is not cached yet.');
   }
 
-  try {
+  const fetchNetworkTrip = async () => {
     const { data: trip, error } = await supabase
       .from('trips')
       .select('*')
@@ -1414,11 +1414,25 @@ export const getTripById = async (tripId) => {
     // Asynchronously update local cache so offline navigation always has fresh trip details
     saveCachedTripDetail(tripId, result).catch(() => {});
     return result;
-  } catch (err) {
-    if (isNetworkError(err)) {
-      const cached = await getCachedTripDetail(tripId).catch(() => null);
-      if (cached) return { ...cached, _fromCache: true };
+  };
+
+  try {
+    const cached = await getCachedTripDetail(tripId).catch(() => null);
+    if (cached) {
+      const networkPromise = fetchNetworkTrip();
+      const timeoutPromise = new Promise((resolve) => setTimeout(() => resolve({ isTimeout: true }), 3500));
+      const result = await Promise.race([networkPromise, timeoutPromise]);
+      if (result?.isTimeout) {
+        console.warn('Network slow/offline. Serving cached trip details.');
+        return { ...cached, _fromCache: true };
+      }
+      return result;
     }
+
+    return await fetchNetworkTrip();
+  } catch (err) {
+    const cached = await getCachedTripDetail(tripId).catch(() => null);
+    if (cached) return { ...cached, _fromCache: true };
     throw err;
   }
 };

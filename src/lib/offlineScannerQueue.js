@@ -200,25 +200,93 @@ export const saveCachedTripDetail = (tripId, data) => {
 };
 
 export const getCachedTripDetail = async (tripId) => {
+  if (!tripId) return null;
+  let detail = null;
   const record = await getRecord(STORE_TRIP_DETAILS, tripId);
-  if (!record?.data) return null;
-  // If manifest has fresher orders or locally verified boxes, merge them into the trip orders
-  const manifest = await getRecord(STORE_MANIFESTS, tripId);
-  if (manifest?.orders?.length && Array.isArray(record.data.orders)) {
-    const manifestOrderMap = new Map(manifest.orders.map((o) => [o.id, o]));
-    record.data.orders = record.data.orders.map((order) => {
-      const fresh = manifestOrderMap.get(order.id);
-      return fresh ? { ...order, ...fresh } : order;
-    });
+  if (record?.data) {
+    detail = { ...record.data };
+  } else {
+    // Fallback 1: check __trips_list__ for trip metadata
+    const cachedTrips = await getCachedTripsList().catch(() => []);
+    const matchingTrip = cachedTrips.find((t) => t.id === tripId);
+    if (matchingTrip) {
+      detail = {
+        trip: matchingTrip,
+        orders: [],
+        current_weight: matchingTrip.current_weight || 0,
+        start_gate: null,
+      };
+    }
   }
-  return record.data;
+
+  if (!detail) return null;
+
+  // If manifest has fresher orders or locally verified boxes, merge or attach them
+  const manifest = await getRecord(STORE_MANIFESTS, tripId).catch(() => null);
+  if (manifest?.orders?.length) {
+    if (Array.isArray(detail.orders) && detail.orders.length > 0) {
+      const manifestOrderMap = new Map(manifest.orders.map((o) => [o.id, o]));
+      detail.orders = detail.orders.map((order) => {
+        const fresh = manifestOrderMap.get(order.id);
+        return fresh ? { ...order, ...fresh } : order;
+      });
+    } else {
+      detail.orders = manifest.orders;
+    }
+  }
+
+  // Fallback 2: if detail.orders is still empty, check STORE_ORDERS for orders assigned to this trip
+  if (!detail.orders?.length) {
+    try {
+      const allOrders = await allRecords(STORE_ORDERS);
+      const matchingOrders = allOrders.filter((o) => !o._is_list_cache && o.trip_id === tripId);
+      if (matchingOrders.length > 0) {
+        detail.orders = matchingOrders;
+      }
+    } catch {
+      // Best-effort
+    }
+  }
+
+  return detail;
 };
 
-export const saveCachedTripsList = (trips) => putRecord(STORE_TRIP_DETAILS, {
-  trip_id: '__trips_list__',
-  saved_at: new Date().toISOString(),
-  data: trips,
-});
+export const saveCachedTripsList = async (trips) => {
+  if (Array.isArray(trips)) {
+    for (const t of trips) {
+      if (t?.id) {
+        try {
+          const existing = await getRecord(STORE_TRIP_DETAILS, t.id);
+          if (!existing?.data) {
+            await putRecord(STORE_TRIP_DETAILS, {
+              trip_id: t.id,
+              saved_at: new Date().toISOString(),
+              data: {
+                trip: t,
+                orders: [],
+                current_weight: t.current_weight || 0,
+                start_gate: null,
+              },
+            });
+          } else if (existing.data?.trip) {
+            existing.data.trip = { ...existing.data.trip, ...t };
+            if (t.current_weight != null) {
+              existing.data.current_weight = t.current_weight;
+            }
+            await putRecord(STORE_TRIP_DETAILS, existing);
+          }
+        } catch {
+          // Best-effort seeding
+        }
+      }
+    }
+  }
+  return putRecord(STORE_TRIP_DETAILS, {
+    trip_id: '__trips_list__',
+    saved_at: new Date().toISOString(),
+    data: trips,
+  });
+};
 
 export const getCachedTripsList = async () => {
   const record = await getRecord(STORE_TRIP_DETAILS, '__trips_list__');

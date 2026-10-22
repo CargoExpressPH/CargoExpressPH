@@ -3,6 +3,7 @@ import { supabase } from '../../lib/supabase';
 import { tripCapacityState } from '../../constants/status';
 import { Link, useNavigate } from 'react-router-dom';
 import { getTrips, getTripStartDateGates, withTimeout } from '../../lib/database';
+import { getCachedTripsList } from '../../lib/offlineScannerQueue';
 import StatusBadge from '../../components/ui/StatusBadge';
 import { CenteredSpinner } from '../../components/ui/Loader';
 import EmptyState from '../../components/ui/EmptyState';
@@ -57,21 +58,36 @@ const AdminTripsPage = () => {
   useEffect(() => { loadTrips(); }, []);
   const loadTrips = async ({ silent = false } = {}) => {
     if (!silent && trips.length === 0) { setError(null); setLoading(true); }
+
+    // 1. FAST PATH: Check IndexedDB cache FIRST (instant 0ms hydration)
+    try {
+      const cached = await getCachedTripsList().catch(() => []);
+      if (cached?.length && trips.length === 0) {
+        setTrips(cached);
+        setLoading(false); // Instantly dismisses spinner so trips are visible!
+      }
+    } catch {
+      // Best-effort
+    }
+
+    // 2. NETWORK PATH: Fetch fresh trips from server
     try {
       const data = await withTimeout(getTrips());
       const rows = data || [];
-      let gates = {};
-      try {
-        if (navigator.onLine) {
-          gates = await getTripStartDateGates(rows.filter(t => t.status === 'scheduled').map(t => t.id));
-        }
-      } catch (gateErr) {
-        console.warn('Unable to load trip start date gates (offline):', gateErr);
-      }
       setTrips(rows);
-      setStartGates(gates);
+      setLoading(false);
+
+      // 3. Start date gates fetched non-blockingly so it never holds up displaying the trips list
+      if (typeof navigator !== 'undefined' && navigator.onLine) {
+        const scheduledIds = rows.filter(t => t.status === 'scheduled').map(t => t.id);
+        if (scheduledIds.length > 0) {
+          getTripStartDateGates(scheduledIds)
+            .then((gates) => setStartGates(gates || {}))
+            .catch((gateErr) => console.warn('Unable to load trip start date gates (offline):', gateErr));
+        }
+      }
     } catch (e) {
-      if (!silent) setError(e.message || 'Failed to load trips.');
+      if (!silent && trips.length === 0) setError(e.message || 'Failed to load trips.');
     } finally {
       setLoading(false);
     }
