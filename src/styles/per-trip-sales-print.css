@@ -63,6 +63,43 @@
     padding-top: 3pt;
   }
 
+  /* ── Balance & Refund Highlights for Unpaid Receivables ── */
+  .print-doc tr.pd-row-has-balance td {
+    background: #fffdf5 !important;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  .print-doc .pd-balance-highlight {
+    background: #fef08a !important;
+    color: #854d0e !important;
+    font-weight: 700 !important;
+    padding: 1pt 5pt;
+    border-radius: 3px;
+    border: 1px solid #eab308;
+    display: inline-block;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  .print-doc tr.pd-row-has-refund td {
+    background: #fff9f9 !important;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  .print-doc .pd-refund-highlight {
+    background: #fee2e2 !important;
+    color: #991b1b !important;
+    font-weight: 700 !important;
+    padding: 1pt 5pt;
+    border-radius: 3px;
+    border: 1px solid #f87171;
+    display: inline-block;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
   /* ── Unified Trip Schedule Table ── */
   .print-doc .pd-trip-section {
     break-inside: avoid;
