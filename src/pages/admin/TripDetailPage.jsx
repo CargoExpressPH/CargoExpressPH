@@ -368,7 +368,9 @@ const TripDetailPage = () => {
   // problem to name first.
   const pendingCancellationOrders = orders.filter(o => o.status === 'Pending Cancellation');
   const notYetPickedUp = orders.filter(o => o.status === 'Pending' || o.status === 'Assigned');
-  const eligibleOrders = orders.filter(o => !['Cancelled', 'Pending Cancellation', 'Pending', 'Assigned'].includes(o.status));
+  // 'Assigned' orders are included so loading-scan counts reflect all cargo
+  // physically being loaded, not just the formally picked-up subset.
+  const eligibleOrders = orders.filter(o => !['Cancelled', 'Pending Cancellation', 'Pending'].includes(o.status));
   const undeliveredOrders = orders.filter(o => !['Delivered', 'Cancelled'].includes(o.status));
   const eligibleWeight = eligibleOrders.reduce((sum, o) => sum + (Number(o.actual_weight) || 0), 0);
   const heldBoxKeys = new Set(shortfalls.map(s => s.order_id + ':' + s.box_number));

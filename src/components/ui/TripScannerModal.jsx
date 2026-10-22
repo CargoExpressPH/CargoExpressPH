@@ -291,8 +291,10 @@ const TripScannerModal = ({
   }, []);
 
   // ── Manifest Stats ───────────────────────────────────────────────────────
+  // 'Assigned' orders are included so cargo that hasn't been formally picked up
+  // yet can still be scanned and verified during van loading.
   const eligibleOrders = useMemo(() => (
-    orders.filter((o) => !['Cancelled', 'Pending Cancellation', 'Pending', 'Assigned'].includes(o.status))
+    orders.filter((o) => !['Cancelled', 'Pending Cancellation', 'Pending'].includes(o.status))
   ), [orders]);
 
   const totalTripBoxes = useMemo(() => (
@@ -450,7 +452,7 @@ const TripScannerModal = ({
     triggerPulse('is-success-pulse');
     const nextOrders = result.nextOrders || ordersRef.current;
     const scanned = nextOrders
-      .filter((o) => !['Cancelled', 'Pending Cancellation', 'Pending', 'Assigned'].includes(o.status))
+      .filter((o) => !['Cancelled', 'Pending Cancellation', 'Pending'].includes(o.status))
       .reduce((sum, o) => {
         const q = o.package_quantity || 1;
         return sum + (o.verified_boxes || []).filter((b) => b <= q).length;
