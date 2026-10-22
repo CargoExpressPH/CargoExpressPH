@@ -801,7 +801,7 @@ const BookShipmentPage = () => {
                           {formatContactAddress(contact)}
                         </span>
                         <span className="lalamove-row-meta">
-                          {contact.last_name}, {contact.first_name}{contact.middle_name ? ` ${contact.middle_name}` : ''} | {contact.phone}
+                          {[contact.first_name, contact.middle_name, contact.last_name].filter(Boolean).join(' ')} | {contact.phone}
                         </span>
                       </div>
                     </button>
@@ -814,25 +814,10 @@ const BookShipmentPage = () => {
 
         {/* FULL NAME FIELDS */}
         <div className="form-group col-full">
-          <label className="form-label mb-4" htmlFor={id('last_name')}>
+          <label className="form-label mb-4" htmlFor={id('first_name')}>
             Full Name <span className="required">*</span>
           </label>
-          <div className="grid grid-2 gap-12">
-            <div>
-              <label className="form-label sr-only" htmlFor={id('last_name')}>Last Name</label>
-              <input
-                id={id('last_name')}
-                className={`form-input ${fc('last_name')}`}
-                value={form[`${prefix}_last_name`]}
-                onChange={handleTextChange(`${prefix}_last_name`)}
-                placeholder="Last Name"
-                autoComplete={isSender ? 'family-name' : 'shipping family-name'}
-                autoCapitalize="words"
-                required
-                {...a11y('last_name')}
-              />
-              {errEl('last_name')}
-            </div>
+          <div className="booking-name-grid">
             <div>
               <label className="form-label sr-only" htmlFor={id('first_name')}>First Name</label>
               <input
@@ -848,18 +833,33 @@ const BookShipmentPage = () => {
               />
               {errEl('first_name')}
             </div>
-          </div>
-          <div className="mt-8">
-            <label className="form-label sr-only" htmlFor={id('middle_name')}>Middle Name</label>
-            <input
-              id={id('middle_name')}
-              className="form-input"
-              value={form[`${prefix}_middle_name`]}
-              onChange={handleTextChange(`${prefix}_middle_name`)}
-              placeholder="Middle Name (optional)"
-              autoComplete={isSender ? 'additional-name' : 'shipping additional-name'}
-              autoCapitalize="words"
-            />
+            <div>
+              <label className="form-label sr-only" htmlFor={id('middle_name')}>Middle Name</label>
+              <input
+                id={id('middle_name')}
+                className="form-input"
+                value={form[`${prefix}_middle_name`]}
+                onChange={handleTextChange(`${prefix}_middle_name`)}
+                placeholder="Middle Name (optional)"
+                autoComplete={isSender ? 'additional-name' : 'shipping additional-name'}
+                autoCapitalize="words"
+              />
+            </div>
+            <div>
+              <label className="form-label sr-only" htmlFor={id('last_name')}>Last Name</label>
+              <input
+                id={id('last_name')}
+                className={`form-input ${fc('last_name')}`}
+                value={form[`${prefix}_last_name`]}
+                onChange={handleTextChange(`${prefix}_last_name`)}
+                placeholder="Last Name"
+                autoComplete={isSender ? 'family-name' : 'shipping family-name'}
+                autoCapitalize="words"
+                required
+                {...a11y('last_name')}
+              />
+              {errEl('last_name')}
+            </div>
           </div>
         </div>
         <div className="form-group"><label className="form-label" htmlFor={id('phone')}>Mobile Number <span className="required">*</span></label><input id={id('phone')} className={`form-input ${fc('phone')}`} value={form[`${prefix}_phone`]} onChange={handlePhoneChange(`${prefix}_phone`)} inputMode="numeric" maxLength={11} placeholder="09xxxxxxxxx" autoComplete="tel" required {...a11y('phone')} />{errEl('phone')}</div>
@@ -1517,7 +1517,7 @@ const BookShipmentPage = () => {
                     <div className="booking-summary-label">{title}</div>
                     <button type="button" className="booking-summary-edit" onClick={() => setStep(editStep)} aria-label={`Edit ${title.toLowerCase()} details`}>Edit</button>
                   </div>
-                  <div className="text-sm font-bold">{form[`${p}_last_name`]}, {form[`${p}_first_name`]}{form[`${p}_middle_name`] ? ` ${form[`${p}_middle_name`]}` : ''}</div>
+                  <div className="text-sm font-bold">{[form[`${p}_first_name`], form[`${p}_middle_name`], form[`${p}_last_name`]].filter(Boolean).join(' ')}</div>
                   <div className="text-xs text-secondary">{form[`${p}_phone`]}</div>
                   <div className="text-xs text-secondary mt-4">
                     {buildFullAddress({

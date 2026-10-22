@@ -2637,6 +2637,20 @@ body:has(textarea:focus) .support-chat-page {
   margin-inline: auto;
 }
 
+/* Booking: Full name fields sequence (First Name -> Middle Name -> Last Name) */
+.booking-name-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+@media (max-width: 640px) {
+  .booking-name-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+}
+
 /* Booking: "Pickup address" / "Delivery address" break inside the sender and
    receiver forms, so nine fields read as two short groups. */
 .booking-field-group {
